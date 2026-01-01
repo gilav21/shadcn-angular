@@ -1,0 +1,25 @@
+{
+    "name": "shadcn-angular",
+    "version": "0.0.1",
+    "description": "Angular port of shadcn/ui - beautifully designed components",
+    "private": true,
+    "workspaces": [
+        "packages/*",
+        "demo"
+    ],
+    "scripts": {
+        "build:cli": "cd packages/cli && npm run build",
+        "build:demo": "cd demo && npm run build",
+        "dev": "cd demo && npm run start",
+        "test": "cd demo && npm run test"
+    },
+    "keywords": [
+        "angular",
+        "shadcn",
+        "ui",
+        "components",
+        "tailwind"
+    ],
+    "author": "",
+    "license": "MIT"
+}

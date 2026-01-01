@@ -1,0 +1,35 @@
+{
+    "name": "shadcn-angular",
+    "version": "0.0.1",
+    "description": "CLI for adding shadcn-angular components to your project",
+    "bin": {
+        "shadcn-angular": "./dist/index.js"
+    },
+    "main": "./dist/index.js",
+    "type": "module",
+    "scripts": {
+        "build": "tsc",
+        "dev": "tsc --watch",
+        "start": "node dist/index.js"
+    },
+    "keywords": [
+        "angular",
+        "shadcn",
+        "cli",
+        "components"
+    ],
+    "dependencies": {
+        "chalk": "^5.3.0",
+        "commander": "^12.1.0",
+        "fs-extra": "^11.2.0",
+        "ora": "^8.0.1",
+        "prompts": "^2.4.2",
+        "execa": "^9.3.0"
+    },
+    "devDependencies": {
+        "@types/fs-extra": "^11.0.4",
+        "@types/node": "^20.14.0",
+        "@types/prompts": "^2.4.9",
+        "typescript": "^5.5.0"
+    }
+}
