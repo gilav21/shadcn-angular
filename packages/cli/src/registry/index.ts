@@ -2,14 +2,14 @@
 // Each component has files (content) and dependencies on other components
 
 export interface ComponentFile {
-    name: string;
-    content: string;
+  name: string;
+  content: string;
 }
 
 export interface ComponentDefinition {
-    name: string;
-    files: ComponentFile[];
-    dependencies?: string[];
+  name: string;
+  files: ComponentFile[];
+  dependencies?: string[];
 }
 
 export type ComponentName = keyof typeof registry;
@@ -19,11 +19,11 @@ export type ComponentName = keyof typeof registry;
 // =============================================================================
 
 const buttonComponent: ComponentDefinition = {
-    name: 'button',
-    files: [
-        {
-            name: 'button/button.component.ts',
-            content: `import {
+  name: 'button',
+  files: [
+    {
+      name: 'button/button.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -101,14 +101,14 @@ export class ButtonComponent {
 
 export { buttonVariants };
 `,
-        },
-        {
-            name: 'button/index.ts',
-            content: `export * from './button.component';
+    },
+    {
+      name: 'button/index.ts',
+      content: `export * from './button.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -116,11 +116,11 @@ export { buttonVariants };
 // =============================================================================
 
 const inputComponent: ComponentDefinition = {
-    name: 'input',
-    files: [
-        {
-            name: 'input/input.component.ts',
-            content: `import {
+  name: 'input',
+  files: [
+    {
+      name: 'input/input.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -205,14 +205,14 @@ export class InputComponent implements ControlValueAccessor {
   }
 }
 `,
-        },
-        {
-            name: 'input/index.ts',
-            content: `export * from './input.component';
+    },
+    {
+      name: 'input/index.ts',
+      content: `export * from './input.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -220,11 +220,11 @@ export class InputComponent implements ControlValueAccessor {
 // =============================================================================
 
 const labelComponent: ComponentDefinition = {
-    name: 'label',
-    files: [
-        {
-            name: 'label/label.component.ts',
-            content: `import {
+  name: 'label',
+  files: [
+    {
+      name: 'label/label.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -257,14 +257,14 @@ export class LabelComponent {
   );
 }
 `,
-        },
-        {
-            name: 'label/index.ts',
-            content: `export * from './label.component';
+    },
+    {
+      name: 'label/index.ts',
+      content: `export * from './label.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -272,11 +272,11 @@ export class LabelComponent {
 // =============================================================================
 
 const badgeComponent: ComponentDefinition = {
-    name: 'badge',
-    files: [
-        {
-            name: 'badge/badge.component.ts',
-            content: `import {
+  name: 'badge',
+  files: [
+    {
+      name: 'badge/badge.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -328,14 +328,14 @@ export class BadgeComponent {
 
 export { badgeVariants };
 `,
-        },
-        {
-            name: 'badge/index.ts',
-            content: `export * from './badge.component';
+    },
+    {
+      name: 'badge/index.ts',
+      content: `export * from './badge.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -343,11 +343,11 @@ export { badgeVariants };
 // =============================================================================
 
 const cardComponent: ComponentDefinition = {
-    name: 'card',
-    files: [
-        {
-            name: 'card/card.component.ts',
-            content: `import {
+  name: 'card',
+  files: [
+    {
+      name: 'card/card.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -485,14 +485,14 @@ export class CardFooterComponent {
   );
 }
 `,
-        },
-        {
-            name: 'card/index.ts',
-            content: `export * from './card.component';
+    },
+    {
+      name: 'card/index.ts',
+      content: `export * from './card.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -500,11 +500,11 @@ export class CardFooterComponent {
 // =============================================================================
 
 const separatorComponent: ComponentDefinition = {
-    name: 'separator',
-    files: [
-        {
-            name: 'separator/separator.component.ts',
-            content: `import {
+  name: 'separator',
+  files: [
+    {
+      name: 'separator/separator.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -537,14 +537,14 @@ export class SeparatorComponent {
   );
 }
 `,
-        },
-        {
-            name: 'separator/index.ts',
-            content: `export * from './separator.component';
+    },
+    {
+      name: 'separator/index.ts',
+      content: `export * from './separator.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -552,11 +552,11 @@ export class SeparatorComponent {
 // =============================================================================
 
 const textareaComponent: ComponentDefinition = {
-    name: 'textarea',
-    files: [
-        {
-            name: 'textarea/textarea.component.ts',
-            content: `import {
+  name: 'textarea',
+  files: [
+    {
+      name: 'textarea/textarea.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -633,14 +633,14 @@ export class TextareaComponent implements ControlValueAccessor {
   setDisabledState(isDisabled: boolean): void {}
 }
 `,
-        },
-        {
-            name: 'textarea/index.ts',
-            content: `export * from './textarea.component';
+    },
+    {
+      name: 'textarea/index.ts',
+      content: `export * from './textarea.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -648,11 +648,11 @@ export class TextareaComponent implements ControlValueAccessor {
 // =============================================================================
 
 const skeletonComponent: ComponentDefinition = {
-    name: 'skeleton',
-    files: [
-        {
-            name: 'skeleton/skeleton.component.ts',
-            content: `import {
+  name: 'skeleton',
+  files: [
+    {
+      name: 'skeleton/skeleton.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -678,14 +678,14 @@ export class SkeletonComponent {
   );
 }
 `,
-        },
-        {
-            name: 'skeleton/index.ts',
-            content: `export * from './skeleton.component';
+    },
+    {
+      name: 'skeleton/index.ts',
+      content: `export * from './skeleton.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -693,11 +693,11 @@ export class SkeletonComponent {
 // =============================================================================
 
 const spinnerComponent: ComponentDefinition = {
-    name: 'spinner',
-    files: [
-        {
-            name: 'spinner/spinner.component.ts',
-            content: `import {
+  name: 'spinner',
+  files: [
+    {
+      name: 'spinner/spinner.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -753,14 +753,14 @@ export class SpinnerComponent {
   );
 }
 `,
-        },
-        {
-            name: 'spinner/index.ts',
-            content: `export * from './spinner.component';
+    },
+    {
+      name: 'spinner/index.ts',
+      content: `export * from './spinner.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -768,11 +768,11 @@ export class SpinnerComponent {
 // =============================================================================
 
 const checkboxComponent: ComponentDefinition = {
-    name: 'checkbox',
-    files: [
-        {
-            name: 'checkbox/checkbox.component.ts',
-            content: `import {
+  name: 'checkbox',
+  files: [
+    {
+      name: 'checkbox/checkbox.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -868,14 +868,14 @@ export class CheckboxComponent implements ControlValueAccessor {
   setDisabledState(isDisabled: boolean): void {}
 }
 `,
-        },
-        {
-            name: 'checkbox/index.ts',
-            content: `export * from './checkbox.component';
+    },
+    {
+      name: 'checkbox/index.ts',
+      content: `export * from './checkbox.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -883,11 +883,11 @@ export class CheckboxComponent implements ControlValueAccessor {
 // =============================================================================
 
 const switchComponent: ComponentDefinition = {
-    name: 'switch',
-    files: [
-        {
-            name: 'switch/switch.component.ts',
-            content: `import {
+  name: 'switch',
+  files: [
+    {
+      name: 'switch/switch.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -976,14 +976,14 @@ export class SwitchComponent implements ControlValueAccessor {
   setDisabledState(isDisabled: boolean): void {}
 }
 `,
-        },
-        {
-            name: 'switch/index.ts',
-            content: `export * from './switch.component';
+    },
+    {
+      name: 'switch/index.ts',
+      content: `export * from './switch.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -991,11 +991,11 @@ export class SwitchComponent implements ControlValueAccessor {
 // =============================================================================
 
 const avatarComponent: ComponentDefinition = {
-    name: 'avatar',
-    files: [
-        {
-            name: 'avatar/avatar.component.ts',
-            content: `import {
+  name: 'avatar',
+  files: [
+    {
+      name: 'avatar/avatar.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -1081,14 +1081,14 @@ export class AvatarFallbackComponent {
   );
 }
 `,
-        },
-        {
-            name: 'avatar/index.ts',
-            content: `export * from './avatar.component';
+    },
+    {
+      name: 'avatar/index.ts',
+      content: `export * from './avatar.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -1096,11 +1096,11 @@ export class AvatarFallbackComponent {
 // =============================================================================
 
 const alertComponent: ComponentDefinition = {
-    name: 'alert',
-    files: [
-        {
-            name: 'alert/alert.component.ts',
-            content: `import {
+  name: 'alert',
+  files: [
+    {
+      name: 'alert/alert.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -1185,14 +1185,14 @@ export class AlertDescriptionComponent {
 
 export { alertVariants };
 `,
-        },
-        {
-            name: 'alert/index.ts',
-            content: `export * from './alert.component';
+    },
+    {
+      name: 'alert/index.ts',
+      content: `export * from './alert.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -1200,11 +1200,11 @@ export { alertVariants };
 // =============================================================================
 
 const progressComponent: ComponentDefinition = {
-    name: 'progress',
-    files: [
-        {
-            name: 'progress/progress.component.ts',
-            content: `import {
+  name: 'progress',
+  files: [
+    {
+      name: 'progress/progress.component.ts',
+      content: `import {
   Component,
   ChangeDetectionStrategy,
   input,
@@ -1218,22 +1218,31 @@ import { cn } from '../../lib/utils';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: \`
     <div
-      [class]="indicatorClasses()"
-      [style.transform]="'translateX(-' + (100 - (value() ?? 0)) + '%)'"
-    ></div>
+      role="progressbar"
+      [attr.aria-valuenow]="value()"
+      [attr.aria-valuemin]="0"
+      [attr.aria-valuemax]="max()"
+      [class]="classes()"
+      [attr.data-slot]="'progress'"
+    >
+      <div
+        class="h-full bg-primary transition-all rounded-full"
+        [style.width.%]="percentage()"
+      ></div>
+    </div>
   \`,
-  host: {
-    '[class]': 'classes()',
-    '[attr.role]': '"progressbar"',
-    '[attr.aria-valuemin]': '0',
-    '[attr.aria-valuemax]': '100',
-    '[attr.aria-valuenow]': 'value()',
-    '[attr.data-slot]': '"progress"',
-  },
+  host: { class: 'block' },
 })
 export class ProgressComponent {
-  value = input<number>(0);
+  value = input(0);
+  max = input(100);
   class = input('');
+
+  percentage = computed(() => {
+    const val = this.value();
+    const maxVal = this.max();
+    return Math.min(100, Math.max(0, (val / maxVal) * 100));
+  });
 
   classes = computed(() =>
     cn(
@@ -1241,20 +1250,1146 @@ export class ProgressComponent {
       this.class()
     )
   );
+}
+`,
+    },
+    {
+      name: 'progress/index.ts',
+      content: `export * from './progress.component';
+`,
+    },
+  ],
+  dependencies: [],
+};
 
-  indicatorClasses = computed(() =>
-    cn('h-full w-full flex-1 bg-primary transition-all')
+// =============================================================================
+// RADIO GROUP COMPONENT
+// =============================================================================
+
+const radioGroupComponent: ComponentDefinition = {
+  name: 'radio-group',
+  files: [
+    {
+      name: 'radio-group/radio-group.component.ts',
+      content: `import {
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  output,
+  computed,
+  signal,
+  forwardRef,
+  inject,
+  InjectionToken,
+} from '@angular/core';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { cn } from '../../lib/utils';
+
+export const RADIO_GROUP = new InjectionToken<RadioGroupComponent>('RADIO_GROUP');
+
+@Component({
+  selector: 'ui-radio-group',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => RadioGroupComponent),
+      multi: true,
+    },
+    {
+      provide: RADIO_GROUP,
+      useExisting: RadioGroupComponent,
+    },
+  ],
+  template: \`
+    <div
+      role="radiogroup"
+      [attr.aria-orientation]="orientation()"
+      [class]="classes()"
+      [attr.data-slot]="'radio-group'"
+    >
+      <ng-content />
+    </div>
+  \`,
+  host: {
+    '[class]': '"contents"',
+  },
+})
+export class RadioGroupComponent implements ControlValueAccessor {
+  orientation = input<'horizontal' | 'vertical'>('vertical');
+  disabled = input(false);
+  class = input('');
+
+  value = signal<string | null>(null);
+  valueChange = output<string>();
+
+  private onChange: (value: string) => void = () => {};
+  private onTouched: () => void = () => {};
+
+  classes = computed(() =>
+    cn(
+      'grid gap-2',
+      this.orientation() === 'horizontal' ? 'grid-flow-col' : 'grid-flow-row',
+      this.class()
+    )
+  );
+
+  selectValue(val: string) {
+    if (this.disabled()) return;
+    this.value.set(val);
+    this.onChange(val);
+    this.valueChange.emit(val);
+    this.onTouched();
+  }
+
+  writeValue(value: string): void {
+    this.value.set(value);
+  }
+
+  registerOnChange(fn: (value: string) => void): void {
+    this.onChange = fn;
+  }
+
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  setDisabledState(isDisabled: boolean): void {}
+}
+
+@Component({
+  selector: 'ui-radio-group-item',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <button
+      type="button"
+      role="radio"
+      [attr.aria-checked]="isSelected()"
+      [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
+      [class]="classes()"
+      [disabled]="disabled()"
+      [attr.data-slot]="'radio-group-item'"
+      (click)="select()"
+    >
+      @if (isSelected()) {
+        <span class="flex items-center justify-center">
+          <span class="h-2.5 w-2.5 rounded-full bg-current"></span>
+        </span>
+      }
+    </button>
+  \`,
+  host: {
+    '[class]': '"contents"',
+  },
+})
+export class RadioGroupItemComponent {
+  value = input.required<string>();
+  disabled = input(false);
+  class = input('');
+
+  private group = inject(RADIO_GROUP, { optional: true });
+
+  isSelected = computed(() => this.group?.value() === this.value());
+
+  classes = computed(() =>
+    cn(
+      'aspect-square h-4 w-4 rounded-full border border-primary text-primary shadow focus:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center',
+      this.isSelected() ? 'border-primary' : 'bg-background',
+      this.class()
+    )
+  );
+
+  select() {
+    if (this.disabled() || !this.group) return;
+    this.group.selectValue(this.value());
+  }
+}
+`,
+    },
+    {
+      name: 'radio-group/index.ts',
+      content: `export * from './radio-group.component';
+`,
+    },
+  ],
+  dependencies: [],
+};
+
+// =============================================================================
+// TABS COMPONENT
+// =============================================================================
+
+const tabsComponent: ComponentDefinition = {
+  name: 'tabs',
+  files: [
+    {
+      name: 'tabs/tabs.component.ts',
+      content: `import {
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  output,
+  computed,
+  signal,
+  inject,
+  InjectionToken,
+} from '@angular/core';
+import { cn } from '../../lib/utils';
+
+export const TABS = new InjectionToken<TabsComponent>('TABS');
+
+@Component({
+  selector: 'ui-tabs',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [{ provide: TABS, useExisting: TabsComponent }],
+  template: \`
+    <div [class]="classes()" [attr.data-slot]="'tabs'">
+      <ng-content />
+    </div>
+  \`,
+  host: { '[class]': '"contents"' },
+})
+export class TabsComponent {
+  defaultValue = input<string>('');
+  class = input('');
+
+  activeTab = signal<string>('');
+  tabChange = output<string>();
+
+  classes = computed(() => cn('w-full', this.class()));
+
+  ngOnInit() {
+    if (this.defaultValue()) {
+      this.activeTab.set(this.defaultValue());
+    }
+  }
+
+  selectTab(value: string) {
+    this.activeTab.set(value);
+    this.tabChange.emit(value);
+  }
+}
+
+@Component({
+  selector: 'ui-tabs-list',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <div
+      role="tablist"
+      [class]="classes()"
+      [attr.data-slot]="'tabs-list'"
+    >
+      <ng-content />
+    </div>
+  \`,
+  host: { '[class]': '"contents"' },
+})
+export class TabsListComponent {
+  class = input('');
+
+  classes = computed(() =>
+    cn(
+      'inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground',
+      this.class()
+    )
+  );
+}
+
+@Component({
+  selector: 'ui-tabs-trigger',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <button
+      type="button"
+      role="tab"
+      [attr.aria-selected]="isActive()"
+      [attr.data-state]="isActive() ? 'active' : 'inactive'"
+      [class]="classes()"
+      [attr.data-slot]="'tabs-trigger'"
+      (click)="select()"
+    >
+      <ng-content />
+    </button>
+  \`,
+  host: { '[class]': '"contents"' },
+})
+export class TabsTriggerComponent {
+  value = input.required<string>();
+  class = input('');
+
+  private tabs = inject(TABS, { optional: true });
+
+  isActive = computed(() => this.tabs?.activeTab() === this.value());
+
+  classes = computed(() =>
+    cn(
+      'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
+      this.isActive()
+        ? 'bg-background text-foreground shadow'
+        : 'hover:bg-background/50',
+      this.class()
+    )
+  );
+
+  select() {
+    if (this.tabs) {
+      this.tabs.selectTab(this.value());
+    }
+  }
+}
+
+@Component({
+  selector: 'ui-tabs-content',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    @if (isActive()) {
+      <div
+        role="tabpanel"
+        [class]="classes()"
+        [attr.data-slot]="'tabs-content'"
+      >
+        <ng-content />
+      </div>
+    }
+  \`,
+  host: { '[class]': '"contents"' },
+})
+export class TabsContentComponent {
+  value = input.required<string>();
+  class = input('');
+
+  private tabs = inject(TABS, { optional: true });
+
+  isActive = computed(() => this.tabs?.activeTab() === this.value());
+
+  classes = computed(() =>
+    cn(
+      'mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+      this.class()
+    )
   );
 }
 `,
-        },
-        {
-            name: 'progress/index.ts',
-            content: `export * from './progress.component';
+    },
+    {
+      name: 'tabs/index.ts',
+      content: `export * from './tabs.component';
 `,
-        },
-    ],
-    dependencies: [],
+    },
+  ],
+  dependencies: [],
+};
+
+// =============================================================================
+// ACCORDION COMPONENT
+// =============================================================================
+
+const accordionComponent: ComponentDefinition = {
+  name: 'accordion',
+  files: [
+    {
+      name: 'accordion/accordion.component.ts',
+      content: `import {
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  computed,
+  signal,
+  inject,
+  InjectionToken,
+} from '@angular/core';
+import { cn } from '../../lib/utils';
+
+export const ACCORDION = new InjectionToken<AccordionComponent>('ACCORDION');
+
+@Component({
+  selector: 'ui-accordion',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [{ provide: ACCORDION, useExisting: AccordionComponent }],
+  template: \`
+    <div [class]="classes()" [attr.data-slot]="'accordion'">
+      <ng-content />
+    </div>
+  \`,
+  host: { '[class]': '"contents"' },
+})
+export class AccordionComponent {
+  type = input<'single' | 'multiple'>('single');
+  class = input('');
+
+  openItems = signal<Set<string>>(new Set());
+
+  classes = computed(() => cn('w-full', this.class()));
+
+  toggle(value: string) {
+    const current = this.openItems();
+    if (this.type() === 'single') {
+      if (current.has(value)) {
+        this.openItems.set(new Set());
+      } else {
+        this.openItems.set(new Set([value]));
+      }
+    } else {
+      const next = new Set(current);
+      if (next.has(value)) {
+        next.delete(value);
+      } else {
+        next.add(value);
+      }
+      this.openItems.set(next);
+    }
+  }
+
+  isOpen(value: string): boolean {
+    return this.openItems().has(value);
+  }
+}
+
+@Component({
+  selector: 'ui-accordion-item',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <div [class]="classes()" [attr.data-slot]="'accordion-item'">
+      <ng-content />
+    </div>
+  \`,
+  host: { '[class]': '"contents"' },
+})
+export class AccordionItemComponent {
+  value = input.required<string>();
+  class = input('');
+
+  classes = computed(() => cn('border-b', this.class()));
+}
+
+@Component({
+  selector: 'ui-accordion-trigger',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <h3 class="flex">
+      <button
+        type="button"
+        [class]="classes()"
+        [attr.aria-expanded]="isOpen()"
+        [attr.data-state]="isOpen() ? 'open' : 'closed'"
+        [attr.data-slot]="'accordion-trigger'"
+        (click)="toggle()"
+      >
+        <ng-content />
+        <svg
+          class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200"
+          [class.rotate-180]="isOpen()"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+        </svg>
+      </button>
+    </h3>
+  \`,
+  host: { '[class]': '"contents"' },
+})
+export class AccordionTriggerComponent {
+  class = input('');
+
+  private accordion = inject(ACCORDION, { optional: true });
+  private item = inject(AccordionItemComponent, { optional: true });
+
+  isOpen = computed(() => {
+    const val = this.item?.value();
+    return val ? this.accordion?.isOpen(val) ?? false : false;
+  });
+
+  classes = computed(() =>
+    cn(
+      'flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180',
+      this.class()
+    )
+  );
+
+  toggle() {
+    const val = this.item?.value();
+    if (val && this.accordion) {
+      this.accordion.toggle(val);
+    }
+  }
+}
+
+@Component({
+  selector: 'ui-accordion-content',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    @if (isOpen()) {
+      <div
+        [class]="classes()"
+        [attr.data-state]="isOpen() ? 'open' : 'closed'"
+        [attr.data-slot]="'accordion-content'"
+      >
+        <div class="pb-4 pt-0">
+          <ng-content />
+        </div>
+      </div>
+    }
+  \`,
+  host: { '[class]': '"contents"' },
+})
+export class AccordionContentComponent {
+  class = input('');
+
+  private accordion = inject(ACCORDION, { optional: true });
+  private item = inject(AccordionItemComponent, { optional: true });
+
+  isOpen = computed(() => {
+    const val = this.item?.value();
+    return val ? this.accordion?.isOpen(val) ?? false : false;
+  });
+
+  classes = computed(() =>
+    cn('overflow-hidden text-sm', this.class())
+  );
+}
+`,
+    },
+    {
+      name: 'accordion/index.ts',
+      content: `export * from './accordion.component';
+`,
+    },
+  ],
+  dependencies: [],
+};
+
+// =============================================================================
+// DIALOG COMPONENT
+// =============================================================================
+
+const dialogComponent: ComponentDefinition = {
+  name: 'dialog',
+  files: [
+    {
+      name: 'dialog/dialog.component.ts',
+      content: `import {
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  output,
+  computed,
+  signal,
+  inject,
+} from '@angular/core';
+import { cn } from '../../lib/utils';
+
+@Component({
+  selector: 'ui-dialog',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: { class: 'contents' },
+})
+export class DialogComponent {
+  open = signal(false);
+  openChange = output<boolean>();
+
+  show() {
+    this.open.set(true);
+    this.openChange.emit(true);
+  }
+
+  hide() {
+    this.open.set(false);
+    this.openChange.emit(false);
+  }
+
+  toggle() {
+    const newState = !this.open();
+    this.open.set(newState);
+    this.openChange.emit(newState);
+  }
+}
+
+@Component({
+  selector: 'ui-dialog-trigger',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <span (click)="onClick()" [attr.data-slot]="'dialog-trigger'">
+      <ng-content />
+    </span>
+  \`,
+  host: { class: 'contents' },
+})
+export class DialogTriggerComponent {
+  private dialog = inject(DialogComponent, { optional: true });
+
+  onClick() {
+    this.dialog?.toggle();
+  }
+}
+
+@Component({
+  selector: 'ui-dialog-content',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    @if (dialog?.open()) {
+      <div class="fixed inset-0 z-50 flex items-center justify-center">
+        <!-- Overlay -->
+        <div
+          class="fixed inset-0 bg-black/80 animate-in fade-in-0"
+          (click)="onOverlayClick()"
+        ></div>
+        <!-- Content -->
+        <div
+          [class]="classes()"
+          [attr.data-slot]="'dialog-content'"
+        >
+          <ng-content />
+          <!-- Close button -->
+          <button
+            type="button"
+            class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
+            (click)="close()"
+          >
+            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            <span class="sr-only">Close</span>
+          </button>
+        </div>
+      </div>
+    }
+  \`,
+  host: { class: 'contents' },
+})
+export class DialogContentComponent {
+  dialog = inject(DialogComponent, { optional: true });
+  class = input('');
+
+  classes = computed(() =>
+    cn(
+      'fixed z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
+      this.class()
+    )
+  );
+
+  onOverlayClick() {
+    this.dialog?.hide();
+  }
+
+  close() {
+    this.dialog?.hide();
+  }
+}
+
+@Component({
+  selector: 'ui-dialog-header',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: {
+    class: 'flex flex-col space-y-1.5 text-center sm:text-left',
+    '[attr.data-slot]': '"dialog-header"',
+  },
+})
+export class DialogHeaderComponent {}
+
+@Component({
+  selector: 'ui-dialog-title',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: {
+    class: 'text-lg font-semibold leading-none tracking-tight',
+    '[attr.data-slot]': '"dialog-title"',
+  },
+})
+export class DialogTitleComponent {}
+
+@Component({
+  selector: 'ui-dialog-description',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: {
+    class: 'text-sm text-muted-foreground',
+    '[attr.data-slot]': '"dialog-description"',
+  },
+})
+export class DialogDescriptionComponent {}
+
+@Component({
+  selector: 'ui-dialog-footer',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: {
+    class: 'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
+    '[attr.data-slot]': '"dialog-footer"',
+  },
+})
+export class DialogFooterComponent {}
+`,
+    },
+    {
+      name: 'dialog/index.ts',
+      content: `export * from './dialog.component';
+`,
+    },
+  ],
+  dependencies: [],
+};
+
+// =============================================================================
+// DROPDOWN MENU COMPONENT
+// =============================================================================
+
+const dropdownMenuComponent: ComponentDefinition = {
+  name: 'dropdown-menu',
+  files: [
+    {
+      name: 'dropdown-menu/dropdown-menu.component.ts',
+      content: `import {
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  computed,
+  signal,
+  inject,
+  ElementRef,
+  OnDestroy,
+} from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { cn } from '../../lib/utils';
+
+@Component({
+  selector: 'ui-dropdown-menu',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: { class: 'relative inline-block' },
+})
+export class DropdownMenuComponent implements OnDestroy {
+  private el = inject(ElementRef);
+  private document = inject(DOCUMENT);
+  open = signal(false);
+
+  private clickListener = (event: MouseEvent) => {
+    if (!this.el.nativeElement.contains(event.target)) {
+      this.hide();
+    }
+  };
+
+  constructor() {
+    this.document.addEventListener('click', this.clickListener);
+  }
+
+  ngOnDestroy() {
+    this.document.removeEventListener('click', this.clickListener);
+  }
+
+  toggle() {
+    this.open.update(v => !v);
+  }
+
+  show() {
+    this.open.set(true);
+  }
+
+  hide() {
+    this.open.set(false);
+  }
+}
+
+@Component({
+  selector: 'ui-dropdown-menu-trigger',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <span (click)="onClick($event)" [attr.data-slot]="'dropdown-trigger'">
+      <ng-content />
+    </span>
+  \`,
+  host: { class: 'contents' },
+})
+export class DropdownMenuTriggerComponent {
+  private menu = inject(DropdownMenuComponent, { optional: true });
+
+  onClick(event: MouseEvent) {
+    event.stopPropagation();
+    this.menu?.toggle();
+  }
+}
+
+@Component({
+  selector: 'ui-dropdown-menu-content',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    @if (menu?.open()) {
+      <div [class]="classes()" [attr.data-slot]="'dropdown-content'">
+        <ng-content />
+      </div>
+    }
+  \`,
+  host: { class: 'contents' },
+})
+export class DropdownMenuContentComponent {
+  menu = inject(DropdownMenuComponent, { optional: true });
+  class = input('');
+  align = input<'start' | 'center' | 'end'>('start');
+
+  classes = computed(() => {
+    const alignClasses = {
+      start: 'left-0',
+      center: 'left-1/2 -translate-x-1/2',
+      end: 'right-0',
+    };
+    return cn(
+      'absolute top-full z-50 mt-1 min-w-[8rem] overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+      alignClasses[this.align()],
+      this.class()
+    );
+  });
+}
+
+@Component({
+  selector: 'ui-dropdown-menu-item',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: {
+    '[class]': 'classes()',
+    '[attr.data-slot]': '"dropdown-item"',
+    '(click)': 'onClick()',
+  },
+})
+export class DropdownMenuItemComponent {
+  class = input('');
+  disabled = input(false);
+
+  private menu = inject(DropdownMenuComponent, { optional: true });
+
+  classes = computed(() =>
+    cn(
+      'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground',
+      this.disabled() && 'pointer-events-none opacity-50',
+      this.class()
+    )
+  );
+
+  onClick() {
+    if (!this.disabled()) {
+      this.menu?.hide();
+    }
+  }
+}
+
+@Component({
+  selector: 'ui-dropdown-menu-separator',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`\`,
+  host: {
+    class: '-mx-1 my-1 h-px bg-border',
+    '[attr.data-slot]': '"dropdown-separator"',
+  },
+})
+export class DropdownMenuSeparatorComponent {}
+
+@Component({
+  selector: 'ui-dropdown-menu-label',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: {
+    class: 'px-2 py-1.5 text-sm font-semibold',
+    '[attr.data-slot]': '"dropdown-label"',
+  },
+})
+export class DropdownMenuLabelComponent {}
+`,
+    },
+    {
+      name: 'dropdown-menu/index.ts',
+      content: `export * from './dropdown-menu.component';
+`,
+    },
+  ],
+  dependencies: [],
+};
+
+// =============================================================================
+// TOOLTIP COMPONENT
+// =============================================================================
+
+const tooltipComponent: ComponentDefinition = {
+  name: 'tooltip',
+  files: [
+    {
+      name: 'tooltip/tooltip.component.ts',
+      content: `import {
+  Component,
+  Directive,
+  ChangeDetectionStrategy,
+  input,
+  computed,
+  signal,
+  inject,
+  ElementRef,
+  OnDestroy,
+  Renderer2,
+} from '@angular/core';
+import { cn } from '../../lib/utils';
+
+@Component({
+  selector: 'ui-tooltip',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`<ng-content />\`,
+  host: { class: 'contents' },
+})
+export class TooltipComponent {
+  open = signal(false);
+  content = input<string>('');
+  side = input<'top' | 'right' | 'bottom' | 'left'>('top');
+  delayDuration = input(200);
+
+  show() {
+    this.open.set(true);
+  }
+
+  hide() {
+    this.open.set(false);
+  }
+}
+
+@Component({
+  selector: 'ui-tooltip-trigger',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    <span
+      (mouseenter)="onMouseEnter()"
+      (mouseleave)="onMouseLeave()"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+      [attr.data-slot]="'tooltip-trigger'"
+    >
+      <ng-content />
+    </span>
+  \`,
+  host: { class: 'contents' },
+})
+export class TooltipTriggerComponent {
+  private tooltip = inject(TooltipComponent, { optional: true });
+  private timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  onMouseEnter() {
+    const delay = this.tooltip?.delayDuration() ?? 200;
+    this.timeoutId = setTimeout(() => {
+      this.tooltip?.show();
+    }, delay);
+  }
+
+  onMouseLeave() {
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+    }
+    this.tooltip?.hide();
+  }
+
+  onFocus() {
+    this.tooltip?.show();
+  }
+
+  onBlur() {
+    this.tooltip?.hide();
+  }
+}
+
+@Component({
+  selector: 'ui-tooltip-content',
+  standalone: true,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: \`
+    @if (tooltip?.open()) {
+      <div [class]="classes()" [attr.data-slot]="'tooltip-content'">
+        <ng-content />
+      </div>
+    }
+  \`,
+  host: { class: 'contents' },
+})
+export class TooltipContentComponent {
+  tooltip = inject(TooltipComponent, { optional: true });
+  class = input('');
+
+  classes = computed(() => {
+    const side = this.tooltip?.side() ?? 'top';
+    const sideClasses = {
+      top: 'bottom-full left-1/2 -translate-x-1/2 mb-2',
+      bottom: 'top-full left-1/2 -translate-x-1/2 mt-2',
+      left: 'right-full top-1/2 -translate-y-1/2 mr-2',
+      right: 'left-full top-1/2 -translate-y-1/2 ml-2',
+    };
+    return cn(
+      'absolute z-50 overflow-hidden rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground',
+      sideClasses[side],
+      this.class()
+    );
+  });
+}
+
+@Directive({
+  selector: '[uiTooltip]',
+  standalone: true,
+  host: {
+    '(mouseenter)': 'onMouseEnter()',
+    '(mouseleave)': 'onMouseLeave()',
+  },
+})
+export class TooltipDirective implements OnDestroy {
+  uiTooltip = input.required<string>();
+  tooltipSide = input<'top' | 'bottom' | 'left' | 'right'>('top');
+
+  private el = inject(ElementRef);
+  private renderer = inject(Renderer2);
+  private tooltipElement: HTMLElement | null = null;
+  private timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+  onMouseEnter() {
+    this.timeoutId = setTimeout(() => {
+      this.showTooltip();
+    }, 200);
+  }
+
+  onMouseLeave() {
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+      this.timeoutId = null;
+    }
+    this.hideTooltip();
+  }
+
+  private showTooltip() {
+    if (this.tooltipElement) return;
+
+    this.tooltipElement = this.renderer.createElement('div');
+    const text = this.renderer.createText(this.uiTooltip());
+    this.renderer.appendChild(this.tooltipElement, text);
+
+    this.renderer.setAttribute(
+      this.tooltipElement,
+      'class',
+      'fixed z-[9999] whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground pointer-events-none'
+    );
+
+    // Append first so we can measure it
+    this.renderer.appendChild(document.body, this.tooltipElement);
+
+    const hostEl = this.el.nativeElement as HTMLElement;
+    let targetEl = hostEl;
+    if (getComputedStyle(hostEl).display === 'contents') {
+      targetEl = (hostEl.firstElementChild as HTMLElement) || hostEl;
+    }
+
+    const hostRect = targetEl.getBoundingClientRect();
+    const tooltipRect = this.tooltipElement!.getBoundingClientRect();
+
+    let side = this.tooltipSide();
+
+    // Calculate initial position to check for overflow
+    const calculatePosition = (currentSide: string) => {
+      let t = 0;
+      let l = 0;
+      switch (currentSide) {
+        case 'top':
+          t = hostRect.top - tooltipRect.height - 8;
+          l = hostRect.left + (hostRect.width - tooltipRect.width) / 2;
+          break;
+        case 'bottom':
+          t = hostRect.bottom + 8;
+          l = hostRect.left + (hostRect.width - tooltipRect.width) / 2;
+          break;
+        case 'left':
+          t = hostRect.top + (hostRect.height - tooltipRect.height) / 2;
+          l = hostRect.left - tooltipRect.width - 8;
+          break;
+        case 'right':
+          t = hostRect.top + (hostRect.height - tooltipRect.height) / 2;
+          l = hostRect.right + 8;
+          break;
+      }
+      return { top: t, left: l };
+    };
+
+    let pos = calculatePosition(side);
+
+    // Check for overflow and flip if needed
+    const { innerWidth, innerHeight } = window;
+
+    // Check vertical overflow
+    if (side === 'top' && pos.top < 0) {
+      side = 'bottom';
+      pos = calculatePosition(side);
+    } else if (side === 'bottom' && pos.top + tooltipRect.height > innerHeight) {
+      side = 'top';
+      pos = calculatePosition(side);
+    }
+
+    // Check horizontal overflow
+    if (side === 'left' && pos.left < 0) {
+      side = 'right';
+      pos = calculatePosition(side);
+    } else if (side === 'right' && pos.left + tooltipRect.width > innerWidth) {
+      side = 'left';
+      pos = calculatePosition(side);
+    }
+
+    // Clamp to viewport if still overflowing (e.g. mobile)
+    pos.top = Math.max(8, Math.min(innerHeight - tooltipRect.height - 8, pos.top));
+    pos.left = Math.max(8, Math.min(innerWidth - tooltipRect.width - 8, pos.left));
+
+    this.renderer.setStyle(this.tooltipElement, 'top', \`\${pos.top}px\`);
+    this.renderer.setStyle(this.tooltipElement, 'left', \`\${pos.left}px\`);
+  }
+
+  private hideTooltip() {
+    if (this.tooltipElement) {
+      this.renderer.removeChild(document.body, this.tooltipElement);
+      this.tooltipElement = null;
+    }
+  }
+
+  ngOnDestroy() {
+    this.hideTooltip();
+    if (this.timeoutId) {
+      clearTimeout(this.timeoutId);
+    }
+  }
+}
+`,
+    },
+    {
+      name: 'tooltip/index.ts',
+      content: `export * from './tooltip.component';
+`,
+    },
+  ],
+  dependencies: [],
 };
 
 // =============================================================================
@@ -1262,18 +2397,24 @@ export class ProgressComponent {
 // =============================================================================
 
 export const registry: Record<string, ComponentDefinition> = {
-    button: buttonComponent,
-    input: inputComponent,
-    label: labelComponent,
-    badge: badgeComponent,
-    card: cardComponent,
-    separator: separatorComponent,
-    textarea: textareaComponent,
-    skeleton: skeletonComponent,
-    spinner: spinnerComponent,
-    checkbox: checkboxComponent,
-    switch: switchComponent,
-    avatar: avatarComponent,
-    alert: alertComponent,
-    progress: progressComponent,
+  button: buttonComponent,
+  input: inputComponent,
+  label: labelComponent,
+  badge: badgeComponent,
+  card: cardComponent,
+  separator: separatorComponent,
+  textarea: textareaComponent,
+  skeleton: skeletonComponent,
+  spinner: spinnerComponent,
+  checkbox: checkboxComponent,
+  switch: switchComponent,
+  avatar: avatarComponent,
+  alert: alertComponent,
+  progress: progressComponent,
+  'radio-group': radioGroupComponent,
+  tabs: tabsComponent,
+  accordion: accordionComponent,
+  dialog: dialogComponent,
+  'dropdown-menu': dropdownMenuComponent,
+  tooltip: tooltipComponent,
 };
