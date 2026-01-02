@@ -81,6 +81,8 @@ import {
   CollapsibleTriggerComponent,
   CollapsibleContentComponent,
 } from '../components/ui';
+import { ToggleComponent } from '../components/ui/toggle.component';
+import { ToggleGroupComponent, ToggleGroupItemComponent } from '../components/ui/toggle-group.component';
 
 @Component({
   selector: 'app-root',
@@ -165,6 +167,9 @@ import {
     CollapsibleComponent,
     CollapsibleTriggerComponent,
     CollapsibleContentComponent,
+    ToggleComponent,
+    ToggleGroupComponent,
+    ToggleGroupItemComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -775,7 +780,70 @@ import {
 
         <ui-separator />
 
+        <!-- Toggle -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Toggle</h2>
+          <p class="text-muted-foreground">A two-state button that can be toggled on or off.</p>
+          
+          <div class="flex flex-wrap gap-4">
+            <ui-toggle>
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </ui-toggle>
+            <ui-toggle variant="outline">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+              </svg>
+            </ui-toggle>
+            <ui-toggle [defaultPressed]="true">Bold</ui-toggle>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Toggle Group -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Toggle Group</h2>
+          <p class="text-muted-foreground">A set of two-state buttons that can be toggled on or off.</p>
+          
+          <div class="space-y-4">
+            <div>
+              <p class="text-sm text-muted-foreground mb-2">Single selection:</p>
+              <ui-toggle-group type="single" variant="outline">
+                <ui-toggle-group-item value="left">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h7" />
+                  </svg>
+                </ui-toggle-group-item>
+                <ui-toggle-group-item value="center">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+                  </svg>
+                </ui-toggle-group-item>
+                <ui-toggle-group-item class="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500" value="right">
+                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M10 12h10M13 18h7" />
+                  </svg>
+                </ui-toggle-group-item>
+              </ui-toggle-group>
+            </div>
+            <div>
+              <p class="text-sm text-muted-foreground mb-2">Multiple selection:</p>
+              <ui-toggle-group type="multiple" variant="outline">
+                <ui-toggle-group-item value="bold">B</ui-toggle-group-item>
+                <ui-toggle-group-item value="italic">I</ui-toggle-group-item>
+                <ui-toggle-group-item value="underline">U</ui-toggle-group-item>
+              </ui-toggle-group>
+            </div>
+          </div>
+        </section>
+
+        <ui-separator />
+
         <!-- Footer -->
+
         <div class="text-center text-muted-foreground text-sm pt-8">
           Built with Angular and Tailwind CSS. Open source.
         </div>
