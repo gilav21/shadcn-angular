@@ -1146,22 +1146,23 @@ import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, Input
           
           <!-- Vertical Example -->
           <div class="space-y-2">
-            <h3 class="text-lg font-medium">Vertical</h3>
+            <h3 class="text-lg font-medium">Vertical (with live size updates)</h3>
             <ui-resizable-panel-group direction="vertical" class="h-[300px] max-w-md rounded-lg border">
-              <ui-resizable-panel [defaultSize]="40" >
+              <ui-resizable-panel [defaultSize]="40">
                 <div class="flex h-full items-center justify-center bg-muted/30 p-6">
-                  <span class="font-semibold">Top (40%)</span>
+                  <span class="font-semibold">Top ({{ verticalTopSize() }}%)</span>
                 </div>
               </ui-resizable-panel>
-              <ui-resizable-handle [withHandle]="false" [handleSize]="2" />
+              <ui-resizable-handle [withHandle]="false" [handleSize]="2" (resize)="onVerticalResize($event)" />
               <ui-resizable-panel [defaultSize]="60">
                 <div class="flex h-full items-center justify-center p-6">
-                  <span class="font-semibold">Bottom (60%)</span>
+                  <span class="font-semibold">Bottom ({{ verticalBottomSize() }}%)</span>
                 </div>
               </ui-resizable-panel>
             </ui-resizable-panel-group>
           </div>
         </section>
+
 
 
         <ui-separator />
@@ -1223,6 +1224,10 @@ export class AppComponent {
   private toastService = inject(ToastService);
   isDark = signal(false);
 
+  // Resizable demo sizes
+  verticalTopSize = signal(40);
+  verticalBottomSize = signal(60);
+
   toggleTheme(dark: boolean) {
     this.isDark.set(dark);
     if (dark) {
@@ -1243,5 +1248,10 @@ export class AppComponent {
       default:
         this.toastService.toast({ title: 'Notification', description: 'This is a toast message.' });
     }
+  }
+
+  onVerticalResize(event: { delta: number; sizes: number[] }) {
+    this.verticalTopSize.set(event.sizes[0]);
+    this.verticalBottomSize.set(event.sizes[1]);
   }
 }

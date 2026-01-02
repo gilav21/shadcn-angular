@@ -56,6 +56,7 @@ export class ResizablePanelComponent {
   maxSize = input(90);
 
   size = signal(50);
+  sizeChange = output<number>();
 
   constructor() {
     setTimeout(() => {
@@ -63,8 +64,15 @@ export class ResizablePanelComponent {
     }, 0);
   }
 
+  // Method to update size and emit change
+  updateSize(newSize: number) {
+    this.size.set(newSize);
+    this.sizeChange.emit(newSize);
+  }
+
   classes = computed(() => cn('overflow-hidden min-h-0 min-w-0', this.class()));
 }
+
 
 @Component({
   selector: 'ui-resizable-handle',
@@ -112,7 +120,8 @@ export class ResizableHandleComponent implements AfterViewInit {
   handleSize = input(4); // Size in pixels, default 4px
   disabled = input(false); // Set to true to hide the handle completely
 
-  resize = output<{ delta: number }>();
+  resize = output<{ delta: number; sizes: number[] }>();
+
 
   private isDragging = signal(false);
   private detectedDirection = signal<'horizontal' | 'vertical'>('horizontal');
@@ -236,10 +245,15 @@ export class ResizableHandleComponent implements AfterViewInit {
         newPercentBefore <= 90 && newPercentAfter <= 90) {
         panelBefore!.style.flexBasis = `${newPercentBefore}%`;
         panelAfter!.style.flexBasis = `${newPercentAfter}%`;
-      }
 
-      this.resize.emit({ delta });
+        // Emit resize event with sizes
+        this.resize.emit({
+          delta,
+          sizes: [Math.round(newPercentBefore), Math.round(newPercentAfter)]
+        });
+      }
     };
+
 
     const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
     const onTouchMove = (e: TouchEvent) => {
