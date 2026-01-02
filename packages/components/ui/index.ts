@@ -31,3 +31,8 @@ export * from './breadcrumb.component';
 export * from './hover-card.component';
 export * from './context-menu.component';
 export * from './drawer.component';
+export * from './aspect-ratio.component';
+export * from './toast.component';
+export * from './resizable.component';
+export * from './pagination.component';
+export * from './input-otp.component';

@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   ButtonComponent,
@@ -89,6 +89,11 @@ import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, 
 import { HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent } from '../components/ui/hover-card.component';
 import { ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSeparatorComponent, ContextMenuLabelComponent, ContextMenuShortcutComponent } from '../components/ui/context-menu.component';
 import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, DrawerHeaderComponent, DrawerTitleComponent, DrawerDescriptionComponent, DrawerFooterComponent, DrawerCloseComponent } from '../components/ui/drawer.component';
+import { AspectRatioComponent } from '../components/ui/aspect-ratio.component';
+import { ToasterComponent, ToastComponent, ToastService } from '../components/ui/toast.component';
+import { ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent } from '../components/ui/resizable.component';
+import { PaginationComponent, PaginationContentComponent, PaginationItemComponent, PaginationLinkComponent, PaginationPreviousComponent, PaginationNextComponent, PaginationEllipsisComponent } from '../components/ui/pagination.component';
+import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, InputOTPSeparatorComponent } from '../components/ui/input-otp.component';
 
 @Component({
   selector: 'app-root',
@@ -210,9 +215,27 @@ import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, Drawer
     DrawerDescriptionComponent,
     DrawerFooterComponent,
     DrawerCloseComponent,
+    AspectRatioComponent,
+    ToasterComponent,
+    ToastComponent,
+    ResizablePanelGroupComponent,
+    ResizablePanelComponent,
+    ResizableHandleComponent,
+    PaginationComponent,
+    PaginationContentComponent,
+    PaginationItemComponent,
+    PaginationLinkComponent,
+    PaginationPreviousComponent,
+    PaginationNextComponent,
+    PaginationEllipsisComponent,
+    InputOTPComponent,
+    InputOTPGroupComponent,
+    InputOTPSlotComponent,
+    InputOTPSeparatorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
+    <ui-toaster />
     <div class="min-h-screen bg-background text-foreground p-8">
       <div class="max-w-4xl mx-auto space-y-12">
         <!-- Header -->
@@ -1068,7 +1091,125 @@ import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, Drawer
 
         <ui-separator />
 
+        <!-- Aspect Ratio -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Aspect Ratio</h2>
+          <p class="text-muted-foreground">Display content within a desired ratio.</p>
+          
+          <div class="w-[300px]">
+            <ui-aspect-ratio [ratio]="16/9">
+              <div class="flex h-full w-full items-center justify-center rounded-md bg-muted text-muted-foreground">
+                16:9 Aspect Ratio
+              </div>
+            </ui-aspect-ratio>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Toast -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Toast</h2>
+          <p class="text-muted-foreground">Show notification toasts to users.</p>
+          
+          <div class="flex gap-2">
+            <ui-button (click)="showToast('default')">Show Toast</ui-button>
+            <ui-button variant="outline" (click)="showToast('success')">Success Toast</ui-button>
+            <ui-button variant="destructive" (click)="showToast('error')">Error Toast</ui-button>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Resizable Panels -->
+        <section class="space-y-6">
+          <h2 class="text-2xl font-semibold">Resizable</h2>
+          <p class="text-muted-foreground">Resizable panel groups for creating adjustable layouts.</p>
+          
+          <!-- Horizontal Example -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Horizontal</h3>
+            <ui-resizable-panel-group direction="horizontal" class="min-h-[200px] max-w-md rounded-lg border">
+              <ui-resizable-panel [defaultSize]="30">
+                <div class="flex h-full items-center justify-center bg-muted/30 p-6">
+                  <span class="font-semibold">Left (30%)</span>
+                </div>
+              </ui-resizable-panel>
+              <ui-resizable-handle [withHandle]="false" [handleSize]="2" />
+              <ui-resizable-panel [defaultSize]="70">
+                <div class="flex h-full items-center justify-center p-6">
+                  <span class="font-semibold">Right (70%)</span>
+                </div>
+              </ui-resizable-panel>
+            </ui-resizable-panel-group>
+          </div>
+          
+          <!-- Vertical Example -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Vertical</h3>
+            <ui-resizable-panel-group direction="vertical" class="h-[300px] max-w-md rounded-lg border">
+              <ui-resizable-panel [defaultSize]="40" >
+                <div class="flex h-full items-center justify-center bg-muted/30 p-6">
+                  <span class="font-semibold">Top (40%)</span>
+                </div>
+              </ui-resizable-panel>
+              <ui-resizable-handle [withHandle]="false" [handleSize]="2" />
+              <ui-resizable-panel [defaultSize]="60">
+                <div class="flex h-full items-center justify-center p-6">
+                  <span class="font-semibold">Bottom (60%)</span>
+                </div>
+              </ui-resizable-panel>
+            </ui-resizable-panel-group>
+          </div>
+        </section>
+
+
+        <ui-separator />
+
+        <!-- Pagination -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Pagination</h2>
+          <p class="text-muted-foreground">Navigate through paged content.</p>
+          
+          <ui-pagination>
+            <ui-pagination-content>
+              <ui-pagination-item>
+                <ui-pagination-previous />
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-link [isActive]="true">1</ui-pagination-link>
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-link>2</ui-pagination-link>
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-link>3</ui-pagination-link>
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-ellipsis />
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-next />
+              </ui-pagination-item>
+            </ui-pagination-content>
+          </ui-pagination>
+        </section>
+
+        <ui-separator />
+
+        <!-- Input OTP -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Input OTP</h2>
+          <p class="text-muted-foreground">One-time password input fields.</p>
+          
+          <ui-input-otp [maxLength]="6" [separator]="[2]" />
+        </section>
+
+
+        <ui-separator />
+
         <!-- Footer -->
+
 
 
         <div class="text-center text-muted-foreground text-sm pt-8">
@@ -1079,6 +1220,7 @@ import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, Drawer
   `,
 })
 export class AppComponent {
+  private toastService = inject(ToastService);
   isDark = signal(false);
 
   toggleTheme(dark: boolean) {
@@ -1087,6 +1229,19 @@ export class AppComponent {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
+    }
+  }
+
+  showToast(type: 'default' | 'success' | 'error') {
+    switch (type) {
+      case 'success':
+        this.toastService.success('Success!', 'Your action was completed successfully.');
+        break;
+      case 'error':
+        this.toastService.error('Error', 'Something went wrong. Please try again.');
+        break;
+      default:
+        this.toastService.toast({ title: 'Notification', description: 'This is a toast message.' });
     }
   }
 }
