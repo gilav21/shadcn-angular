@@ -1392,21 +1392,50 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
             <ui-menubar-menu>
               <ui-menubar-trigger>File</ui-menubar-trigger>
               <ui-menubar-content>
-                <ui-menubar-item>Open</ui-menubar-item>
-                <ui-menubar-item>Save</ui-menubar-item>
-                <ui-menubar-item>Save As</ui-menubar-item>
+                <ui-menubar-item>New Tab <ui-menubar-shortcut>⌘T</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-item>New Window <ui-menubar-shortcut>⌘N</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-item [disabled]="true">New Incognito Window</ui-menubar-item>
                 <ui-menubar-separator />
-                <ui-menubar-item>Print</ui-menubar-item>
+                <ui-menubar-item>Share <ui-menubar-shortcut>⇧⌘S</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-separator />
+                <ui-menubar-item>Print <ui-menubar-shortcut>⌘P</ui-menubar-shortcut></ui-menubar-item>
               </ui-menubar-content>
             </ui-menubar-menu>
             <ui-menubar-menu>
               <ui-menubar-trigger>Edit</ui-menubar-trigger>
+              <ui-menubar-content>
+                <ui-menubar-item>Undo <ui-menubar-shortcut>⌘Z</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-item>Redo <ui-menubar-shortcut>⇧⌘Z</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-separator />
+                <ui-menubar-item>Cut <ui-menubar-shortcut>⌘X</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-item>Copy <ui-menubar-shortcut>⌘C</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-item>Paste <ui-menubar-shortcut>⌘V</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-separator />
+                <ui-menubar-item>Select All <ui-menubar-shortcut>⌘A</ui-menubar-shortcut></ui-menubar-item>
+              </ui-menubar-content>
             </ui-menubar-menu>
             <ui-menubar-menu>
               <ui-menubar-trigger>View</ui-menubar-trigger>
+              <ui-menubar-content>
+                <ui-menubar-item [inset]="true">Reload <ui-menubar-shortcut>⌘R</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-item [inset]="true" [disabled]="true">Force Reload <ui-menubar-shortcut>⇧⌘R</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-separator />
+                <ui-menubar-item [inset]="true">Toggle Fullscreen</ui-menubar-item>
+                <ui-menubar-separator />
+                <ui-menubar-item [inset]="true">Hide Sidebar</ui-menubar-item>
+              </ui-menubar-content>
             </ui-menubar-menu>
             <ui-menubar-menu>
-              <ui-menubar-trigger>Help</ui-menubar-trigger>
+              <ui-menubar-trigger>Profiles</ui-menubar-trigger>
+              <ui-menubar-content>
+                <ui-menubar-item [inset]="true">Andy</ui-menubar-item>
+                <ui-menubar-item [inset]="true">Benoit</ui-menubar-item>
+                <ui-menubar-item [inset]="true">Luis</ui-menubar-item>
+                <ui-menubar-separator />
+                <ui-menubar-item [inset]="true">Edit...</ui-menubar-item>
+                <ui-menubar-separator />
+                <ui-menubar-item [inset]="true" >Add Profile...</ui-menubar-item>
+              </ui-menubar-content>
             </ui-menubar-menu>
           </ui-menubar>
         </section>
