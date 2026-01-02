@@ -6,7 +6,12 @@ import {
     computed,
     signal,
     inject,
+    effect,
+    ElementRef,
+    AfterViewInit,
+    OnDestroy,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
@@ -35,9 +40,43 @@ export type SheetSide = VariantProps<typeof sheetVariants>['side'];
     template: `<ng-content />`,
     host: { class: 'contents' },
 })
-export class SheetComponent {
+export class SheetComponent implements OnDestroy {
+    private document = inject(DOCUMENT);
+
     open = signal(false);
     openChange = output<boolean>();
+
+    private scrollbarWidth = 0;
+
+    constructor() {
+        // Calculate scrollbar width once
+        this.scrollbarWidth = window.innerWidth - this.document.documentElement.clientWidth;
+
+        // Lock/unlock body scroll when open state changes
+        effect(() => {
+            if (this.open()) {
+                this.lockScroll();
+            } else {
+                this.unlockScroll();
+            }
+        });
+    }
+
+    ngOnDestroy() {
+        this.unlockScroll();
+    }
+
+    private lockScroll() {
+        const body = this.document.body;
+        body.style.overflow = 'hidden';
+        body.style.paddingRight = `${this.scrollbarWidth}px`;
+    }
+
+    private unlockScroll() {
+        const body = this.document.body;
+        body.style.overflow = '';
+        body.style.paddingRight = '';
+    }
 
     show() {
         this.open.set(true);
@@ -79,16 +118,26 @@ export class SheetTriggerComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     @if (sheet?.open()) {
-      <div class="fixed inset-0 z-50">
+      <div 
+        class="fixed inset-0 z-50" 
+        role="dialog" 
+        aria-modal="true"
+        (keydown)="onKeydown($event)"
+      >
         <!-- Overlay -->
         <div
-          class="fixed inset-0 bg-black/80 animate-in fade-in-0"
+          class="fixed inset-0 bg-black/50 animate-in fade-in-0"
+          [attr.data-slot]="'sheet-overlay'"
           (click)="onOverlayClick()"
+          aria-hidden="true"
         ></div>
         <!-- Content -->
         <div
+          #contentEl
           [class]="classes()"
           [attr.data-slot]="'sheet-content'"
+          [attr.data-state]="'open'"
+          tabindex="-1"
         >
           <ng-content />
           <!-- Close button -->
@@ -96,6 +145,7 @@ export class SheetTriggerComponent {
             type="button"
             class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
             (click)="close()"
+            aria-label="Close"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
               <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -108,10 +158,81 @@ export class SheetTriggerComponent {
   `,
     host: { class: 'contents' },
 })
-export class SheetContentComponent {
+export class SheetContentComponent implements AfterViewInit {
     sheet = inject(SheetComponent, { optional: true });
+    private el = inject(ElementRef);
+
     side = input<SheetSide>('right');
     class = input('');
+
+    private contentEl?: HTMLElement;
+    private previousActiveElement?: Element | null;
+
+    constructor() {
+        effect(() => {
+            if (this.sheet?.open()) {
+                // Store previously focused element and focus the sheet
+                this.previousActiveElement = document.activeElement;
+                setTimeout(() => this.focusFirstElement(), 0);
+            } else if (this.previousActiveElement instanceof HTMLElement) {
+                // Restore focus when closing
+                this.previousActiveElement.focus();
+            }
+        });
+    }
+
+    ngAfterViewInit() {
+        if (this.sheet?.open()) {
+            this.focusFirstElement();
+        }
+    }
+
+    private focusFirstElement() {
+        const content = this.el.nativeElement.querySelector('[data-slot="sheet-content"]');
+        if (content) {
+            this.contentEl = content;
+            // Focus the content itself or the first focusable element
+            const focusable = content.querySelector(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            ) as HTMLElement;
+            if (focusable) {
+                focusable.focus();
+            } else {
+                content.focus();
+            }
+        }
+    }
+
+    onKeydown(event: KeyboardEvent) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            this.sheet?.hide();
+            return;
+        }
+
+        // Focus trap
+        if (event.key === 'Tab' && this.contentEl) {
+            const focusableElements = this.contentEl.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            const firstElement = focusableElements[0] as HTMLElement;
+            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+            if (event.shiftKey) {
+                // Shift + Tab
+                if (document.activeElement === firstElement) {
+                    event.preventDefault();
+                    lastElement?.focus();
+                }
+            } else {
+                // Tab
+                if (document.activeElement === lastElement) {
+                    event.preventDefault();
+                    firstElement?.focus();
+                }
+            }
+        }
+    }
 
     classes = computed(() =>
         cn(sheetVariants({ side: this.side() }), this.class())

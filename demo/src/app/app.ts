@@ -664,7 +664,7 @@ import {
               <ui-sheet-trigger>
                 <ui-button variant="outline">Open Right</ui-button>
               </ui-sheet-trigger>
-              <ui-sheet-content side="right">
+              <ui-sheet-content side="right" >
                 <ui-sheet-header>
                   <ui-sheet-title>Edit Profile</ui-sheet-title>
                   <ui-sheet-description>
