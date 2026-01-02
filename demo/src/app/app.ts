@@ -94,6 +94,9 @@ import { ToasterComponent, ToastComponent, ToastService } from '../components/ui
 import { ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent } from '../components/ui/resizable.component';
 import { PaginationComponent, PaginationContentComponent, PaginationItemComponent, PaginationLinkComponent, PaginationPreviousComponent, PaginationNextComponent, PaginationEllipsisComponent } from '../components/ui/pagination.component';
 import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, InputOTPSeparatorComponent } from '../components/ui/input-otp.component';
+import { CalendarComponent } from '../components/ui/calendar.component';
+import { CommandComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent, CommandSeparatorComponent, CommandShortcutComponent } from '../components/ui/command.component';
+import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent } from '../components/ui/menubar.component';
 
 @Component({
   selector: 'app-root',
@@ -232,7 +235,24 @@ import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, Input
     InputOTPGroupComponent,
     InputOTPSlotComponent,
     InputOTPSeparatorComponent,
+    CalendarComponent,
+    CommandComponent,
+    CommandInputComponent,
+    CommandListComponent,
+    CommandEmptyComponent,
+    CommandGroupComponent,
+    CommandItemComponent,
+    CommandSeparatorComponent,
+    CommandShortcutComponent,
+    MenubarComponent,
+    MenubarMenuComponent,
+    MenubarTriggerComponent,
+    MenubarContentComponent,
+    MenubarItemComponent,
+    MenubarSeparatorComponent,
+    MenubarShortcutComponent,
   ],
+
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <ui-toaster />
@@ -1209,6 +1229,107 @@ import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, Input
 
         <ui-separator />
 
+        <!-- Calendar -->
+        <!-- Calendar -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Calendar</h2>
+          <p class="text-muted-foreground">A date picker calendar component supporting single, range, and multi-selection modes.</p>
+          
+          <div class="flex flex-wrap gap-8">
+            <div class="space-y-2">
+              <h3 class="font-medium">Single Mode</h3>
+              <ui-calendar mode="single" class="rounded-md border shadow" />
+            </div>
+            
+            <div class="space-y-2">
+              <h3 class="font-medium">Range Mode</h3>
+              <ui-calendar mode="range" class="rounded-md border shadow" />
+            </div>
+            
+            <div class="space-y-2">
+              <h3 class="font-medium">Multi Mode</h3>
+              <ui-calendar mode="multi" class="rounded-md border shadow" />
+            </div>
+          </div>
+        </section>
+
+
+        <ui-separator />
+
+        <!-- Command -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Command</h2>
+          <p class="text-muted-foreground">A command palette for quick actions.</p>
+          
+          <ui-command class="max-w-md rounded-lg border shadow-md">
+            <ui-command-input placeholder="Type a command or search..." />
+            <ui-command-list>
+              <ui-command-empty>No results found.</ui-command-empty>
+              <ui-command-group heading="Suggestions">
+                <ui-command-item value="calendar">
+                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <rect x="3" y="4" width="18" height="18" rx="2" />
+                    <line x1="16" y1="2" x2="16" y2="6" />
+                    <line x1="8" y1="2" x2="8" y2="6" />
+                    <line x1="3" y1="10" x2="21" y2="10" />
+                  </svg>
+                  <span>Calendar</span>
+                </ui-command-item>
+                <ui-command-item value="search">
+                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <circle cx="11" cy="11" r="8" />
+                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                  </svg>
+                  <span>Search</span>
+                </ui-command-item>
+                <ui-command-item value="settings">
+                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.5-7.5L16 6M8 18l-1.5 1.5M18 16l1.5 1.5M8 6L6.5 4.5" />
+                  </svg>
+                  <span>Settings</span>
+                </ui-command-item>
+              </ui-command-group>
+              <ui-command-separator />
+              <ui-command-group heading="Settings">
+                <ui-command-item value="profile">
+                  <span>Profile</span>
+                  <ui-command-shortcut>⌘P</ui-command-shortcut>
+                </ui-command-item>
+                <ui-command-item value="billing">
+                  <span>Billing</span>
+                  <ui-command-shortcut>⌘B</ui-command-shortcut>
+                </ui-command-item>
+              </ui-command-group>
+            </ui-command-list>
+          </ui-command>
+        </section>
+
+        <ui-separator />
+
+        <!-- Menubar -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Menubar</h2>
+          <p class="text-muted-foreground">A horizontal menu bar with dropdown menus.</p>
+          
+          <ui-menubar>
+            <ui-menubar-menu>
+              <ui-menubar-trigger>File</ui-menubar-trigger>
+            </ui-menubar-menu>
+            <ui-menubar-menu>
+              <ui-menubar-trigger>Edit</ui-menubar-trigger>
+            </ui-menubar-menu>
+            <ui-menubar-menu>
+              <ui-menubar-trigger>View</ui-menubar-trigger>
+            </ui-menubar-menu>
+            <ui-menubar-menu>
+              <ui-menubar-trigger>Help</ui-menubar-trigger>
+            </ui-menubar-menu>
+          </ui-menubar>
+        </section>
+
+        <ui-separator />
+
         <!-- Footer -->
 
 
@@ -1216,6 +1337,7 @@ import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, Input
         <div class="text-center text-muted-foreground text-sm pt-8">
           Built with Angular and Tailwind CSS. Open source.
         </div>
+
       </div>
     </div>
   `,

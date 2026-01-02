@@ -36,3 +36,6 @@ export * from './toast.component';
 export * from './resizable.component';
 export * from './pagination.component';
 export * from './input-otp.component';
+export * from './calendar.component';
+export * from './command.component';
+export * from './menubar.component';
