@@ -7,7 +7,6 @@ import {
     signal,
     ElementRef,
     inject,
-    HostListener,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -15,18 +14,24 @@ import { cn } from '../lib/utils';
     selector: 'ui-slider',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <div [class]="classes()" [attr.data-slot]="'slider'">
+    <div 
+      [class]="classes()" 
+      [attr.data-slot]="'slider'"
+      (mousedown)="onTrackMouseDown($event)"
+      (touchstart)="onTouchStart($event)"
+    >
       <!-- Track -->
-      <div class="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20">
+      <div class="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20 cursor-pointer">
         <!-- Range (filled portion) -->
         <div
-          class="absolute h-full bg-primary"
+          class="absolute h-full bg-primary pointer-events-none"
           [style.width.%]="percentage()"
         ></div>
       </div>
       <!-- Thumb -->
       <div
-        class="absolute block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-pointer"
+        #thumbEl
+        class="absolute block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-grab active:cursor-grabbing"
         [style.left.%]="percentage()"
         [style.transform]="'translateX(-50%)'"
         tabindex="0"
@@ -35,7 +40,7 @@ import { cn } from '../lib/utils';
         [attr.aria-valuemin]="min()"
         [attr.aria-valuemax]="max()"
         [attr.aria-disabled]="disabled()"
-        (mousedown)="onMouseDown($event)"
+        (mousedown)="onThumbMouseDown($event)"
         (keydown)="onKeyDown($event)"
       ></div>
     </div>
@@ -80,12 +85,50 @@ export class SliderComponent {
         )
     );
 
-    onMouseDown(event: MouseEvent) {
+    onTrackMouseDown(event: MouseEvent) {
         if (this.disabled()) return;
 
         event.preventDefault();
         this.updateValueFromEvent(event);
+        this.startDragging();
 
+        // Focus the thumb for keyboard accessibility
+        const thumb = this.el.nativeElement.querySelector('[role="slider"]');
+        thumb?.focus();
+    }
+
+    onThumbMouseDown(event: MouseEvent) {
+        if (this.disabled()) return;
+
+        event.preventDefault();
+        event.stopPropagation();
+        this.startDragging();
+    }
+
+    onTouchStart(event: TouchEvent) {
+        if (this.disabled()) return;
+
+        event.preventDefault();
+        if (event.touches.length > 0) {
+            this.updateValueFromTouch(event.touches[0]);
+        }
+
+        const onTouchMove = (e: TouchEvent) => {
+            if (e.touches.length > 0) {
+                this.updateValueFromTouch(e.touches[0]);
+            }
+        };
+
+        const onTouchEnd = () => {
+            document.removeEventListener('touchmove', onTouchMove);
+            document.removeEventListener('touchend', onTouchEnd);
+        };
+
+        document.addEventListener('touchmove', onTouchMove, { passive: false });
+        document.addEventListener('touchend', onTouchEnd);
+    }
+
+    private startDragging() {
         const onMouseMove = (e: MouseEvent) => {
             this.updateValueFromEvent(e);
         };
@@ -126,6 +169,16 @@ export class SliderComponent {
                 newValue = max;
                 event.preventDefault();
                 break;
+            case 'PageUp':
+                newValue = Math.min(max, newValue + step * 10);
+                event.preventDefault();
+                break;
+            case 'PageDown':
+                newValue = Math.max(min, newValue - step * 10);
+                event.preventDefault();
+                break;
+            default:
+                return;
         }
 
         if (newValue !== this.value()) {
@@ -135,11 +188,19 @@ export class SliderComponent {
     }
 
     private updateValueFromEvent(event: MouseEvent) {
+        this.updateValueFromPosition(event.clientX);
+    }
+
+    private updateValueFromTouch(touch: Touch) {
+        this.updateValueFromPosition(touch.clientX);
+    }
+
+    private updateValueFromPosition(clientX: number) {
         const track = this.el.nativeElement.querySelector('[data-slot="slider"]');
         if (!track) return;
 
         const rect = track.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
+        const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
         const min = this.min();
         const max = this.max();
         const step = this.step();
