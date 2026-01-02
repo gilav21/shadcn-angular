@@ -47,6 +47,9 @@ import {
   DropdownMenuItemComponent,
   DropdownMenuSeparatorComponent,
   DropdownMenuLabelComponent,
+  DropdownMenuSubComponent,
+  DropdownMenuSubTriggerComponent,
+  DropdownMenuSubContentComponent,
   SelectComponent,
   SelectTriggerComponent,
   SelectValueComponent,
@@ -96,7 +99,7 @@ import { PaginationComponent, PaginationContentComponent, PaginationItemComponen
 import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, InputOTPSeparatorComponent } from '../components/ui/input-otp.component';
 import { CalendarComponent } from '../components/ui/calendar.component';
 import { CommandComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent, CommandSeparatorComponent, CommandShortcutComponent, CommandDialogComponent } from '../components/ui/command.component';
-import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent } from '../components/ui/menubar.component';
+import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent } from '../components/ui/menubar.component';
 
 @Component({
   selector: 'app-root',
@@ -148,6 +151,9 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     DropdownMenuItemComponent,
     DropdownMenuSeparatorComponent,
     DropdownMenuLabelComponent,
+    DropdownMenuSubComponent,
+    DropdownMenuSubTriggerComponent,
+    DropdownMenuSubContentComponent,
     SelectComponent,
     SelectTriggerComponent,
     SelectValueComponent,
@@ -252,6 +258,9 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     MenubarItemComponent,
     MenubarSeparatorComponent,
     MenubarShortcutComponent,
+    MenubarSubComponent,
+    MenubarSubTriggerComponent,
+    MenubarSubContentComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -680,6 +689,16 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
               <ui-dropdown-menu-item>Profile</ui-dropdown-menu-item>
               <ui-dropdown-menu-item>Settings</ui-dropdown-menu-item>
               <ui-dropdown-menu-item>Billing</ui-dropdown-menu-item>
+              <ui-dropdown-menu-separator />
+              <ui-dropdown-menu-sub>
+                <ui-dropdown-menu-sub-trigger>Invite users</ui-dropdown-menu-sub-trigger>
+                <ui-dropdown-menu-sub-content>
+                  <ui-dropdown-menu-item>Email</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item>Message</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-separator />
+                  <ui-dropdown-menu-item>More...</ui-dropdown-menu-item>
+                </ui-dropdown-menu-sub-content>
+              </ui-dropdown-menu-sub>
               <ui-dropdown-menu-separator />
               <ui-dropdown-menu-item>Log out</ui-dropdown-menu-item>
             </ui-dropdown-menu-content>
@@ -1394,9 +1413,22 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
               <ui-menubar-content>
                 <ui-menubar-item>New Tab <ui-menubar-shortcut>⌘T</ui-menubar-shortcut></ui-menubar-item>
                 <ui-menubar-item>New Window <ui-menubar-shortcut>⌘N</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-item [disabled]="true">New Incognito Window</ui-menubar-item>
+                <ui-menubar-item disabled>New Incognito Window</ui-menubar-item>
                 <ui-menubar-separator />
-                <ui-menubar-item>Share <ui-menubar-shortcut>⇧⌘S</ui-menubar-shortcut></ui-menubar-item>
+                <ui-menubar-sub>
+                  <ui-menubar-sub-trigger>Share</ui-menubar-sub-trigger>
+                  <ui-menubar-sub-content>
+                    <ui-menubar-sub>
+                      <ui-menubar-sub-trigger>Email</ui-menubar-sub-trigger>
+                      <ui-menubar-sub-content>
+                        <ui-menubar-item>Personal</ui-menubar-item>
+                        <ui-menubar-item>Work</ui-menubar-item>
+                      </ui-menubar-sub-content>
+                    </ui-menubar-sub>
+                    <ui-menubar-item>Messages</ui-menubar-item>
+                    <ui-menubar-item>Notes</ui-menubar-item>
+                  </ui-menubar-sub-content>
+                </ui-menubar-sub>
                 <ui-menubar-separator />
                 <ui-menubar-item>Print <ui-menubar-shortcut>⌘P</ui-menubar-shortcut></ui-menubar-item>
               </ui-menubar-content>
