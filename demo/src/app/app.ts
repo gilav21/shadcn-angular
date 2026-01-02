@@ -83,6 +83,12 @@ import {
 } from '../components/ui';
 import { ToggleComponent } from '../components/ui/toggle.component';
 import { ToggleGroupComponent, ToggleGroupItemComponent } from '../components/ui/toggle-group.component';
+import { ScrollAreaComponent } from '../components/ui/scroll-area.component';
+import { TableComponent, TableHeaderComponent, TableBodyComponent, TableFooterComponent, TableRowComponent, TableHeadComponent, TableCellComponent, TableCaptionComponent } from '../components/ui/table.component';
+import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, BreadcrumbLinkComponent, BreadcrumbPageComponent, BreadcrumbSeparatorComponent, BreadcrumbEllipsisComponent } from '../components/ui/breadcrumb.component';
+import { HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent } from '../components/ui/hover-card.component';
+import { ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSeparatorComponent, ContextMenuLabelComponent, ContextMenuShortcutComponent } from '../components/ui/context-menu.component';
+import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, DrawerHeaderComponent, DrawerTitleComponent, DrawerDescriptionComponent, DrawerFooterComponent, DrawerCloseComponent } from '../components/ui/drawer.component';
 
 @Component({
   selector: 'app-root',
@@ -170,6 +176,40 @@ import { ToggleGroupComponent, ToggleGroupItemComponent } from '../components/ui
     ToggleComponent,
     ToggleGroupComponent,
     ToggleGroupItemComponent,
+    ScrollAreaComponent,
+    TableComponent,
+    TableHeaderComponent,
+    TableBodyComponent,
+    TableFooterComponent,
+    TableRowComponent,
+    TableHeadComponent,
+    TableCellComponent,
+    TableCaptionComponent,
+    BreadcrumbComponent,
+    BreadcrumbListComponent,
+    BreadcrumbItemComponent,
+    BreadcrumbLinkComponent,
+    BreadcrumbPageComponent,
+    BreadcrumbSeparatorComponent,
+    BreadcrumbEllipsisComponent,
+    HoverCardComponent,
+    HoverCardTriggerComponent,
+    HoverCardContentComponent,
+    ContextMenuComponent,
+    ContextMenuTriggerComponent,
+    ContextMenuContentComponent,
+    ContextMenuItemComponent,
+    ContextMenuSeparatorComponent,
+    ContextMenuLabelComponent,
+    ContextMenuShortcutComponent,
+    DrawerComponent,
+    DrawerTriggerComponent,
+    DrawerContentComponent,
+    DrawerHeaderComponent,
+    DrawerTitleComponent,
+    DrawerDescriptionComponent,
+    DrawerFooterComponent,
+    DrawerCloseComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -196,7 +236,13 @@ import { ToggleGroupComponent, ToggleGroupItemComponent } from '../components/ui
         </div>
 
         <ui-separator />
-
+        <ui-breadcrumb-list>
+          <ui-breadcrumb-page>Home</ui-breadcrumb-page>
+          <ui-breadcrumb-separator />
+          <ui-breadcrumb-item>
+            <ui-breadcrumb-link href="#breadcrumbSection">Breadcrumb</ui-breadcrumb-link>
+          </ui-breadcrumb-item>
+        </ui-breadcrumb-list>
         <!-- Buttons Section -->
         <section class="space-y-4">
           <h2 class="text-2xl font-semibold">Buttons</h2>
@@ -842,7 +888,188 @@ import { ToggleGroupComponent, ToggleGroupItemComponent } from '../components/ui
 
         <ui-separator />
 
+        <!-- Scroll Area -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Scroll Area</h2>
+          <p class="text-muted-foreground">A custom scrollable area with styled scrollbars.</p>
+          
+          <ui-scroll-area class="h-72 w-48 rounded-md border">
+            <div class="p-4">
+              <h4 class="mb-4 text-sm font-medium leading-none">Tags</h4>
+              @for (tag of ['v1.2.0-beta.18', 'v1.2.0-beta.17', 'v1.2.0-beta.16', 'v1.2.0-beta.15', 'v1.2.0-beta.14', 'v1.2.0-beta.13', 'v1.2.0-beta.12', 'v1.2.0-beta.11', 'v1.2.0-beta.10', 'v1.2.0-beta.9', 'v1.2.0-beta.8', 'v1.2.0-beta.7', 'v1.2.0-beta.6', 'v1.2.0-beta.7', 'v1.2.0-beta.7' , 'v1.2.0-beta.7' , 'v1.2.0-beta.7']; track tag) {
+                <div class="text-sm">{{ tag }}</div>
+                <ui-separator class="my-2" />
+              }
+            </div>
+          </ui-scroll-area>
+        </section>
+
+        <ui-separator />
+
+        <!-- Table -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Table</h2>
+          <p class="text-muted-foreground">A responsive table component.</p>
+          
+          <ui-table class="h-20">
+            <ui-table-caption>A list of your recent invoices.</ui-table-caption>
+            <ui-table-header>
+              <ui-table-row>
+                <ui-table-head class="w-[100px]">Invoice</ui-table-head>
+                <ui-table-head>Status</ui-table-head>
+                <ui-table-head>Method</ui-table-head>
+                <ui-table-head class="text-right">Amount</ui-table-head>
+              </ui-table-row>
+            </ui-table-header>
+            <ui-table-body>
+              <ui-table-row>
+                <ui-table-cell class="font-medium">INV001</ui-table-cell>
+                <ui-table-cell>Paid</ui-table-cell>
+                <ui-table-cell>Credit Card</ui-table-cell>
+                <ui-table-cell class="text-right">$250.00</ui-table-cell>
+              </ui-table-row>
+              <ui-table-row>
+                <ui-table-cell class="font-medium">INV002</ui-table-cell>
+                <ui-table-cell>Pending</ui-table-cell>
+                <ui-table-cell>PayPal</ui-table-cell>
+                <ui-table-cell class="text-right">$150.00</ui-table-cell>
+              </ui-table-row>
+              <ui-table-row>
+                <ui-table-cell class="font-medium">INV003</ui-table-cell>
+                <ui-table-cell>Unpaid</ui-table-cell>
+                <ui-table-cell>Bank Transfer</ui-table-cell>
+                <ui-table-cell class="text-right">$350.00</ui-table-cell>
+              </ui-table-row>
+            </ui-table-body>
+          </ui-table>
+        </section>
+
+        <ui-separator />
+
+        <!-- Breadcrumb -->
+        <section class="space-y-4" id="breadcrumbSection">
+          <h2 class="text-2xl font-semibold">Breadcrumb</h2>
+          <p class="text-muted-foreground">Displays the path to the current page.</p>
+          
+          <ui-breadcrumb>
+            <ui-breadcrumb-list>
+              <ui-breadcrumb-item>
+                <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
+              </ui-breadcrumb-item>
+              <ui-breadcrumb-separator />
+              <ui-breadcrumb-item>
+                <ui-breadcrumb-link href="/components">Components</ui-breadcrumb-link>
+              </ui-breadcrumb-item>
+              <ui-breadcrumb-separator />
+              <ui-breadcrumb-item>
+                <ui-breadcrumb-page>Breadcrumb</ui-breadcrumb-page>
+              </ui-breadcrumb-item>
+            </ui-breadcrumb-list>
+          </ui-breadcrumb>
+        </section>
+
+        <ui-separator />
+
+        <!-- Hover Card -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Hover Card</h2>
+          <p class="text-muted-foreground">A card that appears when hovering over an element.</p>
+          
+          <ui-hover-card>
+            <ui-hover-card-trigger>
+              <ui-button variant="link">&#64;angular</ui-button>
+            </ui-hover-card-trigger>
+            <ui-hover-card-content>
+              <div class="flex justify-between space-x-4">
+                <ui-avatar>
+                  <ui-avatar-image src="https://github.com/angular.png" />
+                  <ui-avatar-fallback>NG</ui-avatar-fallback>
+                </ui-avatar>
+                <div class="space-y-1">
+                  <h4 class="text-sm font-semibold">&#64;angular</h4>
+                  <p class="text-sm">The modern web developer's platform.</p>
+                  <div class="flex items-center pt-2">
+                    <span class="text-xs text-muted-foreground">
+                      Joined December 2016
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </ui-hover-card-content>
+          </ui-hover-card>
+        </section>
+
+        <ui-separator />
+
+        <!-- Context Menu -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Context Menu</h2>
+          <p class="text-muted-foreground">A menu that appears on right-click.</p>
+          
+          <ui-context-menu>
+            <ui-context-menu-trigger>
+              <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+                Right click here
+              </div>
+            </ui-context-menu-trigger>
+            <ui-context-menu-content>
+              <ui-context-menu-item>
+                Back
+                <ui-context-menu-shortcut>⌘[</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+              <ui-context-menu-item>
+                Forward
+                <ui-context-menu-shortcut>⌘]</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+              <ui-context-menu-item>
+                Reload
+                <ui-context-menu-shortcut>⌘R</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+              <ui-context-menu-separator />
+              <ui-context-menu-item>
+                Save As...
+                <ui-context-menu-shortcut>⇧⌘S</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+              <ui-context-menu-item>Print...</ui-context-menu-item>
+            </ui-context-menu-content>
+          </ui-context-menu>
+        </section>
+
+        <ui-separator />
+
+        <!-- Drawer -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Drawer</h2>
+          <p class="text-muted-foreground">A panel that slides in from the edge of the screen.</p>
+          
+          <div class="flex gap-2">
+            <ui-drawer>
+              <ui-drawer-trigger>
+                <ui-button variant="outline">Open Bottom Drawer</ui-button>
+              </ui-drawer-trigger>
+              <ui-drawer-content>
+                <ui-drawer-header>
+                  <ui-drawer-title>Edit Profile</ui-drawer-title>
+                  <ui-drawer-description>Make changes to your profile here.</ui-drawer-description>
+                </ui-drawer-header>
+                <div class="p-4">
+                  <p>Drawer content goes here...</p>
+                </div>
+                <ui-drawer-footer>
+                  <ui-button>Save changes</ui-button>
+                  <ui-drawer-close>
+                    <ui-button variant="outline">Cancel</ui-button>
+                  </ui-drawer-close>
+                </ui-drawer-footer>
+              </ui-drawer-content>
+            </ui-drawer>
+          </div>
+        </section>
+
+        <ui-separator />
+
         <!-- Footer -->
+
 
         <div class="text-center text-muted-foreground text-sm pt-8">
           Built with Angular and Tailwind CSS. Open source.
