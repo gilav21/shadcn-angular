@@ -6,21 +6,36 @@ import {
     computed,
     signal,
     inject,
-    TemplateRef,
-    ViewContainerRef,
-    OnDestroy,
-    effect,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
+import { cva, type VariantProps } from 'class-variance-authority';
+
+const sheetVariants = cva(
+    'fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out',
+    {
+        variants: {
+            side: {
+                top: 'inset-x-0 top-0 border-b',
+                bottom: 'inset-x-0 bottom-0 border-t',
+                left: 'inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm',
+                right: 'inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm',
+            },
+        },
+        defaultVariants: {
+            side: 'right',
+        },
+    }
+);
+
+export type SheetSide = VariantProps<typeof sheetVariants>['side'];
 
 @Component({
-    selector: 'ui-dialog',
+    selector: 'ui-sheet',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: { class: 'contents' },
 })
-export class DialogComponent {
+export class SheetComponent {
     open = signal(false);
     openChange = output<boolean>();
 
@@ -30,7 +45,6 @@ export class DialogComponent {
     }
 
     hide() {
-        console.log('hide');
         this.open.set(false);
         this.openChange.emit(false);
     }
@@ -43,29 +57,29 @@ export class DialogComponent {
 }
 
 @Component({
-    selector: 'ui-dialog-trigger',
+    selector: 'ui-sheet-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" [attr.data-slot]="'dialog-trigger'">
+    <span (click)="onClick()" [attr.data-slot]="'sheet-trigger'">
       <ng-content />
     </span>
   `,
     host: { class: 'contents' },
 })
-export class DialogTriggerComponent {
-    private dialog = inject(DialogComponent, { optional: true });
+export class SheetTriggerComponent {
+    private sheet = inject(SheetComponent, { optional: true });
 
     onClick() {
-        this.dialog?.toggle();
+        this.sheet?.toggle();
     }
 }
 
 @Component({
-    selector: 'ui-dialog-content',
+    selector: 'ui-sheet-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    @if (dialog?.open()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center">
+    @if (sheet?.open()) {
+      <div class="fixed inset-0 z-50">
         <!-- Overlay -->
         <div
           class="fixed inset-0 bg-black/80 animate-in fade-in-0"
@@ -74,7 +88,7 @@ export class DialogTriggerComponent {
         <!-- Content -->
         <div
           [class]="classes()"
-          [attr.data-slot]="'dialog-content'"
+          [attr.data-slot]="'sheet-content'"
         >
           <ng-content />
           <!-- Close button -->
@@ -94,66 +108,82 @@ export class DialogTriggerComponent {
   `,
     host: { class: 'contents' },
 })
-export class DialogContentComponent {
-    dialog = inject(DialogComponent, { optional: true });
+export class SheetContentComponent {
+    sheet = inject(SheetComponent, { optional: true });
+    side = input<SheetSide>('right');
     class = input('');
 
     classes = computed(() =>
-        cn(
-            'fixed z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
-            this.class()
-        )
+        cn(sheetVariants({ side: this.side() }), this.class())
     );
 
     onOverlayClick() {
-        this.dialog?.hide();
+        this.sheet?.hide();
     }
 
     close() {
-        this.dialog?.hide();
+        this.sheet?.hide();
     }
 }
 
 @Component({
-    selector: 'ui-dialog-header',
+    selector: 'ui-sheet-header',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'flex flex-col space-y-1.5 text-center sm:text-left',
-        '[attr.data-slot]': '"dialog-header"',
+        class: 'flex flex-col space-y-2 text-center sm:text-left',
+        '[attr.data-slot]': '"sheet-header"',
     },
 })
-export class DialogHeaderComponent { }
+export class SheetHeaderComponent { }
 
 @Component({
-    selector: 'ui-dialog-title',
+    selector: 'ui-sheet-title',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'text-lg font-semibold leading-none tracking-tight',
-        '[attr.data-slot]': '"dialog-title"',
+        class: 'text-lg font-semibold text-foreground',
+        '[attr.data-slot]': '"sheet-title"',
     },
 })
-export class DialogTitleComponent { }
+export class SheetTitleComponent { }
 
 @Component({
-    selector: 'ui-dialog-description',
+    selector: 'ui-sheet-description',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
         class: 'text-sm text-muted-foreground',
-        '[attr.data-slot]': '"dialog-description"',
+        '[attr.data-slot]': '"sheet-description"',
     },
 })
-export class DialogDescriptionComponent { }
+export class SheetDescriptionComponent { }
 
 @Component({
-    selector: 'ui-dialog-footer',
+    selector: 'ui-sheet-footer',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
         class: 'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
-        '[attr.data-slot]': '"dialog-footer"',
+        '[attr.data-slot]': '"sheet-footer"',
     },
 })
-export class DialogFooterComponent { }
+export class SheetFooterComponent { }
+
+@Component({
+    selector: 'ui-sheet-close',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
+    <span (click)="onClick()" [attr.data-slot]="'sheet-close'">
+      <ng-content />
+    </span>
+  `,
+    host: { class: 'contents' },
+})
+export class SheetCloseComponent {
+    private sheet = inject(SheetComponent, { optional: true });
+
+    onClick() {
+        this.sheet?.hide();
+    }
+}

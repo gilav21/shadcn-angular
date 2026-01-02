@@ -47,6 +47,39 @@ import {
   DropdownMenuItemComponent,
   DropdownMenuSeparatorComponent,
   DropdownMenuLabelComponent,
+  SelectComponent,
+  SelectTriggerComponent,
+  SelectValueComponent,
+  SelectContentComponent,
+  SelectItemComponent,
+  SelectGroupComponent,
+  SelectLabelComponent,
+  SelectSeparatorComponent,
+  PopoverComponent,
+  PopoverTriggerComponent,
+  PopoverContentComponent,
+  PopoverCloseComponent,
+  SheetComponent,
+  SheetTriggerComponent,
+  SheetContentComponent,
+  SheetHeaderComponent,
+  SheetTitleComponent,
+  SheetDescriptionComponent,
+  SheetFooterComponent,
+  SheetCloseComponent,
+  AlertDialogComponent,
+  AlertDialogTriggerComponent,
+  AlertDialogContentComponent,
+  AlertDialogHeaderComponent,
+  AlertDialogTitleComponent,
+  AlertDialogDescriptionComponent,
+  AlertDialogFooterComponent,
+  AlertDialogActionComponent,
+  AlertDialogCancelComponent,
+  SliderComponent,
+  CollapsibleComponent,
+  CollapsibleTriggerComponent,
+  CollapsibleContentComponent,
 } from '../components/ui';
 
 @Component({
@@ -99,6 +132,39 @@ import {
     DropdownMenuItemComponent,
     DropdownMenuSeparatorComponent,
     DropdownMenuLabelComponent,
+    SelectComponent,
+    SelectTriggerComponent,
+    SelectValueComponent,
+    SelectContentComponent,
+    SelectItemComponent,
+    SelectGroupComponent,
+    SelectLabelComponent,
+    SelectSeparatorComponent,
+    PopoverComponent,
+    PopoverTriggerComponent,
+    PopoverContentComponent,
+    PopoverCloseComponent,
+    SheetComponent,
+    SheetTriggerComponent,
+    SheetContentComponent,
+    SheetHeaderComponent,
+    SheetTitleComponent,
+    SheetDescriptionComponent,
+    SheetFooterComponent,
+    SheetCloseComponent,
+    AlertDialogComponent,
+    AlertDialogTriggerComponent,
+    AlertDialogContentComponent,
+    AlertDialogHeaderComponent,
+    AlertDialogTitleComponent,
+    AlertDialogDescriptionComponent,
+    AlertDialogFooterComponent,
+    AlertDialogActionComponent,
+    AlertDialogCancelComponent,
+    SliderComponent,
+    CollapsibleComponent,
+    CollapsibleTriggerComponent,
+    CollapsibleContentComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -524,6 +590,190 @@ import {
             </ui-dropdown-menu-content>
           </ui-dropdown-menu>
         </section>
+
+        <ui-separator />
+
+        <!-- Select Section -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Select</h2>
+          <p class="text-muted-foreground">Select component for choosing from a list of options.</p>
+          
+          <ui-select class="max-w-xs" position="popper">
+            <ui-select-trigger>
+              <ui-select-value placeholder="Select a fruit" />
+            </ui-select-trigger>
+            <ui-select-content>
+              <ui-select-group>
+                <ui-select-label>Fruits</ui-select-label>
+                <ui-select-item value="apple">Apple</ui-select-item>
+                <ui-select-item value="banana">Banana</ui-select-item>
+                <ui-select-item value="blueberry">Blueberry</ui-select-item>
+                <ui-select-item value="grapes">Grapes</ui-select-item>
+                <ui-select-item value="pineapple">Pineapple</ui-select-item>
+              </ui-select-group>
+            </ui-select-content>
+          </ui-select>
+        </section>
+
+        <ui-separator />
+
+        <!-- Popover Section -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Popover</h2>
+          <p class="text-muted-foreground">Floating content that appears when a trigger is clicked.</p>
+          
+          <ui-popover #popover>
+            <ui-popover-trigger>
+              <ui-button variant="outline">Open Popover</ui-button>
+            </ui-popover-trigger>
+            <ui-popover-content class="w-80">
+              <div class="grid gap-4">
+                <div class="space-y-2">
+                  <h4 class="font-medium leading-none">Dimensions</h4>
+                  <p class="text-sm text-muted-foreground">Set the dimensions for the layer.</p>
+                </div>
+                <div class="grid gap-2">
+                  <div class="grid grid-cols-3 items-center gap-4">
+                    <ui-label for="width">Width</ui-label>
+                    <ui-input id="width" defaultValue="100%" class="col-span-2 h-8" />
+                  </div>
+                  <div class="grid grid-cols-3 items-center gap-4">
+                    <ui-label for="maxWidth">Max. width</ui-label>
+                    <ui-input id="maxWidth" defaultValue="300px" class="col-span-2 h-8" />
+                  </div>
+                </div>
+                <div class="flex justify-end">
+                  <ui-popover-close>
+                    <ui-button size="sm">Close</ui-button>
+                  </ui-popover-close>
+                </div>
+              </div>
+            </ui-popover-content>
+          </ui-popover>
+        </section>
+
+        <ui-separator />
+
+        <!-- Sheet Section -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Sheet</h2>
+          <p class="text-muted-foreground">Slide-out panel from the edge of the screen.</p>
+          
+          <div class="flex gap-2">
+            <ui-sheet #sheetRight>
+              <ui-sheet-trigger>
+                <ui-button variant="outline">Open Right</ui-button>
+              </ui-sheet-trigger>
+              <ui-sheet-content side="right">
+                <ui-sheet-header>
+                  <ui-sheet-title>Edit Profile</ui-sheet-title>
+                  <ui-sheet-description>
+                    Make changes to your profile here. Click save when you're done.
+                  </ui-sheet-description>
+                </ui-sheet-header>
+                <div class="grid gap-4 py-4">
+                  <div class="grid gap-2">
+                    <ui-label>Name</ui-label>
+                    <ui-input placeholder="Your name" />
+                  </div>
+                </div>
+                <ui-sheet-footer>
+                  <ui-sheet-close>
+                    <ui-button>Save changes</ui-button>
+                  </ui-sheet-close>
+                </ui-sheet-footer>
+              </ui-sheet-content>
+            </ui-sheet>
+
+            <ui-sheet #sheetLeft>
+              <ui-sheet-trigger>
+                <ui-button variant="outline">Open Left</ui-button>
+              </ui-sheet-trigger>
+              <ui-sheet-content side="left">
+                <ui-sheet-header>
+                  <ui-sheet-title>Left Panel</ui-sheet-title>
+                  <ui-sheet-description>This panel slides in from the left.</ui-sheet-description>
+                </ui-sheet-header>
+              </ui-sheet-content>
+            </ui-sheet>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Alert Dialog Section -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Alert Dialog</h2>
+          <p class="text-muted-foreground">A modal dialog that interrupts the user with important content.</p>
+          
+          <ui-alert-dialog #alertDialog>
+            <ui-alert-dialog-trigger>
+              <ui-button variant="outline">Show Alert Dialog</ui-button>
+            </ui-alert-dialog-trigger>
+            <ui-alert-dialog-content>
+              <ui-alert-dialog-header>
+                <ui-alert-dialog-title>Are you absolutely sure?</ui-alert-dialog-title>
+                <ui-alert-dialog-description>
+                  This action cannot be undone. This will permanently delete your account
+                  and remove your data from our servers.
+                </ui-alert-dialog-description>
+              </ui-alert-dialog-header>
+              <ui-alert-dialog-footer>
+                <ui-alert-dialog-cancel>Cancel</ui-alert-dialog-cancel>
+                <ui-alert-dialog-action>Continue</ui-alert-dialog-action>
+              </ui-alert-dialog-footer>
+            </ui-alert-dialog-content>
+          </ui-alert-dialog>
+        </section>
+
+        <ui-separator />
+
+        <!-- Slider Section -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Slider</h2>
+          <p class="text-muted-foreground">Range input component.</p>
+          
+          <div class="max-w-xs space-y-4">
+            <ui-slider [defaultValue]="40" [min]="0" [max]="100" [step]="1" />
+            <div class="flex justify-between text-sm text-muted-foreground">
+              <span>0</span>
+              <span>100</span>
+            </div>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Collapsible Section -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Collapsible</h2>
+          <p class="text-muted-foreground">An expandable/collapsible component.</p>
+          
+          <ui-collapsible class="w-[350px] space-y-2">
+            <div class="flex items-center justify-between space-x-4 px-4">
+              <h4 class="text-sm font-semibold">&#64;peduarte starred 3 repositories</h4>
+              <ui-collapsible-trigger>
+                <ui-button variant="ghost" size="sm" class="w-9 p-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
+                  <span class="sr-only">Toggle</span>
+                </ui-button>
+              </ui-collapsible-trigger>
+            </div>
+            <div class="rounded-md border px-4 py-3 font-mono text-sm">
+              &#64;radix-ui/primitives
+            </div>
+            <ui-collapsible-content class="space-y-2">
+              <div class="rounded-md border px-4 py-3 font-mono text-sm">
+                &#64;radix-ui/colors
+              </div>
+              <div class="rounded-md border px-4 py-3 font-mono text-sm">
+                &#64;stitches/react
+              </div>
+            </ui-collapsible-content>
+          </ui-collapsible>
+        </section>
+
+        <ui-separator />
 
         <!-- Footer -->
         <div class="text-center text-muted-foreground text-sm pt-8">
