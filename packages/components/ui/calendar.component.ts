@@ -5,6 +5,7 @@ import {
   output,
   computed,
   signal,
+  effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -21,24 +22,66 @@ export interface DateRange {
   template: `
     <div [class]="classes()" [attr.data-slot]="'calendar'">
       <!-- Header -->
-      <div class="flex items-center justify-between px-1 relative">
+      <div class="flex items-center justify-between px-1 relative mb-4">
         <button
           type="button"
           (click)="previousMonth()"
-          class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground z-10"
+          [class]="buttonClasses()"
           aria-label="Previous month"
         >
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <div class="text-sm font-medium absolute w-full left-0 text-center">
-          {{ monthName() }} {{ currentYear() }}
+
+        <div class="flex items-center gap-1 font-medium text-sm">
+            @if (showMonthSelect()) {
+                <div class="relative">
+                    <select 
+                        [value]="currentMonth()" 
+                        (change)="changeMonth($event)"
+                        class="h-7 w-[110px] appearance-none rounded-md border border-input bg-background pl-2 pr-6 text-sm hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                        @for (month of monthNames; track $index) {
+                            <option [value]="$index" [selected]="$index === currentMonth()">{{ month }}</option>
+                        }
+                    </select>
+                    <div class="pointer-events-none absolute right-1.5 top-2 opacity-50">
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+            } @else {
+               <span>{{ monthName() }}</span>
+            }
+
+            @if (showYearSelect()) {
+                <div class="relative">
+                    <select 
+                        [value]="currentYear()" 
+                        (change)="changeYear($event)"
+                        class="h-7 w-[70px] appearance-none rounded-md border border-input bg-background pl-2 pr-6 text-sm hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
+                    >
+                        @for (year of years(); track year) {
+                            <option [value]="year" [selected]="year === currentYear()">{{ year }}</option>
+                        }
+                    </select>
+                    <div class="pointer-events-none absolute right-1.5 top-2 opacity-50">
+                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                        </svg>
+                    </div>
+                </div>
+            } @else {
+               <span>{{ currentYear() }}</span>
+            }
         </div>
+
         <button
           type="button"
           (click)="nextMonth()"
-          class="inline-flex h-7 w-7 items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground z-10"
+          [class]="buttonClasses()"
           aria-label="Next month"
         >
           <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -49,7 +92,7 @@ export interface DateRange {
 
       <!-- Day names -->
       <div class="mt-4 grid grid-cols-7 text-center text-xs text-muted-foreground">
-        @for (day of dayNames; track day) {
+        @for (day of orderedDayNames(); track day) {
           <div class="py-2">{{ day }}</div>
         }
       </div>
@@ -72,6 +115,26 @@ export interface DateRange {
           }
         }
       </div>
+
+      <!-- Time Selection (Single Mode Only) -->
+      @if (showTimeSelect() && mode() === 'single') {
+        <div class="mt-4 border-t pt-4">
+            <div class="flex flex-col gap-2">
+                <span class="text-sm font-medium">Time</span>
+                <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
+                    <input 
+                        type="time"
+                        class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground [&::-webkit-calendar-picker-indicator]:hidden"
+                        [value]="selectedTimeString()"
+                        (change)="updateTime($event)"
+                    />
+                    <div class="flex items-center justify-center px-3 py-2 border-l border-input bg-muted/50 text-muted-foreground">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    </div>
+                </div>
+            </div>
+        </div>
+      }
     </div>
   `,
   host: { class: 'contents' },
@@ -79,13 +142,35 @@ export interface DateRange {
 export class CalendarComponent {
   class = input('');
   mode = input<CalendarMode>('single');
+  showMonthSelect = input(false);
+  showYearSelect = input(false);
+  showTimeSelect = input(false);
+  weekStartsOn = input<0 | 1>(0); // 0 = Sunday, 1 = Monday
 
-  // We can't really type this strictly as one because it depends on mode
-  // but specific consumers can cast it
-  selected = signal<Date | DateRange | Date[] | null>(null);
-  selectedChange = output<Date | DateRange | Date[] | null>();
+  selected = signal<Date | DateRange | Date[] | string | string[] | null>(null);
+  selectedChange = output<Date | DateRange | Date[] | string | string[] | null>();
 
   private viewDate = signal(new Date());
+
+  constructor() {
+    effect(() => {
+      const val = this.selected();
+      if (val && !this.viewDateInitialized) {
+        let d: Date | null = null;
+        if (typeof val === 'string') d = this.parseDate(val);
+        else if (val instanceof Date) d = val;
+        else if (Array.isArray(val) && val.length > 0) d = this.parseDate(val[0]);
+        else if (typeof val === 'object' && 'start' in (val as any)) d = (val as any).start;
+
+        if (d) {
+          this.viewDate.set(new Date(d));
+          this.viewDateInitialized = true;
+        }
+      }
+    }, { allowSignalWrites: true });
+  }
+
+  private viewDateInitialized = false;
 
   readonly dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
   readonly monthNames = [
@@ -93,36 +178,69 @@ export class CalendarComponent {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
+  orderedDayNames = computed(() => {
+    const start = this.weekStartsOn();
+    if (start === 0) return this.dayNames;
+    return [...this.dayNames.slice(start), ...this.dayNames.slice(0, start)];
+  });
+
   classes = computed(() => cn(
     'p-3 bg-background rounded-md border inline-block',
     this.class()
+  ));
+
+  buttonClasses = computed(() => cn(
+    'inline-flex h-7 w-7 items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground z-10',
   ));
 
   currentMonth = computed(() => this.viewDate().getMonth());
   currentYear = computed(() => this.viewDate().getFullYear());
   monthName = computed(() => this.monthNames[this.currentMonth()]);
 
+  years = computed(() => {
+    const current = new Date().getFullYear();
+    const start = current - 100;
+    const end = current + 10;
+    const years: number[] = [];
+    for (let i = start; i <= end; i++) {
+      years.push(i);
+    }
+    return years;
+  });
+
   calendarDays = computed(() => {
     const year = this.currentYear();
     const month = this.currentMonth();
     const firstDay = new Date(year, month, 1);
     const lastDay = new Date(year, month + 1, 0);
-    const startingDay = firstDay.getDay();
+
+    const startOffset = this.weekStartsOn();
+    const startingDay = (firstDay.getDay() - startOffset + 7) % 7;
     const totalDays = lastDay.getDate();
 
     const days: (Date | null)[] = [];
 
-    // Add empty slots for days before the 1st
     for (let i = 0; i < startingDay; i++) {
       days.push(null);
     }
 
-    // Add the days of the month
     for (let i = 1; i <= totalDays; i++) {
       days.push(new Date(year, month, i));
     }
 
     return days;
+  });
+
+  selectedTimeString = computed(() => {
+    const val = this.selected();
+    if (!val) return '';
+
+    const parsed = this.parseDate(val as any);
+    if (!parsed) return '';
+
+    const hours = parsed.getHours().toString().padStart(2, '0');
+    const minutes = parsed.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
   });
 
   getDayClasses(day: Date): string {
@@ -135,23 +253,26 @@ export class CalendarComponent {
       'hover:bg-accent hover:text-accent-foreground',
       'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
 
-      // Today styling
       isToday && !isSelected && 'bg-accent text-accent-foreground',
-
-      // Selected styling
       isSelected && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground z-10',
+      isInRange && !isSelected && 'bg-accent/80 text-accent-foreground rounded-none',
 
-      // Range styling (middle days)
-      isInRange && !isSelected && 'bg-accent/50 text-accent-foreground rounded-none',
-
-      // Range ends rounding fix
       this.isRangeStart(day) && 'rounded-r-none',
       this.isRangeEnd(day) && 'rounded-l-none',
 
-      // Outside current month (for visual clarity if we showed them, preventing interactions normally)
-      // But we hide interaction via disabled logic in template
       day.getMonth() !== this.currentMonth() && 'opacity-50 pointer-events-none'
     );
+  }
+
+  private parseDate(val: Date | string | null): Date | null {
+    if (!val) return null;
+    if (val instanceof Date) return val;
+    if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
+      const [y, m, d] = val.split('-').map(Number);
+      return new Date(y, m - 1, d);
+    }
+    const d = new Date(val);
+    return isNaN(d.getTime()) ? null : d;
   }
 
   isSelected(day: Date): boolean {
@@ -161,11 +282,16 @@ export class CalendarComponent {
     if (!val) return false;
 
     if (mode === 'single') {
-      return this.isSameDay(day, val as Date);
+      const d = this.parseDate(val as Date | string);
+      return d ? this.isSameDay(day, d) : false;
     }
 
     if (mode === 'multi') {
-      return (val as Date[]).some(d => this.isSameDay(d, day));
+      const arr = (val as (Date | string)[]);
+      return arr.some(v => {
+        const d = this.parseDate(v);
+        return d ? this.isSameDay(d, day) : false;
+      });
     }
 
     if (mode === 'range') {
@@ -183,7 +309,6 @@ export class CalendarComponent {
     const val = this.selected() as DateRange | null;
     if (!val || !val.start || !val.end) return false;
 
-    // Check if day is strictly between start and end
     const time = day.getTime();
     const start = val.start.getTime();
     const end = val.end.getTime();
@@ -203,7 +328,6 @@ export class CalendarComponent {
     return !!(val?.end && this.isSameDay(day, val.end) && val.start);
   }
 
-
   private isSameDay(a: Date, b: Date): boolean {
     return a.getFullYear() === b.getFullYear() &&
       a.getMonth() === b.getMonth() &&
@@ -213,28 +337,33 @@ export class CalendarComponent {
   selectDay(day: Date) {
     const mode = this.mode();
     let newVal: any;
+    const currentSelected = this.selected();
+
+    if (mode === 'single' && currentSelected) {
+      const currentD = this.parseDate(currentSelected as any);
+      if (currentD) {
+        day.setHours(currentD.getHours(), currentD.getMinutes());
+      }
+    }
 
     if (mode === 'single') {
-      // Toggle off if clicking same day? Or just always set? 
-      // Usually single date picker allows switching, usually doesn't toggle off unless required=false
-      // We'll assume always select for now
       newVal = day;
     } else if (mode === 'multi') {
-      const current = (this.selected() as Date[]) || [];
-      const exists = current.some(d => this.isSameDay(d, day));
+      const current = (currentSelected as (Date | string)[]) || [];
+      const parsedCurrent = current.map(v => this.parseDate(v)).filter(Boolean) as Date[];
+      const exists = parsedCurrent.some(d => this.isSameDay(d, day));
+
       if (exists) {
-        newVal = current.filter(d => !this.isSameDay(d, day));
+        newVal = parsedCurrent.filter(d => !this.isSameDay(d, day));
       } else {
-        newVal = [...current, day];
+        newVal = [...parsedCurrent, day];
       }
     } else if (mode === 'range') {
-      const current = (this.selected() as DateRange) || { start: null, end: null };
+      const current = (currentSelected as DateRange) || { start: null, end: null };
 
       if (!current.start || (current.start && current.end)) {
-        // Start new range
         newVal = { start: day, end: null };
       } else {
-        // Determine start/end
         if (day < current.start) {
           newVal = { start: day, end: current.start };
         } else {
@@ -247,6 +376,35 @@ export class CalendarComponent {
     this.selectedChange.emit(newVal);
   }
 
+  updateTime(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const val = input.value; // "HH:MM"
+    if (!val) return;
+
+    const [hours, minutes] = val.split(':').map(Number);
+
+    const currentSel = this.selected();
+    let date: Date;
+
+    if (currentSel) {
+      const parsed = this.parseDate(currentSel as any);
+      if (parsed) {
+        date = new Date(parsed);
+      } else {
+        date = new Date(this.viewDate());
+      }
+    } else {
+      date = new Date(this.viewDate());
+    }
+
+    date.setHours(hours);
+    date.setMinutes(minutes);
+
+    // Emit new Date
+    this.selected.set(new Date(date));
+    this.selectedChange.emit(new Date(date));
+  }
+
   previousMonth() {
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), current.getMonth() - 1, 1));
@@ -255,5 +413,19 @@ export class CalendarComponent {
   nextMonth() {
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), current.getMonth() + 1, 1));
+  }
+
+  changeMonth(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const month = parseInt(select.value, 10);
+    const current = this.viewDate();
+    this.viewDate.set(new Date(current.getFullYear(), month, 1));
+  }
+
+  changeYear(event: Event) {
+    const select = event.target as HTMLSelectElement;
+    const year = parseInt(select.value, 10);
+    const current = this.viewDate();
+    this.viewDate.set(new Date(year, current.getMonth(), 1));
   }
 }

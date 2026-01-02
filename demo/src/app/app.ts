@@ -1250,7 +1250,37 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
               <h3 class="font-medium">Multi Mode</h3>
               <ui-calendar mode="multi" class="rounded-md border shadow" />
             </div>
+
+            <div class="space-y-2">
+              <h3 class="font-medium">With Selectors</h3>
+              <ui-calendar 
+                mode="single" 
+                [showMonthSelect]="true" 
+                [showYearSelect]="true" 
+                class="rounded-md border shadow" 
+              />
+            </div>
+            
+             <div class="space-y-2">
+              <h3 class="font-medium">Date & Time</h3>
+              <ui-calendar 
+                mode="single" 
+                [showTimeSelect]="true" 
+                class="rounded-md border shadow" 
+              />
+            </div>
+
+            <div class="space-y-2">
+              <h3 class="font-medium">Start Mon (String)</h3>
+              <ui-calendar 
+                mode="single" 
+                [weekStartsOn]="1"
+                selected="2024-01-01"
+                class="rounded-md border shadow" 
+              />
+            </div>
           </div>
+
         </section>
 
 
