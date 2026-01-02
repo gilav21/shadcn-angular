@@ -9,13 +9,12 @@ import {
   booleanAttribute,
   Injectable,
   ElementRef,
-  AfterContentInit,
+  HostListener,
   ContentChildren,
   QueryList,
-  HostListener,
-  PLATFORM_ID,
+  forwardRef,
+  ViewChild,
 } from '@angular/core';
-import { isPlatformBrowser } from '@angular/common';
 import { cn } from '../lib/utils';
 import { Subject } from 'rxjs';
 
@@ -64,14 +63,16 @@ export class MenubarComponent {
     this.class()
   ));
 
-  onKeydown(event: KeyboardEvent) {
-    // Handle ArrowLeft/Right for moving between triggers at the root level (if focus is on a trigger)
-    // Note: Focus management inside menus is handled by Content/Items.
-    // This handler catches bubbling events from triggers.
-
-    if (event.key === 'ArrowRight' || event.key === 'ArrowLeft') {
-      // Find custom navigation reset logic if needed, but triggers handle their own navigation
+  @HostListener('document:click', ['$event'])
+  onClick(event: MouseEvent) {
+    // If a menu is active, and click is outside the menubar tree, close it.
+    if (this.service.activeMenuId() && !this.el.nativeElement.contains(event.target)) {
+      this.service.setActive(null);
     }
+  }
+
+  onKeydown(event: KeyboardEvent) {
+    // Handled by triggers/content bubbles
   }
 }
 
@@ -114,6 +115,7 @@ export class MenubarMenuComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button
+      #trigger
       type="button"
       [class]="classes()"
       [attr.data-slot]="'menubar-trigger'"
@@ -135,6 +137,8 @@ export class MenubarTriggerComponent {
   service = inject(MenubarService);
   el = inject(ElementRef);
 
+  @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
+
   state = computed(() => this.menu.isOpen() ? 'open' : 'closed');
 
   constructor() {
@@ -154,7 +158,6 @@ export class MenubarTriggerComponent {
   }
 
   onMouseEnter() {
-    // If any menu is open, we switch to this one (hover intent)
     if (this.service.activeMenuId()) {
       this.menu.open();
     }
@@ -170,9 +173,6 @@ export class MenubarTriggerComponent {
     } else if (event.key === 'ArrowDown' || event.key === 'Enter') {
       event.preventDefault();
       this.menu.open();
-      // We need to wait for content to render then focus first item.
-      // Using a small timeout or relying on Content to autofocus first item?
-      // Content component can trap focus or focus first item on init.
       setTimeout(() => {
         const content = document.querySelector(`[data-menubar-content="${this.menu.id}"]`);
         if (content) {
@@ -183,32 +183,27 @@ export class MenubarTriggerComponent {
     }
   }
 
+  focus() {
+    this.triggerEl?.nativeElement.focus();
+  }
+
   focusNextTrigger() {
     const triggers = Array.from(document.querySelectorAll('[data-slot="menubar-trigger"]')) as HTMLElement[];
-    const index = triggers.indexOf(this.el.nativeElement);
+    const index = triggers.indexOf(this.triggerEl.nativeElement);
     const nextIndex = (index + 1) % triggers.length;
     triggers[nextIndex]?.focus();
-
-    // If a menu is currently open, switch the active menu to the new trigger
     if (this.service.activeMenuId()) {
-      // We need to find the component associated with the next trigger element.
-      // But we don't have easy access. 
-      // Simulating click or just letting focus move? 
-      // Standard behavior: if menu is open, Left/Right moves focus AND opens the new menu.
-      const nextTriggerEl = triggers[nextIndex];
-      nextTriggerEl.click();
+      triggers[nextIndex].click();
     }
   }
 
   focusPrevTrigger() {
     const triggers = Array.from(document.querySelectorAll('[data-slot="menubar-trigger"]')) as HTMLElement[];
-    const index = triggers.indexOf(this.el.nativeElement);
+    const index = triggers.indexOf(this.triggerEl.nativeElement);
     const prevIndex = (index - 1 + triggers.length) % triggers.length;
     triggers[prevIndex]?.focus();
-
     if (this.service.activeMenuId()) {
-      const prevTriggerEl = triggers[prevIndex];
-      prevTriggerEl.click();
+      triggers[prevIndex].click();
     }
   }
 }
@@ -250,26 +245,21 @@ export class MenubarContentComponent {
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
       this.focusPrevItem(event.target as HTMLElement);
-    } else if (event.key === 'Escape' || event.key === 'ArrowLeft') {
-      // If ArrowLeft, usually moves to prev trigger if we are at root level content.
+    } else if (event.key === 'Escape') {
       event.preventDefault();
       this.menu.close();
-      // Focus trigger
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
-      trigger?.el.nativeElement.focus();
-
-      if (event.key === 'ArrowLeft') {
-        // Also move to prev trigger? Standard behavior varies.
-        // Often Left in a vertical menu triggers "Back to parent" (if submenu) or "Prev Header" (if root).
-        // Since this is root content, we might want to trigger 'ArrowLeft' logic on the trigger itself?
-        // But we already closed it.
-        // We can emulate 'ArrowLeft' on trigger.
-        trigger?.focusPrevTrigger();
-      }
-    } else if (event.key === 'ArrowRight') {
-      // Standard behavior: Move to next trigger
+      trigger?.focus();
+    } else if (event.key === 'ArrowLeft') {
+      // In root menu: Left -> focus Prev header trigger
       event.preventDefault();
-      this.menu.close();
+      // Do NOT close menu here, allows seamless switch
+      const trigger = this.service.menus.get(this.menu.id)?.trigger;
+      trigger?.focusPrevTrigger();
+    } else if (event.key === 'ArrowRight') {
+      // In root menu: Right -> focus Next header trigger
+      event.preventDefault();
+      // Do NOT close menu here, allows seamless switch
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
       trigger?.focusNextTrigger();
     }
@@ -290,22 +280,8 @@ export class MenubarContentComponent {
   }
 
   getFocusableItems(): HTMLElement[] {
-    // Query scoped to this content element in the DOM
-    // We find the rendered div first
-    // Note: the component host is 'contents', so we need to find the actual div in the template.
-    // But we are listening on the div (template).
-    // Wait, onKeydown bubbles. The event.target is the item.
-    // event.currentTarget is the div?
-    // We can query selectorAll inside the div.
-    // But we need reference to the div? 
-    // We can use document.querySelector based on data id?
-    // Or inject ElementRef? ElementRef is comment node for 'contents'.
-    // So we can't query inside ElementRef easily.
-    // Best bet: use document.querySelector(`[data-menubar-content="${this.menu.id}"]`)
-
     const contentDiv = document.querySelector(`[data-menubar-content="${this.menu.id}"]`);
     if (!contentDiv) return [];
-
     return Array.from(contentDiv.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
   }
 }
@@ -322,7 +298,6 @@ export class MenubarContentComponent {
       tabindex="0"
       (click)="onClick()"
       (keydown.enter)="onClick()"
-      (focus)="onFocus()"
     >
       <ng-content />
     </div>
@@ -336,9 +311,6 @@ export class MenubarItemComponent {
 
   select = output<void>();
   menu = inject(MenubarMenuComponent, { optional: true });
-
-  // For manual focus tracking if needed
-  onFocus() { }
 
   classes = computed(() => cn(
     'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
@@ -389,6 +361,12 @@ export class MenubarSubComponent {
   isOpen = signal(false);
   private timeoutId: any;
 
+  private trigger: MenubarSubTriggerComponent | null = null;
+  private content: MenubarSubContentComponent | null = null;
+
+  registerTrigger(t: MenubarSubTriggerComponent) { this.trigger = t; }
+  registerContent(c: MenubarSubContentComponent) { this.content = c; }
+
   enter() {
     clearTimeout(this.timeoutId);
     this.isOpen.set(true);
@@ -399,6 +377,19 @@ export class MenubarSubComponent {
       this.isOpen.set(false);
     }, 100);
   }
+
+  focusTrigger() {
+    // Small timeout to allow DOM to settle if parent closing logic is involved
+    setTimeout(() => {
+      this.trigger?.focus();
+    }, 0);
+  }
+
+  focusContent() {
+    setTimeout(() => {
+      this.content?.focusFirst();
+    }, 0);
+  }
 }
 
 @Component({
@@ -406,6 +397,7 @@ export class MenubarSubComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div 
+      #trigger
       [class]="classes()"
       role="menuitem"
       [attr.aria-haspopup]="true"
@@ -428,6 +420,13 @@ export class MenubarSubTriggerComponent {
   inset = input(false, { transform: booleanAttribute });
 
   sub = inject(MenubarSubComponent);
+  el = inject(ElementRef);
+
+  @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
+
+  constructor() {
+    this.sub.registerTrigger(this);
+  }
 
   classes = computed(() => cn(
     'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
@@ -439,8 +438,10 @@ export class MenubarSubTriggerComponent {
     this.class()
   ));
 
-  onClick() {
-    // Click logic if defined
+  onClick() { }
+
+  focus() {
+    this.triggerEl?.nativeElement.focus();
   }
 
   onKeydown(event: KeyboardEvent) {
@@ -448,32 +449,12 @@ export class MenubarSubTriggerComponent {
       event.preventDefault();
       event.stopPropagation();
       this.sub.enter();
-      // Focus first item in sub
-      setTimeout(() => {
-        // We need to find the sub content. 
-        // Since we are in the trigger, we don't have direct ref to content.
-        // But content is sibling in template.
-        // Best to rely on SubContent to focus first item when opened?
-        // Or traverse DOM: The sub control uses a specific logic.
-        // Shortcuts for demo: find next sibling element that is sub-content?
-        // Since Sub wraps Trigger and Content, they are siblings.
-        // But we are in Trigger component.
-        // Let's rely on standard focus management or just open it.
-        // User can press Down to enter sub?
-        // Standard: Right arrow enters sub.
-
-        // Simplest: 
-        // Find parent wrapper of this trigger?
-        // Not robust.
-        // But the SubContent renders 'menu' role.
-        // document.activeElement is this trigger.
-        // sibling should be the content.
-      }, 0);
+      this.sub.focusContent();
     }
     if (event.key === 'Enter') {
-      // Open sub
       event.preventDefault();
       this.sub.enter();
+      this.sub.focusContent();
     }
   }
 }
@@ -499,6 +480,11 @@ export class MenubarSubTriggerComponent {
 export class MenubarSubContentComponent {
   class = input('');
   sub = inject(MenubarSubComponent);
+  el = inject(ElementRef);
+
+  constructor() {
+    this.sub.registerContent(this);
+  }
 
   classes = computed(() => cn(
     'absolute left-full top-0 z-50 ml-0.5 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
@@ -506,17 +492,18 @@ export class MenubarSubContentComponent {
     this.class()
   ));
 
+  focusFirst() {
+    const items = Array.from(this.el.nativeElement.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+    items[0]?.focus();
+  }
+
   onKeydown(event: KeyboardEvent) {
-    event.stopPropagation(); // Don't bubble to parent menu
+    event.stopPropagation();
 
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
       this.sub.leave();
-      // Focus the trigger... how to find it?
-      // It's the sibling in the 'ui-menubar-sub'
-      // We can't easily find it without reference.
-      // BUT, focus returns to body if we hide?
-      // Trap: we need to restore focus.
+      this.sub.focusTrigger();
     } else if (event.key === 'ArrowDown') {
       event.preventDefault();
       this.focusNextItem(event.target as HTMLElement);
@@ -527,10 +514,7 @@ export class MenubarSubContentComponent {
   }
 
   focusNextItem(currentItem: HTMLElement) {
-    // Similar logic, scope to this subcontent div
     const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
-    // If currentItem is the menu itself (rare), items is children.
-    // Actually closest role=menu is this component's div.
     const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
     const index = items.indexOf(currentItem);
     const nextIndex = (index + 1) % items.length;
