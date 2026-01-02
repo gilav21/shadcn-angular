@@ -10,6 +10,8 @@ import {
     ViewContainerRef,
     OnDestroy,
     effect,
+    model,
+    HostListener,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -21,24 +23,18 @@ import { cn } from '../lib/utils';
     host: { class: 'contents' },
 })
 export class DialogComponent {
-    open = signal(false);
-    openChange = output<boolean>();
+    open = model(false);
 
     show() {
         this.open.set(true);
-        this.openChange.emit(true);
     }
 
     hide() {
-        console.log('hide');
         this.open.set(false);
-        this.openChange.emit(false);
     }
 
     toggle() {
-        const newState = !this.open();
-        this.open.set(newState);
-        this.openChange.emit(newState);
+        this.open.update(v => !v);
     }
 }
 
@@ -111,6 +107,11 @@ export class DialogContentComponent {
 
     close() {
         this.dialog?.hide();
+    }
+
+    @HostListener('document:keydown.escape', ['$event'])
+    onEscape(event: Event) {
+        this.close();
     }
 }
 

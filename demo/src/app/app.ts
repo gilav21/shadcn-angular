@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   ButtonComponent,
@@ -95,7 +95,7 @@ import { ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleC
 import { PaginationComponent, PaginationContentComponent, PaginationItemComponent, PaginationLinkComponent, PaginationPreviousComponent, PaginationNextComponent, PaginationEllipsisComponent } from '../components/ui/pagination.component';
 import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, InputOTPSeparatorComponent } from '../components/ui/input-otp.component';
 import { CalendarComponent } from '../components/ui/calendar.component';
-import { CommandComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent, CommandSeparatorComponent, CommandShortcutComponent } from '../components/ui/command.component';
+import { CommandComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent, CommandSeparatorComponent, CommandShortcutComponent, CommandDialogComponent } from '../components/ui/command.component';
 import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent } from '../components/ui/menubar.component';
 
 @Component({
@@ -244,6 +244,7 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     CommandItemComponent,
     CommandSeparatorComponent,
     CommandShortcutComponent,
+    CommandDialogComponent,
     MenubarComponent,
     MenubarMenuComponent,
     MenubarTriggerComponent,
@@ -1230,7 +1231,6 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
         <ui-separator />
 
         <!-- Calendar -->
-        <!-- Calendar -->
         <section class="space-y-4">
           <h2 class="text-2xl font-semibold">Calendar</h2>
           <p class="text-muted-foreground">A date picker calendar component supporting single, range, and multi-selection modes.</p>
@@ -1291,7 +1291,7 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
           <h2 class="text-2xl font-semibold">Command</h2>
           <p class="text-muted-foreground">A command palette for quick actions.</p>
           
-          <ui-command class="max-w-md rounded-lg border shadow-md">
+            <ui-command class="max-w-md rounded-lg border shadow-md">
             <ui-command-input placeholder="Type a command or search..." />
             <ui-command-list>
               <ui-command-empty>No results found.</ui-command-empty>
@@ -1299,42 +1299,88 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
                 <ui-command-item value="calendar">
                   <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="4" width="18" height="18" rx="2" />
-                    <line x1="16" y1="2" x2="16" y2="6" />
-                    <line x1="8" y1="2" x2="8" y2="6" />
-                    <line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
                   <span>Calendar</span>
                 </ui-command-item>
-                <ui-command-item value="search">
+                <ui-command-item value="search-emoji">
                   <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <circle cx="11" cy="11" r="8" />
-                    <line x1="21" y1="21" x2="16.65" y2="16.65" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
-                  <span>Search</span>
+                  <span>Search Emoji</span>
                 </ui-command-item>
-                <ui-command-item value="settings">
+                <ui-command-item value="launch">
                   <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <circle cx="12" cy="12" r="3" />
-                    <path d="M12 1v2m0 18v2m11-11h-2M3 12H1m16.5-7.5L16 6M8 18l-1.5 1.5M18 16l1.5 1.5M8 6L6.5 4.5" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
-                  <span>Settings</span>
+                  <span>Launch</span>
                 </ui-command-item>
               </ui-command-group>
               <ui-command-separator />
               <ui-command-group heading="Settings">
                 <ui-command-item value="profile">
+                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                     <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                  </svg>
                   <span>Profile</span>
                   <ui-command-shortcut>⌘P</ui-command-shortcut>
                 </ui-command-item>
-                <ui-command-item value="billing">
-                  <span>Billing</span>
+                <ui-command-item value="mail">
+                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                  <span>Mail</span>
                   <ui-command-shortcut>⌘B</ui-command-shortcut>
+                </ui-command-item>
+                <ui-command-item value="settings">
+                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                  <span>Settings</span>
+                  <ui-command-shortcut>⌘S</ui-command-shortcut>
                 </ui-command-item>
               </ui-command-group>
             </ui-command-list>
           </ui-command>
+          <div class="flex flex-col gap-2">
+            <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">Show command dialog</ui-button>
+            <span>
+              Or
+              Press Control + J
+            </span>
+          </div>
+
+          <ui-command-dialog [(open)]="showCommandDialog">
+            <ui-command-input placeholder="Type a command or search..." />
+            <ui-command-list>
+              <ui-command-empty>No results found.</ui-command-empty>
+              <ui-command-group heading="Suggestions">
+                <ui-command-item value="calendar">
+                  <span class="mr-2">📅</span>
+                  <span>Calendar</span>
+                </ui-command-item>
+                <ui-command-item value="search-emoji">
+                  <span class="mr-2">😊</span>
+                  <span>Search Emoji</span>
+                </ui-command-item>
+                <ui-command-item value="calculator">
+                  <span class="mr-2">🧮</span>
+                  <span>Calculator</span>
+                </ui-command-item>
+              </ui-command-group>
+              <ui-command-separator />
+              <ui-command-group heading="Settings">
+                <ui-command-item value="profile"><span>Profile</span><ui-command-shortcut>⌘P</ui-command-shortcut></ui-command-item>
+                <ui-command-item value="billing"><span>Billing</span><ui-command-shortcut>⌘B</ui-command-shortcut></ui-command-item>
+                <ui-command-item value="settings"><span>Settings</span><ui-command-shortcut>⌘S</ui-command-shortcut></ui-command-item>
+              </ui-command-group>
+            </ui-command-list>
+          </ui-command-dialog>
+
         </section>
 
+
+        <ui-separator />
         <ui-separator />
 
         <!-- Menubar -->
@@ -1345,6 +1391,13 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
           <ui-menubar>
             <ui-menubar-menu>
               <ui-menubar-trigger>File</ui-menubar-trigger>
+              <ui-menubar-content>
+                <ui-menubar-item>Open</ui-menubar-item>
+                <ui-menubar-item>Save</ui-menubar-item>
+                <ui-menubar-item>Save As</ui-menubar-item>
+                <ui-menubar-separator />
+                <ui-menubar-item>Print</ui-menubar-item>
+              </ui-menubar-content>
             </ui-menubar-menu>
             <ui-menubar-menu>
               <ui-menubar-trigger>Edit</ui-menubar-trigger>
@@ -1405,5 +1458,15 @@ export class AppComponent {
   onVerticalResize(event: { delta: number; sizes: number[] }) {
     this.verticalTopSize.set(event.sizes[0]);
     this.verticalBottomSize.set(event.sizes[1]);
+  }
+
+  showCommandDialog = signal(false);
+
+  @HostListener('document:keydown', ['$event'])
+  onKeydown(e: KeyboardEvent) {
+    if (e.key === 'j' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault();
+      this.showCommandDialog.update(v => !v);
+    }
   }
 }

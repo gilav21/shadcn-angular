@@ -1,51 +1,137 @@
 import {
-    Component,
-    ChangeDetectionStrategy,
-    input,
-    output,
-    computed,
-    signal,
-    ElementRef,
-    inject,
-    AfterViewInit,
-    OnDestroy,
-    ViewChild,
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  output,
+  computed,
+  signal,
+  ElementRef,
+  inject,
+  AfterViewInit,
+  OnDestroy,
+  ViewChild,
+  Injectable,
+  contentChild,
+  effect,
+  OnInit,
+  model,
 } from '@angular/core';
 import { cn } from '../lib/utils';
+import { DialogComponent, DialogContentComponent } from './dialog.component';
 
-export interface CommandItem {
-    id: string;
-    label: string;
-    value: string;
-    icon?: string;
-    shortcut?: string;
-    disabled?: boolean;
-    group?: string;
+// Service to coordinate search
+@Injectable({
+  providedIn: 'root'
+})
+export class CommandService {
+  search = signal('');
+
+  // Map of item ID -> Item Data
+  private items = signal<Map<string, { value: string; groupId?: string; onSelect: () => void }>>(new Map());
+
+  activeItemId = signal<string | null>(null);
+
+  register(id: string, value: string, groupId?: string, onSelect: () => void = () => { }) {
+    this.items.update(m => {
+      const newMap = new Map(m);
+      newMap.set(id, { value, groupId, onSelect });
+      return newMap;
+    });
+  }
+
+  unregister(id: string) {
+    this.items.update(m => {
+      const newMap = new Map(m);
+      newMap.delete(id);
+      return newMap;
+    });
+  }
+
+  filteredItems = computed(() => {
+    const query = this.search().toLowerCase().trim();
+    const itemMap = this.items();
+    const results: string[] = [];
+
+    for (const [id, item] of itemMap.entries()) {
+      if (!query || item.value.toLowerCase().includes(query)) {
+        results.push(id);
+      }
+    }
+    return results;
+  });
+
+  filteredItemIds = computed(() => new Set(this.filteredItems()));
+
+  // Set of Group IDs that have at least one visible item
+  visibleGroupIds = computed(() => {
+    const visibleItems = this.filteredItems();
+    const itemMap = this.items();
+    const groups = new Set<string>();
+
+    for (const id of visibleItems) {
+      const item = itemMap.get(id);
+      if (item?.groupId) {
+        groups.add(item.groupId);
+      }
+    }
+    return groups;
+  });
+
+  moveNext() {
+    const items = this.filteredItems();
+    if (!items.length) return;
+    const current = this.activeItemId();
+    const idx = current ? items.indexOf(current) : -1;
+    const nextIdx = (idx + 1) % items.length;
+    this.activeItemId.set(items[nextIdx]);
+  }
+
+  movePrev() {
+    const items = this.filteredItems();
+    if (!items.length) return;
+    const current = this.activeItemId();
+    const idx = current ? items.indexOf(current) : -1;
+    const prevIdx = (idx - 1 + items.length) % items.length;
+    this.activeItemId.set(items[prevIdx]);
+  }
+
+  selectActive() {
+    const activeId = this.activeItemId();
+    if (activeId) {
+      const item = this.items().get(activeId);
+      item?.onSelect();
+    }
+  }
+}
+
+function generateId() {
+  return Math.random().toString(36).substring(2, 9);
 }
 
 @Component({
-    selector: 'ui-command',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-command',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [CommandService],
+  template: `
     <div [class]="classes()" [attr.data-slot]="'command'">
       <ng-content />
     </div>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class CommandComponent {
-    class = input('');
+  class = input('');
 
-    classes = computed(() => cn(
-        'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
-        this.class()
-    ));
+  classes = computed(() => cn(
+    'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
+    this.class()
+  ));
 }
 
 @Component({
-    selector: 'ui-command-input',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-command-input',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <div class="flex items-center border-b px-3" [attr.data-slot]="'command-input'">
       <svg class="mr-2 h-4 w-4 shrink-0 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -54,77 +140,114 @@ export class CommandComponent {
         #inputEl
         [class]="inputClasses()"
         [placeholder]="placeholder()"
-        [value]="value()"
+        [value]="cmdService.search()"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"
       />
     </div>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class CommandInputComponent {
-    @ViewChild('inputEl') inputEl!: ElementRef<HTMLInputElement>;
+  @ViewChild('inputEl') inputEl!: ElementRef<HTMLInputElement>;
+  cmdService = inject(CommandService);
 
-    placeholder = input('Search...');
-    value = signal('');
-    valueChange = output<string>();
+  placeholder = input('Search...');
+  value = input<string>(''); // Allow controlled input override if needed, but primarily driven by service
 
-    inputClasses = computed(() => cn(
-        'flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none',
-        'placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
-    ));
-
-    onInput(event: Event) {
-        const value = (event.target as HTMLInputElement).value;
-        this.value.set(value);
-        this.valueChange.emit(value);
+  // Initial sync if value provided
+  constructor() {
+    if (this.value()) {
+      this.cmdService.search.set(this.value());
     }
+  }
 
-    onKeydown(event: KeyboardEvent) {
-        // Handle keyboard navigation
-    }
+  inputClasses = computed(() => cn(
+    'flex h-11 w-full rounded-md bg-transparent py-3 text-sm outline-none',
+    'placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
+  ));
 
-    focus() {
-        this.inputEl?.nativeElement?.focus();
+  onInput(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.cmdService.search.set(value);
+    // Reset active item on search change? usually yes, to first item
+    if (this.cmdService.filteredItems().length > 0) {
+      this.cmdService.activeItemId.set(this.cmdService.filteredItems()[0]);
+    } else {
+      this.cmdService.activeItemId.set(null);
     }
+  }
+
+  onKeydown(event: KeyboardEvent) {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      this.cmdService.moveNext();
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      this.cmdService.movePrev();
+    } else if (event.key === 'Enter') {
+      event.preventDefault();
+      this.cmdService.selectActive();
+    }
+  }
+
+  focus() {
+    this.inputEl?.nativeElement?.focus();
+  }
 }
 
 @Component({
-    selector: 'ui-command-list',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-command-list',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <div [class]="classes()" [attr.data-slot]="'command-list'" role="listbox">
       <ng-content />
     </div>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class CommandListComponent {
-    class = input('');
+  class = input('');
 
-    classes = computed(() => cn(
-        'max-h-[300px] overflow-y-auto overflow-x-hidden',
-        this.class()
-    ));
+  classes = computed(() => cn(
+    'max-h-[300px] overflow-y-auto overflow-x-hidden',
+    this.class()
+  ));
 }
 
 @Component({
-    selector: 'ui-command-empty',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <div class="py-6 text-center text-sm text-muted-foreground" [attr.data-slot]="'command-empty'">
-      <ng-content />
-    </div>
+  selector: 'ui-command-empty',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+      @if (isVisible()) {
+        <div class="py-6 text-center text-sm text-muted-foreground" [attr.data-slot]="'command-empty'">
+            <ng-content />
+        </div>
+      }
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
-export class CommandEmptyComponent { }
+export class CommandEmptyComponent {
+  cmdService = inject(CommandService);
+
+  isVisible = computed(() => {
+    // Visible if we have a search query AND no result items match
+    // Or usually shadcn shows empty state if no results, regardless of query length?
+    // Actually shadcn/cmdk shows empty if filtered count is 0.
+    return this.cmdService.filteredItemIds().size === 0;
+  });
+}
 
 @Component({
-    selector: 'ui-command-group',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <div [class]="classes()" [attr.data-slot]="'command-group'" role="group">
+  selector: 'ui-command-group',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div 
+        [class]="classes()" 
+        [attr.data-slot]="'command-group'" 
+        role="group"
+        [class.hidden]="!isVisible()"
+    >
       @if (heading()) {
         <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">
           {{ heading() }}
@@ -133,22 +256,35 @@ export class CommandEmptyComponent { }
       <ng-content />
     </div>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class CommandGroupComponent {
-    heading = input('');
-    class = input('');
+  heading = input('');
+  class = input('');
 
-    classes = computed(() => cn(
-        'overflow-hidden p-1 text-foreground',
-        this.class()
-    ));
+  readonly id = generateId();
+  cmdService = inject(CommandService);
+
+  classes = computed(() => cn(
+    'overflow-hidden p-1 text-foreground',
+    this.class()
+  ));
+
+  isVisible = computed(() => {
+    // If no search, usually visible unless explicitly hidden? 
+    // Logic: specific group is visible if it is in visibleGroupIds
+    // OR if visibleGroupIds is empty/logic implies showing all?
+    // Our service logic returns all Group IDs if search is empty? 
+    // No, our service logic for 'visibleGroupIds' depends on 'filteredItemIds'.
+    // If search is empty, 'filteredItemIds' has ALL items. 'visibleGroupIds' has ALL groups.
+    return this.cmdService.visibleGroupIds().has(this.id);
+  });
 }
 
 @Component({
-    selector: 'ui-command-item',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-command-item',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <div 
       [class]="classes()"
       [attr.data-slot]="'command-item'"
@@ -158,54 +294,118 @@ export class CommandGroupComponent {
       tabindex="0"
       (click)="onClick()"
       (keydown.enter)="onClick()"
+      [class.hidden]="!isVisible()"
     >
       <ng-content />
     </div>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
-export class CommandItemComponent {
-    class = input('');
-    disabled = input(false);
-    selected = input(false);
-    value = input('');
+export class CommandItemComponent implements OnInit, OnDestroy {
+  class = input('');
+  disabled = input(false);
+  selected = input(false); // This is visual selection (check), distinct from focus
+  value = input('');
 
-    select = output<string>();
+  select = output<string>();
 
-    classes = computed(() => cn(
-        'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
-        'hover:bg-accent hover:text-accent-foreground',
-        'focus:bg-accent focus:text-accent-foreground',
-        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-        this.selected() && 'bg-accent text-accent-foreground',
-        this.class()
-    ));
+  readonly id = generateId();
+  cmdService = inject(CommandService);
+  group = inject(CommandGroupComponent, { optional: true });
+  el = inject(ElementRef);
 
-    onClick() {
-        if (!this.disabled()) {
-            this.select.emit(this.value());
-        }
+  isActive = computed(() => this.cmdService.activeItemId() === this.id);
+
+  constructor() {
+    effect(() => {
+      if (this.isActive()) {
+        this.el.nativeElement.scrollIntoView({ block: 'nearest' });
+      }
+    });
+  }
+
+  classes = computed(() => cn(
+    'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
+    'hover:bg-accent hover:text-accent-foreground',
+    'focus:bg-accent focus:text-accent-foreground',
+    'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+    this.isActive() && 'bg-accent text-accent-foreground', // Highlight when active/focused
+    this.class()
+  ));
+
+  isVisible = computed(() => {
+    return this.cmdService.filteredItemIds().has(this.id);
+  });
+
+  ngOnInit() {
+    let val = this.value();
+    if (!val) {
+      // Fallback or just empty
     }
+    this.cmdService.register(this.id, val, this.group?.id, () => this.onClick());
+  }
+
+  ngOnDestroy() {
+    this.cmdService.unregister(this.id);
+  }
+
+  onClick() {
+    if (!this.disabled()) {
+      this.select.emit(this.value());
+    }
+  }
 }
 
 @Component({
-    selector: 'ui-command-separator',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-command-separator',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <div class="-mx-1 h-px bg-border" [attr.data-slot]="'command-separator'"></div>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class CommandSeparatorComponent { }
 
 @Component({
-    selector: 'ui-command-shortcut',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-command-shortcut',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <span class="ml-auto text-xs tracking-widest text-muted-foreground" [attr.data-slot]="'command-shortcut'">
       <ng-content />
     </span>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class CommandShortcutComponent { }
+
+@Component({
+  selector: 'ui-command-dialog',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [DialogComponent, DialogContentComponent, CommandComponent],
+  template: `
+    <ui-dialog [(open)]="open">
+      <ui-dialog-content class="overflow-hidden p-0 shadow-lg">
+        <ui-command class="[&_[data-slot=command-group]]:px-2 [&_[data-slot=command-group]]:font-medium [&_[data-slot=command-group]]:text-muted-foreground [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:h-5 [&_[data-slot=command-item]_svg]:w-5">
+           <ng-content />
+        </ui-command>
+      </ui-dialog-content>
+    </ui-dialog>
+  `,
+  host: { class: 'contents' },
+})
+export class CommandDialogComponent {
+  open = model(false);
+
+  commandInput = contentChild(CommandInputComponent); // Angular 17.2+ signal queries
+
+  constructor() {
+    effect(() => {
+      if (this.open()) {
+        // Wait for animation/render
+        setTimeout(() => {
+          this.commandInput()?.focus();
+        });
+      }
+    });
+  }
+}
