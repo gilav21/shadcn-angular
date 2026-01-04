@@ -2,11 +2,11 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
-  output,
   computed,
   signal,
   inject,
   InjectionToken,
+  forwardRef,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -15,7 +15,7 @@ export const ACCORDION = new InjectionToken<AccordionComponent>('ACCORDION');
 @Component({
   selector: 'ui-accordion',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [{ provide: ACCORDION, useExisting: AccordionComponent }],
+  providers: [{ provide: ACCORDION, useExisting: forwardRef(() => AccordionComponent) }],
   template: `
     <div [class]="classes()" [attr.data-slot]="'accordion'">
       <ng-content />

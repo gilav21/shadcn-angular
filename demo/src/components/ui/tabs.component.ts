@@ -5,10 +5,9 @@ import {
   output,
   computed,
   signal,
-  contentChildren,
-  AfterContentInit,
   inject,
   InjectionToken,
+  forwardRef,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -17,7 +16,7 @@ export const TABS = new InjectionToken<TabsComponent>('TABS');
 @Component({
   selector: 'ui-tabs',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [{ provide: TABS, useExisting: TabsComponent }],
+  providers: [{ provide: TABS, useExisting: forwardRef(() => TabsComponent) }],
   template: `
     <div [class]="classes()" [attr.data-slot]="'tabs'">
       <ng-content />

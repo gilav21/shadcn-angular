@@ -216,8 +216,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   'toggle-group': {
     name: 'toggle-group',
-    files: ['toggle-group.component.ts'],
-    files: ['toggle-group.component.ts'],
+    files: ['toggle-group.component.ts']
   },
   tooltip: {
     name: 'tooltip',
