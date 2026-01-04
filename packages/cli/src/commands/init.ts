@@ -99,9 +99,9 @@ export async function init(options: InitOptions) {
                 cssVariables: true,
             },
             aliases: {
-                components: '@/components',
-                utils: '@/lib/utils',
-                ui: '@/components/ui',
+                components: responses.componentsPath.replace('src/', '@/'), // Basic heuristic
+                utils: responses.utilsPath.replace('src/', '@/').replace('.ts', ''),
+                ui: responses.componentsPath.replace('src/', '@/'),
             },
             iconLibrary: 'lucide-angular',
         };
@@ -115,9 +115,17 @@ export async function init(options: InitOptions) {
         spinner.text = 'Created components.json';
 
         // Create utils directory and file
-        const utilsDir = path.join(cwd, config.aliases.utils.replace('@/', 'src/').replace('/utils', ''));
+        // Resolve path from the config alias, assuming @/ maps to src/ logic for file creation if not provided directly
+        // But we have the 'responses' object from CLI prompt only in the else block above!
+        // So we should rely on config to reconstruct the path, or better yet, if we are in 'defaults' mode, check what config is.
+        // If config came from defaults, aliases are set.
+        // We can reverse-map alias to path: @/ -> src/
+
+        const utilsPathResolved = config.aliases.utils.replace('@/', 'src/');
+        const utilsDir = path.dirname(path.join(cwd, utilsPathResolved + '.ts')); // utils usually ends in path/to/utils
+
         await fs.ensureDir(utilsDir);
-        await fs.writeFile(path.join(utilsDir, 'utils.ts'), getUtilsTemplate());
+        await fs.writeFile(path.join(cwd, utilsPathResolved + '.ts'), getUtilsTemplate());
         spinner.text = 'Created utils.ts';
 
         // Create/update styles file
@@ -132,7 +140,8 @@ export async function init(options: InitOptions) {
         }
 
         // Create components/ui directory
-        const uiDir = path.join(cwd, 'src/components/ui');
+        const uiPathResolved = config.aliases.ui.replace('@/', 'src/');
+        const uiDir = path.join(cwd, uiPathResolved);
         await fs.ensureDir(uiDir);
         spinner.text = 'Created components directory';
 
@@ -192,6 +201,13 @@ export async function init(options: InitOptions) {
         console.log('\n' + chalk.bold('Next steps:'));
         console.log(chalk.dim('  1. Add components: ') + chalk.cyan('npx shadcn-angular add button'));
         console.log(chalk.dim('  2. Import and use in your templates'));
+        console.log(chalk.dim('  3. Update your ') + chalk.bold('tsconfig.json') + chalk.dim(' paths:'));
+        console.log(chalk.dim('    "compilerOptions": {'));
+        console.log(chalk.dim('      "baseUrl": ".",'));
+        console.log(chalk.dim('      "paths": {'));
+        console.log(chalk.dim('        "@/*": ["./src/*"]'));
+        console.log(chalk.dim('      }'));
+        console.log(chalk.dim('    }'));
         console.log('');
 
     } catch (error) {

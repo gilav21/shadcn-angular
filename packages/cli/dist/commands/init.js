@@ -88,9 +88,9 @@ export async function init(options) {
                 cssVariables: true,
             },
             aliases: {
-                components: '@/components',
-                utils: '@/lib/utils',
-                ui: '@/components/ui',
+                components: responses.componentsPath.replace('src/', '@/'), // Basic heuristic
+                utils: responses.utilsPath.replace('src/', '@/').replace('.ts', ''),
+                ui: responses.componentsPath.replace('src/', '@/'),
             },
             iconLibrary: 'lucide-angular',
         };
@@ -101,9 +101,15 @@ export async function init(options) {
         await fs.writeJson(componentsJsonPath, config, { spaces: 2 });
         spinner.text = 'Created components.json';
         // Create utils directory and file
-        const utilsDir = path.join(cwd, config.aliases.utils.replace('@/', 'src/').replace('/utils', ''));
+        // Resolve path from the config alias, assuming @/ maps to src/ logic for file creation if not provided directly
+        // But we have the 'responses' object from CLI prompt only in the else block above!
+        // So we should rely on config to reconstruct the path, or better yet, if we are in 'defaults' mode, check what config is.
+        // If config came from defaults, aliases are set.
+        // We can reverse-map alias to path: @/ -> src/
+        const utilsPathResolved = config.aliases.utils.replace('@/', 'src/');
+        const utilsDir = path.dirname(path.join(cwd, utilsPathResolved + '.ts')); // utils usually ends in path/to/utils
         await fs.ensureDir(utilsDir);
-        await fs.writeFile(path.join(utilsDir, 'utils.ts'), getUtilsTemplate());
+        await fs.writeFile(path.join(cwd, utilsPathResolved + '.ts'), getUtilsTemplate());
         spinner.text = 'Created utils.ts';
         // Create/update styles file
         const stylesPath = path.join(cwd, config.tailwind.css);
@@ -115,16 +121,72 @@ export async function init(options) {
             spinner.text = 'Updated styles with theme variables';
         }
         // Create components/ui directory
-        const uiDir = path.join(cwd, 'src/components/ui');
+        const uiPathResolved = config.aliases.ui.replace('@/', 'src/');
+        const uiDir = path.join(cwd, uiPathResolved);
         await fs.ensureDir(uiDir);
         spinner.text = 'Created components directory';
         // Install dependencies
         spinner.text = 'Installing dependencies...';
-        await execa('npm', ['install', 'clsx', 'tailwind-merge', 'class-variance-authority', '@angular/cdk', 'lucide-angular'], { cwd });
+        const dependencies = [
+            'clsx',
+            'tailwind-merge',
+            'class-variance-authority',
+            '@angular/cdk',
+            'lucide-angular',
+            'tailwindcss',
+            'postcss',
+            '@tailwindcss/postcss'
+        ];
+        await execa('npm', ['install', ...dependencies], { cwd });
+        // Setup PostCSS
+        spinner.text = 'Configuring PostCSS...';
+        const postcssConfigPath = path.join(cwd, 'postcss.config.js');
+        const postcssConfigMjsPath = path.join(cwd, 'postcss.config.mjs');
+        if (await fs.pathExists(postcssConfigMjsPath)) {
+            // Check mjs config
+            const content = await fs.readFile(postcssConfigMjsPath, 'utf-8');
+            if (!content.includes('@tailwindcss/postcss')) {
+                // Very basic append attempt for mjs, safest is to warn or skip complex types
+                // But user asked to try.
+                // If it's a simple export default { plugins: {} }, we can try to inject.
+                // For now, let's just log a warning if we can't safely inject
+                console.log(chalk.yellow('\nComputed postcss.config.mjs found. Please manually add "@tailwindcss/postcss" to your plugins.'));
+            }
+        }
+        else if (await fs.pathExists(postcssConfigPath)) {
+            let content = await fs.readFile(postcssConfigPath, 'utf-8');
+            if (!content.includes('@tailwindcss/postcss')) {
+                // Try to inject into plugins object
+                if (content.includes('plugins: {')) {
+                    content = content.replace('plugins: {', 'plugins: {\n    \'@tailwindcss/postcss\': {},');
+                    await fs.writeFile(postcssConfigPath, content);
+                }
+                else {
+                    console.log(chalk.yellow('\nExisting postcss.config.js found but structure not recognized. Please manually add "@tailwindcss/postcss" to your plugins.'));
+                }
+            }
+        }
+        else {
+            // Create new config
+            const configContent = `module.exports = {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+}
+`;
+            await fs.writeFile(postcssConfigPath, configContent);
+        }
         spinner.succeed(chalk.green('Project initialized successfully!'));
         console.log('\n' + chalk.bold('Next steps:'));
         console.log(chalk.dim('  1. Add components: ') + chalk.cyan('npx shadcn-angular add button'));
         console.log(chalk.dim('  2. Import and use in your templates'));
+        console.log(chalk.dim('  3. Update your ') + chalk.bold('tsconfig.json') + chalk.dim(' paths:'));
+        console.log(chalk.dim('    "compilerOptions": {'));
+        console.log(chalk.dim('      "baseUrl": ".",'));
+        console.log(chalk.dim('      "paths": {'));
+        console.log(chalk.dim('        "@/*": ["./src/*"]'));
+        console.log(chalk.dim('      }'));
+        console.log(chalk.dim('    }'));
         console.log('');
     }
     catch (error) {

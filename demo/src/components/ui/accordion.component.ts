@@ -8,7 +8,7 @@ import {
   InjectionToken,
   forwardRef,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '@/components/lib/utils';
 
 export const ACCORDION = new InjectionToken<AccordionComponent>('ACCORDION');
 

@@ -163,7 +163,12 @@ export async function add(components: string[], options: AddOptions) {
                 const targetPath = path.join(targetDir, file);
 
                 try {
-                    const content = await fetchComponentContent(file, options);
+                    let content = await fetchComponentContent(file, options);
+
+                    // Transform imports
+                    // Replace ../lib/utils (or similar relative paths) with the configured alias
+                    const utilsAlias = config.aliases.utils;
+                    content = content.replace(/(\.\.\/)+lib\/utils/g, utilsAlias);
                     await fs.ensureDir(path.dirname(targetPath));
                     await fs.writeFile(targetPath, content);
                     spinner.text = `Added ${file}`;
