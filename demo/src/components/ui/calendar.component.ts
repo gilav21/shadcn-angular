@@ -6,6 +6,7 @@ import {
   computed,
   signal,
   effect,
+  model,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -146,8 +147,8 @@ export class CalendarComponent {
   showYearSelect = input(false);
   showTimeSelect = input(false);
   weekStartsOn = input<0 | 1>(0); // 0 = Sunday, 1 = Monday
+  selected = model<Date | DateRange | Date[] | string | string[] | null>(null);
 
-  selected = signal<Date | DateRange | Date[] | string | string[] | null>(null);
   selectedChange = output<Date | DateRange | Date[] | string | string[] | null>();
 
   private viewDate = signal(new Date());

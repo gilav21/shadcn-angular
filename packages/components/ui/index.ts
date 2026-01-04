@@ -39,3 +39,7 @@ export * from './input-otp.component';
 export * from './calendar.component';
 export * from './command.component';
 export * from './menubar.component';
+export * from './carousel.component';
+export * from './navigation-menu.component';
+export * from './date-picker.component';
+export * from './sidebar.component';

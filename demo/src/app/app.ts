@@ -57,7 +57,6 @@ import {
   SelectItemComponent,
   SelectGroupComponent,
   SelectLabelComponent,
-  SelectSeparatorComponent,
   PopoverComponent,
   PopoverTriggerComponent,
   PopoverContentComponent,
@@ -100,6 +99,10 @@ import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, Input
 import { CalendarComponent } from '../components/ui/calendar.component';
 import { CommandComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent, CommandSeparatorComponent, CommandShortcutComponent, CommandDialogComponent } from '../components/ui/command.component';
 import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent } from '../components/ui/menubar.component';
+import { CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent } from '../components/ui/carousel.component';
+import { NavigationMenuComponent, NavigationMenuListComponent, NavigationMenuItemComponent, NavigationMenuTriggerComponent, NavigationMenuContentComponent, NavigationMenuLinkComponent } from '../components/ui/navigation-menu.component';
+import { DatePickerComponent, DateRangePickerComponent } from '../components/ui/date-picker.component';
+import { SidebarProviderComponent, SidebarComponent, SidebarHeaderComponent, SidebarContentComponent, SidebarFooterComponent, SidebarGroupComponent, SidebarGroupLabelComponent, SidebarGroupContentComponent, SidebarMenuComponent, SidebarMenuItemComponent, SidebarMenuButtonComponent, SidebarMenuLinkComponent, SidebarTriggerComponent, SidebarInsetComponent, SidebarSeparatorComponent } from '../components/ui/sidebar.component';
 
 @Component({
   selector: 'app-root',
@@ -161,7 +164,6 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     SelectItemComponent,
     SelectGroupComponent,
     SelectLabelComponent,
-    SelectSeparatorComponent,
     PopoverComponent,
     PopoverTriggerComponent,
     PopoverContentComponent,
@@ -194,7 +196,6 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     TableComponent,
     TableHeaderComponent,
     TableBodyComponent,
-    TableFooterComponent,
     TableRowComponent,
     TableHeadComponent,
     TableCellComponent,
@@ -205,7 +206,6 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     BreadcrumbLinkComponent,
     BreadcrumbPageComponent,
     BreadcrumbSeparatorComponent,
-    BreadcrumbEllipsisComponent,
     HoverCardComponent,
     HoverCardTriggerComponent,
     HoverCardContentComponent,
@@ -214,7 +214,6 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     ContextMenuContentComponent,
     ContextMenuItemComponent,
     ContextMenuSeparatorComponent,
-    ContextMenuLabelComponent,
     ContextMenuShortcutComponent,
     DrawerComponent,
     DrawerTriggerComponent,
@@ -226,7 +225,6 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     DrawerCloseComponent,
     AspectRatioComponent,
     ToasterComponent,
-    ToastComponent,
     ResizablePanelGroupComponent,
     ResizablePanelComponent,
     ResizableHandleComponent,
@@ -238,9 +236,6 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     PaginationNextComponent,
     PaginationEllipsisComponent,
     InputOTPComponent,
-    InputOTPGroupComponent,
-    InputOTPSlotComponent,
-    InputOTPSeparatorComponent,
     CalendarComponent,
     CommandComponent,
     CommandInputComponent,
@@ -261,6 +256,34 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
     MenubarSubComponent,
     MenubarSubTriggerComponent,
     MenubarSubContentComponent,
+    CarouselComponent,
+    CarouselContentComponent,
+    CarouselItemComponent,
+    CarouselPreviousComponent,
+    CarouselNextComponent,
+    NavigationMenuComponent,
+    NavigationMenuListComponent,
+    NavigationMenuItemComponent,
+    NavigationMenuTriggerComponent,
+    NavigationMenuContentComponent,
+    NavigationMenuLinkComponent,
+    DatePickerComponent,
+    DateRangePickerComponent,
+    SidebarProviderComponent,
+    SidebarComponent,
+    SidebarHeaderComponent,
+    SidebarContentComponent,
+    SidebarFooterComponent,
+    SidebarGroupComponent,
+    SidebarGroupLabelComponent,
+    SidebarGroupContentComponent,
+    SidebarMenuComponent,
+    SidebarMenuItemComponent,
+    SidebarMenuButtonComponent,
+    SidebarMenuLinkComponent,
+    SidebarTriggerComponent,
+    SidebarInsetComponent,
+    SidebarSeparatorComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1470,6 +1493,219 @@ import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, Menuba
               </ui-menubar-content>
             </ui-menubar-menu>
           </ui-menubar>
+        </section>
+
+        <ui-separator />
+
+        <!-- Carousel -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Carousel</h2>
+          <p class="text-muted-foreground">A carousel with motion and swipe controls.</p>
+          
+          <div class="mx-auto max-w-xs">
+            <ui-carousel class="w-full">
+              <ui-carousel-content>
+                @for (item of [1, 2, 3, 4, 5]; track item) {
+                  <ui-carousel-item>
+                    <div class="p-1">
+                      <ui-card>
+                        <ui-card-content class="flex aspect-square items-center justify-center p-6">
+                          <span class="text-4xl font-semibold">{{ item }}</span>
+                        </ui-card-content>
+                      </ui-card>
+                    </div>
+                  </ui-carousel-item>
+                }
+              </ui-carousel-content>
+              <ui-carousel-previous />
+              <ui-carousel-next />
+            </ui-carousel>
+          </div>
+          
+          <div class="pt-4">
+            <h3 class="text-lg font-medium mb-2">Vertical Carousel</h3>
+            <div class="mx-auto max-w-xs">
+              <ui-carousel orientation="vertical" class="w-full">
+                <ui-carousel-content class="h-[200px]">
+                  @for (item of [1, 2, 3, 4, 5]; track item) {
+                    <ui-carousel-item>
+                      <div class="p-1">
+                        <ui-card>
+                          <ui-card-content class="flex items-center justify-center p-6">
+                            <span class="text-2xl font-semibold">Slide {{ item }}</span>
+                          </ui-card-content>
+                        </ui-card>
+                      </div>
+                    </ui-carousel-item>
+                  }
+                </ui-carousel-content>
+                <ui-carousel-previous />
+                <ui-carousel-next />
+              </ui-carousel>
+            </div>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Navigation Menu -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Navigation Menu</h2>
+          <p class="text-muted-foreground">A navigation menu for site-wide navigation.</p>
+          
+          <ui-navigation-menu>
+            <ui-navigation-menu-list>
+              <ui-navigation-menu-item>
+                <ui-navigation-menu-trigger>Getting Started</ui-navigation-menu-trigger>
+                <ui-navigation-menu-content class="w-[400px]">
+                  <div class="grid gap-3 p-4 md:grid-cols-2">
+                    <ui-navigation-menu-link href="#" class="col-span-2">
+                      <div class="text-sm font-medium leading-none">Introduction</div>
+                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                        Re-usable components built with Angular and Tailwind CSS.
+                      </p>
+                    </ui-navigation-menu-link>
+                    <ui-navigation-menu-link href="#">
+                      <div class="text-sm font-medium leading-none">Installation</div>
+                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                        How to install and set up the library.
+                      </p>
+                    </ui-navigation-menu-link>
+                    <ui-navigation-menu-link href="#">
+                      <div class="text-sm font-medium leading-none">Typography</div>
+                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                        Styles for headings, paragraphs, lists, etc.
+                      </p>
+                    </ui-navigation-menu-link>
+                  </div>
+                </ui-navigation-menu-content>
+              </ui-navigation-menu-item>
+              <ui-navigation-menu-item>
+                <ui-navigation-menu-trigger>Components</ui-navigation-menu-trigger>
+                <ui-navigation-menu-content class="w-[500px]">
+                  <div class="grid gap-3 p-4 md:grid-cols-2">
+                    <ui-navigation-menu-link href="#">
+                      <div class="text-sm font-medium leading-none">Alert Dialog</div>
+                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                        A modal dialog that interrupts the user.
+                      </p>
+                    </ui-navigation-menu-link>
+                    <ui-navigation-menu-link href="#">
+                      <div class="text-sm font-medium leading-none">Hover Card</div>
+                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                        For sighted users to preview content.
+                      </p>
+                    </ui-navigation-menu-link>
+                    <ui-navigation-menu-link href="#">
+                      <div class="text-sm font-medium leading-none">Progress</div>
+                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                        Displays completion progress of a task.
+                      </p>
+                    </ui-navigation-menu-link>
+                    <ui-navigation-menu-link href="#">
+                      <div class="text-sm font-medium leading-none">Tooltip</div>
+                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                        A popup that displays information.
+                      </p>
+                    </ui-navigation-menu-link>
+                  </div>
+                </ui-navigation-menu-content>
+              </ui-navigation-menu-item>
+              <ui-navigation-menu-item>
+                <ui-navigation-menu-link href="#" class="inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+                  Documentation
+                </ui-navigation-menu-link>
+              </ui-navigation-menu-item>
+            </ui-navigation-menu-list>
+          </ui-navigation-menu>
+        </section>
+
+        <ui-separator />
+
+        <!-- Date Picker -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Date Picker</h2>
+          <p class="text-muted-foreground">A date picker component with popover calendar.</p>
+          
+          <div class="flex flex-wrap gap-8">
+            <div class="space-y-2">
+              <h3 class="text-lg font-medium">Single Date</h3>
+              <ui-date-picker placeholder="Pick a date" />
+            </div>
+            
+            <div class="space-y-2">
+              <h3 class="text-lg font-medium">Date &amp; Time</h3>
+              <ui-date-picker [showTime]="true" placeholder="Pick date & time" />
+            </div>
+            
+            <div class="space-y-2">
+              <h3 class="text-lg font-medium">Date Range</h3>
+              <ui-date-range-picker placeholder="Select date range" />
+            </div>
+          </div>
+        </section>
+
+        <ui-separator />
+        <!-- Sidebar -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Sidebar</h2>
+          <p class="text-muted-foreground">A composable sidebar component for application layouts.</p>
+          
+          <div class="border rounded-lg overflow-hidden h-[400px]">
+            <ui-sidebar-provider>
+              <ui-sidebar>
+                <ui-sidebar-header>
+                  <div class="font-semibold">My App</div>
+                </ui-sidebar-header>
+                <ui-sidebar-content>
+                  <ui-sidebar-group>
+                    <ui-sidebar-group-label>Navigation</ui-sidebar-group-label>
+                    <ui-sidebar-group-content>
+                      <ui-sidebar-menu>
+                        <ui-sidebar-menu-item>
+                          <ui-sidebar-menu-link href="#" [isActive]="true">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+                            <span>Home</span>
+                          </ui-sidebar-menu-link>
+                        </ui-sidebar-menu-item>
+                        <ui-sidebar-menu-item>
+                          <ui-sidebar-menu-link href="#">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                            <span>Inbox</span>
+                          </ui-sidebar-menu-link>
+                        </ui-sidebar-menu-item>
+                        <ui-sidebar-menu-item>
+                          <ui-sidebar-menu-link href="#">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
+                            <span>Calendar</span>
+                          </ui-sidebar-menu-link>
+                        </ui-sidebar-menu-item>
+                        <ui-sidebar-menu-item>
+                          <ui-sidebar-menu-link href="#">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <span>Settings</span>
+                          </ui-sidebar-menu-link>
+                        </ui-sidebar-menu-item>
+                      </ui-sidebar-menu>
+                    </ui-sidebar-group-content>
+                  </ui-sidebar-group>
+                </ui-sidebar-content>
+                <ui-sidebar-footer>
+                  <ui-sidebar-separator />
+                  <div class="text-xs text-muted-foreground">v1.0.0</div>
+                </ui-sidebar-footer>
+              </ui-sidebar>
+              <ui-sidebar-inset>
+                <header class="flex h-12 items-center border-b px-4">
+                  <ui-sidebar-trigger />
+                  <span class="ml-4 text-sm font-medium">Dashboard</span>
+                </header>
+                <div class="p-4">
+                  <p class="text-muted-foreground">Main content area. Click the sidebar trigger to toggle.</p>
+                </div>
+              </ui-sidebar-inset>
+            </ui-sidebar-provider>
+          </div>
         </section>
 
         <ui-separator />
