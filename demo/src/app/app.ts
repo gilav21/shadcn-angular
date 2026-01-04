@@ -26,6 +26,8 @@ import { EmptyComponent, EmptyHeaderComponent, EmptyMediaComponent, EmptyTitleCo
 import { KbdComponent } from '../components/ui/kbd.component';
 import { ButtonGroupComponent, ButtonGroupTextComponent, ButtonGroupSeparatorComponent } from '../components/ui/button-group.component';
 import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent, InputGroupTextComponent } from '../components/ui/input-group.component';
+import { FieldComponent, FieldGroupComponent, FieldSetComponent, FieldLabelComponent, FieldLegendComponent, FieldDescriptionComponent, FieldErrorComponent, FieldSeparatorComponent } from '../components/ui/field.component';
+import { NativeSelectComponent } from '../components/ui/native-select.component';
 
 @Component({
   selector: 'app-root',
@@ -222,6 +224,15 @@ import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent
     InputGroupInputComponent,
     InputGroupAddonComponent,
     InputGroupTextComponent,
+    FieldComponent,
+    FieldGroupComponent,
+    FieldSetComponent,
+    FieldLabelComponent,
+    FieldLegendComponent,
+    FieldDescriptionComponent,
+    FieldErrorComponent,
+    FieldSeparatorComponent,
+    NativeSelectComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1808,6 +1819,80 @@ import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent
                 <ui-button variant="ghost" size="sm">Locate</ui-button>
               </ui-input-group-addon>
             </ui-input-group>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Field -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Field</h2>
+          <p class="text-muted-foreground">Form field wrapper with label, description, and error support.</p>
+          
+          <div class="grid gap-6 max-w-md">
+            <ui-field-group>
+              <ui-field-set>
+                <ui-field-legend>Contact Information</ui-field-legend>
+                <ui-field-description>Enter your contact details.</ui-field-description>
+                
+                <ui-field-group>
+                  <ui-field>
+                    <ui-field-label for="name">Full Name</ui-field-label>
+                    <ui-input id="name" placeholder="John Doe" />
+                  </ui-field>
+                  
+                  <ui-field>
+                    <ui-field-label for="email-field">Email</ui-field-label>
+                    <ui-input id="email-field" type="email" placeholder="john@example.com" />
+                    <ui-field-description>We'll never share your email.</ui-field-description>
+                  </ui-field>
+
+                  <ui-field>
+                    <ui-field-label for="invalid-field">Required Field</ui-field-label>
+                    <ui-input id="invalid-field" placeholder="This field has an error" class="border-destructive" />
+                    <ui-field-error>This field is required.</ui-field-error>
+                  </ui-field>
+                </ui-field-group>
+              </ui-field-set>
+              
+              <ui-field-separator />
+              
+              <ui-field orientation="horizontal">
+                <ui-checkbox id="terms" />
+                <ui-field-label for="terms" class="font-normal">I agree to the terms</ui-field-label>
+              </ui-field>
+            </ui-field-group>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Native Select -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Native Select</h2>
+          <p class="text-muted-foreground">Styled native select element with chevron icon.</p>
+          
+          <div class="flex flex-wrap gap-4">
+            <ui-native-select>
+              <option value="">Select a role</option>
+              <option value="admin">Admin</option>
+              <option value="editor">Editor</option>
+              <option value="viewer">Viewer</option>
+            </ui-native-select>
+
+            <ui-native-select size="sm">
+              <option value="">Small size</option>
+              <option value="1">Option 1</option>
+              <option value="2">Option 2</option>
+            </ui-native-select>
+
+            <ui-native-select [disabled]="true">
+              <option value="">Disabled</option>
+            </ui-native-select>
+
+            <ui-native-select [invalid]="true">
+              <option value="">Invalid state</option>
+            </ui-native-select>
           </div>
         </section>
 
