@@ -10,9 +10,11 @@ import { registry, type ComponentName } from '../registry/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Components source directory (relative to CLI dist folder)
-// When built, this resolves to packages/components/ui
-function getComponentsDir(): string {
+// Base URL for the component registry (GitHub raw content)
+const REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/main/packages/components/ui';
+
+// Components source directory (relative to CLI dist folder) for local dev
+function getLocalComponentsDir(): string | null {
     // From dist/commands/add.js -> packages/components/ui
     const fromDist = path.resolve(__dirname, '../../../components/ui');
     if (fs.existsSync(fromDist)) {
@@ -20,7 +22,10 @@ function getComponentsDir(): string {
     }
     // Fallback: from src/commands/add.ts -> packages/components/ui
     const fromSrc = path.resolve(__dirname, '../../../components/ui');
-    return fromSrc;
+    if (fs.existsSync(fromSrc)) {
+        return fromSrc;
+    }
+    return null;
 }
 
 interface AddOptions {
@@ -28,6 +33,34 @@ interface AddOptions {
     overwrite?: boolean;
     all?: boolean;
     path?: string;
+    remote?: boolean; // Force remote fetch
+}
+
+async function fetchComponentContent(file: string, options: AddOptions): Promise<string> {
+    const localDir = getLocalComponentsDir();
+
+    // 1. Prefer local if available and not forced remote
+    if (localDir && !options.remote) {
+        const localPath = path.join(localDir, file);
+        if (await fs.pathExists(localPath)) {
+            return fs.readFile(localPath, 'utf-8');
+        }
+    }
+
+    // 2. Fetch from remote registry
+    const url = `${REGISTRY_BASE_URL}/${file}`;
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            throw new Error(`Failed to fetch component from ${url}: ${response.statusText}`);
+        }
+        return await response.text();
+    } catch (error) {
+        if (localDir) {
+            throw new Error(`Component file not found locally or remotely: ${file}`);
+        }
+        throw error;
+    }
 }
 
 export async function add(components: string[], options: AddOptions) {
@@ -62,7 +95,7 @@ export async function add(components: string[], options: AddOptions) {
         componentsToAdd = components as ComponentName[];
     }
 
-    if (componentsToAdd.length === 0) {
+    if (!componentsToAdd || componentsToAdd.length === 0) {
         console.log(chalk.dim('No components selected.'));
         return;
     }
@@ -78,6 +111,7 @@ export async function add(components: string[], options: AddOptions) {
     // Resolve dependencies
     const allComponents = new Set<ComponentName>();
     const resolveDeps = (name: ComponentName) => {
+        if (allComponents.has(name)) return;
         allComponents.add(name);
         const component = registry[name];
         if (component.dependencies) {
@@ -89,15 +123,6 @@ export async function add(components: string[], options: AddOptions) {
     const targetDir = options.path
         ? path.join(cwd, options.path)
         : path.join(cwd, 'src/components/ui');
-
-    const componentsSourceDir = getComponentsDir();
-
-    // Verify source directory exists
-    if (!await fs.pathExists(componentsSourceDir)) {
-        console.log(chalk.red('Error: Components source directory not found.'));
-        console.log(chalk.dim(`Expected at: ${componentsSourceDir}`));
-        process.exit(1);
-    }
 
     // Check for existing files
     const existing: string[] = [];
@@ -133,19 +158,16 @@ export async function add(components: string[], options: AddOptions) {
             const component = registry[name];
 
             for (const file of component.files) {
-                const sourcePath = path.join(componentsSourceDir, file);
                 const targetPath = path.join(targetDir, file);
 
-                // Read source file content
-                if (!await fs.pathExists(sourcePath)) {
-                    spinner.warn(`Source file not found: ${file}`);
-                    continue;
+                try {
+                    const content = await fetchComponentContent(file, options);
+                    await fs.ensureDir(path.dirname(targetPath));
+                    await fs.writeFile(targetPath, content);
+                    spinner.text = `Added ${file}`;
+                } catch (err: any) {
+                    spinner.warn(`Could not add ${file}: ${err.message}`);
                 }
-
-                const content = await fs.readFile(sourcePath, 'utf-8');
-                await fs.ensureDir(path.dirname(targetPath));
-                await fs.writeFile(targetPath, content);
-                spinner.text = `Added ${file}`;
             }
         }
 

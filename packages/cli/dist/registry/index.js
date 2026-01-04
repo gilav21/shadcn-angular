@@ -3,53 +3,145 @@
 // Registry maps component names to their file definitions
 // Files are relative to the components/ui directory
 export const registry = {
-    button: {
-        name: 'button',
-        files: ['button.component.ts'],
+    accordion: {
+        name: 'accordion',
+        files: ['accordion.component.ts'],
     },
-    input: {
-        name: 'input',
-        files: ['input.component.ts'],
+    alert: {
+        name: 'alert',
+        files: ['alert.component.ts'],
     },
-    label: {
-        name: 'label',
-        files: ['label.component.ts'],
+    'alert-dialog': {
+        name: 'alert-dialog',
+        files: ['alert-dialog.component.ts'],
+        dependencies: ['button'],
     },
-    badge: {
-        name: 'badge',
-        files: ['badge.component.ts'],
-    },
-    card: {
-        name: 'card',
-        files: ['card.component.ts'],
-    },
-    separator: {
-        name: 'separator',
-        files: ['separator.component.ts'],
-    },
-    textarea: {
-        name: 'textarea',
-        files: ['textarea.component.ts'],
-    },
-    skeleton: {
-        name: 'skeleton',
-        files: ['skeleton.component.ts'],
-    },
-    checkbox: {
-        name: 'checkbox',
-        files: ['checkbox.component.ts'],
-    },
-    switch: {
-        name: 'switch',
-        files: ['switch.component.ts'],
+    'aspect-ratio': {
+        name: 'aspect-ratio',
+        files: ['aspect-ratio.component.ts'],
     },
     avatar: {
         name: 'avatar',
         files: ['avatar.component.ts'],
     },
-    alert: {
-        name: 'alert',
-        files: ['alert.component.ts'],
+    badge: {
+        name: 'badge',
+        files: ['badge.component.ts'],
+    },
+    breadcrumb: {
+        name: 'breadcrumb',
+        files: ['breadcrumb.component.ts'],
+    },
+    button: {
+        name: 'button',
+        files: ['button.component.ts'],
+    },
+    'button-group': {
+        name: 'button-group',
+        files: ['button-group.component.ts'],
+        dependencies: ['button', 'separator'],
+    },
+    calendar: {
+        name: 'calendar',
+        files: ['calendar.component.ts'],
+        dependencies: ['button'],
+    },
+    card: {
+        name: 'card',
+        files: ['card.component.ts'],
+    },
+    carousel: {
+        name: 'carousel',
+        files: ['carousel.component.ts'],
+        dependencies: ['button'],
+    },
+    checkbox: {
+        name: 'checkbox',
+        files: ['checkbox.component.ts'],
+    },
+    collapsible: {
+        name: 'collapsible',
+        files: ['collapsible.component.ts'],
+    },
+    command: {
+        name: 'command',
+        files: ['command.component.ts'],
+        dependencies: ['dialog', 'separator'],
+    },
+    'context-menu': {
+        name: 'context-menu',
+        files: ['context-menu.component.ts'],
+    },
+    'date-picker': {
+        name: 'date-picker',
+        files: ['date-picker.component.ts'],
+        dependencies: ['calendar', 'popover', 'button'],
+    },
+    dialog: {
+        name: 'dialog',
+        files: ['dialog.component.ts'],
+    },
+    drawer: {
+        name: 'drawer',
+        files: ['drawer.component.ts'],
+    },
+    'dropdown-menu': {
+        name: 'dropdown-menu',
+        files: ['dropdown-menu.component.ts'],
+    },
+    empty: {
+        name: 'empty',
+        files: ['empty.component.ts'],
+    },
+    field: {
+        name: 'field',
+        files: ['field.component.ts'],
+    },
+    'hover-card': {
+        name: 'hover-card',
+        files: ['hover-card.component.ts'],
+    },
+    input: {
+        name: 'input',
+        files: ['input.component.ts'],
+    },
+    'input-group': {
+        name: 'input-group',
+        files: ['input-group.component.ts'],
+        dependencies: ['input', 'button'],
+    },
+    'input-otp': {
+        name: 'input-otp',
+        files: ['input-otp.component.ts'],
+    },
+    kbd: {
+        name: 'kbd',
+        files: ['kbd.component.ts'],
+    },
+    label: {
+        name: 'label',
+        files: ['label.component.ts'],
+    },
+    menubar: {
+        name: 'menubar',
+        files: ['menubar.component.ts'],
+    },
+    'native-select': {
+        name: 'native-select',
+        files: ['native-select.component.ts'],
+    },
+    'navigation-menu': {
+        name: 'navigation-menu',
+        files: ['navigation-menu.component.ts'],
+    },
+    pagination: {
+        name: 'pagination',
+        files: ['pagination.component.ts'],
+        dependencies: ['button'],
+    },
+    popover: {
+        name: 'popover',
+        files: ['popover.component.ts'],
     },
     progress: {
         name: 'progress',
@@ -59,48 +151,74 @@ export const registry = {
         name: 'radio-group',
         files: ['radio-group.component.ts'],
     },
-    tabs: {
-        name: 'tabs',
-        files: ['tabs.component.ts'],
+    resizable: {
+        name: 'resizable',
+        files: ['resizable.component.ts'],
     },
-    accordion: {
-        name: 'accordion',
-        files: ['accordion.component.ts'],
-    },
-    dialog: {
-        name: 'dialog',
-        files: ['dialog.component.ts'],
-    },
-    'dropdown-menu': {
-        name: 'dropdown-menu',
-        files: ['dropdown-menu.component.ts'],
-    },
-    tooltip: {
-        name: 'tooltip',
-        files: ['tooltip.component.ts'],
+    'scroll-area': {
+        name: 'scroll-area',
+        files: ['scroll-area.component.ts'],
     },
     select: {
         name: 'select',
         files: ['select.component.ts'],
     },
-    popover: {
-        name: 'popover',
-        files: ['popover.component.ts'],
+    separator: {
+        name: 'separator',
+        files: ['separator.component.ts'],
     },
     sheet: {
         name: 'sheet',
         files: ['sheet.component.ts'],
     },
-    'alert-dialog': {
-        name: 'alert-dialog',
-        files: ['alert-dialog.component.ts'],
+    sidebar: {
+        name: 'sidebar',
+        files: ['sidebar.component.ts'],
+        dependencies: ['button', 'sheet', 'separator', 'tooltip', 'input', 'skeleton'],
+    },
+    skeleton: {
+        name: 'skeleton',
+        files: ['skeleton.component.ts'],
     },
     slider: {
         name: 'slider',
         files: ['slider.component.ts'],
     },
-    collapsible: {
-        name: 'collapsible',
-        files: ['collapsible.component.ts'],
+    spinner: {
+        name: 'spinner',
+        files: ['spinner.component.ts'],
+    },
+    switch: {
+        name: 'switch',
+        files: ['switch.component.ts'],
+    },
+    table: {
+        name: 'table',
+        files: ['table.component.ts'],
+    },
+    tabs: {
+        name: 'tabs',
+        files: ['tabs.component.ts'],
+    },
+    textarea: {
+        name: 'textarea',
+        files: ['textarea.component.ts'],
+    },
+    toast: {
+        name: 'toast',
+        files: ['toast.component.ts'],
+    },
+    toggle: {
+        name: 'toggle',
+        files: ['toggle.component.ts'],
+    },
+    'toggle-group': {
+        name: 'toggle-group',
+        files: ['toggle-group.component.ts'],
+        dependencies: ['toggle'],
+    },
+    tooltip: {
+        name: 'tooltip',
+        files: ['tooltip.component.ts'],
     },
 };

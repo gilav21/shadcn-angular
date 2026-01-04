@@ -25,6 +25,7 @@ program
     .option('-o, --overwrite', 'Overwrite existing files')
     .option('-a, --all', 'Add all available components')
     .option('-p, --path <path>', 'The path to add the component to')
+    .option('--remote', 'Force remote fetch from GitHub registry')
     .action(add);
 
 program.parse();
