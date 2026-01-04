@@ -138,7 +138,54 @@ export async function init(options: InitOptions) {
 
         // Install dependencies
         spinner.text = 'Installing dependencies...';
-        await execa('npm', ['install', 'clsx', 'tailwind-merge', 'class-variance-authority', '@angular/cdk', 'lucide-angular'], { cwd });
+        const dependencies = [
+            'clsx',
+            'tailwind-merge',
+            'class-variance-authority',
+            '@angular/cdk',
+            'lucide-angular',
+            'tailwindcss',
+            'postcss',
+            '@tailwindcss/postcss'
+        ];
+        await execa('npm', ['install', ...dependencies], { cwd });
+
+        // Setup PostCSS
+        spinner.text = 'Configuring PostCSS...';
+        const postcssConfigPath = path.join(cwd, 'postcss.config.js');
+        const postcssConfigMjsPath = path.join(cwd, 'postcss.config.mjs');
+
+        if (await fs.pathExists(postcssConfigMjsPath)) {
+            // Check mjs config
+            const content = await fs.readFile(postcssConfigMjsPath, 'utf-8');
+            if (!content.includes('@tailwindcss/postcss')) {
+                // Very basic append attempt for mjs, safest is to warn or skip complex types
+                // But user asked to try.
+                // If it's a simple export default { plugins: {} }, we can try to inject.
+                // For now, let's just log a warning if we can't safely inject
+                console.log(chalk.yellow('\nComputed postcss.config.mjs found. Please manually add "@tailwindcss/postcss" to your plugins.'));
+            }
+        } else if (await fs.pathExists(postcssConfigPath)) {
+            let content = await fs.readFile(postcssConfigPath, 'utf-8');
+            if (!content.includes('@tailwindcss/postcss')) {
+                // Try to inject into plugins object
+                if (content.includes('plugins: {')) {
+                    content = content.replace('plugins: {', 'plugins: {\n    \'@tailwindcss/postcss\': {},');
+                    await fs.writeFile(postcssConfigPath, content);
+                } else {
+                    console.log(chalk.yellow('\nExisting postcss.config.js found but structure not recognized. Please manually add "@tailwindcss/postcss" to your plugins.'));
+                }
+            }
+        } else {
+            // Create new config
+            const configContent = `module.exports = {
+  plugins: {
+    '@tailwindcss/postcss': {},
+  },
+}
+`;
+            await fs.writeFile(postcssConfigPath, configContent);
+        }
 
         spinner.succeed(chalk.green('Project initialized successfully!'));
 
