@@ -23,7 +23,6 @@ export const registry: Record<string, ComponentDefinition> = {
   'alert-dialog': {
     name: 'alert-dialog',
     files: ['alert-dialog.component.ts'],
-    dependencies: ['button'],
   },
   'aspect-ratio': {
     name: 'aspect-ratio',
@@ -48,12 +47,10 @@ export const registry: Record<string, ComponentDefinition> = {
   'button-group': {
     name: 'button-group',
     files: ['button-group.component.ts'],
-    dependencies: ['button', 'separator'],
   },
   calendar: {
     name: 'calendar',
     files: ['calendar.component.ts'],
-    dependencies: ['button'],
   },
   card: {
     name: 'card',
@@ -62,7 +59,6 @@ export const registry: Record<string, ComponentDefinition> = {
   carousel: {
     name: 'carousel',
     files: ['carousel.component.ts'],
-    dependencies: ['button'],
   },
   checkbox: {
     name: 'checkbox',
@@ -75,7 +71,7 @@ export const registry: Record<string, ComponentDefinition> = {
   command: {
     name: 'command',
     files: ['command.component.ts'],
-    dependencies: ['dialog', 'separator'],
+    dependencies: ['dialog'],
   },
   'context-menu': {
     name: 'context-menu',
@@ -84,7 +80,7 @@ export const registry: Record<string, ComponentDefinition> = {
   'date-picker': {
     name: 'date-picker',
     files: ['date-picker.component.ts'],
-    dependencies: ['calendar', 'popover', 'button'],
+    dependencies: ['calendar'],
   },
   dialog: {
     name: 'dialog',
@@ -117,7 +113,6 @@ export const registry: Record<string, ComponentDefinition> = {
   'input-group': {
     name: 'input-group',
     files: ['input-group.component.ts'],
-    dependencies: ['input', 'button'],
   },
   'input-otp': {
     name: 'input-otp',
@@ -146,7 +141,6 @@ export const registry: Record<string, ComponentDefinition> = {
   pagination: {
     name: 'pagination',
     files: ['pagination.component.ts'],
-    dependencies: ['button'],
   },
   popover: {
     name: 'popover',
@@ -183,7 +177,6 @@ export const registry: Record<string, ComponentDefinition> = {
   sidebar: {
     name: 'sidebar',
     files: ['sidebar.component.ts'],
-    dependencies: ['button', 'sheet', 'separator', 'tooltip', 'input', 'skeleton'],
   },
   skeleton: {
     name: 'skeleton',
@@ -224,7 +217,7 @@ export const registry: Record<string, ComponentDefinition> = {
   'toggle-group': {
     name: 'toggle-group',
     files: ['toggle-group.component.ts'],
-    dependencies: ['toggle'],
+    files: ['toggle-group.component.ts'],
   },
   tooltip: {
     name: 'tooltip',

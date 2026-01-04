@@ -9,7 +9,7 @@ import { registry } from '../registry/index.js';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 // Base URL for the component registry (GitHub raw content)
-const REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/main/packages/components/ui';
+const REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/master/packages/components/ui';
 // Components source directory (relative to CLI dist folder) for local dev
 function getLocalComponentsDir() {
     // From dist/commands/add.js -> packages/components/ui
@@ -129,10 +129,12 @@ export async function add(components, options) {
         }
     }
     const spinner = ora('Installing components...').start();
+    let successCount = 0;
     try {
         await fs.ensureDir(targetDir);
         for (const name of allComponents) {
             const component = registry[name];
+            let componentSuccess = true;
             for (const file of component.files) {
                 const targetPath = path.join(targetDir, file);
                 try {
@@ -143,15 +145,23 @@ export async function add(components, options) {
                 }
                 catch (err) {
                     spinner.warn(`Could not add ${file}: ${err.message}`);
+                    componentSuccess = false;
                 }
             }
+            if (componentSuccess)
+                successCount++;
         }
-        spinner.succeed(chalk.green(`Added ${allComponents.size} component(s)`));
-        console.log('\n' + chalk.dim('Components added:'));
-        allComponents.forEach(name => {
-            console.log(chalk.dim('  - ') + chalk.cyan(name));
-        });
-        console.log('');
+        if (successCount > 0) {
+            spinner.succeed(chalk.green(`Added ${successCount} component(s)`));
+            console.log('\n' + chalk.dim('Components added:'));
+            allComponents.forEach(name => {
+                console.log(chalk.dim('  - ') + chalk.cyan(name));
+            });
+            console.log('');
+        }
+        else {
+            spinner.fail(chalk.red('Failed to add any components.'));
+        }
     }
     catch (error) {
         spinner.fail('Failed to add components');
