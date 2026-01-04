@@ -70,7 +70,7 @@ export async function init(options) {
                 type: 'text',
                 name: 'utilsPath',
                 message: 'Where would you like to install utils?',
-                initial: 'src/lib',
+                initial: 'src/components/lib',
             },
             {
                 type: 'text',

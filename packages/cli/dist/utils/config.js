@@ -11,7 +11,7 @@ export function getDefaultConfig() {
         },
         aliases: {
             components: '@/components',
-            utils: '@/lib/utils',
+            utils: '@/components/lib/utils',
             ui: '@/components/ui',
         },
         iconLibrary: 'lucide-angular',
