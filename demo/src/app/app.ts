@@ -1,93 +1,11 @@
 import { Component, ChangeDetectionStrategy, signal, inject, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  ButtonComponent,
-  InputComponent,
-  CardComponent,
-  CardHeaderComponent,
-  CardTitleComponent,
-  CardDescriptionComponent,
-  CardContentComponent,
-  CardFooterComponent,
-  BadgeComponent,
-  LabelComponent,
-  SeparatorComponent,
-  SwitchComponent,
-  CheckboxComponent,
-  RadioGroupComponent,
-  RadioGroupItemComponent,
-  TextareaComponent,
-  SkeletonComponent,
-  TabsComponent,
-  TabsListComponent,
-  TabsTriggerComponent,
-  TabsContentComponent,
-  AccordionComponent,
-  AccordionItemComponent,
-  AccordionTriggerComponent,
-  AccordionContentComponent,
-  ProgressComponent,
-  AlertComponent,
-  AlertTitleComponent,
-  AlertDescriptionComponent,
-  AvatarComponent,
-  AvatarImageComponent,
-  AvatarFallbackComponent,
-  DialogComponent,
-  DialogTriggerComponent,
-  DialogContentComponent,
-  DialogHeaderComponent,
-  DialogTitleComponent,
-  DialogDescriptionComponent,
-  DialogFooterComponent,
-  TooltipDirective,
-  DropdownMenuComponent,
-  DropdownMenuTriggerComponent,
-  DropdownMenuContentComponent,
-  DropdownMenuItemComponent,
-  DropdownMenuSeparatorComponent,
-  DropdownMenuLabelComponent,
-  DropdownMenuSubComponent,
-  DropdownMenuSubTriggerComponent,
-  DropdownMenuSubContentComponent,
-  SelectComponent,
-  SelectTriggerComponent,
-  SelectValueComponent,
-  SelectContentComponent,
-  SelectItemComponent,
-  SelectGroupComponent,
-  SelectLabelComponent,
-  PopoverComponent,
-  PopoverTriggerComponent,
-  PopoverContentComponent,
-  PopoverCloseComponent,
-  SheetComponent,
-  SheetTriggerComponent,
-  SheetContentComponent,
-  SheetHeaderComponent,
-  SheetTitleComponent,
-  SheetDescriptionComponent,
-  SheetFooterComponent,
-  SheetCloseComponent,
-  AlertDialogComponent,
-  AlertDialogTriggerComponent,
-  AlertDialogContentComponent,
-  AlertDialogHeaderComponent,
-  AlertDialogTitleComponent,
-  AlertDialogDescriptionComponent,
-  AlertDialogFooterComponent,
-  AlertDialogActionComponent,
-  AlertDialogCancelComponent,
-  SliderComponent,
-  CollapsibleComponent,
-  CollapsibleTriggerComponent,
-  CollapsibleContentComponent,
-} from '../components/ui';
+import { ButtonComponent, InputComponent, CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent, BadgeComponent, LabelComponent, SeparatorComponent, SwitchComponent, CheckboxComponent, RadioGroupComponent, RadioGroupItemComponent, TextareaComponent, SkeletonComponent, TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent, AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent, ProgressComponent, AlertComponent, AlertTitleComponent, AlertDescriptionComponent, AvatarComponent, AvatarImageComponent, AvatarFallbackComponent, DialogComponent, DialogTriggerComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent, DialogFooterComponent, TooltipDirective, DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSeparatorComponent, DropdownMenuLabelComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent, SelectComponent, SelectTriggerComponent, SelectValueComponent, SelectContentComponent, SelectItemComponent, SelectGroupComponent, SelectLabelComponent, PopoverComponent, PopoverTriggerComponent, PopoverContentComponent, PopoverCloseComponent, SheetComponent, SheetTriggerComponent, SheetContentComponent, SheetHeaderComponent, SheetTitleComponent, SheetDescriptionComponent, SheetFooterComponent, SheetCloseComponent, AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent, AlertDialogHeaderComponent, AlertDialogTitleComponent, AlertDialogDescriptionComponent, AlertDialogFooterComponent, AlertDialogActionComponent, AlertDialogCancelComponent, SliderComponent, CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent } from '../components/ui';
 import { ToggleComponent } from '../components/ui/toggle.component';
 import { ToggleGroupComponent, ToggleGroupItemComponent } from '../components/ui/toggle-group.component';
 import { ScrollAreaComponent } from '../components/ui/scroll-area.component';
-import { TableComponent, TableHeaderComponent, TableBodyComponent, TableFooterComponent, TableRowComponent, TableHeadComponent, TableCellComponent, TableCaptionComponent } from '../components/ui/table.component';
-import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, BreadcrumbLinkComponent, BreadcrumbPageComponent, BreadcrumbSeparatorComponent, BreadcrumbEllipsisComponent } from '../components/ui/breadcrumb.component';
+import { TableComponent, TableHeaderComponent, TableBodyComponent, TableRowComponent, TableHeadComponent, TableCellComponent, TableCaptionComponent } from '../components/ui/table.component';
+import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, BreadcrumbLinkComponent, BreadcrumbPageComponent, BreadcrumbSeparatorComponent } from '../components/ui/breadcrumb.component';
 import { HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent } from '../components/ui/hover-card.component';
 import { ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSeparatorComponent, ContextMenuLabelComponent, ContextMenuShortcutComponent } from '../components/ui/context-menu.component';
 import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, DrawerHeaderComponent, DrawerTitleComponent, DrawerDescriptionComponent, DrawerFooterComponent, DrawerCloseComponent } from '../components/ui/drawer.component';
@@ -103,6 +21,11 @@ import { CarouselComponent, CarouselContentComponent, CarouselItemComponent, Car
 import { NavigationMenuComponent, NavigationMenuListComponent, NavigationMenuItemComponent, NavigationMenuTriggerComponent, NavigationMenuContentComponent, NavigationMenuLinkComponent } from '../components/ui/navigation-menu.component';
 import { DatePickerComponent, DateRangePickerComponent } from '../components/ui/date-picker.component';
 import { SidebarProviderComponent, SidebarComponent, SidebarHeaderComponent, SidebarContentComponent, SidebarFooterComponent, SidebarGroupComponent, SidebarGroupLabelComponent, SidebarGroupContentComponent, SidebarMenuComponent, SidebarMenuItemComponent, SidebarMenuButtonComponent, SidebarMenuLinkComponent, SidebarTriggerComponent, SidebarInsetComponent, SidebarSeparatorComponent } from '../components/ui/sidebar.component';
+import { PageSpinnerComponent, SpinnerComponent } from '../components/ui/spinner.component';
+import { EmptyComponent, EmptyHeaderComponent, EmptyMediaComponent, EmptyTitleComponent, EmptyDescriptionComponent, EmptyContentComponent } from '../components/ui/empty.component';
+import { KbdComponent } from '../components/ui/kbd.component';
+import { ButtonGroupComponent, ButtonGroupTextComponent, ButtonGroupSeparatorComponent } from '../components/ui/button-group.component';
+import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent, InputGroupTextComponent } from '../components/ui/input-group.component';
 
 @Component({
   selector: 'app-root',
@@ -279,11 +202,26 @@ import { SidebarProviderComponent, SidebarComponent, SidebarHeaderComponent, Sid
     SidebarGroupContentComponent,
     SidebarMenuComponent,
     SidebarMenuItemComponent,
-    SidebarMenuButtonComponent,
     SidebarMenuLinkComponent,
     SidebarTriggerComponent,
     SidebarInsetComponent,
     SidebarSeparatorComponent,
+    SpinnerComponent,
+    EmptyComponent,
+    EmptyHeaderComponent,
+    EmptyMediaComponent,
+    EmptyTitleComponent,
+    EmptyDescriptionComponent,
+    EmptyContentComponent,
+    KbdComponent,
+    PageSpinnerComponent,
+    ButtonGroupComponent,
+    ButtonGroupTextComponent,
+    ButtonGroupSeparatorComponent,
+    InputGroupComponent,
+    InputGroupInputComponent,
+    InputGroupAddonComponent,
+    InputGroupTextComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1705,6 +1643,171 @@ import { SidebarProviderComponent, SidebarComponent, SidebarHeaderComponent, Sid
                 </div>
               </ui-sidebar-inset>
             </ui-sidebar-provider>
+          </div>
+        </section>
+
+        <!-- Spinner -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Spinner</h2>
+          <p class="text-muted-foreground">Loading indicator with animated spinning. Supports preset sizes and custom pixel sizes.</p>
+          
+          <div class="flex flex-wrap items-end gap-6">
+            <div class="flex flex-col items-center gap-2">
+              <ui-spinner size="xs" />
+              <span class="text-xs text-muted-foreground">XS</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <ui-spinner size="sm" />
+              <span class="text-xs text-muted-foreground">SM</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <ui-spinner />
+              <span class="text-xs text-muted-foreground">Default</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <ui-spinner size="lg" />
+              <span class="text-xs text-muted-foreground">LG</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <ui-spinner size="xl" />
+              <span class="text-xs text-muted-foreground">XL</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <ui-spinner size="page" />
+              <span class="text-xs text-muted-foreground">Page</span>
+            </div>
+            <div class="flex flex-col items-center gap-2">
+              <ui-spinner [customSize]="64" />
+              <span class="text-xs text-muted-foreground">64px</span>
+            </div>
+          </div>
+          
+          <div class="flex items-center gap-4 mt-4">
+            <ui-button [disabled]="true">
+              <ui-spinner size="xs" class="mr-2" />
+              Loading...
+            </ui-button>
+          </div>
+
+          <!-- <ui-page-spinner /> -->
+
+        </section>
+
+        <ui-separator />
+
+        <!-- Empty State -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Empty State</h2>
+          <p class="text-muted-foreground">Placeholder for empty lists, tables, or search results.</p>
+          
+          <ui-empty>
+            <ui-empty-header>
+              <ui-empty-media variant="icon">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="8"/></svg>
+              </ui-empty-media>
+              <ui-empty-title>No results found</ui-empty-title>
+              <ui-empty-description>Try adjusting your search or filter to find what you're looking for.</ui-empty-description>
+            </ui-empty-header>
+            <ui-empty-content>
+              <ui-button variant="outline">Clear filters</ui-button>
+            </ui-empty-content>
+          </ui-empty>
+        </section>
+
+        <ui-separator />
+
+        <!-- Kbd (Keyboard Shortcut) -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Keyboard Shortcut</h2>
+          <p class="text-muted-foreground">Display keyboard shortcuts in a styled kbd element.</p>
+          
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-1">
+              <ui-kbd>⌘</ui-kbd>
+              <ui-kbd>K</ui-kbd>
+              <span class="ml-2 text-sm text-muted-foreground">Command palette</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <ui-kbd>⌘</ui-kbd>
+              <ui-kbd>S</ui-kbd>
+              <span class="ml-2 text-sm text-muted-foreground">Save</span>
+            </div>
+            <div class="flex items-center gap-1">
+              <ui-kbd>Esc</ui-kbd>
+              <span class="ml-2 text-sm text-muted-foreground">Close</span>
+            </div>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Button Group -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Button Group</h2>
+          <p class="text-muted-foreground">Group buttons together with seamless borders.</p>
+          
+          <div class="flex flex-wrap gap-6">
+            <div class="flex flex-col gap-2">
+              <span class="text-sm text-muted-foreground">Horizontal</span>
+              <ui-button-group>
+                <ui-button variant="outline">Left</ui-button>
+                <ui-button variant="outline">Center</ui-button>
+                <ui-button variant="outline">Right</ui-button>
+              </ui-button-group>
+            </div>
+            
+            <div class="flex flex-col gap-2">
+              <span class="text-sm text-muted-foreground">Vertical</span>
+              <ui-button-group orientation="vertical">
+                <ui-button variant="outline">Top</ui-button>
+                <ui-button variant="outline">Middle</ui-button>
+                <ui-button variant="outline">Bottom</ui-button>
+              </ui-button-group>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <span class="text-sm text-muted-foreground">With Text</span>
+              <ui-button-group>
+                <ui-button-group-text>https://</ui-button-group-text>
+                <ui-input class="rounded-none border-x-0" placeholder="example" />
+                <ui-button-group-text>.com</ui-button-group-text>
+              </ui-button-group>
+            </div>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Input Group -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Input Group</h2>
+          <p class="text-muted-foreground">Group inputs with addons like icons, text, and buttons.</p>
+          
+          <div class="grid gap-4 max-w-md">
+            <ui-input-group>
+              <ui-input-group-addon>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+              </ui-input-group-addon>
+              <ui-input-group-input placeholder="Search..." />
+            </ui-input-group>
+
+            <ui-input-group>
+              <ui-input-group-addon>$</ui-input-group-addon>
+              <ui-input-group-input placeholder="0.00" type="number" />
+              <ui-input-group-addon align="inline-end">
+                <ui-input-group-text>USD</ui-input-group-text>
+              </ui-input-group-addon>
+            </ui-input-group>
+
+            <ui-input-group>
+              <ui-input-group-addon>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
+              </ui-input-group-addon>
+              <ui-input-group-input placeholder="Enter location" />
+              <ui-input-group-addon align="inline-end">
+                <ui-button variant="ghost" size="sm">Locate</ui-button>
+              </ui-input-group-addon>
+            </ui-input-group>
           </div>
         </section>
 
