@@ -10,6 +10,7 @@ import {
     OnDestroy,
     OnInit,
     booleanAttribute,
+    Directive,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -48,7 +49,7 @@ export type SpeedDialDirection =
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'inline-flex',
+        '[class]': 'hostClasses()',
         '[attr.data-slot]': '"speed-dial"',
         '[attr.data-state]': 'open() ? "open" : "closed"',
     },
@@ -67,10 +68,21 @@ export class SpeedDialComponent implements OnDestroy {
     // State
     open = signal(false);
 
+    // Position for context menu mode
+    contextPosition = signal<{ x: number; y: number } | null>(null);
+
     // Outputs
     visibleChange = output<boolean>();
     onShow = output<void>();
     onHide = output<void>();
+
+    // Host classes - add relative positioning only when in context mode
+    hostClasses = computed(() =>
+        cn(
+            'inline-flex',
+            this.contextPosition() && 'relative'
+        )
+    );
 
     private clickListener = (event: MouseEvent) => {
         if (!this.el.nativeElement.contains(event.target)) {
@@ -102,8 +114,17 @@ export class SpeedDialComponent implements OnDestroy {
         this.onShow.emit();
     }
 
+    showAt(x: number, y: number) {
+        if (this.disabled()) return;
+        this.contextPosition.set({ x, y });
+        this.open.set(true);
+        this.visibleChange.emit(true);
+        this.onShow.emit();
+    }
+
     hide() {
         this.open.set(false);
+        this.contextPosition.set(null);
         this.visibleChange.emit(false);
         this.onHide.emit();
     }
@@ -142,12 +163,117 @@ export class SpeedDialTriggerComponent {
     }
 }
 
+/**
+ * SpeedDialContextTrigger - Shows the speed dial at mouse position on right-click
+ *
+ * Usage:
+ * <ui-speed-dial type="quarter-circle" direction="down-right">
+ *   <ui-speed-dial-context-trigger class="w-full h-48 border rounded">
+ *     Right-click anywhere here
+ *   </ui-speed-dial-context-trigger>
+ *   <ui-speed-dial-menu>
+ *     <ui-speed-dial-item>...</ui-speed-dial-item>
+ *   </ui-speed-dial-menu>
+ * </ui-speed-dial>
+ */
+@Component({
+    selector: 'ui-speed-dial-context-trigger',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `<ng-content />`,
+    host: {
+        '[class]': 'hostClasses()',
+        '(contextmenu)': 'onContextMenu($event)',
+        '(click)': 'onClick($event)',
+        '[attr.data-slot]': '"speed-dial-context-trigger"',
+    },
+})
+export class SpeedDialContextTriggerComponent {
+    speedDial = inject(SpeedDialComponent, { optional: true });
+    class = input('');
+
+    hostClasses = computed(() =>
+        cn(
+            'relative block',
+            this.class()
+        )
+    );
+
+    onContextMenu(event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        // Calculate position relative to the trigger container
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Show the speed dial at click position
+        this.speedDial?.showAt(x, y);
+    }
+
+    onClick(event: MouseEvent) {
+        // Left-click closes the menu if open
+        if (this.speedDial?.open()) {
+            this.speedDial.hide();
+        }
+    }
+}
+
+/**
+ * SpeedDialContextTriggerDirective - Directive version for use on any element
+ *
+ * Usage:
+ * <ui-speed-dial #contextMenu type="quarter-circle" direction="down-right">
+ *   <ui-speed-dial-menu>
+ *     <ui-speed-dial-item>...</ui-speed-dial-item>
+ *   </ui-speed-dial-menu>
+ * </ui-speed-dial>
+ *
+ * <div [uiSpeedDialContextTrigger]="contextMenu">
+ *   Right-click anywhere here
+ * </div>
+ */
+@Directive({
+    selector: '[uiSpeedDialContextTrigger]',
+    host: {
+        '(contextmenu)': 'onContextMenu($event)',
+        '(click)': 'onClick($event)',
+    },
+})
+export class SpeedDialContextTriggerDirective {
+    uiSpeedDialContextTrigger = input.required<SpeedDialComponent>();
+
+    onContextMenu(event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const speedDial = this.uiSpeedDialContextTrigger();
+        if (!speedDial) return;
+
+        // Calculate position relative to the trigger element
+        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+
+        // Show the speed dial at click position
+        speedDial.showAt(x, y);
+    }
+
+    onClick(event: MouseEvent) {
+        const speedDial = this.uiSpeedDialContextTrigger();
+        // Left-click closes the menu if open
+        if (speedDial?.open()) {
+            speedDial.hide();
+        }
+    }
+}
+
 @Component({
     selector: 'ui-speed-dial-menu',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     @if (speedDial?.open()) {
-      <div [class]="classes()" [attr.data-slot]="'speed-dial-menu'">
+      <div [class]="classes()" [style]="positionStyle()" [attr.data-slot]="'speed-dial-menu'">
         <ng-content />
       </div>
     }
@@ -182,9 +308,26 @@ export class SpeedDialMenuComponent {
         });
     }
 
+    positionStyle = computed(() => {
+        const contextPos = this.speedDial?.contextPosition();
+        if (contextPos) {
+            return {
+                left: `${contextPos.x}px`,
+                top: `${contextPos.y}px`,
+            };
+        }
+        return {};
+    });
+
     classes = computed(() => {
         const type = this.speedDial?.type() ?? 'linear';
         const direction = this.speedDial?.direction() ?? 'up';
+        const contextPos = this.speedDial?.contextPosition();
+
+        // If context position is set, use absolute positioning at that point
+        if (contextPos) {
+            return cn('absolute z-50', this.class());
+        }
 
         // For linear layout, use flex direction
         if (type === 'linear') {

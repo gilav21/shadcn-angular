@@ -28,7 +28,7 @@ import { ButtonGroupComponent, ButtonGroupTextComponent, ButtonGroupSeparatorCom
 import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent, InputGroupTextComponent } from '../components/ui/input-group.component';
 import { FieldComponent, FieldGroupComponent, FieldSetComponent, FieldLabelComponent, FieldLegendComponent, FieldDescriptionComponent, FieldErrorComponent, FieldSeparatorComponent } from '../components/ui/field.component';
 import { NativeSelectComponent } from '../components/ui/native-select.component';
-import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, SpeedDialItemComponent, SpeedDialMaskComponent } from '../components/ui/speed-dial.component';
+import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, SpeedDialItemComponent, SpeedDialMaskComponent, SpeedDialContextTriggerComponent, SpeedDialContextTriggerDirective } from '../components/ui/speed-dial.component';
 
 @Component({
   selector: 'app-root',
@@ -239,6 +239,8 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
     SpeedDialMenuComponent,
     SpeedDialItemComponent,
     SpeedDialMaskComponent,
+    SpeedDialContextTriggerComponent,
+    SpeedDialContextTriggerDirective,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -2056,6 +2058,47 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
             </ui-speed-dial>
 
           </div>
+
+          <!-- Context Menu Speed Dial -->
+          <h3 class="text-lg font-medium mt-6">Context Menu (Right-click)</h3>
+          <ui-speed-dial type="circle" [transitionDelay]="500" direction="down-right" [radius]="40" #contextMenu>
+            <!-- <ui-speed-dial-context-trigger class="w-full h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
+              <span>Right-click anywhere in this area</span>
+            </ui-speed-dial-context-trigger> -->
+            <ui-speed-dial-menu>
+              <ui-speed-dial-item>
+                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Copy">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+                </ui-button>
+              </ui-speed-dial-item>
+              <ui-speed-dial-item>
+                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Cut">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" x2="8.12" y1="4" y2="15.88"/><line x1="14.47" x2="20" y1="14.48" y2="20"/><line x1="8.12" x2="12" y1="8.12" y2="12"/></svg>
+                </ui-button>
+              </ui-speed-dial-item>
+              <ui-speed-dial-item>
+                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                </ui-button>
+              </ui-speed-dial-item>
+              <ui-speed-dial-item>
+                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                </ui-button>
+              </ui-speed-dial-item>
+              <ui-speed-dial-item>
+                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
+                </ui-button>
+              </ui-speed-dial-item>
+            </ui-speed-dial-menu>
+          </ui-speed-dial>
+
+          <div [uiSpeedDialContextTrigger]="contextMenu" 
+          (click)="writeToLog('test')"
+          class="h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
+            Right-click anywhere here
+          </div>
         </section>
 
         <ui-separator />
@@ -2080,6 +2123,9 @@ export class AppComponent {
   verticalTopSize = signal(40);
   verticalBottomSize = signal(60);
 
+  constructor() {
+    console.log('test');
+  }
   toggleTheme(dark: boolean) {
     this.isDark.set(dark);
     if (dark) {
@@ -2115,5 +2161,10 @@ export class AppComponent {
       e.preventDefault();
       this.showCommandDialog.update(v => !v);
     }
+  }
+
+
+  writeToLog(str: string) {
+    console.log(str);
   }
 }
