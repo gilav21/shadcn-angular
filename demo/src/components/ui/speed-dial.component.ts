@@ -250,13 +250,8 @@ export class SpeedDialContextTriggerDirective {
         const speedDial = this.uiSpeedDialContextTrigger();
         if (!speedDial) return;
 
-        // Calculate position relative to the trigger element
-        const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
-
-        // Show the speed dial at click position
-        speedDial.showAt(x, y);
+        // Use viewport coordinates directly for fixed positioning
+        speedDial.showAt(event.clientX, event.clientY);
     }
 
     onClick(event: MouseEvent) {
@@ -324,9 +319,9 @@ export class SpeedDialMenuComponent {
         const direction = this.speedDial?.direction() ?? 'up';
         const contextPos = this.speedDial?.contextPosition();
 
-        // If context position is set, use absolute positioning at that point
+        // If context position is set, use fixed positioning at viewport coordinates
         if (contextPos) {
-            return cn('absolute z-50', this.class());
+            return cn('fixed z-50', this.class());
         }
 
         // For linear layout, use flex direction
