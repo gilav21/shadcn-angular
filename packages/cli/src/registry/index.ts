@@ -222,4 +222,8 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'tooltip',
     files: ['tooltip.component.ts'],
   },
+  'speed-dial': {
+    name: 'speed-dial',
+    files: ['speed-dial.component.ts'],
+  },
 };

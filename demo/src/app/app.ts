@@ -28,6 +28,7 @@ import { ButtonGroupComponent, ButtonGroupTextComponent, ButtonGroupSeparatorCom
 import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent, InputGroupTextComponent } from '../components/ui/input-group.component';
 import { FieldComponent, FieldGroupComponent, FieldSetComponent, FieldLabelComponent, FieldLegendComponent, FieldDescriptionComponent, FieldErrorComponent, FieldSeparatorComponent } from '../components/ui/field.component';
 import { NativeSelectComponent } from '../components/ui/native-select.component';
+import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, SpeedDialItemComponent, SpeedDialMaskComponent } from '../components/ui/speed-dial.component';
 
 @Component({
   selector: 'app-root',
@@ -233,6 +234,11 @@ import { NativeSelectComponent } from '../components/ui/native-select.component'
     FieldErrorComponent,
     FieldSeparatorComponent,
     NativeSelectComponent,
+    SpeedDialComponent,
+    SpeedDialTriggerComponent,
+    SpeedDialMenuComponent,
+    SpeedDialItemComponent,
+    SpeedDialMaskComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1893,6 +1899,162 @@ import { NativeSelectComponent } from '../components/ui/native-select.component'
             <ui-native-select [invalid]="true">
               <option value="">Invalid state</option>
             </ui-native-select>
+          </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Speed Dial Section -->
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold">Speed Dial</h2>
+          <p class="text-muted-foreground">Floating action button with a popup menu of action items.</p>
+          
+          <div class="relative h-64 border rounded-lg p-4">
+            <!-- Linear Up -->
+            <ui-speed-dial type="linear" direction="up" class="absolute top-25 left-1/8">
+              <ui-speed-dial-trigger>
+                <ui-button size="icon" class="rounded-full h-12 w-12 shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </ui-button>
+              </ui-speed-dial-trigger>
+              <ui-speed-dial-menu>
+                <ui-speed-dial-item>
+                  <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Edit" tooltipSide="right">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Delete" tooltipSide="right">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Share" tooltipSide="right">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+              </ui-speed-dial-menu>
+            </ui-speed-dial>
+
+            <!-- Linear Right -->
+            <ui-speed-dial type="linear" direction="right"  class="absolute top-25 left-2/8">
+              <ui-speed-dial-trigger>
+                <ui-button size="icon" variant="secondary" class="rounded-full h-10 w-10">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </ui-button>
+              </ui-speed-dial-trigger>
+              <ui-speed-dial-menu>
+                <ui-speed-dial-item>
+                  <ui-button size="icon" variant="outline" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon" variant="outline" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+              </ui-speed-dial-menu>
+            </ui-speed-dial>
+
+            <!-- Circle layout -->
+            <ui-speed-dial type="circle" [radius]="60" class="absolute top-25 left-4/8">
+              <ui-speed-dial-trigger>
+                <ui-button size="icon" variant="destructive" class="rounded-full h-12 w-12 shadow-lg">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </ui-button>
+              </ui-speed-dial-trigger>
+              <ui-speed-dial-menu>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+              </ui-speed-dial-menu>
+            </ui-speed-dial>
+
+            <!-- Semi-circle Up -->
+            <ui-speed-dial type="semi-circle" direction="up" [radius]="50" class="absolute top-25 left-6/8">
+              <ui-speed-dial-trigger>
+                <ui-button size="icon" class="rounded-full h-11 w-11 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </ui-button>
+              </ui-speed-dial-trigger>
+              <ui-speed-dial-menu>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+              </ui-speed-dial-menu>
+            </ui-speed-dial>
+
+            <!-- quarter-circle up-right -->
+            <ui-speed-dial type="quarter-circle" direction="up-right" [radius]="80" class="absolute bottom-0 left-0">
+              <ui-speed-dial-trigger>
+                <ui-button size="icon" class="rounded-full h-11 w-11 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
+                </ui-button>
+              </ui-speed-dial-trigger>
+              <ui-speed-dial-menu>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+                <ui-speed-dial-item>
+                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
+                  </ui-button>
+                </ui-speed-dial-item>
+              </ui-speed-dial-menu>
+            </ui-speed-dial>
+
           </div>
         </section>
 
