@@ -50,7 +50,8 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   calendar: {
     name: 'calendar',
-    files: ['calendar.component.ts'],
+    files: ['calendar.component.ts', 'calendar-locales.ts'],
+    dependencies: ['button', 'select'],
   },
   card: {
     name: 'card',

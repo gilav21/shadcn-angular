@@ -9,6 +9,15 @@ import {
   model,
 } from '@angular/core';
 import { cn } from '../lib/utils';
+import { CALENDAR_LOCALES, CalendarLocale } from './calendar-locales';
+import { ButtonComponent } from './button.component';
+import {
+  SelectComponent,
+  SelectTriggerComponent,
+  SelectValueComponent,
+  SelectContentComponent,
+  SelectItemComponent,
+} from './select.component';
 
 export type CalendarMode = 'single' | 'range' | 'multi';
 
@@ -20,75 +29,81 @@ export interface DateRange {
 @Component({
   selector: 'ui-calendar',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [
+    ButtonComponent,
+    SelectComponent,
+    SelectTriggerComponent,
+    SelectValueComponent,
+    SelectContentComponent,
+    SelectItemComponent,
+  ],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'calendar'">
+    <div [class]="classes()" [attr.data-slot]="'calendar'" [dir]="rtl() ? 'rtl' : 'ltr'">
       <!-- Header -->
       <div class="flex items-center justify-between px-1 relative mb-4">
-        <button
-          type="button"
+        <ui-button
+          variant="outline"
+          size="icon-sm"
           (click)="previousMonth()"
-          [class]="buttonClasses()"
-          aria-label="Previous month"
+          [attr.aria-label]="prevMonthLabel()"
         >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <svg class="h-4 w-4" [class.rotate-180]="rtl()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
           </svg>
-        </button>
+        </ui-button>
 
         <div class="flex items-center gap-1 font-medium text-sm">
             @if (showMonthSelect()) {
-                <div class="relative">
-                    <select 
-                        [value]="currentMonth()" 
-                        (change)="changeMonth($event)"
-                        class="h-7 w-[110px] appearance-none rounded-md border border-input bg-background pl-2 pr-6 text-sm hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                        @for (month of monthNames; track $index) {
-                            <option [value]="$index" [selected]="$index === currentMonth()">{{ month }}</option>
-                        }
-                    </select>
-                    <div class="pointer-events-none absolute right-1.5 top-2 opacity-50">
-                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </div>
-                </div>
+              <ui-select 
+                [defaultValue]="currentMonth().toString()" 
+                [rtl]="rtl()"
+                position="popper"
+                (valueChange)="onMonthChange($event)"
+              >
+                <ui-select-trigger class="h-7 w-[110px]">
+                  <ui-select-value [placeholder]="currentMonthName()" [displayValue]="currentMonthName()" />
+                </ui-select-trigger>
+                <ui-select-content>
+                  @for (month of monthNames(); track $index) {
+                    <ui-select-item [value]="$index.toString()">{{ month }}</ui-select-item>
+                  }
+                </ui-select-content>
+              </ui-select>
             } @else {
-               <span>{{ monthName() }}</span>
+               <span>{{ currentMonthName() }}</span>
             }
 
             @if (showYearSelect()) {
-                <div class="relative">
-                    <select 
-                        [value]="currentYear()" 
-                        (change)="changeYear($event)"
-                        class="h-7 w-[70px] appearance-none rounded-md border border-input bg-background pl-2 pr-6 text-sm hover:bg-accent focus:outline-none focus:ring-1 focus:ring-ring"
-                    >
-                        @for (year of years(); track year) {
-                            <option [value]="year" [selected]="year === currentYear()">{{ year }}</option>
-                        }
-                    </select>
-                    <div class="pointer-events-none absolute right-1.5 top-2 opacity-50">
-                        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
-                        </svg>
-                    </div>
-                </div>
+              <ui-select 
+                [defaultValue]="currentYear().toString()" 
+                [rtl]="rtl()"
+                position="popper"
+                (valueChange)="onYearChange($event)"
+              >
+                <ui-select-trigger class="h-7 w-[80px]">
+                  <ui-select-value [placeholder]="currentYear().toString()" />
+                </ui-select-trigger>
+                <ui-select-content class="max-h-60">
+                  @for (year of years(); track year) {
+                    <ui-select-item [value]="year.toString()">{{ year }}</ui-select-item>
+                  }
+                </ui-select-content>
+              </ui-select>
             } @else {
                <span>{{ currentYear() }}</span>
             }
         </div>
 
-        <button
-          type="button"
+        <ui-button
+          variant="outline"
+          size="icon-sm"
           (click)="nextMonth()"
-          [class]="buttonClasses()"
-          aria-label="Next month"
+          [attr.aria-label]="nextMonthLabel()"
         >
-          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+          <svg class="h-4 w-4" [class.rotate-180]="rtl()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
           </svg>
-        </button>
+        </ui-button>
       </div>
 
       <!-- Day names -->
@@ -120,7 +135,7 @@ export interface DateRange {
       @if (showTimeSelect() && mode() === 'single') {
         <div class="mt-4 border-t pt-4">
             <div class="flex flex-col gap-2">
-                <span class="text-sm font-medium">Time</span>
+                <span class="text-sm font-medium">{{ timeLabel() }}</span>
                 <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
                     <input 
                         type="time"
@@ -146,6 +161,8 @@ export class CalendarComponent {
   showYearSelect = input(false);
   showTimeSelect = input(false);
   weekStartsOn = input<0 | 1>(0); // 0 = Sunday, 1 = Monday
+  rtl = input(false);
+  locale = input<string>('en');
   selected = model<Date | DateRange | Date[] | string | string[] | null>(null);
 
   selectedChange = output<Date | DateRange | Date[] | string | string[] | null>();
@@ -172,16 +189,22 @@ export class CalendarComponent {
 
   private viewDateInitialized = false;
 
-  readonly dayNames = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-  readonly monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  private activeLocale = computed((): CalendarLocale => {
+    const key = this.locale();
+    return CALENDAR_LOCALES[key] ?? CALENDAR_LOCALES['en'];
+  });
+
+  dayNames = computed(() => this.activeLocale().dayNames);
+  monthNames = computed(() => this.activeLocale().monthNames);
+  timeLabel = computed(() => this.activeLocale().timeLabel ?? 'Time');
+  prevMonthLabel = computed(() => this.activeLocale().prevMonthLabel ?? 'Previous month');
+  nextMonthLabel = computed(() => this.activeLocale().nextMonthLabel ?? 'Next month');
 
   orderedDayNames = computed(() => {
     const start = this.weekStartsOn();
-    if (start === 0) return this.dayNames;
-    return [...this.dayNames.slice(start), ...this.dayNames.slice(0, start)];
+    const names = this.dayNames();
+    if (start === 0) return names;
+    return [...names.slice(start), ...names.slice(0, start)];
   });
 
   classes = computed(() => cn(
@@ -189,20 +212,16 @@ export class CalendarComponent {
     this.class()
   ));
 
-  buttonClasses = computed(() => cn(
-    'inline-flex h-7 w-7 items-center justify-center rounded-md border border-input bg-background hover:bg-accent hover:text-accent-foreground z-10',
-  ));
-
   currentMonth = computed(() => this.viewDate().getMonth());
   currentYear = computed(() => this.viewDate().getFullYear());
-  monthName = computed(() => this.monthNames[this.currentMonth()]);
+  currentMonthName = computed(() => this.monthNames()[this.currentMonth()]);
 
   years = computed(() => {
     const current = new Date().getFullYear();
     const start = current - 100;
     const end = current + 10;
     const years: number[] = [];
-    for (let i = start; i <= end; i++) {
+    for (let i = current; i >= start; i--) {
       years.push(i);
     }
     return years;
@@ -415,17 +434,15 @@ export class CalendarComponent {
     this.viewDate.set(new Date(current.getFullYear(), current.getMonth() + 1, 1));
   }
 
-  changeMonth(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    const month = parseInt(select.value, 10);
+  onMonthChange(month: string) {
+    const monthNum = parseInt(month, 10);
     const current = this.viewDate();
-    this.viewDate.set(new Date(current.getFullYear(), month, 1));
+    this.viewDate.set(new Date(current.getFullYear(), monthNum, 1));
   }
 
-  changeYear(event: Event) {
-    const select = event.target as HTMLSelectElement;
-    const year = parseInt(select.value, 10);
+  onYearChange(year: string) {
+    const yearNum = parseInt(year, 10);
     const current = this.viewDate();
-    this.viewDate.set(new Date(year, current.getMonth(), 1));
+    this.viewDate.set(new Date(yearNum, current.getMonth(), 1));
   }
 }

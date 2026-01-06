@@ -1123,10 +1123,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
             </ui-drawer>
           </div>
         </section>
-
-        <ui-separator />
-
-        <!-- Aspect Ratio -->
+        <ui-separator /> 
         <section class="space-y-4">
           <h2 id="aspect-ratio" class="text-2xl font-semibold scroll-m-20">Aspect Ratio</h2>
           <p class="text-muted-foreground">Display content within a desired ratio.</p>
@@ -1292,6 +1289,25 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
                 selected="2024-01-01"
                 class="rounded-md border shadow" 
               />
+            </div>
+          </div>
+          <div class="flex flex-wrap gap-6">
+            <!-- Default Calendar -->
+            <div class="space-y-2">
+              <p class="text-sm font-medium">Default (English)</p>
+              <ui-calendar locale="en" [showMonthSelect]="true" [showYearSelect]="true" class="rounded-md border shadow"></ui-calendar>
+            </div>
+            
+            <!-- Hebrew RTL Calendar -->
+            <div class="space-y-2">
+              <p class="text-sm font-medium">Hebrew (RTL)</p>
+              <ui-calendar [rtl]="true" locale="he" [showMonthSelect]="true" [showYearSelect]="true" class="rounded-md border shadow"></ui-calendar>
+            </div>
+            
+            <!-- Japanese Calendar -->
+            <div class="space-y-2">
+              <p class="text-sm font-medium">Japanese</p>
+              <ui-calendar locale="ja" [showMonthSelect]="true" [showYearSelect]="true" class="rounded-md border shadow"></ui-calendar>
             </div>
           </div>
 
@@ -2124,6 +2140,7 @@ export class AppComponent {
   // Resizable demo sizes
   verticalTopSize = signal(40);
   verticalBottomSize = signal(60);
+
 
   constructor() {
     console.log('test');

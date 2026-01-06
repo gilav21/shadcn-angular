@@ -36,6 +36,7 @@ export class SelectComponent implements OnDestroy {
     placeholder = input('Select an option');
     defaultValue = input<string | undefined>(undefined);
     position = input<'popper' | 'item-aligned'>('item-aligned');
+    rtl = input(false);
     valueChange = output<string>();
 
     // Track item elements for positioning
@@ -118,7 +119,7 @@ export class SelectComponent implements OnDestroy {
     >
       <ng-content />
       <svg
-        class="size-4 opacity-50 shrink-0"
+        [class]="chevronClasses()"
         fill="none"
         viewBox="0 0 24 24"
         stroke="currentColor"
@@ -142,6 +143,12 @@ export class SelectTriggerComponent {
         )
     );
 
+    chevronClasses = computed(() =>
+        cn(
+            'size-4 opacity-50 shrink-0'
+        )
+    );
+
     onClick(event: MouseEvent) {
         event.stopPropagation();
         this.select?.toggle();
@@ -153,19 +160,30 @@ export class SelectTriggerComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     @if (hasValue()) {
-      <span class="truncate">{{ displayValue() }}</span>
+      <span class="truncate">{{ shownValue() }}</span>
     } @else {
       <span class="text-muted-foreground truncate">{{ placeholder() }}</span>
     }
   `,
-    host: { class: 'flex-1 text-left truncate', '[attr.data-slot]': '"select-value"' },
+    host: {
+        '[class]': 'hostClasses()',
+        '[attr.data-slot]': '"select-value"'
+    },
 })
 export class SelectValueComponent {
     private select = inject(SELECT, { optional: true });
     placeholder = input('Select an option');
+    displayValue = input<string | undefined>(undefined);
 
     hasValue = computed(() => !!this.select?.value());
-    displayValue = computed(() => this.select?.value() ?? '');
+    shownValue = computed(() => this.displayValue() ?? this.select?.value() ?? '');
+
+    hostClasses = computed(() =>
+        cn(
+            'flex-1 truncate',
+            this.select?.rtl() ? 'text-right' : 'text-left'
+        )
+    );
 }
 
 @Component({
@@ -180,6 +198,7 @@ export class SelectValueComponent {
         role="listbox" 
         [attr.data-slot]="'select-content'"
         [attr.data-position]="position()"
+        [dir]="select?.rtl() ? 'rtl' : 'ltr'"
       >
         <ng-content />
       </div>
@@ -235,11 +254,13 @@ export class SelectContentComponent implements AfterViewInit {
     classes = computed(() => {
         const pos = this.select?.position() ?? this.position();
         const isItemAligned = pos === 'item-aligned';
+        const isRtl = this.select?.rtl() ?? false;
 
         return cn(
-            'absolute left-0 z-50 max-h-96 min-w-[8rem] w-full overflow-hidden rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+            'absolute z-50 max-h-96 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
             'animate-in fade-in-0 zoom-in-95',
             isItemAligned ? 'top-0' : 'top-full mt-1',
+            isRtl ? 'right-0' : 'left-0',
             this.class()
         );
     });
@@ -250,7 +271,7 @@ export class SelectContentComponent implements AfterViewInit {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <ng-content />
-    <span class="absolute right-2 flex size-3.5 items-center justify-center">
+    <span [class]="checkmarkClasses()">
       @if (isSelected()) {
         <svg class="size-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
           <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
@@ -277,13 +298,23 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
 
     isSelected = computed(() => this.select?.value() === this.value());
 
-    classes = computed(() =>
-        cn(
-            'focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4',
+    classes = computed(() => {
+        const isRtl = this.select?.rtl() ?? false;
+        return cn(
+            'focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4',
+            isRtl ? 'pl-8 pr-2' : 'pr-8 pl-2',
             this.disabled() && 'pointer-events-none opacity-50',
             this.class()
-        )
-    );
+        );
+    });
+
+    checkmarkClasses = computed(() => {
+        const isRtl = this.select?.rtl() ?? false;
+        return cn(
+            'absolute flex size-3.5 items-center justify-center',
+            isRtl ? 'left-2' : 'right-2'
+        );
+    });
 
     ngAfterViewInit() {
         this.select?.registerItem(this.value(), this.el.nativeElement);
