@@ -7,6 +7,7 @@ import {
   signal,
   effect,
   model,
+  untracked,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { CALENDAR_LOCALES, CalendarLocale } from './calendar-locales';
@@ -56,12 +57,11 @@ export interface DateRange {
             @if (showMonthSelect()) {
               <ui-select 
                 [defaultValue]="currentMonth().toString()" 
-                [ariaLabel]="monthSelectLabel()"
                 [rtl]="rtl()"
                 position="popper"
                 (valueChange)="onMonthChange($event)"
               >
-                <ui-select-trigger class="h-7 w-[110px]">
+                <ui-select-trigger class="h-7 w-[110px]" ariaLabel="Month">
                   <ui-select-value [placeholder]="currentMonthName()" [displayValue]="currentMonthName()" />
                 </ui-select-trigger>
                 <ui-select-content>
@@ -77,12 +77,11 @@ export interface DateRange {
             @if (showYearSelect()) {
               <ui-select 
                 [defaultValue]="currentYear().toString()" 
-                [ariaLabel]="yearSelectLabel()"
                 [rtl]="rtl()"
                 position="popper"
                 (valueChange)="onYearChange($event)"
               >
-                <ui-select-trigger class="h-7 w-[80px]">
+                <ui-select-trigger class="h-7 w-[80px]" ariaLabel="Year">
                   <ui-select-value [placeholder]="currentYear().toString()" />
                 </ui-select-trigger>
                 <ui-select-content class="max-h-60">
@@ -119,7 +118,7 @@ export interface DateRange {
       <div class="grid grid-cols-7 gap-1">
         @for (day of calendarDays(); track $index) {
           @if (day) {
-             <ui-button
+            <ui-button
               [class]="getDayClasses(day)"
               (click)="selectDay(day)"
               [disabled]="day.getMonth() !== currentMonth()"
@@ -134,19 +133,18 @@ export interface DateRange {
         }
       </div>
 
-      <!-- Time Selection (Single Mode Only) -->
-      @if (showTimeSelect() && mode() === 'single') {
+      @if (showTimeSelect()) {
         <div class="mt-4 border-t pt-4">
             <div class="flex flex-col gap-2">
                 <span class="text-sm font-medium">{{ timeLabel() }}</span>
                 <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
                     <input 
                         type="time"
-                        class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground [&::-webkit-calendar-picker-indicator]:hidden"
+                        class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground [&::-webkit-calendar-picker-indicator]:hidden ltr:text-left rtl:text-right"
                         [value]="selectedTimeString()"
                         (change)="updateTime($event)"
                     />
-                    <div class="flex items-center justify-center px-3 py-2 border-l border-input bg-muted/50 text-muted-foreground">
+                    <div class="flex items-center justify-center px-3 py-2 ltr:border-l rtl:border-r border-input bg-muted/50 text-muted-foreground">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </div>
                 </div>
@@ -164,13 +162,15 @@ export class CalendarComponent {
   showYearSelect = input(false);
   showTimeSelect = input(false);
   weekStartsOn = input<0 | 1>(0); // 0 = Sunday, 1 = Monday
-  rtl = input(false);
+  rtl = model<boolean>(false);
   locale = input<string>('en');
   selected = model<Date | DateRange | Date[] | string | string[] | null>(null);
 
   selectedChange = output<Date | DateRange | Date[] | string | string[] | null>();
 
   private viewDate = signal(new Date());
+
+
 
   constructor() {
     effect(() => {
@@ -188,6 +188,14 @@ export class CalendarComponent {
         }
       }
     }, { allowSignalWrites: true });
+
+    effect(() => {
+      if (this.activeLocale()) {
+        untracked(() => {
+          this.rtl.set(this.activeLocale().rtl ?? this.rtl());
+        });
+      }
+    });
   }
 
   private viewDateInitialized = false;

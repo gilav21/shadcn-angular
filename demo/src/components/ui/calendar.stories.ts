@@ -14,7 +14,7 @@ const meta: Meta<CalendarComponent> = {
         showYearSelect: { control: 'boolean' },
         showTimeSelect: { control: 'boolean' },
         weekStartsOn: {
-            control: 'radio',
+            control: 'select',
             options: [0, 1, 2, 3, 4, 5, 6],
         },
         rtl: { control: 'boolean' },
@@ -50,57 +50,13 @@ export const RangeMode: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-calendar [mode]="mode" [showMonthSelect]="showMonthSelect" [showYearSelect]="showYearSelect" [rtl]="rtl" [locale]="locale" class="rounded-md border shadow"></ui-calendar>`,
-    }),
-};
-
-export const HebrewRTL: Story = {
-    args: {
-        rtl: true,
-        locale: 'he',
-        showMonthSelect: true,
-        showYearSelect: true,
-        weekStartsOn: 0,
-    },
-    render: (args) => ({
-        props: args,
         template: `<ui-calendar [mode]="mode" [showMonthSelect]="showMonthSelect" [showYearSelect]="showYearSelect" [showTimeSelect]="showTimeSelect" [weekStartsOn]="weekStartsOn" [rtl]="rtl" [locale]="locale" class="rounded-md border shadow"></ui-calendar>`,
     }),
 };
 
-export const ArabicRTL: Story = {
+export const MultiMode: Story = {
     args: {
-        rtl: true,
-        locale: 'ar',
-        showMonthSelect: true,
-        showYearSelect: true,
-        weekStartsOn: 0,
-    },
-    render: (args) => ({
-        props: args,
-        template: `<ui-calendar [mode]="mode" [showMonthSelect]="showMonthSelect" [showYearSelect]="showYearSelect" [showTimeSelect]="showTimeSelect" [weekStartsOn]="weekStartsOn" [rtl]="rtl" [locale]="locale" class="rounded-md border shadow"></ui-calendar>`,
-    }),
-};
-
-export const German: Story = {
-    args: {
-        locale: 'de',
-        showMonthSelect: true,
-        showYearSelect: true,
-        weekStartsOn: 1,
-    },
-    render: (args) => ({
-        props: args,
-        template: `<ui-calendar [mode]="mode" [showMonthSelect]="showMonthSelect" [showYearSelect]="showYearSelect" [showTimeSelect]="showTimeSelect" [weekStartsOn]="weekStartsOn" [rtl]="rtl" [locale]="locale" class="rounded-md border shadow"></ui-calendar>`,
-    }),
-};
-
-export const Japanese: Story = {
-    args: {
-        locale: 'ja',
-        showMonthSelect: true,
-        showYearSelect: true,
-        weekStartsOn: 0,
+        mode: 'multi',
     },
     render: (args) => ({
         props: args,

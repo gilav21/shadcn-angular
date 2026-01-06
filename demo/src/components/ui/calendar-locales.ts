@@ -4,6 +4,7 @@ export interface CalendarLocale {
     timeLabel?: string;
     prevMonthLabel?: string;
     nextMonthLabel?: string;
+    rtl?: boolean;
 }
 
 export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
@@ -13,13 +14,15 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: 'Time',
         prevMonthLabel: 'Previous month',
         nextMonthLabel: 'Next month',
+        rtl: false,
     },
     he: {
         monthNames: ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'],
         dayNames: ['א׳', 'ב׳', 'ג׳', 'ד׳', 'ה׳', 'ו׳', 'ש׳'],
-        timeLabel: 'שעה',
+        timeLabel: 'זמן',
         prevMonthLabel: 'החודש הקודם',
         nextMonthLabel: 'החודש הבא',
+        rtl: true,
     },
     ar: {
         monthNames: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
@@ -27,6 +30,7 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: 'الوقت',
         prevMonthLabel: 'الشهر السابق',
         nextMonthLabel: 'الشهر التالي',
+        rtl: true,
     },
     de: {
         monthNames: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
@@ -34,6 +38,7 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: 'Zeit',
         prevMonthLabel: 'Vorheriger Monat',
         nextMonthLabel: 'Nächster Monat',
+        rtl: false,
     },
     fr: {
         monthNames: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
@@ -41,6 +46,7 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: 'Heure',
         prevMonthLabel: 'Mois précédent',
         nextMonthLabel: 'Mois suivant',
+        rtl: false,
     },
     es: {
         monthNames: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
@@ -48,6 +54,7 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: 'Hora',
         prevMonthLabel: 'Mes anterior',
         nextMonthLabel: 'Mes siguiente',
+        rtl: false,
     },
     ja: {
         monthNames: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
@@ -55,6 +62,7 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: '時間',
         prevMonthLabel: '前月',
         nextMonthLabel: '翌月',
+        rtl: false,
     },
     zh: {
         monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
@@ -62,6 +70,7 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: '时间',
         prevMonthLabel: '上个月',
         nextMonthLabel: '下个月',
+        rtl: false,
     },
     ru: {
         monthNames: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
@@ -69,6 +78,7 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: 'Время',
         prevMonthLabel: 'Предыдущий месяц',
         nextMonthLabel: 'Следующий месяц',
+        rtl: false,
     },
     pt: {
         monthNames: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
@@ -76,5 +86,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         timeLabel: 'Hora',
         prevMonthLabel: 'Mês anterior',
         nextMonthLabel: 'Próximo mês',
+        rtl: false,
     },
 };

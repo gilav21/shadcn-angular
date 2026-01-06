@@ -7,6 +7,7 @@ import {
   signal,
   effect,
   model,
+  untracked,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { CALENDAR_LOCALES, CalendarLocale } from './calendar-locales';
@@ -132,19 +133,20 @@ export interface DateRange {
         }
       </div>
 
-      <!-- Time Selection (Single Mode Only) -->
-      @if (showTimeSelect() && mode() === 'single') {
+      @if (showTimeSelect()) {
         <div class="mt-4 border-t pt-4">
             <div class="flex flex-col gap-2">
-                <span class="text-sm font-medium">{{ timeLabel() }}</span>
+                <label class="text-sm font-medium" for="time">{{ timeLabel() }}</label>
                 <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
                     <input 
                         type="time"
-                        class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground [&::-webkit-calendar-picker-indicator]:hidden"
+                        [dir]="rtl() ? 'rtl' : 'ltr'"
+                        class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
                         [value]="selectedTimeString()"
                         (change)="updateTime($event)"
+                        id="time"
                     />
-                    <div class="flex items-center justify-center px-3 py-2 border-l border-input bg-muted/50 text-muted-foreground">
+                    <div class="flex items-center justify-center px-3 py-2 ltr:border-l rtl:border-r border-input bg-muted/50 text-muted-foreground">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                     </div>
                 </div>
@@ -162,7 +164,7 @@ export class CalendarComponent {
   showYearSelect = input(false);
   showTimeSelect = input(false);
   weekStartsOn = input<0 | 1>(0); // 0 = Sunday, 1 = Monday
-  rtl = input(false);
+  rtl = model<boolean>(false);
   locale = input<string>('en');
   selected = model<Date | DateRange | Date[] | string | string[] | null>(null);
 
@@ -188,6 +190,14 @@ export class CalendarComponent {
         }
       }
     }, { allowSignalWrites: true });
+
+    effect(() => {
+      if (this.activeLocale()) {
+        untracked(() => {
+          this.rtl.set(this.activeLocale().rtl ?? this.rtl());
+        });
+      }
+    });
   }
 
   private viewDateInitialized = false;
