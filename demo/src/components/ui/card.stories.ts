@@ -9,7 +9,6 @@ import {
 } from './card.component';
 import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
-import { LabelComponent } from './label.component'; // Assuming Label exists, if not I might need to skip or mock
 import { moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';
 
@@ -48,25 +47,27 @@ export const Default: Story = {
   render: () => ({
     template: `
       <ui-card class="w-[350px]">
-        <ui-card-header>
-          <ui-card-title>Create project</ui-card-title>
-          <ui-card-description>Deploy your new project in one-click.</ui-card-description>
-        </ui-card-header>
-        <ui-card-content>
-          <form>
-            <div class="grid w-full items-center gap-4">
-              <div class="flex flex-col space-y-1.5">
-                <ui-label for="name">Name</ui-label>
-                <ui-input id="name" placeholder="Name of your project" />
-              </div>
-            </div>
-          </form>
-        </ui-card-content>
-        <ui-card-footer class="flex justify-between">
-          <button shButton variant="outline">Cancel</button>
-          <button shButton>Deploy</button>
-        </ui-card-footer>
-      </ui-card>
+              <ui-card-header>
+                <ui-card-title>Create Project</ui-card-title>
+                <ui-card-description>Deploy your new project in one-click.</ui-card-description>
+              </ui-card-header>
+              <ui-card-content>
+                <div class="space-y-4">
+                  <div class="space-y-2">
+                    <ui-label for="name">Name</ui-label>
+                    <ui-input placeholder="Name of your project" />
+                  </div>
+                  <div class="space-y-2">
+                    <ui-label for="framework">Framework</ui-label>
+                    <ui-input placeholder="Angular" />
+                  </div>
+                </div>
+              </ui-card-content>
+              <ui-card-footer class="flex justify-between">
+                <ui-button variant="outline">Cancel</ui-button>
+                <ui-button>Deploy</ui-button>
+              </ui-card-footer>
+            </ui-card>
     `,
   }),
 };

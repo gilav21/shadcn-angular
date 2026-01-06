@@ -276,7 +276,9 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
         <ui-separator />
         <ui-breadcrumb-list>
           <ui-breadcrumb-page>Home</ui-breadcrumb-page>
-          <ui-breadcrumb-separator />
+          <ui-breadcrumb-separator>
+            ->
+          </ui-breadcrumb-separator>
           <ui-breadcrumb-item>
             <ui-breadcrumb-link href="#breadcrumbSection">Breadcrumb</ui-breadcrumb-link>
           </ui-breadcrumb-item>
