@@ -11,6 +11,9 @@ import {
     InjectionToken,
     ViewChild,
     effect,
+    TemplateRef,
+    ViewContainerRef,
+    EmbeddedViewRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -95,29 +98,36 @@ export class ContextMenuTriggerComponent {
     selector: 'ui-context-menu-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    @if (contextMenu?.open()) {
+    <ng-template #contentTemplate>
       <div
         #contentEl
         [class]="classes()"
         [style.position]="'fixed'"
         [style.left.px]="adjustedPosition().x"
         [style.top.px]="adjustedPosition().y"
+        [style.z-index]="9999"
         [attr.data-state]="contextMenu?.open() ? 'open' : 'closed'"
         [attr.data-slot]="'context-menu-content'"
         (click)="$event.stopPropagation()"
       >
         <ng-content />
       </div>
-    }
+    </ng-template>
   `,
     host: { class: 'contents' },
 })
-export class ContextMenuContentComponent {
+export class ContextMenuContentComponent implements OnDestroy {
     contextMenu = inject(CONTEXT_MENU, { optional: true });
     private document = inject(DOCUMENT);
+
     class = input('');
 
+    @ViewChild('contentTemplate', { static: true }) contentTemplate!: TemplateRef<any>;
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
+
+    private viewContainerRef = inject(ViewContainerRef);
+    private embeddedViewRef: EmbeddedViewRef<any> | null = null;
+    private portalHost: HTMLElement | null = null;
 
     adjustedPosition = signal({ x: 0, y: 0 });
 
@@ -126,19 +136,57 @@ export class ContextMenuContentComponent {
             if (this.contextMenu?.open()) {
                 const pos = this.contextMenu.position();
                 this.adjustedPosition.set({ x: pos.x, y: pos.y });
+                this.showContent();
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         this.calculatePosition();
                     });
                 });
+            } else {
+                this.hideContent();
             }
         });
     }
 
-    private calculatePosition() {
-        if (!this.contentEl?.nativeElement) return;
+    private showContent() {
+        if (this.embeddedViewRef) return;
 
-        const content = this.contentEl.nativeElement;
+        // Create a host element in body
+        this.portalHost = this.document.createElement('div');
+        this.portalHost.setAttribute('data-context-menu-portal', 'true');
+        this.document.body.appendChild(this.portalHost);
+
+        // Create the embedded view
+        this.embeddedViewRef = this.viewContainerRef.createEmbeddedView(this.contentTemplate);
+        this.embeddedViewRef.detectChanges();
+
+        // Move the rendered nodes to the portal host
+        this.embeddedViewRef.rootNodes.forEach((node: Node) => {
+            this.portalHost?.appendChild(node);
+        });
+    }
+
+    private hideContent() {
+        if (this.embeddedViewRef) {
+            this.embeddedViewRef.destroy();
+            this.embeddedViewRef = null;
+        }
+        if (this.portalHost) {
+            this.portalHost.remove();
+            this.portalHost = null;
+        }
+    }
+
+    ngOnDestroy() {
+        this.hideContent();
+    }
+
+    private calculatePosition() {
+        if (!this.portalHost) return;
+
+        const content = this.portalHost.querySelector('[data-slot="context-menu-content"]') as HTMLElement;
+        if (!content) return;
+
         const rect = content.getBoundingClientRect();
         const viewportWidth = this.document.defaultView?.innerWidth ?? 0;
         const viewportHeight = this.document.defaultView?.innerHeight ?? 0;
@@ -148,7 +196,7 @@ export class ContextMenuContentComponent {
         let y = pos.y;
 
         // Check horizontal overflow
-        if (rect.right > viewportWidth) {
+        if (x + rect.width > viewportWidth) {
             x = viewportWidth - rect.width - 8;
         }
         if (x < 8) {
@@ -156,7 +204,7 @@ export class ContextMenuContentComponent {
         }
 
         // Check vertical overflow
-        if (rect.bottom > viewportHeight) {
+        if (y + rect.height > viewportHeight) {
             y = viewportHeight - rect.height - 8;
         }
         if (y < 8) {
@@ -167,7 +215,7 @@ export class ContextMenuContentComponent {
     }
 
     classes = computed(() => cn(
-        'z-50 min-w-[8rem] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+        'min-w-[8rem] max-w-[calc(100vw-16px)] max-h-[calc(100vh-16px)] overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
         'animate-in fade-in-0 zoom-in-95',
         this.class()
     ));
