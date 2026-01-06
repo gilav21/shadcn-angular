@@ -283,7 +283,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
         </ui-breadcrumb-list>
         <!-- Buttons Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Buttons</h2>
+          <h2 id="buttons" class="text-2xl font-semibold scroll-m-20">Buttons</h2>
           <p class="text-muted-foreground">Button component with multiple variants and sizes.</p>
           
           <div class="flex flex-wrap gap-4">
@@ -311,7 +311,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Input Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Input</h2>
+          <h2 id="input" class="text-2xl font-semibold scroll-m-20">Input</h2>
           <p class="text-muted-foreground">Text input with label support.</p>
           
           <div class="grid gap-4 max-w-sm">
@@ -333,7 +333,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Card Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Card</h2>
+          <h2 id="card" class="text-2xl font-semibold scroll-m-20">Card</h2>
           <p class="text-muted-foreground">Card component with header, content, and footer.</p>
           
           <div class="grid md:grid-cols-2 gap-6">
@@ -385,7 +385,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Badge Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Badge</h2>
+          <h2 id="badge" class="text-2xl font-semibold scroll-m-20">Badge</h2>
           <p class="text-muted-foreground">Badge component with variants.</p>
           
           <div class="flex flex-wrap gap-2">
@@ -400,7 +400,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Checkbox Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Checkbox</h2>
+          <h2 id="checkbox" class="text-2xl font-semibold scroll-m-20">Checkbox</h2>
           <p class="text-muted-foreground">Checkbox component for boolean selection.</p>
           
           <div class="space-y-3">
@@ -423,7 +423,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Radio Group Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Radio Group</h2>
+          <h2 id="radio-group" class="text-2xl font-semibold scroll-m-20">Radio Group</h2>
           <p class="text-muted-foreground">Radio button group for single selection.</p>
           
           <ui-radio-group class="max-w-sm">
@@ -446,7 +446,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Textarea Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Textarea</h2>
+          <h2 id="textarea" class="text-2xl font-semibold scroll-m-20">Textarea</h2>
           <p class="text-muted-foreground">Multi-line text input.</p>
           
           <div class="grid gap-4 max-w-sm">
@@ -462,7 +462,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Skeleton Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Skeleton</h2>
+          <h2 id="skeleton" class="text-2xl font-semibold scroll-m-20">Skeleton</h2>
           <p class="text-muted-foreground">Loading placeholder animations.</p>
           
           <div class="flex items-center gap-4">
@@ -478,7 +478,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Tabs Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Tabs</h2>
+          <h2 id="tabs" class="text-2xl font-semibold scroll-m-20">Tabs</h2>
           <p class="text-muted-foreground">Tab navigation component.</p>
           
           <ui-tabs defaultValue="account" class="max-w-md">
@@ -524,7 +524,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Accordion Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Accordion</h2>
+          <h2 id="accordion" class="text-2xl font-semibold scroll-m-20">Accordion</h2>
           <p class="text-muted-foreground">Collapsible content sections.</p>
           
           <ui-accordion class="max-w-md">
@@ -553,7 +553,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Progress Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Progress</h2>
+          <h2 id="progress" class="text-2xl font-semibold scroll-m-20">Progress</h2>
           <p class="text-muted-foreground">Progress bar indicators.</p>
           
           <div class="space-y-4 max-w-md">
@@ -568,7 +568,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Alert Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Alert</h2>
+          <h2 id="alert" class="text-2xl font-semibold scroll-m-20">Alert</h2>
           <p class="text-muted-foreground">Alert messages and notifications.</p>
           
           <div class="space-y-4 max-w-md">
@@ -591,7 +591,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Avatar Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Avatar</h2>
+          <h2 id="avatar" class="text-2xl font-semibold scroll-m-20">Avatar</h2>
           <p class="text-muted-foreground">User avatar with image or fallback.</p>
           
           <div class="flex gap-4">
@@ -612,7 +612,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Dialog Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Dialog</h2>
+          <h2 id="dialog" class="text-2xl font-semibold scroll-m-20">Dialog</h2>
           <p class="text-muted-foreground">Modal dialog with overlay.</p>
           
           <ui-dialog #uiDialog>
@@ -647,7 +647,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Tooltip Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Tooltip</h2>
+          <h2 id="tooltip" class="text-2xl font-semibold scroll-m-20">Tooltip</h2>
           <p class="text-muted-foreground">Hover hints for elements.</p>
           
           <div class="flex gap-4 items-center">
@@ -671,7 +671,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Dropdown Menu Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Dropdown Menu</h2>
+          <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">Dropdown Menu</h2>
           <p class="text-muted-foreground">Dropdown menu with items.</p>
           
           <ui-dropdown-menu>
@@ -704,7 +704,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Select Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Select</h2>
+          <h2 id="select" class="text-2xl font-semibold scroll-m-20">Select</h2>
           <p class="text-muted-foreground">Select component for choosing from a list of options.</p>
           
           <ui-select class="max-w-xs" position="popper">
@@ -728,7 +728,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Popover Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Popover</h2>
+          <h2 id="popover" class="text-2xl font-semibold scroll-m-20">Popover</h2>
           <p class="text-muted-foreground">Floating content that appears when a trigger is clicked.</p>
           
           <ui-popover #popover>
@@ -765,7 +765,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Sheet Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Sheet</h2>
+          <h2 id="sheet" class="text-2xl font-semibold scroll-m-20">Sheet</h2>
           <p class="text-muted-foreground">Slide-out panel from the edge of the screen.</p>
           
           <div class="flex gap-2">
@@ -812,7 +812,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Alert Dialog Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Alert Dialog</h2>
+          <h2 id="alert-dialog" class="text-2xl font-semibold scroll-m-20">Alert Dialog</h2>
           <p class="text-muted-foreground">A modal dialog that interrupts the user with important content.</p>
           
           <ui-alert-dialog #alertDialog>
@@ -839,7 +839,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Slider Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Slider</h2>
+          <h2 id="slider" class="text-2xl font-semibold scroll-m-20">Slider</h2>
           <p class="text-muted-foreground">Range input component.</p>
           
           <div class="max-w-xs space-y-4">
@@ -855,7 +855,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Collapsible Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Collapsible</h2>
+          <h2 id="collapsible" class="text-2xl font-semibold scroll-m-20">Collapsible</h2>
           <p class="text-muted-foreground">An expandable/collapsible component.</p>
           
           <ui-collapsible class="w-[350px] space-y-2">
@@ -886,7 +886,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Toggle -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Toggle</h2>
+          <h2 id="toggle" class="text-2xl font-semibold scroll-m-20">Toggle</h2>
           <p class="text-muted-foreground">A two-state button that can be toggled on or off.</p>
           
           <div class="flex flex-wrap gap-4">
@@ -909,7 +909,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Toggle Group -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Toggle Group</h2>
+          <h2 id="toggle-group" class="text-2xl font-semibold scroll-m-20">Toggle Group</h2>
           <p class="text-muted-foreground">A set of two-state buttons that can be toggled on or off.</p>
           
           <div class="space-y-4">
@@ -948,7 +948,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Scroll Area -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Scroll Area</h2>
+          <h2 id="scroll-area" class="text-2xl font-semibold scroll-m-20">Scroll Area</h2>
           <p class="text-muted-foreground">A custom scrollable area with styled scrollbars.</p>
           
           <ui-scroll-area class="h-72 w-48 rounded-md border">
@@ -966,7 +966,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Table -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Table</h2>
+          <h2 id="table" class="text-2xl font-semibold scroll-m-20">Table</h2>
           <p class="text-muted-foreground">A responsive table component.</p>
           
           <ui-table class="h-20">
@@ -1006,7 +1006,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Breadcrumb -->
         <section class="space-y-4" id="breadcrumbSection">
-          <h2 class="text-2xl font-semibold">Breadcrumb</h2>
+          <h2 id="breadcrumb" class="text-2xl font-semibold scroll-m-20">Breadcrumb</h2>
           <p class="text-muted-foreground">Displays the path to the current page.</p>
           
           <ui-breadcrumb>
@@ -1030,7 +1030,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Hover Card -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Hover Card</h2>
+          <h2 id="hover-card" class="text-2xl font-semibold scroll-m-20">Hover Card</h2>
           <p class="text-muted-foreground">A card that appears when hovering over an element.</p>
           
           <ui-hover-card>
@@ -1061,7 +1061,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Context Menu -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Context Menu</h2>
+          <h2 id="context-menu" class="text-2xl font-semibold scroll-m-20">Context Menu</h2>
           <p class="text-muted-foreground">A menu that appears on right-click.</p>
           
           <ui-context-menu>
@@ -1097,7 +1097,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Drawer -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Drawer</h2>
+          <h2 id="drawer" class="text-2xl font-semibold scroll-m-20">Drawer</h2>
           <p class="text-muted-foreground">A panel that slides in from the edge of the screen.</p>
           
           <div class="flex gap-2">
@@ -1128,7 +1128,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Aspect Ratio -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Aspect Ratio</h2>
+          <h2 id="aspect-ratio" class="text-2xl font-semibold scroll-m-20">Aspect Ratio</h2>
           <p class="text-muted-foreground">Display content within a desired ratio.</p>
           
           <div class="w-[300px]">
@@ -1144,7 +1144,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Toast -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Toast</h2>
+          <h2 id="toast" class="text-2xl font-semibold scroll-m-20">Toast</h2>
           <p class="text-muted-foreground">Show notification toasts to users.</p>
           
           <div class="flex gap-2">
@@ -1158,7 +1158,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Resizable Panels -->
         <section class="space-y-6">
-          <h2 class="text-2xl font-semibold">Resizable</h2>
+          <h2 id="resizable" class="text-2xl font-semibold scroll-m-20">Resizable</h2>
           <p class="text-muted-foreground">Resizable panel groups for creating adjustable layouts.</p>
           
           <!-- Horizontal Example -->
@@ -1204,7 +1204,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Pagination -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Pagination</h2>
+          <h2 id="pagination" class="text-2xl font-semibold scroll-m-20">Pagination</h2>
           <p class="text-muted-foreground">Navigate through paged content.</p>
           
           <ui-pagination>
@@ -1235,7 +1235,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Input OTP -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Input OTP</h2>
+          <h2 id="input-otp" class="text-2xl font-semibold scroll-m-20">Input OTP</h2>
           <p class="text-muted-foreground">One-time password input fields.</p>
           
           <ui-input-otp [maxLength]="6" [separator]="[2]" />
@@ -1246,7 +1246,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Calendar -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Calendar</h2>
+          <h2 id="calendar" class="text-2xl font-semibold scroll-m-20">Calendar</h2>
           <p class="text-muted-foreground">A date picker calendar component supporting single, range, and multi-selection modes.</p>
           
           <div class="flex flex-wrap gap-8">
@@ -1302,7 +1302,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Command -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Command</h2>
+          <h2 id="command" class="text-2xl font-semibold scroll-m-20">Command</h2>
           <p class="text-muted-foreground">A command palette for quick actions.</p>
           
             <ui-command class="max-w-md rounded-lg border shadow-md">
@@ -1358,35 +1358,22 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
           </ui-command>
           <div class="flex flex-col gap-2">
             <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">Show command dialog</ui-button>
-            <span>
-              Or
-              Press Control + J
-            </span>
+            <p class="text-sm text-muted-foreground">
+              Press <ui-kbd>⌘</ui-kbd> <ui-kbd>K</ui-kbd>
+            </p>
           </div>
 
           <ui-command-dialog [(open)]="showCommandDialog">
             <ui-command-input placeholder="Type a command or search..." />
             <ui-command-list>
               <ui-command-empty>No results found.</ui-command-empty>
-              <ui-command-group heading="Suggestions">
-                <ui-command-item value="calendar">
-                  <span class="mr-2">📅</span>
-                  <span>Calendar</span>
-                </ui-command-item>
-                <ui-command-item value="search-emoji">
-                  <span class="mr-2">😊</span>
-                  <span>Search Emoji</span>
-                </ui-command-item>
-                <ui-command-item value="calculator">
-                  <span class="mr-2">🧮</span>
-                  <span>Calculator</span>
-                </ui-command-item>
-              </ui-command-group>
-              <ui-command-separator />
-              <ui-command-group heading="Settings">
-                <ui-command-item value="profile"><span>Profile</span><ui-command-shortcut>⌘P</ui-command-shortcut></ui-command-item>
-                <ui-command-item value="billing"><span>Billing</span><ui-command-shortcut>⌘B</ui-command-shortcut></ui-command-item>
-                <ui-command-item value="settings"><span>Settings</span><ui-command-shortcut>⌘S</ui-command-shortcut></ui-command-item>
+              <ui-command-group heading="Components">
+                @for (link of links; track link) {
+                  <ui-command-item [value]="link.title" (select)="scrollToSection(link.id)">
+                    <span class="mr-2">📄</span>
+                    <span>{{ link.title }}</span>
+                  </ui-command-item>
+                }
               </ui-command-group>
             </ui-command-list>
           </ui-command-dialog>
@@ -1399,7 +1386,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Menubar -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Menubar</h2>
+          <h2 id="menubar" class="text-2xl font-semibold scroll-m-20">Menubar</h2>
           <p class="text-muted-foreground">A horizontal menu bar with dropdown menus.</p>
           
           <ui-menubar>
@@ -1471,7 +1458,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Carousel -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Carousel</h2>
+          <h2 id="carousel" class="text-2xl font-semibold scroll-m-20">Carousel</h2>
           <p class="text-muted-foreground">A carousel with motion and swipe controls.</p>
           
           <div class="mx-auto max-w-xs">
@@ -1522,7 +1509,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Navigation Menu -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Navigation Menu</h2>
+          <h2 id="navigation-menu" class="text-2xl font-semibold scroll-m-20">Navigation Menu</h2>
           <p class="text-muted-foreground">A navigation menu for site-wide navigation.</p>
           
           <ui-navigation-menu>
@@ -1596,7 +1583,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Date Picker -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Date Picker</h2>
+          <h2 id="date-picker" class="text-2xl font-semibold scroll-m-20">Date Picker</h2>
           <p class="text-muted-foreground">A date picker component with popover calendar.</p>
           
           <div class="flex flex-wrap gap-8">
@@ -1620,7 +1607,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
         <ui-separator />
         <!-- Sidebar -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Sidebar</h2>
+          <h2 id="sidebar" class="text-2xl font-semibold scroll-m-20">Sidebar</h2>
           <p class="text-muted-foreground">A composable sidebar component for application layouts.</p>
           
           <div class="border rounded-lg overflow-hidden h-[400px]">
@@ -1682,7 +1669,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Spinner -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Spinner</h2>
+          <h2 id="spinner" class="text-2xl font-semibold scroll-m-20">Spinner</h2>
           <p class="text-muted-foreground">Loading indicator with animated spinning. Supports preset sizes and custom pixel sizes.</p>
           
           <div class="flex flex-wrap items-end gap-6">
@@ -1731,7 +1718,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Empty State -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Empty State</h2>
+          <h2 id="empty-state" class="text-2xl font-semibold scroll-m-20">Empty State</h2>
           <p class="text-muted-foreground">Placeholder for empty lists, tables, or search results.</p>
           
           <ui-empty>
@@ -1752,7 +1739,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Kbd (Keyboard Shortcut) -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Keyboard Shortcut</h2>
+          <h2 id="keyboard-shortcut" class="text-2xl font-semibold scroll-m-20">Keyboard Shortcut</h2>
           <p class="text-muted-foreground">Display keyboard shortcuts in a styled kbd element.</p>
           
           <div class="flex items-center gap-4">
@@ -1777,7 +1764,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Button Group -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Button Group</h2>
+          <h2 id="button-group" class="text-2xl font-semibold scroll-m-20">Button Group</h2>
           <p class="text-muted-foreground">Group buttons together with seamless borders.</p>
           
           <div class="flex flex-wrap gap-6">
@@ -1814,7 +1801,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Input Group -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Input Group</h2>
+          <h2 id="input-group" class="text-2xl font-semibold scroll-m-20">Input Group</h2>
           <p class="text-muted-foreground">Group inputs with addons like icons, text, and buttons.</p>
           
           <div class="grid gap-4 max-w-md">
@@ -1849,7 +1836,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Field -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Field</h2>
+          <h2 id="field" class="text-2xl font-semibold scroll-m-20">Field</h2>
           <p class="text-muted-foreground">Form field wrapper with label, description, and error support.</p>
           
           <div class="grid gap-6 max-w-md">
@@ -1892,7 +1879,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Native Select -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Native Select</h2>
+          <h2 id="native-select" class="text-2xl font-semibold scroll-m-20">Native Select</h2>
           <p class="text-muted-foreground">Styled native select element with chevron icon.</p>
           
           <div class="flex flex-wrap gap-4">
@@ -1923,7 +1910,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <!-- Speed Dial Section -->
         <section class="space-y-4">
-          <h2 class="text-2xl font-semibold">Speed Dial</h2>
+          <h2 id="speed-dial" class="text-2xl font-semibold scroll-m-20">Speed Dial</h2>
           <p class="text-muted-foreground">Floating action button with a popup menu of action items.</p>
           
           <div class="relative h-64 border rounded-lg p-4">
@@ -2170,14 +2157,74 @@ export class AppComponent {
 
   showCommandDialog = signal(false);
 
+  links = [
+    { title: 'Accordion', id: 'accordion' },
+    { title: 'Alert', id: 'alert' },
+    { title: 'Alert Dialog', id: 'alert-dialog' },
+    { title: 'Aspect Ratio', id: 'aspect-ratio' },
+    { title: 'Avatar', id: 'avatar' },
+    { title: 'Badge', id: 'badge' },
+    { title: 'Breadcrumb', id: 'breadcrumb' },
+    { title: 'Button', id: 'buttons' },
+    { title: 'Button Group', id: 'button-group' },
+    { title: 'Calendar', id: 'calendar' },
+    { title: 'Card', id: 'card' },
+    { title: 'Carousel', id: 'carousel' },
+    { title: 'Checkbox', id: 'checkbox' },
+    { title: 'Collapsible', id: 'collapsible' },
+    { title: 'Command', id: 'command' },
+    { title: 'Context Menu', id: 'context-menu' },
+    { title: 'Date Picker', id: 'date-picker' },
+    { title: 'Dialog', id: 'dialog' },
+    { title: 'Drawer', id: 'drawer' },
+    { title: 'Dropdown Menu', id: 'dropdown-menu' },
+    { title: 'Empty State', id: 'empty-state' },
+    { title: 'Field', id: 'field' },
+    { title: 'Hover Card', id: 'hover-card' },
+    { title: 'Input', id: 'input' },
+    { title: 'Input Group', id: 'input-group' },
+    { title: 'Input OTP', id: 'input-otp' },
+    { title: 'Keyboard Shortcut', id: 'keyboard-shortcut' },
+    { title: 'Menubar', id: 'menubar' },
+    { title: 'Native Select', id: 'native-select' },
+    { title: 'Navigation Menu', id: 'navigation-menu' },
+    { title: 'Pagination', id: 'pagination' },
+    { title: 'Popover', id: 'popover' },
+    { title: 'Progress', id: 'progress' },
+    { title: 'Radio Group', id: 'radio-group' },
+    { title: 'Resizable', id: 'resizable' },
+    { title: 'Scroll Area', id: 'scroll-area' },
+    { title: 'Select', id: 'select' },
+    { title: 'Sheet', id: 'sheet' },
+    { title: 'Sidebar', id: 'sidebar' },
+    { title: 'Skeleton', id: 'skeleton' },
+    { title: 'Slider', id: 'slider' },
+    { title: 'Speed Dial', id: 'speed-dial' },
+    { title: 'Spinner', id: 'spinner' },
+    { title: 'Table', id: 'table' },
+    { title: 'Tabs', id: 'tabs' },
+    { title: 'Textarea', id: 'textarea' },
+    { title: 'Toast', id: 'toast' },
+    { title: 'Toggle', id: 'toggle' },
+    { title: 'Toggle Group', id: 'toggle-group' },
+    { title: 'Tooltip', id: 'tooltip' },
+  ];
+
   @HostListener('document:keydown', ['$event'])
   onKeydown(e: KeyboardEvent) {
-    if (e.key === 'j' && (e.metaKey || e.ctrlKey)) {
+    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
       this.showCommandDialog.update(v => !v);
     }
   }
 
+  scrollToSection(id: string) {
+    this.showCommandDialog.set(false);
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }
 
   writeToLog(str: string) {
     console.log(str);
