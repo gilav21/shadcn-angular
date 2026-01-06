@@ -14,6 +14,9 @@ const meta: Meta<ButtonComponent> = {
             control: 'select',
             options: ['default', 'sm', 'lg', 'icon'],
         },
+        disabled: {
+            control: 'boolean',
+        },
     },
     args: {
         variant: 'default',
@@ -27,7 +30,7 @@ type Story = StoryObj<ButtonComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size">Button</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Button</ui-button>`,
     }),
 };
 
@@ -37,7 +40,7 @@ export const Destructive: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size">Destructive</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Destructive</ui-button>`,
     }),
 };
 
@@ -47,7 +50,7 @@ export const Outline: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size">Outline</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Outline</ui-button>`,
     }),
 };
 
@@ -57,7 +60,7 @@ export const Secondary: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size">Secondary</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Secondary</ui-button>`,
     }),
 };
 
@@ -67,7 +70,7 @@ export const Ghost: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size">Ghost</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Ghost</ui-button>`,
     }),
 };
 
@@ -77,6 +80,6 @@ export const Link: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size">Link</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Link</ui-button>`,
     }),
 };
