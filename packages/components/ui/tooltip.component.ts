@@ -16,7 +16,7 @@ import { cn } from '../lib/utils';
     selector: 'ui-tooltip',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
-    host: { class: 'contents' },
+    host: { class: 'relative inline-block' },
 })
 export class TooltipComponent {
     open = signal(false);

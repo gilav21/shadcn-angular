@@ -9,6 +9,7 @@ import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, 
 import { HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent } from '../components/ui/hover-card.component';
 import { ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSeparatorComponent, ContextMenuLabelComponent, ContextMenuShortcutComponent } from '../components/ui/context-menu.component';
 import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, DrawerHeaderComponent, DrawerTitleComponent, DrawerDescriptionComponent, DrawerFooterComponent, DrawerCloseComponent } from '../components/ui/drawer.component';
+import { TooltipComponent, TooltipContentComponent, TooltipTriggerComponent } from '../components/ui/tooltip.component';
 import { AspectRatioComponent } from '../components/ui/aspect-ratio.component';
 import { ToasterComponent, ToastComponent, ToastService } from '../components/ui/toast.component';
 import { ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent } from '../components/ui/resizable.component';
@@ -241,6 +242,10 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
     SpeedDialMaskComponent,
     SpeedDialContextTriggerComponent,
     SpeedDialContextTriggerDirective,
+    TooltipComponent,
+    TooltipContentComponent,
+    TooltipTriggerComponent,
+    TooltipDirective,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -645,10 +650,20 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
           <h2 class="text-2xl font-semibold">Tooltip</h2>
           <p class="text-muted-foreground">Hover hints for elements.</p>
           
-          <div class="flex gap-4">
-            <ui-button uiTooltip="This is a tooltip!" tooltipSide="top">Hover me (Top)</ui-button>
+          <div class="flex gap-4 items-center">
+             <!-- Directive Usage -->
+            <ui-button uiTooltip="This is a tooltip!" tooltipSide="top">Hover me (Directive)</ui-button>
             <ui-button uiTooltip="Bottom tooltip" tooltipSide="bottom" variant="secondary">Hover me (Bottom)</ui-button>
-            <ui-button uiTooltip="Right side" tooltipSide="right" variant="outline">Hover me (Right)</ui-button>
+            
+            <!-- Component Usage (Reported Issue) -->
+            <ui-tooltip>
+              <ui-tooltip-trigger>
+                <ui-button variant="outline">Hover me (Component)</ui-button>
+              </ui-tooltip-trigger>
+              <ui-tooltip-content>
+                <p>Add to library</p>
+              </ui-tooltip-content>
+            </ui-tooltip>
           </div>
         </section>
 
