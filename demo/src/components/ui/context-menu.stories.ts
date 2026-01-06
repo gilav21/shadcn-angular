@@ -1,40 +1,40 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    ContextMenuComponent,
-    ContextMenuTriggerComponent,
-    ContextMenuContentComponent,
-    ContextMenuItemComponent,
-    ContextMenuSeparatorComponent,
-    ContextMenuLabelComponent,
-    ContextMenuShortcutComponent,
+  ContextMenuComponent,
+  ContextMenuTriggerComponent,
+  ContextMenuContentComponent,
+  ContextMenuItemComponent,
+  ContextMenuSeparatorComponent,
+  ContextMenuLabelComponent,
+  ContextMenuShortcutComponent,
 } from './context-menu.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<ContextMenuComponent> = {
-    title: 'UI/ContextMenu',
-    component: ContextMenuComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                ContextMenuComponent,
-                ContextMenuTriggerComponent,
-                ContextMenuContentComponent,
-                ContextMenuItemComponent,
-                ContextMenuSeparatorComponent,
-                ContextMenuLabelComponent,
-                ContextMenuShortcutComponent
-            ],
-        }),
-    ],
+  title: 'UI/ContextMenu',
+  component: ContextMenuComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        ContextMenuComponent,
+        ContextMenuTriggerComponent,
+        ContextMenuContentComponent,
+        ContextMenuItemComponent,
+        ContextMenuSeparatorComponent,
+        ContextMenuLabelComponent,
+        ContextMenuShortcutComponent
+      ],
+    }),
+  ],
 };
 
 export default meta;
 type Story = StoryObj<ContextMenuComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
+  render: () => ({
+    template: `
       <ui-context-menu>
         <ui-context-menu-trigger>
          <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
@@ -78,5 +78,5 @@ export const Default: Story = {
         </ui-context-menu-content>
       </ui-context-menu>
     `,
-    }),
+  }),
 };

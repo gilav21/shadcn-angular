@@ -1,44 +1,44 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    AccordionComponent,
-    AccordionItemComponent,
-    AccordionTriggerComponent,
-    AccordionContentComponent,
+  AccordionComponent,
+  AccordionItemComponent,
+  AccordionTriggerComponent,
+  AccordionContentComponent,
 } from './accordion.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<AccordionComponent> = {
-    title: 'UI/Accordion',
-    component: AccordionComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                AccordionComponent,
-                AccordionItemComponent,
-                AccordionTriggerComponent,
-                AccordionContentComponent,
-            ],
-        }),
-    ],
-    argTypes: {
-        type: {
-            control: 'radio',
-            options: ['single', 'multiple'],
-        },
+  title: 'UI/Accordion',
+  component: AccordionComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        AccordionComponent,
+        AccordionItemComponent,
+        AccordionTriggerComponent,
+        AccordionContentComponent,
+      ],
+    }),
+  ],
+  argTypes: {
+    type: {
+      control: 'radio',
+      options: ['single', 'multiple'],
     },
-    args: {
-        type: 'single',
-    },
+  },
+  args: {
+    type: 'single',
+  },
 };
 
 export default meta;
 type Story = StoryObj<AccordionComponent>;
 
 export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
+  render: (args) => ({
+    props: args,
+    template: `
       <ui-accordion [type]="type" class="w-full">
         <ui-accordion-item value="item-1">
           <ui-accordion-trigger>Is it accessible?</ui-accordion-trigger>
@@ -60,5 +60,5 @@ export const Default: Story = {
         </ui-accordion-item>
       </ui-accordion>
     `,
-    }),
+  }),
 };
