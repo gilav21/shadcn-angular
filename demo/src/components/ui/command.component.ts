@@ -141,6 +141,7 @@ export class CommandComponent {
         [class]="inputClasses()"
         [placeholder]="placeholder()"
         [value]="cmdService.search()"
+        [attr.aria-label]="ariaLabel()"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"
       />
@@ -153,6 +154,7 @@ export class CommandInputComponent {
   cmdService = inject(CommandService);
 
   placeholder = input('Search...');
+  ariaLabel = input('Search');
   value = input<string>(''); // Allow controlled input override if needed, but primarily driven by service
 
   // Initial sync if value provided
@@ -200,7 +202,7 @@ export class CommandInputComponent {
   selector: 'ui-command-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div [class]="classes()" [attr.data-slot]="'command-list'" role="listbox">
+    <div [class]="classes()" [attr.data-slot]="'command-list'" role="listbox" [attr.aria-label]="ariaLabel()">
       <ng-content />
     </div>
   `,
@@ -208,6 +210,7 @@ export class CommandInputComponent {
 })
 export class CommandListComponent {
   class = input('');
+  ariaLabel = input<string | undefined>(undefined);
 
   classes = computed(() => cn(
     'max-h-[300px] overflow-y-auto overflow-x-hidden',

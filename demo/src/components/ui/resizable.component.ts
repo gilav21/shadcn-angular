@@ -88,6 +88,10 @@ export class ResizablePanelComponent {
         (touchstart)="onTouchStart($event)"
         tabindex="0"
         role="separator"
+        aria-valuenow="50"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        [attr.aria-label]="ariaLabel()"
       >
         @if (withHandle()) {
           <div [class]="gripClasses()">
@@ -119,6 +123,7 @@ export class ResizableHandleComponent implements AfterViewInit {
   withHandle = input(false);
   handleSize = input(4); // Size in pixels, default 4px
   disabled = input(false); // Set to true to hide the handle completely
+  ariaLabel = input('Resize Handle');
 
   resize = output<{ delta: number; sizes: number[] }>();
 

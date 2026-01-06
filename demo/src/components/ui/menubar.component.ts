@@ -80,7 +80,7 @@ export class MenubarComponent {
   selector: 'ui-menubar-menu',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="relative" [attr.data-slot]="'menubar-menu'">
+    <div class="relative" [attr.data-slot]="'menubar-menu'" role="none">
       <ng-content />
     </div>
   `,
@@ -125,6 +125,7 @@ export class MenubarMenuComponent {
       (click)="onClick()"
       (mouseenter)="onMouseEnter()"
       (keydown)="onKeydown($event)"
+      role="menuitem"
     >
       <ng-content />
     </button>

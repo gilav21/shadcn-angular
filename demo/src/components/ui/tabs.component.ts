@@ -53,6 +53,7 @@ export class TabsComponent {
       role="tablist"
       [class]="classes()"
       [attr.data-slot]="'tabs-list'"
+      [attr.aria-label]="ariaLabel()"
     >
       <ng-content />
     </div>
@@ -61,6 +62,7 @@ export class TabsComponent {
 })
 export class TabsListComponent {
   class = input('');
+  ariaLabel = input<string | undefined>(undefined);
 
   classes = computed(() =>
     cn(

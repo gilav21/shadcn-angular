@@ -1,51 +1,51 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    SelectComponent,
-    SelectTriggerComponent,
-    SelectValueComponent,
-    SelectContentComponent,
-    SelectGroupComponent,
-    SelectItemComponent,
-    SelectLabelComponent,
-    SelectSeparatorComponent,
+  SelectComponent,
+  SelectTriggerComponent,
+  SelectValueComponent,
+  SelectContentComponent,
+  SelectGroupComponent,
+  SelectItemComponent,
+  SelectLabelComponent,
+  SelectSeparatorComponent,
 } from './select.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<SelectComponent> = {
-    title: 'UI/Select',
-    component: SelectComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                SelectComponent,
-                SelectTriggerComponent,
-                SelectValueComponent,
-                SelectContentComponent,
-                SelectGroupComponent,
-                SelectItemComponent,
-                SelectLabelComponent,
-                SelectSeparatorComponent
-            ],
-        }),
-    ],
-    argTypes: {
-        disabled: { control: 'boolean' },
-    },
-    args: {
-        disabled: false,
-    },
+  title: 'UI/Select',
+  component: SelectComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        SelectComponent,
+        SelectTriggerComponent,
+        SelectValueComponent,
+        SelectContentComponent,
+        SelectGroupComponent,
+        SelectItemComponent,
+        SelectLabelComponent,
+        SelectSeparatorComponent
+      ],
+    }),
+  ],
+  argTypes: {
+    disabled: { control: 'boolean' },
+  },
+  args: {
+    disabled: false,
+  },
 };
 
 export default meta;
 type Story = StoryObj<SelectComponent>;
 
 export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
+  render: (args) => ({
+    props: args,
+    template: `
       <ui-select [disabled]="disabled" class="w-[180px]">
-        <ui-select-trigger>
+        <ui-select-trigger ariaLabel="Select a fruit">
           <ui-select-value placeholder="Select a fruit" />
         </ui-select-trigger>
         <ui-select-content>
@@ -69,5 +69,5 @@ export const Default: Story = {
         </ui-select-content>
       </ui-select>
     `,
-    }),
+  }),
 };

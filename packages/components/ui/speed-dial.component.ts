@@ -137,6 +137,7 @@ export class SpeedDialComponent implements OnDestroy {
     <span
       (click)="onClick($event)"
       [class]="classes()"
+      [attr.aria-label]="ariaLabel()"
       [attr.data-slot]="'speed-dial-trigger'"
       [attr.data-state]="speedDial?.open() ? 'open' : 'closed'"
     >
@@ -148,6 +149,7 @@ export class SpeedDialComponent implements OnDestroy {
 export class SpeedDialTriggerComponent {
     speedDial = inject(SpeedDialComponent, { optional: true });
     class = input('');
+    ariaLabel = input('Toggle speed dial');
 
     classes = computed(() =>
         cn(
@@ -268,7 +270,7 @@ export class SpeedDialContextTriggerDirective {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     @if (speedDial?.open()) {
-      <div [class]="classes()" [style]="positionStyle()" [attr.data-slot]="'speed-dial-menu'">
+      <div [class]="classes()" [style]="positionStyle()" [attr.data-slot]="'speed-dial-menu'" [attr.aria-label]="ariaLabel()">
         <ng-content />
       </div>
     }
@@ -278,6 +280,7 @@ export class SpeedDialContextTriggerDirective {
 export class SpeedDialMenuComponent {
     speedDial = inject(SpeedDialComponent, { optional: true });
     class = input('');
+    ariaLabel = input<string | undefined>(undefined);
 
     // Track registered items
     private registeredItems: SpeedDialItemComponent[] = [];

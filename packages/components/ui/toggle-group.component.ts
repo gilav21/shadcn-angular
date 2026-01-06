@@ -127,13 +127,17 @@ export class ToggleGroupComponent {
       [disabled]="group?.disabled() || disabled()"
       [attr.aria-pressed]="isSelected()"
       [attr.data-state]="isSelected() ? 'on' : 'off'"
+      [attr.aria-label]="ariaLabel()"
       [attr.data-slot]="'toggle-group-item'"
       (click)="onClick()"
     >
       <ng-content />
     </button>
   `,
-    host: { class: 'contents' },
+    host: {
+        class: 'contents',
+        '[attr.aria-label]': 'null'
+    },
 })
 export class ToggleGroupItemComponent {
     group = inject(TOGGLE_GROUP, { optional: true });
@@ -141,6 +145,7 @@ export class ToggleGroupItemComponent {
     value = input.required<string>();
     disabled = input(false);
     class = input('');
+    ariaLabel = input<string | undefined>(undefined);
 
     isSelected = computed(() => this.group?.isSelected(this.value()) ?? false);
 

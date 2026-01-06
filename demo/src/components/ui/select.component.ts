@@ -112,6 +112,7 @@ export class SelectComponent implements OnDestroy {
       [disabled]="select?.disabled() ?? false"
       [attr.aria-expanded]="select?.open()"
       [attr.data-state]="select?.open() ? 'open' : 'closed'"
+      [attr.aria-label]="ariaLabel()"
       [attr.data-slot]="'select-trigger'"
       (click)="onClick($event)"
     >
@@ -132,6 +133,7 @@ export class SelectComponent implements OnDestroy {
 export class SelectTriggerComponent {
     select = inject(SELECT, { optional: true });
     class = input('');
+    ariaLabel = input<string | undefined>(undefined);
 
     classes = computed(() =>
         cn(

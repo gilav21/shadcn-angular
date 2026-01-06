@@ -95,6 +95,7 @@ export class RadioGroupComponent implements ControlValueAccessor {
       [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
       [class]="classes()"
       [disabled]="disabled()"
+      [attr.aria-label]="ariaLabel()"
       [attr.data-slot]="'radio-group-item'"
       (click)="select()"
     >
@@ -113,6 +114,7 @@ export class RadioGroupItemComponent {
     value = input.required<string>();
     disabled = input(false);
     class = input('');
+    ariaLabel = input<string | undefined>(undefined);
 
     private group = inject(RADIO_GROUP, { optional: true });
 

@@ -1,51 +1,51 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    CommandComponent,
-    CommandInputComponent,
-    CommandListComponent,
-    CommandEmptyComponent,
-    CommandGroupComponent,
-    CommandItemComponent,
-    CommandSeparatorComponent,
-    CommandShortcutComponent,
-    CommandDialogComponent,
+  CommandComponent,
+  CommandInputComponent,
+  CommandListComponent,
+  CommandEmptyComponent,
+  CommandGroupComponent,
+  CommandItemComponent,
+  CommandSeparatorComponent,
+  CommandShortcutComponent,
+  CommandDialogComponent,
 } from './command.component';
 import { moduleMetadata } from '@storybook/angular';
 import { DialogComponent, DialogContentComponent } from './dialog.component';
 
 const meta: Meta<CommandComponent> = {
-    title: 'UI/Command',
-    component: CommandComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                CommandComponent,
-                CommandInputComponent,
-                CommandListComponent,
-                CommandEmptyComponent,
-                CommandGroupComponent,
-                CommandItemComponent,
-                CommandSeparatorComponent,
-                CommandShortcutComponent,
-                CommandDialogComponent,
-                DialogComponent,
-                DialogContentComponent
-            ],
-        }),
-    ],
+  title: 'UI/Command',
+  component: CommandComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        CommandComponent,
+        CommandInputComponent,
+        CommandListComponent,
+        CommandEmptyComponent,
+        CommandGroupComponent,
+        CommandItemComponent,
+        CommandSeparatorComponent,
+        CommandShortcutComponent,
+        CommandDialogComponent,
+        DialogComponent,
+        DialogContentComponent
+      ],
+    }),
+  ],
 };
 
 export default meta;
 type Story = StoryObj<CommandComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
+  render: () => ({
+    template: `
       <div class="w-[450px] rounded-lg border shadow-md">
         <ui-command class="rounded-lg border shadow-md">
-          <ui-command-input placeholder="Type a command or search..." />
-          <ui-command-list>
+          <ui-command-input placeholder="Type a command or search..." ariaLabel="Search command" />
+          <ui-command-list ariaLabel="Results">
             <ui-command-empty>No results found.</ui-command-empty>
             <ui-command-group heading="Suggestions">
               <ui-command-item value="calendar">
@@ -83,5 +83,5 @@ export const Default: Story = {
         </ui-command>
       </div>
     `,
-    }),
+  }),
 };

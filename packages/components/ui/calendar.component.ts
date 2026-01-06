@@ -105,7 +105,6 @@ export interface DateRange {
               type="button"
               [class]="getDayClasses(day)"
               (click)="selectDay(day)"
-              [attr.aria-selected]="isSelected(day)"
               [disabled]="day.getMonth() !== currentMonth()"
             >
               {{ day.getDate() }}

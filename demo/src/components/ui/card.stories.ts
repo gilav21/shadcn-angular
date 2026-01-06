@@ -1,11 +1,11 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    CardComponent,
-    CardHeaderComponent,
-    CardTitleComponent,
-    CardDescriptionComponent,
-    CardContentComponent,
-    CardFooterComponent,
+  CardComponent,
+  CardHeaderComponent,
+  CardTitleComponent,
+  CardDescriptionComponent,
+  CardContentComponent,
+  CardFooterComponent,
 } from './card.component';
 import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
@@ -20,33 +20,33 @@ import { FormsModule } from '@angular/forms';
 import { LabelComponent as RealLabelComponent } from './label.component';
 
 const meta: Meta<CardComponent> = {
-    title: 'UI/Card',
-    component: CardComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                CardComponent,
-                CardHeaderComponent,
-                CardTitleComponent,
-                CardDescriptionComponent,
-                CardContentComponent,
-                CardFooterComponent,
-                ButtonComponent,
-                InputComponent,
-                RealLabelComponent,
-                FormsModule
-            ],
-        }),
-    ],
+  title: 'UI/Card',
+  component: CardComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        CardComponent,
+        CardHeaderComponent,
+        CardTitleComponent,
+        CardDescriptionComponent,
+        CardContentComponent,
+        CardFooterComponent,
+        ButtonComponent,
+        InputComponent,
+        RealLabelComponent,
+        FormsModule
+      ],
+    }),
+  ],
 };
 
 export default meta;
 type Story = StoryObj<CardComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
+  render: () => ({
+    template: `
       <ui-card class="w-[350px]">
         <ui-card-header>
           <ui-card-title>Create project</ui-card-title>
@@ -56,7 +56,7 @@ export const Default: Story = {
           <form>
             <div class="grid w-full items-center gap-4">
               <div class="flex flex-col space-y-1.5">
-                <ui-label htmlFor="name">Name</ui-label>
+                <ui-label for="name">Name</ui-label>
                 <ui-input id="name" placeholder="Name of your project" />
               </div>
             </div>
@@ -68,5 +68,5 @@ export const Default: Story = {
         </ui-card-footer>
       </ui-card>
     `,
-    }),
+  }),
 };

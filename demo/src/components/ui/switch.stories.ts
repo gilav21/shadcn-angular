@@ -31,8 +31,8 @@ export const Default: Story = {
         props: args,
         template: `
       <div class="flex items-center space-x-2">
-        <ui-switch id="airplane-mode" [elementId]="'airplane-mode'" [disabled]="disabled"></ui-switch>
-        <ui-label htmlFor="airplane-mode">Airplane Mode</ui-label>
+        <ui-switch id="airplane-mode" [elementId]="'airplane-mode'" [disabled]="disabled" ariaLabel="Airplane Mode"></ui-switch>
+        <ui-label for="airplane-mode">Airplane Mode</ui-label>
       </div>
     `,
     }),

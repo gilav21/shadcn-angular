@@ -40,7 +40,7 @@ export const WithLabel: Story = {
         props: args,
         template: `
       <div class="grid w-full gap-1.5">
-        <ui-label htmlFor="message">Your message</ui-label>
+        <ui-label for="message">Your message</ui-label>
         <ui-textarea id="message" [placeholder]="placeholder" [rows]="rows"></ui-textarea>
         <p class="text-sm text-muted-foreground">
           Your message will be copied to the support team.
