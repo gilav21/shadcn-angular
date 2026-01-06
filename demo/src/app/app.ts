@@ -1,6 +1,6 @@
 import { Component, ChangeDetectionStrategy, signal, inject, HostListener } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { ButtonComponent, InputComponent, CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent, BadgeComponent, LabelComponent, SeparatorComponent, SwitchComponent, CheckboxComponent, RadioGroupComponent, RadioGroupItemComponent, TextareaComponent, SkeletonComponent, TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent, AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent, ProgressComponent, AlertComponent, AlertTitleComponent, AlertDescriptionComponent, AvatarComponent, AvatarImageComponent, AvatarFallbackComponent, DialogComponent, DialogTriggerComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent, DialogFooterComponent, TooltipDirective, DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSeparatorComponent, DropdownMenuLabelComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent, SelectComponent, SelectTriggerComponent, SelectValueComponent, SelectContentComponent, SelectItemComponent, SelectGroupComponent, SelectLabelComponent, PopoverComponent, PopoverTriggerComponent, PopoverContentComponent, PopoverCloseComponent, SheetComponent, SheetTriggerComponent, SheetContentComponent, SheetHeaderComponent, SheetTitleComponent, SheetDescriptionComponent, SheetFooterComponent, SheetCloseComponent, AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent, AlertDialogHeaderComponent, AlertDialogTitleComponent, AlertDialogDescriptionComponent, AlertDialogFooterComponent, AlertDialogActionComponent, AlertDialogCancelComponent, SliderComponent, CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent } from '../components/ui';
+import { ButtonComponent, InputComponent, CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent, BadgeComponent, LabelComponent, SeparatorComponent, SwitchComponent, CheckboxComponent, RadioGroupComponent, RadioGroupItemComponent, TextareaComponent, SkeletonComponent, TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent, AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent, ProgressComponent, AlertComponent, AlertTitleComponent, AlertDescriptionComponent, AvatarComponent, AvatarImageComponent, AvatarFallbackComponent, DialogComponent, DialogTriggerComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent, DialogFooterComponent, TooltipDirective, DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSeparatorComponent, DropdownMenuLabelComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent, SelectComponent, SelectTriggerComponent, SelectValueComponent, SelectContentComponent, SelectItemComponent, SelectGroupComponent, SelectLabelComponent, PopoverComponent, PopoverTriggerComponent, PopoverContentComponent, PopoverCloseComponent, SheetComponent, SheetTriggerComponent, SheetContentComponent, SheetHeaderComponent, SheetTitleComponent, SheetDescriptionComponent, SheetFooterComponent, SheetCloseComponent, AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent, AlertDialogHeaderComponent, AlertDialogTitleComponent, AlertDialogDescriptionComponent, AlertDialogFooterComponent, AlertDialogActionComponent, AlertDialogCancelComponent, SliderComponent, CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent, ContextMenuTriggerDirective } from '../components/ui';
 import { ToggleComponent } from '../components/ui/toggle.component';
 import { ToggleGroupComponent, ToggleGroupItemComponent } from '../components/ui/toggle-group.component';
 import { ScrollAreaComponent } from '../components/ui/scroll-area.component';
@@ -246,6 +246,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
     TooltipContentComponent,
     TooltipTriggerComponent,
     TooltipDirective,
+    ContextMenuTriggerDirective
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1093,6 +1094,38 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
               <ui-context-menu-item>Print...</ui-context-menu-item>
             </ui-context-menu-content>
           </ui-context-menu>
+
+          <ui-context-menu #contextMenu>
+        <ui-context-menu-content class="w-56">
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Edit
+            <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            Copy
+            <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polyline points="8 17 12 21 16 17"/><line x1="12" x2="12" y1="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+            Share
+          </ui-context-menu-item>
+          <ui-context-menu-separator></ui-context-menu-separator>
+          <ui-context-menu-item variant="destructive">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            Delete
+            <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+        </ui-context-menu-content>
+      </ui-context-menu>
+
+      <div
+        [uiContextMenuTrigger]="contextMenu"
+        class="h-[300px] w-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground"
+      >
+        Right-click anywhere in this area to open the context menu
+      </div>
         </section>
 
         <ui-separator />
@@ -2081,7 +2114,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
           <!-- Context Menu Speed Dial -->
           <h3 class="text-lg font-medium mt-6">Context Menu (Right-click)</h3>
-          <ui-speed-dial type="circle" [transitionDelay]="500" direction="down-right" [radius]="40" #contextMenu>
+          <ui-speed-dial type="circle" [transitionDelay]="500" direction="down-right" [radius]="40" #speedDialContextMenu>
             <!-- <ui-speed-dial-context-trigger class="w-full h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
               <span>Right-click anywhere in this area</span>
             </ui-speed-dial-context-trigger> -->
@@ -2114,7 +2147,7 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
             </ui-speed-dial-menu>
           </ui-speed-dial>
 
-          <div [uiSpeedDialContextTrigger]="contextMenu" 
+          <div [uiSpeedDialContextTrigger]="speedDialContextMenu" 
           (click)="writeToLog('test')"
           class="h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
             Right-click anywhere here

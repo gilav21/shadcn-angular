@@ -7,6 +7,7 @@ import {
   ContextMenuSeparatorComponent,
   ContextMenuLabelComponent,
   ContextMenuShortcutComponent,
+  ContextMenuTriggerDirective,
 } from './context-menu.component';
 import { moduleMetadata } from '@storybook/angular';
 
@@ -23,7 +24,8 @@ const meta: Meta<ContextMenuComponent> = {
         ContextMenuItemComponent,
         ContextMenuSeparatorComponent,
         ContextMenuLabelComponent,
-        ContextMenuShortcutComponent
+        ContextMenuShortcutComponent,
+        ContextMenuTriggerDirective,
       ],
     }),
   ],
@@ -84,6 +86,52 @@ export const Default: Story = {
             </ui-context-menu-item>
           </ui-context-menu-content>
         </ui-context-menu>
+      </div>
+    `,
+  }),
+};
+
+export const TriggerDirective: Story = {
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story: 'Use the `[uiContextMenuTrigger]` directive to attach a context menu to any element. Right-click anywhere in the trigger area to open the menu at the cursor position.',
+      },
+    },
+  },
+  render: () => ({
+    template: `
+      <ui-context-menu #contextMenu>
+        <ui-context-menu-content class="w-56">
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            Edit
+            <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            Copy
+            <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polyline points="8 17 12 21 16 17"/><line x1="12" x2="12" y1="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+            Share
+          </ui-context-menu-item>
+          <ui-context-menu-separator></ui-context-menu-separator>
+          <ui-context-menu-item variant="destructive">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            Delete
+            <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+        </ui-context-menu-content>
+      </ui-context-menu>
+
+      <div
+        [uiContextMenuTrigger]="contextMenu"
+        class="h-[300px] w-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground"
+      >
+        Right-click anywhere in this area to open the context menu
       </div>
     `,
   }),

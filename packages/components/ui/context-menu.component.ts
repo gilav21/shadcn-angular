@@ -1,6 +1,7 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    Directive,
     input,
     computed,
     signal,
@@ -77,8 +78,9 @@ export class ContextMenuComponent implements OnDestroy {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span 
-      (contextmenu)="onContextMenu($event)"
-      [attr.data-slot]="'context-menu-trigger'"
+        class="contents"
+        (contextmenu)="onContextMenu($event)"
+        [attr.data-slot]="'context-menu-trigger'"
     >
       <ng-content />
     </span>
@@ -301,3 +303,48 @@ export class ContextMenuLabelComponent {
     },
 })
 export class ContextMenuShortcutComponent { }
+
+/**
+ * ContextMenuTriggerDirective - Directive version for use on any element
+ *
+ * Usage:
+ * <ui-context-menu #contextMenu>
+ *   <ui-context-menu-content>
+ *     <ui-context-menu-item>Action 1</ui-context-menu-item>
+ *     <ui-context-menu-item>Action 2</ui-context-menu-item>
+ *   </ui-context-menu-content>
+ * </ui-context-menu>
+ *
+ * <div [uiContextMenuTrigger]="contextMenu">
+ *   Right-click anywhere here
+ * </div>
+ */
+@Directive({
+    selector: '[uiContextMenuTrigger]',
+    host: {
+        '(contextmenu)': 'onContextMenu($event)',
+        '(click)': 'onClick($event)',
+    },
+})
+export class ContextMenuTriggerDirective {
+    uiContextMenuTrigger = input.required<ContextMenuComponent>();
+
+    onContextMenu(event: MouseEvent) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const contextMenu = this.uiContextMenuTrigger();
+        if (!contextMenu) return;
+
+        // Use viewport coordinates for fixed positioning
+        contextMenu.show(event.clientX, event.clientY);
+    }
+
+    onClick(event: MouseEvent) {
+        const contextMenu = this.uiContextMenuTrigger();
+        // Left-click closes the menu if open
+        if (contextMenu?.open()) {
+            contextMenu.close();
+        }
+    }
+}

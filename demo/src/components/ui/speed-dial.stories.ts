@@ -5,6 +5,7 @@ import {
   SpeedDialMenuComponent,
   SpeedDialItemComponent,
   SpeedDialMaskComponent,
+  SpeedDialContextTriggerDirective,
 } from './speed-dial.component';
 import { ButtonComponent } from './button.component';
 import { moduleMetadata } from '@storybook/angular';
@@ -22,6 +23,7 @@ const meta: Meta<SpeedDialComponent> = {
         SpeedDialMenuComponent,
         SpeedDialItemComponent,
         SpeedDialMaskComponent,
+        SpeedDialContextTriggerDirective,
         ButtonComponent,
         TooltipDirective
       ],
@@ -69,6 +71,46 @@ export const Default: Story = {
             </ui-speed-dial-item>
           </ui-speed-dial-menu>
         </ui-speed-dial>
+      </div>
+    `,
+  }),
+};
+
+export const ContextTriggerDirective: Story = {
+  parameters: {
+    docs: {
+      description: {
+        story: 'Use the `[uiSpeedDialContextTrigger]` directive to show the speed dial at the right-click position on any element.',
+      },
+    },
+  },
+  render: () => ({
+    template: `
+      <ui-speed-dial #speedDial type="quarter-circle" direction="down-right">
+        <ui-speed-dial-menu ariaLabel="Context actions">
+          <ui-speed-dial-item>
+            <ui-button size="icon" class="rounded-full shadow-md" variant="secondary" aria-label="Edit">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            </ui-button>
+          </ui-speed-dial-item>
+          <ui-speed-dial-item>
+            <ui-button size="icon" class="rounded-full shadow-md" variant="secondary" aria-label="Copy">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            </ui-button>
+          </ui-speed-dial-item>
+          <ui-speed-dial-item>
+            <ui-button size="icon" class="rounded-full shadow-md" variant="destructive" aria-label="Delete">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            </ui-button>
+          </ui-speed-dial-item>
+        </ui-speed-dial-menu>
+      </ui-speed-dial>
+
+      <div
+        [uiSpeedDialContextTrigger]="speedDial"
+        class="h-[250px] w-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground"
+      >
+        Right-click anywhere in this area to open the speed dial menu
       </div>
     `,
   }),
