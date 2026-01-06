@@ -29,7 +29,7 @@ export const Default: Story = {
     render: (args) => ({
         props: args,
         template: `
-      <ui-input-otp [maxLength]="maxLength" [separator]="separator"></ui-input-otp>
+      <ui-input-otp [maxLength]="maxLength" [separator]="separator" [ariaLabel]="'One-Time Password'"></ui-input-otp>
     `,
     }),
 };

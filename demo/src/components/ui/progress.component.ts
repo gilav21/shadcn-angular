@@ -16,6 +16,8 @@ import { cn } from '../lib/utils';
       [attr.aria-valuemin]="0"
       [attr.aria-valuemax]="max()"
       [class]="classes()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-labelledby]="ariaLabelledby()"
       [attr.data-slot]="'progress'"
     >
       <div
@@ -30,6 +32,8 @@ export class ProgressComponent {
   value = input(0);
   max = input(100);
   class = input('');
+  ariaLabel = input<string | undefined>(undefined);
+  ariaLabelledby = input<string | undefined>(undefined);
 
   percentage = computed(() => {
     const val = this.value();

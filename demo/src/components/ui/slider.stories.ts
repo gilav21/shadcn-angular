@@ -29,6 +29,6 @@ type Story = StoryObj<SliderComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-slider [min]="min" [max]="max" [step]="step" [defaultValue]="defaultValue" [disabled]="disabled" class="w-[60%]"></ui-slider>`,
+        template: `<ui-slider [min]="min" [max]="max" [step]="step" [defaultValue]="defaultValue" [disabled]="disabled" [ariaLabel]="'Slider'" class="w-[60%]"></ui-slider>`,
     }),
 };

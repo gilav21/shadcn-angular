@@ -28,6 +28,9 @@ import { cn } from '../lib/utils';
       [attr.data-state]="checked() ? 'checked' : 'unchecked'"
       [class]="classes()"
       [disabled]="disabled()"
+      [attr.id]="elementId()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-labelledby]="ariaLabelledby()"
       [attr.data-slot]="'checkbox'"
       (click)="toggle()"
     >
@@ -55,6 +58,9 @@ import { cn } from '../lib/utils';
 export class CheckboxComponent implements ControlValueAccessor {
   disabled = input(false);
   class = input('');
+  elementId = input<string | undefined>(undefined);
+  ariaLabel = input<string | undefined>(undefined);
+  ariaLabelledby = input<string | undefined>(undefined);
 
   checked = signal(false);
   checkedChange = output<boolean>();

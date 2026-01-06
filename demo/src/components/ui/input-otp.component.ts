@@ -48,6 +48,8 @@ import { cn } from '../lib/utils';
         inputmode="numeric"
         [attr.maxlength]="maxLength()"
         [value]="value()"
+        [attr.aria-label]="ariaLabel()"
+        [attr.aria-labelledby]="ariaLabelledby()"
         (input)="onInput($event)"
         (focus)="onFocus()"
         (blur)="onBlur()"
@@ -62,6 +64,8 @@ export class InputOTPComponent {
   @ViewChild('hiddenInput') hiddenInput!: ElementRef<HTMLInputElement>;
 
   class = input('');
+  ariaLabel = input<string | undefined>(undefined);
+  ariaLabelledby = input<string | undefined>(undefined);
   maxLength = input(6);
   separator = input<number[]>([2]); // indices after which to show separator (default: after 3rd slot for 6-digit OTP)
 

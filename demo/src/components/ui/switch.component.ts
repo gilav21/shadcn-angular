@@ -27,6 +27,9 @@ import { cn } from '../lib/utils';
       [attr.aria-checked]="checked()"
       [class]="trackClasses()"
       [disabled]="disabled()"
+      [attr.id]="elementId()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-labelledby]="ariaLabelledby()"
       [attr.data-slot]="'switch'"
       (click)="toggle()"
     >
@@ -40,6 +43,9 @@ import { cn } from '../lib/utils';
 export class SwitchComponent implements ControlValueAccessor {
     disabled = input(false);
     class = input('');
+    elementId = input<string | undefined>(undefined);
+    ariaLabel = input<string | undefined>(undefined);
+    ariaLabelledby = input<string | undefined>(undefined);
 
     checked = signal(false);
     checkedChange = output<boolean>();

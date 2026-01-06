@@ -40,6 +40,8 @@ import { cn } from '../lib/utils';
         [attr.aria-valuemin]="min()"
         [attr.aria-valuemax]="max()"
         [attr.aria-disabled]="disabled()"
+        [attr.aria-label]="ariaLabel()"
+        [attr.aria-labelledby]="ariaLabelledby()"
         (mousedown)="onThumbMouseDown($event)"
         (keydown)="onKeyDown($event)"
       ></div>
@@ -58,6 +60,8 @@ export class SliderComponent {
     disabled = input(false);
     defaultValue = input(0);
     class = input('');
+    ariaLabel = input<string | undefined>(undefined);
+    ariaLabelledby = input<string | undefined>(undefined);
     valueChange = output<number>();
 
     value = signal(0);

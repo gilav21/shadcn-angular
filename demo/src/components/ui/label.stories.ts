@@ -36,8 +36,8 @@ export const WithControl: Story = {
         props: args,
         template: `
       <div class="flex items-center space-x-2">
-        <ui-checkbox id="terms"></ui-checkbox>
-        <ui-label htmlFor="terms">Accept terms and conditions</ui-label>
+        <ui-checkbox id="terms" [elementId]="'terms'"></ui-checkbox>
+        <ui-label for="terms">Accept terms and conditions</ui-label>
       </div>
     `,
     }),

@@ -25,6 +25,6 @@ type Story = StoryObj<ProgressComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-progress [value]="value" [max]="max"></ui-progress>`,
+        template: `<ui-progress [value]="value" [max]="max" [ariaLabel]="'Progress'"></ui-progress>`,
     }),
 };
