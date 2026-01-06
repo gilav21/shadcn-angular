@@ -45,7 +45,7 @@ export interface DateRange {
           variant="outline"
           size="icon-sm"
           (click)="previousMonth()"
-          [attr.aria-label]="prevMonthLabel()"
+          [ariaLabel]="prevMonthLabel()"
         >
           <svg class="h-4 w-4" [class.rotate-180]="rtl()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -56,6 +56,7 @@ export interface DateRange {
             @if (showMonthSelect()) {
               <ui-select 
                 [defaultValue]="currentMonth().toString()" 
+                [ariaLabel]="monthSelectLabel()"
                 [rtl]="rtl()"
                 position="popper"
                 (valueChange)="onMonthChange($event)"
@@ -76,6 +77,7 @@ export interface DateRange {
             @if (showYearSelect()) {
               <ui-select 
                 [defaultValue]="currentYear().toString()" 
+                [ariaLabel]="yearSelectLabel()"
                 [rtl]="rtl()"
                 position="popper"
                 (valueChange)="onYearChange($event)"
@@ -98,7 +100,7 @@ export interface DateRange {
           variant="outline"
           size="icon-sm"
           (click)="nextMonth()"
-          [attr.aria-label]="nextMonthLabel()"
+          [ariaLabel]="nextMonthLabel()"
         >
           <svg class="h-4 w-4" [class.rotate-180]="rtl()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
@@ -117,14 +119,15 @@ export interface DateRange {
       <div class="grid grid-cols-7 gap-1">
         @for (day of calendarDays(); track $index) {
           @if (day) {
-            <button
-              type="button"
+             <ui-button
               [class]="getDayClasses(day)"
               (click)="selectDay(day)"
               [disabled]="day.getMonth() !== currentMonth()"
+              [variant]="'ghost'"
+              [ariaLabel]="day.getDate().toString()"
             >
               {{ day.getDate() }}
-            </button>
+            </ui-button>
           } @else {
             <div class="h-9 w-9"></div>
           }

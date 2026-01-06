@@ -45,7 +45,7 @@ export interface DateRange {
           variant="outline"
           size="icon-sm"
           (click)="previousMonth()"
-          [attr.aria-label]="prevMonthLabel()"
+          [ariaLabel]="prevMonthLabel()"
         >
           <svg class="h-4 w-4" [class.rotate-180]="rtl()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
@@ -60,7 +60,7 @@ export interface DateRange {
                 position="popper"
                 (valueChange)="onMonthChange($event)"
               >
-                <ui-select-trigger class="h-7 w-[110px]">
+                <ui-select-trigger class="h-7 w-[110px]" ariaLabel="Month">
                   <ui-select-value [placeholder]="currentMonthName()" [displayValue]="currentMonthName()" />
                 </ui-select-trigger>
                 <ui-select-content>
@@ -80,7 +80,7 @@ export interface DateRange {
                 position="popper"
                 (valueChange)="onYearChange($event)"
               >
-                <ui-select-trigger class="h-7 w-[80px]">
+                <ui-select-trigger class="h-7 w-[80px]" ariaLabel="Year">
                   <ui-select-value [placeholder]="currentYear().toString()" />
                 </ui-select-trigger>
                 <ui-select-content class="max-h-60">
@@ -98,7 +98,7 @@ export interface DateRange {
           variant="outline"
           size="icon-sm"
           (click)="nextMonth()"
-          [attr.aria-label]="nextMonthLabel()"
+          [ariaLabel]="nextMonthLabel()"
         >
           <svg class="h-4 w-4" [class.rotate-180]="rtl()" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
             <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
@@ -117,14 +117,15 @@ export interface DateRange {
       <div class="grid grid-cols-7 gap-1">
         @for (day of calendarDays(); track $index) {
           @if (day) {
-            <button
-              type="button"
+            <ui-button
               [class]="getDayClasses(day)"
               (click)="selectDay(day)"
               [disabled]="day.getMonth() !== currentMonth()"
+              [variant]="'ghost'"
+              [ariaLabel]="day.getDate().toString()"
             >
               {{ day.getDate() }}
-            </button>
+            </ui-button>
           } @else {
             <div class="h-9 w-9"></div>
           }
@@ -168,6 +169,8 @@ export class CalendarComponent {
   selectedChange = output<Date | DateRange | Date[] | string | string[] | null>();
 
   private viewDate = signal(new Date());
+
+
 
   constructor() {
     effect(() => {

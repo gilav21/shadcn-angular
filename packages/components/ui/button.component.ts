@@ -48,6 +48,7 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
       [disabled]="disabled()"
       [type]="type()"
       [attr.data-slot]="'button'"
+      [attr.aria-label]="ariaLabel()"
     >
       <ng-content />
     </button>
@@ -62,6 +63,7 @@ export class ButtonComponent {
     disabled = input(false);
     type = input<'button' | 'submit' | 'reset'>('button');
     class = input('');
+    ariaLabel = input<string | undefined>(undefined);
 
     clicked = output<MouseEvent>();
 
