@@ -1,6 +1,6 @@
 {
     "name": "@gilav21/shadcn-angular",
-    "version": "0.0.6",
+    "version": "0.0.7",
     "description": "CLI for adding shadcn-angular components to your project",
     "bin": {
         "shadcn-angular": "./dist/index.js"
