@@ -85,7 +85,7 @@ export async function init(options: InitOptions) {
             {
                 type: 'text',
                 name: 'globalCss',
-                message: 'Where is your global CSS file?',
+                message: 'Where is your global styles file?',
                 initial: 'src/styles.scss',
             },
         ]);
@@ -128,15 +128,26 @@ export async function init(options: InitOptions) {
         await fs.writeFile(path.join(cwd, utilsPathResolved + '.ts'), getUtilsTemplate());
         spinner.text = 'Created utils.ts';
 
-        // Create/update styles file
-        const stylesPath = path.join(cwd, config.tailwind.css);
-        const existingStyles = await fs.pathExists(stylesPath)
-            ? await fs.readFile(stylesPath, 'utf-8')
+        // Create tailwind.css file in the same directory as the global styles
+        const stylesDir = path.dirname(path.join(cwd, config.tailwind.css));
+        const tailwindCssPath = path.join(stylesDir, 'tailwind.css');
+
+        // Write the tailwind.css file with all Tailwind directives
+        await fs.writeFile(tailwindCssPath, getStylesTemplate(config.tailwind.baseColor));
+        spinner.text = 'Created tailwind.css';
+
+        // Add import to the user's global styles file if not already present
+        const userStylesPath = path.join(cwd, config.tailwind.css);
+        let userStyles = await fs.pathExists(userStylesPath)
+            ? await fs.readFile(userStylesPath, 'utf-8')
             : '';
 
-        if (!existingStyles.includes('--background:')) {
-            await fs.writeFile(stylesPath, getStylesTemplate(config.tailwind.baseColor) + '\n' + existingStyles);
-            spinner.text = 'Updated styles with theme variables';
+        const tailwindImport = '@import "./tailwind.css";';
+        if (!userStyles.includes('tailwind.css')) {
+            // Add import at the top of the file
+            userStyles = tailwindImport + '\n\n' + userStyles;
+            await fs.writeFile(userStylesPath, userStyles);
+            spinner.text = 'Added tailwind.css import to styles';
         }
 
         // Create components/ui directory
@@ -151,7 +162,6 @@ export async function init(options: InitOptions) {
             'clsx',
             'tailwind-merge',
             'class-variance-authority',
-            '@angular/cdk',
             'lucide-angular',
             'tailwindcss',
             'postcss',
@@ -159,41 +169,17 @@ export async function init(options: InitOptions) {
         ];
         await execa('npm', ['install', ...dependencies], { cwd });
 
-        // Setup PostCSS
+        // Setup PostCSS - create .postcssrc.json which is the preferred format for Angular
         spinner.text = 'Configuring PostCSS...';
-        const postcssConfigPath = path.join(cwd, 'postcss.config.js');
-        const postcssConfigMjsPath = path.join(cwd, 'postcss.config.mjs');
+        const postcssrcPath = path.join(cwd, '.postcssrc.json');
 
-        if (await fs.pathExists(postcssConfigMjsPath)) {
-            // Check mjs config
-            const content = await fs.readFile(postcssConfigMjsPath, 'utf-8');
-            if (!content.includes('@tailwindcss/postcss')) {
-                // Very basic append attempt for mjs, safest is to warn or skip complex types
-                // But user asked to try.
-                // If it's a simple export default { plugins: {} }, we can try to inject.
-                // For now, let's just log a warning if we can't safely inject
-                console.log(chalk.yellow('\nComputed postcss.config.mjs found. Please manually add "@tailwindcss/postcss" to your plugins.'));
-            }
-        } else if (await fs.pathExists(postcssConfigPath)) {
-            let content = await fs.readFile(postcssConfigPath, 'utf-8');
-            if (!content.includes('@tailwindcss/postcss')) {
-                // Try to inject into plugins object
-                if (content.includes('plugins: {')) {
-                    content = content.replace('plugins: {', 'plugins: {\n    \'@tailwindcss/postcss\': {},');
-                    await fs.writeFile(postcssConfigPath, content);
-                } else {
-                    console.log(chalk.yellow('\nExisting postcss.config.js found but structure not recognized. Please manually add "@tailwindcss/postcss" to your plugins.'));
+        if (!await fs.pathExists(postcssrcPath)) {
+            const configContent = {
+                plugins: {
+                    '@tailwindcss/postcss': {}
                 }
-            }
-        } else {
-            // Create new config
-            const configContent = `module.exports = {
-  plugins: {
-    '@tailwindcss/postcss': {},
-  },
-}
-`;
-            await fs.writeFile(postcssConfigPath, configContent);
+            };
+            await fs.writeJson(postcssrcPath, configContent, { spaces: 4 });
         }
 
         spinner.succeed(chalk.green('Project initialized successfully!'));
