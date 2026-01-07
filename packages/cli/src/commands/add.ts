@@ -70,7 +70,7 @@ export async function add(components: string[], options: AddOptions) {
     const config = await getConfig(cwd);
     if (!config) {
         console.log(chalk.red('Error: components.json not found.'));
-        console.log(chalk.dim('Run `npx shadcn-angular init` first.'));
+        console.log(chalk.dim('Run `npx @gilav21/shadcn-angular init` first.'));
         process.exit(1);
     }
 

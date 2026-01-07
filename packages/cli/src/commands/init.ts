@@ -199,7 +199,7 @@ export async function init(options: InitOptions) {
         spinner.succeed(chalk.green('Project initialized successfully!'));
 
         console.log('\n' + chalk.bold('Next steps:'));
-        console.log(chalk.dim('  1. Add components: ') + chalk.cyan('npx shadcn-angular add button'));
+        console.log(chalk.dim('  1. Add components: ') + chalk.cyan('npx @gilav21/shadcn-angular add button'));
         console.log(chalk.dim('  2. Import and use in your templates'));
         console.log(chalk.dim('  3. Update your ') + chalk.bold('tsconfig.json') + chalk.dim(' paths:'));
         console.log(chalk.dim('    "compilerOptions": {'));

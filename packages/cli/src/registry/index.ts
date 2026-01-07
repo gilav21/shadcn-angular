@@ -47,6 +47,7 @@ export const registry: Record<string, ComponentDefinition> = {
   'button-group': {
     name: 'button-group',
     files: ['button-group.component.ts'],
+    dependencies: ['button']
   },
   calendar: {
     name: 'calendar',
@@ -226,5 +227,6 @@ export const registry: Record<string, ComponentDefinition> = {
   'speed-dial': {
     name: 'speed-dial',
     files: ['speed-dial.component.ts'],
+    dependencies: ['button']
   },
 };
