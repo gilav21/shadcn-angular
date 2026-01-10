@@ -2,9 +2,9 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
     signal,
+    model,
     inject,
     ElementRef,
     OnDestroy,
@@ -25,8 +25,7 @@ export class PopoverComponent implements OnDestroy {
     private el = inject(ElementRef);
     private document = inject(DOCUMENT);
 
-    open = signal(false);
-    openChange = output<boolean>();
+    open = model(false);
 
     private clickListener = (event: MouseEvent) => {
         if (!this.el.nativeElement.contains(event.target)) {
@@ -43,19 +42,15 @@ export class PopoverComponent implements OnDestroy {
     }
 
     toggle() {
-        const newState = !this.open();
-        this.open.set(newState);
-        this.openChange.emit(newState);
+        this.open.update(v => !v);
     }
 
     show() {
         this.open.set(true);
-        this.openChange.emit(true);
     }
 
     hide() {
         this.open.set(false);
-        this.openChange.emit(false);
     }
 
     getTriggerRect(): DOMRect | null {

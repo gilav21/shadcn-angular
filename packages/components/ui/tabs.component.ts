@@ -2,12 +2,12 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
-  output,
   computed,
-  signal,
+  model,
   inject,
   InjectionToken,
   forwardRef,
+  effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -28,20 +28,21 @@ export class TabsComponent {
   defaultValue = input<string>('');
   class = input('');
 
-  activeTab = signal<string>('');
-  tabChange = output<string>();
+  value = model<string>('');
 
   classes = computed(() => cn('w-full', this.class()));
 
-  ngOnInit() {
-    if (this.defaultValue()) {
-      this.activeTab.set(this.defaultValue());
-    }
+  constructor() {
+    effect(() => {
+      const defaultVal = this.defaultValue();
+      if (defaultVal && !this.value()) {
+        this.value.set(defaultVal);
+      }
+    }, { allowSignalWrites: true });
   }
 
-  selectTab(value: string) {
-    this.activeTab.set(value);
-    this.tabChange.emit(value);
+  selectTab(val: string) {
+    this.value.set(val);
   }
 }
 
@@ -49,9 +50,6 @@ export class TabsComponent {
   selector: 'ui-tabs-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div
-      role="tablist"
-      [class]="classes()"
     <div
       role="tablist"
       [class]="classes()"
@@ -99,7 +97,7 @@ export class TabsTriggerComponent {
 
   private tabs = inject(TABS, { optional: true });
 
-  isActive = computed(() => this.tabs?.activeTab() === this.value());
+  isActive = computed(() => this.tabs?.value() === this.value());
 
   classes = computed(() =>
     cn(
@@ -140,7 +138,7 @@ export class TabsContentComponent {
 
   private tabs = inject(TABS, { optional: true });
 
-  isActive = computed(() => this.tabs?.activeTab() === this.value());
+  isActive = computed(() => this.tabs?.value() === this.value());
 
   classes = computed(() =>
     cn(

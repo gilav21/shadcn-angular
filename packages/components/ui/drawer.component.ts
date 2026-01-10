@@ -2,9 +2,8 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
-    signal,
+    model,
     inject,
     OnDestroy,
     effect,
@@ -46,10 +45,9 @@ export type DrawerDirection = VariantProps<typeof drawerVariants>['direction'];
 export class DrawerComponent implements OnDestroy {
     private document = inject(DOCUMENT);
 
-    open = signal(false);
+    open = model(false);
     direction = input<DrawerDirection>('bottom');
     rtl = input(false);
-    openChange = output<boolean>();
 
     private scrollbarWidth = 0;
 
@@ -83,18 +81,14 @@ export class DrawerComponent implements OnDestroy {
 
     show() {
         this.open.set(true);
-        this.openChange.emit(true);
     }
 
     hide() {
         this.open.set(false);
-        this.openChange.emit(false);
     }
 
     toggle() {
-        const newState = !this.open();
-        this.open.set(newState);
-        this.openChange.emit(newState);
+        this.open.update(v => !v);
     }
 }
 

@@ -4,7 +4,7 @@ import {
   input,
   output,
   computed,
-  signal,
+  model,
   forwardRef,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
@@ -61,8 +61,7 @@ export class CheckboxComponent implements ControlValueAccessor {
   elementId = input<string | undefined>(undefined);
   ariaLabel = input<string | undefined>(undefined);
   ariaLabelledby = input<string | undefined>(undefined);
-  checked = signal(false);
-  checkedChange = output<boolean>();
+  checked = model(false);
 
   private onChange: (value: boolean) => void = () => { };
   private onTouched: () => void = () => { };
@@ -82,7 +81,6 @@ export class CheckboxComponent implements ControlValueAccessor {
     const newValue = !this.checked();
     this.checked.set(newValue);
     this.onChange(newValue);
-    this.checkedChange.emit(newValue);
     this.onTouched();
   }
 

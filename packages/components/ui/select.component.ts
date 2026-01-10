@@ -2,9 +2,9 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
     signal,
+    model,
     inject,
     InjectionToken,
     ElementRef,
@@ -30,14 +30,13 @@ export class SelectComponent implements OnDestroy {
     private el = inject(ElementRef);
     private document = inject(DOCUMENT);
 
-    value = signal<string | undefined>(undefined);
+    value = model<string | undefined>(undefined);
     open = signal(false);
     disabled = input(false);
     placeholder = input('Select an option');
     defaultValue = input<string | undefined>(undefined);
     position = input<'popper' | 'item-aligned'>('item-aligned');
     rtl = input(false);
-    valueChange = output<string>();
 
     // Track item elements for positioning
     private itemElements = new Map<string, HTMLElement>();
@@ -72,7 +71,6 @@ export class SelectComponent implements OnDestroy {
 
     select(val: string) {
         this.value.set(val);
-        this.valueChange.emit(val);
         this.close();
     }
 

@@ -2,9 +2,8 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
-    signal,
+    model,
     forwardRef,
     inject,
     InjectionToken,
@@ -25,7 +24,7 @@ export const RADIO_GROUP = new InjectionToken<RadioGroupComponent>('RADIO_GROUP'
         },
         {
             provide: RADIO_GROUP,
-            useExisting: RadioGroupComponent,
+            useExisting: forwardRef(() => RadioGroupComponent),
         },
     ],
     template: `
@@ -47,8 +46,7 @@ export class RadioGroupComponent implements ControlValueAccessor {
     disabled = input(false);
     class = input('');
 
-    value = signal<string | null>(null);
-    valueChange = output<string>();
+    value = model<string | null>(null);
 
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
@@ -65,7 +63,6 @@ export class RadioGroupComponent implements ControlValueAccessor {
         if (this.disabled()) return;
         this.value.set(val);
         this.onChange(val);
-        this.valueChange.emit(val);
         this.onTouched();
     }
 

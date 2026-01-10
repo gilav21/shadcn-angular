@@ -4,6 +4,7 @@ import {
     input,
     computed,
     signal,
+    model,
     inject,
     ElementRef,
     OnDestroy,
@@ -21,7 +22,7 @@ import { cn } from '../lib/utils';
 export class DropdownMenuComponent implements OnDestroy {
     private el = inject(ElementRef);
     private document = inject(DOCUMENT);
-    open = signal(false);
+    open = model(false);
 
     private clickListener = (event: MouseEvent) => {
         if (!this.el.nativeElement.contains(event.target)) {
