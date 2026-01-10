@@ -13,6 +13,7 @@ const meta: Meta<SliderComponent> = {
         step: { control: 'number' },
         disabled: { control: 'boolean' },
         defaultValue: { control: 'number' },
+        rtl: { control: 'boolean' },
     },
     args: {
         min: 0,
@@ -20,6 +21,7 @@ const meta: Meta<SliderComponent> = {
         step: 1,
         defaultValue: 50,
         disabled: false,
+        rtl: false,
     },
 };
 
@@ -29,6 +31,6 @@ type Story = StoryObj<SliderComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-slider [min]="min" [max]="max" [step]="step" [defaultValue]="defaultValue" [disabled]="disabled" [ariaLabel]="'Slider'" class="w-[60%]"></ui-slider>`,
+        template: `<ui-slider [min]="min" [max]="max" [step]="step" [defaultValue]="defaultValue" [disabled]="disabled" [rtl]="rtl" [ariaLabel]="'Slider'" class="w-[60%]"></ui-slider>`,
     }),
 };

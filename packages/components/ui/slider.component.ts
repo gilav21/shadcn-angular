@@ -25,6 +25,8 @@ import { cn } from '../lib/utils';
         <!-- Range (filled portion) -->
         <div
           class="absolute h-full bg-primary pointer-events-none"
+          [style.left.%]="rtl() ? 'auto' : 0"
+          [style.right.%]="rtl() ? 0 : 'auto'"
           [style.width.%]="percentage()"
         ></div>
       </div>
@@ -32,8 +34,9 @@ import { cn } from '../lib/utils';
       <div
         #thumbEl
         class="absolute block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-grab active:cursor-grabbing"
-        [style.left.%]="percentage()"
-        [style.transform]="'translateX(-50%)'"
+        [style.left.%]="rtl() ? 'auto' : percentage()"
+        [style.right.%]="rtl() ? percentage() : 'auto'"
+        [style.transform]="rtl() ? 'translateX(50%)' : 'translateX(-50%)'"
         tabindex="0"
         role="slider"
         [attr.aria-valuenow]="value()"
@@ -58,6 +61,7 @@ export class SliderComponent {
     max = input(100);
     step = input(1);
     disabled = input(false);
+    rtl = input(false);
     defaultValue = input(0);
     class = input('');
     ariaLabel = input<string | undefined>(undefined);
@@ -153,16 +157,17 @@ export class SliderComponent {
         const min = this.min();
         const max = this.max();
         let newValue = this.value();
+        const isRtl = this.rtl();
 
         switch (event.key) {
             case 'ArrowRight':
             case 'ArrowUp':
-                newValue = Math.min(max, newValue + step);
+                newValue = Math.min(max, newValue + (isRtl && event.key === 'ArrowRight' ? -step : step));
                 event.preventDefault();
                 break;
             case 'ArrowLeft':
             case 'ArrowDown':
-                newValue = Math.max(min, newValue - step);
+                newValue = Math.max(min, newValue - (isRtl && event.key === 'ArrowLeft' ? -step : step));
                 event.preventDefault();
                 break;
             case 'Home':
@@ -204,7 +209,13 @@ export class SliderComponent {
         if (!track) return;
 
         const rect = track.getBoundingClientRect();
-        const percent = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        let percent = (clientX - rect.left) / rect.width;
+
+        if (this.rtl()) {
+            percent = 1 - percent;
+        }
+
+        percent = Math.max(0, Math.min(1, percent));
         const min = this.min();
         const max = this.max();
         const step = this.step();

@@ -45,7 +45,7 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [MenubarService],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'menubar'" [attr.dir]="rtl() ? 'rtl' : 'ltr'" role="menubar" (keydown)="onKeydown($event)">
+    <div [class]="classes()" [attr.data-slot]="'menubar'" [attr.dir]="rtl() ? 'rtl' : null" role="menubar" (keydown)="onKeydown($event)">
       <ng-content />
     </div>
   `,
@@ -186,6 +186,7 @@ export class MenubarTriggerComponent {
     } else if (event.key === 'ArrowDown' || event.key === 'Enter') {
       event.preventDefault();
       this.menu.open();
+      // Improved focus strategy: wait for content to appear and find strictly related content
       setTimeout(() => {
         const content = document.querySelector(`[data-menubar-content="${this.menu.id}"]`);
         if (content) {
