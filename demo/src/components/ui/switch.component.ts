@@ -2,9 +2,8 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
-    signal,
+    model,
     forwardRef,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
@@ -27,10 +26,10 @@ import { cn } from '../lib/utils';
       [attr.aria-checked]="checked()"
       [class]="trackClasses()"
       [disabled]="disabled()"
+      [attr.data-slot]="'switch'"
       [attr.id]="elementId()"
       [attr.aria-label]="ariaLabel()"
       [attr.aria-labelledby]="ariaLabelledby()"
-      [attr.data-slot]="'switch'"
       (click)="toggle()"
     >
       <span [class]="thumbClasses()"></span>
@@ -46,9 +45,7 @@ export class SwitchComponent implements ControlValueAccessor {
     elementId = input<string | undefined>(undefined);
     ariaLabel = input<string | undefined>(undefined);
     ariaLabelledby = input<string | undefined>(undefined);
-
-    checked = signal(false);
-    checkedChange = output<boolean>();
+    checked = model(false);
 
     private onChange: (value: boolean) => void = () => { };
     private onTouched: () => void = () => { };
@@ -64,7 +61,7 @@ export class SwitchComponent implements ControlValueAccessor {
     thumbClasses = computed(() =>
         cn(
             'pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform',
-            this.checked() ? 'translate-x-4' : 'translate-x-0'
+            this.checked() ? 'ltr:translate-x-4 rtl:-translate-x-4' : 'translate-x-0'
         )
     );
 
@@ -73,7 +70,6 @@ export class SwitchComponent implements ControlValueAccessor {
         const newValue = !this.checked();
         this.checked.set(newValue);
         this.onChange(newValue);
-        this.checkedChange.emit(newValue);
         this.onTouched();
     }
 
