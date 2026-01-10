@@ -10,17 +10,15 @@ import {
   Injectable,
   ElementRef,
   HostListener,
-  ContentChildren,
-  QueryList,
-  forwardRef,
   ViewChild,
 } from '@angular/core';
 import { cn } from '../lib/utils';
-import { Subject } from 'rxjs';
+import { effect } from '@angular/core';
 
 @Injectable()
 export class MenubarService {
   activeMenuId = signal<string | null>(null);
+  rtl = signal(false);
   menus = new Map<string, { trigger: MenubarTriggerComponent }>();
 
   register(id: string, trigger: MenubarTriggerComponent) {
@@ -47,7 +45,7 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [MenubarService],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'menubar'" role="menubar" (keydown)="onKeydown($event)">
+    <div [class]="classes()" [attr.data-slot]="'menubar'" [attr.dir]="rtl() ? 'rtl' : 'ltr'" role="menubar" (keydown)="onKeydown($event)">
       <ng-content />
     </div>
   `,
@@ -55,17 +53,23 @@ let nextId = 0;
 })
 export class MenubarComponent {
   class = input('');
+  rtl = input(false);
   service = inject(MenubarService);
   el = inject(ElementRef);
 
+  constructor() {
+    effect(() => {
+      this.service.rtl.set(this.rtl());
+    }, { allowSignalWrites: true });
+  }
+
   classes = computed(() => cn(
-    'flex h-10 items-center space-x-1 rounded-md border bg-background p-1',
+    'flex h-10 items-center gap-1 rounded-md border bg-background p-1',
     this.class()
   ));
 
   @HostListener('document:click', ['$event'])
   onClick(event: MouseEvent) {
-    // If a menu is active, and click is outside the menubar tree, close it.
     if (this.service.activeMenuId() && !this.el.nativeElement.contains(event.target)) {
       this.service.setActive(null);
     }
@@ -165,12 +169,20 @@ export class MenubarTriggerComponent {
   }
 
   onKeydown(event: KeyboardEvent) {
-    if (event.key === 'ArrowRight') {
+    if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      this.focusNextTrigger();
-    } else if (event.key === 'ArrowLeft') {
+      if (this.service.rtl()) {
+        this.focusNextTrigger();
+      } else {
+        this.focusPrevTrigger();
+      }
+    } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      this.focusPrevTrigger();
+      if (this.service.rtl()) {
+        this.focusPrevTrigger();
+      } else {
+        this.focusNextTrigger();
+      }
     } else if (event.key === 'ArrowDown' || event.key === 'Enter') {
       event.preventDefault();
       this.menu.open();
@@ -234,8 +246,9 @@ export class MenubarContentComponent {
   el = inject(ElementRef);
 
   classes = computed(() => cn(
-    'absolute left-0 top-full z-50 mt-1 min-w-[12rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+    'absolute top-full z-50 mt-1 min-w-[12rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
     'animate-in fade-in-0 zoom-in-95',
+    'ltr:left-0 rtl:right-0',
     this.class()
   ));
 
@@ -252,17 +265,25 @@ export class MenubarContentComponent {
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
       trigger?.focus();
     } else if (event.key === 'ArrowLeft') {
-      // In root menu: Left -> focus Prev header trigger
+      // In root menu: Left -> focus Prev header trigger (LTR) or Next (RTL)
       event.preventDefault();
       // Do NOT close menu here, allows seamless switch
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
-      trigger?.focusPrevTrigger();
+      if (this.service.rtl()) {
+        trigger?.focusNextTrigger();
+      } else {
+        trigger?.focusPrevTrigger();
+      }
     } else if (event.key === 'ArrowRight') {
-      // In root menu: Right -> focus Next header trigger
+      // In root menu: Right -> focus Next header trigger (LTR) or Prev (RTL)
       event.preventDefault();
       // Do NOT close menu here, allows seamless switch
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
-      trigger?.focusNextTrigger();
+      if (this.service.rtl()) {
+        trigger?.focusPrevTrigger();
+      } else {
+        trigger?.focusNextTrigger();
+      }
     }
   }
 
@@ -318,7 +339,7 @@ export class MenubarItemComponent {
     'hover:bg-accent hover:text-accent-foreground',
     'focus:bg-accent focus:text-accent-foreground',
     'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-    this.inset() && 'pl-8',
+    this.inset() && 'ltr:pl-8 rtl:pr-8',
     this.class()
   ));
 
@@ -344,7 +365,7 @@ export class MenubarSeparatorComponent { }
   selector: 'ui-menubar-shortcut',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <span class="ml-auto text-xs tracking-widest text-muted-foreground" [attr.data-slot]="'menubar-shortcut'">
+    <span class="text-xs tracking-widest text-muted-foreground ltr:ml-auto rtl:mr-auto" [attr.data-slot]="'menubar-shortcut'">
       <ng-content />
     </span>
   `,
@@ -410,7 +431,7 @@ export class MenubarSubComponent {
       (click)="onClick()"
     >
       <ng-content />
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ml-auto h-4 w-4"><path d="m9 18 6-6-6-6"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 ltr:ml-auto rtl:mr-auto rtl:rotate-180"><path d="m9 18 6-6-6-6"/></svg>
     </div>
   `,
   host: { class: 'contents' }
@@ -421,6 +442,7 @@ export class MenubarSubTriggerComponent {
   inset = input(false, { transform: booleanAttribute });
 
   sub = inject(MenubarSubComponent);
+  service = inject(MenubarService);
   el = inject(ElementRef);
 
   @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
@@ -435,7 +457,7 @@ export class MenubarSubTriggerComponent {
     'focus:bg-accent focus:text-accent-foreground',
     'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
     this.sub.isOpen() && 'bg-accent text-accent-foreground',
-    this.inset() && 'pl-8',
+    this.inset() && 'ltr:pl-8 rtl:pr-8',
     this.class()
   ));
 
@@ -447,10 +469,22 @@ export class MenubarSubTriggerComponent {
 
   onKeydown(event: KeyboardEvent) {
     if (event.key === 'ArrowRight') {
+      if (this.service.rtl()) {
+        // In RTL, ArrowRight usually closes, or goes back. If we want to open, it should be ArrowLeft.
+        return;
+      }
       event.preventDefault();
       event.stopPropagation();
       this.sub.enter();
       this.sub.focusContent();
+    }
+    if (event.key === 'ArrowLeft') {
+      if (this.service.rtl()) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.sub.enter();
+        this.sub.focusContent();
+      }
     }
     if (event.key === 'Enter') {
       event.preventDefault();
@@ -481,6 +515,7 @@ export class MenubarSubTriggerComponent {
 export class MenubarSubContentComponent {
   class = input('');
   sub = inject(MenubarSubComponent);
+  service = inject(MenubarService);
   el = inject(ElementRef);
 
   constructor() {
@@ -488,8 +523,9 @@ export class MenubarSubContentComponent {
   }
 
   classes = computed(() => cn(
-    'absolute left-full top-0 z-50 ml-0.5 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
-    'animate-in slide-in-from-left-1 fade-in-0 zoom-in-95',
+    'absolute top-0 z-50 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+    'ltr:left-full ltr:ml-0.5 ltr:animate-in ltr:slide-in-from-left-1 ltr:fade-in-0 ltr:zoom-in-95',
+    'rtl:right-full rtl:mr-0.5 rtl:animate-in rtl:slide-in-from-right-1 rtl:fade-in-0 rtl:zoom-in-95',
     this.class()
   ));
 
@@ -502,9 +538,17 @@ export class MenubarSubContentComponent {
     event.stopPropagation();
 
     if (event.key === 'ArrowLeft') {
-      event.preventDefault();
-      this.sub.leave();
-      this.sub.focusTrigger();
+      if (!this.service.rtl()) {
+        event.preventDefault();
+        this.sub.leave();
+        this.sub.focusTrigger();
+      }
+    } else if (event.key === 'ArrowRight') {
+      if (this.service.rtl()) {
+        event.preventDefault();
+        this.sub.leave();
+        this.sub.focusTrigger();
+      }
     } else if (event.key === 'ArrowDown') {
       event.preventDefault();
       this.focusNextItem(event.target as HTMLElement);

@@ -1,47 +1,53 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    MenubarComponent,
-    MenubarMenuComponent,
-    MenubarTriggerComponent,
-    MenubarContentComponent,
-    MenubarItemComponent,
-    MenubarSeparatorComponent,
-    MenubarShortcutComponent,
-    MenubarSubComponent,
-    MenubarSubTriggerComponent,
-    MenubarSubContentComponent,
+  MenubarComponent,
+  MenubarMenuComponent,
+  MenubarTriggerComponent,
+  MenubarContentComponent,
+  MenubarItemComponent,
+  MenubarSeparatorComponent,
+  MenubarShortcutComponent,
+  MenubarSubComponent,
+  MenubarSubTriggerComponent,
+  MenubarSubContentComponent,
 } from './menubar.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<MenubarComponent> = {
-    title: 'UI/Menubar',
-    component: MenubarComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                MenubarComponent,
-                MenubarMenuComponent,
-                MenubarTriggerComponent,
-                MenubarContentComponent,
-                MenubarItemComponent,
-                MenubarSeparatorComponent,
-                MenubarShortcutComponent,
-                MenubarSubComponent,
-                MenubarSubTriggerComponent,
-                MenubarSubContentComponent,
-            ],
-        }),
-    ],
+  title: 'UI/Menubar',
+  component: MenubarComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        MenubarComponent,
+        MenubarMenuComponent,
+        MenubarTriggerComponent,
+        MenubarContentComponent,
+        MenubarItemComponent,
+        MenubarSeparatorComponent,
+        MenubarShortcutComponent,
+        MenubarSubComponent,
+        MenubarSubTriggerComponent,
+        MenubarSubContentComponent,
+      ],
+    }),
+  ],
 };
 
 export default meta;
-type Story = StoryObj<MenubarComponent>;
+type Story = StoryObj<MenubarComponent & { rtl: boolean }>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
-      <ui-menubar>
+  argTypes: {
+    rtl: {
+      control: 'boolean',
+    },
+  },
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-menubar [rtl]="rtl">
         <ui-menubar-menu>
           <ui-menubar-trigger>File</ui-menubar-trigger>
           <ui-menubar-content>
@@ -134,5 +140,5 @@ export const Default: Story = {
         </ui-menubar-menu>
       </ui-menubar>
     `,
-    }),
+  }),
 };
