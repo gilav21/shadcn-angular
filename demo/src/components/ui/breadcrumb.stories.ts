@@ -1,41 +1,51 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    BreadcrumbComponent,
-    BreadcrumbListComponent,
-    BreadcrumbItemComponent,
-    BreadcrumbLinkComponent,
-    BreadcrumbPageComponent,
-    BreadcrumbSeparatorComponent,
-    BreadcrumbEllipsisComponent,
+  BreadcrumbComponent,
+  BreadcrumbListComponent,
+  BreadcrumbItemComponent,
+  BreadcrumbLinkComponent,
+  BreadcrumbPageComponent,
+  BreadcrumbSeparatorComponent,
+  BreadcrumbEllipsisComponent,
 } from './breadcrumb.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<BreadcrumbComponent> = {
-    title: 'UI/Breadcrumb',
-    component: BreadcrumbComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                BreadcrumbComponent,
-                BreadcrumbListComponent,
-                BreadcrumbItemComponent,
-                BreadcrumbLinkComponent,
-                BreadcrumbPageComponent,
-                BreadcrumbSeparatorComponent,
-                BreadcrumbEllipsisComponent
-            ],
-        }),
-    ],
+  title: 'UI/Breadcrumb',
+  component: BreadcrumbComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        BreadcrumbComponent,
+        BreadcrumbListComponent,
+        BreadcrumbItemComponent,
+        BreadcrumbLinkComponent,
+        BreadcrumbPageComponent,
+        BreadcrumbSeparatorComponent,
+        BreadcrumbEllipsisComponent
+      ],
+    }),
+  ],
+  argTypes: {
+    rtl: {
+      control: 'boolean',
+      description: 'Enable right-to-left layout',
+    },
+  },
+  args: {
+    rtl: false,
+  },
 };
 
 export default meta;
 type Story = StoryObj<BreadcrumbComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
-      <ui-breadcrumb>
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-breadcrumb [rtl]="rtl">
         <ui-breadcrumb-list>
           <ui-breadcrumb-item>
             <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
@@ -51,13 +61,14 @@ export const Default: Story = {
         </ui-breadcrumb-list>
       </ui-breadcrumb>
     `,
-    }),
+  }),
 };
 
 export const CustomSeparator: Story = {
-    render: () => ({
-        template: `
-        <ui-breadcrumb>
+  render: (args) => ({
+    props: args,
+    template: `
+        <ui-breadcrumb [rtl]="rtl">
           <ui-breadcrumb-list>
             <ui-breadcrumb-item>
               <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
@@ -73,13 +84,14 @@ export const CustomSeparator: Story = {
           </ui-breadcrumb-list>
         </ui-breadcrumb>
       `,
-    }),
+  }),
 };
 
 export const WithEllipsis: Story = {
-    render: () => ({
-        template: `
-      <ui-breadcrumb>
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-breadcrumb [rtl]="rtl">
         <ui-breadcrumb-list>
           <ui-breadcrumb-item>
             <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
@@ -99,5 +111,5 @@ export const WithEllipsis: Story = {
         </ui-breadcrumb-list>
       </ui-breadcrumb>
     `,
-    }),
+  }),
 };

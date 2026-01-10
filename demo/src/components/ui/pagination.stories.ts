@@ -1,41 +1,51 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    PaginationComponent,
-    PaginationContentComponent,
-    PaginationItemComponent,
-    PaginationLinkComponent,
-    PaginationPreviousComponent,
-    PaginationNextComponent,
-    PaginationEllipsisComponent,
+  PaginationComponent,
+  PaginationContentComponent,
+  PaginationItemComponent,
+  PaginationLinkComponent,
+  PaginationPreviousComponent,
+  PaginationNextComponent,
+  PaginationEllipsisComponent,
 } from './pagination.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<PaginationComponent> = {
-    title: 'UI/Pagination',
-    component: PaginationComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                PaginationComponent,
-                PaginationContentComponent,
-                PaginationItemComponent,
-                PaginationLinkComponent,
-                PaginationPreviousComponent,
-                PaginationNextComponent,
-                PaginationEllipsisComponent
-            ],
-        }),
-    ],
+  title: 'UI/Pagination',
+  component: PaginationComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        PaginationComponent,
+        PaginationContentComponent,
+        PaginationItemComponent,
+        PaginationLinkComponent,
+        PaginationPreviousComponent,
+        PaginationNextComponent,
+        PaginationEllipsisComponent
+      ],
+    }),
+  ],
+  argTypes: {
+    rtl: {
+      control: 'boolean',
+      description: 'Enable right-to-left layout',
+    },
+  },
+  args: {
+    rtl: false,
+  },
 };
 
 export default meta;
 type Story = StoryObj<PaginationComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
-      <ui-pagination>
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-pagination [rtl]="rtl">
         <ui-pagination-content>
           <ui-pagination-item>
             <ui-pagination-previous href="#" />
@@ -58,5 +68,5 @@ export const Default: Story = {
         </ui-pagination-content>
       </ui-pagination>
     `,
-    }),
+  }),
 };

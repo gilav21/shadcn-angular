@@ -1,55 +1,60 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    DrawerComponent,
-    DrawerTriggerComponent,
-    DrawerContentComponent,
-    DrawerHeaderComponent,
-    DrawerTitleComponent,
-    DrawerDescriptionComponent,
-    DrawerFooterComponent,
-    DrawerCloseComponent,
+  DrawerComponent,
+  DrawerTriggerComponent,
+  DrawerContentComponent,
+  DrawerHeaderComponent,
+  DrawerTitleComponent,
+  DrawerDescriptionComponent,
+  DrawerFooterComponent,
+  DrawerCloseComponent,
 } from './drawer.component';
 import { ButtonComponent } from './button.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<DrawerComponent> = {
-    title: 'UI/Drawer',
-    component: DrawerComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                DrawerComponent,
-                DrawerTriggerComponent,
-                DrawerContentComponent,
-                DrawerHeaderComponent,
-                DrawerTitleComponent,
-                DrawerDescriptionComponent,
-                DrawerFooterComponent,
-                DrawerCloseComponent,
-                ButtonComponent
-            ],
-        }),
-    ],
-    argTypes: {
-        direction: {
-            control: 'radio',
-            options: ['top', 'right', 'bottom', 'left'],
-        },
+  title: 'UI/Drawer',
+  component: DrawerComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        DrawerComponent,
+        DrawerTriggerComponent,
+        DrawerContentComponent,
+        DrawerHeaderComponent,
+        DrawerTitleComponent,
+        DrawerDescriptionComponent,
+        DrawerFooterComponent,
+        DrawerCloseComponent,
+        ButtonComponent
+      ],
+    }),
+  ],
+  argTypes: {
+    direction: {
+      control: 'radio',
+      options: ['top', 'right', 'bottom', 'left'],
     },
-    args: {
-        direction: 'bottom',
+    rtl: {
+      control: 'boolean',
+      description: 'Enable right-to-left layout',
     },
+  },
+  args: {
+    direction: 'bottom',
+    rtl: false,
+  },
 };
 
 export default meta;
 type Story = StoryObj<DrawerComponent>;
 
 export const Default: Story = {
-    render: (args) => ({
-        props: args,
-        template: `
-      <ui-drawer [direction]="direction">
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-drawer [direction]="direction" [rtl]="rtl">
         <ui-drawer-trigger>
           <button shButton variant="outline">Open Drawer</button>
         </ui-drawer-trigger>
@@ -81,5 +86,5 @@ export const Default: Story = {
         </ui-drawer-content>
       </ui-drawer>
     `,
-    }),
+  }),
 };

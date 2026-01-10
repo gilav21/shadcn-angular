@@ -39,6 +39,7 @@ type CarouselOrientation = 'horizontal' | 'vertical';
 export class CarouselComponent implements AfterContentInit, OnDestroy {
     class = input('');
     orientation = input<CarouselOrientation>('horizontal');
+    rtl = input(false);
 
     @ViewChild('container', { static: true }) containerEl!: ElementRef<HTMLElement>;
 
@@ -207,11 +208,11 @@ export class CarouselItemComponent {
       type="button"
       [class]="classes()"
       [attr.data-slot]="'carousel-previous'"
-      [disabled]="!carousel.canScrollPrev()"
-      (click)="carousel.scrollPrev()"
+      [disabled]="isRtl() ? !carousel.canScrollNext() : !carousel.canScrollPrev()"
+      (click)="onClick()"
       aria-label="Previous slide"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class]="iconClasses()">
         <path d="m15 18-6-6 6-6"/>
       </svg>
       <span class="sr-only">Previous slide</span>
@@ -222,6 +223,21 @@ export class CarouselItemComponent {
 export class CarouselPreviousComponent {
     class = input('');
     carousel = inject(CarouselComponent);
+
+    isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
+
+    onClick() {
+        // In RTL horizontal mode, previous button scrolls next (content flows right-to-left)
+        if (this.isRtl()) {
+            this.carousel.scrollNext();
+        } else {
+            this.carousel.scrollPrev();
+        }
+    }
+
+    iconClasses = computed(() => cn(
+        'h-4 w-4'
+    ));
 
     classes = computed(() => {
         const isHorizontal = this.carousel.orientation() === 'horizontal';
@@ -249,11 +265,11 @@ export class CarouselPreviousComponent {
       type="button"
       [class]="classes()"
       [attr.data-slot]="'carousel-next'"
-      [disabled]="!carousel.canScrollNext()"
-      (click)="carousel.scrollNext()"
+      [disabled]="isRtl() ? !carousel.canScrollPrev() : !carousel.canScrollNext()"
+      (click)="onClick()"
       aria-label="Next slide"
     >
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class]="iconClasses()">
         <path d="m9 18 6-6-6-6"/>
       </svg>
       <span class="sr-only">Next slide</span>
@@ -264,6 +280,21 @@ export class CarouselPreviousComponent {
 export class CarouselNextComponent {
     class = input('');
     carousel = inject(CarouselComponent);
+
+    isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
+
+    onClick() {
+        // In RTL horizontal mode, next button scrolls prev (content flows right-to-left)
+        if (this.isRtl()) {
+            this.carousel.scrollPrev();
+        } else {
+            this.carousel.scrollNext();
+        }
+    }
+
+    iconClasses = computed(() => cn(
+        'h-4 w-4'
+    ));
 
     classes = computed(() => {
         const isHorizontal = this.carousel.orientation() === 'horizontal';

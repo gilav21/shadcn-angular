@@ -43,7 +43,7 @@ import { CalendarComponent, DateRange } from './calendar.component';
         [attr.aria-expanded]="isOpen()"
         [attr.aria-haspopup]="'dialog'"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2 h-4 w-4">
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2 h-4 w-4">
           <path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/>
         </svg>
         @if (internalValue()) {
@@ -55,12 +55,13 @@ import { CalendarComponent, DateRange } from './calendar.component';
       
       @if (isOpen()) {
         <div 
-          class="absolute left-0 top-full z-50 mt-1 rounded-md border bg-popover p-0 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          class="absolute ltr:left-0 rtl:right-0 top-full z-50 mt-1 rounded-md border bg-popover p-0 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
           (click)="$event.stopPropagation()"
         >
           <ui-calendar
             mode="single"
             [selected]="internalValue()"
+            [rtl]="rtl()"
             [showTimeSelect]="showTime()"
             [showMonthSelect]="true"
             [showYearSelect]="true"
@@ -80,6 +81,7 @@ export class DatePickerComponent implements ControlValueAccessor {
   placeholder = input('Pick a date');
   disabled = input(false);
   showTime = input(false);
+  rtl = input(false);
 
   // Two-way binding
   date = input<Date | null>(null);

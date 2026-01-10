@@ -49,13 +49,14 @@ import { ButtonComponent } from './button.component';
       [style.max-height]="maxHeightStyle()"
       [attr.data-slot]="'chip-list'"
       [attr.data-disabled]="disabled() || null"
+      [dir]="rtl() ? 'rtl' : 'ltr'"
       (click)="focusInput()"
     >
       <div class="flex flex-wrap items-center gap-1.5 p-1">
         @for (chip of chips(); track chip; let i = $index) {
           <ui-badge 
             [variant]="variant()" 
-            [class]="'shrink-0 gap-1' + (disabled() ? '' : ' pr-1')"
+            [class]="'shrink-0 gap-1' + (disabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
             [attr.data-slot]="'chip'"
           >
             <span class="max-w-[200px] truncate">{{ chip }}</span>
@@ -120,6 +121,9 @@ export class ChipListComponent implements ControlValueAccessor {
 
     /** Separator keys that also add chips (in addition to Enter) */
     separatorKeys = input<string[]>([]);
+
+    /** Enable RTL (right-to-left) layout */
+    rtl = input(false);
 
     // Outputs
     chipAdded = output<string>();

@@ -22,8 +22,8 @@ const drawerVariants = cva(
             direction: {
                 top: 'inset-x-0 top-0 mb-24 max-h-[80vh] rounded-b-lg border-b',
                 bottom: 'inset-x-0 bottom-0 mt-24 max-h-[80vh] rounded-t-lg border-t',
-                left: 'inset-y-0 left-0 h-full w-3/4 border-r sm:max-w-sm',
-                right: 'inset-y-0 right-0 h-full w-3/4 border-l sm:max-w-sm',
+                left: 'inset-y-0 ltr:left-0 rtl:right-0 h-full w-3/4 ltr:border-r rtl:border-l sm:max-w-sm',
+                right: 'inset-y-0 ltr:right-0 rtl:left-0 h-full w-3/4 ltr:border-l rtl:border-r sm:max-w-sm',
             },
         },
         defaultVariants: {
@@ -48,6 +48,7 @@ export class DrawerComponent implements OnDestroy {
 
     open = signal(false);
     direction = input<DrawerDirection>('bottom');
+    rtl = input(false);
     openChange = output<boolean>();
 
     private scrollbarWidth = 0;
@@ -124,6 +125,7 @@ export class DrawerTriggerComponent {
         class="fixed inset-0 z-50" 
         role="dialog" 
         aria-modal="true"
+        [dir]="drawer?.rtl() ? 'rtl' : 'ltr'"
         (keydown)="onKeydown($event)"
       >
         <!-- Overlay -->
@@ -247,7 +249,7 @@ export class DrawerHeaderComponent {
     class = input('');
 
     classes = computed(() => cn(
-        'flex flex-col gap-1.5 p-4 text-center sm:text-left',
+        'flex flex-col gap-1.5 p-4 text-center sm:ltr:text-left sm:rtl:text-right',
         this.class()
     ));
 }

@@ -13,7 +13,7 @@ import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const toastVariants = cva(
-  'group pointer-events-auto relative flex w-full items-center justify-between space-x-2 overflow-hidden rounded-md border p-4 pr-6 shadow-lg transition-all',
+  'group pointer-events-auto relative flex w-full items-center justify-between ltr:space-x-2 rtl:space-x-reverse overflow-hidden rounded-md border p-4 ltr:pr-6 rtl:pl-6 shadow-lg transition-all',
   {
     variants: {
       variant: {
@@ -81,7 +81,7 @@ export class ToastService {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [forwardRef(() => ToastComponent)],
   template: `
-    <div [class]="containerClasses()" [attr.data-slot]="'toaster'">
+    <div [class]="containerClasses()" [attr.data-slot]="'toaster'" [dir]="rtl() ? 'rtl' : 'ltr'">
       @for (toast of toastService.toasts(); track toast.id) {
         <ui-toast 
           [variant]="toast.variant" 
@@ -98,19 +98,24 @@ export class ToastService {
 export class ToasterComponent {
   toastService = inject(ToastService);
   position = input<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center'>('bottom-right');
+  rtl = input(false);
 
   containerClasses = computed(() => {
-    const positionClasses = {
-      'top-left': 'top-0 left-0',
-      'top-right': 'top-0 right-0',
-      'bottom-left': 'bottom-0 left-0',
-      'bottom-right': 'bottom-0 right-0',
+    const pos = this.position();
+    const isRtl = this.rtl();
+
+    // Swap left/right in RTL mode
+    const positionClasses: Record<string, string> = {
+      'top-left': isRtl ? 'top-0 right-0' : 'top-0 left-0',
+      'top-right': isRtl ? 'top-0 left-0' : 'top-0 right-0',
+      'bottom-left': isRtl ? 'bottom-0 right-0' : 'bottom-0 left-0',
+      'bottom-right': isRtl ? 'bottom-0 left-0' : 'bottom-0 right-0',
       'top-center': 'top-0 left-1/2 -translate-x-1/2',
       'bottom-center': 'bottom-0 left-1/2 -translate-x-1/2',
     };
     return cn(
       'fixed z-[100] flex flex-col gap-2 p-4 w-full max-w-[420px]',
-      positionClasses[this.position()]
+      positionClasses[pos]
     );
   });
 }
@@ -137,7 +142,7 @@ export class ToasterComponent {
         </button>
       }
       <button
-        class="absolute right-1 top-1 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-1 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600"
+        class="absolute ltr:right-1 rtl:left-1 top-1 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-1 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600"
         (click)="close.emit()"
         aria-label="Close"
       >

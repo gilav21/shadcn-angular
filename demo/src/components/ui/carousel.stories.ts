@@ -37,9 +37,14 @@ const meta: Meta<CarouselComponent> = {
             options: ['horizontal', 'vertical'],
             description: 'The orientation of the carousel.',
         },
+        rtl: {
+            control: 'boolean',
+            description: 'Enable right-to-left layout',
+        },
     },
     args: {
         orientation: 'horizontal',
+        rtl: false,
     },
 };
 
@@ -51,7 +56,7 @@ export const Default: Story = {
         props: { ...args, items: [1, 2, 3, 4, 5] },
         template: `
             <div class="w-full max-w-xs mx-auto px-12 pt-20">
-                <ui-carousel [orientation]="orientation">
+                <ui-carousel [orientation]="orientation" [rtl]="rtl">
                     <ui-carousel-content class="h-[300px]">
                         @for (item of items; track item) {
                             <ui-carousel-item>
@@ -81,7 +86,7 @@ export const Vertical: Story = {
         props: { ...args, items: [1, 2, 3, 4, 5] },
         template: `
             <div class="mx-auto max-w-xs pt-20">
-              <ui-carousel orientation="vertical" class="w-full">
+              <ui-carousel orientation="vertical" class="w-full" [rtl]="rtl">
                 <ui-carousel-previous />
                 <ui-carousel-content class="h-[200px]">
                   @for (item of [1, 2, 3, 4, 5]; track item) {

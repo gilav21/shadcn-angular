@@ -1,13 +1,13 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    SheetComponent,
-    SheetTriggerComponent,
-    SheetContentComponent,
-    SheetHeaderComponent,
-    SheetTitleComponent,
-    SheetDescriptionComponent,
-    SheetFooterComponent,
-    SheetCloseComponent,
+  SheetComponent,
+  SheetTriggerComponent,
+  SheetContentComponent,
+  SheetHeaderComponent,
+  SheetTitleComponent,
+  SheetDescriptionComponent,
+  SheetFooterComponent,
+  SheetCloseComponent,
 } from './sheet.component';
 import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
@@ -15,35 +15,45 @@ import { LabelComponent } from './label.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<SheetComponent> = {
-    title: 'UI/Sheet',
-    component: SheetComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                SheetComponent,
-                SheetTriggerComponent,
-                SheetContentComponent,
-                SheetHeaderComponent,
-                SheetTitleComponent,
-                SheetDescriptionComponent,
-                SheetFooterComponent,
-                SheetCloseComponent,
-                ButtonComponent,
-                InputComponent,
-                LabelComponent
-            ],
-        }),
-    ],
+  title: 'UI/Sheet',
+  component: SheetComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        SheetComponent,
+        SheetTriggerComponent,
+        SheetContentComponent,
+        SheetHeaderComponent,
+        SheetTitleComponent,
+        SheetDescriptionComponent,
+        SheetFooterComponent,
+        SheetCloseComponent,
+        ButtonComponent,
+        InputComponent,
+        LabelComponent
+      ],
+    }),
+  ],
+  argTypes: {
+    rtl: {
+      control: 'boolean',
+      description: 'Enable right-to-left layout',
+    },
+  },
+  args: {
+    rtl: false,
+  },
 };
 
 export default meta;
 type Story = StoryObj<SheetComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
-      <ui-sheet>
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-sheet [rtl]="rtl">
         <ui-sheet-trigger>
           <ui-button variant="outline">Open Sheet</ui-button>
         </ui-sheet-trigger>
@@ -76,14 +86,14 @@ export const Default: Story = {
         </ui-sheet-content>
       </ui-sheet>
     `,
-    }),
+  }),
 };
 
 export const SideInteractions: Story = {
-    render: () => ({
-        template: `
+  render: () => ({
+    template: `
         <div class="grid grid-cols-2 gap-2">
-            <ui-sheet>
+            <ui-sheet [rtl]="rtl">
                 <ui-sheet-trigger><ui-button variant="outline">Top</ui-button></ui-sheet-trigger>
                 <ui-sheet-content side="top">
                     <ui-sheet-header>
@@ -91,7 +101,7 @@ export const SideInteractions: Story = {
                     </ui-sheet-header>
                 </ui-sheet-content>
             </ui-sheet>
-             <ui-sheet>
+             <ui-sheet [rtl]="rtl">
                 <ui-sheet-trigger><ui-button variant="outline">Bottom</ui-button></ui-sheet-trigger>
                 <ui-sheet-content side="bottom">
                      <ui-sheet-header>
@@ -99,7 +109,7 @@ export const SideInteractions: Story = {
                     </ui-sheet-header>
                 </ui-sheet-content>
             </ui-sheet>
-             <ui-sheet>
+             <ui-sheet [rtl]="rtl">
                 <ui-sheet-trigger><ui-button variant="outline">Left</ui-button></ui-sheet-trigger>
                 <ui-sheet-content side="left">
                      <ui-sheet-header>
@@ -107,7 +117,7 @@ export const SideInteractions: Story = {
                     </ui-sheet-header>
                 </ui-sheet-content>
             </ui-sheet>
-             <ui-sheet>
+             <ui-sheet [rtl]="rtl">
                 <ui-sheet-trigger><ui-button variant="outline">Right</ui-button></ui-sheet-trigger>
                 <ui-sheet-content side="right">
                      <ui-sheet-header>
@@ -117,5 +127,5 @@ export const SideInteractions: Story = {
             </ui-sheet>
         </div>
         `
-    })
+  })
 }

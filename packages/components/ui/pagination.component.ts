@@ -16,6 +16,7 @@ import { cn } from '../lib/utils';
       aria-label="pagination" 
       [class]="classes()"
       [attr.data-slot]="'pagination'"
+      [dir]="rtl() ? 'rtl' : 'ltr'"
     >
       <ng-content />
     </nav>
@@ -24,6 +25,7 @@ import { cn } from '../lib/utils';
 })
 export class PaginationComponent {
   class = input('');
+  rtl = input(false);
 
   classes = computed(() => cn('mx-auto flex w-full justify-center', this.class()));
 }
@@ -105,7 +107,7 @@ export class PaginationLinkComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <button type="button" [class]="classes()" [attr.data-slot]="'pagination-previous'" (click)="onClick($event)">
-      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <svg class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
       </svg>
       <span>Previous</span>
@@ -135,7 +137,7 @@ export class PaginationPreviousComponent {
   template: `
     <button type="button" [class]="classes()" [attr.data-slot]="'pagination-next'" (click)="onClick($event)">
       <span>Next</span>
-      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+      <svg class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
         <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
       </svg>
     </button>

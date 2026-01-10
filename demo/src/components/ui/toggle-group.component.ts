@@ -156,9 +156,9 @@ export class ToggleGroupItemComponent {
         return cn(
             toggleVariants({ variant, size }),
             'w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10',
-            // Joined styling (no spacing)
-            'rounded-none shadow-none first:rounded-l-md last:rounded-r-md',
-            variant === 'outline' && 'border-l-0 first:border-l',
+            // Joined styling (no spacing) - RTL aware
+            'rounded-none shadow-none ltr:first:rounded-l-md ltr:last:rounded-r-md rtl:first:rounded-r-md rtl:last:rounded-l-md',
+            variant === 'outline' && 'ltr:border-l-0 ltr:first:border-l rtl:border-r-0 rtl:first:border-r',
             this.class()
         );
     });

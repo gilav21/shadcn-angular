@@ -1,13 +1,13 @@
 import {
-  Component,
-  ChangeDetectionStrategy,
-  input,
-  output,
-  computed,
-  signal,
-  forwardRef,
-  ElementRef,
-  viewChild,
+    Component,
+    ChangeDetectionStrategy,
+    input,
+    output,
+    computed,
+    signal,
+    forwardRef,
+    ElementRef,
+    viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -33,29 +33,30 @@ import { ButtonComponent } from './button.component';
  * />
  */
 @Component({
-  selector: 'ui-chip-list',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, ButtonComponent],
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => ChipListComponent),
-      multi: true,
-    },
-  ],
-  template: `
+    selector: 'ui-chip-list',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [BadgeComponent, ButtonComponent],
+    providers: [
+        {
+            provide: NG_VALUE_ACCESSOR,
+            useExisting: forwardRef(() => ChipListComponent),
+            multi: true,
+        },
+    ],
+    template: `
     <div
       [class]="containerClasses()"
       [style.max-height]="maxHeightStyle()"
       [attr.data-slot]="'chip-list'"
       [attr.data-disabled]="disabled() || null"
+      [dir]="rtl() ? 'rtl' : 'ltr'"
       (click)="focusInput()"
     >
       <div class="flex flex-wrap items-center gap-1.5 p-1">
         @for (chip of chips(); track chip; let i = $index) {
           <ui-badge 
             [variant]="variant()" 
-            [class]="'shrink-0 gap-1' + (disabled() ? '' : ' pr-1')"
+            [class]="'shrink-0 gap-1' + (disabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
             [attr.data-slot]="'chip'"
           >
             <span class="max-w-[200px] truncate">{{ chip }}</span>
@@ -101,141 +102,144 @@ import { ButtonComponent } from './button.component';
       </div>
     </div>
   `,
-  host: {
-    '[class]': '"contents"',
-  },
+    host: {
+        '[class]': '"contents"',
+    },
 })
 export class ChipListComponent implements ControlValueAccessor {
-  // Inputs
-  placeholder = input('Add item...');
-  disabled = input(false);
-  variant = input<BadgeVariant>('default');
-  class = input('');
+    // Inputs
+    placeholder = input('Add item...');
+    disabled = input(false);
+    variant = input<BadgeVariant>('default');
+    class = input('');
 
-  /** Maximum number of visible rows before scrolling. Set to 0 for unlimited. */
-  maxRows = input(0);
+    /** Maximum number of visible rows before scrolling. Set to 0 for unlimited. */
+    maxRows = input(0);
 
-  /** Allow duplicate chips */
-  allowDuplicates = input(false);
+    /** Allow duplicate chips */
+    allowDuplicates = input(false);
 
-  /** Separator keys that also add chips (in addition to Enter) */
-  separatorKeys = input<string[]>([]);
+    /** Separator keys that also add chips (in addition to Enter) */
+    separatorKeys = input<string[]>([]);
 
-  // Outputs
-  chipAdded = output<string>();
-  chipRemoved = output<string>();
+    /** Enable RTL (right-to-left) layout */
+    rtl = input(false);
 
-  // State
-  chips = signal<string[]>([]);
-  inputValue = signal('');
+    // Outputs
+    chipAdded = output<string>();
+    chipRemoved = output<string>();
 
-  // View child
-  inputElement = viewChild<ElementRef<HTMLInputElement>>('inputElement');
+    // State
+    chips = signal<string[]>([]);
+    inputValue = signal('');
 
-  // CVA
-  private onChange: (value: string[]) => void = () => { };
-  private onTouched: () => void = () => { };
+    // View child
+    inputElement = viewChild<ElementRef<HTMLInputElement>>('inputElement');
 
-  // Computed styles
-  containerClasses = computed(() => cn(
-    'w-full rounded-lg border border-input bg-transparent',
-    'transition-colors',
-    'focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]',
-    this.disabled() && 'opacity-50 cursor-not-allowed',
-    this.maxRows() > 0 && 'overflow-y-auto',
-    this.class()
-  ));
+    // CVA
+    private onChange: (value: string[]) => void = () => { };
+    private onTouched: () => void = () => { };
 
-  inputClasses = computed(() => cn(
-    'flex-1 min-w-[80px] bg-transparent border-none outline-none',
-    'text-sm placeholder:text-muted-foreground',
-    'py-1 px-1',
-    this.disabled() && 'cursor-not-allowed'
-  ));
+    // Computed styles
+    containerClasses = computed(() => cn(
+        'w-full rounded-lg border border-input bg-transparent',
+        'transition-colors',
+        'focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]',
+        this.disabled() && 'opacity-50 cursor-not-allowed',
+        this.maxRows() > 0 && 'overflow-y-auto',
+        this.class()
+    ));
 
-  /** Calculate max height based on maxRows. Each row is ~32px (chip height + gap) */
-  maxHeightStyle = computed(() => {
-    const rows = this.maxRows();
-    if (rows <= 0) return 'none';
-    // ~36px per row (chip height ~28px + gap ~8px + padding)
-    const heightPx = rows * 36 + 8; // +8 for container padding
-    return `${heightPx}px`;
-  });
+    inputClasses = computed(() => cn(
+        'flex-1 min-w-[80px] bg-transparent border-none outline-none',
+        'text-sm placeholder:text-muted-foreground',
+        'py-1 px-1',
+        this.disabled() && 'cursor-not-allowed'
+    ));
 
-  focusInput() {
-    if (this.disabled()) return;
-    this.inputElement()?.nativeElement?.focus();
-  }
+    /** Calculate max height based on maxRows. Each row is ~32px (chip height + gap) */
+    maxHeightStyle = computed(() => {
+        const rows = this.maxRows();
+        if (rows <= 0) return 'none';
+        // ~36px per row (chip height ~28px + gap ~8px + padding)
+        const heightPx = rows * 36 + 8; // +8 for container padding
+        return `${heightPx}px`;
+    });
 
-  onInput(event: Event) {
-    const target = event.target as HTMLInputElement;
-    this.inputValue.set(target.value);
-  }
-
-  onKeyDown(event: KeyboardEvent) {
-    const value = this.inputValue().trim();
-    const separators = this.separatorKeys();
-
-    // Check if this key should add a chip
-    if (event.key === 'Enter' || separators.includes(event.key)) {
-      event.preventDefault();
-      if (value) {
-        this.addChip(value);
-      }
-      return;
+    focusInput() {
+        if (this.disabled()) return;
+        this.inputElement()?.nativeElement?.focus();
     }
 
-    // Backspace on empty input removes last chip
-    if (event.key === 'Backspace' && this.inputValue() === '' && this.chips().length > 0) {
-      const removed = this.chips()[this.chips().length - 1];
-      this.chips.update(chips => chips.slice(0, -1));
-      this.onChange(this.chips());
-      this.chipRemoved.emit(removed);
-    }
-  }
-
-  addChip(value: string) {
-    const trimmed = value.trim();
-    if (!trimmed) return;
-
-    // Check for duplicates
-    if (!this.allowDuplicates() && this.chips().includes(trimmed)) {
-      this.inputValue.set('');
-      return;
+    onInput(event: Event) {
+        const target = event.target as HTMLInputElement;
+        this.inputValue.set(target.value);
     }
 
-    this.chips.update(chips => [...chips, trimmed]);
-    this.inputValue.set('');
-    this.onChange(this.chips());
-    this.chipAdded.emit(trimmed);
-  }
+    onKeyDown(event: KeyboardEvent) {
+        const value = this.inputValue().trim();
+        const separators = this.separatorKeys();
 
-  removeChip(index: number, event: Event) {
-    event.stopPropagation();
-    const removed = this.chips()[index];
-    this.chips.update(chips => chips.filter((_, i) => i !== index));
-    this.onChange(this.chips());
-    this.chipRemoved.emit(removed);
-    // Keep focus on input
-    this.focusInput();
-  }
+        // Check if this key should add a chip
+        if (event.key === 'Enter' || separators.includes(event.key)) {
+            event.preventDefault();
+            if (value) {
+                this.addChip(value);
+            }
+            return;
+        }
 
-  onBlur() {
-    this.onTouched();
-  }
+        // Backspace on empty input removes last chip
+        if (event.key === 'Backspace' && this.inputValue() === '' && this.chips().length > 0) {
+            const removed = this.chips()[this.chips().length - 1];
+            this.chips.update(chips => chips.slice(0, -1));
+            this.onChange(this.chips());
+            this.chipRemoved.emit(removed);
+        }
+    }
 
-  // ControlValueAccessor implementation
-  writeValue(value: string[]): void {
-    this.chips.set(value ?? []);
-  }
+    addChip(value: string) {
+        const trimmed = value.trim();
+        if (!trimmed) return;
 
-  registerOnChange(fn: (value: string[]) => void): void {
-    this.onChange = fn;
-  }
+        // Check for duplicates
+        if (!this.allowDuplicates() && this.chips().includes(trimmed)) {
+            this.inputValue.set('');
+            return;
+        }
 
-  registerOnTouched(fn: () => void): void {
-    this.onTouched = fn;
-  }
+        this.chips.update(chips => [...chips, trimmed]);
+        this.inputValue.set('');
+        this.onChange(this.chips());
+        this.chipAdded.emit(trimmed);
+    }
 
-  setDisabledState(isDisabled: boolean): void { }
+    removeChip(index: number, event: Event) {
+        event.stopPropagation();
+        const removed = this.chips()[index];
+        this.chips.update(chips => chips.filter((_, i) => i !== index));
+        this.onChange(this.chips());
+        this.chipRemoved.emit(removed);
+        // Keep focus on input
+        this.focusInput();
+    }
+
+    onBlur() {
+        this.onTouched();
+    }
+
+    // ControlValueAccessor implementation
+    writeValue(value: string[]): void {
+        this.chips.set(value ?? []);
+    }
+
+    registerOnChange(fn: (value: string[]) => void): void {
+        this.onChange = fn;
+    }
+
+    registerOnTouched(fn: () => void): void {
+        this.onTouched = fn;
+    }
+
+    setDisabledState(isDisabled: boolean): void { }
 }

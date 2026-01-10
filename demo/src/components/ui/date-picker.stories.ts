@@ -18,11 +18,16 @@ const datePickerMeta: Meta<DatePickerComponent> = {
         placeholder: { control: 'text' },
         disabled: { control: 'boolean' },
         showTime: { control: 'boolean' },
+        rtl: {
+            control: 'boolean',
+            description: 'Enable right-to-left layout',
+        },
     },
     args: {
         placeholder: 'Pick a date',
         disabled: false,
         showTime: false,
+        rtl: false,
     },
 };
 
@@ -32,7 +37,7 @@ type DatePickerStory = StoryObj<DatePickerComponent>;
 export const Default: DatePickerStory = {
     render: (args) => ({
         props: args,
-        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime"></ui-date-picker>`,
+        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [rtl]="rtl"></ui-date-picker>`,
     }),
 };
 
@@ -43,7 +48,7 @@ export const WithTime: DatePickerStory = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime"></ui-date-picker>`,
+        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [rtl]="rtl"></ui-date-picker>`,
     }),
 };
 
