@@ -7,7 +7,7 @@ import {
 } from './accordion.component';
 import { moduleMetadata } from '@storybook/angular';
 
-const meta: Meta<AccordionComponent> = {
+const meta: Meta<AccordionComponent & { rtl: boolean }> = {
   title: 'UI/Accordion',
   component: AccordionComponent,
   tags: ['autodocs'],
@@ -26,9 +26,14 @@ const meta: Meta<AccordionComponent> = {
       control: 'radio',
       options: ['single', 'multiple'],
     },
+    rtl: {
+      control: 'boolean',
+      description: 'Enable right-to-left layout',
+    },
   },
   args: {
     type: 'single',
+    rtl: false,
   },
 };
 
@@ -39,6 +44,7 @@ export const Default: Story = {
   render: (args) => ({
     props: args,
     template: `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
       <ui-accordion [type]="type" class="w-full">
         <ui-accordion-item value="item-1">
           <ui-accordion-trigger>Is it accessible?</ui-accordion-trigger>
@@ -59,6 +65,7 @@ export const Default: Story = {
           </ui-accordion-content>
         </ui-accordion-item>
       </ui-accordion>
+      </div>
     `,
   }),
 };

@@ -13,7 +13,7 @@ import { InputComponent } from './input.component';
 import { LabelComponent } from './label.component';
 import { moduleMetadata } from '@storybook/angular';
 
-const meta: Meta<DialogComponent> = {
+const meta: Meta<DialogComponent & { rtl: boolean }> = {
   title: 'UI/Dialog',
   component: DialogComponent,
   tags: ['autodocs'],
@@ -33,14 +33,25 @@ const meta: Meta<DialogComponent> = {
       ],
     }),
   ],
+  argTypes: {
+    rtl: {
+      control: 'boolean',
+      description: 'Enable right-to-left layout',
+    },
+  },
+  args: {
+    rtl: false,
+  },
 };
 
 export default meta;
 type Story = StoryObj<DialogComponent>;
 
 export const Default: Story = {
-  render: () => ({
+  render: (args) => ({
+    props: args,
     template: `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
       <ui-dialog>
         <ui-dialog-trigger>
           <button shButton variant="outline">Edit Profile</button>
@@ -67,6 +78,7 @@ export const Default: Story = {
           </ui-dialog-footer>
         </ui-dialog-content>
       </ui-dialog>
+      </div>
     `,
   }),
 };

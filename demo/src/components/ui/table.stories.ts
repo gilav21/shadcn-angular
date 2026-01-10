@@ -1,42 +1,53 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    TableComponent,
-    TableHeaderComponent,
-    TableBodyComponent,
-    TableFooterComponent,
-    TableRowComponent,
-    TableHeadComponent,
-    TableCellComponent,
-    TableCaptionComponent,
+  TableComponent,
+  TableHeaderComponent,
+  TableBodyComponent,
+  TableFooterComponent,
+  TableRowComponent,
+  TableHeadComponent,
+  TableCellComponent,
+  TableCaptionComponent,
 } from './table.component';
 import { moduleMetadata } from '@storybook/angular';
 
-const meta: Meta<TableComponent> = {
-    title: 'UI/Table',
-    component: TableComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                TableComponent,
-                TableHeaderComponent,
-                TableBodyComponent,
-                TableFooterComponent,
-                TableRowComponent,
-                TableHeadComponent,
-                TableCellComponent,
-                TableCaptionComponent
-            ],
-        }),
-    ],
+const meta: Meta<TableComponent & { rtl: boolean }> = {
+  title: 'UI/Table',
+  component: TableComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        TableComponent,
+        TableHeaderComponent,
+        TableBodyComponent,
+        TableFooterComponent,
+        TableRowComponent,
+        TableHeadComponent,
+        TableCellComponent,
+        TableCaptionComponent
+      ],
+    }),
+  ],
+  argTypes: {
+    rtl: {
+      control: 'boolean',
+      description: 'Enable right-to-left layout',
+    },
+  },
+  args: {
+    rtl: false,
+  },
 };
 
 export default meta;
 type Story = StoryObj<TableComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
+  render: (args) => ({
+    props: args,
+    template: `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
       <ui-table>
         <ui-table-caption>A list of your recent invoices.</ui-table-caption>
         <ui-table-header>
@@ -98,6 +109,7 @@ export const Default: Story = {
           </ui-table-row>
         </ui-table-footer>
       </ui-table>
+      </div>
     `,
-    }),
+  }),
 };
