@@ -61,7 +61,7 @@ export class SwitchComponent implements ControlValueAccessor {
     thumbClasses = computed(() =>
         cn(
             'pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform',
-            this.checked() ? 'translate-x-4' : 'translate-x-0'
+            this.checked() ? 'ltr:translate-x-4 rtl:-translate-x-4' : 'translate-x-0'
         )
     );
 
