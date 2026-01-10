@@ -10,27 +10,9 @@ import {
     viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../lib/utils';
-
-const chipVariants = cva(
-    'inline-flex items-center gap-1 rounded-md border px-2 py-0.5 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-    {
-        variants: {
-            variant: {
-                default: 'border-transparent bg-primary text-primary-foreground hover:bg-primary/80',
-                secondary: 'border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80',
-                destructive: 'border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80',
-                outline: 'border-input text-foreground hover:bg-accent hover:text-accent-foreground',
-            },
-        },
-        defaultVariants: {
-            variant: 'default',
-        },
-    }
-);
-
-export type ChipVariant = VariantProps<typeof chipVariants>['variant'];
+import { BadgeComponent, type BadgeVariant } from './badge.component';
+import { ButtonComponent } from './button.component';
 
 /**
  * ChipListComponent - An input that converts text into chips on Enter
@@ -41,6 +23,7 @@ export type ChipVariant = VariantProps<typeof chipVariants>['variant'];
  * - Backspace on empty input removes the last chip
  * - Configurable max rows before scrolling
  * - Works with Angular reactive forms
+ * - Uses existing Badge and Button components for consistency
  * 
  * Usage:
  * <ui-chip-list 
@@ -52,6 +35,7 @@ export type ChipVariant = VariantProps<typeof chipVariants>['variant'];
 @Component({
     selector: 'ui-chip-list',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [BadgeComponent, ButtonComponent],
     providers: [
         {
             provide: NG_VALUE_ACCESSOR,
@@ -69,16 +53,18 @@ export type ChipVariant = VariantProps<typeof chipVariants>['variant'];
     >
       <div class="flex flex-wrap items-center gap-1.5 p-1">
         @for (chip of chips(); track chip; let i = $index) {
-          <span
-            [class]="chipClasses()"
+          <ui-badge 
+            [variant]="variant()" 
+            [class]="'shrink-0 gap-1' + (disabled() ? '' : ' pr-1')"
             [attr.data-slot]="'chip'"
           >
             <span class="max-w-[200px] truncate">{{ chip }}</span>
             @if (!disabled()) {
-              <button
-                type="button"
-                class="ml-0.5 rounded-full p-0.5 hover:bg-black/10 dark:hover:bg-white/10 focus:outline-none focus:ring-1 focus:ring-ring"
-                [attr.aria-label]="'Remove ' + chip"
+              <ui-button
+                variant="ghost"
+                size="icon"
+                class="h-4 w-4 p-0 hover:bg-black/10 dark:hover:bg-white/10 rounded-full"
+                [ariaLabel]="'Remove ' + chip"
                 (click)="removeChip(i, $event)"
               >
                 <svg
@@ -94,9 +80,9 @@ export type ChipVariant = VariantProps<typeof chipVariants>['variant'];
                     d="M6 18L18 6M6 6l12 12"
                   />
                 </svg>
-              </button>
+              </ui-button>
             }
-          </span>
+          </ui-badge>
         }
         @if (!disabled()) {
           <input
@@ -123,7 +109,7 @@ export class ChipListComponent implements ControlValueAccessor {
     // Inputs
     placeholder = input('Add item...');
     disabled = input(false);
-    variant = input<ChipVariant>('default');
+    variant = input<BadgeVariant>('default');
     class = input('');
 
     /** Maximum number of visible rows before scrolling. Set to 0 for unlimited. */
@@ -155,15 +141,9 @@ export class ChipListComponent implements ControlValueAccessor {
         'w-full rounded-lg border border-input bg-transparent',
         'transition-colors',
         'focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]',
-        'overflow-y-auto',
         this.disabled() && 'opacity-50 cursor-not-allowed',
         this.maxRows() > 0 && 'overflow-y-auto',
         this.class()
-    ));
-
-    chipClasses = computed(() => cn(
-        chipVariants({ variant: this.variant() }),
-        'shrink-0'
     ));
 
     inputClasses = computed(() => cn(
@@ -259,5 +239,3 @@ export class ChipListComponent implements ControlValueAccessor {
 
     setDisabledState(isDisabled: boolean): void { }
 }
-
-export { chipVariants };

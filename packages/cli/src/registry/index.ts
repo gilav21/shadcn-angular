@@ -232,5 +232,6 @@ export const registry: Record<string, ComponentDefinition> = {
   'chip-list': {
     name: 'chip-list',
     files: ['chip-list.component.ts'],
+    dependencies: ['badge', 'button'],
   },
 };
