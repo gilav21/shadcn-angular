@@ -97,25 +97,39 @@ export class ToastService {
 })
 export class ToasterComponent {
   toastService = inject(ToastService);
-  position = input<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'top-center' | 'bottom-center'>('bottom-right');
+
+  /** Vertical position: top, center, or bottom */
+  vertical = input<'top' | 'center' | 'bottom'>('bottom');
+
+  /** Horizontal position: start, center, or end */
+  horizontal = input<'start' | 'center' | 'end'>('end');
+
+  /** Enable RTL layout */
   rtl = input(false);
 
   containerClasses = computed(() => {
-    const pos = this.position();
+    const v = this.vertical();
+    const h = this.horizontal();
     const isRtl = this.rtl();
 
-    // Swap left/right in RTL mode
-    const positionClasses: Record<string, string> = {
-      'top-left': isRtl ? 'top-0 right-0' : 'top-0 left-0',
-      'top-right': isRtl ? 'top-0 left-0' : 'top-0 right-0',
-      'bottom-left': isRtl ? 'bottom-0 right-0' : 'bottom-0 left-0',
-      'bottom-right': isRtl ? 'bottom-0 left-0' : 'bottom-0 right-0',
-      'top-center': 'top-0 left-1/2 -translate-x-1/2',
-      'bottom-center': 'bottom-0 left-1/2 -translate-x-1/2',
+    // Vertical position classes
+    const verticalClasses: Record<string, string> = {
+      'top': 'top-0',
+      'center': 'top-1/2 -translate-y-1/2',
+      'bottom': 'bottom-0',
     };
+
+    // Horizontal position classes - start/end swap in RTL mode
+    const horizontalClasses: Record<string, string> = {
+      'start': isRtl ? 'right-0' : 'left-0',
+      'center': 'left-1/2 -translate-x-1/2',
+      'end': isRtl ? 'left-0' : 'right-0',
+    };
+
     return cn(
       'fixed z-[100] flex flex-col gap-2 p-4 w-full max-w-[420px]',
-      positionClasses[pos]
+      verticalClasses[v],
+      horizontalClasses[h]
     );
   });
 }

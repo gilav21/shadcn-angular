@@ -2,27 +2,33 @@ import { Meta, StoryObj, applicationConfig } from '@storybook/angular';
 import { ToastComponent, ToasterComponent, ToastService } from './toast.component';
 import { ButtonComponent } from './button.component';
 import { moduleMetadata } from '@storybook/angular';
-import { Component, inject } from '@angular/core';
+import { Component, inject, input } from '@angular/core';
 
-// Create a wrapper component to trigger toasts
+// Create a wrapper component to trigger toasts with configurable position
 @Component({
     selector: 'toast-story-wrapper',
-    standalone: true,
     imports: [ButtonComponent, ToasterComponent],
     template: `
     <div class="flex flex-col gap-4">
-      <ui-toaster />
-      <div class="flex gap-2">
+      <ui-toaster [vertical]="vertical()" [horizontal]="horizontal()" [rtl]="rtl()" />
+      <div class="flex gap-2 flex-wrap">
         <ui-button (click)="showDefault()">Default</ui-button>
         <ui-button variant="destructive" (click)="showDestructive()">Destructive</ui-button>
         <ui-button variant="outline" (click)="showSuccess()">Success</ui-button>
         <ui-button variant="secondary" (click)="showWithAction()">With Action</ui-button>
       </div>
+      <p class="text-sm text-muted-foreground">
+        Position: {{ vertical() }}-{{ horizontal() }} {{ rtl() ? '(RTL)' : '' }}
+      </p>
     </div>
   `
 })
 class ToastStoryWrapperComponent {
     private toastService = inject(ToastService);
+
+    vertical = input<'top' | 'center' | 'bottom'>('bottom');
+    horizontal = input<'start' | 'center' | 'end'>('end');
+    rtl = input(false);
 
     showDefault() {
         this.toastService.toast({
@@ -51,23 +57,122 @@ class ToastStoryWrapperComponent {
     }
 }
 
-const meta: Meta<ToastStoryWrapperComponent> = {
+const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: string; rtl: boolean }> = {
     title: 'UI/Toast',
     component: ToastStoryWrapperComponent,
     tags: ['autodocs'],
     decorators: [
         moduleMetadata({
             imports: [ToastComponent, ToasterComponent, ButtonComponent],
-            providers: [ToastService], // Ensure service is provided
+            providers: [ToastService],
         }),
     ],
+    argTypes: {
+        vertical: {
+            control: 'select',
+            options: ['top', 'center', 'bottom'],
+            description: 'Vertical position of toasts',
+        },
+        horizontal: {
+            control: 'select',
+            options: ['start', 'center', 'end'],
+            description: 'Horizontal position of toasts',
+        },
+        rtl: {
+            control: 'boolean',
+            description: 'Enable right-to-left layout',
+        },
+    },
+    args: {
+        vertical: 'bottom',
+        horizontal: 'end',
+        rtl: false,
+    },
 };
 
 export default meta;
 type Story = StoryObj<ToastStoryWrapperComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `<toast-story-wrapper></toast-story-wrapper>`,
+    render: (args) => ({
+        props: args,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+    }),
+};
+
+export const TopStart: Story = {
+    args: {
+        vertical: 'top',
+        horizontal: 'start',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+    }),
+};
+
+export const TopCenter: Story = {
+    args: {
+        vertical: 'top',
+        horizontal: 'center',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+    }),
+};
+
+export const TopEnd: Story = {
+    args: {
+        vertical: 'top',
+        horizontal: 'end',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+    }),
+};
+
+export const CenterStart: Story = {
+    args: {
+        vertical: 'center',
+        horizontal: 'start',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+    }),
+};
+
+export const CenterEnd: Story = {
+    args: {
+        vertical: 'center',
+        horizontal: 'end',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+    }),
+};
+
+export const BottomStart: Story = {
+    args: {
+        vertical: 'bottom',
+        horizontal: 'start',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+    }),
+};
+
+export const BottomCenter: Story = {
+    args: {
+        vertical: 'bottom',
+        horizontal: 'center',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
     }),
 };
