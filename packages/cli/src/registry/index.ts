@@ -229,4 +229,8 @@ export const registry: Record<string, ComponentDefinition> = {
     files: ['speed-dial.component.ts'],
     dependencies: ['button']
   },
+  'chip-list': {
+    name: 'chip-list',
+    files: ['chip-list.component.ts'],
+  },
 };

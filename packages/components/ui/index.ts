@@ -51,3 +51,4 @@ export * from './input-group.component';
 export * from './field.component';
 export * from './native-select.component';
 export * from './speed-dial.component';
+export * from './chip-list.component';

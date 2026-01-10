@@ -1,4 +1,5 @@
 import { Component, ChangeDetectionStrategy, signal, inject, HostListener } from '@angular/core';
+import { JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent, InputComponent, CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent, BadgeComponent, LabelComponent, SeparatorComponent, SwitchComponent, CheckboxComponent, RadioGroupComponent, RadioGroupItemComponent, TextareaComponent, SkeletonComponent, TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent, AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent, ProgressComponent, AlertComponent, AlertTitleComponent, AlertDescriptionComponent, AvatarComponent, AvatarImageComponent, AvatarFallbackComponent, DialogComponent, DialogTriggerComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent, DialogFooterComponent, TooltipDirective, DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSeparatorComponent, DropdownMenuLabelComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent, SelectComponent, SelectTriggerComponent, SelectValueComponent, SelectContentComponent, SelectItemComponent, SelectGroupComponent, SelectLabelComponent, PopoverComponent, PopoverTriggerComponent, PopoverContentComponent, PopoverCloseComponent, SheetComponent, SheetTriggerComponent, SheetContentComponent, SheetHeaderComponent, SheetTitleComponent, SheetDescriptionComponent, SheetFooterComponent, SheetCloseComponent, AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent, AlertDialogHeaderComponent, AlertDialogTitleComponent, AlertDialogDescriptionComponent, AlertDialogFooterComponent, AlertDialogActionComponent, AlertDialogCancelComponent, SliderComponent, CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent, ContextMenuTriggerDirective } from '../components/ui';
 import { ToggleComponent } from '../components/ui/toggle.component';
@@ -30,10 +31,12 @@ import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent
 import { FieldComponent, FieldGroupComponent, FieldSetComponent, FieldLabelComponent, FieldLegendComponent, FieldDescriptionComponent, FieldErrorComponent, FieldSeparatorComponent } from '../components/ui/field.component';
 import { NativeSelectComponent } from '../components/ui/native-select.component';
 import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, SpeedDialItemComponent, SpeedDialMaskComponent, SpeedDialContextTriggerComponent, SpeedDialContextTriggerDirective } from '../components/ui/speed-dial.component';
+import { ChipListComponent } from '../components/ui/chip-list.component';
 
 @Component({
   selector: 'app-root',
   imports: [
+    JsonPipe,
     FormsModule,
     ButtonComponent,
     InputComponent,
@@ -246,7 +249,8 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
     TooltipContentComponent,
     TooltipTriggerComponent,
     TooltipDirective,
-    ContextMenuTriggerDirective
+    ContextMenuTriggerDirective,
+    ChipListComponent
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -2156,6 +2160,53 @@ import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, 
 
         <ui-separator />
 
+        <!-- Chip List Section -->
+        <section class="space-y-4">
+          <h2 id="chip-list" class="text-2xl font-semibold scroll-m-20">Chip List</h2>
+          <p class="text-muted-foreground">Input that converts text into chips. Type and press Enter to add.</p>
+          
+          <div class="space-y-6 max-w-md">
+            <!-- Basic Example -->
+            <div class="space-y-2">
+              <ui-label>Tags</ui-label>
+              <ui-chip-list 
+                [(ngModel)]="chipListTags" 
+                placeholder="Add a tag..."
+              />
+              <p class="text-sm text-muted-foreground">Current: {{ chipListTags() | json }}</p>
+            </div>
+
+            <!-- Variants -->
+            <div class="grid gap-4">
+              <div class="space-y-2">
+                <ui-label>Secondary variant</ui-label>
+                <ui-chip-list [(ngModel)]="chipListTags" variant="secondary" />
+              </div>
+              <div class="space-y-2">
+                <ui-label>Outline variant</ui-label>
+                <ui-chip-list [(ngModel)]="chipListTags" variant="outline" />
+              </div>
+            </div>
+
+            <!-- Max Rows -->
+            <div class="space-y-2">
+              <ui-label>Max 2 rows (scrollable)</ui-label>
+              <ui-chip-list 
+                [(ngModel)]="chipListFruits" 
+                [maxRows]="2"
+                variant="secondary"
+                placeholder="Add fruit..."
+              />
+            </div>
+
+            <!-- Disabled -->
+            <div class="space-y-2">
+              <ui-label>Disabled</ui-label>
+              <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true" />
+            </div>
+          </div>
+        </section>
+
         <!-- Footer -->
 
 
@@ -2175,6 +2226,10 @@ export class AppComponent {
   // Resizable demo sizes
   verticalTopSize = signal(40);
   verticalBottomSize = signal(60);
+
+  // Chip List demo data
+  chipListTags = signal<string[]>(['Angular', 'TypeScript', 'Signals']);
+  chipListFruits = signal<string[]>(['Apple', 'Banana', 'Cherry', 'Date', 'Elderberry', 'Fig', 'Grape', 'Honeydew']);
 
 
   constructor() {
@@ -2223,6 +2278,7 @@ export class AppComponent {
     { title: 'Card', id: 'card' },
     { title: 'Carousel', id: 'carousel' },
     { title: 'Checkbox', id: 'checkbox' },
+    { title: 'Chip List', id: 'chip-list' },
     { title: 'Collapsible', id: 'collapsible' },
     { title: 'Command', id: 'command' },
     { title: 'Context Menu', id: 'context-menu' },
