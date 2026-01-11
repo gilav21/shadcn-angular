@@ -92,7 +92,7 @@ export class AlertDialogContentComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'flex flex-col space-y-2 text-center sm:text-left',
+        class: 'flex flex-col space-y-2 text-center sm:text-left rtl:text-right',
         '[attr.data-slot]': '"alert-dialog-header"',
     },
 })

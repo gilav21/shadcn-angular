@@ -15,16 +15,13 @@ import { cn } from '../lib/utils';
   template: `
     <nav 
       [attr.aria-label]="'breadcrumb'" 
-      [attr.data-slot]="'breadcrumb'"
-      [dir]="rtl() ? 'rtl' : 'ltr'"
-    >
+      [attr.data-slot]="'breadcrumb'">
       <ng-content />
     </nav>
   `,
   host: { class: 'contents' },
 })
 export class BreadcrumbComponent {
-  rtl = input(false);
 }
 
 @Component({
