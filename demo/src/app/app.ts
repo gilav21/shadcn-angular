@@ -276,6 +276,12 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <span class="text-sm">Light</span>
           <ui-switch (checkedChange)="toggleTheme($event)" />
           <span class="text-sm">Dark</span>
+          
+          <div class="w-px h-4 bg-border mx-2"></div>
+
+          <span class="text-sm">LTR</span>
+          <ui-switch (checkedChange)="toggleDirection($event)" [checked]="isRtl()" />
+          <span class="text-sm">RTL</span>
         </div>
 
         <ui-separator />
@@ -681,7 +687,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">Dropdown Menu</h2>
           <p class="text-muted-foreground">Dropdown menu with items.</p>
           
-          <ui-dropdown-menu>
+          <ui-dropdown-menu [rtl]="isRtl()">
             <ui-dropdown-menu-trigger>
               <ui-button variant="outline">Open Menu</ui-button>
             </ui-dropdown-menu-trigger>
@@ -850,7 +856,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <p class="text-muted-foreground">Range input component.</p>
           
           <div class="max-w-xs space-y-4">
-            <ui-slider [defaultValue]="40" [min]="0" [max]="100" [step]="1" />
+            <ui-slider [defaultValue]="40" [min]="0" [max]="100" [step]="1" [rtl]="isRtl()" />
             <div class="flex justify-between text-sm text-muted-foreground">
               <span>0</span>
               <span>100</span>
@@ -1102,22 +1108,22 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <ui-context-menu #contextMenu>
         <ui-context-menu-content class="w-56">
           <ui-context-menu-item>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
             Edit
             <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
           </ui-context-menu-item>
           <ui-context-menu-item>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
             Copy
             <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
           </ui-context-menu-item>
           <ui-context-menu-item>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><polyline points="8 17 12 21 16 17"/><line x1="12" x2="12" y1="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2"><polyline points="8 17 12 21 16 17"/><line x1="12" x2="12" y1="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
             Share
           </ui-context-menu-item>
           <ui-context-menu-separator></ui-context-menu-separator>
           <ui-context-menu-item variant="destructive">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mr-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
             Delete
             <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
           </ui-context-menu-item>
@@ -1366,19 +1372,19 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
               <ui-command-empty>No results found.</ui-command-empty>
               <ui-command-group heading="Suggestions">
                 <ui-command-item value="calendar">
-                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <rect x="3" y="4" width="18" height="18" rx="2" />
                   </svg>
                   <span>Calendar</span>
                 </ui-command-item>
                 <ui-command-item value="search-emoji">
-                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                   </svg>
                   <span>Search Emoji</span>
                 </ui-command-item>
                 <ui-command-item value="launch">
-                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
                   </svg>
                   <span>Launch</span>
@@ -1387,21 +1393,21 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
               <ui-command-separator />
               <ui-command-group heading="Settings">
                 <ui-command-item value="profile">
-                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                      <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
                   </svg>
                   <span>Profile</span>
                   <ui-command-shortcut>⌘P</ui-command-shortcut>
                 </ui-command-item>
                 <ui-command-item value="mail">
-                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                   </svg>
                   <span>Mail</span>
                   <ui-command-shortcut>⌘B</ui-command-shortcut>
                 </ui-command-item>
                 <ui-command-item value="settings">
-                  <svg class="mr-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
                     <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                   </svg>
@@ -1425,7 +1431,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
               <ui-command-group heading="Components">
                 @for (link of links; track link) {
                   <ui-command-item [value]="link.title" (select)="scrollToSection(link.id)">
-                    <span class="mr-2">📄</span>
+                    <span class="ltr:mr-2 rtl:ml-2">📄</span>
                     <span>{{ link.title }}</span>
                   </ui-command-item>
                 }
@@ -1444,7 +1450,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <h2 id="menubar" class="text-2xl font-semibold scroll-m-20">Menubar</h2>
           <p class="text-muted-foreground">A horizontal menu bar with dropdown menus.</p>
           
-          <ui-menubar>
+          <ui-menubar [rtl]="isRtl()">
             <ui-menubar-menu>
               <ui-menubar-trigger>File</ui-menubar-trigger>
               <ui-menubar-content>
@@ -2169,7 +2175,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
             <!-- Basic Example -->
             <div class="space-y-2">
               <ui-label>Tags</ui-label>
-              <ui-chip-list 
+              <ui-chip-list  [rtl]="isRtl()"
                 [(ngModel)]="chipListTags" 
                 placeholder="Add a tag..."
               />
@@ -2180,11 +2186,11 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
             <div class="grid gap-4">
               <div class="space-y-2">
                 <ui-label>Secondary variant</ui-label>
-                <ui-chip-list [(ngModel)]="chipListTags" variant="secondary" />
+                <ui-chip-list [(ngModel)]="chipListTags" variant="secondary" [rtl]="isRtl()"/>
               </div>
               <div class="space-y-2">
                 <ui-label>Outline variant</ui-label>
-                <ui-chip-list [(ngModel)]="chipListTags" variant="outline" />
+                <ui-chip-list [(ngModel)]="chipListTags" variant="outline" [rtl]="isRtl()"/>
               </div>
             </div>
 
@@ -2196,13 +2202,14 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
                 [maxRows]="2"
                 variant="secondary"
                 placeholder="Add fruit..."
+                [rtl]="isRtl()"
               />
             </div>
 
             <!-- Disabled -->
             <div class="space-y-2">
               <ui-label>Disabled</ui-label>
-              <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true" />
+              <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true" [rtl]="isRtl()"/>
             </div>
           </div>
         </section>
@@ -2242,6 +2249,13 @@ export class AppComponent {
     } else {
       document.documentElement.classList.remove('dark');
     }
+  }
+
+  isRtl = signal(false);
+
+  toggleDirection(isRtl: boolean) {
+    this.isRtl.set(isRtl);
+    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
   }
 
   showToast(type: 'default' | 'success' | 'error') {

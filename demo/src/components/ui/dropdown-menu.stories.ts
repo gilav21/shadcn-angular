@@ -1,47 +1,53 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    DropdownMenuComponent,
-    DropdownMenuTriggerComponent,
-    DropdownMenuContentComponent,
-    DropdownMenuItemComponent,
-    DropdownMenuSeparatorComponent,
-    DropdownMenuLabelComponent,
-    DropdownMenuSubComponent,
-    DropdownMenuSubTriggerComponent,
-    DropdownMenuSubContentComponent,
+  DropdownMenuComponent,
+  DropdownMenuTriggerComponent,
+  DropdownMenuContentComponent,
+  DropdownMenuItemComponent,
+  DropdownMenuSeparatorComponent,
+  DropdownMenuLabelComponent,
+  DropdownMenuSubComponent,
+  DropdownMenuSubTriggerComponent,
+  DropdownMenuSubContentComponent,
 } from './dropdown-menu.component';
 import { ButtonComponent } from './button.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<DropdownMenuComponent> = {
-    title: 'UI/DropdownMenu',
-    component: DropdownMenuComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                DropdownMenuComponent,
-                DropdownMenuTriggerComponent,
-                DropdownMenuContentComponent,
-                DropdownMenuItemComponent,
-                DropdownMenuSeparatorComponent,
-                DropdownMenuLabelComponent,
-                DropdownMenuSubComponent,
-                DropdownMenuSubTriggerComponent,
-                DropdownMenuSubContentComponent,
-                ButtonComponent
-            ],
-        }),
-    ],
+  title: 'UI/DropdownMenu',
+  component: DropdownMenuComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        DropdownMenuComponent,
+        DropdownMenuTriggerComponent,
+        DropdownMenuContentComponent,
+        DropdownMenuItemComponent,
+        DropdownMenuSeparatorComponent,
+        DropdownMenuLabelComponent,
+        DropdownMenuSubComponent,
+        DropdownMenuSubTriggerComponent,
+        DropdownMenuSubContentComponent,
+        ButtonComponent
+      ],
+    }),
+  ],
 };
 
 export default meta;
-type Story = StoryObj<DropdownMenuComponent>;
+type Story = StoryObj<DropdownMenuComponent & { rtl: boolean }>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
-      <ui-dropdown-menu>
+  argTypes: {
+    rtl: {
+      control: 'boolean',
+    },
+  },
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-dropdown-menu [rtl]="rtl">
         <ui-dropdown-menu-trigger>
           <button shButton variant="outline">Open Menu</button>
         </ui-dropdown-menu-trigger>
@@ -107,5 +113,5 @@ export const Default: Story = {
         </ui-dropdown-menu-content>
       </ui-dropdown-menu>
     `,
-    }),
+  }),
 };
