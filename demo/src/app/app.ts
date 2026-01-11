@@ -720,7 +720,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <h2 id="select" class="text-2xl font-semibold scroll-m-20">Select</h2>
           <p class="text-muted-foreground">Select component for choosing from a list of options.</p>
           
-          <ui-select class="max-w-xs" position="popper">
+          <ui-select class="max-w-xs" position="popper" [rtl]="isRtl()">
             <ui-select-trigger>
               <ui-select-value placeholder="Select a fruit" />
             </ui-select-trigger>
