@@ -43,7 +43,6 @@ export class SheetComponent implements OnDestroy {
     private document = inject(DOCUMENT);
 
     open = model(false);
-    rtl = input(false);
 
     private scrollbarWidth = 0;
 

@@ -9,17 +9,19 @@ import {
   booleanAttribute,
   Injectable,
   ElementRef,
-  HostListener,
   ViewChild,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { effect } from '@angular/core';
+import { cn, isRtl } from '../lib/utils';
 
 @Injectable()
 export class MenubarService {
   activeMenuId = signal<string | null>(null);
-  rtl = signal(false);
+  private rootEl: HTMLElement | null = null;
   menus = new Map<string, { trigger: MenubarTriggerComponent }>();
+
+  registerRoot(el: HTMLElement) {
+    this.rootEl = el;
+  }
 
   register(id: string, trigger: MenubarTriggerComponent) {
     this.menus.set(id, { trigger });
@@ -36,6 +38,11 @@ export class MenubarService {
   isActive(id: string) {
     return this.activeMenuId() === id;
   }
+
+  isRtl(): boolean {
+    if (!this.rootEl) return false;
+    return isRtl(this.rootEl);
+  }
 }
 
 let nextId = 0;
@@ -45,22 +52,22 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [MenubarService],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'menubar'" [attr.dir]="rtl() ? 'rtl' : null" role="menubar" (keydown)="onKeydown($event)">
+    <div [class]="classes()" [attr.data-slot]="'menubar'" role="menubar" (keydown)="onKeydown($event)">
       <ng-content />
     </div>
   `,
-  host: { class: 'contents' },
+  host: {
+    class: 'contents',
+    '(document:click)': 'onClick($event)',
+  },
 })
 export class MenubarComponent {
   class = input('');
-  rtl = input(false);
   service = inject(MenubarService);
   el = inject(ElementRef);
 
   constructor() {
-    effect(() => {
-      this.service.rtl.set(this.rtl());
-    }, { allowSignalWrites: true });
+    this.service.registerRoot(this.el.nativeElement);
   }
 
   classes = computed(() => cn(
@@ -68,7 +75,6 @@ export class MenubarComponent {
     this.class()
   ));
 
-  @HostListener('document:click', ['$event'])
   onClick(event: MouseEvent) {
     if (this.service.activeMenuId() && !this.el.nativeElement.contains(event.target)) {
       this.service.setActive(null);
@@ -171,14 +177,14 @@ export class MenubarTriggerComponent {
   onKeydown(event: KeyboardEvent) {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      if (this.service.rtl()) {
+      if (this.service.isRtl()) {
         this.focusNextTrigger();
       } else {
         this.focusPrevTrigger();
       }
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      if (this.service.rtl()) {
+      if (this.service.isRtl()) {
         this.focusPrevTrigger();
       } else {
         this.focusNextTrigger();
@@ -270,7 +276,7 @@ export class MenubarContentComponent {
       event.preventDefault();
       // Do NOT close menu here, allows seamless switch
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
-      if (this.service.rtl()) {
+      if (this.service.isRtl()) {
         trigger?.focusNextTrigger();
       } else {
         trigger?.focusPrevTrigger();
@@ -280,7 +286,7 @@ export class MenubarContentComponent {
       event.preventDefault();
       // Do NOT close menu here, allows seamless switch
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
-      if (this.service.rtl()) {
+      if (this.service.isRtl()) {
         trigger?.focusPrevTrigger();
       } else {
         trigger?.focusNextTrigger();
@@ -470,7 +476,7 @@ export class MenubarSubTriggerComponent {
 
   onKeydown(event: KeyboardEvent) {
     if (event.key === 'ArrowRight') {
-      if (this.service.rtl()) {
+      if (this.service.isRtl()) {
         // In RTL, ArrowRight usually closes, or goes back. If we want to open, it should be ArrowLeft.
         return;
       }
@@ -480,7 +486,7 @@ export class MenubarSubTriggerComponent {
       this.sub.focusContent();
     }
     if (event.key === 'ArrowLeft') {
-      if (this.service.rtl()) {
+      if (this.service.isRtl()) {
         event.preventDefault();
         event.stopPropagation();
         this.sub.enter();
@@ -539,13 +545,13 @@ export class MenubarSubContentComponent {
     event.stopPropagation();
 
     if (event.key === 'ArrowLeft') {
-      if (!this.service.rtl()) {
+      if (!this.service.isRtl()) {
         event.preventDefault();
         this.sub.leave();
         this.sub.focusTrigger();
       }
     } else if (event.key === 'ArrowRight') {
-      if (this.service.rtl()) {
+      if (this.service.isRtl()) {
         event.preventDefault();
         this.sub.leave();
         this.sub.focusTrigger();

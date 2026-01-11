@@ -5,6 +5,7 @@ import {
     output,
     computed,
     signal,
+    model,
     inject,
     InjectionToken,
     ElementRef,
@@ -15,7 +16,7 @@ import {
     ViewChild,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../lib/utils';
+import { cn, isRtl } from '../lib/utils';
 
 export const SELECT = new InjectionToken<SelectComponent>('SELECT');
 
@@ -36,7 +37,6 @@ export class SelectComponent implements OnDestroy {
     placeholder = input('Select an option');
     defaultValue = input<string | undefined>(undefined);
     position = input<'popper' | 'item-aligned'>('item-aligned');
-    rtl = input(false);
     valueChange = output<string>();
 
     // Track item elements for positioning
@@ -99,6 +99,11 @@ export class SelectComponent implements OnDestroy {
 
     getTriggerElement(): HTMLElement | null {
         return this.el.nativeElement.querySelector('[data-slot="select-trigger"]');
+    }
+
+    /** Check if the component is in RTL mode by reading from the DOM */
+    isRtl(): boolean {
+        return isRtl(this.el.nativeElement);
     }
 }
 
@@ -180,8 +185,7 @@ export class SelectValueComponent {
 
     hostClasses = computed(() =>
         cn(
-            'flex-1 truncate',
-            this.select?.rtl() ? 'text-right' : 'text-left'
+            'flex-1 truncate ltr:text-left rtl:text-right'
         )
     );
 }
@@ -197,9 +201,7 @@ export class SelectValueComponent {
         [style]="positionStyles()"
         role="listbox" 
         [attr.data-slot]="'select-content'"
-        [attr.data-position]="position()"
-        [dir]="select?.rtl() ? 'rtl' : 'ltr'"
-      >
+        [attr.data-position]="position()">
         <ng-content />
       </div>
     }
@@ -254,13 +256,12 @@ export class SelectContentComponent implements AfterViewInit {
     classes = computed(() => {
         const pos = this.select?.position() ?? this.position();
         const isItemAligned = pos === 'item-aligned';
-        const isRtl = this.select?.rtl() ?? false;
 
         return cn(
             'absolute z-50 max-h-96 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
             'animate-in fade-in-0 zoom-in-95',
             isItemAligned ? 'top-0' : 'top-full mt-1',
-            isRtl ? 'right-0' : 'left-0',
+            'ltr:left-0 rtl:right-0',
             this.class()
         );
     });
@@ -299,20 +300,17 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
     isSelected = computed(() => this.select?.value() === this.value());
 
     classes = computed(() => {
-        const isRtl = this.select?.rtl() ?? false;
         return cn(
             'focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4',
-            isRtl ? 'pl-8 pr-2' : 'pr-8 pl-2',
+            'ltr:pr-8 ltr:pl-2 rtl:pl-8 rtl:pr-2',
             this.disabled() && 'pointer-events-none opacity-50',
             this.class()
         );
     });
 
     checkmarkClasses = computed(() => {
-        const isRtl = this.select?.rtl() ?? false;
         return cn(
-            'absolute flex size-3.5 items-center justify-center',
-            isRtl ? 'left-2' : 'right-2'
+            'absolute flex size-3.5 items-center justify-center ltr:right-2 rtl:left-2'
         );
     });
 
@@ -336,7 +334,7 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        '[class]': '"p-1"',
+        '[class]': '"p-1 contents"',
         '[attr.role]': '"group"',
         '[attr.data-slot]': '"select-group"',
     },

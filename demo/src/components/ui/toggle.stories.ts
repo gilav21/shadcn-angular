@@ -1,6 +1,5 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { ToggleComponent } from './toggle.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<ToggleComponent> = {
     title: 'UI/Toggle',

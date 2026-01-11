@@ -45,7 +45,6 @@ export class SheetComponent implements OnDestroy {
 
     open = signal(false);
     openChange = output<boolean>();
-    rtl = input(false);
 
     private scrollbarWidth = 0;
 
@@ -123,7 +122,6 @@ export class SheetTriggerComponent {
         class="fixed inset-0 z-50" 
         role="dialog" 
         aria-modal="true"
-        [dir]="sheet?.rtl() ? 'rtl' : 'ltr'"
         (keydown)="onKeydown($event)"
       >
         <!-- Overlay -->

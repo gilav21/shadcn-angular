@@ -15,9 +15,7 @@ import { cn } from '../lib/utils';
       role="navigation" 
       aria-label="pagination" 
       [class]="classes()"
-      [attr.data-slot]="'pagination'"
-      [dir]="rtl() ? 'rtl' : 'ltr'"
-    >
+      [attr.data-slot]="'pagination'">
       <ng-content />
     </nav>
   `,
@@ -25,7 +23,6 @@ import { cn } from '../lib/utils';
 })
 export class PaginationComponent {
   class = input('');
-  rtl = input(false);
 
   classes = computed(() => cn('mx-auto flex w-full justify-center', this.class()));
 }

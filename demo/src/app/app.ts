@@ -687,7 +687,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">Dropdown Menu</h2>
           <p class="text-muted-foreground">Dropdown menu with items.</p>
           
-          <ui-dropdown-menu [rtl]="isRtl()">
+          <ui-dropdown-menu>
             <ui-dropdown-menu-trigger>
               <ui-button variant="outline">Open Menu</ui-button>
             </ui-dropdown-menu-trigger>
@@ -720,7 +720,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <h2 id="select" class="text-2xl font-semibold scroll-m-20">Select</h2>
           <p class="text-muted-foreground">Select component for choosing from a list of options.</p>
           
-          <ui-select class="max-w-xs" position="popper" [rtl]="isRtl()">
+          <ui-select class="max-w-xs" position="popper">
             <ui-select-trigger>
               <ui-select-value placeholder="Select a fruit" />
             </ui-select-trigger>
@@ -856,7 +856,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <p class="text-muted-foreground">Range input component.</p>
           
           <div class="max-w-xs space-y-4">
-            <ui-slider [defaultValue]="40" [min]="0" [max]="100" [step]="1" [rtl]="isRtl()" />
+            <ui-slider [defaultValue]="40" [min]="0" [max]="100" [step]="1" />
             <div class="flex justify-between text-sm text-muted-foreground">
               <span>0</span>
               <span>100</span>
@@ -1450,7 +1450,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <h2 id="menubar" class="text-2xl font-semibold scroll-m-20">Menubar</h2>
           <p class="text-muted-foreground">A horizontal menu bar with dropdown menus.</p>
           
-          <ui-menubar [rtl]="isRtl()">
+          <ui-menubar>
             <ui-menubar-menu>
               <ui-menubar-trigger>File</ui-menubar-trigger>
               <ui-menubar-content>
@@ -2175,7 +2175,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
             <!-- Basic Example -->
             <div class="space-y-2">
               <ui-label>Tags</ui-label>
-              <ui-chip-list  [rtl]="isRtl()"
+              <ui-chip-list 
                 [(ngModel)]="chipListTags" 
                 placeholder="Add a tag..."
               />
@@ -2186,11 +2186,11 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
             <div class="grid gap-4">
               <div class="space-y-2">
                 <ui-label>Secondary variant</ui-label>
-                <ui-chip-list [(ngModel)]="chipListTags" variant="secondary" [rtl]="isRtl()"/>
+                <ui-chip-list [(ngModel)]="chipListTags" variant="secondary"/>
               </div>
               <div class="space-y-2">
                 <ui-label>Outline variant</ui-label>
-                <ui-chip-list [(ngModel)]="chipListTags" variant="outline" [rtl]="isRtl()"/>
+                <ui-chip-list [(ngModel)]="chipListTags" variant="outline"/>
               </div>
             </div>
 
@@ -2202,14 +2202,14 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
                 [maxRows]="2"
                 variant="secondary"
                 placeholder="Add fruit..."
-                [rtl]="isRtl()"
+                placeholder="Add fruit..."
               />
             </div>
 
             <!-- Disabled -->
             <div class="space-y-2">
               <ui-label>Disabled</ui-label>
-              <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true" [rtl]="isRtl()"/>
+              <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true"/>
             </div>
           </div>
         </section>

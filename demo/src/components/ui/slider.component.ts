@@ -8,7 +8,7 @@ import {
     ElementRef,
     inject,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn, isRtl } from '../lib/utils';
 
 @Component({
     selector: 'ui-slider',
@@ -61,7 +61,6 @@ export class SliderComponent {
     max = input(100);
     step = input(1);
     disabled = input(false);
-    rtl = input(false);
     defaultValue = input(0);
     class = input('');
     ariaLabel = input<string | undefined>(undefined);
@@ -69,6 +68,11 @@ export class SliderComponent {
     valueChange = output<number>();
 
     value = signal(0);
+
+    /** Check if the component is in RTL mode by reading from the DOM */
+    rtl() {
+        return isRtl(this.el.nativeElement);
+    }
 
     constructor() {
         // Initialize with default value

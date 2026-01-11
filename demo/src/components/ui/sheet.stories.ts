@@ -36,14 +36,9 @@ const meta: Meta<SheetComponent> = {
     }),
   ],
   argTypes: {
-    rtl: {
-      control: 'boolean',
-      description: 'Enable right-to-left layout',
-    },
+
   },
-  args: {
-    rtl: false,
-  },
+  args: {},
 };
 
 export default meta;
@@ -53,7 +48,7 @@ export const Default: Story = {
   render: (args) => ({
     props: args,
     template: `
-      <ui-sheet [rtl]="rtl">
+      <ui-sheet>
         <ui-sheet-trigger>
           <ui-button variant="outline">Open Sheet</ui-button>
         </ui-sheet-trigger>
@@ -93,7 +88,7 @@ export const SideInteractions: Story = {
   render: () => ({
     template: `
         <div class="grid grid-cols-2 gap-2">
-            <ui-sheet [rtl]="rtl">
+            <ui-sheet>
                 <ui-sheet-trigger><ui-button variant="outline">Top</ui-button></ui-sheet-trigger>
                 <ui-sheet-content side="top">
                     <ui-sheet-header>
@@ -101,7 +96,7 @@ export const SideInteractions: Story = {
                     </ui-sheet-header>
                 </ui-sheet-content>
             </ui-sheet>
-             <ui-sheet [rtl]="rtl">
+             <ui-sheet>
                 <ui-sheet-trigger><ui-button variant="outline">Bottom</ui-button></ui-sheet-trigger>
                 <ui-sheet-content side="bottom">
                      <ui-sheet-header>
@@ -109,7 +104,7 @@ export const SideInteractions: Story = {
                     </ui-sheet-header>
                 </ui-sheet-content>
             </ui-sheet>
-             <ui-sheet [rtl]="rtl">
+             <ui-sheet>
                 <ui-sheet-trigger><ui-button variant="outline">Left</ui-button></ui-sheet-trigger>
                 <ui-sheet-content side="left">
                      <ui-sheet-header>
@@ -117,7 +112,7 @@ export const SideInteractions: Story = {
                     </ui-sheet-header>
                 </ui-sheet-content>
             </ui-sheet>
-             <ui-sheet [rtl]="rtl">
+             <ui-sheet>
                 <ui-sheet-trigger><ui-button variant="outline">Right</ui-button></ui-sheet-trigger>
                 <ui-sheet-content side="right">
                      <ui-sheet-header>

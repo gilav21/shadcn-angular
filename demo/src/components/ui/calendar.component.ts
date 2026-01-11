@@ -57,7 +57,6 @@ export interface DateRange {
             @if (showMonthSelect()) {
               <ui-select 
                 [defaultValue]="currentMonth().toString()" 
-                [rtl]="rtl()"
                 position="popper"
                 (valueChange)="onMonthChange($event)"
               >
@@ -77,7 +76,6 @@ export interface DateRange {
             @if (showYearSelect()) {
               <ui-select 
                 [defaultValue]="currentYear().toString()" 
-                [rtl]="rtl()"
                 position="popper"
                 (valueChange)="onYearChange($event)"
               >

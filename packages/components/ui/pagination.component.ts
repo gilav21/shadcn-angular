@@ -25,7 +25,6 @@ import { cn } from '../lib/utils';
 })
 export class PaginationComponent {
   class = input('');
-  rtl = input(false);
 
   classes = computed(() => cn('mx-auto flex w-full justify-center', this.class()));
 }

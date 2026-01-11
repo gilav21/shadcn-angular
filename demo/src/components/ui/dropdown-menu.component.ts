@@ -11,15 +11,19 @@ import {
     booleanAttribute,
     Injectable,
     ViewChild,
+    effect,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../lib/utils';
-import { effect } from '@angular/core';
+import { cn, isRtl } from '../lib/utils';
 
 @Injectable()
 export class DropdownMenuService {
-    rtl = signal(false);
     private triggerRef: HTMLElement | null = null;
+    private rootEl: HTMLElement | null = null;
+
+    registerRoot(el: HTMLElement) {
+        this.rootEl = el;
+    }
 
     registerTrigger(el: HTMLElement) {
         this.triggerRef = el;
@@ -27,6 +31,11 @@ export class DropdownMenuService {
 
     focusTrigger() {
         this.triggerRef?.focus();
+    }
+
+    isRtl(): boolean {
+        if (!this.rootEl) return false;
+        return isRtl(this.rootEl);
     }
 }
 
@@ -37,7 +46,6 @@ export class DropdownMenuService {
     template: `<ng-content />`,
     host: {
         class: 'relative inline-block',
-        '[attr.dir]': "rtl() ? 'rtl' : null"
     },
 })
 export class DropdownMenuComponent implements OnDestroy {
@@ -46,13 +54,10 @@ export class DropdownMenuComponent implements OnDestroy {
     private service = inject(DropdownMenuService);
 
     open = model(false);
-    rtl = input(false);
 
     constructor() {
         this.document.addEventListener('click', this.clickListener);
-        effect(() => {
-            this.service.rtl.set(this.rtl());
-        }, { allowSignalWrites: true });
+        this.service.registerRoot(this.el.nativeElement);
     }
 
     private clickListener = (event: MouseEvent) => {
@@ -390,14 +395,14 @@ export class DropdownMenuSubTriggerComponent {
 
     onKeydown(event: KeyboardEvent) {
         if (event.key === 'ArrowRight') {
-            if (this.service.rtl()) return;
+            if (this.service.isRtl()) return;
             event.preventDefault();
             event.stopPropagation();
             this.sub.enter();
             this.sub.focusContent();
         }
         if (event.key === 'ArrowLeft') {
-            if (this.service.rtl()) {
+            if (this.service.isRtl()) {
                 event.preventDefault();
                 event.stopPropagation();
                 this.sub.enter();
@@ -456,13 +461,13 @@ export class DropdownMenuSubContentComponent {
         event.stopPropagation();
 
         if (event.key === 'ArrowLeft') {
-            if (!this.service.rtl()) {
+            if (!this.service.isRtl()) {
                 event.preventDefault();
                 this.sub.leave();
                 this.sub.focusTrigger();
             }
         } else if (event.key === 'ArrowRight') {
-            if (this.service.rtl()) {
+            if (this.service.isRtl()) {
                 event.preventDefault();
                 this.sub.leave();
                 this.sub.focusTrigger();
