@@ -76,7 +76,7 @@ export class DialogTriggerComponent {
           <!-- Close button -->
           <button
             type="button"
-            class="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none ltr:right-4 rtl:left-4"
+            class="absolute right-4 top-4 w-fit rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none rtl:left-4 rtl:right-auto"
             (click)="close()"
           >
             <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
@@ -131,7 +131,7 @@ export class DialogHeaderComponent { }
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'text-lg font-semibold leading-none tracking-tight',
+        class: 'text-lg font-semibold leading-none tracking-tight flex justify-start',
         '[attr.data-slot]': '"dialog-title"',
     },
 })
@@ -142,7 +142,7 @@ export class DialogTitleComponent { }
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'text-sm text-muted-foreground',
+        class: 'text-sm text-muted-foreground flex justify-start',
         '[attr.data-slot]': '"dialog-description"',
     },
 })
