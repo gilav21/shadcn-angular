@@ -11,6 +11,7 @@ import {
     AfterViewInit,
     effect,
     ViewChild,
+    model,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -25,7 +26,7 @@ export class PopoverComponent implements OnDestroy {
     private el = inject(ElementRef);
     private document = inject(DOCUMENT);
 
-    open = signal(false);
+    open = model<boolean>(false);
     openChange = output<boolean>();
 
     private clickListener = (event: MouseEvent) => {

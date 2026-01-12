@@ -127,14 +127,16 @@
     }
 
     /* Hide scrollbar while preserving scroll functionality */
-    .scrollbar-hide {
+    .scrollbar-hide,
+    .scrollbar-none {
         -ms-overflow-style: none;
         /* IE and Edge */
         scrollbar-width: none;
         /* Firefox */
     }
 
-    .scrollbar-hide::-webkit-scrollbar {
+    .scrollbar-hide::-webkit-scrollbar,
+    .scrollbar-none::-webkit-scrollbar {
         display: none;
         /* Chrome, Safari, Opera */
     }

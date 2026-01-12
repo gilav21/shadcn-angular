@@ -32,6 +32,7 @@ import { FieldComponent, FieldGroupComponent, FieldSetComponent, FieldLabelCompo
 import { NativeSelectComponent } from '../components/ui/native-select.component';
 import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, SpeedDialItemComponent, SpeedDialMaskComponent, SpeedDialContextTriggerComponent, SpeedDialContextTriggerDirective } from '../components/ui/speed-dial.component';
 import { ChipListComponent } from '../components/ui/chip-list.component';
+import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerComponent } from '../components/ui/emoji-picker.component';
 
 @Component({
   selector: 'app-root',
@@ -250,7 +251,10 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
     TooltipTriggerComponent,
     TooltipDirective,
     ContextMenuTriggerDirective,
-    ChipListComponent
+    ChipListComponent,
+    EmojiPickerComponent,
+    EmojiPickerContentComponent,
+    EmojiPickerTriggerComponent
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -294,6 +298,28 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
             <ui-breadcrumb-link href="#breadcrumbSection">Breadcrumb</ui-breadcrumb-link>
           </ui-breadcrumb-item>
         </ui-breadcrumb-list>
+
+        <!-- Emoji Picker Section -->
+        <section class="space-y-4">
+          <h2 id="emoji-picker" class="text-2xl font-semibold scroll-m-20">Emoji Picker</h2>
+          <p class="text-muted-foreground">A customizable emoji picker with category navigation and search.</p>
+          
+          <div class="flex items-center gap-4">
+            <ui-emoji-picker (emojiSelect)="onEmojiSelect($event)">
+                <ui-emoji-picker-trigger>
+                    <ui-button variant="outline">Pick an Emoji</ui-button>
+                </ui-emoji-picker-trigger>
+                <ui-emoji-picker-content />
+            </ui-emoji-picker>
+            
+            @if (selectedEmoji()) {
+                <div class="text-2xl">{{ selectedEmoji() }}</div>
+            }
+          </div>
+        </section>
+
+        <ui-separator />
+
         <!-- Buttons Section -->
         <section class="space-y-4">
           <h2 id="buttons" class="text-2xl font-semibold scroll-m-20">Buttons</h2>
@@ -967,7 +993,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
           <ui-scroll-area class="h-72 w-48 rounded-md border">
             <div class="p-4">
               <h4 class="mb-4 text-sm font-medium leading-none">Tags</h4>
-              @for (tag of ['v1.2.0-beta.18', 'v1.2.0-beta.17', 'v1.2.0-beta.16', 'v1.2.0-beta.15', 'v1.2.0-beta.14', 'v1.2.0-beta.13', 'v1.2.0-beta.12', 'v1.2.0-beta.11', 'v1.2.0-beta.10', 'v1.2.0-beta.9', 'v1.2.0-beta.8', 'v1.2.0-beta.7', 'v1.2.0-beta.6', 'v1.2.0-beta.7', 'v1.2.0-beta.7' , 'v1.2.0-beta.7' , 'v1.2.0-beta.7']; track tag) {
+              @for (tag of ['v1.2.0-beta.18', 'v1.2.0-beta.17', 'v1.2.0-beta.16', 'v1.2.0-beta.15', 'v1.2.0-beta.14', 'v1.2.0-beta.13', 'v1.2.0-beta.12', 'v1.2.0-beta.11', 'v1.2.0-beta.10', 'v1.2.0-beta.9', 'v1.2.0-beta.8', 'v1.2.0-beta.7', 'v1.2.0-beta.6', 'v1.2.0-beta.5', 'v1.2.0-beta.4' , 'v1.2.0-beta.3' , 'v1.2.0-beta.2']; track tag) {
                 <div class="text-sm">{{ tag }}</div>
                 <ui-separator class="my-2" />
               }
@@ -2233,24 +2259,29 @@ export class AppComponent {
   chipListTags = signal<string[]>(['Angular', 'TypeScript', 'Signals']);
   chipListFruits = signal<string[]>(['Apple', 'Banana', 'Cherry', 'Date', 'Elderberry', 'Fig', 'Grape', 'Honeydew']);
 
+  isRtl = signal(false);
+  selectedEmoji = signal<string | null>(null);
 
   constructor() {
     console.log('test');
   }
-  toggleTheme(dark: boolean) {
-    this.isDark.set(dark);
-    if (dark) {
+
+  toggleTheme(checked: boolean) {
+    this.isDark.set(checked);
+    if (checked) {
       document.documentElement.classList.add('dark');
     } else {
       document.documentElement.classList.remove('dark');
     }
   }
 
-  isRtl = signal(false);
+  toggleDirection(checked: boolean) {
+    this.isRtl.set(checked);
+    document.documentElement.dir = checked ? 'rtl' : 'ltr';
+  }
 
-  toggleDirection(isRtl: boolean) {
-    this.isRtl.set(isRtl);
-    document.documentElement.dir = isRtl ? 'rtl' : 'ltr';
+  onEmojiSelect(emoji: string) {
+    this.selectedEmoji.set(emoji);
   }
 
   showToast(type: 'default' | 'success' | 'error') {

@@ -234,4 +234,9 @@ export const registry: Record<string, ComponentDefinition> = {
     files: ['chip-list.component.ts'],
     dependencies: ['badge', 'button'],
   },
+  'emoji-picker': {
+    name: 'emoji-picker',
+    files: ['emoji-picker.component.ts', 'emoji-data.ts'],
+    dependencies: ['button', 'input', 'scroll-area', 'popover'],
+  },
 };

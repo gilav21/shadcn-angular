@@ -52,3 +52,4 @@ export * from './field.component';
 export * from './native-select.component';
 export * from './speed-dial.component';
 export * from './chip-list.component';
+export * from './emoji-picker.component';

@@ -38,10 +38,10 @@ import { cn } from '../lib/utils';
           [attr.data-orientation]="'vertical'"
         >
           <div
-            class="bg-border relative flex-1 rounded-full"
+            class="bg-border relative w-full rounded-full"
             [attr.data-slot]="'scroll-area-thumb'"
             [style.height.%]="thumbHeightPercent()"
-            [style.transform]="'translateY(' + scrollTopPercent() + '%)'"
+            [style.top.%]="scrollTopPercent()"
             (mousedown)="onThumbMouseDown($event, 'vertical')"
           ></div>
         </div>
@@ -54,10 +54,10 @@ import { cn } from '../lib/utils';
           [attr.data-orientation]="'horizontal'"
         >
           <div
-            class="bg-border relative flex-1 rounded-full"
+            class="bg-border relative h-full rounded-full"
             [attr.data-slot]="'scroll-area-thumb'"
             [style.width.%]="thumbWidthPercent()"
-            [style.transform]="'translateX(' + scrollLeftPercent() + '%)'"
+            [style.left.%]="scrollLeftPercent()"
             (mousedown)="onThumbMouseDown($event, 'horizontal')"
           ></div>
         </div>
