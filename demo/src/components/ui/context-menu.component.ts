@@ -292,7 +292,7 @@ export class ContextMenuLabelComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'ml-auto text-xs tracking-widest text-muted-foreground',
+        class: 'ltr:ml-auto rtl:mr-auto text-xs tracking-widest text-muted-foreground',
         '[attr.data-slot]': '"context-menu-shortcut"',
     },
 })
