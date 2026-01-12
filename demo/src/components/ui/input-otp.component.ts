@@ -83,10 +83,10 @@ export class InputOTPComponent {
 
   slotClasses = (idx: number) => cn(
     'relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm shadow-sm transition-all cursor-text',
-    idx === 0 && 'rounded-l-md border-l',
-    idx === this.maxLength() - 1 && 'rounded-r-md',
-    this.separatorAfter().includes(idx) && 'rounded-r-md',
-    this.separatorAfter().includes(idx - 1) && 'rounded-l-md border-l',
+    idx === 0 && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
+    idx === this.maxLength() - 1 && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
+    this.separatorAfter().includes(idx) && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
+    this.separatorAfter().includes(idx - 1) && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
     this.focusedIndex() === idx && 'z-10 ring-2 ring-ring',
   );
 

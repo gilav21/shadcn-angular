@@ -2,11 +2,16 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
+  output,
   computed,
   signal,
-  model,
+  inject,
   ElementRef,
   ViewChild,
+  forwardRef,
+  ContentChildren,
+  QueryList,
+  AfterContentInit,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -64,7 +69,8 @@ export class InputOTPComponent {
   maxLength = input(6);
   separator = input<number[]>([2]); // indices after which to show separator (default: after 3rd slot for 6-digit OTP)
 
-  value = model('');
+  value = signal('');
+  valueChange = output<string>();
   focusedIndex = signal(-1);
 
   slots = computed(() => Array.from({ length: this.maxLength() }, (_, i) => i));
@@ -77,10 +83,10 @@ export class InputOTPComponent {
 
   slotClasses = (idx: number) => cn(
     'relative flex h-10 w-10 items-center justify-center border-y border-r border-input text-sm shadow-sm transition-all cursor-text',
-    idx === 0 && 'rounded-l-md border-l',
-    idx === this.maxLength() - 1 && 'rounded-r-md',
-    this.separatorAfter().includes(idx) && 'rounded-r-md',
-    this.separatorAfter().includes(idx - 1) && 'rounded-l-md border-l',
+    idx === 0 && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
+    idx === this.maxLength() - 1 && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
+    this.separatorAfter().includes(idx) && 'ltr:rounded-r-md rtl:rounded-l-md ltr:border-r rtl:border-l',
+    this.separatorAfter().includes(idx - 1) && 'ltr:rounded-l-md rtl:rounded-r-md ltr:border-l rtl:border-r',
     this.focusedIndex() === idx && 'z-10 ring-2 ring-ring',
   );
 
@@ -98,6 +104,7 @@ export class InputOTPComponent {
     // Allow alphanumeric characters (letters and numbers)
     const newValue = input.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.maxLength());
     this.value.set(newValue);
+    this.valueChange.emit(newValue);
     this.focusedIndex.set(Math.min(newValue.length, this.maxLength() - 1));
     // Sync hidden input value
     input.value = newValue;
@@ -117,6 +124,7 @@ export class InputOTPComponent {
       if (currentValue.length > 0) {
         const newValue = currentValue.slice(0, -1);
         this.value.set(newValue);
+        this.valueChange.emit(newValue);
         this.focusedIndex.set(newValue.length);
         // Also update the hidden input
         if (this.hiddenInput?.nativeElement) {
