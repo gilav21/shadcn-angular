@@ -36,14 +36,9 @@ const meta: Meta<DrawerComponent> = {
       control: 'radio',
       options: ['top', 'right', 'bottom', 'left'],
     },
-    rtl: {
-      control: 'boolean',
-      description: 'Enable right-to-left layout',
-    },
   },
   args: {
-    direction: 'bottom',
-    rtl: false,
+    direction: 'bottom'
   },
 };
 
@@ -54,7 +49,7 @@ export const Default: Story = {
   render: (args) => ({
     props: args,
     template: `
-      <ui-drawer [direction]="direction" [rtl]="rtl">
+      <ui-drawer [direction]="direction">
         <ui-drawer-trigger>
           <button shButton variant="outline">Open Drawer</button>
         </ui-drawer-trigger>

@@ -61,7 +61,6 @@ import { CalendarComponent, DateRange } from './calendar.component';
           <ui-calendar
             mode="single"
             [selected]="internalValue()"
-            [rtl]="rtl()"
             [showTimeSelect]="showTime()"
             [showMonthSelect]="true"
             [showYearSelect]="true"
@@ -81,7 +80,6 @@ export class DatePickerComponent implements ControlValueAccessor {
   placeholder = input('Pick a date');
   disabled = input(false);
   showTime = input(false);
-  rtl = input(false);
 
   // Two-way binding
   date = input<Date | null>(null);

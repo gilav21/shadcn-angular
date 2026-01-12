@@ -34,10 +34,6 @@ const meta: Meta<ChipListComponent> = {
       control: 'boolean',
       description: 'Allow duplicate chip values',
     },
-    rtl: {
-      control: 'boolean',
-      description: 'Enable right-to-left layout',
-    },
   },
   args: {
     placeholder: 'Add tag...',
@@ -45,7 +41,6 @@ const meta: Meta<ChipListComponent> = {
     variant: 'default',
     maxRows: 0,
     allowDuplicates: false,
-    rtl: false,
   },
 };
 
@@ -67,7 +62,6 @@ export const Default: Story = {
           [variant]="variant"
           [maxRows]="maxRows"
           [allowDuplicates]="allowDuplicates"
-          [rtl]="rtl"
         />
         <p class="mt-4 text-sm text-muted-foreground">
           Current values: {{ tags | json }}
@@ -88,7 +82,7 @@ export const WithPrefilledValues: Story = {
     },
     template: `
       <div class="w-[400px]">
-        <ui-chip-list  [rtl]="rtl"
+        <ui-chip-list 
           [(ngModel)]="technologies" 
           [placeholder]="placeholder"
           [variant]="variant"
@@ -118,7 +112,6 @@ export const MaxRows: Story = {
           [placeholder]="placeholder"
           [maxRows]="maxRows"
           [variant]="variant"
-          [rtl]="rtl"
         />
         <p class="mt-2 text-sm text-muted-foreground">
           This chip list scrolls after 2 rows of content
@@ -140,19 +133,19 @@ export const Variants: Story = {
       <div class="flex flex-col gap-4 w-[400px]">
         <div>
           <label class="text-sm font-medium mb-1 block">Default</label>
-          <ui-chip-list [(ngModel)]="defaultTags" variant="default" [rtl]="rtl" />
+          <ui-chip-list [(ngModel)]="defaultTags" variant="default" />
         </div>
         <div>
           <label class="text-sm font-medium mb-1 block">Secondary</label>
-          <ui-chip-list [(ngModel)]="secondaryTags" variant="secondary" [rtl]="rtl" />
+          <ui-chip-list [(ngModel)]="secondaryTags" variant="secondary" />
         </div>
         <div>
           <label class="text-sm font-medium mb-1 block">Destructive</label>
-          <ui-chip-list [(ngModel)]="destructiveTags" variant="destructive" [rtl]="rtl" />
+          <ui-chip-list [(ngModel)]="destructiveTags" variant="destructive" />
         </div>
         <div>
           <label class="text-sm font-medium mb-1 block">Outline</label>
-          <ui-chip-list [(ngModel)]="outlineTags" variant="outline" [rtl]="rtl" />
+          <ui-chip-list [(ngModel)]="outlineTags" variant="outline" />
         </div>
       </div>
     `,

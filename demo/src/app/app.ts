@@ -1346,7 +1346,7 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
             <!-- Hebrew RTL Calendar -->
             <div class="space-y-2">
               <p class="text-sm font-medium">Hebrew (RTL)</p>
-              <ui-calendar [rtl]="true" locale="he" [showMonthSelect]="true" [showYearSelect]="true" class="rounded-md border shadow"></ui-calendar>
+              <ui-calendar locale="he" [showMonthSelect]="true" [showYearSelect]="true" [showTimeSelect]="true" class="rounded-md border shadow"></ui-calendar>
             </div>
             
             <!-- Japanese Calendar -->

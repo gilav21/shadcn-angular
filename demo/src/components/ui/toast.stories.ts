@@ -10,7 +10,7 @@ import { Component, inject, input } from '@angular/core';
     imports: [ButtonComponent, ToasterComponent],
     template: `
     <div class="flex flex-col gap-4">
-      <ui-toaster [vertical]="vertical()" [horizontal]="horizontal()" [rtl]="rtl()" />
+      <ui-toaster [vertical]="vertical()" [horizontal]="horizontal()" />
       <div class="flex gap-2 flex-wrap">
         <ui-button (click)="showDefault()">Default</ui-button>
         <ui-button variant="destructive" (click)="showDestructive()">Destructive</ui-button>
@@ -18,7 +18,7 @@ import { Component, inject, input } from '@angular/core';
         <ui-button variant="secondary" (click)="showWithAction()">With Action</ui-button>
       </div>
       <p class="text-sm text-muted-foreground">
-        Position: {{ vertical() }}-{{ horizontal() }} {{ rtl() ? '(RTL)' : '' }}
+        Position: {{ vertical() }}-{{ horizontal() }}
       </p>
     </div>
   `
@@ -28,7 +28,6 @@ class ToastStoryWrapperComponent {
 
     vertical = input<'top' | 'center' | 'bottom'>('bottom');
     horizontal = input<'start' | 'center' | 'end'>('end');
-    rtl = input(false);
 
     showDefault() {
         this.toastService.toast({
@@ -57,7 +56,7 @@ class ToastStoryWrapperComponent {
     }
 }
 
-const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: string; rtl: boolean }> = {
+const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: string }> = {
     title: 'UI/Toast',
     component: ToastStoryWrapperComponent,
     tags: ['autodocs'],
@@ -77,16 +76,11 @@ const meta: Meta<ToastStoryWrapperComponent & { vertical: string; horizontal: st
             control: 'select',
             options: ['start', 'center', 'end'],
             description: 'Horizontal position of toasts',
-        },
-        rtl: {
-            control: 'boolean',
-            description: 'Enable right-to-left layout',
-        },
+        }
     },
     args: {
         vertical: 'bottom',
         horizontal: 'end',
-        rtl: false,
     },
 };
 
@@ -96,7 +90,7 @@ type Story = StoryObj<ToastStoryWrapperComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
     }),
 };
 
@@ -107,7 +101,7 @@ export const TopStart: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
     }),
 };
 
@@ -118,7 +112,7 @@ export const TopCenter: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
     }),
 };
 
@@ -129,7 +123,7 @@ export const TopEnd: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
     }),
 };
 
@@ -140,7 +134,7 @@ export const CenterStart: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
     }),
 };
 
@@ -151,7 +145,7 @@ export const CenterEnd: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
     }),
 };
 
@@ -162,7 +156,7 @@ export const BottomStart: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
     }),
 };
 
@@ -173,6 +167,6 @@ export const BottomCenter: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal" [rtl]="rtl"></toast-story-wrapper>`,
+        template: `<toast-story-wrapper [vertical]="vertical" [horizontal]="horizontal"></toast-story-wrapper>`,
     }),
 };

@@ -126,6 +126,19 @@
         outline-color: color-mix(in oklch, var(--ring) 50%, transparent);
     }
 
+    /* Hide scrollbar while preserving scroll functionality */
+    .scrollbar-hide {
+        -ms-overflow-style: none;
+        /* IE and Edge */
+        scrollbar-width: none;
+        /* Firefox */
+    }
+
+    .scrollbar-hide::-webkit-scrollbar {
+        display: none;
+        /* Chrome, Safari, Opera */
+    }
+
     body {
         font-family: var(--font-sans);
         background-color: var(--background);

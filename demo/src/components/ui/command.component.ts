@@ -113,7 +113,7 @@ function generateId() {
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [CommandService],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'command'" [attr.dir]="rtl() ? 'rtl' : null">
+    <div [class]="classes()" [attr.data-slot]="'command'">
       <ng-content />
     </div>
   `,
@@ -121,7 +121,6 @@ function generateId() {
 })
 export class CommandComponent {
   class = input('');
-  rtl = input(false);
 
   classes = computed(() => cn(
     'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
@@ -389,7 +388,7 @@ export class CommandShortcutComponent { }
   template: `
     <ui-dialog [(open)]="open">
       <ui-dialog-content class="overflow-hidden p-0 shadow-lg">
-        <ui-command [rtl]="rtl()" class="[&_[data-slot=command-group]]:px-2 [&_[data-slot=command-group]]:font-medium [&_[data-slot=command-group]]:text-muted-foreground [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:h-5 [&_[data-slot=command-item]_svg]:w-5">
+        <ui-command class="[&_[data-slot=command-group]]:px-2 [&_[data-slot=command-group]]:font-medium [&_[data-slot=command-group]]:text-muted-foreground [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:h-5 [&_[data-slot=command-item]_svg]:w-5">
            <ng-content />
         </ui-command>
       </ui-dialog-content>
@@ -399,7 +398,6 @@ export class CommandShortcutComponent { }
 })
 export class CommandDialogComponent {
   open = model(false);
-  rtl = input(false);
 
   commandInput = contentChild(CommandInputComponent); // Angular 17.2+ signal queries
 

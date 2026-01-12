@@ -81,7 +81,7 @@ export class ToastService {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [forwardRef(() => ToastComponent)],
   template: `
-    <div [class]="containerClasses()" [attr.data-slot]="'toaster'" [dir]="rtl() ? 'rtl' : 'ltr'">
+    <div [class]="containerClasses()" [attr.data-slot]="'toaster'">
       @for (toast of toastService.toasts(); track toast.id) {
         <ui-toast 
           [variant]="toast.variant" 
@@ -104,13 +104,9 @@ export class ToasterComponent {
   /** Horizontal position: start, center, or end */
   horizontal = input<'start' | 'center' | 'end'>('end');
 
-  /** Enable RTL layout */
-  rtl = input(false);
-
   containerClasses = computed(() => {
     const v = this.vertical();
     const h = this.horizontal();
-    const isRtl = this.rtl();
 
     // Vertical position classes
     const verticalClasses: Record<string, string> = {
@@ -119,11 +115,11 @@ export class ToasterComponent {
       'bottom': 'bottom-0',
     };
 
-    // Horizontal position classes - start/end swap in RTL mode
+    // Horizontal position classes - using ltr:/rtl: for proper mirroring
     const horizontalClasses: Record<string, string> = {
-      'start': isRtl ? 'right-0' : 'left-0',
+      'start': 'ltr:left-0 rtl:right-0',
       'center': 'left-1/2 -translate-x-1/2',
-      'end': isRtl ? 'left-0' : 'right-0',
+      'end': 'ltr:right-0 rtl:left-0',
     };
 
     return cn(

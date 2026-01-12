@@ -47,7 +47,6 @@ export class DrawerComponent implements OnDestroy {
 
     open = model(false);
     direction = input<DrawerDirection>('bottom');
-    rtl = input(false);
 
     private scrollbarWidth = 0;
 
@@ -119,7 +118,6 @@ export class DrawerTriggerComponent {
         class="fixed inset-0 z-50" 
         role="dialog" 
         aria-modal="true"
-        [dir]="drawer?.rtl() ? 'rtl' : 'ltr'"
         (keydown)="onKeydown($event)"
       >
         <!-- Overlay -->

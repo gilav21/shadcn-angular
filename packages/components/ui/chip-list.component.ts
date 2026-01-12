@@ -49,7 +49,6 @@ import { ButtonComponent } from './button.component';
       [style.max-height]="maxHeightStyle()"
       [attr.data-slot]="'chip-list'"
       [attr.data-disabled]="disabled() || null"
-      [dir]="rtl() ? 'rtl' : 'ltr'"
       (click)="focusInput()"
     >
       <div class="flex flex-wrap items-center gap-1.5 p-1">
@@ -121,9 +120,6 @@ export class ChipListComponent implements ControlValueAccessor {
 
     /** Separator keys that also add chips (in addition to Enter) */
     separatorKeys = input<string[]>([]);
-
-    /** Enable RTL (right-to-left) layout */
-    rtl = input(false);
 
     // Outputs
     chipAdded = output<string>();

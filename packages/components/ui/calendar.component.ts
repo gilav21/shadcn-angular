@@ -140,7 +140,7 @@ export interface DateRange {
                 <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
                     <input 
                         type="time"
-                        class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground [&::-webkit-calendar-picker-indicator]:hidden ltr:text-left rtl:text-right"
+                        class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
                         [value]="selectedTimeString()"
                         (change)="updateTime($event)"
                     />

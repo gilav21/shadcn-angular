@@ -2,19 +2,15 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
     signal,
     inject,
     ElementRef,
-    ContentChildren,
-    QueryList,
     AfterContentInit,
     OnDestroy,
-    ViewChild,
-    HostListener,
+    ViewChild
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn, isRtl } from '../lib/utils';
 
 type CarouselOrientation = 'horizontal' | 'vertical';
 
@@ -39,7 +35,11 @@ type CarouselOrientation = 'horizontal' | 'vertical';
 export class CarouselComponent implements AfterContentInit, OnDestroy {
     class = input('');
     orientation = input<CarouselOrientation>('horizontal');
-    rtl = input(false);
+    private rootEl = inject(ElementRef<HTMLElement>);
+
+    // Reactive RTL signal - updates when document dir changes
+    rtl = signal(false);
+    private dirObserver: MutationObserver | null = null;
 
     @ViewChild('container', { static: true }) containerEl!: ElementRef<HTMLElement>;
 
@@ -51,6 +51,24 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
     private scrollContainer: HTMLElement | null = null;
     private resizeObserver: ResizeObserver | null = null;
     private items: HTMLElement[] = [];
+
+    constructor() {
+        // Initialize RTL state
+        this.updateRtlState();
+
+        // Watch for dir attribute changes on document.documentElement
+        this.dirObserver = new MutationObserver(() => this.updateRtlState());
+        this.dirObserver.observe(document.documentElement, {
+            attributes: true,
+            attributeFilter: ['dir']
+        });
+    }
+
+    private updateRtlState() {
+        this.rtl.set(isRtl(this.rootEl?.nativeElement));
+        // Re-evaluate scroll state when RTL changes
+        this.updateScrollState();
+    }
 
     classes = computed(() => cn(
         'relative',
@@ -74,25 +92,57 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
 
     ngOnDestroy() {
         this.resizeObserver?.disconnect();
+        this.dirObserver?.disconnect();
     }
 
     updateScrollState() {
         if (!this.scrollContainer) return;
 
         const isHorizontal = this.orientation() === 'horizontal';
-        const scrollPos = isHorizontal ? this.scrollContainer.scrollLeft : this.scrollContainer.scrollTop;
-        const scrollSize = isHorizontal ? this.scrollContainer.scrollWidth : this.scrollContainer.scrollHeight;
-        const clientSize = isHorizontal ? this.scrollContainer.clientWidth : this.scrollContainer.clientHeight;
+        const isRtlMode = this.rtl();
 
-        this.canScrollPrev.set(scrollPos > 1);
-        this.canScrollNext.set(scrollPos < scrollSize - clientSize - 1);
+        if (isHorizontal) {
+            // In RTL mode, scrollLeft can be negative or work differently across browsers
+            // Using Math.abs to normalize the scroll position
+            const scrollLeft = this.scrollContainer.scrollLeft;
+            const scrollWidth = this.scrollContainer.scrollWidth;
+            const clientWidth = this.scrollContainer.clientWidth;
+            const maxScroll = scrollWidth - clientWidth;
 
-        // Update current index based on scroll position
-        const items = this.scrollContainer.querySelectorAll('[data-slot="carousel-item"]');
-        if (items.length > 0) {
-            const itemSize = isHorizontal ? (items[0] as HTMLElement).offsetWidth : (items[0] as HTMLElement).offsetHeight;
-            if (itemSize > 0) {
-                this.currentIndex.set(Math.round(scrollPos / itemSize));
+            // Normalize scroll position to always be positive (0 to maxScroll)
+            const normalizedScroll = Math.abs(scrollLeft);
+
+            // At the start (LTR: left, RTL: right)
+            const atStart = normalizedScroll < 1;
+            // At the end (LTR: right, RTL: left)  
+            const atEnd = normalizedScroll >= maxScroll - 1;
+
+            this.canScrollPrev.set(!atStart);
+            this.canScrollNext.set(!atEnd);
+
+            // Update current index
+            const items = this.scrollContainer.querySelectorAll('[data-slot="carousel-item"]');
+            if (items.length > 0) {
+                const itemWidth = (items[0] as HTMLElement).offsetWidth;
+                if (itemWidth > 0) {
+                    this.currentIndex.set(Math.round(normalizedScroll / itemWidth));
+                }
+            }
+        } else {
+            // Vertical scrolling - unchanged
+            const scrollTop = this.scrollContainer.scrollTop;
+            const scrollHeight = this.scrollContainer.scrollHeight;
+            const clientHeight = this.scrollContainer.clientHeight;
+
+            this.canScrollPrev.set(scrollTop > 1);
+            this.canScrollNext.set(scrollTop < scrollHeight - clientHeight - 1);
+
+            const items = this.scrollContainer.querySelectorAll('[data-slot="carousel-item"]');
+            if (items.length > 0) {
+                const itemHeight = (items[0] as HTMLElement).offsetHeight;
+                if (itemHeight > 0) {
+                    this.currentIndex.set(Math.round(scrollTop / itemHeight));
+                }
             }
         }
     }
@@ -102,9 +152,11 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
 
         const isHorizontal = this.orientation() === 'horizontal';
         const scrollAmount = isHorizontal ? this.scrollContainer.clientWidth : this.scrollContainer.clientHeight;
+        // In RTL mode, we need to negate the direction since visual direction is reversed
+        const direction = (isHorizontal && this.rtl()) ? 1 : -1;
 
         this.scrollContainer.scrollBy({
-            [isHorizontal ? 'left' : 'top']: -scrollAmount,
+            [isHorizontal ? 'left' : 'top']: scrollAmount * direction,
             behavior: 'smooth'
         });
     }
@@ -114,9 +166,11 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
 
         const isHorizontal = this.orientation() === 'horizontal';
         const scrollAmount = isHorizontal ? this.scrollContainer.clientWidth : this.scrollContainer.clientHeight;
+        // In RTL mode, we need to negate the direction since visual direction is reversed
+        const direction = (isHorizontal && this.rtl()) ? -1 : 1;
 
         this.scrollContainer.scrollBy({
-            [isHorizontal ? 'left' : 'top']: scrollAmount,
+            [isHorizontal ? 'left' : 'top']: scrollAmount * direction,
             behavior: 'smooth'
         });
     }
@@ -163,8 +217,8 @@ export class CarouselContentComponent {
         return cn(
             'flex',
             isHorizontal ? '-ml-4' : '-mt-4 flex-col',
-            'overflow-hidden scroll-smooth snap-mandatory',
-            isHorizontal ? 'snap-x' : 'snap-y',
+            'scroll-smooth snap-mandatory scrollbar-hide',
+            isHorizontal ? 'overflow-x-auto snap-x' : 'overflow-y-auto snap-y',
             this.class()
         );
     });
@@ -208,7 +262,7 @@ export class CarouselItemComponent {
       type="button"
       [class]="classes()"
       [attr.data-slot]="'carousel-previous'"
-      [disabled]="isRtl() ? !carousel.canScrollNext() : !carousel.canScrollPrev()"
+      [disabled]="isDisabled()"
       (click)="onClick()"
       aria-label="Previous slide"
     >
@@ -225,6 +279,11 @@ export class CarouselPreviousComponent {
     carousel = inject(CarouselComponent);
 
     isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
+
+    // Computed disabled state - reactive to rtl and scroll state changes
+    isDisabled = computed(() =>
+        this.isRtl() ? !this.carousel.canScrollNext() : !this.carousel.canScrollPrev()
+    );
 
     onClick() {
         // In RTL horizontal mode, previous button scrolls next (content flows right-to-left)
@@ -265,7 +324,7 @@ export class CarouselPreviousComponent {
       type="button"
       [class]="classes()"
       [attr.data-slot]="'carousel-next'"
-      [disabled]="isRtl() ? !carousel.canScrollPrev() : !carousel.canScrollNext()"
+      [disabled]="isDisabled()"
       (click)="onClick()"
       aria-label="Next slide"
     >
@@ -282,6 +341,11 @@ export class CarouselNextComponent {
     carousel = inject(CarouselComponent);
 
     isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
+
+    // Computed disabled state - reactive to rtl and scroll state changes
+    isDisabled = computed(() =>
+        this.isRtl() ? !this.carousel.canScrollPrev() : !this.carousel.canScrollNext()
+    );
 
     onClick() {
         // In RTL horizontal mode, next button scrolls prev (content flows right-to-left)

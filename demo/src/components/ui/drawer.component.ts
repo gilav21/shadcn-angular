@@ -10,6 +10,7 @@ import {
     effect,
     ElementRef,
     AfterViewInit,
+    model,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -46,9 +47,8 @@ export type DrawerDirection = VariantProps<typeof drawerVariants>['direction'];
 export class DrawerComponent implements OnDestroy {
     private document = inject(DOCUMENT);
 
-    open = signal(false);
+    open = model(false);
     direction = input<DrawerDirection>('bottom');
-    rtl = input(false);
     openChange = output<boolean>();
 
     private scrollbarWidth = 0;
@@ -125,7 +125,6 @@ export class DrawerTriggerComponent {
         class="fixed inset-0 z-50" 
         role="dialog" 
         aria-modal="true"
-        [dir]="drawer?.rtl() ? 'rtl' : 'ltr'"
         (keydown)="onKeydown($event)"
       >
         <!-- Overlay -->

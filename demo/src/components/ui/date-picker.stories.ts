@@ -18,16 +18,16 @@ const datePickerMeta: Meta<DatePickerComponent> = {
         placeholder: { control: 'text' },
         disabled: { control: 'boolean' },
         showTime: { control: 'boolean' },
-        rtl: {
-            control: 'boolean',
-            description: 'Enable right-to-left layout',
+        locale: {
+            control: 'select',
+            options: ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'],
         },
     },
     args: {
         placeholder: 'Pick a date',
         disabled: false,
         showTime: false,
-        rtl: false,
+        locale: 'en',
     },
 };
 
@@ -37,7 +37,7 @@ type DatePickerStory = StoryObj<DatePickerComponent>;
 export const Default: DatePickerStory = {
     render: (args) => ({
         props: args,
-        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [rtl]="rtl"></ui-date-picker>`,
+        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [locale]="locale"></ui-date-picker>`,
     }),
 };
 
@@ -48,11 +48,18 @@ export const WithTime: DatePickerStory = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [rtl]="rtl"></ui-date-picker>`,
+        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [locale]="locale"></ui-date-picker>`,
     }),
 };
 
-// We can also create a separate file or export for Range Picker, but putting it here as a variant or separate story is fine.
-// Since it's a different component, it's better to have a separate Meta if we want full controls, or just show it as a variant if we force it.
-// However, Storybook prefers one component per default export usually. I'll create a second file for RangePicker or just rely on this one if they were the same component.
-// They are different components. I'll create a separate file `date-range-picker.stories.ts` for clarity.
+export const HebrewRTL: DatePickerStory = {
+    args: {
+        showTime: true,
+        placeholder: 'בחר תאריך ושעה',
+        locale: 'he',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [locale]="locale"></ui-date-picker>`,
+    }),
+};
