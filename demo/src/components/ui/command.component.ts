@@ -7,7 +7,6 @@ import {
   signal,
   ElementRef,
   inject,
-  AfterViewInit,
   OnDestroy,
   ViewChild,
   Injectable,
@@ -19,16 +18,13 @@ import {
 import { cn } from '../lib/utils';
 import { DialogComponent, DialogContentComponent } from './dialog.component';
 
-// Service to coordinate search
 @Injectable({
   providedIn: 'root'
 })
 export class CommandService {
   search = signal('');
 
-  // Map of item ID -> Item Data
   private items = signal<Map<string, { value: string; groupId?: string; onSelect: () => void }>>(new Map());
-
   activeItemId = signal<string | null>(null);
 
   register(id: string, value: string, groupId?: string, onSelect: () => void = () => { }) {
@@ -62,7 +58,6 @@ export class CommandService {
 
   filteredItemIds = computed(() => new Set(this.filteredItems()));
 
-  // Set of Group IDs that have at least one visible item
   visibleGroupIds = computed(() => {
     const visibleItems = this.filteredItems();
     const itemMap = this.items();
@@ -155,9 +150,8 @@ export class CommandInputComponent {
 
   placeholder = input('Search...');
   ariaLabel = input('Search');
-  value = input<string>(''); // Allow controlled input override if needed, but primarily driven by service
+  value = input<string>('');
 
-  // Initial sync if value provided
   constructor() {
     if (this.value()) {
       this.cmdService.search.set(this.value());
@@ -172,7 +166,6 @@ export class CommandInputComponent {
   onInput(event: Event) {
     const value = (event.target as HTMLInputElement).value;
     this.cmdService.search.set(value);
-    // Reset active item on search change? usually yes, to first item
     if (this.cmdService.filteredItems().length > 0) {
       this.cmdService.activeItemId.set(this.cmdService.filteredItems()[0]);
     } else {
@@ -234,9 +227,6 @@ export class CommandEmptyComponent {
   cmdService = inject(CommandService);
 
   isVisible = computed(() => {
-    // Visible if we have a search query AND no result items match
-    // Or usually shadcn shows empty state if no results, regardless of query length?
-    // Actually shadcn/cmdk shows empty if filtered count is 0.
     return this.cmdService.filteredItemIds().size === 0;
   });
 }
@@ -274,12 +264,6 @@ export class CommandGroupComponent {
   ));
 
   isVisible = computed(() => {
-    // If no search, usually visible unless explicitly hidden? 
-    // Logic: specific group is visible if it is in visibleGroupIds
-    // OR if visibleGroupIds is empty/logic implies showing all?
-    // Our service logic returns all Group IDs if search is empty? 
-    // No, our service logic for 'visibleGroupIds' depends on 'filteredItemIds'.
-    // If search is empty, 'filteredItemIds' has ALL items. 'visibleGroupIds' has ALL groups.
     return this.cmdService.visibleGroupIds().has(this.id);
   });
 }
@@ -307,7 +291,7 @@ export class CommandGroupComponent {
 export class CommandItemComponent implements OnInit, OnDestroy {
   class = input('');
   disabled = input(false);
-  selected = input(false); // This is visual selection (check), distinct from focus
+  selected = input(false);
   value = input('');
 
   select = output<string>();
@@ -332,7 +316,7 @@ export class CommandItemComponent implements OnInit, OnDestroy {
     'hover:bg-accent hover:text-accent-foreground',
     'focus:bg-accent focus:text-accent-foreground',
     'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
-    this.isActive() && 'bg-accent text-accent-foreground', // Highlight when active/focused
+    this.isActive() && 'bg-accent text-accent-foreground',
     this.class()
   ));
 
@@ -341,10 +325,7 @@ export class CommandItemComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit() {
-    let val = this.value();
-    if (!val) {
-      // Fallback or just empty
-    }
+    const val = this.value();
     this.cmdService.register(this.id, val, this.group?.id, () => this.onClick());
   }
 
@@ -388,7 +369,7 @@ export class CommandShortcutComponent { }
   template: `
     <ui-dialog [(open)]="open">
       <ui-dialog-content class="overflow-hidden p-0 shadow-lg">
-        <ui-command class="[&_[data-slot=command-group]]:px-2 [&_[data-slot=command-group]]:font-medium [&_[data-slot=command-group]]:text-muted-foreground [&_[data-slot=command-item]]:px-2 [&_[data-slot=command-item]]:py-3 [&_[data-slot=command-item]_svg]:h-5 [&_[data-slot=command-item]_svg]:w-5">
+        <ui-command class="**:data-[slot=command-group]:px-2 **:data-[slot=command-group]:font-medium **:data-[slot=command-group]:text-muted-foreground **:data-[slot=command-item]:px-2 **:data-[slot=command-item]:py-3 [&_[data-slot=command-item]_svg]:h-5 [&_[data-slot=command-item]_svg]:w-5">
            <ng-content />
         </ui-command>
       </ui-dialog-content>
@@ -399,12 +380,11 @@ export class CommandShortcutComponent { }
 export class CommandDialogComponent {
   open = model(false);
 
-  commandInput = contentChild(CommandInputComponent); // Angular 17.2+ signal queries
+  commandInput = contentChild(CommandInputComponent);
 
   constructor() {
     effect(() => {
       if (this.open()) {
-        // Wait for animation/render
         setTimeout(() => {
           this.commandInput()?.focus();
         });

@@ -106,37 +106,26 @@ import { ButtonComponent } from './button.component';
   },
 })
 export class ChipListComponent implements ControlValueAccessor {
-  // Inputs
   placeholder = input('Add item...');
   disabled = input(false);
   variant = input<BadgeVariant>('default');
   class = input('');
 
-  /** Maximum number of visible rows before scrolling. Set to 0 for unlimited. */
   maxRows = input(0);
-
-  /** Allow duplicate chips */
   allowDuplicates = input(false);
-
-  /** Separator keys that also add chips (in addition to Enter) */
   separatorKeys = input<string[]>([]);
 
-  // Outputs
   chipAdded = output<string>();
   chipRemoved = output<string>();
 
-  // State
   chips = signal<string[]>([]);
   inputValue = signal('');
 
-  // View child
   inputElement = viewChild<ElementRef<HTMLInputElement>>('inputElement');
 
-  // CVA
   private onChange: (value: string[]) => void = () => { };
   private onTouched: () => void = () => { };
 
-  // Computed styles
   containerClasses = computed(() => cn(
     'w-full rounded-lg border border-input bg-transparent',
     'transition-colors',
@@ -153,12 +142,10 @@ export class ChipListComponent implements ControlValueAccessor {
     this.disabled() && 'cursor-not-allowed'
   ));
 
-  /** Calculate max height based on maxRows. Each row is ~32px (chip height + gap) */
   maxHeightStyle = computed(() => {
     const rows = this.maxRows();
     if (rows <= 0) return 'none';
-    // ~36px per row (chip height ~28px + gap ~8px + padding)
-    const heightPx = rows * 36 + 8; // +8 for container padding
+    const heightPx = rows * 36 + 8;
     return `${heightPx}px`;
   });
 
@@ -176,7 +163,6 @@ export class ChipListComponent implements ControlValueAccessor {
     const value = this.inputValue().trim();
     const separators = this.separatorKeys();
 
-    // Check if this key should add a chip
     if (event.key === 'Enter' || separators.includes(event.key)) {
       event.preventDefault();
       if (value) {
@@ -185,7 +171,6 @@ export class ChipListComponent implements ControlValueAccessor {
       return;
     }
 
-    // Backspace on empty input removes last chip
     if (event.key === 'Backspace' && this.inputValue() === '' && this.chips().length > 0) {
       const removed = this.chips()[this.chips().length - 1];
       this.chips.update(chips => chips.slice(0, -1));
@@ -198,7 +183,6 @@ export class ChipListComponent implements ControlValueAccessor {
     const trimmed = value.trim();
     if (!trimmed) return;
 
-    // Check for duplicates
     if (!this.allowDuplicates() && this.chips().includes(trimmed)) {
       this.inputValue.set('');
       return;
@@ -216,7 +200,6 @@ export class ChipListComponent implements ControlValueAccessor {
     this.chips.update(chips => chips.filter((_, i) => i !== index));
     this.onChange(this.chips());
     this.chipRemoved.emit(removed);
-    // Keep focus on input
     this.focusInput();
   }
 
@@ -224,7 +207,6 @@ export class ChipListComponent implements ControlValueAccessor {
     this.onTouched();
   }
 
-  // ControlValueAccessor implementation
   writeValue(value: string[]): void {
     this.chips.set(value ?? []);
   }

@@ -2215,9 +2215,6 @@ import { ChipListComponent } from '../components/ui/chip-list.component';
         </section>
 
         <!-- Footer -->
-
-
-
         <div class="text-center text-muted-foreground text-sm pt-8">
           Built with Angular and Tailwind CSS. Open source.
         </div>
@@ -2230,11 +2227,9 @@ export class AppComponent {
   private toastService = inject(ToastService);
   isDark = signal(false);
 
-  // Resizable demo sizes
   verticalTopSize = signal(40);
   verticalBottomSize = signal(60);
 
-  // Chip List demo data
   chipListTags = signal<string[]>(['Angular', 'TypeScript', 'Signals']);
   chipListFruits = signal<string[]>(['Apple', 'Banana', 'Cherry', 'Date', 'Elderberry', 'Fig', 'Grape', 'Honeydew']);
 
