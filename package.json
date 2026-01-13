@@ -23,11 +23,11 @@
     "author": "",
     "license": "MIT",
     "devDependencies": {
-        "@vitest/browser-playwright": "^4.0.17"
+        "@vitest/browser-playwright": "^4.0.17",
+        "esbuild": "^0.27.2",
+        "rollup": "^4.55.1"
     },
     "dependencies": {
-        "@esbuild/win32-x64": "^0.25.12",
-        "@rollup/rollup-win32-x64-msvc": "^4.55.1",
         "lightningcss": "^1.30.2"
     }
 }
