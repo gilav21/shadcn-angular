@@ -2,18 +2,13 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
-    signal,
     inject,
-    TemplateRef,
-    ViewContainerRef,
-    OnDestroy,
     effect,
     model,
-    HostListener,
+    AfterViewInit,
+    ElementRef,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
 
 @Component({
@@ -69,8 +64,11 @@ export class DialogTriggerComponent {
         ></div>
         <!-- Content -->
         <div
+          #contentEl
           [class]="classes()"
           [attr.data-slot]="'dialog-content'"
+          (keydown)="onKeydown($event)"
+          tabindex="-1"
         >
           <ng-content />
           <!-- Close button -->
@@ -90,8 +88,9 @@ export class DialogTriggerComponent {
   `,
     host: { class: 'contents' },
 })
-export class DialogContentComponent {
+export class DialogContentComponent implements AfterViewInit {
     dialog = inject(DialogComponent, { optional: true });
+    private el = inject(ElementRef);
     class = input('');
 
     classes = computed(() =>
@@ -101,6 +100,41 @@ export class DialogContentComponent {
         )
     );
 
+    private contentEl?: HTMLElement;
+    private previousActiveElement?: Element | null;
+
+    constructor() {
+        effect(() => {
+            if (this.dialog?.open()) {
+                this.previousActiveElement = document.activeElement;
+                setTimeout(() => this.focusFirstElement(), 0);
+            } else if (this.previousActiveElement instanceof HTMLElement) {
+                this.previousActiveElement.focus();
+            }
+        });
+    }
+
+    ngAfterViewInit() {
+        if (this.dialog?.open()) {
+            this.focusFirstElement();
+        }
+    }
+
+    private focusFirstElement() {
+        const content = this.el.nativeElement.querySelector('[data-slot="dialog-content"]');
+        if (content) {
+            this.contentEl = content;
+            const focusable = content.querySelector(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            ) as HTMLElement;
+            if (focusable) {
+                focusable.focus();
+            } else {
+                content.focus();
+            }
+        }
+    }
+
     onOverlayClick() {
         this.dialog?.hide();
     }
@@ -109,9 +143,35 @@ export class DialogContentComponent {
         this.dialog?.hide();
     }
 
-    @HostListener('document:keydown.escape', ['$event'])
-    onEscape(event: Event) {
-        this.close();
+    onKeydown(event: KeyboardEvent) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            this.close();
+            return;
+        }
+
+        // Focus trap
+        if (event.key === 'Tab' && this.contentEl) {
+            const focusableElements = this.contentEl.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            if (focusableElements.length === 0) return;
+
+            const firstElement = focusableElements[0] as HTMLElement;
+            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+            if (event.shiftKey) {
+                if (document.activeElement === firstElement) {
+                    event.preventDefault();
+                    lastElement?.focus();
+                }
+            } else {
+                if (document.activeElement === lastElement) {
+                    event.preventDefault();
+                    firstElement?.focus();
+                }
+            }
+        }
     }
 }
 

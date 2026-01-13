@@ -6,6 +6,9 @@ import {
     computed,
     signal,
     inject,
+    AfterViewInit,
+    ElementRef,
+    effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -59,14 +62,19 @@ export class AlertDialogTriggerComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     @if (alertDialog?.open()) {
-      <div class="fixed inset-0 z-50 flex items-center justify-center">
+      <div 
+        class="fixed inset-0 z-50 flex items-center justify-center"
+        (keydown)="onKeydown($event)"
+      >
         <!-- Overlay - no click to close for alert dialogs -->
         <div class="fixed inset-0 bg-black/80 animate-in fade-in-0"></div>
         <!-- Content -->
         <div
+          #contentEl
           [class]="classes()"
           role="alertdialog"
           [attr.data-slot]="'alert-dialog-content'"
+          tabindex="-1"
         >
           <ng-content />
         </div>
@@ -75,8 +83,9 @@ export class AlertDialogTriggerComponent {
   `,
     host: { class: 'contents' },
 })
-export class AlertDialogContentComponent {
+export class AlertDialogContentComponent implements AfterViewInit {
     alertDialog = inject(AlertDialogComponent, { optional: true });
+    private el = inject(ElementRef);
     class = input('');
 
     classes = computed(() =>
@@ -85,6 +94,72 @@ export class AlertDialogContentComponent {
             this.class()
         )
     );
+
+    private contentEl?: HTMLElement;
+    private previousActiveElement?: Element | null;
+
+    constructor() {
+        effect(() => {
+            if (this.alertDialog?.open()) {
+                this.previousActiveElement = document.activeElement;
+                setTimeout(() => this.focusFirstElement(), 0);
+            } else if (this.previousActiveElement instanceof HTMLElement) {
+                this.previousActiveElement.focus();
+            }
+        });
+    }
+
+    ngAfterViewInit() {
+        if (this.alertDialog?.open()) {
+            this.focusFirstElement();
+        }
+    }
+
+    private focusFirstElement() {
+        const content = this.el.nativeElement.querySelector('[data-slot="alert-dialog-content"]');
+        if (content) {
+            this.contentEl = content;
+            const focusable = content.querySelector(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            ) as HTMLElement;
+            if (focusable) {
+                focusable.focus();
+            } else {
+                content.focus();
+            }
+        }
+    }
+
+    onKeydown(event: KeyboardEvent) {
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            this.alertDialog?.hide();
+            return;
+        }
+
+        // Focus trap
+        if (event.key === 'Tab' && this.contentEl) {
+            const focusableElements = this.contentEl.querySelectorAll(
+                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+            );
+            if (focusableElements.length === 0) return;
+
+            const firstElement = focusableElements[0] as HTMLElement;
+            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+
+            if (event.shiftKey) {
+                if (document.activeElement === firstElement) {
+                    event.preventDefault();
+                    lastElement?.focus();
+                }
+            } else {
+                if (document.activeElement === lastElement) {
+                    event.preventDefault();
+                    firstElement?.focus();
+                }
+            }
+        }
+    }
 }
 
 @Component({
