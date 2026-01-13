@@ -60,6 +60,6 @@ export const HebrewRTL: DatePickerStory = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [locale]="locale"></ui-date-picker>`,
+        template: `<ui-date-picker [placeholder]="placeholder" [disabled]="disabled" [showTime]="showTime" [locale]="locale" dir="rtl"></ui-date-picker>`,
     }),
 };

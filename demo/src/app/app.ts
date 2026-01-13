@@ -1698,6 +1698,11 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
               <h3 class="text-lg font-medium">Date Range</h3>
               <ui-date-range-picker placeholder="Select date range" />
             </div>
+
+            <div class="space-y-2">
+              <h3 class="text-lg font-medium">Date Picker RTL (Hebrew)</h3>
+              <ui-date-picker locale="he" placeholder="בחר תאריך" dir="rtl" />
+            </div>
           </div>
         </section>
 
@@ -2340,6 +2345,7 @@ export class AppComponent {
     { title: 'Dialog', id: 'dialog' },
     { title: 'Drawer', id: 'drawer' },
     { title: 'Dropdown Menu', id: 'dropdown-menu' },
+    { title: 'Emoji Picker', id: 'emoji-picker' },
     { title: 'Empty State', id: 'empty-state' },
     { title: 'Field', id: 'field' },
     { title: 'Hover Card', id: 'hover-card' },
