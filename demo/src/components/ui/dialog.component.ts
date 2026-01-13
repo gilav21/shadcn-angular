@@ -60,6 +60,7 @@ export class DialogTriggerComponent {
         <!-- Overlay -->
         <div
           class="fixed inset-0 bg-black/80 animate-in fade-in-0"
+          [attr.data-slot]="'dialog-overlay'"
           (click)="onOverlayClick()"
         ></div>
         <!-- Content -->
@@ -104,13 +105,21 @@ export class DialogContentComponent implements AfterViewInit {
     private previousActiveElement?: Element | null;
 
     constructor() {
-        effect(() => {
+        effect((onCleanup) => {
             if (this.dialog?.open()) {
                 this.previousActiveElement = document.activeElement;
+                document.body.style.overflow = 'hidden';
                 setTimeout(() => this.focusFirstElement(), 0);
-            } else if (this.previousActiveElement instanceof HTMLElement) {
-                this.previousActiveElement.focus();
+            } else {
+                document.body.style.overflow = '';
+                if (this.previousActiveElement instanceof HTMLElement) {
+                    this.previousActiveElement.focus();
+                }
             }
+
+            onCleanup(() => {
+                document.body.style.overflow = '';
+            });
         });
     }
 

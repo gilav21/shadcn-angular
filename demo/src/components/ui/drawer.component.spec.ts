@@ -176,6 +176,56 @@ describe('Drawer Integration', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="drawer-content"]'));
         expect(content).toBeNull();
     });
+
+    it('should close on overlay click', async () => {
+        const drawerComp = fixture.debugElement.query(By.directive(DrawerComponent));
+        drawerComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const overlay = fixture.debugElement.query(By.css('[data-slot="drawer-overlay"]'));
+        expect(overlay).toBeTruthy();
+
+        overlay.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="drawer-content"]'));
+        expect(content).toBeNull();
+    });
+
+    it('should close on escape key', async () => {
+        const drawerComp = fixture.debugElement.query(By.directive(DrawerComponent));
+        drawerComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="drawer-content"]'));
+        expect(content).toBeTruthy();
+
+        // Dispatch on content (focus is there), bubbles up to wrapper
+        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contentAfter = fixture.debugElement.query(By.css('[data-slot="drawer-content"]'));
+        expect(contentAfter).toBeNull();
+    });
+
+    it('should lock body scroll when open', async () => {
+        const drawerComp = fixture.debugElement.query(By.directive(DrawerComponent));
+        drawerComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.body.style.overflow).toBe('hidden');
+
+        drawerComp.componentInstance.hide();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.body.style.overflow).toBe('');
+    });
 });
 
 describe('Drawer RTL Support', () => {

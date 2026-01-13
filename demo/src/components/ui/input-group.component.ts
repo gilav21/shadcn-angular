@@ -1,8 +1,8 @@
 import {
-    Component,
-    ChangeDetectionStrategy,
-    input,
-    computed,
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  computed,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -17,9 +17,9 @@ import { cn } from '../lib/utils';
  * </ui-input-group>
  */
 @Component({
-    selector: 'ui-input-group',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-input-group',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <div 
       [class]="classes()"
       [attr.data-slot]="'input-group'"
@@ -29,64 +29,104 @@ import { cn } from '../lib/utils';
       <ng-content />
     </div>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class InputGroupComponent {
-    class = input('');
-    disabled = input(false);
+  class = input('');
+  disabled = input(false);
 
-    classes = computed(() => cn(
-        'group/input-group relative flex w-full items-center rounded-md border border-input shadow-xs',
-        'transition-[color,box-shadow] outline-none',
-        'h-9 min-w-0',
-        // Focus state
-        'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-[3px]',
-        // Disabled state
-        this.disabled() && 'opacity-50 cursor-not-allowed',
-        this.class()
-    ));
+  classes = computed(() => cn(
+    'group/input-group relative flex w-full items-center rounded-md border border-input shadow-xs',
+    'transition-[color,box-shadow] outline-none',
+    'h-9 min-w-0',
+    'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50 has-[input:focus-visible]:ring-[3px]',
+    this.disabled() && 'opacity-50 cursor-not-allowed',
+    this.class()
+  ));
 }
+
+import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
+import { forwardRef, signal } from '@angular/core';
 
 /**
  * InputGroupInput - The main input within an input group
  */
 @Component({
-    selector: 'ui-input-group-input',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-input-group-input',
+  imports: [FormsModule],
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => InputGroupInputComponent),
+      multi: true,
+    },
+  ],
+  template: `
     <input 
       [type]="type()"
       [class]="classes()"
       [attr.data-slot]="'input-group-control'"
       [placeholder]="placeholder()"
-      [disabled]="disabled()"
+      [disabled]="isDisabled()"
+      [ngModel]="value()"
+      (ngModelChange)="onValueChange($event)"
+      (blur)="onTouched()"
     />
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
-export class InputGroupInputComponent {
-    class = input('');
-    type = input('text');
-    placeholder = input('');
-    disabled = input(false);
+export class InputGroupInputComponent implements ControlValueAccessor {
+  class = input('');
+  type = input('text');
+  placeholder = input('');
+  disabled = input(false);
 
-    classes = computed(() => cn(
-        'flex-1 min-w-0 bg-transparent px-3 py-1 text-base md:text-sm',
-        'placeholder:text-muted-foreground',
-        'focus:outline-none',
-        'disabled:cursor-not-allowed',
-        '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
-        this.class()
-    ));
+  value = signal('');
+  private formDisabled = signal(false);
+  isDisabled = computed(() => this.disabled() || this.formDisabled());
+
+  private onChange: (value: string) => void = () => { };
+  onTouched: () => void = () => { };
+
+  classes = computed(() => cn(
+    'flex-1 min-w-0 bg-transparent px-3 py-1 text-base md:text-sm',
+    'placeholder:text-muted-foreground',
+    'focus:outline-none',
+    'disabled:cursor-not-allowed',
+    '[appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none',
+    this.class()
+  ));
+
+  onValueChange(value: string) {
+    this.value.set(value);
+    this.onChange(value);
+  }
+
+  writeValue(value: string): void {
+    this.value.set(value ?? '');
+  }
+
+  registerOnChange(fn: (value: string) => void): void {
+    this.onChange = fn;
+  }
+
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  setDisabledState(isDisabled: boolean): void {
+    this.formDisabled.set(isDisabled);
+  }
 }
 
 /**
  * InputGroupAddon - Addon elements (icons, text, buttons) within an input group
  */
 @Component({
-    selector: 'ui-input-group-addon',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-input-group-addon',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <div 
       [class]="classes()"
       [attr.data-slot]="'input-group-addon'"
@@ -95,27 +135,27 @@ export class InputGroupInputComponent {
       <ng-content />
     </div>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class InputGroupAddonComponent {
-    class = input('');
-    align = input<'inline-start' | 'inline-end'>('inline-start');
+  class = input('');
+  align = input<'inline-start' | 'inline-end'>('inline-start');
 
-    classes = computed(() => cn(
-        'text-muted-foreground flex h-auto items-center justify-center gap-2 py-1.5 text-sm font-medium select-none',
-        '[&>svg:not([class*="size-"])]:size-4',
-        this.align() === 'inline-start' ? 'pl-3 pr-1' : 'pl-1 pr-3',
-        this.class()
-    ));
+  classes = computed(() => cn(
+    'text-muted-foreground flex h-auto items-center justify-center gap-2 py-1.5 text-sm font-medium select-none',
+    '[&>svg:not([class*="size-"])]:size-4',
+    this.align() === 'inline-start' ? 'pl-3 pr-1' : 'pl-1 pr-3',
+    this.class()
+  ));
 }
 
 /**
  * InputGroupText - Static text within an addon
  */
 @Component({
-    selector: 'ui-input-group-text',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-input-group-text',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <span 
       [class]="classes()"
       [attr.data-slot]="'input-group-text'"
@@ -123,13 +163,13 @@ export class InputGroupAddonComponent {
       <ng-content />
     </span>
   `,
-    host: { class: 'contents' },
+  host: { class: 'contents' },
 })
 export class InputGroupTextComponent {
-    class = input('');
+  class = input('');
 
-    classes = computed(() => cn(
-        'text-muted-foreground text-sm',
-        this.class()
-    ));
+  classes = computed(() => cn(
+    'text-muted-foreground text-sm',
+    this.class()
+  ));
 }

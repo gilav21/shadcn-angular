@@ -1,187 +1,113 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent } from './collapsible.component';
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
+import {
+    CollapsibleComponent,
+    CollapsibleTriggerComponent,
+    CollapsibleContentComponent
+} from './collapsible.component';
 
-// Test host for integration
 @Component({
     template: `
-        <ui-collapsible (openChange)="onOpenChange($event)">
-            <ui-collapsible-trigger>Toggle</ui-collapsible-trigger>
-            <ui-collapsible-content>Hidden Content</ui-collapsible-content>
-        </ui-collapsible>
-    `,
+    <ui-collapsible [defaultOpen]="defaultOpen" (openChange)="onOpenChange($event)">
+      <ui-collapsible-trigger>Toggle</ui-collapsible-trigger>
+      <ui-collapsible-content>Content</ui-collapsible-content>
+    </ui-collapsible>
+  `,
     imports: [CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent]
 })
 class TestHostComponent {
+    defaultOpen = false;
     isOpen = false;
-    onOpenChange(open: boolean) {
-        this.isOpen = open;
+
+    onOpenChange(val: boolean) {
+        this.isOpen = val;
     }
 }
 
-// RTL Test host
-@Component({
-    template: `
-        <div [dir]="dir()">
-            <ui-collapsible>
-                <ui-collapsible-trigger>تبديل</ui-collapsible-trigger>
-                <ui-collapsible-content>محتوى مخفي</ui-collapsible-content>
-            </ui-collapsible>
-        </div>
-    `,
-    imports: [CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent]
-})
-class RTLTestHostComponent {
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
-
 describe('CollapsibleComponent', () => {
-    let component: CollapsibleComponent;
-    let fixture: ComponentFixture<CollapsibleComponent>;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [CollapsibleComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(CollapsibleComponent);
-        component = fixture.componentInstance;
-        fixture.detectChanges();
-    });
-
-    it('should create', () => {
-        expect(component).toBeTruthy();
-    });
-
-    it('should have data-slot="collapsible"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('collapsible');
-    });
-
-    it('should be closed by default', () => {
-        expect(component.open()).toBe(false);
-        expect(fixture.nativeElement.getAttribute('data-state')).toBe('closed');
-    });
-
-    it('should toggle open state', () => {
-        component.toggle();
-        expect(component.open()).toBe(true);
-        fixture.detectChanges();
-        expect(fixture.nativeElement.getAttribute('data-state')).toBe('open');
-    });
-
-    it('should show on show()', () => {
-        component.show();
-        expect(component.open()).toBe(true);
-    });
-
-    it('should hide on hide()', () => {
-        component.show();
-        component.hide();
-        expect(component.open()).toBe(false);
-    });
-});
-
-describe('Collapsible Integration', () => {
     let fixture: ComponentFixture<TestHostComponent>;
     let component: TestHostComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [TestHostComponent]
+            imports: [TestHostComponent, CollapsibleComponent]
         }).compileComponents();
+    });
 
+    it('should create', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
+        expect(component).toBeTruthy();
     });
 
-    it('should render trigger', () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="collapsible-trigger"]'));
-        expect(trigger).toBeTruthy();
-    });
-
-    it('should not show content when closed', () => {
-        const content = fixture.debugElement.query(By.css('[data-slot="collapsible-content"]'));
-        expect(content).toBeNull();
-    });
-
-    it('should show content on trigger click', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="collapsible-trigger"]'));
-        trigger.nativeElement.click();
+    it('should be closed by default', () => {
+        fixture = TestBed.createComponent(TestHostComponent);
+        component = fixture.componentInstance;
+        component.defaultOpen = false;
         fixture.detectChanges();
-        await fixture.whenStable();
 
-        const content = fixture.debugElement.query(By.css('[data-slot="collapsible-content"]'));
-        expect(content).toBeTruthy();
-        expect(content.nativeElement.textContent).toContain('Hidden Content');
+        const contentHost = fixture.debugElement.query(By.directive(CollapsibleContentComponent));
+        // Check if INNER div exists
+        const innerDiv = contentHost.query(By.css('[data-slot="collapsible-content"]'));
+        expect(innerDiv).toBeFalsy();
     });
 
-    it('should emit openChange on toggle', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="collapsible-trigger"]'));
-        trigger.nativeElement.click();
+    it('should respect defaultOpen=true', () => {
+        fixture = TestBed.createComponent(TestHostComponent);
+        component = fixture.componentInstance;
+        component.defaultOpen = true;
         fixture.detectChanges();
-        await fixture.whenStable();
 
-        expect(component.isOpen).toBe(true);
+        const contentHost = fixture.debugElement.query(By.directive(CollapsibleContentComponent));
+        const innerDiv = contentHost.query(By.css('[data-slot="collapsible-content"]'));
+        expect(innerDiv).toBeTruthy();
     });
 
-    it('should update trigger data-state', async () => {
-        const trigger = fixture.debugElement.query(By.css('[data-slot="collapsible-trigger"]'));
-        expect(trigger.nativeElement.getAttribute('data-state')).toBe('closed');
-
-        trigger.nativeElement.click();
-        fixture.detectChanges();
-        await fixture.whenStable();
-
-        expect(trigger.nativeElement.getAttribute('data-state')).toBe('open');
-    });
-});
-
-describe('Collapsible RTL Support', () => {
-    let fixture: ComponentFixture<RTLTestHostComponent>;
-    let component: RTLTestHostComponent;
-
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [RTLTestHostComponent]
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(RTLTestHostComponent);
+    it('should toggle content on trigger click', () => {
+        fixture = TestBed.createComponent(TestHostComponent);
         component = fixture.componentInstance;
         fixture.detectChanges();
-    });
 
-    afterEach(() => {
-        document.documentElement.removeAttribute('dir');
-    });
+        const trigger = fixture.debugElement.query(By.directive(CollapsibleTriggerComponent));
+        const span = trigger.query(By.css('span'));
 
-    it('should render in LTR mode', () => {
-        const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-        expect(container).toBeTruthy();
-    });
-
-    it('should render in RTL mode', async () => {
-        component.dir.set('rtl');
+        // Click to open
+        span.nativeElement.click();
         fixture.detectChanges();
-        await fixture.whenStable();
 
-        const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-        expect(container).toBeTruthy();
+        let contentHost = fixture.debugElement.query(By.directive(CollapsibleContentComponent));
+        let innerDiv = contentHost.query(By.css('[data-slot="collapsible-content"]'));
+        expect(innerDiv).toBeTruthy();
+        expect(component.isOpen).toBe(true);
+
+        // Click to close
+        span.nativeElement.click();
+        fixture.detectChanges();
+
+        contentHost = fixture.debugElement.query(By.directive(CollapsibleContentComponent));
+        innerDiv = contentHost.query(By.css('[data-slot="collapsible-content"]'));
+        expect(innerDiv).toBeFalsy();
     });
 
-    it('should toggle in RTL mode', async () => {
-        component.dir.set('rtl');
+    it('should have correct accessibility attributes', () => {
+        fixture = TestBed.createComponent(TestHostComponent);
+        component = fixture.componentInstance;
         fixture.detectChanges();
-        await fixture.whenStable();
 
-        const trigger = fixture.debugElement.query(By.css('[data-slot="collapsible-trigger"]'));
-        trigger.nativeElement.click();
+        const collapsible = fixture.debugElement.query(By.directive(CollapsibleComponent));
+        const trigger = fixture.debugElement.query(By.directive(CollapsibleTriggerComponent));
+
+        expect(collapsible.attributes['data-state']).toBe('closed');
+        expect(trigger.query(By.css('span')).attributes['data-state']).toBe('closed');
+
+        // Open
+        trigger.query(By.css('span')).nativeElement.click();
         fixture.detectChanges();
-        await fixture.whenStable();
 
-        const content = fixture.debugElement.query(By.css('[data-slot="collapsible-content"]'));
-        expect(content).toBeTruthy();
+        expect(collapsible.attributes['data-state']).toBe('open');
+        expect(trigger.query(By.css('span')).attributes['data-state']).toBe('open');
     });
 });

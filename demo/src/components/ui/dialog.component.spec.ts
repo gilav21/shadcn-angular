@@ -143,14 +143,78 @@ describe('Dialog Integration', () => {
         expect(desc).toBeTruthy();
     });
 
-    it('should render dialog footer', async () => {
+    it('should close on escape key', async () => {
         const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
         dialogComp.componentInstance.show();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const footer = fixture.debugElement.query(By.css('[data-slot="dialog-footer"]'));
-        expect(footer).toBeTruthy();
+        const content = fixture.debugElement.query(By.css('[data-slot="dialog-content"]'));
+        expect(content).toBeTruthy();
+
+        content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contentAfter = fixture.debugElement.query(By.css('[data-slot="dialog-content"]'));
+        expect(contentAfter).toBeNull();
+    });
+
+    it('should close on overlay click', async () => {
+        const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
+        dialogComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // The overlay is usually the host of content or a sibling. 
+        // In this implementation, DialogContent might include the overlay or be wrapped.
+        // Let's check the template structure. usually ui-dialog-content renders the overlay.
+        // <div data-slot="dialog-overlay" ... (click)="close()">
+
+        const overlay = fixture.debugElement.query(By.css('[data-slot="dialog-overlay"]'));
+        expect(overlay).toBeTruthy();
+
+        overlay.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contentAfter = fixture.debugElement.query(By.css('[data-slot="dialog-content"]'));
+        expect(contentAfter).toBeNull();
+    });
+
+    it('should not close when clicking content', async () => {
+        const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
+        dialogComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="dialog-content"]'));
+        content.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contentAfter = fixture.debugElement.query(By.css('[data-slot="dialog-content"]'));
+        expect(contentAfter).toBeTruthy();
+    });
+
+    // Note: Testing actual focus trap and scroll locking usually requires a real browser environment 
+    // or careful mocking of document/window, which might be flaky in standard unit tests.
+    // However, we can check if the methods/logic are triggered.
+    // implementing a simple check for body style overflow for scroll locking.
+
+    it('should lock body scroll when open', async () => {
+        const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
+        dialogComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.body.style.overflow).toBe('hidden');
+
+        dialogComp.componentInstance.hide();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.body.style.overflow).toBe('');
     });
 });
 

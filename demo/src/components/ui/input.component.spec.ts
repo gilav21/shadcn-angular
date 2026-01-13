@@ -136,6 +136,15 @@ describe('Input ControlValueAccessor', () => {
         const input = fixture.debugElement.query(By.css('input'));
         expect(input.nativeElement.value).toBe('programmatic value');
     });
+
+    it('should disable input when FormControl is disabled', async () => {
+        component.control.disable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const input = fixture.debugElement.query(By.css('input'));
+        expect(input.nativeElement.disabled).toBe(true);
+    });
 });
 
 describe('Input RTL Support', () => {

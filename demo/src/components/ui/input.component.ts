@@ -24,7 +24,7 @@ import { cn } from '../lib/utils';
     <input
       [class]="classes()"
       [type]="type()"
-      [disabled]="disabled()"
+      [disabled]="isDisabled()"
       [placeholder]="placeholder()"
       [attr.data-slot]="'input'"
       [ngModel]="value()"
@@ -46,6 +46,10 @@ export class InputComponent implements ControlValueAccessor {
 
     private onChange: (value: string) => void = () => { };
     onTouched: () => void = () => { };
+
+    private formDisabled = signal(false);
+
+    isDisabled = computed(() => this.disabled() || this.formDisabled());
 
     classes = computed(() =>
         cn(
@@ -71,5 +75,7 @@ export class InputComponent implements ControlValueAccessor {
         this.onTouched = fn;
     }
 
-    setDisabledState(isDisabled: boolean): void { }
+    setDisabledState(isDisabled: boolean): void {
+        this.formDisabled.set(isDisabled);
+    }
 }

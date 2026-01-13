@@ -4,7 +4,6 @@ import {
     input,
     output,
     computed,
-    signal,
     inject,
     OnDestroy,
     effect,
