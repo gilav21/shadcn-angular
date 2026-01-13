@@ -267,6 +267,7 @@ const EMOJI_CATEGORIES: EmojiCategory[] = [
 })
 export class EmojiPickerComponent {
     open = signal(false);
+    closeOnSelect = input(true);
     emojiSelect = output<string>();
 
     toggle() {
@@ -283,7 +284,9 @@ export class EmojiPickerComponent {
 
     selectEmoji(emoji: string) {
         this.emojiSelect.emit(emoji);
-        this.open.set(false);
+        if (this.closeOnSelect()) {
+            this.open.set(false);
+        }
     }
 
     onDocumentClick(event: MouseEvent) {

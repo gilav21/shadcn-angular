@@ -12,6 +12,7 @@ import {
     ViewChild,
     AfterViewInit,
     OnDestroy,
+    model,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -266,7 +267,8 @@ const EMOJI_CATEGORIES: EmojiCategory[] = [
     },
 })
 export class EmojiPickerComponent {
-    open = signal(false);
+    open = model<boolean>(false);
+    closeOnSelect = input(true);
     emojiSelect = output<string>();
 
     toggle() {
@@ -283,7 +285,9 @@ export class EmojiPickerComponent {
 
     selectEmoji(emoji: string) {
         this.emojiSelect.emit(emoji);
-        this.open.set(false);
+        if (this.closeOnSelect()) {
+            this.open.set(false);
+        }
     }
 
     onDocumentClick(event: MouseEvent) {

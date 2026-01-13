@@ -300,8 +300,11 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
           <h2 id="emoji-picker" class="text-2xl font-semibold scroll-m-20">Emoji Picker</h2>
           <p class="text-muted-foreground">A customizable emoji picker with category navigation and search.</p>
           
-          <div class="flex items-center gap-4">
-            <ui-emoji-picker (emojiSelect)="onEmojiSelect($event)">
+            <div class="flex items-center gap-4">
+            <ui-emoji-picker
+                [closeOnSelect]="closeOnSelect()"
+                (emojiSelect)="onEmojiSelect($event)"
+            >
                 <ui-emoji-picker-trigger>
                     <ui-button variant="outline">Pick an Emoji</ui-button>
                 </ui-emoji-picker-trigger>
@@ -311,7 +314,18 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
             @if (selectedEmoji()) {
                 <div class="text-2xl">{{ selectedEmoji() }}</div>
             }
-          </div>
+
+            <div class="flex items-center gap-2 ml-4">
+                <ui-checkbox 
+                    id="closeOnSelect" 
+                    [checked]="closeOnSelect()" 
+                    (checkedChange)="closeOnSelect.set($event)" 
+                />
+                <label for="closeOnSelect" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                    Close on select
+                </label>
+            </div>
+            </div>
         </section>
 
         <ui-separator />
@@ -2260,6 +2274,7 @@ export class AppComponent {
 
   isRtl = signal(false);
   selectedEmoji = signal<string | null>(null);
+  closeOnSelect = signal(true);
 
   constructor() {
     console.log('test');
