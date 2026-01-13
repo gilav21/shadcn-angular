@@ -8,7 +8,6 @@ import { ButtonComponent } from './button.component';
 import { moduleMetadata } from '@storybook/angular';
 import { Component, signal } from '@angular/core';
 
-// Demo component to show emoji selection
 @Component({
     selector: 'emoji-picker-demo',
     imports: [
@@ -74,14 +73,12 @@ class EmojiPickerCustomTriggerDemoComponent {
     }
 }
 
-// Emoji reaction bar demo
 @Component({
     selector: 'emoji-reaction-bar-demo',
     imports: [
         EmojiPickerComponent,
         EmojiPickerTriggerComponent,
-        EmojiPickerContentComponent,
-        ButtonComponent,
+        EmojiPickerContentComponent
     ],
     template: `
         <div class="p-4 rounded-lg border bg-card">

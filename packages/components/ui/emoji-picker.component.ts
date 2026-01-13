@@ -10,15 +10,14 @@ import {
     QueryList,
     ViewChildren,
     ViewChild,
-    effect,
     AfterViewInit,
     OnDestroy,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
+import { InputComponent } from './input.component';
 import { ScrollAreaComponent } from './scroll-area.component';
 import { TooltipDirective } from './tooltip.component';
-import { InputComponent } from './input.component';
 import { EMOJI_DATA } from './emoji-data';
 
 interface EmojiCategory {
@@ -28,7 +27,6 @@ interface EmojiCategory {
     emojis: string[];
 }
 
-// Comprehensive emoji data using standard Unicode
 const EMOJI_CATEGORIES: EmojiCategory[] = [
     {
         id: 'smileys',
@@ -439,7 +437,6 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     constructor() { }
 
     ngAfterViewInit() {
-        // Observers for category sections changes (filtering)
         this.categorySections.changes.subscribe(() => {
             this.onScroll();
         });
@@ -467,11 +464,8 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
             .map(category => ({
                 ...category,
                 emojis: category.emojis.filter(emoji => {
-                    // Simple search - matches if the category name contains the query
                     if (category.name.toLowerCase().includes(query)) return true;
-                    // Check if emoji itself matches (e.g. if user types exact unicode)
                     if (emoji.includes(query)) return true;
-                    // Check metadata keywords
                     const keywords = EMOJI_DATA[emoji];
                     return keywords?.some(keyword => keyword.toLowerCase().includes(query));
                 }),
@@ -515,15 +509,12 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     }
 
     private setupScrollListener(viewport: HTMLElement) {
-        // Remove existing if any (safety)
         this.scrollRemoveListener?.();
 
         const listener = () => this.onScroll();
         viewport.addEventListener('scroll', listener, { passive: true });
         this.scrollRemoveListener = () => viewport.removeEventListener('scroll', listener);
 
-        // Initial check to set active category on open
-        // Use timeout to ensure sections are rendered and layout is settled
         setTimeout(() => this.onScroll(), 0);
     }
 

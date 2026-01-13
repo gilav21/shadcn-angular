@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, HostListener } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject } from '@angular/core';
 import { JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ButtonComponent, InputComponent, CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent, BadgeComponent, LabelComponent, SeparatorComponent, SwitchComponent, CheckboxComponent, RadioGroupComponent, RadioGroupItemComponent, TextareaComponent, SkeletonComponent, TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent, AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent, ProgressComponent, AlertComponent, AlertTitleComponent, AlertDescriptionComponent, AvatarComponent, AvatarImageComponent, AvatarFallbackComponent, DialogComponent, DialogTriggerComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent, DialogFooterComponent, TooltipDirective, DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSeparatorComponent, DropdownMenuLabelComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent, SelectComponent, SelectTriggerComponent, SelectValueComponent, SelectContentComponent, SelectItemComponent, SelectGroupComponent, SelectLabelComponent, PopoverComponent, PopoverTriggerComponent, PopoverContentComponent, PopoverCloseComponent, SheetComponent, SheetTriggerComponent, SheetContentComponent, SheetHeaderComponent, SheetTitleComponent, SheetDescriptionComponent, SheetFooterComponent, SheetCloseComponent, AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent, AlertDialogHeaderComponent, AlertDialogTitleComponent, AlertDialogDescriptionComponent, AlertDialogFooterComponent, AlertDialogActionComponent, AlertDialogCancelComponent, SliderComponent, CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent, ContextMenuTriggerDirective } from '../components/ui';
@@ -12,10 +12,10 @@ import { ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentCo
 import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, DrawerHeaderComponent, DrawerTitleComponent, DrawerDescriptionComponent, DrawerFooterComponent, DrawerCloseComponent } from '../components/ui/drawer.component';
 import { TooltipComponent, TooltipContentComponent, TooltipTriggerComponent } from '../components/ui/tooltip.component';
 import { AspectRatioComponent } from '../components/ui/aspect-ratio.component';
-import { ToasterComponent, ToastComponent, ToastService } from '../components/ui/toast.component';
+import { ToasterComponent, ToastService } from '../components/ui/toast.component';
 import { ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent } from '../components/ui/resizable.component';
 import { PaginationComponent, PaginationContentComponent, PaginationItemComponent, PaginationLinkComponent, PaginationPreviousComponent, PaginationNextComponent, PaginationEllipsisComponent } from '../components/ui/pagination.component';
-import { InputOTPComponent, InputOTPGroupComponent, InputOTPSlotComponent, InputOTPSeparatorComponent } from '../components/ui/input-otp.component';
+import { InputOTPComponent } from '../components/ui/input-otp.component';
 import { CalendarComponent } from '../components/ui/calendar.component';
 import { CommandComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent, CommandSeparatorComponent, CommandShortcutComponent, CommandDialogComponent } from '../components/ui/command.component';
 import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent } from '../components/ui/menubar.component';
@@ -23,10 +23,10 @@ import { CarouselComponent, CarouselContentComponent, CarouselItemComponent, Car
 import { NavigationMenuComponent, NavigationMenuListComponent, NavigationMenuItemComponent, NavigationMenuTriggerComponent, NavigationMenuContentComponent, NavigationMenuLinkComponent } from '../components/ui/navigation-menu.component';
 import { DatePickerComponent, DateRangePickerComponent } from '../components/ui/date-picker.component';
 import { SidebarProviderComponent, SidebarComponent, SidebarHeaderComponent, SidebarContentComponent, SidebarFooterComponent, SidebarGroupComponent, SidebarGroupLabelComponent, SidebarGroupContentComponent, SidebarMenuComponent, SidebarMenuItemComponent, SidebarMenuButtonComponent, SidebarMenuLinkComponent, SidebarTriggerComponent, SidebarInsetComponent, SidebarSeparatorComponent } from '../components/ui/sidebar.component';
-import { PageSpinnerComponent, SpinnerComponent } from '../components/ui/spinner.component';
+import { SpinnerComponent } from '../components/ui/spinner.component';
 import { EmptyComponent, EmptyHeaderComponent, EmptyMediaComponent, EmptyTitleComponent, EmptyDescriptionComponent, EmptyContentComponent } from '../components/ui/empty.component';
 import { KbdComponent } from '../components/ui/kbd.component';
-import { ButtonGroupComponent, ButtonGroupTextComponent, ButtonGroupSeparatorComponent } from '../components/ui/button-group.component';
+import { ButtonGroupComponent, ButtonGroupTextComponent } from '../components/ui/button-group.component';
 import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent, InputGroupTextComponent } from '../components/ui/input-group.component';
 import { FieldComponent, FieldGroupComponent, FieldSetComponent, FieldLabelComponent, FieldLegendComponent, FieldDescriptionComponent, FieldErrorComponent, FieldSeparatorComponent } from '../components/ui/field.component';
 import { NativeSelectComponent } from '../components/ui/native-select.component';
@@ -222,10 +222,8 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
     EmptyDescriptionComponent,
     EmptyContentComponent,
     KbdComponent,
-    PageSpinnerComponent,
     ButtonGroupComponent,
     ButtonGroupTextComponent,
-    ButtonGroupSeparatorComponent,
     InputGroupComponent,
     InputGroupInputComponent,
     InputGroupAddonComponent,
@@ -243,8 +241,6 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
     SpeedDialTriggerComponent,
     SpeedDialMenuComponent,
     SpeedDialItemComponent,
-    SpeedDialMaskComponent,
-    SpeedDialContextTriggerComponent,
     SpeedDialContextTriggerDirective,
     TooltipComponent,
     TooltipContentComponent,
@@ -2248,6 +2244,9 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
       </div>
     </div>
   `,
+  host: {
+    '(document:keydown)': 'onKeydown($event)'
+  }
 })
 export class AppComponent {
   private toastService = inject(ToastService);
@@ -2358,7 +2357,6 @@ export class AppComponent {
     { title: 'Tooltip', id: 'tooltip' },
   ];
 
-  @HostListener('document:keydown', ['$event'])
   onKeydown(e: KeyboardEvent) {
     if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
