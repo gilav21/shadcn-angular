@@ -7,6 +7,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
+    "test-visual": "npx vitest --browser=chromium",
     "docs:json": "compodoc -p tsconfig.json -e json -d .",
     "storybook": "npm run docs:json && npx ng run demo:storybook",
     "build-storybook": "npm run docs:json && npx ng run demo:build-storybook",
@@ -27,6 +28,8 @@
   "private": true,
   "packageManager": "npm@11.5.1",
   "dependencies": {
+    "@analogjs/vite-plugin-angular": "^2.2.1",
+    "@analogjs/vitest-angular": "^2.2.1",
     "@angular/cdk": "^21.0.5",
     "@angular/common": "^21.0.0",
     "@angular/compiler": "^21.0.0",
@@ -42,6 +45,7 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
+    "@analogjs/platform": "^2.2.1",
     "@angular-devkit/architect": "^0.2100.0",
     "@angular-devkit/build-angular": "^21.0.0",
     "@angular-devkit/core": "^21.0.0",
@@ -56,8 +60,10 @@
     "@storybook/angular": "^10.1.11",
     "@storybook/test-runner": "^0.24.2",
     "@tailwindcss/postcss": "^4.1.18",
+    "@vitest/browser": "^4.0.17",
     "axe-playwright": "^2.2.2",
     "jsdom": "^27.4.0",
+    "playwright": "^1.57.0",
     "postcss": "^8.5.6",
     "storybook": "^10.1.11",
     "tailwindcss": "^4.1.18",

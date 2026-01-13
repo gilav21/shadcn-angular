@@ -123,12 +123,7 @@
           }
         },
         "test": {
-          "builder": "@angular/build:unit-test",
-          "options": {
-            "browsers": [
-              "chromium"
-            ]
-          }
+          "builder": "@analogjs/vitest-angular:test"
         }
       }
     }

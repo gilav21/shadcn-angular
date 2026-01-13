@@ -1,14 +1,22 @@
-import { defineConfig } from 'vitest/config';
+import { defineConfig } from 'vite';
+
+import angular from '@analogjs/vite-plugin-angular';
+import { playwright } from '@vitest/browser-playwright';
 
 export default defineConfig(({ mode }) => ({
+    plugins: [angular()],
     test: {
         globals: true,
-        environment: 'jsdom',
         setupFiles: ['src/test-setup.ts'],
-        include: ['**/*.spec.ts', '../../packages/**/*.spec.ts'],
+        // environment: 'jsdom',
+        include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         reporters: ['default'],
-    },
-    define: {
-        'import.meta.vitest': mode !== 'production',
+        // Vitest browser config
+        browser: {
+            enabled: true,
+            headless: false, // set to true in CI
+            provider: playwright(),
+            instances: [{ browser: 'chromium' }],
+        },
     },
 }));

@@ -36,6 +36,7 @@ describe
                 imports: [TestHostComponent]
             }).compileComponents();
 
+
             fixture = TestBed.createComponent(TestHostComponent);
             component = fixture.componentInstance;
             // Access the child EmojiPickerComponent instance
