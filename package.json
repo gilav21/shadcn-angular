@@ -21,5 +21,13 @@
         "tailwind"
     ],
     "author": "",
-    "license": "MIT"
+    "license": "MIT",
+    "devDependencies": {
+        "@vitest/browser-playwright": "^4.0.17"
+    },
+    "dependencies": {
+        "@esbuild/win32-x64": "^0.25.12",
+        "@rollup/rollup-win32-x64-msvc": "^4.55.1",
+        "lightningcss": "^1.30.2"
+    }
 }
