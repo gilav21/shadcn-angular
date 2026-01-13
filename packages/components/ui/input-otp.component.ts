@@ -2,16 +2,11 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
-  output,
   computed,
   signal,
-  inject,
   ElementRef,
   ViewChild,
-  forwardRef,
-  ContentChildren,
-  QueryList,
-  AfterContentInit,
+  model,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -67,10 +62,9 @@ export class InputOTPComponent {
   ariaLabel = input<string | undefined>(undefined);
   ariaLabelledby = input<string | undefined>(undefined);
   maxLength = input(6);
-  separator = input<number[]>([2]); // indices after which to show separator (default: after 3rd slot for 6-digit OTP)
+  separator = input<number[]>([2]);
 
-  value = signal('');
-  valueChange = output<string>();
+  value = model<string>('');
   focusedIndex = signal(-1);
 
   slots = computed(() => Array.from({ length: this.maxLength() }, (_, i) => i));
@@ -101,12 +95,9 @@ export class InputOTPComponent {
 
   onInput(event: Event) {
     const input = event.target as HTMLInputElement;
-    // Allow alphanumeric characters (letters and numbers)
     const newValue = input.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.maxLength());
     this.value.set(newValue);
-    this.valueChange.emit(newValue);
     this.focusedIndex.set(Math.min(newValue.length, this.maxLength() - 1));
-    // Sync hidden input value
     input.value = newValue;
   }
 
@@ -119,14 +110,11 @@ export class InputOTPComponent {
       event.preventDefault();
       this.focusedIndex.update(i => Math.min(this.value().length, i + 1));
     } else if (event.key === 'Backspace') {
-      // Handle backspace - delete last character
       const currentValue = this.value();
       if (currentValue.length > 0) {
         const newValue = currentValue.slice(0, -1);
         this.value.set(newValue);
-        this.valueChange.emit(newValue);
         this.focusedIndex.set(newValue.length);
-        // Also update the hidden input
         if (this.hiddenInput?.nativeElement) {
           this.hiddenInput.nativeElement.value = newValue;
         }
@@ -149,7 +137,6 @@ export class InputOTPComponent {
   }
 }
 
-// Keep these for backwards compatibility, but they're not needed with the new design
 @Component({
   selector: 'ui-input-otp-group',
   changeDetection: ChangeDetectionStrategy.OnPush,

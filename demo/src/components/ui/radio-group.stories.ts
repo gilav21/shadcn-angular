@@ -36,15 +36,15 @@ export const Default: Story = {
     props: args,
     template: `
       <ui-radio-group [orientation]="orientation" [disabled]="disabled">
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center gap-2">
           <ui-radio-group-item value="default" id="r1" ariaLabel="Default"></ui-radio-group-item>
           <ui-label for="r1">Default</ui-label>
         </div>
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center gap-2">
           <ui-radio-group-item value="comfortable" id="r2" ariaLabel="Comfortable"></ui-radio-group-item>
           <ui-label for="r2">Comfortable</ui-label>
         </div>
-        <div class="flex items-center space-x-2">
+        <div class="flex items-center gap-2">
           <ui-radio-group-item value="compact" id="r3" ariaLabel="Compact"></ui-radio-group-item>
           <ui-label for="r3">Compact</ui-label>
         </div>

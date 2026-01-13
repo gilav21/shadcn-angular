@@ -1,56 +1,56 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    SidebarComponent,
-    SidebarProviderComponent,
-    SidebarHeaderComponent,
-    SidebarContentComponent,
-    SidebarFooterComponent,
-    SidebarGroupComponent,
-    SidebarGroupLabelComponent,
-    SidebarGroupContentComponent,
-    SidebarMenuComponent,
-    SidebarMenuItemComponent,
-    SidebarMenuButtonComponent,
-    SidebarMenuLinkComponent,
-    SidebarTriggerComponent,
-    SidebarInsetComponent,
-    SidebarSeparatorComponent,
+  SidebarComponent,
+  SidebarProviderComponent,
+  SidebarHeaderComponent,
+  SidebarContentComponent,
+  SidebarFooterComponent,
+  SidebarGroupComponent,
+  SidebarGroupLabelComponent,
+  SidebarGroupContentComponent,
+  SidebarMenuComponent,
+  SidebarMenuItemComponent,
+  SidebarMenuButtonComponent,
+  SidebarMenuLinkComponent,
+  SidebarTriggerComponent,
+  SidebarInsetComponent,
+  SidebarSeparatorComponent,
 } from './sidebar.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<SidebarComponent> = {
-    title: 'UI/Sidebar',
-    component: SidebarComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                SidebarComponent,
-                SidebarProviderComponent,
-                SidebarHeaderComponent,
-                SidebarContentComponent,
-                SidebarFooterComponent,
-                SidebarGroupComponent,
-                SidebarGroupLabelComponent,
-                SidebarGroupContentComponent,
-                SidebarMenuComponent,
-                SidebarMenuItemComponent,
-                SidebarMenuButtonComponent,
-                SidebarMenuLinkComponent,
-                SidebarTriggerComponent,
-                SidebarInsetComponent,
-                SidebarSeparatorComponent,
-            ],
-        }),
-    ],
+  title: 'UI/Sidebar',
+  component: SidebarComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        SidebarComponent,
+        SidebarProviderComponent,
+        SidebarHeaderComponent,
+        SidebarContentComponent,
+        SidebarFooterComponent,
+        SidebarGroupComponent,
+        SidebarGroupLabelComponent,
+        SidebarGroupContentComponent,
+        SidebarMenuComponent,
+        SidebarMenuItemComponent,
+        SidebarMenuButtonComponent,
+        SidebarMenuLinkComponent,
+        SidebarTriggerComponent,
+        SidebarInsetComponent,
+        SidebarSeparatorComponent,
+      ],
+    }),
+  ],
 };
 
 export default meta;
 type Story = StoryObj<SidebarComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
+  render: () => ({
+    template: `
       <ui-sidebar-provider>
         <ui-sidebar>
           <ui-sidebar-header>
@@ -132,5 +132,5 @@ export const Default: Story = {
         </ui-sidebar-inset>
       </ui-sidebar-provider>
     `,
-    }),
+  }),
 };

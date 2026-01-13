@@ -2,8 +2,9 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
+    output,
     computed,
-    model,
+    signal,
     forwardRef,
     inject,
     InjectionToken,
@@ -24,7 +25,7 @@ export const RADIO_GROUP = new InjectionToken<RadioGroupComponent>('RADIO_GROUP'
         },
         {
             provide: RADIO_GROUP,
-            useExisting: forwardRef(() => RadioGroupComponent),
+            useExisting: RadioGroupComponent,
         },
     ],
     template: `
@@ -46,7 +47,11 @@ export class RadioGroupComponent implements ControlValueAccessor {
     disabled = input(false);
     class = input('');
 
-    value = model<string | null>(null);
+    private formDisabled = signal(false);
+    isDisabled = computed(() => this.disabled() || this.formDisabled());
+
+    value = signal<string | null>(null);
+    valueChange = output<string>();
 
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
@@ -60,9 +65,10 @@ export class RadioGroupComponent implements ControlValueAccessor {
     );
 
     selectValue(val: string) {
-        if (this.disabled()) return;
+        if (this.isDisabled()) return;
         this.value.set(val);
         this.onChange(val);
+        this.valueChange.emit(val);
         this.onTouched();
     }
 
@@ -78,7 +84,9 @@ export class RadioGroupComponent implements ControlValueAccessor {
         this.onTouched = fn;
     }
 
-    setDisabledState(isDisabled: boolean): void { }
+    setDisabledState(isDisabled: boolean): void {
+        this.formDisabled.set(isDisabled);
+    }
 }
 
 @Component({
@@ -91,7 +99,7 @@ export class RadioGroupComponent implements ControlValueAccessor {
       [attr.aria-checked]="isSelected()"
       [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
       [class]="classes()"
-      [disabled]="disabled()"
+      [disabled]="isDisabled()"
       [attr.aria-label]="ariaLabel()"
       [attr.data-slot]="'radio-group-item'"
       (click)="select()"
@@ -116,6 +124,7 @@ export class RadioGroupItemComponent {
     private group = inject(RADIO_GROUP, { optional: true });
 
     isSelected = computed(() => this.group?.value() === this.value());
+    isDisabled = computed(() => this.disabled() || (this.group?.isDisabled() ?? false));
 
     classes = computed(() =>
         cn(
@@ -126,7 +135,7 @@ export class RadioGroupItemComponent {
     );
 
     select() {
-        if (this.disabled() || !this.group) return;
+        if (this.isDisabled() || !this.group) return;
         this.group.selectValue(this.value());
     }
 }

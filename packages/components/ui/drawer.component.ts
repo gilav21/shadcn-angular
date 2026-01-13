@@ -2,13 +2,14 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
+    output,
     computed,
-    model,
     inject,
     OnDestroy,
     effect,
     ElementRef,
     AfterViewInit,
+    model,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -47,6 +48,7 @@ export class DrawerComponent implements OnDestroy {
 
     open = model(false);
     direction = input<DrawerDirection>('bottom');
+    openChange = output<boolean>();
 
     private scrollbarWidth = 0;
 
@@ -80,14 +82,18 @@ export class DrawerComponent implements OnDestroy {
 
     show() {
         this.open.set(true);
+        this.openChange.emit(true);
     }
 
     hide() {
         this.open.set(false);
+        this.openChange.emit(false);
     }
 
     toggle() {
-        this.open.update(v => !v);
+        const newState = !this.open();
+        this.open.set(newState);
+        this.openChange.emit(newState);
     }
 }
 

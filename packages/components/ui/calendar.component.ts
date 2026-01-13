@@ -57,7 +57,6 @@ export interface DateRange {
             @if (showMonthSelect()) {
               <ui-select 
                 [defaultValue]="currentMonth().toString()" 
-                [rtl]="rtl()"
                 position="popper"
                 (valueChange)="onMonthChange($event)"
               >
@@ -77,7 +76,6 @@ export interface DateRange {
             @if (showYearSelect()) {
               <ui-select 
                 [defaultValue]="currentYear().toString()" 
-                [rtl]="rtl()"
                 position="popper"
                 (valueChange)="onYearChange($event)"
               >
@@ -136,13 +134,15 @@ export interface DateRange {
       @if (showTimeSelect()) {
         <div class="mt-4 border-t pt-4">
             <div class="flex flex-col gap-2">
-                <span class="text-sm font-medium">{{ timeLabel() }}</span>
+                <label class="text-sm font-medium" for="time">{{ timeLabel() }}</label>
                 <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
                     <input 
                         type="time"
+                        [dir]="rtl() ? 'rtl' : 'ltr'"
                         class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
                         [value]="selectedTimeString()"
                         (change)="updateTime($event)"
+                        id="time"
                     />
                     <div class="flex items-center justify-center px-3 py-2 ltr:border-l rtl:border-r border-input bg-muted/50 text-muted-foreground">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>

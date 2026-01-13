@@ -64,6 +64,7 @@ import { CalendarComponent, DateRange } from './calendar.component';
             [showTimeSelect]="showTime()"
             [showMonthSelect]="true"
             [showYearSelect]="true"
+            [locale]="locale()"
             (selectedChange)="onDateSelect($event)"
           />
         </div>
@@ -80,21 +81,16 @@ export class DatePickerComponent implements ControlValueAccessor {
   placeholder = input('Pick a date');
   disabled = input(false);
   showTime = input(false);
-
-  // Two-way binding
+  locale = input('en');
   date = input<Date | null>(null);
   dateChange = output<Date | null>();
 
-  // Internal state
   isOpen = signal(false);
   internalValue = signal<Date | null>(null);
-
-  // ControlValueAccessor
   private onChange: (value: Date | null) => void = () => { };
   private onTouched: () => void = () => { };
 
   constructor() {
-    // Sync input to internal value
     effect(() => {
       const dateInput = this.date();
       if (dateInput) {
@@ -118,7 +114,6 @@ export class DatePickerComponent implements ControlValueAccessor {
   }
 
   onDateSelect(value: unknown) {
-    // Calendar emits Date for single mode
     let selectedDate: Date | null = null;
     if (value instanceof Date) {
       selectedDate = value;
@@ -127,8 +122,6 @@ export class DatePickerComponent implements ControlValueAccessor {
     this.dateChange.emit(selectedDate);
     this.onChange(selectedDate);
     this.onTouched();
-
-    // Close unless time selection is enabled (user might want to adjust time)
     if (!this.showTime()) {
       this.isOpen.set(false);
     }
@@ -151,7 +144,6 @@ export class DatePickerComponent implements ControlValueAccessor {
     return date.toLocaleDateString(undefined, options);
   }
 
-  // ControlValueAccessor implementation
   writeValue(value: Date | null): void {
     this.internalValue.set(value);
   }
@@ -164,9 +156,7 @@ export class DatePickerComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  setDisabledState(isDisabled: boolean): void {
-    // The disabled input handles this
-  }
+  setDisabledState(_isDisabled: boolean): void { }
 }
 
 /**
@@ -234,14 +224,10 @@ export class DateRangePickerComponent implements ControlValueAccessor {
   placeholder = input('Pick a date range');
   disabled = input(false);
 
-  // Internal state
   isOpen = signal(false);
   rangeValue = signal<DateRange>({ start: null, end: null });
-
-  // Outputs
   rangeChange = output<DateRange>();
 
-  // ControlValueAccessor
   private onChange: (value: DateRange) => void = () => { };
   private onTouched: () => void = () => { };
 
@@ -260,7 +246,6 @@ export class DateRangePickerComponent implements ControlValueAccessor {
   }
 
   onRangeSelect(value: unknown) {
-    // Calendar emits DateRange for range mode
     if (value && typeof value === 'object' && 'start' in value) {
       const range = value as DateRange;
       this.rangeValue.set(range);
@@ -268,7 +253,6 @@ export class DateRangePickerComponent implements ControlValueAccessor {
       this.onChange(range);
       this.onTouched();
 
-      // Close when both dates are selected
       if (range.start && range.end) {
         this.isOpen.set(false);
       }
@@ -291,7 +275,7 @@ export class DateRangePickerComponent implements ControlValueAccessor {
     return date.toLocaleDateString(undefined, options);
   }
 
-  // ControlValueAccessor implementation
+
   writeValue(value: DateRange | null): void {
     if (value) {
       this.rangeValue.set(value);
@@ -308,7 +292,5 @@ export class DateRangePickerComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  setDisabledState(isDisabled: boolean): void {
-    // The disabled input handles this
-  }
+  setDisabledState(_isDisabled: boolean): void { }
 }

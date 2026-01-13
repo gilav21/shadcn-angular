@@ -54,7 +54,7 @@ export class ContextMenuComponent implements OnDestroy {
     constructor() {
         this.document.addEventListener('click', this.clickListener);
         this.document.addEventListener('keydown', this.escListener);
-        this.document.addEventListener('scroll', this.scrollListener, true); // capture phase to catch all scrolls
+        this.document.addEventListener('scroll', this.scrollListener, true);
     }
 
     ngOnDestroy() {
@@ -153,16 +153,12 @@ export class ContextMenuContentComponent implements OnDestroy {
     private showContent() {
         if (this.embeddedViewRef) return;
 
-        // Create a host element in body
         this.portalHost = this.document.createElement('div');
         this.portalHost.setAttribute('data-context-menu-portal', 'true');
         this.document.body.appendChild(this.portalHost);
-
-        // Create the embedded view
         this.embeddedViewRef = this.viewContainerRef.createEmbeddedView(this.contentTemplate);
         this.embeddedViewRef.detectChanges();
 
-        // Move the rendered nodes to the portal host
         this.embeddedViewRef.rootNodes.forEach((node: Node) => {
             this.portalHost?.appendChild(node);
         });
@@ -197,7 +193,6 @@ export class ContextMenuContentComponent implements OnDestroy {
         let x = pos.x;
         let y = pos.y;
 
-        // Check horizontal overflow
         if (x + rect.width > viewportWidth) {
             x = viewportWidth - rect.width - 8;
         }
@@ -205,7 +200,6 @@ export class ContextMenuContentComponent implements OnDestroy {
             x = 8;
         }
 
-        // Check vertical overflow
         if (y + rect.height > viewportHeight) {
             y = viewportHeight - rect.height - 8;
         }
@@ -336,13 +330,11 @@ export class ContextMenuTriggerDirective {
         const contextMenu = this.uiContextMenuTrigger();
         if (!contextMenu) return;
 
-        // Use viewport coordinates for fixed positioning
         contextMenu.show(event.clientX, event.clientY);
     }
 
     onClick(event: MouseEvent) {
         const contextMenu = this.uiContextMenuTrigger();
-        // Left-click closes the menu if open
         if (contextMenu?.open()) {
             contextMenu.close();
         }

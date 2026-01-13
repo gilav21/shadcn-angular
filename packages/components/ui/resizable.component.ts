@@ -8,6 +8,7 @@ import {
   ElementRef,
   inject,
   AfterViewInit,
+  effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -43,13 +44,13 @@ export class ResizablePanelGroupComponent {
   template: `<ng-content />`,
   host: {
     '[class]': 'classes()',
-    '[style.flexBasis]': 'size() + "%"',
     '[style.flexGrow]': '"0"',
     '[style.flexShrink]': '"0"',
     '[attr.data-slot]': '"resizable-panel"',
   },
 })
 export class ResizablePanelComponent {
+  el = inject(ElementRef);
   class = input('');
   defaultSize = input(50);
   minSize = input(10);
@@ -59,12 +60,15 @@ export class ResizablePanelComponent {
   sizeChange = output<number>();
 
   constructor() {
+    effect(() => {
+      this.el.nativeElement.style.flexBasis = `${this.size()}%`;
+    });
+
     setTimeout(() => {
       this.size.set(this.defaultSize());
     }, 0);
   }
 
-  // Method to update size and emit change
   updateSize(newSize: number) {
     this.size.set(newSize);
     this.sizeChange.emit(newSize);
@@ -121,8 +125,8 @@ export class ResizableHandleComponent implements AfterViewInit {
 
   class = input('');
   withHandle = input(false);
-  handleSize = input(4); // Size in pixels, default 4px
-  disabled = input(false); // Set to true to hide the handle completely
+  handleSize = input(4);
+  disabled = input(false);
   ariaLabel = input('Resize Handle');
 
   resize = output<{ delta: number; sizes: number[] }>();
@@ -132,14 +136,12 @@ export class ResizableHandleComponent implements AfterViewInit {
   private detectedDirection = signal<'horizontal' | 'vertical'>('horizontal');
 
   ngAfterViewInit() {
-    // Detect direction from parent after view init
     const handleEl = this.el.nativeElement as HTMLElement;
     const groupEl = handleEl.closest('[data-slot="resizable-panel-group"]');
     const dir = (groupEl?.getAttribute('data-direction') as 'horizontal' | 'vertical') || 'horizontal';
     this.detectedDirection.set(dir);
   }
 
-  // Use inline styles for dynamic sizing since Tailwind JIT doesn't support dynamic values
   handleStyles = computed(() => {
     const isHorizontal = this.detectedDirection() === 'horizontal';
     const size = this.handleSize();
@@ -205,6 +207,8 @@ export class ResizableHandleComponent implements AfterViewInit {
     const isHorizontal = groupDirection === 'horizontal';
     const containerSize = isHorizontal ? groupEl.offsetWidth : groupEl.offsetHeight;
 
+    const isRtl = getComputedStyle(document.documentElement).direction === 'rtl';
+
     const children = Array.from(groupEl.children);
     const handleIndex = children.findIndex(el =>
       el === handleEl ||
@@ -238,7 +242,11 @@ export class ResizableHandleComponent implements AfterViewInit {
     const startSizeAfter = isHorizontal ? panelAfter.offsetWidth : panelAfter.offsetHeight;
 
     const onMove = (clientX: number, clientY: number) => {
-      const delta = isHorizontal ? clientX - startX : clientY - startY;
+      let delta = isHorizontal ? clientX - startX : clientY - startY;
+
+      if (isHorizontal && isRtl) {
+        delta = -delta;
+      }
 
       const newSizeBefore = startSizeBefore + delta;
       const newSizeAfter = startSizeAfter - delta;
@@ -251,14 +259,12 @@ export class ResizableHandleComponent implements AfterViewInit {
         panelBefore!.style.flexBasis = `${newPercentBefore}%`;
         panelAfter!.style.flexBasis = `${newPercentAfter}%`;
 
-        // Emit resize event with sizes
         this.resize.emit({
           delta,
           sizes: [Math.round(newPercentBefore), Math.round(newPercentAfter)]
         });
       }
     };
-
 
     const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
     const onTouchMove = (e: TouchEvent) => {

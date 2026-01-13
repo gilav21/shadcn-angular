@@ -12,7 +12,6 @@ import {
     ViewChild,
     AfterViewInit,
     OnDestroy,
-    model,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -267,7 +266,7 @@ const EMOJI_CATEGORIES: EmojiCategory[] = [
     },
 })
 export class EmojiPickerComponent {
-    open = model<boolean>(false);
+    open = signal(false);
     closeOnSelect = input(true);
     emojiSelect = output<string>();
 

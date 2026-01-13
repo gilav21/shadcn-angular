@@ -37,7 +37,7 @@ export const Default: Story = {
     template: `
       <ui-popover>
         <ui-popover-trigger>
-          <button shButton variant="outline">Open Popover</button>
+          <ui-button variant="outline">Open Popover</ui-button>
         </ui-popover-trigger>
         <ui-popover-content class="w-80">
           <div class="grid gap-4">

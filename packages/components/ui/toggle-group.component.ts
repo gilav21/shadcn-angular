@@ -68,8 +68,7 @@ export class ToggleGroupComponent {
 
     value = signal<string[]>([]);
 
-    constructor() {
-        // Initialize with default value
+    ngOnInit() {
         const defaultVal = this.defaultValue();
         if (defaultVal) {
             this.value.set(Array.isArray(defaultVal) ? defaultVal : [defaultVal]);
@@ -95,10 +94,8 @@ export class ToggleGroupComponent {
         let newValue: string[];
 
         if (this.type() === 'single') {
-            // Single select: toggle or clear
             newValue = current.includes(itemValue) ? [] : [itemValue];
         } else {
-            // Multiple select: toggle in array
             if (current.includes(itemValue)) {
                 newValue = current.filter(v => v !== itemValue);
             } else {
@@ -108,7 +105,6 @@ export class ToggleGroupComponent {
 
         this.value.set(newValue);
 
-        // Emit appropriate value based on type
         if (this.type() === 'single') {
             this.valueChange.emit(newValue[0] ?? '');
         } else {
@@ -156,7 +152,6 @@ export class ToggleGroupItemComponent {
         return cn(
             toggleVariants({ variant, size }),
             'w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10',
-            // Joined styling (no spacing) - RTL aware
             'rounded-none shadow-none ltr:first:rounded-l-md ltr:last:rounded-r-md rtl:first:rounded-r-md rtl:last:rounded-l-md',
             variant === 'outline' && 'ltr:border-l-0 ltr:first:border-l rtl:border-r-0 rtl:first:border-r',
             this.class()

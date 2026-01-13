@@ -2,10 +2,9 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
-  output,
   computed,
-  model,
   forwardRef,
+  model,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -61,7 +60,7 @@ export class CheckboxComponent implements ControlValueAccessor {
   elementId = input<string | undefined>(undefined);
   ariaLabel = input<string | undefined>(undefined);
   ariaLabelledby = input<string | undefined>(undefined);
-  checked = model(false);
+  checked = model<boolean>(false);
 
   private onChange: (value: boolean) => void = () => { };
   private onTouched: () => void = () => { };

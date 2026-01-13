@@ -5,6 +5,7 @@ import {
     output,
     computed,
     signal,
+    effect,
     inject,
 } from '@angular/core';
 import { cn } from '../lib/utils';
@@ -28,9 +29,11 @@ export class CollapsibleComponent {
     open = signal(false);
 
     constructor() {
-        if (this.defaultOpen()) {
-            this.open.set(true);
-        }
+        effect(() => {
+            if (this.defaultOpen()) {
+                this.open.set(true);
+            }
+        }, { allowSignalWrites: true });
     }
 
     classes = computed(() =>

@@ -7,7 +7,6 @@ import {
   inject,
   InjectionToken,
   forwardRef,
-  effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -26,21 +25,9 @@ export const ACCORDION = new InjectionToken<AccordionComponent>('ACCORDION');
 })
 export class AccordionComponent {
   type = input<'single' | 'multiple'>('single');
-  defaultValue = input<string | string[] | undefined>(undefined);
   class = input('');
 
   openItems = signal<Set<string>>(new Set());
-
-  constructor() {
-    // Initialize with default value
-    effect(() => {
-      const defaultVal = this.defaultValue();
-      if (defaultVal) {
-        const values = Array.isArray(defaultVal) ? defaultVal : [defaultVal];
-        this.openItems.set(new Set(values));
-      }
-    }, { allowSignalWrites: true });
-  }
 
   classes = computed(() => cn('w-full', this.class()));
 

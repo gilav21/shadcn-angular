@@ -1,49 +1,49 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import {
-    AlertDialogComponent,
-    AlertDialogTriggerComponent,
-    AlertDialogContentComponent,
-    AlertDialogHeaderComponent,
-    AlertDialogFooterComponent,
-    AlertDialogTitleComponent,
-    AlertDialogDescriptionComponent,
-    AlertDialogActionComponent,
-    AlertDialogCancelComponent,
+  AlertDialogComponent,
+  AlertDialogTriggerComponent,
+  AlertDialogContentComponent,
+  AlertDialogHeaderComponent,
+  AlertDialogFooterComponent,
+  AlertDialogTitleComponent,
+  AlertDialogDescriptionComponent,
+  AlertDialogActionComponent,
+  AlertDialogCancelComponent,
 } from './alert-dialog.component';
 import { ButtonComponent } from './button.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<AlertDialogComponent> = {
-    title: 'UI/AlertDialog',
-    component: AlertDialogComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [
-                AlertDialogComponent,
-                AlertDialogTriggerComponent,
-                AlertDialogContentComponent,
-                AlertDialogHeaderComponent,
-                AlertDialogFooterComponent,
-                AlertDialogTitleComponent,
-                AlertDialogDescriptionComponent,
-                AlertDialogActionComponent,
-                AlertDialogCancelComponent,
-                ButtonComponent
-            ],
-        }),
-    ],
+  title: 'UI/AlertDialog',
+  component: AlertDialogComponent,
+  tags: ['autodocs'],
+  decorators: [
+    moduleMetadata({
+      imports: [
+        AlertDialogComponent,
+        AlertDialogTriggerComponent,
+        AlertDialogContentComponent,
+        AlertDialogHeaderComponent,
+        AlertDialogFooterComponent,
+        AlertDialogTitleComponent,
+        AlertDialogDescriptionComponent,
+        AlertDialogActionComponent,
+        AlertDialogCancelComponent,
+        ButtonComponent
+      ],
+    }),
+  ],
 };
 
 export default meta;
 type Story = StoryObj<AlertDialogComponent>;
 
 export const Default: Story = {
-    render: () => ({
-        template: `
+  render: () => ({
+    template: `
       <ui-alert-dialog>
         <ui-alert-dialog-trigger>
-          <button shButton variant="outline">Show Dialog</button>
+          <ui-button variant="outline">Show Dialog</ui-button>
         </ui-alert-dialog-trigger>
         <ui-alert-dialog-content>
           <ui-alert-dialog-header>
@@ -59,5 +59,5 @@ export const Default: Story = {
         </ui-alert-dialog-content>
       </ui-alert-dialog>
     `,
-    }),
+  }),
 };

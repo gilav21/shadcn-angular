@@ -2,8 +2,9 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
+    output,
     computed,
-    model,
+    signal,
     inject,
     effect,
     ElementRef,
@@ -42,7 +43,8 @@ export type SheetSide = VariantProps<typeof sheetVariants>['side'];
 export class SheetComponent implements OnDestroy {
     private document = inject(DOCUMENT);
 
-    open = model(false);
+    open = signal(false);
+    openChange = output<boolean>();
 
     private scrollbarWidth = 0;
 
@@ -78,14 +80,18 @@ export class SheetComponent implements OnDestroy {
 
     show() {
         this.open.set(true);
+        this.openChange.emit(true);
     }
 
     hide() {
         this.open.set(false);
+        this.openChange.emit(false);
     }
 
     toggle() {
-        this.open.update(v => !v);
+        const newState = !this.open();
+        this.open.set(newState);
+        this.openChange.emit(newState);
     }
 }
 
@@ -116,7 +122,6 @@ export class SheetTriggerComponent {
         class="fixed inset-0 z-50" 
         role="dialog" 
         aria-modal="true"
-        [dir]="sheet?.rtl() ? 'rtl' : 'ltr'"
         (keydown)="onKeydown($event)"
       >
         <!-- Overlay -->

@@ -322,9 +322,9 @@ export class SpeedDialMenuComponent {
         const direction = this.speedDial?.direction() ?? 'up';
         const contextPos = this.speedDial?.contextPosition();
 
-        // If context position is set, use absolute positioning at that point
+        // If context position is set, use fixed positioning at viewport coordinates
         if (contextPos) {
-            return cn('absolute z-50', this.class());
+            return cn('fixed z-50', this.class());
         }
 
         // For linear layout, use flex direction
