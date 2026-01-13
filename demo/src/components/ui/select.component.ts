@@ -1,3 +1,4 @@
+
 import {
     Component,
     ChangeDetectionStrategy,
@@ -5,7 +6,6 @@ import {
     output,
     computed,
     signal,
-    model,
     inject,
     InjectionToken,
     ElementRef,
@@ -20,14 +20,19 @@ import { cn, isRtl } from '../lib/utils';
 
 export const SELECT = new InjectionToken<SelectComponent>('SELECT');
 
+import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+
 @Component({
     selector: 'ui-select',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: { class: 'relative inline-block' },
-    providers: [{ provide: SELECT, useExisting: forwardRef(() => SelectComponent) }],
+    providers: [
+        { provide: SELECT, useExisting: forwardRef(() => SelectComponent) },
+        { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => SelectComponent), multi: true }
+    ],
 })
-export class SelectComponent implements OnDestroy {
+export class SelectComponent implements OnDestroy, ControlValueAccessor {
     private el = inject(ElementRef);
     private document = inject(DOCUMENT);
 
@@ -39,6 +44,13 @@ export class SelectComponent implements OnDestroy {
     position = input<'popper' | 'item-aligned'>('item-aligned');
     valueChange = output<string>();
 
+    // CVA State
+    private _onChange: (value: string) => void = () => { };
+    private _onTouched: () => void = () => { };
+    private _disabled = signal(false);
+
+    isDisabled = computed(() => this.disabled() || this._disabled());
+
     // Track item elements for positioning
     private itemElements = new Map<string, HTMLElement>();
 
@@ -48,8 +60,16 @@ export class SelectComponent implements OnDestroy {
         }
     };
 
+
+    private keydownListener = (event: KeyboardEvent) => {
+        if (event.key === 'Escape' && this.open()) {
+            this.close();
+        }
+    };
+
     constructor() {
         this.document.addEventListener('click', this.clickListener);
+        this.document.addEventListener('keydown', this.keydownListener);
         const defaultVal = this.defaultValue();
         if (defaultVal) {
             this.value.set(defaultVal);
@@ -58,21 +78,24 @@ export class SelectComponent implements OnDestroy {
 
     ngOnDestroy() {
         this.document.removeEventListener('click', this.clickListener);
+        this.document.removeEventListener('keydown', this.keydownListener);
     }
 
     toggle() {
-        if (!this.disabled()) {
+        if (!this.isDisabled()) {
             this.open.update(v => !v);
         }
     }
 
     close() {
         this.open.set(false);
+        this._onTouched();
     }
 
     select(val: string) {
         this.value.set(val);
         this.valueChange.emit(val);
+        this._onChange(val);
         this.close();
     }
 
@@ -105,6 +128,23 @@ export class SelectComponent implements OnDestroy {
     isRtl(): boolean {
         return isRtl(this.el.nativeElement);
     }
+
+    // ControlValueAccessor implementation
+    writeValue(value: string): void {
+        this.value.set(value);
+    }
+
+    registerOnChange(fn: any): void {
+        this._onChange = fn;
+    }
+
+    registerOnTouched(fn: any): void {
+        this._onTouched = fn;
+    }
+
+    setDisabledState(isDisabled: boolean): void {
+        this._disabled.set(isDisabled);
+    }
 }
 
 @Component({
@@ -115,12 +155,13 @@ export class SelectComponent implements OnDestroy {
       type="button"
       role="combobox"
       [class]="classes()"
-      [disabled]="select?.disabled() ?? false"
+      [disabled]="select?.isDisabled() ?? false"
       [attr.aria-expanded]="select?.open()"
       [attr.data-state]="select?.open() ? 'open' : 'closed'"
       [attr.aria-label]="ariaLabel()"
       [attr.data-slot]="'select-trigger'"
       (click)="onClick($event)"
+      (keydown)="onKeyDown($event)"
     >
       <ng-content />
       <svg
@@ -157,6 +198,21 @@ export class SelectTriggerComponent {
     onClick(event: MouseEvent) {
         event.stopPropagation();
         this.select?.toggle();
+    }
+
+    onKeyDown(event: KeyboardEvent) {
+        if (this.select?.isDisabled()) return;
+
+        switch (event.key) {
+            case 'Enter':
+            case ' ':
+            case 'ArrowDown':
+                event.preventDefault();
+                if (!this.select?.open()) {
+                    this.select?.open.set(true);
+                }
+                break;
+        }
     }
 }
 
@@ -200,8 +256,10 @@ export class SelectValueComponent {
         [class]="classes()" 
         [style]="positionStyles()"
         role="listbox" 
+        tabindex="-1"
         [attr.data-slot]="'select-content'"
-        [attr.data-position]="position()">
+        [attr.data-position]="position()"
+        (keydown)="onKeydown($event)">
         <ng-content />
       </div>
     }
@@ -211,6 +269,7 @@ export class SelectValueComponent {
 export class SelectContentComponent implements AfterViewInit {
     select = inject(SELECT, { optional: true });
     private el = inject(ElementRef);
+    private document = inject(DOCUMENT);
 
     class = input('');
     position = input<'popper' | 'item-aligned'>('item-aligned');
@@ -218,19 +277,32 @@ export class SelectContentComponent implements AfterViewInit {
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private offsetY = signal(0);
+    private previousActiveElement: HTMLElement | null = null;
 
     constructor() {
-        // Recalculate position when opened
         effect(() => {
             if (this.select?.open()) {
-                // Use setTimeout to ensure DOM is rendered
-                setTimeout(() => this.calculatePosition(), 0);
+                this.previousActiveElement = this.document.activeElement as HTMLElement;
+
+                setTimeout(() => {
+                    this.calculatePosition();
+                    this.focusContent();
+                }, 0);
+            } else {
+                // Restore focus when closing
+                if (this.previousActiveElement && this.document.body.contains(this.previousActiveElement)) {
+                    this.previousActiveElement.focus();
+                }
+                this.previousActiveElement = null;
             }
         });
     }
 
     ngAfterViewInit() {
-        this.calculatePosition();
+        if (this.select?.open()) {
+            this.calculatePosition();
+            this.focusContent();
+        }
     }
 
     private calculatePosition() {
@@ -241,6 +313,46 @@ export class SelectContentComponent implements AfterViewInit {
             this.offsetY.set(-(selectedOffset + 4));
         } else {
             this.offsetY.set(0);
+        }
+    }
+
+    private focusContent() {
+        if (!this.contentEl?.nativeElement) return;
+
+        const content = this.contentEl.nativeElement;
+        const selectedItem = content.querySelector<HTMLElement>('[data-state="checked"]');
+
+        if (selectedItem) {
+            selectedItem.focus({ preventScroll: true });
+        } else {
+            content.focus({ preventScroll: true });
+        }
+    }
+
+    onKeydown(event: KeyboardEvent) {
+        if (!this.contentEl?.nativeElement) return;
+
+        const items = Array.from(this.contentEl.nativeElement.querySelectorAll<HTMLElement>('[data-slot="select-item"]:not([data-disabled])'));
+
+        if (!items.length) return;
+
+        const currentFocus = this.document.activeElement as HTMLElement;
+        const currentIndex = items.indexOf(currentFocus);
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            const nextIndex = (currentIndex + 1) % items.length;
+            items[nextIndex]?.focus();
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            const prevIndex = (currentIndex - 1 + items.length) % items.length;
+            items[prevIndex]?.focus();
+        } else if (event.key === 'Enter' || event.key === ' ') {
+            // Already handled by item click/click listener, but for safety in listbox
+            if (currentIndex >= 0) {
+                items[currentIndex].click();
+                event.preventDefault();
+            }
         }
     }
 
@@ -286,6 +398,7 @@ export class SelectContentComponent implements AfterViewInit {
         '[attr.aria-selected]': 'isSelected()',
         '[attr.data-state]': 'isSelected() ? "checked" : "unchecked"',
         '[attr.data-slot]': '"select-item"',
+        '[attr.tabindex]': '"-1"',
         '(click)': 'onClick()',
     },
 })
