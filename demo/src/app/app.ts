@@ -964,7 +964,7 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
           <div class="space-y-4">
             <div>
               <p class="text-sm text-muted-foreground mb-2">Single selection:</p>
-              <ui-toggle-group type="single" variant="outline">
+              <ui-toggle-group type="single" variant="outline" defaultValue="center">
                 <ui-toggle-group-item value="left">
                   <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h7" />

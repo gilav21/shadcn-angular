@@ -177,6 +177,45 @@ describe('Sheet Integration', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
         expect(content.nativeElement.getAttribute('data-state')).toBe('open');
     });
+
+    it('should apply correct side classes', async () => {
+        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent));
+        sheetComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
+        // Default is right, check for border-l (ltr) or border-r (rtl) generic logic from usage
+        // usage: side="right" => 'inset-y-0 ... border-l ...'
+        expect(content.nativeElement.className).toContain('inset-y-0');
+        expect(content.nativeElement.className).toContain('right-0'); // LTR default
+    });
+
+    it('should close on Escape key', async () => {
+        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent));
+        sheetComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const dialog = fixture.debugElement.query(By.css('[role="dialog"]'));
+        dialog.triggerEventHandler('keydown', { key: 'Escape', preventDefault: () => { } });
+        fixture.detectChanges();
+
+        expect(component.isOpen).toBe(false);
+    });
+
+    it('should close on overlay click', async () => {
+        const sheetComp = fixture.debugElement.query(By.directive(SheetComponent));
+        sheetComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const overlay = fixture.debugElement.query(By.css('[data-slot="sheet-overlay"]'));
+        overlay.nativeElement.click();
+        fixture.detectChanges();
+
+        expect(component.isOpen).toBe(false);
+    });
 });
 
 describe('Sheet RTL Support', () => {
