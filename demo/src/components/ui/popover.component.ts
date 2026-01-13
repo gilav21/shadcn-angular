@@ -114,7 +114,6 @@ export class PopoverContentComponent implements AfterViewInit {
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
-    // Computed position adjustments
     private adjustedPosition = signal<{
         side: 'top' | 'right' | 'bottom' | 'left';
         align: 'start' | 'center' | 'end';
@@ -123,17 +122,14 @@ export class PopoverContentComponent implements AfterViewInit {
     }>({ side: 'bottom', align: 'center', offsetX: 0, offsetY: 0 });
 
     constructor() {
-        // Recalculate position when opened
         effect(() => {
             if (this.popover?.open()) {
-                // Reset offset first
                 this.adjustedPosition.set({
                     side: this.side(),
                     align: this.align(),
                     offsetX: 0,
                     offsetY: 0,
                 });
-                // Wait for two frames: one to apply reset, one to measure
                 requestAnimationFrame(() => {
                     requestAnimationFrame(() => {
                         this.calculatePosition();
@@ -168,19 +164,14 @@ export class PopoverContentComponent implements AfterViewInit {
         let offsetX = 0;
         let offsetY = 0;
 
-        // Check horizontal bounds
         if (contentRect.right > viewportWidth) {
-            // Content goes off right edge
-            const overflow = contentRect.right - viewportWidth + 8; // 8px padding
+            const overflow = contentRect.right - viewportWidth + 8;
             offsetX = -overflow;
         } else if (contentRect.left < 0) {
-            // Content goes off left edge
             offsetX = -contentRect.left + 8;
         }
 
-        // Check vertical bounds
         if (contentRect.bottom > viewportHeight) {
-            // Content goes off bottom edge - flip to top if there's room
             if (adjustedSide === 'bottom') {
                 adjustedSide = 'top';
             } else {
@@ -188,7 +179,6 @@ export class PopoverContentComponent implements AfterViewInit {
                 offsetY = -overflow;
             }
         } else if (contentRect.top < 0) {
-            // Content goes off top edge - flip to bottom if there's room
             if (adjustedSide === 'top') {
                 adjustedSide = 'bottom';
             } else {

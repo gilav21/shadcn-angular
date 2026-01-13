@@ -8,6 +8,7 @@ import {
   ElementRef,
   inject,
   AfterViewInit,
+  effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -43,13 +44,13 @@ export class ResizablePanelGroupComponent {
   template: `<ng-content />`,
   host: {
     '[class]': 'classes()',
-    '[style.flexBasis]': 'size() + "%"',
     '[style.flexGrow]': '"0"',
     '[style.flexShrink]': '"0"',
     '[attr.data-slot]': '"resizable-panel"',
   },
 })
 export class ResizablePanelComponent {
+  el = inject(ElementRef);
   class = input('');
   defaultSize = input(50);
   minSize = input(10);
@@ -59,6 +60,10 @@ export class ResizablePanelComponent {
   sizeChange = output<number>();
 
   constructor() {
+    effect(() => {
+      this.el.nativeElement.style.flexBasis = `${this.size()}%`;
+    });
+
     setTimeout(() => {
       this.size.set(this.defaultSize());
     }, 0);

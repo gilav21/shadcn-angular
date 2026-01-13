@@ -6,6 +6,8 @@ import {
   computed,
   signal,
   forwardRef,
+  ElementRef,
+  ViewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -33,14 +35,16 @@ import { cn } from '../lib/utils';
   template: `
     <div 
       class="group/native-select relative w-fit"
-      [class.opacity-50]="disabled()"
+      [class.opacity-50]="isDisabled()"
       [attr.data-slot]="'native-select-wrapper'"
     >
       <select
+        #select
+        [value]="innerValue()"
         [class]="classes()"
         [attr.data-slot]="'native-select'"
         [attr.data-size]="size()"
-        [disabled]="disabled()"
+        [disabled]="isDisabled()"
         [attr.aria-invalid]="invalid() || null"
         (change)="onSelectChange($event)"
         (blur)="onTouched()"
@@ -68,10 +72,18 @@ import { cn } from '../lib/utils';
   host: { class: 'contents' },
 })
 export class NativeSelectComponent implements ControlValueAccessor {
+  @ViewChild('select') selectEl!: ElementRef<HTMLSelectElement>;
+
   class = input('');
   size = input<'sm' | 'default'>('default');
   disabled = input(false);
   invalid = input(false);
+
+  // Internal value signal
+  protected innerValue = signal('');
+
+  private formDisabled = signal(false);
+  isDisabled = computed(() => this.disabled() || this.formDisabled());
 
   // ControlValueAccessor
   onChange: (value: string) => void = () => { };
@@ -90,11 +102,12 @@ export class NativeSelectComponent implements ControlValueAccessor {
 
   onSelectChange(event: Event) {
     const value = (event.target as HTMLSelectElement).value;
+    this.innerValue.set(value);
     this.onChange(value);
   }
 
   writeValue(value: string): void {
-    // Value is set via native select binding
+    this.innerValue.set(value ?? '');
   }
 
   registerOnChange(fn: (value: string) => void): void {
@@ -106,6 +119,6 @@ export class NativeSelectComponent implements ControlValueAccessor {
   }
 
   setDisabledState(isDisabled: boolean): void {
-    // Handled by input
+    this.formDisabled.set(isDisabled);
   }
 }

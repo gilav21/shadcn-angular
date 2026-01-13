@@ -205,6 +205,17 @@ describe('RadioGroup ControlValueAccessor', () => {
         const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
         expect(items[0].nativeElement.getAttribute('aria-checked')).toBe('true');
     });
+
+    it('should disable all items when disabled via FormControl', async () => {
+        component.control.disable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        items.forEach(item => {
+            expect(item.nativeElement.disabled).toBe(true);
+        });
+    });
 });
 
 describe('RadioGroup RTL Support', () => {
