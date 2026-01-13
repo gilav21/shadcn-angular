@@ -494,11 +494,17 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         this.isScrollingProgrammatically = true;
 
         setTimeout(() => {
+            const viewport = this._scrollArea?.viewportRef?.nativeElement;
             const section = this.el.nativeElement.querySelector(
                 `[data-category="${categoryId}"]`
-            );
-            if (section) {
-                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            ) as HTMLElement;
+
+            if (section && viewport) {
+                const relativeTop = section.getBoundingClientRect().top - viewport.getBoundingClientRect().top;
+                const scrollTop = viewport.scrollTop + relativeTop;
+
+                viewport.scrollTo({ top: scrollTop, behavior: 'smooth' });
+
                 setTimeout(() => {
                     this.isScrollingProgrammatically = false;
                 }, 800);
