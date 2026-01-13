@@ -33,7 +33,7 @@ export const Default: Story = {
         <ui-checkbox id="terms" [elementId]="'terms'" [disabled]="disabled"></ui-checkbox>
         <label
           for="terms"
-          class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          class="pl-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
         >
           Accept terms and conditions
         </label>

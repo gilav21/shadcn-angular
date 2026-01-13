@@ -1701,7 +1701,7 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
 
             <div class="space-y-2">
               <h3 class="text-lg font-medium">Date Picker RTL (Hebrew)</h3>
-              <ui-date-picker locale="he" placeholder="בחר תאריך" dir="rtl" />
+              <ui-date-picker [showTime]="true" locale="he" placeholder="בחר תאריך" dir="rtl" />
             </div>
           </div>
         </section>

@@ -141,7 +141,7 @@ export class DatePickerComponent implements ControlValueAccessor {
       day: 'numeric',
       ...(this.showTime() ? { hour: '2-digit', minute: '2-digit' } : {})
     };
-    return date.toLocaleDateString(undefined, options);
+    return date.toLocaleDateString(this.locale(), options);
   }
 
   writeValue(value: Date | null): void {
@@ -223,6 +223,7 @@ export class DateRangePickerComponent implements ControlValueAccessor {
   class = input('');
   placeholder = input('Pick a date range');
   disabled = input(false);
+  locale = input('en');
 
   isOpen = signal(false);
   rangeValue = signal<DateRange>({ start: null, end: null });
@@ -272,7 +273,7 @@ export class DateRangePickerComponent implements ControlValueAccessor {
       day: 'numeric',
       year: 'numeric'
     };
-    return date.toLocaleDateString(undefined, options);
+    return date.toLocaleDateString(this.locale(), options);
   }
 
 

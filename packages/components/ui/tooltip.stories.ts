@@ -46,12 +46,12 @@ export const Default: Story = {
     template: `
       <ui-tooltip [side]="side" [delayDuration]="delayDuration">
         <ui-tooltip-trigger>
-          <button shButton variant="outline">Hover me</button>
+          <ui-button variant="outline">Hover me</ui-button>
         </ui-tooltip-trigger>
-        <ui-tooltip-content>
-          <p>Add to library</p>
+        <ui-tooltip-content class="w-max">
+          <span>text in hover</span>
         </ui-tooltip-content>
-      </ui-tooltip>
+      </ui-tooltip> 
     `,
   }),
 };
@@ -59,11 +59,11 @@ export const Default: Story = {
 export const DirectiveUsage: Story = {
   render: () => ({
     template: `
-      <div class="flex gap-4">
-        <button shButton variant="outline" uiTooltip="Top Tooltip" tooltipSide="top">Top</button>
-        <button shButton variant="outline" uiTooltip="Right Tooltip" tooltipSide="right">Right</button>
-        <button shButton variant="outline" uiTooltip="Bottom Tooltip" tooltipSide="bottom">Bottom</button>
-        <button shButton variant="outline" uiTooltip="Left Tooltip" tooltipSide="left">Left</button>
+      <div class="flex gap-4 pl-20 pt-20">
+        <ui-button variant="outline" uiTooltip="Top Tooltip" tooltipSide="top">Top</ui-button>
+        <ui-button variant="outline" uiTooltip="Right Tooltip" tooltipSide="right">Right</ui-button>
+        <ui-button variant="outline" uiTooltip="Bottom Tooltip" tooltipSide="bottom">Bottom</ui-button>
+        <ui-button variant="outline" uiTooltip="Left Tooltip" tooltipSide="left">Left</ui-button>
       </div>
     `,
   }),

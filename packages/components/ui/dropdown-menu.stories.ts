@@ -49,7 +49,7 @@ export const Default: Story = {
     template: `
       <ui-dropdown-menu [rtl]="rtl">
         <ui-dropdown-menu-trigger>
-          <button shButton variant="outline">Open Menu</button>
+          <ui-button variant="outline">Open Menu</ui-button>  
         </ui-dropdown-menu-trigger>
         <ui-dropdown-menu-content class="w-56">
           <ui-dropdown-menu-label>My Account</ui-dropdown-menu-label>

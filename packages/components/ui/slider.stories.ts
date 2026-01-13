@@ -1,7 +1,5 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { SliderComponent } from './slider.component';
-import { cn } from '../lib/utils';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<SliderComponent> = {
     title: 'UI/Slider',

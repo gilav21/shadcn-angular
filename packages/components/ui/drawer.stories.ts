@@ -51,7 +51,7 @@ export const Default: Story = {
     template: `
       <ui-drawer [direction]="direction">
         <ui-drawer-trigger>
-          <button shButton variant="outline">Open Drawer</button>
+          <ui-button variant="outline">Open Drawer</ui-button>
         </ui-drawer-trigger>
         <ui-drawer-content>
           <div class="mx-auto w-full max-w-sm">
@@ -72,9 +72,9 @@ export const Default: Story = {
               </div>
             </div>
             <ui-drawer-footer>
-              <button shButton>Submit</button>
+              <ui-button variant="outline">Submit</ui-button>
               <ui-drawer-close>
-                <button shButton variant="outline">Cancel</button>
+                <ui-button variant="outline">Cancel</ui-button>
               </ui-drawer-close>
             </ui-drawer-footer>
           </div>

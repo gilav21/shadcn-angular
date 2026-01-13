@@ -116,14 +116,16 @@ describe('AvatarFallbackComponent', () => {
     });
 
     it('should have data-slot="avatar-fallback"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('avatar-fallback');
+        const fallback = fixture.debugElement.query(By.css('[data-slot="avatar-fallback"]'));
+        expect(fallback.nativeElement.getAttribute('data-slot')).toBe('avatar-fallback');
     });
 
     it('should apply default classes', () => {
-        expect(fixture.nativeElement.className).toContain('flex');
-        expect(fixture.nativeElement.className).toContain('items-center');
-        expect(fixture.nativeElement.className).toContain('justify-center');
-        expect(fixture.nativeElement.className).toContain('bg-muted');
+        const fallback = fixture.debugElement.query(By.css('[data-slot="avatar-fallback"]'));
+        expect(fallback.nativeElement.className).toContain('flex');
+        expect(fallback.nativeElement.className).toContain('items-center');
+        expect(fallback.nativeElement.className).toContain('justify-center');
+        expect(fallback.nativeElement.className).toContain('bg-muted');
     });
 });
 
@@ -146,6 +148,46 @@ describe('Avatar Integration', () => {
 
         expect(avatar).toBeTruthy();
         expect(image).toBeTruthy();
+        expect(fallback).toBeTruthy();
+    });
+
+    it('should show fallback and hide image when in loading state', () => {
+        const avatarComp = fixture.debugElement.query(By.directive(AvatarComponent)).componentInstance;
+        avatarComp.status.set('loading');
+        fixture.detectChanges();
+
+        const img = fixture.debugElement.query(By.css('img')).nativeElement;
+        const fallback = fixture.debugElement.query(By.css('[data-slot="avatar-fallback"]'));
+
+        expect(img.style.display).toBe('none');
+        expect(fallback).toBeTruthy();
+    });
+
+    it('should hide fallback and show image when image is loaded', () => {
+        const imgDebugEl = fixture.debugElement.query(By.css('img'));
+
+        // Trigger load event on the img element
+        imgDebugEl.triggerEventHandler('load', {});
+        fixture.detectChanges();
+
+        const img = imgDebugEl.nativeElement;
+        const fallback = fixture.debugElement.query(By.css('[data-slot="avatar-fallback"]'));
+
+        expect(img.style.display).toBe('block');
+        expect(fallback).toBeNull();
+    });
+
+    it('should show fallback and hide image when image fails to load', () => {
+        const imgDebugEl = fixture.debugElement.query(By.css('img'));
+
+        // Trigger error event on the img element
+        imgDebugEl.triggerEventHandler('error', {});
+        fixture.detectChanges();
+
+        const img = imgDebugEl.nativeElement;
+        const fallback = fixture.debugElement.query(By.css('[data-slot="avatar-fallback"]'));
+
+        expect(img.style.display).toBe('none');
         expect(fallback).toBeTruthy();
     });
 });

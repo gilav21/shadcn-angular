@@ -30,7 +30,7 @@ export const Default: Story = {
     render: (args) => ({
         props: args,
         template: `
-      <div class="flex items-center space-x-2">
+      <div class="flex items-center gap-2">
         <ui-switch id="airplane-mode" [elementId]="'airplane-mode'" [disabled]="disabled" ariaLabel="Airplane Mode"></ui-switch>
         <ui-label for="airplane-mode">Airplane Mode</ui-label>
       </div>
