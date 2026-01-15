@@ -194,6 +194,11 @@ export class RichTextSanitizerService {
         return doc.body.textContent ?? '';
     }
 
+    // Tags that should be removed entirely (including content)
+    private readonly TAGS_TO_REMOVE = new Set([
+        'script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template'
+    ]);
+
     /**
      * Process nodes recursively, copying safe content to clean container.
      */
@@ -217,11 +222,12 @@ export class RichTextSanitizerService {
                     this.processNodes(element, cleanElement);
 
                     target.appendChild(cleanElement);
-                } else {
-                    // Element not allowed - but process children (unwrap)
-                    // This preserves text content from disallowed wrappers
+                } else if (!this.TAGS_TO_REMOVE.has(tagName)) {
+                    // Element not allowed but not dangerous - process children (unwrap)
+                    // This preserves text content from harmless disallowed wrappers (e.g. invalid spans)
                     this.processNodes(element, target);
                 }
+                // If tag is in TAGS_TO_REMOVE, we simply skip it (drop it entirely)
             }
             // Ignore comments, processing instructions, etc.
         }
