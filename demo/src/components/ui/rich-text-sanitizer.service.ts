@@ -50,6 +50,10 @@ export class RichTextSanitizerService {
         'background-color',
         'text-align',
         'font-size',
+        // Dimensions for images
+        'width', 'height',
+        'min-width', 'max-width',
+        'min-height', 'max-height',
     ]);
 
     // Allowed class patterns (for syntax highlighting)

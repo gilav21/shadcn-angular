@@ -27,6 +27,7 @@ import { debounceTime, switchMap, catchError, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
+import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
 
 // Editor variants using CVA
 const editorVariants = cva(
@@ -84,7 +85,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
 @Component({
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [RichTextToolbarComponent, RichTextMentionPopoverComponent],
+    imports: [RichTextToolbarComponent, RichTextMentionPopoverComponent, RichTextImageResizerComponent],
     providers: [
         {
             provide: NG_VALUE_ACCESSOR,
@@ -127,7 +128,15 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         (blur)="onBlur()"
         (mouseup)="onSelectionChange()"
         (keyup)="onSelectionChange()"
+        (click)="onEditorClick($event)"
       ></div>
+
+      <ui-rich-text-image-resizer 
+          [target]="selectedImage()" 
+          [container]="editorDiv"
+          (resizeEnd)="onImageResizeEnd()" 
+      />
+
 
       <!-- Floating toolbar (shown on selection) -->
       @if (toolbar() === 'floating' && !readonly() && showFloatingToolbar()) {
@@ -375,6 +384,23 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             )
             .slice(0, 10);
     });
+
+    /** Currently selected image for resizing */
+    selectedImage = signal<HTMLImageElement | null>(null);
+
+    onEditorClick(event: MouseEvent): void {
+        const target = event.target as HTMLElement;
+        if (target.tagName === 'IMG') {
+            this.selectedImage.set(target as HTMLImageElement);
+        } else {
+            this.selectedImage.set(null);
+        }
+    }
+
+    onImageResizeEnd(): void {
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
 
     constructor() {
         // Effect to emit HTML changes
@@ -898,10 +924,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     }
 
     onImageInsert(data: { alt: string; src: string }): void {
+        this.restoreSelection();
         const safeSrc = this.sanitizer.sanitizeImageSrc(data.src);
         if (safeSrc) {
             this.insertHtml(`<img src="${safeSrc}" alt="${data.alt}">`);
             this.pushHistory();
+            this.syncContentFromEditor();
         }
     }
 
