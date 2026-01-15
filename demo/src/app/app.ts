@@ -1,40 +1,233 @@
 import { Component, ChangeDetectionStrategy, signal, inject } from '@angular/core';
 import { JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ButtonComponent, InputComponent, CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent, BadgeComponent, LabelComponent, SeparatorComponent, SwitchComponent, CheckboxComponent, RadioGroupComponent, RadioGroupItemComponent, TextareaComponent, SkeletonComponent, TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent, AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent, ProgressComponent, AlertComponent, AlertTitleComponent, AlertDescriptionComponent, AvatarComponent, AvatarImageComponent, AvatarFallbackComponent, DialogComponent, DialogTriggerComponent, DialogContentComponent, DialogHeaderComponent, DialogTitleComponent, DialogDescriptionComponent, DialogFooterComponent, TooltipDirective, DropdownMenuComponent, DropdownMenuTriggerComponent, DropdownMenuContentComponent, DropdownMenuItemComponent, DropdownMenuSeparatorComponent, DropdownMenuLabelComponent, DropdownMenuSubComponent, DropdownMenuSubTriggerComponent, DropdownMenuSubContentComponent, SelectComponent, SelectTriggerComponent, SelectValueComponent, SelectContentComponent, SelectItemComponent, SelectGroupComponent, SelectLabelComponent, PopoverComponent, PopoverTriggerComponent, PopoverContentComponent, PopoverCloseComponent, SheetComponent, SheetTriggerComponent, SheetContentComponent, SheetHeaderComponent, SheetTitleComponent, SheetDescriptionComponent, SheetFooterComponent, SheetCloseComponent, AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent, AlertDialogHeaderComponent, AlertDialogTitleComponent, AlertDialogDescriptionComponent, AlertDialogFooterComponent, AlertDialogActionComponent, AlertDialogCancelComponent, SliderComponent, CollapsibleComponent, CollapsibleTriggerComponent, CollapsibleContentComponent, ContextMenuTriggerDirective } from '../components/ui';
-import { ToggleComponent } from '../components/ui/toggle.component';
-import { ToggleGroupComponent, ToggleGroupItemComponent } from '../components/ui/toggle-group.component';
-import { ScrollAreaComponent } from '../components/ui/scroll-area.component';
-import { TableComponent, TableHeaderComponent, TableBodyComponent, TableRowComponent, TableHeadComponent, TableCellComponent, TableCaptionComponent } from '../components/ui/table.component';
-import { BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent, BreadcrumbLinkComponent, BreadcrumbPageComponent, BreadcrumbSeparatorComponent } from '../components/ui/breadcrumb.component';
-import { HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent } from '../components/ui/hover-card.component';
-import { ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSeparatorComponent, ContextMenuLabelComponent, ContextMenuShortcutComponent } from '../components/ui/context-menu.component';
-import { DrawerComponent, DrawerTriggerComponent, DrawerContentComponent, DrawerHeaderComponent, DrawerTitleComponent, DrawerDescriptionComponent, DrawerFooterComponent, DrawerCloseComponent } from '../components/ui/drawer.component';
-import { TooltipComponent, TooltipContentComponent, TooltipTriggerComponent } from '../components/ui/tooltip.component';
-import { AspectRatioComponent } from '../components/ui/aspect-ratio.component';
-import { ToasterComponent, ToastService } from '../components/ui/toast.component';
-import { ResizablePanelGroupComponent, ResizablePanelComponent, ResizableHandleComponent } from '../components/ui/resizable.component';
-import { PaginationComponent, PaginationContentComponent, PaginationItemComponent, PaginationLinkComponent, PaginationPreviousComponent, PaginationNextComponent, PaginationEllipsisComponent } from '../components/ui/pagination.component';
-import { InputOTPComponent } from '../components/ui/input-otp.component';
-import { CalendarComponent } from '../components/ui/calendar.component';
-import { CommandComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent, CommandSeparatorComponent, CommandShortcutComponent, CommandDialogComponent } from '../components/ui/command.component';
-import { MenubarComponent, MenubarMenuComponent, MenubarTriggerComponent, MenubarContentComponent, MenubarItemComponent, MenubarSeparatorComponent, MenubarShortcutComponent, MenubarSubComponent, MenubarSubTriggerComponent, MenubarSubContentComponent } from '../components/ui/menubar.component';
-import { CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent } from '../components/ui/carousel.component';
-import { NavigationMenuComponent, NavigationMenuListComponent, NavigationMenuItemComponent, NavigationMenuTriggerComponent, NavigationMenuContentComponent, NavigationMenuLinkComponent } from '../components/ui/navigation-menu.component';
-import { DatePickerComponent, DateRangePickerComponent } from '../components/ui/date-picker.component';
-import { SidebarProviderComponent, SidebarComponent, SidebarHeaderComponent, SidebarContentComponent, SidebarFooterComponent, SidebarGroupComponent, SidebarGroupLabelComponent, SidebarGroupContentComponent, SidebarMenuComponent, SidebarMenuItemComponent, SidebarMenuButtonComponent, SidebarMenuLinkComponent, SidebarTriggerComponent, SidebarInsetComponent, SidebarSeparatorComponent } from '../components/ui/sidebar.component';
-import { SpinnerComponent } from '../components/ui/spinner.component';
-import { EmptyComponent, EmptyHeaderComponent, EmptyMediaComponent, EmptyTitleComponent, EmptyDescriptionComponent, EmptyContentComponent } from '../components/ui/empty.component';
-import { KbdComponent } from '../components/ui/kbd.component';
-import { ButtonGroupComponent, ButtonGroupTextComponent } from '../components/ui/button-group.component';
-import { InputGroupComponent, InputGroupInputComponent, InputGroupAddonComponent, InputGroupTextComponent } from '../components/ui/input-group.component';
-import { FieldComponent, FieldGroupComponent, FieldSetComponent, FieldLabelComponent, FieldLegendComponent, FieldDescriptionComponent, FieldErrorComponent, FieldSeparatorComponent } from '../components/ui/field.component';
-import { NativeSelectComponent } from '../components/ui/native-select.component';
-import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, SpeedDialItemComponent, SpeedDialMaskComponent, SpeedDialContextTriggerComponent, SpeedDialContextTriggerDirective } from '../components/ui/speed-dial.component';
-import { ChipListComponent } from '../components/ui/chip-list.component';
-import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerComponent } from '../components/ui/emoji-picker.component';
-import { RichTextEditorComponent } from '../components/ui/rich-text-editor.component';
-import { MentionItem, TagItem } from '../components/ui/rich-text-mention.component';
+import {
+  ButtonComponent,
+  InputComponent,
+  CardComponent,
+  CardHeaderComponent,
+  CardTitleComponent,
+  CardDescriptionComponent,
+  CardContentComponent,
+  CardFooterComponent,
+  BadgeComponent,
+  LabelComponent,
+  SeparatorComponent,
+  SwitchComponent,
+  CheckboxComponent,
+  RadioGroupComponent,
+  RadioGroupItemComponent,
+  TextareaComponent,
+  SkeletonComponent,
+  TabsComponent,
+  TabsListComponent,
+  TabsTriggerComponent,
+  TabsContentComponent,
+  AccordionComponent,
+  AccordionItemComponent,
+  AccordionTriggerComponent,
+  AccordionContentComponent,
+  ProgressComponent,
+  AlertComponent,
+  AlertTitleComponent,
+  AlertDescriptionComponent,
+  AvatarComponent,
+  AvatarImageComponent,
+  AvatarFallbackComponent,
+  DialogComponent,
+  DialogTriggerComponent,
+  DialogContentComponent,
+  DialogHeaderComponent,
+  DialogTitleComponent,
+  DialogDescriptionComponent,
+  DialogFooterComponent,
+  TooltipDirective,
+  DropdownMenuComponent,
+  DropdownMenuTriggerComponent,
+  DropdownMenuContentComponent,
+  DropdownMenuItemComponent,
+  DropdownMenuSeparatorComponent,
+  DropdownMenuLabelComponent,
+  DropdownMenuSubComponent,
+  DropdownMenuSubTriggerComponent,
+  DropdownMenuSubContentComponent,
+  SelectComponent,
+  SelectTriggerComponent,
+  SelectValueComponent,
+  SelectContentComponent,
+  SelectItemComponent,
+  SelectGroupComponent,
+  SelectLabelComponent,
+  PopoverComponent,
+  PopoverTriggerComponent,
+  PopoverContentComponent,
+  PopoverCloseComponent,
+  SheetComponent,
+  SheetTriggerComponent,
+  SheetContentComponent,
+  SheetHeaderComponent,
+  SheetTitleComponent,
+  SheetDescriptionComponent,
+  SheetFooterComponent,
+  SheetCloseComponent,
+  AlertDialogComponent,
+  AlertDialogTriggerComponent,
+  AlertDialogContentComponent,
+  AlertDialogHeaderComponent,
+  AlertDialogTitleComponent,
+  AlertDialogDescriptionComponent,
+  AlertDialogFooterComponent,
+  AlertDialogActionComponent,
+  AlertDialogCancelComponent,
+  SliderComponent,
+  CollapsibleComponent,
+  CollapsibleTriggerComponent,
+  CollapsibleContentComponent,
+  ContextMenuTriggerDirective,
+  ToggleComponent,
+  ToggleGroupComponent,
+  ToggleGroupItemComponent,
+  ScrollAreaComponent,
+  TableComponent,
+  TableHeaderComponent,
+  TableBodyComponent,
+  TableRowComponent,
+  TableHeadComponent,
+  TableCellComponent,
+  TableCaptionComponent,
+  BreadcrumbComponent,
+  BreadcrumbListComponent,
+  BreadcrumbItemComponent,
+  BreadcrumbLinkComponent,
+  BreadcrumbPageComponent,
+  BreadcrumbSeparatorComponent,
+  HoverCardComponent,
+  HoverCardTriggerComponent,
+  HoverCardContentComponent,
+  ContextMenuComponent,
+  ContextMenuTriggerComponent,
+  ContextMenuContentComponent,
+  ContextMenuItemComponent,
+  ContextMenuSeparatorComponent,
+  ContextMenuLabelComponent,
+  ContextMenuShortcutComponent,
+  DrawerComponent,
+  DrawerTriggerComponent,
+  DrawerContentComponent,
+  DrawerHeaderComponent,
+  DrawerTitleComponent,
+  DrawerDescriptionComponent,
+  DrawerFooterComponent,
+  DrawerCloseComponent,
+  TooltipComponent,
+  TooltipContentComponent,
+  TooltipTriggerComponent,
+  AspectRatioComponent,
+  ToasterComponent,
+  ToastService,
+  ResizablePanelGroupComponent,
+  ResizablePanelComponent,
+  ResizableHandleComponent,
+  PaginationComponent,
+  PaginationContentComponent,
+  PaginationItemComponent,
+  PaginationLinkComponent,
+  PaginationPreviousComponent,
+  PaginationNextComponent,
+  PaginationEllipsisComponent,
+  InputOTPComponent,
+  CalendarComponent,
+  CommandComponent,
+  CommandInputComponent,
+  CommandListComponent,
+  CommandEmptyComponent,
+  CommandGroupComponent,
+  CommandItemComponent,
+  CommandSeparatorComponent,
+  CommandShortcutComponent,
+  CommandDialogComponent,
+  MenubarComponent,
+  MenubarMenuComponent,
+  MenubarTriggerComponent,
+  MenubarContentComponent,
+  MenubarItemComponent,
+  MenubarSeparatorComponent,
+  MenubarShortcutComponent,
+  MenubarSubComponent,
+  MenubarSubTriggerComponent,
+  MenubarSubContentComponent,
+  CarouselComponent,
+  CarouselContentComponent,
+  CarouselItemComponent,
+  CarouselPreviousComponent,
+  CarouselNextComponent,
+  NavigationMenuComponent,
+  NavigationMenuListComponent,
+  NavigationMenuItemComponent,
+  NavigationMenuTriggerComponent,
+  NavigationMenuContentComponent,
+  NavigationMenuLinkComponent,
+  DatePickerComponent,
+  DateRangePickerComponent,
+  SidebarProviderComponent,
+  SidebarComponent,
+  SidebarHeaderComponent,
+  SidebarContentComponent,
+  SidebarFooterComponent,
+  SidebarGroupComponent,
+  SidebarGroupLabelComponent,
+  SidebarGroupContentComponent,
+  SidebarMenuComponent,
+  SidebarMenuItemComponent,
+  SidebarMenuButtonComponent,
+  SidebarMenuLinkComponent,
+  SidebarTriggerComponent,
+  SidebarInsetComponent,
+  SidebarSeparatorComponent,
+  SpinnerComponent,
+  EmptyComponent,
+  EmptyHeaderComponent,
+  EmptyMediaComponent,
+  EmptyTitleComponent,
+  EmptyDescriptionComponent,
+  EmptyContentComponent,
+  KbdComponent,
+  ButtonGroupComponent,
+  ButtonGroupTextComponent,
+  InputGroupComponent,
+  InputGroupInputComponent,
+  InputGroupAddonComponent,
+  InputGroupTextComponent,
+  FieldComponent,
+  FieldGroupComponent,
+  FieldSetComponent,
+  FieldLabelComponent,
+  FieldLegendComponent,
+  FieldDescriptionComponent,
+  FieldErrorComponent,
+  FieldSeparatorComponent,
+  NativeSelectComponent,
+  SpeedDialComponent,
+  SpeedDialTriggerComponent,
+  SpeedDialMenuComponent,
+  SpeedDialItemComponent,
+  SpeedDialMaskComponent,
+  SpeedDialContextTriggerComponent,
+  SpeedDialContextTriggerDirective,
+  ChipListComponent,
+  EmojiPickerComponent,
+  EmojiPickerContentComponent,
+  EmojiPickerTriggerComponent,
+  RichTextEditorComponent,
+  AutocompleteComponent,
+  MentionItem,
+  TagItem,
+} from '../components/ui';
+
+interface Framework {
+  value: string;
+  label: string;
+}
 
 @Component({
   selector: 'app-root',
@@ -212,6 +405,7 @@ import { MentionItem, TagItem } from '../components/ui/rich-text-mention.compone
     SidebarGroupContentComponent,
     SidebarMenuComponent,
     SidebarMenuItemComponent,
+    SidebarMenuButtonComponent,
     SidebarMenuLinkComponent,
     SidebarTriggerComponent,
     SidebarInsetComponent,
@@ -253,2124 +447,15 @@ import { MentionItem, TagItem } from '../components/ui/rich-text-mention.compone
     EmojiPickerComponent,
     EmojiPickerContentComponent,
     EmojiPickerTriggerComponent,
-    RichTextEditorComponent
+    RichTextEditorComponent,
+    AutocompleteComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <ui-toaster />
-    <div class="min-h-screen bg-background text-foreground p-8">
-      <div class="max-w-4xl mx-auto space-y-12">
-        <!-- Header -->
-        <div class="text-center space-y-4">
-          <h1 class="text-4xl font-bold tracking-tight">shadcn-angular</h1>
-          <p class="text-muted-foreground text-lg">
-            Beautifully designed components for Angular, built with Tailwind CSS
-          </p>
-          <div class="flex justify-center gap-2">
-            <ui-badge>Angular 20</ui-badge>
-            <ui-badge variant="secondary">Tailwind v4</ui-badge>
-            <ui-badge variant="outline">Signals</ui-badge>
-          </div>
-        </div>
-
-        <!-- Theme Toggle -->
-        <div class="flex items-center justify-center gap-3">
-          <span class="text-sm">Light</span>
-          <ui-switch (checkedChange)="toggleTheme($event)" />
-          <span class="text-sm">Dark</span>
-          
-          <div class="w-px h-4 bg-border mx-2"></div>
-
-          <span class="text-sm">LTR</span>
-          <ui-switch (checkedChange)="toggleDirection($event)" [checked]="isRtl()" />
-          <span class="text-sm">RTL</span>
-        </div>
-
-        <ui-separator />
-        <ui-breadcrumb-list>
-          <ui-breadcrumb-page>Home</ui-breadcrumb-page>
-          <ui-breadcrumb-separator>
-            ->
-          </ui-breadcrumb-separator>
-          <ui-breadcrumb-item>
-            <ui-breadcrumb-link href="#breadcrumbSection">Breadcrumb</ui-breadcrumb-link>
-          </ui-breadcrumb-item>
-        </ui-breadcrumb-list>
-
-        <!-- Emoji Picker Section -->
-        <section class="space-y-4">
-          <h2 id="emoji-picker" class="text-2xl font-semibold scroll-m-20">Emoji Picker</h2>
-          <p class="text-muted-foreground">A customizable emoji picker with category navigation and search.</p>
-          
-            <div class="flex items-center gap-4">
-            <ui-emoji-picker
-                [closeOnSelect]="closeOnSelect()"
-                (emojiSelect)="onEmojiSelect($event)"
-            >
-                <ui-emoji-picker-trigger>
-                    <ui-button variant="outline">Pick an Emoji</ui-button>
-                </ui-emoji-picker-trigger>
-                <ui-emoji-picker-content />
-            </ui-emoji-picker>
-            
-            @if (selectedEmoji()) {
-                <div class="text-2xl">{{ selectedEmoji() }}</div>
-            }
-
-            <div class="flex items-center gap-2 ml-4">
-                <ui-checkbox 
-                    id="closeOnSelect" 
-                    [checked]="closeOnSelect()" 
-                    (checkedChange)="closeOnSelect.set($event)" 
-                />
-                <label for="closeOnSelect" class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
-                    Close on select
-                </label>
-            </div>
-            </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Rich Text Editor Section -->
-        <section class="space-y-6">
-          <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">Rich Text Editor</h2>
-          <p class="text-muted-foreground">A secure, configurable rich text editor with Markdown and HTML support.</p>
-          
-          <!-- Basic Editor -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">Basic Editor (Top Toolbar)</h3>
-            <ui-rich-text-editor
-              mode="markdown"
-              toolbar="top"
-              placeholder="Start typing... Use **bold**, *italic*, or toolbar buttons"
-              minHeight="150px"
-              [(ngModel)]="richTextContent"
-              (htmlChange)="richTextHtml = $event"
-            />
-            @if (richTextHtml) {
-              <details class="mt-2">
-                <summary class="text-sm text-muted-foreground cursor-pointer">View HTML Output</summary>
-                <pre class="mt-2 p-3 bg-muted rounded-md text-xs overflow-auto max-h-32">{{ richTextHtml }}</pre>
-              </details>
-            }
-          </div>
-          
-          <!-- Floating Toolbar -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">Floating Toolbar (Select text)</h3>
-            <ui-rich-text-editor
-              mode="markdown"
-              toolbar="floating"
-              placeholder="Select text to see the floating toolbar appear..."
-              minHeight="120px"
-            />
-          </div>
-          
-          <!-- Minimal Toolbar -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">Minimal Toolbar</h3>
-            <ui-rich-text-editor
-              mode="markdown"
-              toolbar="top"
-              [toolbarItems]="['bold', 'italic', 'separator', 'link', 'emoji']"
-              placeholder="Simplified toolbar with just the essentials..."
-              minHeight="100px"
-            />
-          </div>
-          
-          <!-- With Mentions & Tags -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">With Mentions & Tags</h3>
-            <p class="text-sm text-muted-foreground">Type @ to mention someone or # to add a tag</p>
-            <ui-rich-text-editor
-              mode="markdown"
-              toolbar="top"
-              [mentions]="true"
-              [mentionSource]="sampleMentions"
-              [tags]="true"
-              [tagSource]="sampleTags"
-              placeholder="Type @john or #angular to see autocomplete..."
-              minHeight="120px"
-            />
-          </div>
-          
-          <!-- Character Count -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">With Character Count</h3>
-            <ui-rich-text-editor
-              mode="markdown"
-              toolbar="top"
-              [showCount]="true"
-              placeholder="Type to see the character count below..."
-              minHeight="100px"
-            />
-          </div>
-          
-          <!-- HTML Mode -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">HTML Mode (contentEditable)</h3>
-            <ui-rich-text-editor
-              mode="html"
-              toolbar="top"
-              placeholder="True WYSIWYG with contentEditable..."
-              minHeight="120px"
-            />
-          </div>
-          
-          <!-- No Toolbar -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">No Toolbar (Keyboard Only)</h3>
-            <p class="text-sm text-muted-foreground">Use Ctrl+B, Ctrl+I, Ctrl+U for formatting</p>
-            <ui-rich-text-editor
-              mode="markdown"
-              toolbar="none"
-              variant="ghost"
-              placeholder="Clean writing experience - use keyboard shortcuts..."
-              minHeight="100px"
-            />
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Buttons Section -->
-        <section class="space-y-4">
-          <h2 id="buttons" class="text-2xl font-semibold scroll-m-20">Buttons</h2>
-          <p class="text-muted-foreground">Button component with multiple variants and sizes.</p>
-          
-          <div class="flex flex-wrap gap-4">
-            <ui-button>Default</ui-button>
-            <ui-button variant="secondary">Secondary</ui-button>
-            <ui-button variant="outline">Outline</ui-button>
-            <ui-button variant="ghost">Ghost</ui-button>
-            <ui-button variant="link">Link</ui-button>
-            <ui-button variant="destructive">Destructive</ui-button>
-          </div>
-
-          <div class="flex flex-wrap gap-4 items-center">
-            <ui-button size="sm">Small</ui-button>
-            <ui-button>Default</ui-button>
-            <ui-button size="lg">Large</ui-button>
-            <ui-button size="icon">
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-            </ui-button>
-          </div>
-
-          <ui-button [disabled]="true">Disabled</ui-button>
-        </section>
-
-        <ui-separator />
-
-        <!-- Input Section -->
-        <section class="space-y-4">
-          <h2 id="input" class="text-2xl font-semibold scroll-m-20">Input</h2>
-          <p class="text-muted-foreground">Text input with label support.</p>
-          
-          <div class="grid gap-4 max-w-sm">
-            <div class="space-y-2">
-              <ui-label for="email">Email</ui-label>
-              <ui-input type="email" placeholder="Enter your email" [attr.id]="'email'" />
-            </div>
-            
-            <div class="space-y-2">
-              <ui-label for="password">Password</ui-label>
-              <ui-input type="password" placeholder="Enter password" [attr.id]="'password'" />
-            </div>
-
-            <ui-input placeholder="Disabled input" [disabled]="true" />
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Card Section -->
-        <section class="space-y-4">
-          <h2 id="card" class="text-2xl font-semibold scroll-m-20">Card</h2>
-          <p class="text-muted-foreground">Card component with header, content, and footer.</p>
-          
-          <div class="grid md:grid-cols-2 gap-6">
-            <ui-card>
-              <ui-card-header>
-                <ui-card-title>Create Project</ui-card-title>
-                <ui-card-description>Deploy your new project in one-click.</ui-card-description>
-              </ui-card-header>
-              <ui-card-content>
-                <div class="space-y-4">
-                  <div class="space-y-2">
-                    <ui-label for="name">Name</ui-label>
-                    <ui-input placeholder="Name of your project" />
-                  </div>
-                  <div class="space-y-2">
-                    <ui-label for="framework">Framework</ui-label>
-                    <ui-input placeholder="Angular" />
-                  </div>
-                </div>
-              </ui-card-content>
-              <ui-card-footer class="flex justify-between">
-                <ui-button variant="outline">Cancel</ui-button>
-                <ui-button>Deploy</ui-button>
-              </ui-card-footer>
-            </ui-card>
-
-            <ui-card>
-              <ui-card-header>
-                <ui-card-title>Notifications</ui-card-title>
-                <ui-card-description>Manage your notification preferences.</ui-card-description>
-              </ui-card-header>
-              <ui-card-content>
-                <div class="space-y-4">
-                  <div class="flex items-center justify-between">
-                    <ui-label>Push Notifications</ui-label>
-                    <ui-switch />
-                  </div>
-                  <div class="flex items-center justify-between">
-                    <ui-label>Email Notifications</ui-label>
-                    <ui-switch />
-                  </div>
-                </div>
-              </ui-card-content>
-            </ui-card>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Badge Section -->
-        <section class="space-y-4">
-          <h2 id="badge" class="text-2xl font-semibold scroll-m-20">Badge</h2>
-          <p class="text-muted-foreground">Badge component with variants.</p>
-          
-          <div class="flex flex-wrap gap-2">
-            <ui-badge>Default</ui-badge>
-            <ui-badge variant="secondary">Secondary</ui-badge>
-            <ui-badge variant="outline">Outline</ui-badge>
-            <ui-badge variant="destructive">Destructive</ui-badge>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Checkbox Section -->
-        <section class="space-y-4">
-          <h2 id="checkbox" class="text-2xl font-semibold scroll-m-20">Checkbox</h2>
-          <p class="text-muted-foreground">Checkbox component for boolean selection.</p>
-          
-          <div class="space-y-3">
-            <div class="flex items-center gap-2">
-              <ui-checkbox />
-              <ui-label>Accept terms and conditions</ui-label>
-            </div>
-            <div class="flex items-center gap-2">
-              <ui-checkbox />
-              <ui-label>Subscribe to newsletter</ui-label>
-            </div>
-            <div class="flex items-center gap-2">
-              <ui-checkbox [disabled]="true" />
-              <ui-label class="opacity-50">Disabled checkbox</ui-label>
-            </div>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Radio Group Section -->
-        <section class="space-y-4">
-          <h2 id="radio-group" class="text-2xl font-semibold scroll-m-20">Radio Group</h2>
-          <p class="text-muted-foreground">Radio button group for single selection.</p>
-          
-          <ui-radio-group class="max-w-sm">
-            <div class="flex items-center gap-2">
-              <ui-radio-group-item value="option1" />
-              <ui-label>Default option</ui-label>
-            </div>
-            <div class="flex items-center gap-2">
-              <ui-radio-group-item value="option2" />
-              <ui-label>Comfortable spacing</ui-label>
-            </div>
-            <div class="flex items-center gap-2">
-              <ui-radio-group-item value="option3" />
-              <ui-label>Compact layout</ui-label>
-            </div>
-          </ui-radio-group>
-        </section>
-
-        <ui-separator />
-
-        <!-- Textarea Section -->
-        <section class="space-y-4">
-          <h2 id="textarea" class="text-2xl font-semibold scroll-m-20">Textarea</h2>
-          <p class="text-muted-foreground">Multi-line text input.</p>
-          
-          <div class="grid gap-4 max-w-sm">
-            <div class="space-y-2">
-              <ui-label>Your message</ui-label>
-              <ui-textarea placeholder="Type your message here..." [rows]="4" />
-            </div>
-            <ui-textarea placeholder="Disabled textarea" [disabled]="true" />
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Skeleton Section -->
-        <section class="space-y-4">
-          <h2 id="skeleton" class="text-2xl font-semibold scroll-m-20">Skeleton</h2>
-          <p class="text-muted-foreground">Loading placeholder animations.</p>
-          
-          <div class="flex items-center gap-4">
-            <ui-skeleton class="h-12 w-12 rounded-full" />
-            <ui-skeleton class="w-52 h-12 rounded-lg" />
-          </div>
-          <div class="flex items-center gap-4">
-            <ui-skeleton class="w-68 h-12 rounded-lg" />
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Tabs Section -->
-        <section class="space-y-4">
-          <h2 id="tabs" class="text-2xl font-semibold scroll-m-20">Tabs</h2>
-          <p class="text-muted-foreground">Tab navigation component.</p>
-          
-          <ui-tabs defaultValue="account" class="max-w-md">
-            <ui-tabs-list>
-              <ui-tabs-trigger value="account">Account</ui-tabs-trigger>
-              <ui-tabs-trigger value="password">Password</ui-tabs-trigger>
-              <ui-tabs-trigger value="settings">Settings</ui-tabs-trigger>
-            </ui-tabs-list>
-            <ui-tabs-content value="account">
-              <ui-card>
-                <ui-card-header>
-                  <ui-card-title>Account</ui-card-title>
-                  <ui-card-description>Make changes to your account here.</ui-card-description>
-                </ui-card-header>
-                <ui-card-content>
-                  <ui-input placeholder="Your name" />
-                </ui-card-content>
-              </ui-card>
-            </ui-tabs-content>
-            <ui-tabs-content value="password">
-              <ui-card>
-                <ui-card-header>
-                  <ui-card-title>Password</ui-card-title>
-                  <ui-card-description>Change your password here.</ui-card-description>
-                </ui-card-header>
-                <ui-card-content>
-                  <ui-input type="password" placeholder="New password" />
-                </ui-card-content>
-              </ui-card>
-            </ui-tabs-content>
-            <ui-tabs-content value="settings">
-              <ui-card>
-                <ui-card-header>
-                  <ui-card-title>Settings</ui-card-title>
-                  <ui-card-description>Configure your preferences.</ui-card-description>
-                </ui-card-header>
-              </ui-card>
-            </ui-tabs-content>
-          </ui-tabs>
-        </section>
-
-        <ui-separator />
-
-        <!-- Accordion Section -->
-        <section class="space-y-4">
-          <h2 id="accordion" class="text-2xl font-semibold scroll-m-20">Accordion</h2>
-          <p class="text-muted-foreground">Collapsible content sections.</p>
-          
-          <ui-accordion class="max-w-md">
-            <ui-accordion-item value="item-1">
-              <ui-accordion-trigger>Is it accessible?</ui-accordion-trigger>
-              <ui-accordion-content>
-                Yes. It adheres to the WAI-ARIA design pattern.
-              </ui-accordion-content>
-            </ui-accordion-item>
-            <ui-accordion-item value="item-2">
-              <ui-accordion-trigger>Is it styled?</ui-accordion-trigger>
-              <ui-accordion-content>
-                Yes. It comes with default styles that match the other components.
-              </ui-accordion-content>
-            </ui-accordion-item>
-            <ui-accordion-item value="item-3">
-              <ui-accordion-trigger>Is it animated?</ui-accordion-trigger>
-              <ui-accordion-content>
-                Yes. It's animated by default with smooth transitions.
-              </ui-accordion-content>
-            </ui-accordion-item>
-          </ui-accordion>
-        </section>
-
-        <ui-separator />
-
-        <!-- Progress Section -->
-        <section class="space-y-4">
-          <h2 id="progress" class="text-2xl font-semibold scroll-m-20">Progress</h2>
-          <p class="text-muted-foreground">Progress bar indicators.</p>
-          
-          <div class="space-y-4 max-w-md">
-            <ui-progress [value]="25" />
-            <ui-progress [value]="50" />
-            <ui-progress [value]="75" />
-            <ui-progress [value]="100" />
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Alert Section -->
-        <section class="space-y-4">
-          <h2 id="alert" class="text-2xl font-semibold scroll-m-20">Alert</h2>
-          <p class="text-muted-foreground">Alert messages and notifications.</p>
-          
-          <div class="space-y-4 max-w-md">
-            <ui-alert>
-              <ui-alert-title>Heads up!</ui-alert-title>
-              <ui-alert-description>
-                You can add components to your app using the CLI.
-              </ui-alert-description>
-            </ui-alert>
-            <ui-alert variant="destructive">
-              <ui-alert-title>Error</ui-alert-title>
-              <ui-alert-description>
-                Your session has expired. Please log in again.
-              </ui-alert-description>
-            </ui-alert>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Avatar Section -->
-        <section class="space-y-4">
-          <h2 id="avatar" class="text-2xl font-semibold scroll-m-20">Avatar</h2>
-          <p class="text-muted-foreground">User avatar with image or fallback.</p>
-          
-          <div class="flex gap-4">
-            <ui-avatar>
-              <ui-avatar-image src="https://github.com/shadcn.png" alt="shadcn" />
-              <ui-avatar-fallback>CN</ui-avatar-fallback>
-            </ui-avatar>
-            <ui-avatar>
-              <ui-avatar-fallback>JD</ui-avatar-fallback>
-            </ui-avatar>
-            <ui-avatar>
-              <ui-avatar-fallback>AB</ui-avatar-fallback>
-            </ui-avatar>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Dialog Section -->
-        <section class="space-y-4">
-          <h2 id="dialog" class="text-2xl font-semibold scroll-m-20">Dialog</h2>
-          <p class="text-muted-foreground">Modal dialog with overlay.</p>
-          
-          <ui-dialog #uiDialog>
-            <ui-dialog-trigger> 
-              <ui-button>Open Dialog</ui-button>
-            </ui-dialog-trigger>
-            <ui-dialog-content>
-              <ui-dialog-header>
-                <ui-dialog-title>Edit Profile</ui-dialog-title>
-                <ui-dialog-description>
-                  Make changes to your profile here. Click save when you're done.
-                </ui-dialog-description>
-              </ui-dialog-header>
-              <div class="grid gap-4 py-4">
-                <div class="grid gap-2">
-                  <ui-label>Name</ui-label>
-                  <ui-input placeholder="Your name" />
-                </div>
-                <div class="grid gap-2">
-                  <ui-label>Email</ui-label>
-                  <ui-input type="email" placeholder="your@email.com" />
-                </div>
-              </div>
-              <ui-dialog-footer>
-                <ui-button (click)="uiDialog.hide()">Save changes</ui-button>
-              </ui-dialog-footer>
-            </ui-dialog-content>
-          </ui-dialog>
-        </section>
-
-        <ui-separator />
-
-        <!-- Tooltip Section -->
-        <section class="space-y-4">
-          <h2 id="tooltip" class="text-2xl font-semibold scroll-m-20">Tooltip</h2>
-          <p class="text-muted-foreground">Hover hints for elements.</p>
-          
-          <div class="flex gap-4 items-center">
-             <!-- Directive Usage -->
-            <ui-button uiTooltip="This is a tooltip!" tooltipSide="top">Hover me (Directive)</ui-button>
-            <ui-button uiTooltip="Bottom tooltip" tooltipSide="bottom" variant="secondary">Hover me (Bottom)</ui-button>
-            
-            <!-- Component Usage (Reported Issue) -->
-            <ui-tooltip>
-              <ui-tooltip-trigger>
-                <ui-button variant="outline">Hover me (Component)</ui-button>
-              </ui-tooltip-trigger>
-              <ui-tooltip-content>
-                <p>Add to library</p>
-              </ui-tooltip-content>
-            </ui-tooltip>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Dropdown Menu Section -->
-        <section class="space-y-4">
-          <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">Dropdown Menu</h2>
-          <p class="text-muted-foreground">Dropdown menu with items.</p>
-          
-          <ui-dropdown-menu>
-            <ui-dropdown-menu-trigger>
-              <ui-button variant="outline">Open Menu</ui-button>
-            </ui-dropdown-menu-trigger>
-            <ui-dropdown-menu-content>
-              <ui-dropdown-menu-label>My Account</ui-dropdown-menu-label>
-              <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-item>Profile</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item>Settings</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item>Billing</ui-dropdown-menu-item>
-              <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-sub>
-                <ui-dropdown-menu-sub-trigger>Invite users</ui-dropdown-menu-sub-trigger>
-                <ui-dropdown-menu-sub-content>
-                  <ui-dropdown-menu-item>Email</ui-dropdown-menu-item>
-                  <ui-dropdown-menu-item>Message</ui-dropdown-menu-item>
-                  <ui-dropdown-menu-separator />
-                  <ui-dropdown-menu-item>More...</ui-dropdown-menu-item>
-                </ui-dropdown-menu-sub-content>
-              </ui-dropdown-menu-sub>
-              <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-item>Log out</ui-dropdown-menu-item>
-            </ui-dropdown-menu-content>
-          </ui-dropdown-menu>
-        </section>
-
-        <ui-separator />
-
-        <!-- Select Section -->
-        <section class="space-y-4">
-          <h2 id="select" class="text-2xl font-semibold scroll-m-20">Select</h2>
-          <p class="text-muted-foreground">Select component for choosing from a list of options.</p>
-          
-          <ui-select class="max-w-xs" position="popper">
-            <ui-select-trigger>
-              <ui-select-value placeholder="Select a fruit" />
-            </ui-select-trigger>
-            <ui-select-content>
-              <ui-select-group>
-                <ui-select-label>Fruits</ui-select-label>
-                <ui-select-item value="apple">Apple</ui-select-item>
-                <ui-select-item value="banana">Banana</ui-select-item>
-                <ui-select-item value="blueberry">Blueberry</ui-select-item>
-                <ui-select-item value="grapes">Grapes</ui-select-item>
-                <ui-select-item value="pineapple">Pineapple</ui-select-item>
-              </ui-select-group>
-            </ui-select-content>
-          </ui-select>
-        </section>
-
-        <ui-separator />
-
-        <!-- Popover Section -->
-        <section class="space-y-4">
-          <h2 id="popover" class="text-2xl font-semibold scroll-m-20">Popover</h2>
-          <p class="text-muted-foreground">Floating content that appears when a trigger is clicked.</p>
-          
-          <ui-popover #popover>
-            <ui-popover-trigger>
-              <ui-button variant="outline">Open Popover</ui-button>
-            </ui-popover-trigger>
-            <ui-popover-content class="w-80">
-              <div class="grid gap-4">
-                <div class="space-y-2">
-                  <h4 class="font-medium leading-none">Dimensions</h4>
-                  <p class="text-sm text-muted-foreground">Set the dimensions for the layer.</p>
-                </div>
-                <div class="grid gap-2">
-                  <div class="grid grid-cols-3 items-center gap-4">
-                    <ui-label for="width">Width</ui-label>
-                    <ui-input id="width" defaultValue="100%" class="col-span-2 h-8" />
-                  </div>
-                  <div class="grid grid-cols-3 items-center gap-4">
-                    <ui-label for="maxWidth">Max. width</ui-label>
-                    <ui-input id="maxWidth" defaultValue="300px" class="col-span-2 h-8" />
-                  </div>
-                </div>
-                <div class="flex justify-end">
-                  <ui-popover-close>
-                    <ui-button size="sm">Close</ui-button>
-                  </ui-popover-close>
-                </div>
-              </div>
-            </ui-popover-content>
-          </ui-popover>
-        </section>
-
-        <ui-separator />
-
-        <!-- Sheet Section -->
-        <section class="space-y-4">
-          <h2 id="sheet" class="text-2xl font-semibold scroll-m-20">Sheet</h2>
-          <p class="text-muted-foreground">Slide-out panel from the edge of the screen.</p>
-          
-          <div class="flex gap-2">
-            <ui-sheet #sheetRight>
-              <ui-sheet-trigger>
-                <ui-button variant="outline">Open Right</ui-button>
-              </ui-sheet-trigger>
-              <ui-sheet-content side="right" >
-                <ui-sheet-header>
-                  <ui-sheet-title>Edit Profile</ui-sheet-title>
-                  <ui-sheet-description>
-                    Make changes to your profile here. Click save when you're done.
-                  </ui-sheet-description>
-                </ui-sheet-header>
-                <div class="grid gap-4 py-4">
-                  <div class="grid gap-2">
-                    <ui-label>Name</ui-label>
-                    <ui-input placeholder="Your name" />
-                  </div>
-                </div>
-                <ui-sheet-footer>
-                  <ui-sheet-close>
-                    <ui-button>Save changes</ui-button>
-                  </ui-sheet-close>
-                </ui-sheet-footer>
-              </ui-sheet-content>
-            </ui-sheet>
-
-            <ui-sheet #sheetLeft>
-              <ui-sheet-trigger>
-                <ui-button variant="outline">Open Left</ui-button>
-              </ui-sheet-trigger>
-              <ui-sheet-content side="left">
-                <ui-sheet-header>
-                  <ui-sheet-title>Left Panel</ui-sheet-title>
-                  <ui-sheet-description>This panel slides in from the left.</ui-sheet-description>
-                </ui-sheet-header>
-              </ui-sheet-content>
-            </ui-sheet>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Alert Dialog Section -->
-        <section class="space-y-4">
-          <h2 id="alert-dialog" class="text-2xl font-semibold scroll-m-20">Alert Dialog</h2>
-          <p class="text-muted-foreground">A modal dialog that interrupts the user with important content.</p>
-          
-          <ui-alert-dialog #alertDialog>
-            <ui-alert-dialog-trigger>
-              <ui-button variant="outline">Show Alert Dialog</ui-button>
-            </ui-alert-dialog-trigger>
-            <ui-alert-dialog-content>
-              <ui-alert-dialog-header>
-                <ui-alert-dialog-title>Are you absolutely sure?</ui-alert-dialog-title>
-                <ui-alert-dialog-description>
-                  This action cannot be undone. This will permanently delete your account
-                  and remove your data from our servers.
-                </ui-alert-dialog-description>
-              </ui-alert-dialog-header>
-              <ui-alert-dialog-footer>
-                <ui-alert-dialog-cancel>Cancel</ui-alert-dialog-cancel>
-                <ui-alert-dialog-action>Continue</ui-alert-dialog-action>
-              </ui-alert-dialog-footer>
-            </ui-alert-dialog-content>
-          </ui-alert-dialog>
-        </section>
-
-        <ui-separator />
-
-        <!-- Slider Section -->
-        <section class="space-y-4">
-          <h2 id="slider" class="text-2xl font-semibold scroll-m-20">Slider</h2>
-          <p class="text-muted-foreground">Range input component.</p>
-          
-          <div class="max-w-xs space-y-4">
-            <ui-slider [defaultValue]="40" [min]="0" [max]="100" [step]="1" />
-            <div class="flex justify-between text-sm text-muted-foreground">
-              <span>0</span>
-              <span>100</span>
-            </div>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Collapsible Section -->
-        <section class="space-y-4">
-          <h2 id="collapsible" class="text-2xl font-semibold scroll-m-20">Collapsible</h2>
-          <p class="text-muted-foreground">An expandable/collapsible component.</p>
-          
-          <ui-collapsible class="w-[350px] space-y-2">
-            <div class="flex items-center justify-between space-x-4 px-4">
-              <h4 class="text-sm font-semibold">&#64;peduarte starred 3 repositories</h4>
-              <ui-collapsible-trigger>
-                <ui-button variant="ghost" size="sm" class="w-9 p-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m7 15 5 5 5-5"/><path d="m7 9 5-5 5 5"/></svg>
-                  <span class="sr-only">Toggle</span>
-                </ui-button>
-              </ui-collapsible-trigger>
-            </div>
-            <div class="rounded-md border px-4 py-3 font-mono text-sm">
-              &#64;radix-ui/primitives
-            </div>
-            <ui-collapsible-content class="space-y-2">
-              <div class="rounded-md border px-4 py-3 font-mono text-sm">
-                &#64;radix-ui/colors
-              </div>
-              <div class="rounded-md border px-4 py-3 font-mono text-sm">
-                &#64;stitches/react
-              </div>
-            </ui-collapsible-content>
-          </ui-collapsible>
-        </section>
-
-        <ui-separator />
-
-        <!-- Toggle -->
-        <section class="space-y-4">
-          <h2 id="toggle" class="text-2xl font-semibold scroll-m-20">Toggle</h2>
-          <p class="text-muted-foreground">A two-state button that can be toggled on or off.</p>
-          
-          <div class="flex flex-wrap gap-4">
-            <ui-toggle>
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-              </svg>
-            </ui-toggle>
-            <ui-toggle variant="outline">
-              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                <path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-              </svg>
-            </ui-toggle>
-            <ui-toggle [defaultPressed]="true">Bold</ui-toggle>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Toggle Group -->
-        <section class="space-y-4">
-          <h2 id="toggle-group" class="text-2xl font-semibold scroll-m-20">Toggle Group</h2>
-          <p class="text-muted-foreground">A set of two-state buttons that can be toggled on or off.</p>
-          
-          <div class="space-y-4">
-            <div>
-              <p class="text-sm text-muted-foreground mb-2">Single selection:</p>
-              <ui-toggle-group type="single" variant="outline" defaultValue="center">
-                <ui-toggle-group-item value="left">
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h7" />
-                  </svg>
-                </ui-toggle-group-item>
-                <ui-toggle-group-item value="center">
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-                  </svg>
-                </ui-toggle-group-item>
-                <ui-toggle-group-item class="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500" value="right">
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M10 12h10M13 18h7" />
-                  </svg>
-                </ui-toggle-group-item>
-              </ui-toggle-group>
-            </div>
-            <div>
-              <p class="text-sm text-muted-foreground mb-2">Multiple selection:</p>
-              <ui-toggle-group type="multiple" variant="outline">
-                <ui-toggle-group-item value="bold">B</ui-toggle-group-item>
-                <ui-toggle-group-item value="italic">I</ui-toggle-group-item>
-                <ui-toggle-group-item value="underline">U</ui-toggle-group-item>
-              </ui-toggle-group>
-            </div>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Scroll Area -->
-        <section class="space-y-4">
-          <h2 id="scroll-area" class="text-2xl font-semibold scroll-m-20">Scroll Area</h2>
-          <p class="text-muted-foreground">A custom scrollable area with styled scrollbars.</p>
-          
-          <ui-scroll-area class="h-72 w-48 rounded-md border">
-            <div class="p-4">
-              <h4 class="mb-4 text-sm font-medium leading-none">Tags</h4>
-              @for (tag of ['v1.2.0-beta.18', 'v1.2.0-beta.17', 'v1.2.0-beta.16', 'v1.2.0-beta.15', 'v1.2.0-beta.14', 'v1.2.0-beta.13', 'v1.2.0-beta.12', 'v1.2.0-beta.11', 'v1.2.0-beta.10', 'v1.2.0-beta.9', 'v1.2.0-beta.8', 'v1.2.0-beta.7', 'v1.2.0-beta.6', 'v1.2.0-beta.5', 'v1.2.0-beta.4' , 'v1.2.0-beta.3' , 'v1.2.0-beta.2']; track tag) {
-                <div class="text-sm">{{ tag }}</div>
-                <ui-separator class="my-2" />
-              }
-            </div>
-          </ui-scroll-area>
-        </section>
-
-        <ui-separator />
-
-        <!-- Table -->
-        <section class="space-y-4">
-          <h2 id="table" class="text-2xl font-semibold scroll-m-20">Table</h2>
-          <p class="text-muted-foreground">A responsive table component.</p>
-          
-          <ui-table class="h-20">
-            <ui-table-caption>A list of your recent invoices.</ui-table-caption>
-            <ui-table-header>
-              <ui-table-row>
-                <ui-table-head class="w-[100px]">Invoice</ui-table-head>
-                <ui-table-head>Status</ui-table-head>
-                <ui-table-head>Method</ui-table-head>
-                <ui-table-head class="text-right">Amount</ui-table-head>
-              </ui-table-row>
-            </ui-table-header>
-            <ui-table-body>
-              <ui-table-row>
-                <ui-table-cell class="font-medium">INV001</ui-table-cell>
-                <ui-table-cell>Paid</ui-table-cell>
-                <ui-table-cell>Credit Card</ui-table-cell>
-                <ui-table-cell class="text-right">$250.00</ui-table-cell>
-              </ui-table-row>
-              <ui-table-row>
-                <ui-table-cell class="font-medium">INV002</ui-table-cell>
-                <ui-table-cell>Pending</ui-table-cell>
-                <ui-table-cell>PayPal</ui-table-cell>
-                <ui-table-cell class="text-right">$150.00</ui-table-cell>
-              </ui-table-row>
-              <ui-table-row>
-                <ui-table-cell class="font-medium">INV003</ui-table-cell>
-                <ui-table-cell>Unpaid</ui-table-cell>
-                <ui-table-cell>Bank Transfer</ui-table-cell>
-                <ui-table-cell class="text-right">$350.00</ui-table-cell>
-              </ui-table-row>
-            </ui-table-body>
-          </ui-table>
-        </section>
-
-        <ui-separator />
-
-        <!-- Breadcrumb -->
-        <section class="space-y-4" id="breadcrumbSection">
-          <h2 id="breadcrumb" class="text-2xl font-semibold scroll-m-20">Breadcrumb</h2>
-          <p class="text-muted-foreground">Displays the path to the current page.</p>
-          
-          <ui-breadcrumb>
-            <ui-breadcrumb-list>
-              <ui-breadcrumb-item>
-                <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
-              </ui-breadcrumb-item>
-              <ui-breadcrumb-separator />
-              <ui-breadcrumb-item>
-                <ui-breadcrumb-link href="/components">Components</ui-breadcrumb-link>
-              </ui-breadcrumb-item>
-              <ui-breadcrumb-separator />
-              <ui-breadcrumb-item>
-                <ui-breadcrumb-page>Breadcrumb</ui-breadcrumb-page>
-              </ui-breadcrumb-item>
-            </ui-breadcrumb-list>
-          </ui-breadcrumb>
-        </section>
-
-        <ui-separator />
-
-        <!-- Hover Card -->
-        <section class="space-y-4">
-          <h2 id="hover-card" class="text-2xl font-semibold scroll-m-20">Hover Card</h2>
-          <p class="text-muted-foreground">A card that appears when hovering over an element.</p>
-          
-          <ui-hover-card>
-            <ui-hover-card-trigger>
-              <ui-button variant="link">&#64;angular</ui-button>
-            </ui-hover-card-trigger>
-            <ui-hover-card-content>
-              <div class="flex justify-between space-x-4">
-                <ui-avatar>
-                  <ui-avatar-image src="https://github.com/angular.png" />
-                  <ui-avatar-fallback>NG</ui-avatar-fallback>
-                </ui-avatar>
-                <div class="space-y-1">
-                  <h4 class="text-sm font-semibold">&#64;angular</h4>
-                  <p class="text-sm">The modern web developer's platform.</p>
-                  <div class="flex items-center pt-2">
-                    <span class="text-xs text-muted-foreground">
-                      Joined December 2016
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </ui-hover-card-content>
-          </ui-hover-card>
-        </section>
-
-        <ui-separator />
-
-        <!-- Context Menu -->
-        <section class="space-y-4">
-          <h2 id="context-menu" class="text-2xl font-semibold scroll-m-20">Context Menu</h2>
-          <p class="text-muted-foreground">A menu that appears on right-click.</p>
-          
-          <ui-context-menu>
-            <ui-context-menu-trigger>
-              <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
-                Right click here
-              </div>
-            </ui-context-menu-trigger>
-            <ui-context-menu-content>
-              <ui-context-menu-item>
-                Back
-                <ui-context-menu-shortcut>⌘[</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-item>
-                Forward
-                <ui-context-menu-shortcut>⌘]</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-item>
-                Reload
-                <ui-context-menu-shortcut>⌘R</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-separator />
-              <ui-context-menu-item>
-                Save As...
-                <ui-context-menu-shortcut>⇧⌘S</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-item>Print...</ui-context-menu-item>
-            </ui-context-menu-content>
-          </ui-context-menu>
-
-          <ui-context-menu #contextMenu>
-        <ui-context-menu-content class="w-56">
-          <ui-context-menu-item>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2"><path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/></svg>
-            Edit
-            <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
-          </ui-context-menu-item>
-          <ui-context-menu-item>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-            Copy
-            <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
-          </ui-context-menu-item>
-          <ui-context-menu-item>
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2"><polyline points="8 17 12 21 16 17"/><line x1="12" x2="12" y1="12" y2="21"/><path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29"/></svg>
-            Share
-          </ui-context-menu-item>
-          <ui-context-menu-separator></ui-context-menu-separator>
-          <ui-context-menu-item variant="destructive">
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="ltr:mr-2 rtl:ml-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-            Delete
-            <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
-          </ui-context-menu-item>
-        </ui-context-menu-content>
-      </ui-context-menu>
-
-      <div
-        [uiContextMenuTrigger]="contextMenu"
-        class="h-[300px] w-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground"
-      >
-        Right-click anywhere in this area to open the context menu
-      </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Drawer -->
-        <section class="space-y-4">
-          <h2 id="drawer" class="text-2xl font-semibold scroll-m-20">Drawer</h2>
-          <p class="text-muted-foreground">A panel that slides in from the edge of the screen.</p>
-          
-          <div class="flex gap-2">
-            <ui-drawer>
-              <ui-drawer-trigger>
-                <ui-button variant="outline">Open Bottom Drawer</ui-button>
-              </ui-drawer-trigger>
-              <ui-drawer-content>
-                <ui-drawer-header>
-                  <ui-drawer-title>Edit Profile</ui-drawer-title>
-                  <ui-drawer-description>Make changes to your profile here.</ui-drawer-description>
-                </ui-drawer-header>
-                <div class="p-4">
-                  <p>Drawer content goes here...</p>
-                </div>
-                <ui-drawer-footer>
-                  <ui-button>Save changes</ui-button>
-                  <ui-drawer-close>
-                    <ui-button variant="outline">Cancel</ui-button>
-                  </ui-drawer-close>
-                </ui-drawer-footer>
-              </ui-drawer-content>
-            </ui-drawer>
-          </div>
-        </section>
-        <ui-separator /> 
-        <section class="space-y-4">
-          <h2 id="aspect-ratio" class="text-2xl font-semibold scroll-m-20">Aspect Ratio</h2>
-          <p class="text-muted-foreground">Display content within a desired ratio.</p>
-          
-          <div class="w-[300px]">
-            <ui-aspect-ratio [ratio]="16/9">
-              <div class="flex h-full w-full items-center justify-center rounded-md bg-muted text-muted-foreground">
-                16:9 Aspect Ratio
-              </div>
-            </ui-aspect-ratio>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Toast -->
-        <section class="space-y-4">
-          <h2 id="toast" class="text-2xl font-semibold scroll-m-20">Toast</h2>
-          <p class="text-muted-foreground">Show notification toasts to users.</p>
-          
-          <div class="flex gap-2">
-            <ui-button (click)="showToast('default')">Show Toast</ui-button>
-            <ui-button variant="outline" (click)="showToast('success')">Success Toast</ui-button>
-            <ui-button variant="destructive" (click)="showToast('error')">Error Toast</ui-button>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Resizable Panels -->
-        <section class="space-y-6">
-          <h2 id="resizable" class="text-2xl font-semibold scroll-m-20">Resizable</h2>
-          <p class="text-muted-foreground">Resizable panel groups for creating adjustable layouts.</p>
-          
-          <!-- Horizontal Example -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">Horizontal</h3>
-            <ui-resizable-panel-group direction="horizontal" class="min-h-[200px] max-w-md rounded-lg border">
-              <ui-resizable-panel [defaultSize]="30">
-                <div class="flex h-full items-center justify-center bg-muted/30 p-6">
-                  <span class="font-semibold">Left (30%)</span>
-                </div>
-              </ui-resizable-panel>
-              <ui-resizable-handle [withHandle]="false" [handleSize]="2" />
-              <ui-resizable-panel [defaultSize]="70">
-                <div class="flex h-full items-center justify-center p-6">
-                  <span class="font-semibold">Right (70%)</span>
-                </div>
-              </ui-resizable-panel>
-            </ui-resizable-panel-group>
-          </div>
-          
-          <!-- Vertical Example -->
-          <div class="space-y-2">
-            <h3 class="text-lg font-medium">Vertical (with live size updates)</h3>
-            <ui-resizable-panel-group direction="vertical" class="h-[300px] max-w-md rounded-lg border">
-              <ui-resizable-panel [defaultSize]="40">
-                <div class="flex h-full items-center justify-center bg-muted/30 p-6">
-                  <span class="font-semibold">Top ({{ verticalTopSize() }}%)</span>
-                </div>
-              </ui-resizable-panel>
-              <ui-resizable-handle [withHandle]="false" [handleSize]="2" (resize)="onVerticalResize($event)" />
-              <ui-resizable-panel [defaultSize]="60">
-                <div class="flex h-full items-center justify-center p-6">
-                  <span class="font-semibold">Bottom ({{ verticalBottomSize() }}%)</span>
-                </div>
-              </ui-resizable-panel>
-            </ui-resizable-panel-group>
-          </div>
-        </section>
-
-
-
-        <ui-separator />
-
-        <!-- Pagination -->
-        <section class="space-y-4">
-          <h2 id="pagination" class="text-2xl font-semibold scroll-m-20">Pagination</h2>
-          <p class="text-muted-foreground">Navigate through paged content.</p>
-          
-          <ui-pagination>
-            <ui-pagination-content>
-              <ui-pagination-item>
-                <ui-pagination-previous />
-              </ui-pagination-item>
-              <ui-pagination-item>
-                <ui-pagination-link [isActive]="true">1</ui-pagination-link>
-              </ui-pagination-item>
-              <ui-pagination-item>
-                <ui-pagination-link>2</ui-pagination-link>
-              </ui-pagination-item>
-              <ui-pagination-item>
-                <ui-pagination-link>3</ui-pagination-link>
-              </ui-pagination-item>
-              <ui-pagination-item>
-                <ui-pagination-ellipsis />
-              </ui-pagination-item>
-              <ui-pagination-item>
-                <ui-pagination-next />
-              </ui-pagination-item>
-            </ui-pagination-content>
-          </ui-pagination>
-        </section>
-
-        <ui-separator />
-
-        <!-- Input OTP -->
-        <section class="space-y-4">
-          <h2 id="input-otp" class="text-2xl font-semibold scroll-m-20">Input OTP</h2>
-          <p class="text-muted-foreground">One-time password input fields.</p>
-          
-          <ui-input-otp [maxLength]="6" [separator]="[2]" />
-        </section>
-
-
-        <ui-separator />
-
-        <!-- Calendar -->
-        <section class="space-y-4">
-          <h2 id="calendar" class="text-2xl font-semibold scroll-m-20">Calendar</h2>
-          <p class="text-muted-foreground">A date picker calendar component supporting single, range, and multi-selection modes.</p>
-          
-          <div class="flex flex-wrap gap-8">
-            <div class="space-y-2">
-              <h3 class="font-medium">Single Mode</h3>
-              <ui-calendar mode="single" class="rounded-md border shadow" />
-            </div>
-            
-            <div class="space-y-2">
-              <h3 class="font-medium">Range Mode</h3>
-              <ui-calendar mode="range" class="rounded-md border shadow" />
-            </div>
-            
-            <div class="space-y-2">
-              <h3 class="font-medium">Multi Mode</h3>
-              <ui-calendar mode="multi" class="rounded-md border shadow" />
-            </div>
-
-            <div class="space-y-2">
-              <h3 class="font-medium">With Selectors</h3>
-              <ui-calendar 
-                mode="single" 
-                [showMonthSelect]="true" 
-                [showYearSelect]="true" 
-                class="rounded-md border shadow" 
-              />
-            </div>
-            
-             <div class="space-y-2">
-              <h3 class="font-medium">Date & Time</h3>
-              <ui-calendar 
-                mode="single" 
-                [showTimeSelect]="true" 
-                class="rounded-md border shadow" 
-              />
-            </div>
-
-            <div class="space-y-2">
-              <h3 class="font-medium">Start Mon (String)</h3>
-              <ui-calendar 
-                mode="single" 
-                [weekStartsOn]="1"
-                selected="2024-01-01"
-                class="rounded-md border shadow" 
-              />
-            </div>
-          </div>
-          <div class="flex flex-wrap gap-6">
-            <!-- Default Calendar -->
-            <div class="space-y-2">
-              <p class="text-sm font-medium">Default (English)</p>
-              <ui-calendar locale="en" [showMonthSelect]="true" [showYearSelect]="true" class="rounded-md border shadow"></ui-calendar>
-            </div>
-            
-            <!-- Hebrew RTL Calendar -->
-            <div class="space-y-2">
-              <p class="text-sm font-medium">Hebrew (RTL)</p>
-              <ui-calendar locale="he" [showMonthSelect]="true" [showYearSelect]="true" [showTimeSelect]="true" class="rounded-md border shadow"></ui-calendar>
-            </div>
-            
-            <!-- Japanese Calendar -->
-            <div class="space-y-2">
-              <p class="text-sm font-medium">Japanese</p>
-              <ui-calendar locale="ja" [showMonthSelect]="true" [showYearSelect]="true" class="rounded-md border shadow"></ui-calendar>
-            </div>
-          </div>
-
-        </section>
-
-
-        <ui-separator />
-
-        <!-- Command -->
-        <section class="space-y-4">
-          <h2 id="command" class="text-2xl font-semibold scroll-m-20">Command</h2>
-          <p class="text-muted-foreground">A command palette for quick actions.</p>
-          
-            <ui-command class="max-w-md rounded-lg border shadow-md">
-            <ui-command-input placeholder="Type a command or search..." />
-            <ui-command-list>
-              <ui-command-empty>No results found.</ui-command-empty>
-              <ui-command-group heading="Suggestions">
-                <ui-command-item value="calendar">
-                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <rect x="3" y="4" width="18" height="18" rx="2" />
-                  </svg>
-                  <span>Calendar</span>
-                </ui-command-item>
-                <ui-command-item value="search-emoji">
-                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                  <span>Search Emoji</span>
-                </ui-command-item>
-                <ui-command-item value="launch">
-                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                  </svg>
-                  <span>Launch</span>
-                </ui-command-item>
-              </ui-command-group>
-              <ui-command-separator />
-              <ui-command-group heading="Settings">
-                <ui-command-item value="profile">
-                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                     <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                  <span>Profile</span>
-                  <ui-command-shortcut>⌘P</ui-command-shortcut>
-                </ui-command-item>
-                <ui-command-item value="mail">
-                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
-                  </svg>
-                  <span>Mail</span>
-                  <ui-command-shortcut>⌘B</ui-command-shortcut>
-                </ui-command-item>
-                <ui-command-item value="settings">
-                  <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  </svg>
-                  <span>Settings</span>
-                  <ui-command-shortcut>⌘S</ui-command-shortcut>
-                </ui-command-item>
-              </ui-command-group>
-            </ui-command-list>
-          </ui-command>
-          <div class="flex flex-col gap-2">
-            <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">Show command dialog</ui-button>
-            <p class="text-sm text-muted-foreground">
-              Press <ui-kbd>⌘</ui-kbd> <ui-kbd>K</ui-kbd>
-            </p>
-          </div>
-
-          <ui-command-dialog [(open)]="showCommandDialog">
-            <ui-command-input placeholder="Type a command or search..." />
-            <ui-command-list>
-              <ui-command-empty>No results found.</ui-command-empty>
-              <ui-command-group heading="Components">
-                @for (link of links; track link) {
-                  <ui-command-item [value]="link.title" (select)="scrollToSection(link.id)">
-                    <span class="ltr:mr-2 rtl:ml-2">📄</span>
-                    <span>{{ link.title }}</span>
-                  </ui-command-item>
-                }
-              </ui-command-group>
-            </ui-command-list>
-          </ui-command-dialog>
-
-        </section>
-
-
-        <ui-separator />
-        <ui-separator />
-
-        <!-- Menubar -->
-        <section class="space-y-4">
-          <h2 id="menubar" class="text-2xl font-semibold scroll-m-20">Menubar</h2>
-          <p class="text-muted-foreground">A horizontal menu bar with dropdown menus.</p>
-          
-          <ui-menubar>
-            <ui-menubar-menu>
-              <ui-menubar-trigger>File</ui-menubar-trigger>
-              <ui-menubar-content>
-                <ui-menubar-item>New Tab <ui-menubar-shortcut>⌘T</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-item>New Window <ui-menubar-shortcut>⌘N</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-item disabled>New Incognito Window</ui-menubar-item>
-                <ui-menubar-separator />
-                <ui-menubar-sub>
-                  <ui-menubar-sub-trigger>Share</ui-menubar-sub-trigger>
-                  <ui-menubar-sub-content>
-                    <ui-menubar-sub>
-                      <ui-menubar-sub-trigger>Email</ui-menubar-sub-trigger>
-                      <ui-menubar-sub-content>
-                        <ui-menubar-item>Personal</ui-menubar-item>
-                        <ui-menubar-item>Work</ui-menubar-item>
-                      </ui-menubar-sub-content>
-                    </ui-menubar-sub>
-                    <ui-menubar-item>Messages</ui-menubar-item>
-                    <ui-menubar-item>Notes</ui-menubar-item>
-                  </ui-menubar-sub-content>
-                </ui-menubar-sub>
-                <ui-menubar-separator />
-                <ui-menubar-item>Print <ui-menubar-shortcut>⌘P</ui-menubar-shortcut></ui-menubar-item>
-              </ui-menubar-content>
-            </ui-menubar-menu>
-            <ui-menubar-menu>
-              <ui-menubar-trigger>Edit</ui-menubar-trigger>
-              <ui-menubar-content>
-                <ui-menubar-item>Undo <ui-menubar-shortcut>⌘Z</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-item>Redo <ui-menubar-shortcut>⇧⌘Z</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-separator />
-                <ui-menubar-item>Cut <ui-menubar-shortcut>⌘X</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-item>Copy <ui-menubar-shortcut>⌘C</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-item>Paste <ui-menubar-shortcut>⌘V</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-separator />
-                <ui-menubar-item>Select All <ui-menubar-shortcut>⌘A</ui-menubar-shortcut></ui-menubar-item>
-              </ui-menubar-content>
-            </ui-menubar-menu>
-            <ui-menubar-menu>
-              <ui-menubar-trigger>View</ui-menubar-trigger>
-              <ui-menubar-content>
-                <ui-menubar-item [inset]="true">Reload <ui-menubar-shortcut>⌘R</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-item [inset]="true" [disabled]="true">Force Reload <ui-menubar-shortcut>⇧⌘R</ui-menubar-shortcut></ui-menubar-item>
-                <ui-menubar-separator />
-                <ui-menubar-item [inset]="true">Toggle Fullscreen</ui-menubar-item>
-                <ui-menubar-separator />
-                <ui-menubar-item [inset]="true">Hide Sidebar</ui-menubar-item>
-              </ui-menubar-content>
-            </ui-menubar-menu>
-            <ui-menubar-menu>
-              <ui-menubar-trigger>Profiles</ui-menubar-trigger>
-              <ui-menubar-content>
-                <ui-menubar-item [inset]="true">Andy</ui-menubar-item>
-                <ui-menubar-item [inset]="true">Benoit</ui-menubar-item>
-                <ui-menubar-item [inset]="true">Luis</ui-menubar-item>
-                <ui-menubar-separator />
-                <ui-menubar-item [inset]="true">Edit...</ui-menubar-item>
-                <ui-menubar-separator />
-                <ui-menubar-item [inset]="true" >Add Profile...</ui-menubar-item>
-              </ui-menubar-content>
-            </ui-menubar-menu>
-          </ui-menubar>
-        </section>
-
-        <ui-separator />
-
-        <!-- Carousel -->
-        <section class="space-y-4">
-          <h2 id="carousel" class="text-2xl font-semibold scroll-m-20">Carousel</h2>
-          <p class="text-muted-foreground">A carousel with motion and swipe controls.</p>
-          
-          <div class="mx-auto max-w-xs">
-            <ui-carousel class="w-full">
-              <ui-carousel-content>
-                @for (item of [1, 2, 3, 4, 5]; track item) {
-                  <ui-carousel-item>
-                    <div class="p-1">
-                      <ui-card>
-                        <ui-card-content class="flex aspect-square items-center justify-center p-6">
-                          <span class="text-4xl font-semibold">{{ item }}</span>
-                        </ui-card-content>
-                      </ui-card>
-                    </div>
-                  </ui-carousel-item>
-                }
-              </ui-carousel-content>
-              <ui-carousel-previous />
-              <ui-carousel-next />
-            </ui-carousel>
-          </div>
-          
-          <div class="pt-4">
-            <h3 class="text-lg font-medium mb-2">Vertical Carousel</h3>
-            <div class="mx-auto max-w-xs">
-              <ui-carousel orientation="vertical" class="w-full">
-                <ui-carousel-content class="h-[200px]">
-                  @for (item of [1, 2, 3, 4, 5]; track item) {
-                    <ui-carousel-item>
-                      <div class="p-1">
-                        <ui-card>
-                          <ui-card-content class="flex items-center justify-center p-6">
-                            <span class="text-2xl font-semibold">Slide {{ item }}</span>
-                          </ui-card-content>
-                        </ui-card>
-                      </div>
-                    </ui-carousel-item>
-                  }
-                </ui-carousel-content>
-                <ui-carousel-previous />
-                <ui-carousel-next />
-              </ui-carousel>
-            </div>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Navigation Menu -->
-        <section class="space-y-4">
-          <h2 id="navigation-menu" class="text-2xl font-semibold scroll-m-20">Navigation Menu</h2>
-          <p class="text-muted-foreground">A navigation menu for site-wide navigation.</p>
-          
-          <ui-navigation-menu>
-            <ui-navigation-menu-list>
-              <ui-navigation-menu-item>
-                <ui-navigation-menu-trigger>Getting Started</ui-navigation-menu-trigger>
-                <ui-navigation-menu-content class="w-[400px]">
-                  <div class="grid gap-3 p-4 md:grid-cols-2">
-                    <ui-navigation-menu-link href="#" class="col-span-2">
-                      <div class="text-sm font-medium leading-none">Introduction</div>
-                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        Re-usable components built with Angular and Tailwind CSS.
-                      </p>
-                    </ui-navigation-menu-link>
-                    <ui-navigation-menu-link href="#">
-                      <div class="text-sm font-medium leading-none">Installation</div>
-                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        How to install and set up the library.
-                      </p>
-                    </ui-navigation-menu-link>
-                    <ui-navigation-menu-link href="#">
-                      <div class="text-sm font-medium leading-none">Typography</div>
-                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        Styles for headings, paragraphs, lists, etc.
-                      </p>
-                    </ui-navigation-menu-link>
-                  </div>
-                </ui-navigation-menu-content>
-              </ui-navigation-menu-item>
-              <ui-navigation-menu-item>
-                <ui-navigation-menu-trigger>Components</ui-navigation-menu-trigger>
-                <ui-navigation-menu-content class="w-[500px]">
-                  <div class="grid gap-3 p-4 md:grid-cols-2">
-                    <ui-navigation-menu-link href="#">
-                      <div class="text-sm font-medium leading-none">Alert Dialog</div>
-                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        A modal dialog that interrupts the user.
-                      </p>
-                    </ui-navigation-menu-link>
-                    <ui-navigation-menu-link href="#">
-                      <div class="text-sm font-medium leading-none">Hover Card</div>
-                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        For sighted users to preview content.
-                      </p>
-                    </ui-navigation-menu-link>
-                    <ui-navigation-menu-link href="#">
-                      <div class="text-sm font-medium leading-none">Progress</div>
-                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        Displays completion progress of a task.
-                      </p>
-                    </ui-navigation-menu-link>
-                    <ui-navigation-menu-link href="#">
-                      <div class="text-sm font-medium leading-none">Tooltip</div>
-                      <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                        A popup that displays information.
-                      </p>
-                    </ui-navigation-menu-link>
-                  </div>
-                </ui-navigation-menu-content>
-              </ui-navigation-menu-item>
-              <ui-navigation-menu-item>
-                <ui-navigation-menu-link href="#" class="inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
-                  Documentation
-                </ui-navigation-menu-link>
-              </ui-navigation-menu-item>
-            </ui-navigation-menu-list>
-          </ui-navigation-menu>
-        </section>
-
-        <ui-separator />
-
-        <!-- Date Picker -->
-        <section class="space-y-4">
-          <h2 id="date-picker" class="text-2xl font-semibold scroll-m-20">Date Picker</h2>
-          <p class="text-muted-foreground">A date picker component with popover calendar.</p>
-          
-          <div class="flex flex-wrap gap-8">
-            <div class="space-y-2">
-              <h3 class="text-lg font-medium">Single Date</h3>
-              <ui-date-picker placeholder="Pick a date" />
-            </div>
-            
-            <div class="space-y-2">
-              <h3 class="text-lg font-medium">Date &amp; Time</h3>
-              <ui-date-picker [showTime]="true" placeholder="Pick date & time" />
-            </div>
-            
-            <div class="space-y-2">
-              <h3 class="text-lg font-medium">Date Range</h3>
-              <ui-date-range-picker placeholder="Select date range" />
-            </div>
-
-            <div class="space-y-2">
-              <h3 class="text-lg font-medium">Date Picker RTL (Hebrew)</h3>
-              <ui-date-picker [showTime]="true" locale="he" placeholder="בחר תאריך" dir="rtl" />
-            </div>
-          </div>
-        </section>
-
-        <ui-separator />
-        <!-- Sidebar -->
-        <section class="space-y-4">
-          <h2 id="sidebar" class="text-2xl font-semibold scroll-m-20">Sidebar</h2>
-          <p class="text-muted-foreground">A composable sidebar component for application layouts.</p>
-          
-          <div class="border rounded-lg overflow-hidden h-[400px]">
-            <ui-sidebar-provider>
-              <ui-sidebar>
-                <ui-sidebar-header>
-                  <div class="font-semibold">My App</div>
-                </ui-sidebar-header>
-                <ui-sidebar-content>
-                  <ui-sidebar-group>
-                    <ui-sidebar-group-label>Navigation</ui-sidebar-group-label>
-                    <ui-sidebar-group-content>
-                      <ui-sidebar-menu>
-                        <ui-sidebar-menu-item>
-                          <ui-sidebar-menu-link href="#" [isActive]="true">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-                            <span>Home</span>
-                          </ui-sidebar-menu-link>
-                        </ui-sidebar-menu-item>
-                        <ui-sidebar-menu-item>
-                          <ui-sidebar-menu-link href="#">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                            <span>Inbox</span>
-                          </ui-sidebar-menu-link>
-                        </ui-sidebar-menu-item>
-                        <ui-sidebar-menu-item>
-                          <ui-sidebar-menu-link href="#">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 2v4"/><path d="M16 2v4"/><rect width="18" height="18" x="3" y="4" rx="2"/><path d="M3 10h18"/></svg>
-                            <span>Calendar</span>
-                          </ui-sidebar-menu-link>
-                        </ui-sidebar-menu-item>
-                        <ui-sidebar-menu-item>
-                          <ui-sidebar-menu-link href="#">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-                            <span>Settings</span>
-                          </ui-sidebar-menu-link>
-                        </ui-sidebar-menu-item>
-                      </ui-sidebar-menu>
-                    </ui-sidebar-group-content>
-                  </ui-sidebar-group>
-                </ui-sidebar-content>
-                <ui-sidebar-footer>
-                  <ui-sidebar-separator />
-                  <div class="text-xs text-muted-foreground">v1.0.0</div>
-                </ui-sidebar-footer>
-              </ui-sidebar>
-              <ui-sidebar-inset>
-                <header class="flex h-12 items-center border-b px-4">
-                  <ui-sidebar-trigger />
-                  <span class="ml-4 text-sm font-medium">Dashboard</span>
-                </header>
-                <div class="p-4">
-                  <p class="text-muted-foreground">Main content area. Click the sidebar trigger to toggle.</p>
-                </div>
-              </ui-sidebar-inset>
-            </ui-sidebar-provider>
-          </div>
-        </section>
-
-        <!-- Spinner -->
-        <section class="space-y-4">
-          <h2 id="spinner" class="text-2xl font-semibold scroll-m-20">Spinner</h2>
-          <p class="text-muted-foreground">Loading indicator with animated spinning. Supports preset sizes and custom pixel sizes.</p>
-          
-          <div class="flex flex-wrap items-end gap-6">
-            <div class="flex flex-col items-center gap-2">
-              <ui-spinner size="xs" />
-              <span class="text-xs text-muted-foreground">XS</span>
-            </div>
-            <div class="flex flex-col items-center gap-2">
-              <ui-spinner size="sm" />
-              <span class="text-xs text-muted-foreground">SM</span>
-            </div>
-            <div class="flex flex-col items-center gap-2">
-              <ui-spinner />
-              <span class="text-xs text-muted-foreground">Default</span>
-            </div>
-            <div class="flex flex-col items-center gap-2">
-              <ui-spinner size="lg" />
-              <span class="text-xs text-muted-foreground">LG</span>
-            </div>
-            <div class="flex flex-col items-center gap-2">
-              <ui-spinner size="xl" />
-              <span class="text-xs text-muted-foreground">XL</span>
-            </div>
-            <div class="flex flex-col items-center gap-2">
-              <ui-spinner size="page" />
-              <span class="text-xs text-muted-foreground">Page</span>
-            </div>
-            <div class="flex flex-col items-center gap-2">
-              <ui-spinner [customSize]="64" />
-              <span class="text-xs text-muted-foreground">64px</span>
-            </div>
-          </div>
-          
-          <div class="flex items-center gap-4 mt-4">
-            <ui-button [disabled]="true">
-              <ui-spinner size="xs" class="mr-2" />
-              Loading...
-            </ui-button>
-          </div>
-
-          <!-- <ui-page-spinner /> -->
-
-        </section>
-
-        <ui-separator />
-
-        <!-- Empty State -->
-        <section class="space-y-4">
-          <h2 id="empty-state" class="text-2xl font-semibold scroll-m-20">Empty State</h2>
-          <p class="text-muted-foreground">Placeholder for empty lists, tables, or search results.</p>
-          
-          <ui-empty>
-            <ui-empty-header>
-              <ui-empty-media variant="icon">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21l-4.35-4.35"/><circle cx="11" cy="11" r="8"/></svg>
-              </ui-empty-media>
-              <ui-empty-title>No results found</ui-empty-title>
-              <ui-empty-description>Try adjusting your search or filter to find what you're looking for.</ui-empty-description>
-            </ui-empty-header>
-            <ui-empty-content>
-              <ui-button variant="outline">Clear filters</ui-button>
-            </ui-empty-content>
-          </ui-empty>
-        </section>
-
-        <ui-separator />
-
-        <!-- Kbd (Keyboard Shortcut) -->
-        <section class="space-y-4">
-          <h2 id="keyboard-shortcut" class="text-2xl font-semibold scroll-m-20">Keyboard Shortcut</h2>
-          <p class="text-muted-foreground">Display keyboard shortcuts in a styled kbd element.</p>
-          
-          <div class="flex items-center gap-4">
-            <div class="flex items-center gap-1">
-              <ui-kbd>⌘</ui-kbd>
-              <ui-kbd>K</ui-kbd>
-              <span class="ml-2 text-sm text-muted-foreground">Command palette</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <ui-kbd>⌘</ui-kbd>
-              <ui-kbd>S</ui-kbd>
-              <span class="ml-2 text-sm text-muted-foreground">Save</span>
-            </div>
-            <div class="flex items-center gap-1">
-              <ui-kbd>Esc</ui-kbd>
-              <span class="ml-2 text-sm text-muted-foreground">Close</span>
-            </div>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Button Group -->
-        <section class="space-y-4">
-          <h2 id="button-group" class="text-2xl font-semibold scroll-m-20">Button Group</h2>
-          <p class="text-muted-foreground">Group buttons together with seamless borders.</p>
-          
-          <div class="flex flex-wrap gap-6">
-            <div class="flex flex-col gap-2">
-              <span class="text-sm text-muted-foreground">Horizontal</span>
-              <ui-button-group>
-                <ui-button variant="outline">Left</ui-button>
-                <ui-button variant="outline">Center</ui-button>
-                <ui-button variant="outline">Right</ui-button>
-              </ui-button-group>
-            </div>
-            
-            <div class="flex flex-col gap-2">
-              <span class="text-sm text-muted-foreground">Vertical</span>
-              <ui-button-group orientation="vertical">
-                <ui-button variant="outline">Top</ui-button>
-                <ui-button variant="outline">Middle</ui-button>
-                <ui-button variant="outline">Bottom</ui-button>
-              </ui-button-group>
-            </div>
-
-            <div class="flex flex-col gap-2">
-              <span class="text-sm text-muted-foreground">With Text</span>
-              <ui-button-group>
-                <ui-button-group-text>https://</ui-button-group-text>
-                <ui-input class="rounded-none border-x-0" placeholder="example" />
-                <ui-button-group-text>.com</ui-button-group-text>
-              </ui-button-group>
-            </div>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Input Group -->
-        <section class="space-y-4">
-          <h2 id="input-group" class="text-2xl font-semibold scroll-m-20">Input Group</h2>
-          <p class="text-muted-foreground">Group inputs with addons like icons, text, and buttons.</p>
-          
-          <div class="grid gap-4 max-w-md">
-            <ui-input-group>
-              <ui-input-group-addon>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
-              </ui-input-group-addon>
-              <ui-input-group-input placeholder="Search..." />
-            </ui-input-group>
-
-            <ui-input-group>
-              <ui-input-group-addon>$</ui-input-group-addon>
-              <ui-input-group-input placeholder="0.00" type="number" />
-              <ui-input-group-addon align="inline-end">
-                <ui-input-group-text>USD</ui-input-group-text>
-              </ui-input-group-addon>
-            </ui-input-group>
-
-            <ui-input-group>
-              <ui-input-group-addon>
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0"/><circle cx="12" cy="10" r="3"/></svg>
-              </ui-input-group-addon>
-              <ui-input-group-input placeholder="Enter location" />
-              <ui-input-group-addon align="inline-end">
-                <ui-button variant="ghost" size="sm">Locate</ui-button>
-              </ui-input-group-addon>
-            </ui-input-group>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Field -->
-        <section class="space-y-4">
-          <h2 id="field" class="text-2xl font-semibold scroll-m-20">Field</h2>
-          <p class="text-muted-foreground">Form field wrapper with label, description, and error support.</p>
-          
-          <div class="grid gap-6 max-w-md">
-            <ui-field-group>
-              <ui-field-set>
-                <ui-field-legend>Contact Information</ui-field-legend>
-                <ui-field-description>Enter your contact details.</ui-field-description>
-                
-                <ui-field-group>
-                  <ui-field>
-                    <ui-field-label for="name">Full Name</ui-field-label>
-                    <ui-input id="name" placeholder="John Doe" />
-                  </ui-field>
-                  
-                  <ui-field>
-                    <ui-field-label for="email-field">Email</ui-field-label>
-                    <ui-input id="email-field" type="email" placeholder="john@example.com" />
-                    <ui-field-description>We'll never share your email.</ui-field-description>
-                  </ui-field>
-
-                  <ui-field>
-                    <ui-field-label for="invalid-field">Required Field</ui-field-label>
-                    <ui-input id="invalid-field" placeholder="This field has an error" class="border-destructive" />
-                    <ui-field-error>This field is required.</ui-field-error>
-                  </ui-field>
-                </ui-field-group>
-              </ui-field-set>
-              
-              <ui-field-separator />
-              
-              <ui-field orientation="horizontal">
-                <ui-checkbox id="terms" />
-                <ui-field-label for="terms" class="font-normal">I agree to the terms</ui-field-label>
-              </ui-field>
-            </ui-field-group>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Native Select -->
-        <section class="space-y-4">
-          <h2 id="native-select" class="text-2xl font-semibold scroll-m-20">Native Select</h2>
-          <p class="text-muted-foreground">Styled native select element with chevron icon.</p>
-          
-          <div class="flex flex-wrap gap-4">
-            <ui-native-select>
-              <option value="">Select a role</option>
-              <option value="admin">Admin</option>
-              <option value="editor">Editor</option>
-              <option value="viewer">Viewer</option>
-            </ui-native-select>
-
-            <ui-native-select size="sm">
-              <option value="">Small size</option>
-              <option value="1">Option 1</option>
-              <option value="2">Option 2</option>
-            </ui-native-select>
-
-            <ui-native-select [disabled]="true">
-              <option value="">Disabled</option>
-            </ui-native-select>
-
-            <ui-native-select [invalid]="true">
-              <option value="">Invalid state</option>
-            </ui-native-select>
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Speed Dial Section -->
-        <section class="space-y-4">
-          <h2 id="speed-dial" class="text-2xl font-semibold scroll-m-20">Speed Dial</h2>
-          <p class="text-muted-foreground">Floating action button with a popup menu of action items.</p>
-          
-          <div class="relative h-64 border rounded-lg p-4">
-            <!-- Linear Up -->
-            <ui-speed-dial type="linear" direction="up" class="absolute top-25 left-1/8">
-              <ui-speed-dial-trigger>
-                <ui-button size="icon" class="rounded-full h-12 w-12 shadow-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                </ui-button>
-              </ui-speed-dial-trigger>
-              <ui-speed-dial-menu>
-                <ui-speed-dial-item>
-                  <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Edit" tooltipSide="right">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Delete" tooltipSide="right">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Share" tooltipSide="right">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" x2="15.42" y1="13.51" y2="17.49"/><line x1="15.41" x2="8.59" y1="6.51" y2="10.49"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-              </ui-speed-dial-menu>
-            </ui-speed-dial>
-
-            <!-- Linear Right -->
-            <ui-speed-dial type="linear" direction="right"  class="absolute top-25 left-2/8">
-              <ui-speed-dial-trigger>
-                <ui-button size="icon" variant="secondary" class="rounded-full h-10 w-10">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                </ui-button>
-              </ui-speed-dial-trigger>
-              <ui-speed-dial-menu>
-                <ui-speed-dial-item>
-                  <ui-button size="icon" variant="outline" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon" variant="outline" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-              </ui-speed-dial-menu>
-            </ui-speed-dial>
-
-            <!-- Circle layout -->
-            <ui-speed-dial type="circle" [radius]="60" class="absolute top-25 left-4/8">
-              <ui-speed-dial-trigger>
-                <ui-button size="icon" variant="destructive" class="rounded-full h-12 w-12 shadow-lg">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                </ui-button>
-              </ui-speed-dial-trigger>
-              <ui-speed-dial-menu>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="outline" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-              </ui-speed-dial-menu>
-            </ui-speed-dial>
-
-            <!-- Semi-circle Up -->
-            <ui-speed-dial type="semi-circle" direction="up" [radius]="50" class="absolute top-25 left-6/8">
-              <ui-speed-dial-trigger>
-                <ui-button size="icon" class="rounded-full h-11 w-11 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                </ui-button>
-              </ui-speed-dial-trigger>
-              <ui-speed-dial-menu>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-              </ui-speed-dial-menu>
-            </ui-speed-dial>
-
-            <!-- quarter-circle up-right -->
-            <ui-speed-dial type="quarter-circle" direction="up-right" [radius]="80" class="absolute bottom-0 left-0">
-              <ui-speed-dial-trigger>
-                <ui-button size="icon" class="rounded-full h-11 w-11 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>
-                </ui-button>
-              </ui-speed-dial-trigger>
-              <ui-speed-dial-menu>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-                <ui-speed-dial-item>
-                  <ui-button size="icon-sm" variant="secondary" class="rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>
-                  </ui-button>
-                </ui-speed-dial-item>
-              </ui-speed-dial-menu>
-            </ui-speed-dial>
-
-          </div>
-
-          <!-- Context Menu Speed Dial -->
-          <h3 class="text-lg font-medium mt-6">Context Menu (Right-click)</h3>
-          <ui-speed-dial type="circle" [transitionDelay]="500" direction="down-right" [radius]="40" #speedDialContextMenu>
-            <!-- <ui-speed-dial-context-trigger class="w-full h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
-              <span>Right-click anywhere in this area</span>
-            </ui-speed-dial-context-trigger> -->
-            <ui-speed-dial-menu>
-              <ui-speed-dial-item>
-                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Copy">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>
-                </ui-button>
-              </ui-speed-dial-item>
-              <ui-speed-dial-item>
-                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Cut">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><line x1="20" x2="8.12" y1="4" y2="15.88"/><line x1="14.47" x2="20" y1="14.48" y2="20"/><line x1="8.12" x2="12" y1="8.12" y2="12"/></svg>
-                </ui-button>
-              </ui-speed-dial-item>
-              <ui-speed-dial-item>
-                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
-                </ui-button>
-              </ui-speed-dial-item>
-              <ui-speed-dial-item>
-                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
-                </ui-button>
-              </ui-speed-dial-item>
-              <ui-speed-dial-item>
-                <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>
-                </ui-button>
-              </ui-speed-dial-item>
-            </ui-speed-dial-menu>
-          </ui-speed-dial>
-
-          <div [uiSpeedDialContextTrigger]="speedDialContextMenu" 
-          (click)="writeToLog('test')"
-          class="h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
-            Right-click anywhere here
-          </div>
-        </section>
-
-        <ui-separator />
-
-        <!-- Chip List Section -->
-        <section class="space-y-4">
-          <h2 id="chip-list" class="text-2xl font-semibold scroll-m-20">Chip List</h2>
-          <p class="text-muted-foreground">Input that converts text into chips. Type and press Enter to add.</p>
-          
-          <div class="space-y-6 max-w-md">
-            <!-- Basic Example -->
-            <div class="space-y-2">
-              <ui-label>Tags</ui-label>
-              <ui-chip-list 
-                [(ngModel)]="chipListTags" 
-                placeholder="Add a tag..."
-              />
-              <p class="text-sm text-muted-foreground">Current: {{ chipListTags() | json }}</p>
-            </div>
-
-            <!-- Variants -->
-            <div class="grid gap-4">
-              <div class="space-y-2">
-                <ui-label>Secondary variant</ui-label>
-                <ui-chip-list [(ngModel)]="chipListTags" variant="secondary"/>
-              </div>
-              <div class="space-y-2">
-                <ui-label>Outline variant</ui-label>
-                <ui-chip-list [(ngModel)]="chipListTags" variant="outline"/>
-              </div>
-            </div>
-
-            <!-- Max Rows -->
-            <div class="space-y-2">
-              <ui-label>Max 2 rows (scrollable)</ui-label>
-              <ui-chip-list 
-                [(ngModel)]="chipListFruits" 
-                [maxRows]="2"
-                variant="secondary"
-                placeholder="Add fruit..."
-                placeholder="Add fruit..."
-              />
-            </div>
-
-            <!-- Disabled -->
-            <div class="space-y-2">
-              <ui-label>Disabled</ui-label>
-              <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true"/>
-            </div>
-          </div>
-        </section>
-
-        <!-- Footer -->
-        <div class="text-center text-muted-foreground text-sm pt-8">
-          Built with Angular and Tailwind CSS. Open source.
-        </div>
-
-      </div>
-    </div>
-  `,
+  templateUrl: './app.html',
   host: {
-    '(document:keydown)': 'onKeydown($event)'
-  }
+    '(document:keydown)': 'onKeydown($event)',
+  },
 })
 export class AppComponent {
   private toastService = inject(ToastService);
@@ -2380,7 +465,16 @@ export class AppComponent {
   verticalBottomSize = signal(60);
 
   chipListTags = signal<string[]>(['Angular', 'TypeScript', 'Signals']);
-  chipListFruits = signal<string[]>(['Apple', 'Banana', 'Cherry', 'Date', 'Elderberry', 'Fig', 'Grape', 'Honeydew']);
+  chipListFruits = signal<string[]>([
+    'Apple',
+    'Banana',
+    'Cherry',
+    'Date',
+    'Elderberry',
+    'Fig',
+    'Grape',
+    'Honeydew',
+  ]);
 
   isRtl = signal(false);
   selectedEmoji = signal<string | null>(null);
@@ -2496,12 +590,13 @@ export class AppComponent {
     { title: 'Toggle', id: 'toggle' },
     { title: 'Toggle Group', id: 'toggle-group' },
     { title: 'Tooltip', id: 'tooltip' },
+    { title: 'Autocomplete', id: 'autocomplete' },
   ];
 
   onKeydown(e: KeyboardEvent) {
     if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
-      this.showCommandDialog.update(v => !v);
+      this.showCommandDialog.update((v) => !v);
     }
   }
 
@@ -2511,6 +606,25 @@ export class AppComponent {
     if (element) {
       element.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
+  }
+
+  // Autocomplete Demo
+  frameworks = signal<Framework[]>([
+    { value: 'next.js', label: 'Next.js' },
+    { value: 'sveltekit', label: 'SvelteKit' },
+    { value: 'nuxt.js', label: 'Nuxt.js' },
+    { value: 'remix', label: 'Remix' },
+    { value: 'astro', label: 'Astro' },
+    { value: 'angular', label: 'Angular' },
+    { value: 'vue', label: 'Vue' },
+    { value: 'react', label: 'React' },
+  ]);
+
+  selectedFramework = signal<Framework | null>(null);
+  selectedFrameworks = signal<Framework[]>([this.frameworks()[0], this.frameworks()[5]]);
+
+  displayFn(option: unknown): string {
+    return (option as Framework)?.label || '';
   }
 
   writeToLog(str: string) {

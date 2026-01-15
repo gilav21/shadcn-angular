@@ -16,6 +16,11 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'accordion',
     files: ['accordion.component.ts'],
   },
+  autocomplete: {
+    name: 'autocomplete',
+    files: ['autocomplete.component.ts', 'highlight.pipe.ts'],
+    dependencies: ['popover', 'command', 'badge'],
+  },
   alert: {
     name: 'alert',
     files: ['alert.component.ts'],

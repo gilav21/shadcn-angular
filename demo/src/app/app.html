@@ -1,341 +1,2294 @@
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * The content below * * * * * * * * * * * -->
-<!-- * * * * * * * * * * is only a placeholder * * * * * * * * * * -->
-<!-- * * * * * * * * * * and can be replaced.  * * * * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * Delete the template below * * * * * * * * * -->
-<!-- * * * * * * * to get started with your project! * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-
-<style>
-  :host {
-    --bright-blue: oklch(51.01% 0.274 263.83);
-    --electric-violet: oklch(53.18% 0.28 296.97);
-    --french-violet: oklch(47.66% 0.246 305.88);
-    --vivid-pink: oklch(69.02% 0.277 332.77);
-    --hot-red: oklch(61.42% 0.238 15.34);
-    --orange-red: oklch(63.32% 0.24 31.68);
-
-    --gray-900: oklch(19.37% 0.006 300.98);
-    --gray-700: oklch(36.98% 0.014 302.71);
-    --gray-400: oklch(70.9% 0.015 304.04);
-
-    --red-to-pink-to-purple-vertical-gradient: linear-gradient(
-      180deg,
-      var(--orange-red) 0%,
-      var(--vivid-pink) 50%,
-      var(--electric-violet) 100%
-    );
-
-    --red-to-pink-to-purple-horizontal-gradient: linear-gradient(
-      90deg,
-      var(--orange-red) 0%,
-      var(--vivid-pink) 50%,
-      var(--electric-violet) 100%
-    );
-
-    --pill-accent: var(--bright-blue);
-
-    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-      "Segoe UI Symbol";
-    box-sizing: border-box;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
-  }
-
-  h1 {
-    font-size: 3.125rem;
-    color: var(--gray-900);
-    font-weight: 500;
-    line-height: 100%;
-    letter-spacing: -0.125rem;
-    margin: 0;
-    font-family: "Inter Tight", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
-      Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji",
-      "Segoe UI Symbol";
-  }
-
-  p {
-    margin: 0;
-    color: var(--gray-700);
-  }
-
-  main {
-    width: 100%;
-    min-height: 100%;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    padding: 1rem;
-    box-sizing: inherit;
-    position: relative;
-  }
-
-  .angular-logo {
-    max-width: 9.2rem;
-  }
-
-  .content {
-    display: flex;
-    justify-content: space-around;
-    width: 100%;
-    max-width: 700px;
-    margin-bottom: 3rem;
-  }
-
-  .content h1 {
-    margin-top: 1.75rem;
-  }
-
-  .content p {
-    margin-top: 1.5rem;
-  }
-
-  .divider {
-    width: 1px;
-    background: var(--red-to-pink-to-purple-vertical-gradient);
-    margin-inline: 0.5rem;
-  }
-
-  .pill-group {
-    display: flex;
-    flex-direction: column;
-    align-items: start;
-    flex-wrap: wrap;
-    gap: 1.25rem;
-  }
-
-  .pill {
-    display: flex;
-    align-items: center;
-    --pill-accent: var(--bright-blue);
-    background: color-mix(in srgb, var(--pill-accent) 5%, transparent);
-    color: var(--pill-accent);
-    padding-inline: 0.75rem;
-    padding-block: 0.375rem;
-    border-radius: 2.75rem;
-    border: 0;
-    transition: background 0.3s ease;
-    font-family: var(--inter-font);
-    font-size: 0.875rem;
-    font-style: normal;
-    font-weight: 500;
-    line-height: 1.4rem;
-    letter-spacing: -0.00875rem;
-    text-decoration: none;
-    white-space: nowrap;
-  }
-
-  .pill:hover {
-    background: color-mix(in srgb, var(--pill-accent) 15%, transparent);
-  }
-
-  .pill-group .pill:nth-child(6n + 1) {
-    --pill-accent: var(--bright-blue);
-  }
-  .pill-group .pill:nth-child(6n + 2) {
-    --pill-accent: var(--electric-violet);
-  }
-  .pill-group .pill:nth-child(6n + 3) {
-    --pill-accent: var(--french-violet);
-  }
-
-  .pill-group .pill:nth-child(6n + 4),
-  .pill-group .pill:nth-child(6n + 5),
-  .pill-group .pill:nth-child(6n + 6) {
-    --pill-accent: var(--hot-red);
-  }
-
-  .pill-group svg {
-    margin-inline-start: 0.25rem;
-  }
-
-  .social-links {
-    display: flex;
-    align-items: center;
-    gap: 0.73rem;
-    margin-top: 1.5rem;
-  }
-
-  .social-links path {
-    transition: fill 0.3s ease;
-    fill: var(--gray-400);
-  }
-
-  .social-links a:hover svg path {
-    fill: var(--gray-900);
-  }
-
-  @media screen and (max-width: 650px) {
-    .content {
-      flex-direction: column;
-      width: max-content;
-    }
-
-    .divider {
-      height: 1px;
-      width: 100%;
-      background: var(--red-to-pink-to-purple-horizontal-gradient);
-      margin-block: 1.5rem;
-    }
-  }
-</style>
-
-<main class="main">
-  <div class="content">
-    <div class="left-side">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 982 239"
-        fill="none"
-        class="angular-logo"
-      >
-        <g clip-path="url(#a)">
-          <path
-            fill="url(#b)"
-            d="M388.676 191.625h30.849L363.31 31.828h-35.758l-56.215 159.797h30.848l13.174-39.356h60.061l13.256 39.356Zm-65.461-62.675 21.602-64.311h1.227l21.602 64.311h-44.431Zm126.831-7.527v70.202h-28.23V71.839h27.002v20.374h1.392c2.782-6.71 7.2-12.028 13.255-15.956 6.056-3.927 13.584-5.89 22.503-5.89 8.264 0 15.465 1.8 21.684 5.318 6.137 3.518 10.964 8.673 14.319 15.382 3.437 6.71 5.074 14.81 4.992 24.383v76.175h-28.23v-71.92c0-8.019-2.046-14.237-6.219-18.819-4.173-4.5-9.819-6.791-17.102-6.791-4.91 0-9.328 1.063-13.174 3.272-3.846 2.128-6.792 5.237-9.001 9.328-2.046 4.009-3.191 8.918-3.191 14.728ZM589.233 239c-10.147 0-18.82-1.391-26.103-4.091-7.282-2.7-13.092-6.382-17.511-10.964-4.418-4.582-7.528-9.655-9.164-15.219l25.448-6.136c1.145 2.372 2.782 4.663 4.991 6.954 2.209 2.291 5.155 4.255 8.837 5.81 3.683 1.554 8.428 2.291 14.074 2.291 8.019 0 14.647-1.964 19.884-5.81 5.237-3.845 7.856-10.227 7.856-19.064v-22.665h-1.391c-1.473 2.946-3.601 5.892-6.383 9.001-2.782 3.109-6.464 5.645-10.965 7.691-4.582 2.046-10.228 3.109-17.101 3.109-9.165 0-17.511-2.209-25.039-6.545-7.446-4.337-13.42-10.883-17.757-19.474-4.418-8.673-6.628-19.473-6.628-32.565 0-13.091 2.21-24.301 6.628-33.383 4.419-9.082 10.311-15.955 17.839-20.7 7.528-4.746 15.874-7.037 25.039-7.037 7.037 0 12.846 1.145 17.347 3.518 4.582 2.373 8.182 5.236 10.883 8.51 2.7 3.272 4.746 6.382 6.137 9.327h1.554v-19.8h27.821v121.749c0 10.228-2.454 18.737-7.364 25.447-4.91 6.709-11.538 11.7-20.048 15.055-8.509 3.355-18.165 4.991-28.884 4.991Zm.245-71.266c5.974 0 11.047-1.473 15.302-4.337 4.173-2.945 7.446-7.118 9.573-12.519 2.21-5.482 3.274-12.027 3.274-19.637 0-7.609-1.064-14.155-3.274-19.8-2.127-5.646-5.318-10.064-9.491-13.255-4.174-3.11-9.329-4.746-15.384-4.746s-11.537 1.636-15.792 4.91c-4.173 3.272-7.365 7.772-9.492 13.418-2.128 5.727-3.191 12.191-3.191 19.392 0 7.2 1.063 13.745 3.273 19.228 2.127 5.482 5.318 9.736 9.573 12.764 4.174 3.027 9.41 4.582 15.629 4.582Zm141.56-26.51V71.839h28.23v119.786h-27.412v-21.273h-1.227c-2.7 6.709-7.119 12.191-13.338 16.446-6.137 4.255-13.747 6.382-22.748 6.382-7.855 0-14.81-1.718-20.783-5.237-5.974-3.518-10.72-8.591-14.075-15.382-3.355-6.709-5.073-14.891-5.073-24.464V71.839h28.312v71.921c0 7.609 2.046 13.664 6.219 18.083 4.173 4.5 9.655 6.709 16.365 6.709 4.173 0 8.183-.982 12.111-3.028 3.927-2.045 7.118-5.072 9.655-9.082 2.537-4.091 3.764-9.164 3.764-15.218Zm65.707-109.395v159.796h-28.23V31.828h28.23Zm44.841 162.169c-7.61 0-14.402-1.391-20.457-4.091-6.055-2.7-10.883-6.791-14.32-12.109-3.518-5.319-5.237-11.946-5.237-19.801 0-6.791 1.228-12.355 3.765-16.773 2.536-4.419 5.891-7.937 10.228-10.637 4.337-2.618 9.164-4.664 14.647-6.055 5.4-1.391 11.046-2.373 16.856-3.027 7.037-.737 12.683-1.391 17.102-1.964 4.337-.573 7.528-1.555 9.574-2.782 1.963-1.309 3.027-3.273 3.027-5.973v-.491c0-5.891-1.718-10.391-5.237-13.664-3.518-3.191-8.51-4.828-15.056-4.828-6.955 0-12.356 1.473-16.447 4.5-4.009 3.028-6.71 6.546-8.183 10.719l-26.348-3.764c2.046-7.282 5.483-13.336 10.31-18.328 4.746-4.909 10.638-8.59 17.511-11.045 6.955-2.455 14.565-3.682 22.912-3.682 5.809 0 11.537.654 17.265 2.045s10.965 3.6 15.711 6.71c4.746 3.109 8.51 7.282 11.455 12.6 2.864 5.318 4.337 11.946 4.337 19.883v80.184h-27.166v-16.446h-.9c-1.719 3.355-4.092 6.464-7.201 9.328-3.109 2.864-6.955 5.237-11.619 6.955-4.828 1.718-10.229 2.536-16.529 2.536Zm7.364-20.701c5.646 0 10.556-1.145 14.729-3.354 4.173-2.291 7.364-5.237 9.655-9.001 2.292-3.763 3.355-7.854 3.355-12.273v-14.155c-.9.737-2.373 1.391-4.5 2.046-2.128.654-4.419 1.145-7.037 1.636-2.619.491-5.155.9-7.692 1.227-2.537.328-4.746.655-6.628.901-4.173.572-8.019 1.472-11.292 2.781-3.355 1.31-5.973 3.11-7.855 5.401-1.964 2.291-2.864 5.318-2.864 8.918 0 5.237 1.882 9.164 5.728 11.782 3.682 2.782 8.51 4.091 14.401 4.091Zm64.643 18.328V71.839h27.412v19.965h1.227c2.21-6.955 5.974-12.274 11.292-16.038 5.319-3.763 11.456-5.645 18.329-5.645 1.555 0 3.355.082 5.237.163 1.964.164 3.601.328 4.91.573v25.938c-1.227-.41-3.109-.819-5.646-1.146a58.814 58.814 0 0 0-7.446-.49c-5.155 0-9.738 1.145-13.829 3.354-4.091 2.209-7.282 5.236-9.655 9.164-2.373 3.927-3.519 8.427-3.519 13.5v70.448h-28.312ZM222.077 39.192l-8.019 125.923L137.387 0l84.69 39.192Zm-53.105 162.825-57.933 33.056-57.934-33.056 11.783-28.556h92.301l11.783 28.556ZM111.039 62.675l30.357 73.803H80.681l30.358-73.803ZM7.937 165.115 0 39.192 84.69 0 7.937 165.115Z"
-          />
-          <path
-            fill="url(#c)"
-            d="M388.676 191.625h30.849L363.31 31.828h-35.758l-56.215 159.797h30.848l13.174-39.356h60.061l13.256 39.356Zm-65.461-62.675 21.602-64.311h1.227l21.602 64.311h-44.431Zm126.831-7.527v70.202h-28.23V71.839h27.002v20.374h1.392c2.782-6.71 7.2-12.028 13.255-15.956 6.056-3.927 13.584-5.89 22.503-5.89 8.264 0 15.465 1.8 21.684 5.318 6.137 3.518 10.964 8.673 14.319 15.382 3.437 6.71 5.074 14.81 4.992 24.383v76.175h-28.23v-71.92c0-8.019-2.046-14.237-6.219-18.819-4.173-4.5-9.819-6.791-17.102-6.791-4.91 0-9.328 1.063-13.174 3.272-3.846 2.128-6.792 5.237-9.001 9.328-2.046 4.009-3.191 8.918-3.191 14.728ZM589.233 239c-10.147 0-18.82-1.391-26.103-4.091-7.282-2.7-13.092-6.382-17.511-10.964-4.418-4.582-7.528-9.655-9.164-15.219l25.448-6.136c1.145 2.372 2.782 4.663 4.991 6.954 2.209 2.291 5.155 4.255 8.837 5.81 3.683 1.554 8.428 2.291 14.074 2.291 8.019 0 14.647-1.964 19.884-5.81 5.237-3.845 7.856-10.227 7.856-19.064v-22.665h-1.391c-1.473 2.946-3.601 5.892-6.383 9.001-2.782 3.109-6.464 5.645-10.965 7.691-4.582 2.046-10.228 3.109-17.101 3.109-9.165 0-17.511-2.209-25.039-6.545-7.446-4.337-13.42-10.883-17.757-19.474-4.418-8.673-6.628-19.473-6.628-32.565 0-13.091 2.21-24.301 6.628-33.383 4.419-9.082 10.311-15.955 17.839-20.7 7.528-4.746 15.874-7.037 25.039-7.037 7.037 0 12.846 1.145 17.347 3.518 4.582 2.373 8.182 5.236 10.883 8.51 2.7 3.272 4.746 6.382 6.137 9.327h1.554v-19.8h27.821v121.749c0 10.228-2.454 18.737-7.364 25.447-4.91 6.709-11.538 11.7-20.048 15.055-8.509 3.355-18.165 4.991-28.884 4.991Zm.245-71.266c5.974 0 11.047-1.473 15.302-4.337 4.173-2.945 7.446-7.118 9.573-12.519 2.21-5.482 3.274-12.027 3.274-19.637 0-7.609-1.064-14.155-3.274-19.8-2.127-5.646-5.318-10.064-9.491-13.255-4.174-3.11-9.329-4.746-15.384-4.746s-11.537 1.636-15.792 4.91c-4.173 3.272-7.365 7.772-9.492 13.418-2.128 5.727-3.191 12.191-3.191 19.392 0 7.2 1.063 13.745 3.273 19.228 2.127 5.482 5.318 9.736 9.573 12.764 4.174 3.027 9.41 4.582 15.629 4.582Zm141.56-26.51V71.839h28.23v119.786h-27.412v-21.273h-1.227c-2.7 6.709-7.119 12.191-13.338 16.446-6.137 4.255-13.747 6.382-22.748 6.382-7.855 0-14.81-1.718-20.783-5.237-5.974-3.518-10.72-8.591-14.075-15.382-3.355-6.709-5.073-14.891-5.073-24.464V71.839h28.312v71.921c0 7.609 2.046 13.664 6.219 18.083 4.173 4.5 9.655 6.709 16.365 6.709 4.173 0 8.183-.982 12.111-3.028 3.927-2.045 7.118-5.072 9.655-9.082 2.537-4.091 3.764-9.164 3.764-15.218Zm65.707-109.395v159.796h-28.23V31.828h28.23Zm44.841 162.169c-7.61 0-14.402-1.391-20.457-4.091-6.055-2.7-10.883-6.791-14.32-12.109-3.518-5.319-5.237-11.946-5.237-19.801 0-6.791 1.228-12.355 3.765-16.773 2.536-4.419 5.891-7.937 10.228-10.637 4.337-2.618 9.164-4.664 14.647-6.055 5.4-1.391 11.046-2.373 16.856-3.027 7.037-.737 12.683-1.391 17.102-1.964 4.337-.573 7.528-1.555 9.574-2.782 1.963-1.309 3.027-3.273 3.027-5.973v-.491c0-5.891-1.718-10.391-5.237-13.664-3.518-3.191-8.51-4.828-15.056-4.828-6.955 0-12.356 1.473-16.447 4.5-4.009 3.028-6.71 6.546-8.183 10.719l-26.348-3.764c2.046-7.282 5.483-13.336 10.31-18.328 4.746-4.909 10.638-8.59 17.511-11.045 6.955-2.455 14.565-3.682 22.912-3.682 5.809 0 11.537.654 17.265 2.045s10.965 3.6 15.711 6.71c4.746 3.109 8.51 7.282 11.455 12.6 2.864 5.318 4.337 11.946 4.337 19.883v80.184h-27.166v-16.446h-.9c-1.719 3.355-4.092 6.464-7.201 9.328-3.109 2.864-6.955 5.237-11.619 6.955-4.828 1.718-10.229 2.536-16.529 2.536Zm7.364-20.701c5.646 0 10.556-1.145 14.729-3.354 4.173-2.291 7.364-5.237 9.655-9.001 2.292-3.763 3.355-7.854 3.355-12.273v-14.155c-.9.737-2.373 1.391-4.5 2.046-2.128.654-4.419 1.145-7.037 1.636-2.619.491-5.155.9-7.692 1.227-2.537.328-4.746.655-6.628.901-4.173.572-8.019 1.472-11.292 2.781-3.355 1.31-5.973 3.11-7.855 5.401-1.964 2.291-2.864 5.318-2.864 8.918 0 5.237 1.882 9.164 5.728 11.782 3.682 2.782 8.51 4.091 14.401 4.091Zm64.643 18.328V71.839h27.412v19.965h1.227c2.21-6.955 5.974-12.274 11.292-16.038 5.319-3.763 11.456-5.645 18.329-5.645 1.555 0 3.355.082 5.237.163 1.964.164 3.601.328 4.91.573v25.938c-1.227-.41-3.109-.819-5.646-1.146a58.814 58.814 0 0 0-7.446-.49c-5.155 0-9.738 1.145-13.829 3.354-4.091 2.209-7.282 5.236-9.655 9.164-2.373 3.927-3.519 8.427-3.519 13.5v70.448h-28.312ZM222.077 39.192l-8.019 125.923L137.387 0l84.69 39.192Zm-53.105 162.825-57.933 33.056-57.934-33.056 11.783-28.556h92.301l11.783 28.556ZM111.039 62.675l30.357 73.803H80.681l30.358-73.803ZM7.937 165.115 0 39.192 84.69 0 7.937 165.115Z"
-          />
-        </g>
-        <defs>
-          <radialGradient
-            id="c"
-            cx="0"
-            cy="0"
-            r="1"
-            gradientTransform="rotate(118.122 171.182 60.81) scale(205.794)"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop stop-color="#FF41F8" />
-            <stop offset=".707" stop-color="#FF41F8" stop-opacity=".5" />
-            <stop offset="1" stop-color="#FF41F8" stop-opacity="0" />
-          </radialGradient>
-          <linearGradient
-            id="b"
-            x1="0"
-            x2="982"
-            y1="192"
-            y2="192"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop stop-color="#F0060B" />
-            <stop offset="0" stop-color="#F0070C" />
-            <stop offset=".526" stop-color="#CC26D5" />
-            <stop offset="1" stop-color="#7702FF" />
-          </linearGradient>
-          <clipPath id="a"><path fill="#fff" d="M0 0h982v239H0z" /></clipPath>
-        </defs>
-      </svg>
-      <h1>Hello, {{ title() }}</h1>
-      <p>Congratulations! Your app is running. 🎉</p>
+<ui-toaster />
+<div class="min-h-screen bg-background text-foreground p-8">
+  <div class="max-w-4xl mx-auto space-y-12">
+    <!-- Header -->
+    <div class="text-center space-y-4">
+      <h1 class="text-4xl font-bold tracking-tight">shadcn-angular</h1>
+      <p class="text-muted-foreground text-lg">
+        Beautifully designed components for Angular, built with Tailwind CSS
+      </p>
+      <div class="flex justify-center gap-2">
+        <ui-badge>Angular 20</ui-badge>
+        <ui-badge variant="secondary">Tailwind v4</ui-badge>
+        <ui-badge variant="outline">Signals</ui-badge>
+      </div>
     </div>
-    <div class="divider" role="separator" aria-label="Divider"></div>
-    <div class="right-side">
-      <div class="pill-group">
-        @for (item of [
-          { title: 'Explore the Docs', link: 'https://angular.dev' },
-          { title: 'Learn with Tutorials', link: 'https://angular.dev/tutorials' },
-          { title: 'Prompt and best practices for AI', link: 'https://angular.dev/ai/develop-with-ai'},
-          { title: 'CLI Docs', link: 'https://angular.dev/tools/cli' },
-          { title: 'Angular Language Service', link: 'https://angular.dev/tools/language-service' },
-          { title: 'Angular DevTools', link: 'https://angular.dev/tools/devtools' },
-        ]; track item.title) {
-          <a
-            class="pill"
-            [href]="item.link"
-            target="_blank"
-            rel="noopener"
-          >
-            <span>{{ item.title }}</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              height="14"
-              viewBox="0 -960 960 960"
-              width="14"
-              fill="currentColor"
-            >
-              <path
-                d="M200-120q-33 0-56.5-23.5T120-200v-560q0-33 23.5-56.5T200-840h280v80H200v560h560v-280h80v280q0 33-23.5 56.5T760-120H200Zm188-212-56-56 372-372H560v-80h280v280h-80v-144L388-332Z"
-              />
-            </svg>
-          </a>
+
+    <!-- Theme Toggle -->
+    <div class="flex items-center justify-center gap-3">
+      <span class="text-sm">Light</span>
+      <ui-switch (checkedChange)="toggleTheme($event)" />
+      <span class="text-sm">Dark</span>
+
+      <div class="w-px h-4 bg-border mx-2"></div>
+
+      <span class="text-sm">LTR</span>
+      <ui-switch (checkedChange)="toggleDirection($event)" [checked]="isRtl()" />
+      <span class="text-sm">RTL</span>
+    </div>
+
+    <ui-separator />
+    <ui-breadcrumb-list>
+      <ui-breadcrumb-page>Home</ui-breadcrumb-page>
+      <ui-breadcrumb-separator> -> </ui-breadcrumb-separator>
+      <ui-breadcrumb-item>
+        <ui-breadcrumb-link href="#breadcrumbSection">Breadcrumb</ui-breadcrumb-link>
+      </ui-breadcrumb-item>
+    </ui-breadcrumb-list>
+
+    <!-- Emoji Picker Section -->
+    <section class="space-y-4">
+      <h2 id="emoji-picker" class="text-2xl font-semibold scroll-m-20">Emoji Picker</h2>
+      <p class="text-muted-foreground">
+        A customizable emoji picker with category navigation and search.
+      </p>
+
+      <div class="flex items-center gap-4">
+        <ui-emoji-picker [closeOnSelect]="closeOnSelect()" (emojiSelect)="onEmojiSelect($event)">
+          <ui-emoji-picker-trigger>
+            <ui-button variant="outline">Pick an Emoji</ui-button>
+          </ui-emoji-picker-trigger>
+          <ui-emoji-picker-content />
+        </ui-emoji-picker>
+
+        @if (selectedEmoji()) {
+        <div class="text-2xl">{{ selectedEmoji() }}</div>
+        }
+
+        <div class="flex items-center gap-2 ml-4">
+          <ui-checkbox id="closeOnSelect" [checked]="closeOnSelect()" (checkedChange)="closeOnSelect.set($event)" />
+          <label for="closeOnSelect"
+            class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+            Close on select
+          </label>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Rich Text Editor Section -->
+    <section class="space-y-6">
+      <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">Rich Text Editor</h2>
+      <p class="text-muted-foreground">
+        A secure, configurable rich text editor with Markdown and HTML support.
+      </p>
+
+      <!-- Basic Editor -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">Basic Editor (Top Toolbar)</h3>
+        <ui-rich-text-editor mode="markdown" toolbar="top"
+          placeholder="Start typing... Use **bold**, *italic*, or toolbar buttons" minHeight="150px"
+          [(ngModel)]="richTextContent" (htmlChange)="richTextHtml = $event" />
+        @if (richTextHtml) {
+        <details class="mt-2">
+          <summary class="text-sm text-muted-foreground cursor-pointer">View HTML Output</summary>
+          <pre class="mt-2 p-3 bg-muted rounded-md text-xs overflow-auto max-h-32">{{
+              richTextHtml
+            }}</pre>
+        </details>
         }
       </div>
-      <div class="social-links">
-        <a
-          href="https://github.com/angular/angular"
-          aria-label="Github"
-          target="_blank"
-          rel="noopener"
-        >
-          <svg
-            width="25"
-            height="24"
-            viewBox="0 0 25 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            alt="Github"
-          >
-            <path
-              d="M12.3047 0C5.50634 0 0 5.50942 0 12.3047C0 17.7423 3.52529 22.3535 8.41332 23.9787C9.02856 24.0946 9.25414 23.7142 9.25414 23.3871C9.25414 23.0949 9.24389 22.3207 9.23876 21.2953C5.81601 22.0377 5.09414 19.6444 5.09414 19.6444C4.53427 18.2243 3.72524 17.8449 3.72524 17.8449C2.61064 17.082 3.81137 17.0973 3.81137 17.0973C5.04697 17.1835 5.69604 18.3647 5.69604 18.3647C6.79321 20.2463 8.57636 19.7029 9.27978 19.3881C9.39052 18.5924 9.70736 18.0499 10.0591 17.7423C7.32641 17.4347 4.45429 16.3765 4.45429 11.6618C4.45429 10.3185 4.9311 9.22133 5.72065 8.36C5.58222 8.04931 5.16694 6.79833 5.82831 5.10337C5.82831 5.10337 6.85883 4.77319 9.2121 6.36459C10.1965 6.09082 11.2424 5.95546 12.2883 5.94931C13.3342 5.95546 14.3801 6.09082 15.3644 6.36459C17.7023 4.77319 18.7328 5.10337 18.7328 5.10337C19.3942 6.79833 18.9789 8.04931 18.8559 8.36C19.6403 9.22133 20.1171 10.3185 20.1171 11.6618C20.1171 16.3888 17.2409 17.4296 14.5031 17.7321C14.9338 18.1012 15.3337 18.8559 15.3337 20.0084C15.3337 21.6552 15.3183 22.978 15.3183 23.3779C15.3183 23.7009 15.5336 24.0854 16.1642 23.9623C21.0871 22.3484 24.6094 17.7341 24.6094 12.3047C24.6094 5.50942 19.0999 0 12.3047 0Z"
-            />
-          </svg>
-        </a>
-        <a
-          href="https://x.com/angular"
-          aria-label="X"
-          target="_blank"
-          rel="noopener"
-        >
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            alt="X"
-          >
-            <path
-              d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-            />
-          </svg>
-        </a>
-        <a
-          href="https://www.youtube.com/channel/UCbn1OgGei-DV7aSRo_HaAiw"
-          aria-label="Youtube"
-          target="_blank"
-          rel="noopener"
-        >
-          <svg
-            width="29"
-            height="20"
-            viewBox="0 0 29 20"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-            alt="Youtube"
-          >
-            <path
-              fill-rule="evenodd"
-              clip-rule="evenodd"
-              d="M27.4896 1.52422C27.9301 1.96749 28.2463 2.51866 28.4068 3.12258C29.0004 5.35161 29.0004 10 29.0004 10C29.0004 10 29.0004 14.6484 28.4068 16.8774C28.2463 17.4813 27.9301 18.0325 27.4896 18.4758C27.0492 18.9191 26.5 19.2389 25.8972 19.4032C23.6778 20 14.8068 20 14.8068 20C14.8068 20 5.93586 20 3.71651 19.4032C3.11363 19.2389 2.56449 18.9191 2.12405 18.4758C1.68361 18.0325 1.36732 17.4813 1.20683 16.8774C0.613281 14.6484 0.613281 10 0.613281 10C0.613281 10 0.613281 5.35161 1.20683 3.12258C1.36732 2.51866 1.68361 1.96749 2.12405 1.52422C2.56449 1.08095 3.11363 0.76113 3.71651 0.596774C5.93586 0 14.8068 0 14.8068 0C14.8068 0 23.6778 0 25.8972 0.596774C26.5 0.76113 27.0492 1.08095 27.4896 1.52422ZM19.3229 10L11.9036 5.77905V14.221L19.3229 10Z"
-            />
-          </svg>
-        </a>
+
+      <!-- Floating Toolbar -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">Floating Toolbar (Select text)</h3>
+        <ui-rich-text-editor mode="markdown" toolbar="floating"
+          placeholder="Select text to see the floating toolbar appear..." minHeight="120px" />
       </div>
+
+      <!-- Minimal Toolbar -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">Minimal Toolbar</h3>
+        <ui-rich-text-editor mode="markdown" toolbar="top"
+          [toolbarItems]="['bold', 'italic', 'separator', 'link', 'emoji']"
+          placeholder="Simplified toolbar with just the essentials..." minHeight="100px" />
+      </div>
+
+      <!-- With Mentions & Tags -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">With Mentions & Tags</h3>
+        <p class="text-sm text-muted-foreground">Type @ to mention someone or # to add a tag</p>
+        <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
+          [tags]="true" [tagSource]="sampleTags" placeholder="Type @john or #angular to see autocomplete..."
+          minHeight="120px" />
+      </div>
+
+      <!-- Character Count -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">With Character Count</h3>
+        <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true"
+          placeholder="Type to see the character count below..." minHeight="100px" />
+      </div>
+
+      <!-- HTML Mode -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">HTML Mode (contentEditable)</h3>
+        <ui-rich-text-editor mode="html" toolbar="top" placeholder="True WYSIWYG with contentEditable..."
+          minHeight="120px" />
+      </div>
+
+      <!-- No Toolbar -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">No Toolbar (Keyboard Only)</h3>
+        <p class="text-sm text-muted-foreground">Use Ctrl+B, Ctrl+I, Ctrl+U for formatting</p>
+        <ui-rich-text-editor mode="markdown" toolbar="none" variant="ghost"
+          placeholder="Clean writing experience - use keyboard shortcuts..." minHeight="100px" />
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Autocomplete Section -->
+    <section class="space-y-4">
+      <h2 id="autocomplete" class="text-2xl font-semibold scroll-m-20">Autocomplete</h2>
+      <p class="text-muted-foreground">
+        A searchable select component with single and multiple selection modes.
+      </p>
+
+      <div class="grid gap-8 max-w-sm">
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Single Selection</label>
+          <ui-autocomplete [options]="frameworks()" [displayWith]="displayFn" placeholder="Select framework..."
+            [(ngModel)]="selectedFramework" />
+          <p class="text-sm text-muted-foreground">Selected: {{ selectedFramework() | json }}</p>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Multiple Selection</label>
+          <ui-autocomplete [options]="frameworks()" [displayWith]="displayFn" [multiple]="true"
+            placeholder="Select frameworks..." [(ngModel)]="selectedFrameworks" />
+          <p class="text-sm text-muted-foreground">Selected: {{ selectedFrameworks() | json }}</p>
+        </div>
+
+        <div class="space-y-2">
+          <label class="text-sm font-medium">Disabled</label>
+          <ui-autocomplete [options]="frameworks()" [displayWith]="displayFn" placeholder="Disabled..."
+            [disabled]="true" />
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Buttons Section -->
+    <section class="space-y-4">
+      <h2 id="buttons" class="text-2xl font-semibold scroll-m-20">Buttons</h2>
+      <p class="text-muted-foreground">Button component with multiple variants and sizes.</p>
+
+      <div class="flex flex-wrap gap-4">
+        <ui-button>Default</ui-button>
+        <ui-button variant="secondary">Secondary</ui-button>
+        <ui-button variant="outline">Outline</ui-button>
+        <ui-button variant="ghost">Ghost</ui-button>
+        <ui-button variant="link">Link</ui-button>
+        <ui-button variant="destructive">Destructive</ui-button>
+      </div>
+
+      <div class="flex flex-wrap gap-4 items-center">
+        <ui-button size="sm">Small</ui-button>
+        <ui-button>Default</ui-button>
+        <ui-button size="lg">Large</ui-button>
+        <ui-button size="icon">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 12h14" />
+            <path d="M12 5v14" />
+          </svg>
+        </ui-button>
+      </div>
+
+      <ui-button [disabled]="true">Disabled</ui-button>
+    </section>
+
+    <ui-separator />
+
+    <!-- Input Section -->
+    <section class="space-y-4">
+      <h2 id="input" class="text-2xl font-semibold scroll-m-20">Input</h2>
+      <p class="text-muted-foreground">Text input with label support.</p>
+
+      <div class="grid gap-4 max-w-sm">
+        <div class="space-y-2">
+          <ui-label for="email">Email</ui-label>
+          <ui-input type="email" placeholder="Enter your email" [attr.id]="'email'" />
+        </div>
+
+        <div class="space-y-2">
+          <ui-label for="password">Password</ui-label>
+          <ui-input type="password" placeholder="Enter password" [attr.id]="'password'" />
+        </div>
+
+        <ui-input placeholder="Disabled input" [disabled]="true" />
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Card Section -->
+    <section class="space-y-4">
+      <h2 id="card" class="text-2xl font-semibold scroll-m-20">Card</h2>
+      <p class="text-muted-foreground">Card component with header, content, and footer.</p>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <ui-card>
+          <ui-card-header>
+            <ui-card-title>Create Project</ui-card-title>
+            <ui-card-description>Deploy your new project in one-click.</ui-card-description>
+          </ui-card-header>
+          <ui-card-content>
+            <div class="space-y-4">
+              <div class="space-y-2">
+                <ui-label for="name">Name</ui-label>
+                <ui-input placeholder="Name of your project" />
+              </div>
+              <div class="space-y-2">
+                <ui-label for="framework">Framework</ui-label>
+                <ui-input placeholder="Angular" />
+              </div>
+            </div>
+          </ui-card-content>
+          <ui-card-footer class="flex justify-between">
+            <ui-button variant="outline">Cancel</ui-button>
+            <ui-button>Deploy</ui-button>
+          </ui-card-footer>
+        </ui-card>
+
+        <ui-card>
+          <ui-card-header>
+            <ui-card-title>Notifications</ui-card-title>
+            <ui-card-description>Manage your notification preferences.</ui-card-description>
+          </ui-card-header>
+          <ui-card-content>
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <ui-label>Push Notifications</ui-label>
+                <ui-switch />
+              </div>
+              <div class="flex items-center justify-between">
+                <ui-label>Email Notifications</ui-label>
+                <ui-switch />
+              </div>
+            </div>
+          </ui-card-content>
+        </ui-card>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Badge Section -->
+    <section class="space-y-4">
+      <h2 id="badge" class="text-2xl font-semibold scroll-m-20">Badge</h2>
+      <p class="text-muted-foreground">Badge component with variants.</p>
+
+      <div class="flex flex-wrap gap-2">
+        <ui-badge>Default</ui-badge>
+        <ui-badge variant="secondary">Secondary</ui-badge>
+        <ui-badge variant="outline">Outline</ui-badge>
+        <ui-badge variant="destructive">Destructive</ui-badge>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Checkbox Section -->
+    <section class="space-y-4">
+      <h2 id="checkbox" class="text-2xl font-semibold scroll-m-20">Checkbox</h2>
+      <p class="text-muted-foreground">Checkbox component for boolean selection.</p>
+
+      <div class="space-y-3">
+        <div class="flex items-center gap-2">
+          <ui-checkbox />
+          <ui-label>Accept terms and conditions</ui-label>
+        </div>
+        <div class="flex items-center gap-2">
+          <ui-checkbox />
+          <ui-label>Subscribe to newsletter</ui-label>
+        </div>
+        <div class="flex items-center gap-2">
+          <ui-checkbox [disabled]="true" />
+          <ui-label class="opacity-50">Disabled checkbox</ui-label>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Radio Group Section -->
+    <section class="space-y-4">
+      <h2 id="radio-group" class="text-2xl font-semibold scroll-m-20">Radio Group</h2>
+      <p class="text-muted-foreground">Radio button group for single selection.</p>
+
+      <ui-radio-group class="max-w-sm">
+        <div class="flex items-center gap-2">
+          <ui-radio-group-item value="option1" />
+          <ui-label>Default option</ui-label>
+        </div>
+        <div class="flex items-center gap-2">
+          <ui-radio-group-item value="option2" />
+          <ui-label>Comfortable spacing</ui-label>
+        </div>
+        <div class="flex items-center gap-2">
+          <ui-radio-group-item value="option3" />
+          <ui-label>Compact layout</ui-label>
+        </div>
+      </ui-radio-group>
+    </section>
+
+    <ui-separator />
+
+    <!-- Textarea Section -->
+    <section class="space-y-4">
+      <h2 id="textarea" class="text-2xl font-semibold scroll-m-20">Textarea</h2>
+      <p class="text-muted-foreground">Multi-line text input.</p>
+
+      <div class="grid gap-4 max-w-sm">
+        <div class="space-y-2">
+          <ui-label>Your message</ui-label>
+          <ui-textarea placeholder="Type your message here..." [rows]="4" />
+        </div>
+        <ui-textarea placeholder="Disabled textarea" [disabled]="true" />
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Skeleton Section -->
+    <section class="space-y-4">
+      <h2 id="skeleton" class="text-2xl font-semibold scroll-m-20">Skeleton</h2>
+      <p class="text-muted-foreground">Loading placeholder animations.</p>
+
+      <div class="flex items-center gap-4">
+        <ui-skeleton class="h-12 w-12 rounded-full" />
+        <ui-skeleton class="w-52 h-12 rounded-lg" />
+      </div>
+      <div class="flex items-center gap-4">
+        <ui-skeleton class="w-68 h-12 rounded-lg" />
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Tabs Section -->
+    <section class="space-y-4">
+      <h2 id="tabs" class="text-2xl font-semibold scroll-m-20">Tabs</h2>
+      <p class="text-muted-foreground">Tab navigation component.</p>
+
+      <ui-tabs defaultValue="account" class="max-w-md">
+        <ui-tabs-list>
+          <ui-tabs-trigger value="account">Account</ui-tabs-trigger>
+          <ui-tabs-trigger value="password">Password</ui-tabs-trigger>
+          <ui-tabs-trigger value="settings">Settings</ui-tabs-trigger>
+        </ui-tabs-list>
+        <ui-tabs-content value="account">
+          <ui-card>
+            <ui-card-header>
+              <ui-card-title>Account</ui-card-title>
+              <ui-card-description>Make changes to your account here.</ui-card-description>
+            </ui-card-header>
+            <ui-card-content>
+              <ui-input placeholder="Your name" />
+            </ui-card-content>
+          </ui-card>
+        </ui-tabs-content>
+        <ui-tabs-content value="password">
+          <ui-card>
+            <ui-card-header>
+              <ui-card-title>Password</ui-card-title>
+              <ui-card-description>Change your password here.</ui-card-description>
+            </ui-card-header>
+            <ui-card-content>
+              <ui-input type="password" placeholder="New password" />
+            </ui-card-content>
+          </ui-card>
+        </ui-tabs-content>
+        <ui-tabs-content value="settings">
+          <ui-card>
+            <ui-card-header>
+              <ui-card-title>Settings</ui-card-title>
+              <ui-card-description>Configure your preferences.</ui-card-description>
+            </ui-card-header>
+          </ui-card>
+        </ui-tabs-content>
+      </ui-tabs>
+    </section>
+
+    <ui-separator />
+
+    <!-- Accordion Section -->
+    <section class="space-y-4">
+      <h2 id="accordion" class="text-2xl font-semibold scroll-m-20">Accordion</h2>
+      <p class="text-muted-foreground">Collapsible content sections.</p>
+
+      <ui-accordion class="max-w-md">
+        <ui-accordion-item value="item-1">
+          <ui-accordion-trigger>Is it accessible?</ui-accordion-trigger>
+          <ui-accordion-content>
+            Yes. It adheres to the WAI-ARIA design pattern.
+          </ui-accordion-content>
+        </ui-accordion-item>
+        <ui-accordion-item value="item-2">
+          <ui-accordion-trigger>Is it styled?</ui-accordion-trigger>
+          <ui-accordion-content>
+            Yes. It comes with default styles that match the other components.
+          </ui-accordion-content>
+        </ui-accordion-item>
+        <ui-accordion-item value="item-3">
+          <ui-accordion-trigger>Is it animated?</ui-accordion-trigger>
+          <ui-accordion-content>
+            Yes. It's animated by default with smooth transitions.
+          </ui-accordion-content>
+        </ui-accordion-item>
+      </ui-accordion>
+    </section>
+
+    <ui-separator />
+
+    <!-- Progress Section -->
+    <section class="space-y-4">
+      <h2 id="progress" class="text-2xl font-semibold scroll-m-20">Progress</h2>
+      <p class="text-muted-foreground">Progress bar indicators.</p>
+
+      <div class="space-y-4 max-w-md">
+        <ui-progress [value]="25" />
+        <ui-progress [value]="50" />
+        <ui-progress [value]="75" />
+        <ui-progress [value]="100" />
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Alert Section -->
+    <section class="space-y-4">
+      <h2 id="alert" class="text-2xl font-semibold scroll-m-20">Alert</h2>
+      <p class="text-muted-foreground">Alert messages and notifications.</p>
+
+      <div class="space-y-4 max-w-md">
+        <ui-alert>
+          <ui-alert-title>Heads up!</ui-alert-title>
+          <ui-alert-description>
+            You can add components to your app using the CLI.
+          </ui-alert-description>
+        </ui-alert>
+        <ui-alert variant="destructive">
+          <ui-alert-title>Error</ui-alert-title>
+          <ui-alert-description>
+            Your session has expired. Please log in again.
+          </ui-alert-description>
+        </ui-alert>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Avatar Section -->
+    <section class="space-y-4">
+      <h2 id="avatar" class="text-2xl font-semibold scroll-m-20">Avatar</h2>
+      <p class="text-muted-foreground">User avatar with image or fallback.</p>
+
+      <div class="flex gap-4">
+        <ui-avatar>
+          <ui-avatar-image src="https://github.com/shadcn.png" alt="shadcn" />
+          <ui-avatar-fallback>CN</ui-avatar-fallback>
+        </ui-avatar>
+        <ui-avatar>
+          <ui-avatar-fallback>JD</ui-avatar-fallback>
+        </ui-avatar>
+        <ui-avatar>
+          <ui-avatar-fallback>AB</ui-avatar-fallback>
+        </ui-avatar>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Dialog Section -->
+    <section class="space-y-4">
+      <h2 id="dialog" class="text-2xl font-semibold scroll-m-20">Dialog</h2>
+      <p class="text-muted-foreground">Modal dialog with overlay.</p>
+
+      <ui-dialog #uiDialog>
+        <ui-dialog-trigger>
+          <ui-button>Open Dialog</ui-button>
+        </ui-dialog-trigger>
+        <ui-dialog-content>
+          <ui-dialog-header>
+            <ui-dialog-title>Edit Profile</ui-dialog-title>
+            <ui-dialog-description>
+              Make changes to your profile here. Click save when you're done.
+            </ui-dialog-description>
+          </ui-dialog-header>
+          <div class="grid gap-4 py-4">
+            <div class="grid gap-2">
+              <ui-label>Name</ui-label>
+              <ui-input placeholder="Your name" />
+            </div>
+            <div class="grid gap-2">
+              <ui-label>Email</ui-label>
+              <ui-input type="email" placeholder="your@email.com" />
+            </div>
+          </div>
+          <ui-dialog-footer>
+            <ui-button (click)="uiDialog.hide()">Save changes</ui-button>
+          </ui-dialog-footer>
+        </ui-dialog-content>
+      </ui-dialog>
+    </section>
+
+    <ui-separator />
+
+    <!-- Tooltip Section -->
+    <section class="space-y-4">
+      <h2 id="tooltip" class="text-2xl font-semibold scroll-m-20">Tooltip</h2>
+      <p class="text-muted-foreground">Hover hints for elements.</p>
+
+      <div class="flex gap-4 items-center">
+        <!-- Directive Usage -->
+        <ui-button uiTooltip="This is a tooltip!" tooltipSide="top">Hover me (Directive)</ui-button>
+        <ui-button uiTooltip="Bottom tooltip" tooltipSide="bottom" variant="secondary">Hover me (Bottom)</ui-button>
+
+        <!-- Component Usage (Reported Issue) -->
+        <ui-tooltip>
+          <ui-tooltip-trigger>
+            <ui-button variant="outline">Hover me (Component)</ui-button>
+          </ui-tooltip-trigger>
+          <ui-tooltip-content>
+            <p>Add to library</p>
+          </ui-tooltip-content>
+        </ui-tooltip>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Dropdown Menu Section -->
+    <section class="space-y-4">
+      <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">Dropdown Menu</h2>
+      <p class="text-muted-foreground">Dropdown menu with items.</p>
+
+      <ui-dropdown-menu>
+        <ui-dropdown-menu-trigger>
+          <ui-button variant="outline">Open Menu</ui-button>
+        </ui-dropdown-menu-trigger>
+        <ui-dropdown-menu-content>
+          <ui-dropdown-menu-label>My Account</ui-dropdown-menu-label>
+          <ui-dropdown-menu-separator />
+          <ui-dropdown-menu-item>Profile</ui-dropdown-menu-item>
+          <ui-dropdown-menu-item>Settings</ui-dropdown-menu-item>
+          <ui-dropdown-menu-item>Billing</ui-dropdown-menu-item>
+          <ui-dropdown-menu-separator />
+          <ui-dropdown-menu-sub>
+            <ui-dropdown-menu-sub-trigger>Invite users</ui-dropdown-menu-sub-trigger>
+            <ui-dropdown-menu-sub-content>
+              <ui-dropdown-menu-item>Email</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item>Message</ui-dropdown-menu-item>
+              <ui-dropdown-menu-separator />
+              <ui-dropdown-menu-item>More...</ui-dropdown-menu-item>
+            </ui-dropdown-menu-sub-content>
+          </ui-dropdown-menu-sub>
+          <ui-dropdown-menu-separator />
+          <ui-dropdown-menu-item>Log out</ui-dropdown-menu-item>
+        </ui-dropdown-menu-content>
+      </ui-dropdown-menu>
+    </section>
+
+    <ui-separator />
+
+    <!-- Select Section -->
+    <section class="space-y-4">
+      <h2 id="select" class="text-2xl font-semibold scroll-m-20">Select</h2>
+      <p class="text-muted-foreground">Select component for choosing from a list of options.</p>
+
+      <ui-select class="max-w-xs" position="popper">
+        <ui-select-trigger>
+          <ui-select-value placeholder="Select a fruit" />
+        </ui-select-trigger>
+        <ui-select-content>
+          <ui-select-group>
+            <ui-select-label>Fruits</ui-select-label>
+            <ui-select-item value="apple">Apple</ui-select-item>
+            <ui-select-item value="banana">Banana</ui-select-item>
+            <ui-select-item value="blueberry">Blueberry</ui-select-item>
+            <ui-select-item value="grapes">Grapes</ui-select-item>
+            <ui-select-item value="pineapple">Pineapple</ui-select-item>
+          </ui-select-group>
+        </ui-select-content>
+      </ui-select>
+    </section>
+
+    <ui-separator />
+
+    <!-- Popover Section -->
+    <section class="space-y-4">
+      <h2 id="popover" class="text-2xl font-semibold scroll-m-20">Popover</h2>
+      <p class="text-muted-foreground">Floating content that appears when a trigger is clicked.</p>
+
+      <ui-popover #popover>
+        <ui-popover-trigger>
+          <ui-button variant="outline">Open Popover</ui-button>
+        </ui-popover-trigger>
+        <ui-popover-content class="w-80">
+          <div class="grid gap-4">
+            <div class="space-y-2">
+              <h4 class="font-medium leading-none">Dimensions</h4>
+              <p class="text-sm text-muted-foreground">Set the dimensions for the layer.</p>
+            </div>
+            <div class="grid gap-2">
+              <div class="grid grid-cols-3 items-center gap-4">
+                <ui-label for="width">Width</ui-label>
+                <ui-input id="width" defaultValue="100%" class="col-span-2 h-8" />
+              </div>
+              <div class="grid grid-cols-3 items-center gap-4">
+                <ui-label for="maxWidth">Max. width</ui-label>
+                <ui-input id="maxWidth" defaultValue="300px" class="col-span-2 h-8" />
+              </div>
+            </div>
+            <div class="flex justify-end">
+              <ui-popover-close>
+                <ui-button size="sm">Close</ui-button>
+              </ui-popover-close>
+            </div>
+          </div>
+        </ui-popover-content>
+      </ui-popover>
+    </section>
+
+    <ui-separator />
+
+    <!-- Sheet Section -->
+    <section class="space-y-4">
+      <h2 id="sheet" class="text-2xl font-semibold scroll-m-20">Sheet</h2>
+      <p class="text-muted-foreground">Slide-out panel from the edge of the screen.</p>
+
+      <div class="flex gap-2">
+        <ui-sheet #sheetRight>
+          <ui-sheet-trigger>
+            <ui-button variant="outline">Open Right</ui-button>
+          </ui-sheet-trigger>
+          <ui-sheet-content side="right">
+            <ui-sheet-header>
+              <ui-sheet-title>Edit Profile</ui-sheet-title>
+              <ui-sheet-description>
+                Make changes to your profile here. Click save when you're done.
+              </ui-sheet-description>
+            </ui-sheet-header>
+            <div class="grid gap-4 py-4">
+              <div class="grid gap-2">
+                <ui-label>Name</ui-label>
+                <ui-input placeholder="Your name" />
+              </div>
+            </div>
+            <ui-sheet-footer>
+              <ui-sheet-close>
+                <ui-button>Save changes</ui-button>
+              </ui-sheet-close>
+            </ui-sheet-footer>
+          </ui-sheet-content>
+        </ui-sheet>
+
+        <ui-sheet #sheetLeft>
+          <ui-sheet-trigger>
+            <ui-button variant="outline">Open Left</ui-button>
+          </ui-sheet-trigger>
+          <ui-sheet-content side="left">
+            <ui-sheet-header>
+              <ui-sheet-title>Left Panel</ui-sheet-title>
+              <ui-sheet-description>This panel slides in from the left.</ui-sheet-description>
+            </ui-sheet-header>
+          </ui-sheet-content>
+        </ui-sheet>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Alert Dialog Section -->
+    <section class="space-y-4">
+      <h2 id="alert-dialog" class="text-2xl font-semibold scroll-m-20">Alert Dialog</h2>
+      <p class="text-muted-foreground">
+        A modal dialog that interrupts the user with important content.
+      </p>
+
+      <ui-alert-dialog #alertDialog>
+        <ui-alert-dialog-trigger>
+          <ui-button variant="outline">Show Alert Dialog</ui-button>
+        </ui-alert-dialog-trigger>
+        <ui-alert-dialog-content>
+          <ui-alert-dialog-header>
+            <ui-alert-dialog-title>Are you absolutely sure?</ui-alert-dialog-title>
+            <ui-alert-dialog-description>
+              This action cannot be undone. This will permanently delete your account and remove
+              your data from our servers.
+            </ui-alert-dialog-description>
+          </ui-alert-dialog-header>
+          <ui-alert-dialog-footer>
+            <ui-alert-dialog-cancel>Cancel</ui-alert-dialog-cancel>
+            <ui-alert-dialog-action>Continue</ui-alert-dialog-action>
+          </ui-alert-dialog-footer>
+        </ui-alert-dialog-content>
+      </ui-alert-dialog>
+    </section>
+
+    <ui-separator />
+
+    <!-- Slider Section -->
+    <section class="space-y-4">
+      <h2 id="slider" class="text-2xl font-semibold scroll-m-20">Slider</h2>
+      <p class="text-muted-foreground">Range input component.</p>
+
+      <div class="max-w-xs space-y-4">
+        <ui-slider [defaultValue]="40" [min]="0" [max]="100" [step]="1" />
+        <div class="flex justify-between text-sm text-muted-foreground">
+          <span>0</span>
+          <span>100</span>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Collapsible Section -->
+    <section class="space-y-4">
+      <h2 id="collapsible" class="text-2xl font-semibold scroll-m-20">Collapsible</h2>
+      <p class="text-muted-foreground">An expandable/collapsible component.</p>
+
+      <ui-collapsible class="w-[350px] space-y-2">
+        <div class="flex items-center justify-between space-x-4 px-4">
+          <h4 class="text-sm font-semibold">&#64;peduarte starred 3 repositories</h4>
+          <ui-collapsible-trigger>
+            <ui-button variant="ghost" size="sm" class="w-9 p-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="m7 15 5 5 5-5" />
+                <path d="m7 9 5-5 5 5" />
+              </svg>
+              <span class="sr-only">Toggle</span>
+            </ui-button>
+          </ui-collapsible-trigger>
+        </div>
+        <div class="rounded-md border px-4 py-3 font-mono text-sm">&#64;radix-ui/primitives</div>
+        <ui-collapsible-content class="space-y-2">
+          <div class="rounded-md border px-4 py-3 font-mono text-sm">&#64;radix-ui/colors</div>
+          <div class="rounded-md border px-4 py-3 font-mono text-sm">&#64;stitches/react</div>
+        </ui-collapsible-content>
+      </ui-collapsible>
+    </section>
+
+    <ui-separator />
+
+    <!-- Toggle -->
+    <section class="space-y-4">
+      <h2 id="toggle" class="text-2xl font-semibold scroll-m-20">Toggle</h2>
+      <p class="text-muted-foreground">A two-state button that can be toggled on or off.</p>
+
+      <div class="flex flex-wrap gap-4">
+        <ui-toggle>
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </ui-toggle>
+        <ui-toggle variant="outline">
+          <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round"
+              d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+          </svg>
+        </ui-toggle>
+        <ui-toggle [defaultPressed]="true">Bold</ui-toggle>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Toggle Group -->
+    <section class="space-y-4">
+      <h2 id="toggle-group" class="text-2xl font-semibold scroll-m-20">Toggle Group</h2>
+      <p class="text-muted-foreground">A set of two-state buttons that can be toggled on or off.</p>
+
+      <div class="space-y-4">
+        <div>
+          <p class="text-sm text-muted-foreground mb-2">Single selection:</p>
+          <ui-toggle-group type="single" variant="outline" defaultValue="center">
+            <ui-toggle-group-item value="left">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h10M4 18h7" />
+              </svg>
+            </ui-toggle-group-item>
+            <ui-toggle-group-item value="center">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </ui-toggle-group-item>
+            <ui-toggle-group-item
+              class="data-[state=on]:bg-transparent data-[state=on]:*:[svg]:fill-yellow-500 data-[state=on]:*:[svg]:stroke-yellow-500"
+              value="right">
+              <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M10 12h10M13 18h7" />
+              </svg>
+            </ui-toggle-group-item>
+          </ui-toggle-group>
+        </div>
+        <div>
+          <p class="text-sm text-muted-foreground mb-2">Multiple selection:</p>
+          <ui-toggle-group type="multiple" variant="outline">
+            <ui-toggle-group-item value="bold">B</ui-toggle-group-item>
+            <ui-toggle-group-item value="italic">I</ui-toggle-group-item>
+            <ui-toggle-group-item value="underline">U</ui-toggle-group-item>
+          </ui-toggle-group>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Scroll Area -->
+    <section class="space-y-4">
+      <h2 id="scroll-area" class="text-2xl font-semibold scroll-m-20">Scroll Area</h2>
+      <p class="text-muted-foreground">A custom scrollable area with styled scrollbars.</p>
+
+      <ui-scroll-area class="h-72 w-48 rounded-md border">
+        <div class="p-4">
+          <h4 class="mb-4 text-sm font-medium leading-none">Tags</h4>
+          @for (
+          tag of [
+          'v1.2.0-beta.18',
+          'v1.2.0-beta.17',
+          'v1.2.0-beta.16',
+          'v1.2.0-beta.15',
+          'v1.2.0-beta.14',
+          'v1.2.0-beta.13',
+          'v1.2.0-beta.12',
+          'v1.2.0-beta.11',
+          'v1.2.0-beta.10',
+          'v1.2.0-beta.9',
+          'v1.2.0-beta.8',
+          'v1.2.0-beta.7',
+          'v1.2.0-beta.6',
+          'v1.2.0-beta.5',
+          'v1.2.0-beta.4',
+          'v1.2.0-beta.3',
+          'v1.2.0-beta.2',
+          ];
+          track tag
+          ) {
+          <div class="text-sm">{{ tag }}</div>
+          <ui-separator class="my-2" />
+          }
+        </div>
+      </ui-scroll-area>
+    </section>
+
+    <ui-separator />
+
+    <!-- Table -->
+    <section class="space-y-4">
+      <h2 id="table" class="text-2xl font-semibold scroll-m-20">Table</h2>
+      <p class="text-muted-foreground">A responsive table component.</p>
+
+      <ui-table class="h-20">
+        <ui-table-caption>A list of your recent invoices.</ui-table-caption>
+        <ui-table-header>
+          <ui-table-row>
+            <ui-table-head class="w-[100px]">Invoice</ui-table-head>
+            <ui-table-head>Status</ui-table-head>
+            <ui-table-head>Method</ui-table-head>
+            <ui-table-head class="text-right">Amount</ui-table-head>
+          </ui-table-row>
+        </ui-table-header>
+        <ui-table-body>
+          <ui-table-row>
+            <ui-table-cell class="font-medium">INV001</ui-table-cell>
+            <ui-table-cell>Paid</ui-table-cell>
+            <ui-table-cell>Credit Card</ui-table-cell>
+            <ui-table-cell class="text-right">$250.00</ui-table-cell>
+          </ui-table-row>
+          <ui-table-row>
+            <ui-table-cell class="font-medium">INV002</ui-table-cell>
+            <ui-table-cell>Pending</ui-table-cell>
+            <ui-table-cell>PayPal</ui-table-cell>
+            <ui-table-cell class="text-right">$150.00</ui-table-cell>
+          </ui-table-row>
+          <ui-table-row>
+            <ui-table-cell class="font-medium">INV003</ui-table-cell>
+            <ui-table-cell>Unpaid</ui-table-cell>
+            <ui-table-cell>Bank Transfer</ui-table-cell>
+            <ui-table-cell class="text-right">$350.00</ui-table-cell>
+          </ui-table-row>
+        </ui-table-body>
+      </ui-table>
+    </section>
+
+    <ui-separator />
+
+    <!-- Breadcrumb -->
+    <section class="space-y-4" id="breadcrumbSection">
+      <h2 id="breadcrumb" class="text-2xl font-semibold scroll-m-20">Breadcrumb</h2>
+      <p class="text-muted-foreground">Displays the path to the current page.</p>
+
+      <ui-breadcrumb>
+        <ui-breadcrumb-list>
+          <ui-breadcrumb-item>
+            <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
+          </ui-breadcrumb-item>
+          <ui-breadcrumb-separator />
+          <ui-breadcrumb-item>
+            <ui-breadcrumb-link href="/components">Components</ui-breadcrumb-link>
+          </ui-breadcrumb-item>
+          <ui-breadcrumb-separator />
+          <ui-breadcrumb-item>
+            <ui-breadcrumb-page>Breadcrumb</ui-breadcrumb-page>
+          </ui-breadcrumb-item>
+        </ui-breadcrumb-list>
+      </ui-breadcrumb>
+    </section>
+
+    <ui-separator />
+
+    <!-- Hover Card -->
+    <section class="space-y-4">
+      <h2 id="hover-card" class="text-2xl font-semibold scroll-m-20">Hover Card</h2>
+      <p class="text-muted-foreground">A card that appears when hovering over an element.</p>
+
+      <ui-hover-card>
+        <ui-hover-card-trigger>
+          <ui-button variant="link">&#64;angular</ui-button>
+        </ui-hover-card-trigger>
+        <ui-hover-card-content>
+          <div class="flex justify-between space-x-4">
+            <ui-avatar>
+              <ui-avatar-image src="https://github.com/angular.png" />
+              <ui-avatar-fallback>NG</ui-avatar-fallback>
+            </ui-avatar>
+            <div class="space-y-1">
+              <h4 class="text-sm font-semibold">&#64;angular</h4>
+              <p class="text-sm">The modern web developer's platform.</p>
+              <div class="flex items-center pt-2">
+                <span class="text-xs text-muted-foreground"> Joined December 2016 </span>
+              </div>
+            </div>
+          </div>
+        </ui-hover-card-content>
+      </ui-hover-card>
+    </section>
+
+    <ui-separator />
+
+    <!-- Context Menu -->
+    <section class="space-y-4">
+      <h2 id="context-menu" class="text-2xl font-semibold scroll-m-20">Context Menu</h2>
+      <p class="text-muted-foreground">A menu that appears on right-click.</p>
+
+      <ui-context-menu>
+        <ui-context-menu-trigger>
+          <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+            Right click here
+          </div>
+        </ui-context-menu-trigger>
+        <ui-context-menu-content>
+          <ui-context-menu-item>
+            Back
+            <ui-context-menu-shortcut>⌘[</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            Forward
+            <ui-context-menu-shortcut>⌘]</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            Reload
+            <ui-context-menu-shortcut>⌘R</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-separator />
+          <ui-context-menu-item>
+            Save As...
+            <ui-context-menu-shortcut>⇧⌘S</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>Print...</ui-context-menu-item>
+        </ui-context-menu-content>
+      </ui-context-menu>
+
+      <ui-context-menu #contextMenu>
+        <ui-context-menu-content class="w-56">
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="ltr:mr-2 rtl:ml-2">
+              <path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />
+            </svg>
+            Edit
+            <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="ltr:mr-2 rtl:ml-2">
+              <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+              <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+            </svg>
+            Copy
+            <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+          <ui-context-menu-item>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="ltr:mr-2 rtl:ml-2">
+              <polyline points="8 17 12 21 16 17" />
+              <line x1="12" x2="12" y1="12" y2="21" />
+              <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29" />
+            </svg>
+            Share
+          </ui-context-menu-item>
+          <ui-context-menu-separator></ui-context-menu-separator>
+          <ui-context-menu-item variant="destructive">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              class="ltr:mr-2 rtl:ml-2">
+              <path d="M3 6h18" />
+              <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+              <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+            </svg>
+            Delete
+            <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
+          </ui-context-menu-item>
+        </ui-context-menu-content>
+      </ui-context-menu>
+
+      <div [uiContextMenuTrigger]="contextMenu"
+        class="h-[300px] w-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground">
+        Right-click anywhere in this area to open the context menu
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Drawer -->
+    <section class="space-y-4">
+      <h2 id="drawer" class="text-2xl font-semibold scroll-m-20">Drawer</h2>
+      <p class="text-muted-foreground">A panel that slides in from the edge of the screen.</p>
+
+      <div class="flex gap-2">
+        <ui-drawer>
+          <ui-drawer-trigger>
+            <ui-button variant="outline">Open Bottom Drawer</ui-button>
+          </ui-drawer-trigger>
+          <ui-drawer-content>
+            <ui-drawer-header>
+              <ui-drawer-title>Edit Profile</ui-drawer-title>
+              <ui-drawer-description>Make changes to your profile here.</ui-drawer-description>
+            </ui-drawer-header>
+            <div class="p-4">
+              <p>Drawer content goes here...</p>
+            </div>
+            <ui-drawer-footer>
+              <ui-button>Save changes</ui-button>
+              <ui-drawer-close>
+                <ui-button variant="outline">Cancel</ui-button>
+              </ui-drawer-close>
+            </ui-drawer-footer>
+          </ui-drawer-content>
+        </ui-drawer>
+      </div>
+    </section>
+    <ui-separator />
+    <section class="space-y-4">
+      <h2 id="aspect-ratio" class="text-2xl font-semibold scroll-m-20">Aspect Ratio</h2>
+      <p class="text-muted-foreground">Display content within a desired ratio.</p>
+
+      <div class="w-[300px]">
+        <ui-aspect-ratio [ratio]="16 / 9">
+          <div class="flex h-full w-full items-center justify-center rounded-md bg-muted text-muted-foreground">
+            16:9 Aspect Ratio
+          </div>
+        </ui-aspect-ratio>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Toast -->
+    <section class="space-y-4">
+      <h2 id="toast" class="text-2xl font-semibold scroll-m-20">Toast</h2>
+      <p class="text-muted-foreground">Show notification toasts to users.</p>
+
+      <div class="flex gap-2">
+        <ui-button (click)="showToast('default')">Show Toast</ui-button>
+        <ui-button variant="outline" (click)="showToast('success')">Success Toast</ui-button>
+        <ui-button variant="destructive" (click)="showToast('error')">Error Toast</ui-button>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Resizable Panels -->
+    <section class="space-y-6">
+      <h2 id="resizable" class="text-2xl font-semibold scroll-m-20">Resizable</h2>
+      <p class="text-muted-foreground">Resizable panel groups for creating adjustable layouts.</p>
+
+      <!-- Horizontal Example -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">Horizontal</h3>
+        <ui-resizable-panel-group direction="horizontal" class="min-h-[200px] max-w-md rounded-lg border">
+          <ui-resizable-panel [defaultSize]="30">
+            <div class="flex h-full items-center justify-center bg-muted/30 p-6">
+              <span class="font-semibold">Left (30%)</span>
+            </div>
+          </ui-resizable-panel>
+          <ui-resizable-handle [withHandle]="false" [handleSize]="2" />
+          <ui-resizable-panel [defaultSize]="70">
+            <div class="flex h-full items-center justify-center p-6">
+              <span class="font-semibold">Right (70%)</span>
+            </div>
+          </ui-resizable-panel>
+        </ui-resizable-panel-group>
+      </div>
+
+      <!-- Vertical Example -->
+      <div class="space-y-2">
+        <h3 class="text-lg font-medium">Vertical (with live size updates)</h3>
+        <ui-resizable-panel-group direction="vertical" class="h-[300px] max-w-md rounded-lg border">
+          <ui-resizable-panel [defaultSize]="40">
+            <div class="flex h-full items-center justify-center bg-muted/30 p-6">
+              <span class="font-semibold">Top ({{ verticalTopSize() }}%)</span>
+            </div>
+          </ui-resizable-panel>
+          <ui-resizable-handle [withHandle]="false" [handleSize]="2" (resize)="onVerticalResize($event)" />
+          <ui-resizable-panel [defaultSize]="60">
+            <div class="flex h-full items-center justify-center p-6">
+              <span class="font-semibold">Bottom ({{ verticalBottomSize() }}%)</span>
+            </div>
+          </ui-resizable-panel>
+        </ui-resizable-panel-group>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Pagination -->
+    <section class="space-y-4">
+      <h2 id="pagination" class="text-2xl font-semibold scroll-m-20">Pagination</h2>
+      <p class="text-muted-foreground">Navigate through paged content.</p>
+
+      <ui-pagination>
+        <ui-pagination-content>
+          <ui-pagination-item>
+            <ui-pagination-previous />
+          </ui-pagination-item>
+          <ui-pagination-item>
+            <ui-pagination-link [isActive]="true">1</ui-pagination-link>
+          </ui-pagination-item>
+          <ui-pagination-item>
+            <ui-pagination-link>2</ui-pagination-link>
+          </ui-pagination-item>
+          <ui-pagination-item>
+            <ui-pagination-link>3</ui-pagination-link>
+          </ui-pagination-item>
+          <ui-pagination-item>
+            <ui-pagination-ellipsis />
+          </ui-pagination-item>
+          <ui-pagination-item>
+            <ui-pagination-next />
+          </ui-pagination-item>
+        </ui-pagination-content>
+      </ui-pagination>
+    </section>
+
+    <ui-separator />
+
+    <!-- Input OTP -->
+    <section class="space-y-4">
+      <h2 id="input-otp" class="text-2xl font-semibold scroll-m-20">Input OTP</h2>
+      <p class="text-muted-foreground">One-time password input fields.</p>
+
+      <ui-input-otp [maxLength]="6" [separator]="[2]" />
+    </section>
+
+    <ui-separator />
+
+    <!-- Calendar -->
+    <section class="space-y-4">
+      <h2 id="calendar" class="text-2xl font-semibold scroll-m-20">Calendar</h2>
+      <p class="text-muted-foreground">
+        A date picker calendar component supporting single, range, and multi-selection modes.
+      </p>
+
+      <div class="flex flex-wrap gap-8">
+        <div class="space-y-2">
+          <h3 class="font-medium">Single Mode</h3>
+          <ui-calendar mode="single" class="rounded-md border shadow" />
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="font-medium">Range Mode</h3>
+          <ui-calendar mode="range" class="rounded-md border shadow" />
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="font-medium">Multi Mode</h3>
+          <ui-calendar mode="multi" class="rounded-md border shadow" />
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="font-medium">With Selectors</h3>
+          <ui-calendar mode="single" [showMonthSelect]="true" [showYearSelect]="true"
+            class="rounded-md border shadow" />
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="font-medium">Date & Time</h3>
+          <ui-calendar mode="single" [showTimeSelect]="true" class="rounded-md border shadow" />
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="font-medium">Start Mon (String)</h3>
+          <ui-calendar mode="single" [weekStartsOn]="1" selected="2024-01-01" class="rounded-md border shadow" />
+        </div>
+      </div>
+      <div class="flex flex-wrap gap-6">
+        <!-- Default Calendar -->
+        <div class="space-y-2">
+          <p class="text-sm font-medium">Default (English)</p>
+          <ui-calendar locale="en" [showMonthSelect]="true" [showYearSelect]="true"
+            class="rounded-md border shadow"></ui-calendar>
+        </div>
+
+        <!-- Hebrew RTL Calendar -->
+        <div class="space-y-2">
+          <p class="text-sm font-medium">Hebrew (RTL)</p>
+          <ui-calendar locale="he" [showMonthSelect]="true" [showYearSelect]="true" [showTimeSelect]="true"
+            class="rounded-md border shadow"></ui-calendar>
+        </div>
+
+        <!-- Japanese Calendar -->
+        <div class="space-y-2">
+          <p class="text-sm font-medium">Japanese</p>
+          <ui-calendar locale="ja" [showMonthSelect]="true" [showYearSelect]="true"
+            class="rounded-md border shadow"></ui-calendar>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Command -->
+    <section class="space-y-4">
+      <h2 id="command" class="text-2xl font-semibold scroll-m-20">Command</h2>
+      <p class="text-muted-foreground">A command palette for quick actions.</p>
+
+      <ui-command class="max-w-md rounded-lg border shadow-md">
+        <ui-command-input placeholder="Type a command or search..." />
+        <ui-command-list>
+          <ui-command-empty>No results found.</ui-command-empty>
+          <ui-command-group heading="Suggestions">
+            <ui-command-item value="calendar">
+              <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                stroke-width="2">
+                <rect x="3" y="4" width="18" height="18" rx="2" />
+              </svg>
+              <span>Calendar</span>
+            </ui-command-item>
+            <ui-command-item value="search-emoji">
+              <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span>Search Emoji</span>
+            </ui-command-item>
+            <ui-command-item value="launch">
+              <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+              <span>Launch</span>
+            </ui-command-item>
+          </ui-command-group>
+          <ui-command-separator />
+          <ui-command-group heading="Settings">
+            <ui-command-item value="profile">
+              <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span>Profile</span>
+              <ui-command-shortcut>⌘P</ui-command-shortcut>
+            </ui-command-item>
+            <ui-command-item value="mail">
+              <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+              </svg>
+              <span>Mail</span>
+              <ui-command-shortcut>⌘B</ui-command-shortcut>
+            </ui-command-item>
+            <ui-command-item value="settings">
+              <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span>Settings</span>
+              <ui-command-shortcut>⌘S</ui-command-shortcut>
+            </ui-command-item>
+          </ui-command-group>
+        </ui-command-list>
+      </ui-command>
+      <div class="flex flex-col gap-2">
+        <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">Show command dialog</ui-button>
+        <p class="text-sm text-muted-foreground">Press <ui-kbd>⌘</ui-kbd> <ui-kbd>K</ui-kbd></p>
+      </div>
+
+      <ui-command-dialog [(open)]="showCommandDialog">
+        <ui-command-input placeholder="Type a command or search..." />
+        <ui-command-list>
+          <ui-command-empty>No results found.</ui-command-empty>
+          <ui-command-group heading="Components">
+            @for (link of links; track link) {
+            <ui-command-item [value]="link.title" (select)="scrollToSection(link.id)">
+              <span class="ltr:mr-2 rtl:ml-2">📄</span>
+              <span>{{ link.title }}</span>
+            </ui-command-item>
+            }
+          </ui-command-group>
+        </ui-command-list>
+      </ui-command-dialog>
+    </section>
+
+    <ui-separator />
+    <ui-separator />
+
+    <!-- Menubar -->
+    <section class="space-y-4">
+      <h2 id="menubar" class="text-2xl font-semibold scroll-m-20">Menubar</h2>
+      <p class="text-muted-foreground">A horizontal menu bar with dropdown menus.</p>
+
+      <ui-menubar>
+        <ui-menubar-menu>
+          <ui-menubar-trigger>File</ui-menubar-trigger>
+          <ui-menubar-content>
+            <ui-menubar-item>New Tab <ui-menubar-shortcut>⌘T</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>New Window <ui-menubar-shortcut>⌘N</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item disabled>New Incognito Window</ui-menubar-item>
+            <ui-menubar-separator />
+            <ui-menubar-sub>
+              <ui-menubar-sub-trigger>Share</ui-menubar-sub-trigger>
+              <ui-menubar-sub-content>
+                <ui-menubar-sub>
+                  <ui-menubar-sub-trigger>Email</ui-menubar-sub-trigger>
+                  <ui-menubar-sub-content>
+                    <ui-menubar-item>Personal</ui-menubar-item>
+                    <ui-menubar-item>Work</ui-menubar-item>
+                  </ui-menubar-sub-content>
+                </ui-menubar-sub>
+                <ui-menubar-item>Messages</ui-menubar-item>
+                <ui-menubar-item>Notes</ui-menubar-item>
+              </ui-menubar-sub-content>
+            </ui-menubar-sub>
+            <ui-menubar-separator />
+            <ui-menubar-item>Print <ui-menubar-shortcut>⌘P</ui-menubar-shortcut></ui-menubar-item>
+          </ui-menubar-content>
+        </ui-menubar-menu>
+        <ui-menubar-menu>
+          <ui-menubar-trigger>Edit</ui-menubar-trigger>
+          <ui-menubar-content>
+            <ui-menubar-item>Undo <ui-menubar-shortcut>⌘Z</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>Redo <ui-menubar-shortcut>⇧⌘Z</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-separator />
+            <ui-menubar-item>Cut <ui-menubar-shortcut>⌘X</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>Copy <ui-menubar-shortcut>⌘C</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>Paste <ui-menubar-shortcut>⌘V</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-separator />
+            <ui-menubar-item>Select All <ui-menubar-shortcut>⌘A</ui-menubar-shortcut></ui-menubar-item>
+          </ui-menubar-content>
+        </ui-menubar-menu>
+        <ui-menubar-menu>
+          <ui-menubar-trigger>View</ui-menubar-trigger>
+          <ui-menubar-content>
+            <ui-menubar-item [inset]="true">Reload <ui-menubar-shortcut>⌘R</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item [inset]="true" [disabled]="true">Force Reload
+              <ui-menubar-shortcut>⇧⌘R</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-separator />
+            <ui-menubar-item [inset]="true">Toggle Fullscreen</ui-menubar-item>
+            <ui-menubar-separator />
+            <ui-menubar-item [inset]="true">Hide Sidebar</ui-menubar-item>
+          </ui-menubar-content>
+        </ui-menubar-menu>
+        <ui-menubar-menu>
+          <ui-menubar-trigger>Profiles</ui-menubar-trigger>
+          <ui-menubar-content>
+            <ui-menubar-item [inset]="true">Andy</ui-menubar-item>
+            <ui-menubar-item [inset]="true">Benoit</ui-menubar-item>
+            <ui-menubar-item [inset]="true">Luis</ui-menubar-item>
+            <ui-menubar-separator />
+            <ui-menubar-item [inset]="true">Edit...</ui-menubar-item>
+            <ui-menubar-separator />
+            <ui-menubar-item [inset]="true">Add Profile...</ui-menubar-item>
+          </ui-menubar-content>
+        </ui-menubar-menu>
+      </ui-menubar>
+    </section>
+
+    <ui-separator />
+
+    <!-- Carousel -->
+    <section class="space-y-4">
+      <h2 id="carousel" class="text-2xl font-semibold scroll-m-20">Carousel</h2>
+      <p class="text-muted-foreground">A carousel with motion and swipe controls.</p>
+
+      <div class="mx-auto max-w-xs">
+        <ui-carousel class="w-full">
+          <ui-carousel-content>
+            @for (item of [1, 2, 3, 4, 5]; track item) {
+            <ui-carousel-item>
+              <div class="p-1">
+                <ui-card>
+                  <ui-card-content class="flex aspect-square items-center justify-center p-6">
+                    <span class="text-4xl font-semibold">{{ item }}</span>
+                  </ui-card-content>
+                </ui-card>
+              </div>
+            </ui-carousel-item>
+            }
+          </ui-carousel-content>
+          <ui-carousel-previous />
+          <ui-carousel-next />
+        </ui-carousel>
+      </div>
+
+      <div class="pt-4">
+        <h3 class="text-lg font-medium mb-2">Vertical Carousel</h3>
+        <div class="mx-auto max-w-xs">
+          <ui-carousel orientation="vertical" class="w-full">
+            <ui-carousel-content class="h-[200px]">
+              @for (item of [1, 2, 3, 4, 5]; track item) {
+              <ui-carousel-item>
+                <div class="p-1">
+                  <ui-card>
+                    <ui-card-content class="flex items-center justify-center p-6">
+                      <span class="text-2xl font-semibold">Slide {{ item }}</span>
+                    </ui-card-content>
+                  </ui-card>
+                </div>
+              </ui-carousel-item>
+              }
+            </ui-carousel-content>
+            <ui-carousel-previous />
+            <ui-carousel-next />
+          </ui-carousel>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Navigation Menu -->
+    <section class="space-y-4">
+      <h2 id="navigation-menu" class="text-2xl font-semibold scroll-m-20">Navigation Menu</h2>
+      <p class="text-muted-foreground">A navigation menu for site-wide navigation.</p>
+
+      <ui-navigation-menu>
+        <ui-navigation-menu-list>
+          <ui-navigation-menu-item>
+            <ui-navigation-menu-trigger>Getting Started</ui-navigation-menu-trigger>
+            <ui-navigation-menu-content class="w-[400px]">
+              <div class="grid gap-3 p-4 md:grid-cols-2">
+                <ui-navigation-menu-link href="#" class="col-span-2">
+                  <div class="text-sm font-medium leading-none">Introduction</div>
+                  <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Re-usable components built with Angular and Tailwind CSS.
+                  </p>
+                </ui-navigation-menu-link>
+                <ui-navigation-menu-link href="#">
+                  <div class="text-sm font-medium leading-none">Installation</div>
+                  <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    How to install and set up the library.
+                  </p>
+                </ui-navigation-menu-link>
+                <ui-navigation-menu-link href="#">
+                  <div class="text-sm font-medium leading-none">Typography</div>
+                  <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Styles for headings, paragraphs, lists, etc.
+                  </p>
+                </ui-navigation-menu-link>
+              </div>
+            </ui-navigation-menu-content>
+          </ui-navigation-menu-item>
+          <ui-navigation-menu-item>
+            <ui-navigation-menu-trigger>Components</ui-navigation-menu-trigger>
+            <ui-navigation-menu-content class="w-[500px]">
+              <div class="grid gap-3 p-4 md:grid-cols-2">
+                <ui-navigation-menu-link href="#">
+                  <div class="text-sm font-medium leading-none">Alert Dialog</div>
+                  <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    A modal dialog that interrupts the user.
+                  </p>
+                </ui-navigation-menu-link>
+                <ui-navigation-menu-link href="#">
+                  <div class="text-sm font-medium leading-none">Hover Card</div>
+                  <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    For sighted users to preview content.
+                  </p>
+                </ui-navigation-menu-link>
+                <ui-navigation-menu-link href="#">
+                  <div class="text-sm font-medium leading-none">Progress</div>
+                  <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Displays completion progress of a task.
+                  </p>
+                </ui-navigation-menu-link>
+                <ui-navigation-menu-link href="#">
+                  <div class="text-sm font-medium leading-none">Tooltip</div>
+                  <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    A popup that displays information.
+                  </p>
+                </ui-navigation-menu-link>
+              </div>
+            </ui-navigation-menu-content>
+          </ui-navigation-menu-item>
+          <ui-navigation-menu-item>
+            <ui-navigation-menu-link href="#"
+              class="inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium hover:bg-accent hover:text-accent-foreground">
+              Documentation
+            </ui-navigation-menu-link>
+          </ui-navigation-menu-item>
+        </ui-navigation-menu-list>
+      </ui-navigation-menu>
+    </section>
+
+    <ui-separator />
+
+    <!-- Date Picker -->
+    <section class="space-y-4">
+      <h2 id="date-picker" class="text-2xl font-semibold scroll-m-20">Date Picker</h2>
+      <p class="text-muted-foreground">A date picker component with popover calendar.</p>
+
+      <div class="flex flex-wrap gap-8">
+        <div class="space-y-2">
+          <h3 class="text-lg font-medium">Single Date</h3>
+          <ui-date-picker placeholder="Pick a date" />
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="text-lg font-medium">Date &amp; Time</h3>
+          <ui-date-picker [showTime]="true" placeholder="Pick date & time" />
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="text-lg font-medium">Date Range</h3>
+          <ui-date-range-picker placeholder="Select date range" />
+        </div>
+
+        <div class="space-y-2">
+          <h3 class="text-lg font-medium">Date Picker RTL (Hebrew)</h3>
+          <ui-date-picker [showTime]="true" locale="he" placeholder="בחר תאריך" dir="rtl" />
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+    <!-- Sidebar -->
+    <section class="space-y-4">
+      <h2 id="sidebar" class="text-2xl font-semibold scroll-m-20">Sidebar</h2>
+      <p class="text-muted-foreground">A composable sidebar component for application layouts.</p>
+
+      <div class="border rounded-lg overflow-hidden h-[400px]">
+        <ui-sidebar-provider>
+          <ui-sidebar>
+            <ui-sidebar-header>
+              <div class="font-semibold">My App</div>
+            </ui-sidebar-header>
+            <ui-sidebar-content>
+              <ui-sidebar-group>
+                <ui-sidebar-group-label>Navigation</ui-sidebar-group-label>
+                <ui-sidebar-group-content>
+                  <ui-sidebar-menu>
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-link href="#" [isActive]="true">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+                          <polyline points="9 22 9 12 15 12 15 22" />
+                        </svg>
+                        <span>Home</span>
+                      </ui-sidebar-menu-link>
+                    </ui-sidebar-menu-item>
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-link href="#">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect width="20" height="16" x="2" y="4" rx="2" />
+                          <path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7" />
+                        </svg>
+                        <span>Inbox</span>
+                      </ui-sidebar-menu-link>
+                    </ui-sidebar-menu-item>
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-link href="#">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M8 2v4" />
+                          <path d="M16 2v4" />
+                          <rect width="18" height="18" x="3" y="4" rx="2" />
+                          <path d="M3 10h18" />
+                        </svg>
+                        <span>Calendar</span>
+                      </ui-sidebar-menu-link>
+                    </ui-sidebar-menu-item>
+                    <ui-sidebar-menu-item>
+                      <ui-sidebar-menu-link href="#">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path
+                            d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        <span>Settings</span>
+                      </ui-sidebar-menu-link>
+                    </ui-sidebar-menu-item>
+                  </ui-sidebar-menu>
+                </ui-sidebar-group-content>
+              </ui-sidebar-group>
+            </ui-sidebar-content>
+            <ui-sidebar-footer>
+              <ui-sidebar-separator />
+              <div class="text-xs text-muted-foreground">v1.0.0</div>
+            </ui-sidebar-footer>
+          </ui-sidebar>
+          <ui-sidebar-inset>
+            <header class="flex h-12 items-center border-b px-4">
+              <ui-sidebar-trigger />
+              <span class="ml-4 text-sm font-medium">Dashboard</span>
+            </header>
+            <div class="p-4">
+              <p class="text-muted-foreground">
+                Main content area. Click the sidebar trigger to toggle.
+              </p>
+            </div>
+          </ui-sidebar-inset>
+        </ui-sidebar-provider>
+      </div>
+    </section>
+
+    <!-- Spinner -->
+    <section class="space-y-4">
+      <h2 id="spinner" class="text-2xl font-semibold scroll-m-20">Spinner</h2>
+      <p class="text-muted-foreground">
+        Loading indicator with animated spinning. Supports preset sizes and custom pixel sizes.
+      </p>
+
+      <div class="flex flex-wrap items-end gap-6">
+        <div class="flex flex-col items-center gap-2">
+          <ui-spinner size="xs" />
+          <span class="text-xs text-muted-foreground">XS</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <ui-spinner size="sm" />
+          <span class="text-xs text-muted-foreground">SM</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <ui-spinner />
+          <span class="text-xs text-muted-foreground">Default</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <ui-spinner size="lg" />
+          <span class="text-xs text-muted-foreground">LG</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <ui-spinner size="xl" />
+          <span class="text-xs text-muted-foreground">XL</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <ui-spinner size="page" />
+          <span class="text-xs text-muted-foreground">Page</span>
+        </div>
+        <div class="flex flex-col items-center gap-2">
+          <ui-spinner [customSize]="64" />
+          <span class="text-xs text-muted-foreground">64px</span>
+        </div>
+      </div>
+
+      <div class="flex items-center gap-4 mt-4">
+        <ui-button [disabled]="true">
+          <ui-spinner size="xs" class="mr-2" />
+          Loading...
+        </ui-button>
+      </div>
+
+      <!-- <ui-page-spinner /> -->
+    </section>
+
+    <ui-separator />
+
+    <!-- Empty State -->
+    <section class="space-y-4">
+      <h2 id="empty-state" class="text-2xl font-semibold scroll-m-20">Empty State</h2>
+      <p class="text-muted-foreground">Placeholder for empty lists, tables, or search results.</p>
+
+      <ui-empty>
+        <ui-empty-header>
+          <ui-empty-media variant="icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 21l-4.35-4.35" />
+              <circle cx="11" cy="11" r="8" />
+            </svg>
+          </ui-empty-media>
+          <ui-empty-title>No results found</ui-empty-title>
+          <ui-empty-description>Try adjusting your search or filter to find what you're looking
+            for.</ui-empty-description>
+        </ui-empty-header>
+        <ui-empty-content>
+          <ui-button variant="outline">Clear filters</ui-button>
+        </ui-empty-content>
+      </ui-empty>
+    </section>
+
+    <ui-separator />
+
+    <!-- Kbd (Keyboard Shortcut) -->
+    <section class="space-y-4">
+      <h2 id="keyboard-shortcut" class="text-2xl font-semibold scroll-m-20">Keyboard Shortcut</h2>
+      <p class="text-muted-foreground">Display keyboard shortcuts in a styled kbd element.</p>
+
+      <div class="flex items-center gap-4">
+        <div class="flex items-center gap-1">
+          <ui-kbd>⌘</ui-kbd>
+          <ui-kbd>K</ui-kbd>
+          <span class="ml-2 text-sm text-muted-foreground">Command palette</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <ui-kbd>⌘</ui-kbd>
+          <ui-kbd>S</ui-kbd>
+          <span class="ml-2 text-sm text-muted-foreground">Save</span>
+        </div>
+        <div class="flex items-center gap-1">
+          <ui-kbd>Esc</ui-kbd>
+          <span class="ml-2 text-sm text-muted-foreground">Close</span>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Button Group -->
+    <section class="space-y-4">
+      <h2 id="button-group" class="text-2xl font-semibold scroll-m-20">Button Group</h2>
+      <p class="text-muted-foreground">Group buttons together with seamless borders.</p>
+
+      <div class="flex flex-wrap gap-6">
+        <div class="flex flex-col gap-2">
+          <span class="text-sm text-muted-foreground">Horizontal</span>
+          <ui-button-group>
+            <ui-button variant="outline">Left</ui-button>
+            <ui-button variant="outline">Center</ui-button>
+            <ui-button variant="outline">Right</ui-button>
+          </ui-button-group>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <span class="text-sm text-muted-foreground">Vertical</span>
+          <ui-button-group orientation="vertical">
+            <ui-button variant="outline">Top</ui-button>
+            <ui-button variant="outline">Middle</ui-button>
+            <ui-button variant="outline">Bottom</ui-button>
+          </ui-button-group>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <span class="text-sm text-muted-foreground">With Text</span>
+          <ui-button-group>
+            <ui-button-group-text>https://</ui-button-group-text>
+            <ui-input class="rounded-none border-x-0" placeholder="example" />
+            <ui-button-group-text>.com</ui-button-group-text>
+          </ui-button-group>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Input Group -->
+    <section class="space-y-4">
+      <h2 id="input-group" class="text-2xl font-semibold scroll-m-20">Input Group</h2>
+      <p class="text-muted-foreground">Group inputs with addons like icons, text, and buttons.</p>
+
+      <div class="grid gap-4 max-w-md">
+        <ui-input-group>
+          <ui-input-group-addon>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <path d="m21 21-4.35-4.35" />
+            </svg>
+          </ui-input-group-addon>
+          <ui-input-group-input placeholder="Search..." />
+        </ui-input-group>
+
+        <ui-input-group>
+          <ui-input-group-addon>$</ui-input-group-addon>
+          <ui-input-group-input placeholder="0.00" type="number" />
+          <ui-input-group-addon align="inline-end">
+            <ui-input-group-text>USD</ui-input-group-text>
+          </ui-input-group-addon>
+        </ui-input-group>
+
+        <ui-input-group>
+          <ui-input-group-addon>
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+              stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path
+                d="M20 10c0 4.993-5.539 10.193-7.399 11.799a1 1 0 0 1-1.202 0C9.539 20.193 4 14.993 4 10a8 8 0 0 1 16 0" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+          </ui-input-group-addon>
+          <ui-input-group-input placeholder="Enter location" />
+          <ui-input-group-addon align="inline-end">
+            <ui-button variant="ghost" size="sm">Locate</ui-button>
+          </ui-input-group-addon>
+        </ui-input-group>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Field -->
+    <section class="space-y-4">
+      <h2 id="field" class="text-2xl font-semibold scroll-m-20">Field</h2>
+      <p class="text-muted-foreground">
+        Form field wrapper with label, description, and error support.
+      </p>
+
+      <div class="grid gap-6 max-w-md">
+        <ui-field-group>
+          <ui-field-set>
+            <ui-field-legend>Contact Information</ui-field-legend>
+            <ui-field-description>Enter your contact details.</ui-field-description>
+
+            <ui-field-group>
+              <ui-field>
+                <ui-field-label for="name">Full Name</ui-field-label>
+                <ui-input id="name" placeholder="John Doe" />
+              </ui-field>
+
+              <ui-field>
+                <ui-field-label for="email-field">Email</ui-field-label>
+                <ui-input id="email-field" type="email" placeholder="john@example.com" />
+                <ui-field-description>We'll never share your email.</ui-field-description>
+              </ui-field>
+
+              <ui-field>
+                <ui-field-label for="invalid-field">Required Field</ui-field-label>
+                <ui-input id="invalid-field" placeholder="This field has an error" class="border-destructive" />
+                <ui-field-error>This field is required.</ui-field-error>
+              </ui-field>
+            </ui-field-group>
+          </ui-field-set>
+
+          <ui-field-separator />
+
+          <ui-field orientation="horizontal">
+            <ui-checkbox id="terms" />
+            <ui-field-label for="terms" class="font-normal">I agree to the terms</ui-field-label>
+          </ui-field>
+        </ui-field-group>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Native Select -->
+    <section class="space-y-4">
+      <h2 id="native-select" class="text-2xl font-semibold scroll-m-20">Native Select</h2>
+      <p class="text-muted-foreground">Styled native select element with chevron icon.</p>
+
+      <div class="flex flex-wrap gap-4">
+        <ui-native-select>
+          <option value="">Select a role</option>
+          <option value="admin">Admin</option>
+          <option value="editor">Editor</option>
+          <option value="viewer">Viewer</option>
+        </ui-native-select>
+
+        <ui-native-select size="sm">
+          <option value="">Small size</option>
+          <option value="1">Option 1</option>
+          <option value="2">Option 2</option>
+        </ui-native-select>
+
+        <ui-native-select [disabled]="true">
+          <option value="">Disabled</option>
+        </ui-native-select>
+
+        <ui-native-select [invalid]="true">
+          <option value="">Invalid state</option>
+        </ui-native-select>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Speed Dial Section -->
+    <section class="space-y-4">
+      <h2 id="speed-dial" class="text-2xl font-semibold scroll-m-20">Speed Dial</h2>
+      <p class="text-muted-foreground">Floating action button with a popup menu of action items.</p>
+
+      <div class="relative h-64 border rounded-lg p-4">
+        <!-- Linear Up -->
+        <ui-speed-dial type="linear" direction="up" class="absolute top-25 left-1/8">
+          <ui-speed-dial-trigger>
+            <ui-button size="icon" class="rounded-full h-12 w-12 shadow-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-trigger>
+          <ui-speed-dial-menu>
+            <ui-speed-dial-item>
+              <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Edit" tooltipSide="right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                  <path d="m15 5 4 4" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Delete" tooltipSide="right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                  <path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon" variant="secondary" class="rounded-full" uiTooltip="Share" tooltipSide="right">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                  <line x1="8.59" x2="15.42" y1="13.51" y2="17.49" />
+                  <line x1="15.41" x2="8.59" y1="6.51" y2="10.49" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+          </ui-speed-dial-menu>
+        </ui-speed-dial>
+
+        <!-- Linear Right -->
+        <ui-speed-dial type="linear" direction="right" class="absolute top-25 left-2/8">
+          <ui-speed-dial-trigger>
+            <ui-button size="icon" variant="secondary" class="rounded-full h-10 w-10">
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-trigger>
+          <ui-speed-dial-menu>
+            <ui-speed-dial-item>
+              <ui-button size="icon" variant="outline" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon" variant="outline" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+          </ui-speed-dial-menu>
+        </ui-speed-dial>
+
+        <!-- Circle layout -->
+        <ui-speed-dial type="circle" [radius]="60" class="absolute top-25 left-4/8">
+          <ui-speed-dial-trigger>
+            <ui-button size="icon" variant="destructive" class="rounded-full h-12 w-12 shadow-lg">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-trigger>
+          <ui-speed-dial-menu>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="outline" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" x2="12" y1="3" y2="15" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+          </ui-speed-dial-menu>
+        </ui-speed-dial>
+
+        <!-- Semi-circle Up -->
+        <ui-speed-dial type="semi-circle" direction="up" [radius]="50" class="absolute top-25 left-6/8">
+          <ui-speed-dial-trigger>
+            <ui-button size="icon"
+              class="rounded-full h-11 w-11 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-trigger>
+          <ui-speed-dial-menu>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <circle cx="18" cy="5" r="3" />
+                  <circle cx="6" cy="12" r="3" />
+                  <circle cx="18" cy="19" r="3" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" x2="12" y1="3" y2="15" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+          </ui-speed-dial-menu>
+        </ui-speed-dial>
+
+        <!-- quarter-circle up-right -->
+        <ui-speed-dial type="quarter-circle" direction="up-right" [radius]="80" class="absolute bottom-0 left-0">
+          <ui-speed-dial-trigger>
+            <ui-button size="icon"
+              class="rounded-full h-11 w-11 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white border-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M5 12h14" />
+                <path d="M12 5v14" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-trigger>
+          <ui-speed-dial-menu>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M3 6h18" />
+                  <path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+            <ui-speed-dial-item>
+              <ui-button size="icon-sm" variant="secondary" class="rounded-full">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" stroke-width="2">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="17 8 12 3 7 8" />
+                  <line x1="12" x2="12" y1="3" y2="15" />
+                </svg>
+              </ui-button>
+            </ui-speed-dial-item>
+          </ui-speed-dial-menu>
+        </ui-speed-dial>
+      </div>
+
+      <!-- Context Menu Speed Dial -->
+      <h3 class="text-lg font-medium mt-6">Context Menu (Right-click)</h3>
+      <ui-speed-dial type="circle" [transitionDelay]="500" direction="down-right" [radius]="40" #speedDialContextMenu>
+        <!-- <ui-speed-dial-context-trigger class="w-full h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
+              <span>Right-click anywhere in this area</span>
+            </ui-speed-dial-context-trigger> -->
+        <ui-speed-dial-menu>
+          <ui-speed-dial-item>
+            <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Copy">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
+                <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-item>
+          <ui-speed-dial-item>
+            <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Cut">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <circle cx="6" cy="6" r="3" />
+                <circle cx="6" cy="18" r="3" />
+                <line x1="20" x2="8.12" y1="4" y2="15.88" />
+                <line x1="14.47" x2="20" y1="14.48" y2="20" />
+                <line x1="8.12" x2="12" y1="8.12" y2="12" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-item>
+          <ui-speed-dial-item>
+            <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-item>
+          <ui-speed-dial-item>
+            <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-item>
+          <ui-speed-dial-item>
+            <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Paste">
+              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" stroke-width="2">
+                <rect width="8" height="4" x="8" y="2" rx="1" ry="1" />
+                <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+              </svg>
+            </ui-button>
+          </ui-speed-dial-item>
+        </ui-speed-dial-menu>
+      </ui-speed-dial>
+
+      <div [uiSpeedDialContextTrigger]="speedDialContextMenu" (click)="writeToLog('test')"
+        class="h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
+        Right-click anywhere here
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Chip List Section -->
+    <section class="space-y-4">
+      <h2 id="chip-list" class="text-2xl font-semibold scroll-m-20">Chip List</h2>
+      <p class="text-muted-foreground">
+        Input that converts text into chips. Type and press Enter to add.
+      </p>
+
+      <div class="space-y-6 max-w-md">
+        <!-- Basic Example -->
+        <div class="space-y-2">
+          <ui-label>Tags</ui-label>
+          <ui-chip-list [(ngModel)]="chipListTags" placeholder="Add a tag..." />
+          <p class="text-sm text-muted-foreground">Current: {{ chipListTags() | json }}</p>
+        </div>
+
+        <!-- Variants -->
+        <div class="grid gap-4">
+          <div class="space-y-2">
+            <ui-label>Secondary variant</ui-label>
+            <ui-chip-list [(ngModel)]="chipListTags" variant="secondary" />
+          </div>
+          <div class="space-y-2">
+            <ui-label>Outline variant</ui-label>
+            <ui-chip-list [(ngModel)]="chipListTags" variant="outline" />
+          </div>
+        </div>
+
+        <!-- Max Rows -->
+        <div class="space-y-2">
+          <ui-label>Max 2 rows (scrollable)</ui-label>
+          <ui-chip-list [(ngModel)]="chipListFruits" [maxRows]="2" variant="secondary" placeholder="Add fruit..."
+            placeholder="Add fruit..." />
+        </div>
+
+        <!-- Disabled -->
+        <div class="space-y-2">
+          <ui-label>Disabled</ui-label>
+          <ui-chip-list [(ngModel)]="chipListTags" [disabled]="true" />
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <div class="text-center text-muted-foreground text-sm pt-8">
+      Built with Angular and Tailwind CSS. Open source.
     </div>
   </div>
-</main>
-
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * The content above * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * is only a placeholder * * * * * * * * * * * -->
-<!-- * * * * * * * * * * and can be replaced.  * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * End of Placeholder  * * * * * * * * * * * * -->
-<!-- * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * -->
-
-
+</div>

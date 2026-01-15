@@ -23,9 +23,21 @@ import { DialogComponent, DialogContentComponent } from './dialog.component';
 })
 export class CommandService {
   search = signal('');
+  shouldFilter = signal(true);
 
   private items = signal<Map<string, { value: string; groupId?: string; onSelect: () => void }>>(new Map());
   activeItemId = signal<string | null>(null);
+
+  constructor() {
+    effect(() => {
+      const visibleIds = this.filteredItemIds();
+      const active = this.activeItemId();
+      if (active && !visibleIds.has(active)) {
+        const first = this.filteredItems()[0];
+        this.activeItemId.set(first || null);
+      }
+    }, { allowSignalWrites: true });
+  }
 
   register(id: string, value: string, groupId?: string, onSelect: () => void = () => { }) {
     this.items.update(m => {
@@ -44,6 +56,9 @@ export class CommandService {
   }
 
   filteredItems = computed(() => {
+    if (!this.shouldFilter()) {
+      return Array.from(this.items().keys());
+    }
     const query = this.search().toLowerCase().trim();
     const itemMap = this.items();
     const results: string[] = [];
@@ -93,6 +108,8 @@ export class CommandService {
   selectActive() {
     const activeId = this.activeItemId();
     if (activeId) {
+      if (!this.filteredItemIds().has(activeId)) return;
+
       const item = this.items().get(activeId);
       item?.onSelect();
     }
@@ -116,11 +133,40 @@ function generateId() {
 })
 export class CommandComponent {
   class = input('');
+  shouldFilter = input(true);
+  search = input<string | null>(null);
+
+  private service = inject(CommandService);
+
+  constructor() {
+    effect(() => {
+      this.service.shouldFilter.set(this.shouldFilter());
+    }, { allowSignalWrites: true });
+
+    effect(() => {
+      const s = this.search();
+      if (s !== null) {
+        this.service.search.set(s);
+      }
+    }, { allowSignalWrites: true });
+  }
 
   classes = computed(() => cn(
     'flex h-full w-full flex-col overflow-hidden rounded-md bg-popover text-popover-foreground',
     this.class()
   ));
+
+  moveNext() {
+    this.service.moveNext();
+  }
+
+  movePrev() {
+    this.service.movePrev();
+  }
+
+  selectActive() {
+    this.service.selectActive();
+  }
 }
 
 @Component({

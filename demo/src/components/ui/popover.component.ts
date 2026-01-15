@@ -111,6 +111,7 @@ export class PopoverContentComponent implements AfterViewInit {
     side = input<'top' | 'right' | 'bottom' | 'left'>('bottom');
     sideOffset = input(4);
     avoidCollisions = input(true);
+    restoreFocus = input(true);
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
