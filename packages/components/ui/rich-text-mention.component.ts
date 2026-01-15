@@ -7,7 +7,6 @@ import {
   signal,
   inject,
   ElementRef,
-  OnInit,
   OnDestroy,
   ViewChildren,
   QueryList,
@@ -116,29 +115,17 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
 
   @ViewChildren('itemButton') itemButtons!: QueryList<ElementRef<HTMLButtonElement>>;
 
-  /** Type: 'mention' for @users, 'tag' for #tags */
   type = input<'mention' | 'tag'>('mention');
-
-  /** Current search query */
   query = input<string>('');
-
-  /** Items to display */
   items = input<(MentionItem | TagItem)[]>([]);
-
-  /** Position relative to editor */
   position = input<{ x: number; y: number }>({ x: 0, y: 0 });
 
-  /** Emits selected item */
   itemSelect = output<MentionItem | TagItem>();
-
-  /** Emits close request */
   close = output<void>();
 
-  /** Currently selected index for keyboard navigation */
   selectedIndex = signal<number>(0);
 
   private clickListener = (event: MouseEvent) => {
-    // Close if clicking outside
     const target = event.target as HTMLElement;
     if (!target.closest('ui-rich-text-mention-popover')) {
       this.close.emit();
@@ -211,7 +198,6 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
     selected?.nativeElement.scrollIntoView({ block: 'nearest' });
   }
 
-  // Type guards for template
   asMention(item: MentionItem | TagItem): MentionItem {
     return item as MentionItem;
   }

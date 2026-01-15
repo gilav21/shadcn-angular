@@ -8,14 +8,20 @@ import {
     model,
     forwardRef,
     ElementRef,
-    viewChild
+    viewChild,
+    DestroyRef,
+    inject
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
+import { Subject, debounceTime as rxDebounceTime } from 'rxjs';
 import { cn } from '../lib/utils';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from './popover.component';
-import { CommandComponent, CommandInputComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent } from './command.component';
+import { CommandComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent, CommandService } from './command.component';
 import { HighlightPipe } from './highlight.pipe';
 import { BadgeComponent } from './badge.component';
+
+let autocompleteIdCounter = 0;
 
 @Component({
     selector: 'ui-autocomplete',
@@ -25,7 +31,6 @@ import { BadgeComponent } from './badge.component';
         PopoverContentComponent,
         PopoverTriggerComponent,
         CommandComponent,
-        CommandInputComponent,
         CommandListComponent,
         CommandItemComponent,
         CommandEmptyComponent,
@@ -66,6 +71,11 @@ import { BadgeComponent } from './badge.component';
                 <input
                   #inputEl
                   type="text"
+                  role="combobox"
+                  aria-autocomplete="list"
+                  [attr.aria-expanded]="open()"
+                  [attr.aria-controls]="listId"
+                  [attr.aria-activedescendant]="activeItemId()"
                   [class]="multiInputClasses()"
                   [placeholder]="selectedItems().length === 0 ? placeholder() : ''"
                   [disabled]="isDisabled()"
@@ -80,6 +90,11 @@ import { BadgeComponent } from './badge.component';
                  <input
                     #inputEl
                     type="text"
+                    role="combobox"
+                    aria-autocomplete="list"
+                    [attr.aria-expanded]="open()"
+                    [attr.aria-controls]="listId"
+                    [attr.aria-activedescendant]="activeItemId()"
                     [class]="singleInputClasses()"
                     [placeholder]="placeholder()"
                     [disabled]="isDisabled()"
@@ -96,7 +111,7 @@ import { BadgeComponent } from './badge.component';
       </ui-popover-trigger>
       <ui-popover-content class="w-[--radix-popover-trigger-width] p-0" align="start" [restoreFocus]="false">
          <ui-command [shouldFilter]="filter()" [search]="searchTerm()">
-            <ui-command-list>
+            <ui-command-list [attr.id]="listId" role="listbox">
               <ui-command-empty>No results found.</ui-command-empty>
               
                @for (option of options(); track getTrackBy(option)) {
@@ -105,11 +120,11 @@ import { BadgeComponent } from './badge.component';
                     [selected]="isSelected(option)"
                     (select)="onSelect(option)"
                   >
-                    <span class="mr-2 flex h-4 w-4 items-center justify-center opacity-0" [class.opacity-100]="isSelected(option)">
-                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="20 6 9 17 4 12"/></svg>
-                    </span>
-                    <span [innerHTML]="getDisplayValue(option) | highlight: searchTerm()"></span>
-                  </ui-command-item>
+                   <span class="mr-2 flex h-4 w-4 items-center justify-center opacity-0" [class.opacity-100]="isSelected(option)">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="20 6 9 17 4 12"/></svg>
+                   </span>
+                   <span [innerHTML]="getDisplayValue(option) | highlight: searchTerm()"></span>
+                 </ui-command-item>
                }
             </ui-command-list>
          </ui-command>
@@ -118,25 +133,26 @@ import { BadgeComponent } from './badge.component';
   `,
     host: { class: 'contents' },
 })
-export class AutocompleteComponent implements ControlValueAccessor {
-    options = input<unknown[]>([]);
-    displayWith = input<(option: unknown) => string>((opt) => String(opt));
+export class AutocompleteComponent<T = unknown> implements ControlValueAccessor {
+    options = input<T[]>([]);
+    displayWith = input<(option: T) => string>((opt) => String(opt));
     valueAttribute = input<string | undefined>(undefined);
     filter = input(true);
     multiple = input(false);
     placeholder = input('Select...');
     disabled = input(false);
     class = input('');
+    debounceTime = input(0);
 
     search = output<string>();
 
     open = signal(false);
     searchTerm = model('');
-    internalValue = signal<unknown[]>([]);
+    internalValue = signal<T[]>([]);
 
-    // For single mode: what to show in the input
-    // If open -> shows searchTerm
-    // If closed -> shows selected value label
+    readonly instanceId = ++autocompleteIdCounter;
+    readonly listId = `autocomplete-list-${this.instanceId}`;
+
     inputValue = computed(() => {
         if (this.open()) {
             return this.searchTerm();
@@ -148,10 +164,17 @@ export class AutocompleteComponent implements ControlValueAccessor {
     inputEl = viewChild<ElementRef<HTMLInputElement>>('inputEl');
     command = viewChild(CommandComponent);
 
-    private onChange: (value: unknown) => void = () => { };
+    private onChange: (value: T | T[] | null) => void = () => { };
     onTouched: () => void = () => { };
 
     private formDisabled = signal(false);
+    private destroyRef = inject(DestroyRef);
+    private commandService = inject(CommandService, { optional: true });
+    private searchSubject = new Subject<string>();
+
+    activeItemId = computed(() => {
+        return this.commandService?.activeItemId() ?? null;
+    });
 
     isDisabled = computed(() => this.disabled() || this.formDisabled());
 
@@ -178,32 +201,39 @@ export class AutocompleteComponent implements ControlValueAccessor {
                 const found = this.options().find(opt => this.getValue(opt) === val);
                 if (found) return found;
             }
-            return val;
+            return val as T;
         });
     });
 
-    getDisplayValue(option: any): string {
+    constructor() {
+        this.searchSubject.pipe(
+            rxDebounceTime(this.debounceTime()),
+            takeUntilDestroyed(this.destroyRef)
+        ).subscribe(val => this.search.emit(val));
+    }
+
+    getDisplayValue(option: T): string {
         return this.displayWith()(option);
     }
 
-    getValue(option: any): any {
+    getValue(option: T): unknown {
         if (this.valueAttribute()) {
-            return option[this.valueAttribute()!];
+            return (option as Record<string, unknown>)[this.valueAttribute()!];
         }
         return option;
     }
 
-    getTrackBy(option: any): string {
+    getTrackBy(option: T): string {
         return String(this.getValue(option));
     }
 
-    getSearchValue(option: any): string {
+    getSearchValue(option: T): string {
         return this.getDisplayValue(option);
     }
 
-    isSelected(option: any): boolean {
+    isSelected(option: T): boolean {
         const val = this.getValue(option);
-        return this.internalValue().includes(val);
+        return this.internalValue().some(v => this.getValue(v as T) === val);
     }
 
     onContainerClick(event: MouseEvent) {
@@ -217,19 +247,12 @@ export class AutocompleteComponent implements ControlValueAccessor {
 
     onFocus() {
         if (!this.isDisabled() && !this.open()) {
-            // If we just selected an item, skip opening immediately if that was the intent?
-            // Actually, usually focusing opens the combobox
             this.open.set(true);
         }
     }
 
     onBlur() {
         this.onTouched();
-        // If single select and we have text but no selection?
-        // Usually we revert to the selected value or clear if nothing selected.
-        // We let the inputValue computed handle the reversion on render.
-        // The popover close might happen before or after.
-        // If we click outside, popover closes -> open(false) -> inputValue recalcs -> reverts.
     }
 
     onOpenChange(isOpen: boolean) {
@@ -245,7 +268,12 @@ export class AutocompleteComponent implements ControlValueAccessor {
         const target = event.target as HTMLInputElement;
         const val = target.value;
         this.searchTerm.set(val);
-        this.search.emit(val);
+
+        if (this.debounceTime() > 0) {
+            this.searchSubject.next(val);
+        } else {
+            this.search.emit(val);
+        }
 
         if (!this.open()) {
             this.open.set(true);
@@ -279,37 +307,38 @@ export class AutocompleteComponent implements ControlValueAccessor {
         }
     }
 
-    onSelect(option: any) {
+    onSelect(option: T) {
         const val = this.getValue(option);
-        let newValues: any[];
+        let newValues: T[];
 
         if (this.multiple()) {
-            if (this.internalValue().includes(val)) {
-                newValues = this.internalValue().filter(v => v !== val);
+            const currentVals = this.internalValue();
+            const isAlreadySelected = currentVals.some(v => this.getValue(v as T) === val);
+
+            if (isAlreadySelected) {
+                newValues = currentVals.filter(v => this.getValue(v as T) !== val);
             } else {
-                newValues = [...this.internalValue(), val];
+                newValues = [...currentVals, option];
             }
             this.searchTerm.set('');
-            // Keep open in multi select? user pref. usually keep open or close.
-            // keeping open for multi is nice.
             this.inputEl()?.nativeElement.focus();
         } else {
-            newValues = [val];
+            newValues = [option];
             this.open.set(false);
-            this.searchTerm.set(''); // Clear search term so computed inputValue shows label effectively
+            this.searchTerm.set('');
         }
 
         this.updateValue(newValues);
     }
 
-    removeItem(item: any, event: MouseEvent) {
+    removeItem(item: T, event: MouseEvent) {
         event.stopPropagation();
         const val = this.getValue(item);
-        const newValues = this.internalValue().filter(v => v !== val);
+        const newValues = this.internalValue().filter(v => this.getValue(v as T) !== val);
         this.updateValue(newValues);
     }
 
-    updateValue(newValues: any[]) {
+    updateValue(newValues: T[]) {
         this.internalValue.set(newValues);
 
         if (this.multiple()) {
@@ -320,7 +349,7 @@ export class AutocompleteComponent implements ControlValueAccessor {
         this.onTouched();
     }
 
-    writeValue(value: any): void {
+    writeValue(value: T | T[] | null): void {
         if (value === null || value === undefined) {
             this.internalValue.set([]);
         } else if (Array.isArray(value)) {
@@ -330,11 +359,11 @@ export class AutocompleteComponent implements ControlValueAccessor {
         }
     }
 
-    registerOnChange(fn: any): void {
+    registerOnChange(fn: (value: T | T[] | null) => void): void {
         this.onChange = fn;
     }
 
-    registerOnTouched(fn: any): void {
+    registerOnTouched(fn: () => void): void {
         this.onTouched = fn;
     }
 

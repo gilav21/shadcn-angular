@@ -3,7 +3,12 @@ import { AutocompleteComponent } from './autocomplete.component';
 import { FormsModule } from '@angular/forms';
 import { signal } from '@angular/core';
 
-const countries = [
+interface Country {
+    name: string;
+    code: string;
+}
+
+const countries: Country[] = [
     { name: 'United States', code: 'US' },
     { name: 'United Kingdom', code: 'UK' },
     { name: 'Canada', code: 'CA' },
@@ -16,7 +21,7 @@ const countries = [
     { name: 'Brazil', code: 'BR' },
 ];
 
-const meta: Meta<AutocompleteComponent> = {
+const meta: Meta<AutocompleteComponent<Country>> = {
     title: 'UI/Autocomplete',
     component: AutocompleteComponent,
     tags: ['autodocs'],
@@ -27,15 +32,16 @@ const meta: Meta<AutocompleteComponent> = {
     ],
     args: {
         options: countries,
-        displayWith: (opt: any) => opt?.name,
+        displayWith: (opt: Country) => opt?.name,
         placeholder: 'Select a country...',
         multiple: false,
         filter: true,
+        debounceTime: 0,
     },
 };
 
 export default meta;
-type Story = StoryObj<AutocompleteComponent>;
+type Story = StoryObj<AutocompleteComponent<Country>>;
 
 export const Default: Story = {
     render: (args) => ({
@@ -72,20 +78,48 @@ export const Multiple: Story = {
     }),
 };
 
+export const Debounced: Story = {
+    args: {
+        debounceTime: 300,
+        filter: false,
+    },
+    render: (args) => ({
+        props: {
+            ...args,
+            searchCount: 0,
+            onSearch: function (this: { searchCount: number }, term: string) {
+                this.searchCount++;
+                console.log(`Search triggered: "${term}" (count: ${this.searchCount})`);
+            }
+        },
+        template: `
+      <div class="w-[300px] space-y-2">
+         <p class="text-sm text-muted-foreground">Debounce: 300ms - Check console for search events</p>
+         <ui-autocomplete 
+           [options]="options" 
+           [displayWith]="displayWith"
+           [placeholder]="placeholder"
+           [debounceTime]="300"
+           [filter]="false"
+           (search)="onSearch($event)"
+         />
+         <p class="text-xs text-muted-foreground">Search events: {{ searchCount }}</p>
+      </div>
+    `,
+    }),
+};
+
 export const Async: Story = {
     render: (args) => {
         return {
             props: {
                 ...args,
-                options: signal<{ name: string }[]>([]), // Initial empty
+                options: signal<Country[]>([]),
                 searchTerm: '',
                 onSearch: (term: string) => {
                     // Mock async API
                     const results = countries.filter(c => c.name.toLowerCase().includes(term.toLowerCase()));
                     // In a real app this would be an HTTP call
-                    // We'll update the signal passed to options
-                    // Note: In Storybook 'options' arg is separate, we'll implement this logic in a wrapper for a real demo if needed,
-                    // but for simple story we can't easily modify the 'options' arg dynamically from the template without a wrapper component.
                 }
             },
             template: `
@@ -106,3 +140,4 @@ export const Async: Story = {
         };
     }
 };
+

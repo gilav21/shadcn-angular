@@ -405,7 +405,6 @@ interface Framework {
     SidebarGroupContentComponent,
     SidebarMenuComponent,
     SidebarMenuItemComponent,
-    SidebarMenuButtonComponent,
     SidebarMenuLinkComponent,
     SidebarTriggerComponent,
     SidebarInsetComponent,
