@@ -33,6 +33,8 @@ import { NativeSelectComponent } from '../components/ui/native-select.component'
 import { SpeedDialComponent, SpeedDialTriggerComponent, SpeedDialMenuComponent, SpeedDialItemComponent, SpeedDialMaskComponent, SpeedDialContextTriggerComponent, SpeedDialContextTriggerDirective } from '../components/ui/speed-dial.component';
 import { ChipListComponent } from '../components/ui/chip-list.component';
 import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerComponent } from '../components/ui/emoji-picker.component';
+import { RichTextEditorComponent } from '../components/ui/rich-text-editor.component';
+import { MentionItem, TagItem } from '../components/ui/rich-text-mention.component';
 
 @Component({
   selector: 'app-root',
@@ -250,7 +252,8 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
     ChipListComponent,
     EmojiPickerComponent,
     EmojiPickerContentComponent,
-    EmojiPickerTriggerComponent
+    EmojiPickerTriggerComponent,
+    RichTextEditorComponent
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -326,6 +329,108 @@ import { EmojiPickerComponent, EmojiPickerContentComponent, EmojiPickerTriggerCo
                 </label>
             </div>
             </div>
+        </section>
+
+        <ui-separator />
+
+        <!-- Rich Text Editor Section -->
+        <section class="space-y-6">
+          <h2 id="rich-text-editor" class="text-2xl font-semibold scroll-m-20">Rich Text Editor</h2>
+          <p class="text-muted-foreground">A secure, configurable rich text editor with Markdown and HTML support.</p>
+          
+          <!-- Basic Editor -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Basic Editor (Top Toolbar)</h3>
+            <ui-rich-text-editor
+              mode="markdown"
+              toolbar="top"
+              placeholder="Start typing... Use **bold**, *italic*, or toolbar buttons"
+              minHeight="150px"
+              [(ngModel)]="richTextContent"
+              (htmlChange)="richTextHtml = $event"
+            />
+            @if (richTextHtml) {
+              <details class="mt-2">
+                <summary class="text-sm text-muted-foreground cursor-pointer">View HTML Output</summary>
+                <pre class="mt-2 p-3 bg-muted rounded-md text-xs overflow-auto max-h-32">{{ richTextHtml }}</pre>
+              </details>
+            }
+          </div>
+          
+          <!-- Floating Toolbar -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Floating Toolbar (Select text)</h3>
+            <ui-rich-text-editor
+              mode="markdown"
+              toolbar="floating"
+              placeholder="Select text to see the floating toolbar appear..."
+              minHeight="120px"
+            />
+          </div>
+          
+          <!-- Minimal Toolbar -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Minimal Toolbar</h3>
+            <ui-rich-text-editor
+              mode="markdown"
+              toolbar="top"
+              [toolbarItems]="['bold', 'italic', 'separator', 'link', 'emoji']"
+              placeholder="Simplified toolbar with just the essentials..."
+              minHeight="100px"
+            />
+          </div>
+          
+          <!-- With Mentions & Tags -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">With Mentions & Tags</h3>
+            <p class="text-sm text-muted-foreground">Type @ to mention someone or # to add a tag</p>
+            <ui-rich-text-editor
+              mode="markdown"
+              toolbar="top"
+              [mentions]="true"
+              [mentionSource]="sampleMentions"
+              [tags]="true"
+              [tagSource]="sampleTags"
+              placeholder="Type @john or #angular to see autocomplete..."
+              minHeight="120px"
+            />
+          </div>
+          
+          <!-- Character Count -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">With Character Count</h3>
+            <ui-rich-text-editor
+              mode="markdown"
+              toolbar="top"
+              [showCount]="true"
+              placeholder="Type to see the character count below..."
+              minHeight="100px"
+            />
+          </div>
+          
+          <!-- HTML Mode -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">HTML Mode (contentEditable)</h3>
+            <ui-rich-text-editor
+              mode="html"
+              toolbar="top"
+              placeholder="True WYSIWYG with contentEditable..."
+              minHeight="120px"
+            />
+          </div>
+          
+          <!-- No Toolbar -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">No Toolbar (Keyboard Only)</h3>
+            <p class="text-sm text-muted-foreground">Use Ctrl+B, Ctrl+I, Ctrl+U for formatting</p>
+            <ui-rich-text-editor
+              mode="markdown"
+              toolbar="none"
+              variant="ghost"
+              placeholder="Clean writing experience - use keyboard shortcuts..."
+              minHeight="100px"
+            />
+          </div>
         </section>
 
         <ui-separator />
@@ -2323,6 +2428,20 @@ export class AppComponent {
 
   showCommandDialog = signal(false);
 
+  // Rich Text Editor demo data
+  richTextContent = '';
+  richTextHtml = '';
+  sampleMentions: MentionItem[] = [
+    { id: '1', value: 'john', label: 'John Doe', description: 'john@example.com' },
+    { id: '2', value: 'jane', label: 'Jane Smith', description: 'jane@example.com' },
+    { id: '3', value: 'bob', label: 'Bob Wilson', description: 'bob@example.com' },
+  ];
+  sampleTags: TagItem[] = [
+    { id: '1', value: 'angular', label: 'Angular', color: '#dd0031' },
+    { id: '2', value: 'typescript', label: 'TypeScript', color: '#3178c6' },
+    { id: '3', value: 'tailwind', label: 'TailwindCSS', color: '#06b6d4' },
+  ];
+
   links = [
     { title: 'Accordion', id: 'accordion' },
     { title: 'Alert', id: 'alert' },
@@ -2361,6 +2480,7 @@ export class AppComponent {
     { title: 'Progress', id: 'progress' },
     { title: 'Radio Group', id: 'radio-group' },
     { title: 'Resizable', id: 'resizable' },
+    { title: 'Rich Text Editor', id: 'rich-text-editor' },
     { title: 'Scroll Area', id: 'scroll-area' },
     { title: 'Select', id: 'select' },
     { title: 'Sheet', id: 'sheet' },
