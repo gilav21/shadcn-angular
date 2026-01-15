@@ -2,21 +2,17 @@
 import { Command } from 'commander';
 import { init } from './commands/init.js';
 import { add } from './commands/add.js';
-
 const program = new Command();
-
 program
     .name('shadcn-angular')
     .description('CLI for adding shadcn-angular components to your Angular project')
     .version('0.0.8');
-
 program
     .command('init')
     .description('Initialize shadcn-angular in your project')
     .option('-y, --yes', 'Skip confirmation prompt')
     .option('-d, --defaults', 'Use default configuration')
     .action(init);
-
 program
     .command('add')
     .description('Add a component to your project')
@@ -27,5 +23,4 @@ program
     .option('-p, --path <path>', 'The path to add the component to')
     .option('--remote', 'Force remote fetch from GitHub registry')
     .action(add);
-
 program.parse();

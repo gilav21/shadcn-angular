@@ -261,19 +261,25 @@ describe('RichTextSanitizerService', () => {
             expect(result).toContain('Submit');
         });
 
-        it('should unwrap iframe elements', () => {
+        it('should remove iframe elements entirely', () => {
             const html = '<iframe src="https://evil.com">Fallback</iframe>';
             const result = service.sanitize(html);
             expect(result).not.toContain('<iframe');
-            expect(result).toContain('Fallback');
+            expect(result).not.toContain('Fallback');
         });
     });
 
     describe('attribute sanitization', () => {
-        it('should remove style attributes', () => {
-            const html = '<p style="color: red">Text</p>';
+        it('should remove disallowed style attributes', () => {
+            const html = '<p style="position: fixed">Text</p>';
             const result = service.sanitize(html);
             expect(result).not.toContain('style=');
+        });
+
+        it('should preserve allowed style attributes', () => {
+            const html = '<p style="color: red; text-align: center">Text</p>';
+            const result = service.sanitize(html);
+            expect(result).toContain('style="color: red; text-align: center"');
         });
 
         it('should remove class attributes except allowed patterns', () => {

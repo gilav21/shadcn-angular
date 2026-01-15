@@ -239,4 +239,24 @@ export const registry: Record<string, ComponentDefinition> = {
     files: ['emoji-picker.component.ts', 'emoji-data.ts'],
     dependencies: ['button', 'input', 'scroll-area', 'popover'],
   },
+  'rich-text-editor': {
+    name: 'rich-text-editor',
+    files: [
+      'rich-text-editor.component.ts',
+      'rich-text-toolbar.component.ts',
+      'rich-text-sanitizer.service.ts',
+      'rich-text-markdown.service.ts',
+      'rich-text-mention.component.ts',
+      'rich-text-image-resizer.component.ts',
+    ],
+    dependencies: [
+      'button',
+      'separator',
+      'popover',
+      'emoji-picker',
+      'select',
+      'input',
+      'scroll-area',
+    ],
+  },
 };
