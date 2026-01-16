@@ -10,9 +10,7 @@ import {
     contentChildren,
     output,
     ElementRef,
-    viewChild,
-    Directive,
-    HostListener,
+    viewChild
 } from '@angular/core';
 import { Directionality } from '@angular/cdk/bidi';
 import { cn } from '../lib/utils';
