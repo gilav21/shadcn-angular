@@ -159,7 +159,6 @@ export class DialogContentComponent implements AfterViewInit {
             return;
         }
 
-        // Focus trap
         if (event.key === 'Tab' && this.contentEl) {
             const focusableElements = this.contentEl.querySelectorAll(
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'

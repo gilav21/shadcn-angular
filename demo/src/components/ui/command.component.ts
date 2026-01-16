@@ -108,9 +108,7 @@ export class CommandService {
   selectActive() {
     const activeId = this.activeItemId();
     if (activeId) {
-      // double check it is effective? The effect handles visibility, but race conditions possible?
-      // Safe to check visibility again or rely on signal consistency.
-      // Check if visible
+
       if (!this.filteredItemIds().has(activeId)) return;
 
       const item = this.items().get(activeId);

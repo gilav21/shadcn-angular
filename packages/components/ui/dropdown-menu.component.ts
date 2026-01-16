@@ -106,7 +106,6 @@ export class DropdownMenuTriggerComponent {
     @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
 
     constructor() {
-        // Register trigger after view init
         setTimeout(() => {
             const triggerButton = this.el.nativeElement.querySelector('[data-slot="dropdown-trigger"]') as HTMLElement;
             if (triggerButton) {

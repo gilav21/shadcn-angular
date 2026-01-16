@@ -63,7 +63,6 @@ export class ToggleComponent {
     pressed = signal(false);
 
     constructor() {
-        // Initialize with default pressed state
         const defaultVal = this.defaultPressed();
         if (defaultVal) {
             this.pressed.set(defaultVal);
@@ -85,7 +84,6 @@ export class ToggleComponent {
         }
     }
 
-    // For programmatic control
     setPressed(value: boolean) {
         this.pressed.set(value);
     }

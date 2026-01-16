@@ -156,14 +156,12 @@ export class HoverCardContentComponent implements AfterViewInit {
         let offsetY = 0;
         let actualSide = this.side();
 
-        // Check horizontal overflow
         if (rect.right > viewportWidth) {
             offsetX = viewportWidth - rect.right - 8;
         } else if (rect.left < 0) {
             offsetX = -rect.left + 8;
         }
 
-        // Check vertical overflow and flip side if needed
         if (actualSide === 'bottom' && rect.bottom > viewportHeight) {
             actualSide = 'top';
         } else if (actualSide === 'top' && rect.top < 0) {

@@ -91,13 +91,8 @@ export class RichTextImageResizerComponent implements OnDestroy {
         const tRect = t.getBoundingClientRect();
         const cRect = c.getBoundingClientRect();
 
-        // Calculate relative position within the container
-        // Container is usually the offsetParent, so simple subtraction
-        // Account for scroll if container is scrolling? 
-        // If container is relative positioned, getBoundingClientRect subtraction works well.
-
         this.rect.set({
-            top: tRect.top - cRect.top + c.scrollTop, // Use scrollTop if container scrolls, OR just offset subtraction if container is the scrolling viewport
+            top: tRect.top - cRect.top + c.scrollTop,
             left: tRect.left - cRect.left + c.scrollLeft,
             width: tRect.width,
             height: tRect.height
@@ -120,8 +115,6 @@ export class RichTextImageResizerComponent implements OnDestroy {
             handle
         };
 
-        // Note: t.width/height might be 0 if set via style. 
-        // Better to use getBoundingClientRect() or offsetWidth/Height
         const rect = t.getBoundingClientRect();
         this.resizeState.startWidth = rect.width;
         this.resizeState.startHeight = rect.height;
@@ -140,13 +133,6 @@ export class RichTextImageResizerComponent implements OnDestroy {
         let newHeight = this.resizeState.startHeight;
 
         const aspect = this.resizeState.startWidth / this.resizeState.startHeight;
-
-        // Simple resizing logic, could enhance with aspect ratio lock (shift key)
-        // For now, implementing free resize or aspect-locked based on handle?
-        // Let's do free resize for SE/SW but users expect aspect ratio for images usually.
-        // Let's strictly maintain aspect ratio for simplicity unless requested otherwise?
-        // User request "resize handles", usually implies maintaining aspect ratio for corners.
-        // Let's implement aspect lock by default for corners.
 
         switch (this.resizeState.handle) {
             case 'se':
@@ -167,15 +153,10 @@ export class RichTextImageResizerComponent implements OnDestroy {
                 break;
         }
 
-        // Apply
         if (newWidth > 20 && newHeight > 20) {
             const t = this.target()!;
             t.style.width = `${newWidth}px`;
             t.style.height = `${newHeight}px`;
-            // Also update attributes for persistence
-            // t.width = newWidth;
-            // t.height = newHeight;
-            // Just style is usually preferred so it overrides attributes
         }
     }
 
@@ -183,12 +164,6 @@ export class RichTextImageResizerComponent implements OnDestroy {
         this.resizeState = null;
         document.removeEventListener('mousemove', this.onMouseMoveBound);
         document.removeEventListener('mouseup', this.onMouseUpBound);
-
-        // Notify change? The editor usually syncs on input, but resize doesn't trigger input.
-        // We might need to trigger an input event on the editor or emit an event.
-        // But since we modify the DOM node directly, the next syncContentFromEditor loop will pick it up
-        // IF something triggers it.
-        // Ideally we emit an event 'resizeEnd' so parent can pushHistory()
     }
 
     ngOnDestroy() {

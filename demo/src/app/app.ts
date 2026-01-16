@@ -222,6 +222,28 @@ import {
   AutocompleteComponent,
   MentionItem,
   TagItem,
+  TimelineComponent,
+  TimelineItemComponent,
+  TimelineConnectorComponent,
+  TimelineDotComponent,
+  TimelineHeaderComponent,
+  TimelineContentComponent,
+  TimelineTitleComponent,
+  TimelineDescriptionComponent,
+  TimelineTimeComponent,
+  TreeComponent,
+  TreeItemComponent,
+  TreeLabelComponent,
+  TreeIconComponent,
+  RatingComponent,
+  StepperComponent,
+  StepperItemComponent,
+  StepperTriggerComponent,
+  StepperTitleComponent,
+  StepperDescriptionComponent,
+  StepperContentComponent,
+  FileUploadComponent,
+  ColorPickerComponent,
 } from '../components/ui';
 
 interface Framework {
@@ -448,10 +470,33 @@ interface Framework {
     EmojiPickerTriggerComponent,
     RichTextEditorComponent,
     AutocompleteComponent,
+    TimelineComponent,
+    TimelineItemComponent,
+    TimelineConnectorComponent,
+    TimelineDotComponent,
+    TimelineHeaderComponent,
+    TimelineContentComponent,
+    TimelineTitleComponent,
+    TimelineDescriptionComponent,
+    TimelineTimeComponent,
+    TreeComponent,
+    TreeItemComponent,
+    TreeLabelComponent,
+    TreeIconComponent,
+    RatingComponent,
+    StepperComponent,
+    StepperItemComponent,
+    StepperTriggerComponent,
+    StepperTitleComponent,
+    StepperDescriptionComponent,
+    StepperContentComponent,
+    FileUploadComponent,
+    ColorPickerComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
+  styleUrl: './app.scss',
   host: {
     '(document:keydown)': 'onKeydown($event)',
   },
@@ -590,6 +635,12 @@ export class AppComponent {
     { title: 'Toggle Group', id: 'toggle-group' },
     { title: 'Tooltip', id: 'tooltip' },
     { title: 'Autocomplete', id: 'autocomplete' },
+    { title: 'Timeline', id: 'timeline' },
+    { title: 'Tree View', id: 'tree-view' },
+    { title: 'Rating', id: 'rating' },
+    { title: 'Stepper', id: 'stepper' },
+    { title: 'File Upload', id: 'file-upload' },
+    { title: 'Color Picker', id: 'color-picker' },
   ];
 
   onKeydown(e: KeyboardEvent) {
@@ -629,4 +680,11 @@ export class AppComponent {
   writeToLog(str: string) {
     console.log(str);
   }
+
+  // New Component Demo State
+  demoRating = signal(3);
+  demoRatingHalf = signal(2.5);
+  activeStep = signal(0);
+  demoColor = signal('#3b82f6');
+  colorPresets = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 }

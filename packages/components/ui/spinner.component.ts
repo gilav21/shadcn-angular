@@ -51,7 +51,6 @@ export class SpinnerComponent {
   classes = computed(() => {
     const customSizeValue = this.customSize();
 
-    // If custom size is provided, don't apply preset size classes
     if (customSizeValue) {
       return cn('animate-spin', this.class());
     }

@@ -430,7 +430,6 @@ export class CalendarComponent {
     date.setHours(hours);
     date.setMinutes(minutes);
 
-    // Emit new Date
     this.selected.set(new Date(date));
     this.selectedChange.emit(new Date(date));
   }

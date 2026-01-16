@@ -49,10 +49,8 @@ export class SheetComponent implements OnDestroy {
     private scrollbarWidth = 0;
 
     constructor() {
-        // Calculate scrollbar width once
         this.scrollbarWidth = window.innerWidth - this.document.documentElement.clientWidth;
 
-        // Lock/unlock body scroll when open state changes
         effect(() => {
             if (this.open()) {
                 this.lockScroll();
@@ -124,14 +122,12 @@ export class SheetTriggerComponent {
         aria-modal="true"
         (keydown)="onKeydown($event)"
       >
-        <!-- Overlay -->
         <div
           class="fixed inset-0 bg-black/50 animate-in fade-in-0"
           [attr.data-slot]="'sheet-overlay'"
           (click)="onOverlayClick()"
           aria-hidden="true"
         ></div>
-        <!-- Content -->
         <div
           #contentEl
           [class]="classes()"
@@ -140,7 +136,6 @@ export class SheetTriggerComponent {
           tabindex="-1"
         >
           <ng-content />
-          <!-- Close button -->
           <button
             type="button"
             class="absolute ltr:right-4 rtl:left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"
@@ -171,11 +166,9 @@ export class SheetContentComponent implements AfterViewInit {
     constructor() {
         effect(() => {
             if (this.sheet?.open()) {
-                // Store previously focused element and focus the sheet
                 this.previousActiveElement = document.activeElement;
                 setTimeout(() => this.focusFirstElement(), 0);
             } else if (this.previousActiveElement instanceof HTMLElement) {
-                // Restore focus when closing
                 this.previousActiveElement.focus();
             }
         });
@@ -191,7 +184,6 @@ export class SheetContentComponent implements AfterViewInit {
         const content = this.el.nativeElement.querySelector('[data-slot="sheet-content"]');
         if (content) {
             this.contentEl = content;
-            // Focus the content itself or the first focusable element
             const focusable = content.querySelector(
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
             ) as HTMLElement;
@@ -210,7 +202,6 @@ export class SheetContentComponent implements AfterViewInit {
             return;
         }
 
-        // Focus trap
         if (event.key === 'Tab' && this.contentEl) {
             const focusableElements = this.contentEl.querySelectorAll(
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
@@ -219,13 +210,11 @@ export class SheetContentComponent implements AfterViewInit {
             const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
 
             if (event.shiftKey) {
-                // Shift + Tab
                 if (document.activeElement === firstElement) {
                     event.preventDefault();
                     lastElement?.focus();
                 }
             } else {
-                // Tab
                 if (document.activeElement === lastElement) {
                     event.preventDefault();
                     firstElement?.focus();

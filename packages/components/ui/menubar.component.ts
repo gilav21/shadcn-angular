@@ -52,7 +52,7 @@ let nextId = 0;
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [MenubarService],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'menubar'" role="menubar" (keydown)="onKeydown($event)">
+    <div [class]="classes()" [attr.data-slot]="'menubar'" role="menubar">
       <ng-content />
     </div>
   `,
@@ -79,10 +79,6 @@ export class MenubarComponent {
     if (this.service.activeMenuId() && !this.el.nativeElement.contains(event.target)) {
       this.service.setActive(null);
     }
-  }
-
-  onKeydown(event: KeyboardEvent) {
-    // Handled by triggers/content bubbles
   }
 }
 
@@ -192,7 +188,6 @@ export class MenubarTriggerComponent {
     } else if (event.key === 'ArrowDown' || event.key === 'Enter') {
       event.preventDefault();
       this.menu.open();
-      // Improved focus strategy: wait for content to appear and find strictly related content
       setTimeout(() => {
         const content = document.querySelector(`[data-menubar-content="${this.menu.id}"]`);
         if (content) {
@@ -272,9 +267,7 @@ export class MenubarContentComponent {
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
       trigger?.focus();
     } else if (event.key === 'ArrowLeft') {
-      // In root menu: Left -> focus Prev header trigger (LTR) or Next (RTL)
       event.preventDefault();
-      // Do NOT close menu here, allows seamless switch
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
       if (this.service.isRtl()) {
         trigger?.focusNextTrigger();
@@ -282,9 +275,7 @@ export class MenubarContentComponent {
         trigger?.focusPrevTrigger();
       }
     } else if (event.key === 'ArrowRight') {
-      // In root menu: Right -> focus Next header trigger (LTR) or Prev (RTL)
       event.preventDefault();
-      // Do NOT close menu here, allows seamless switch
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
       if (this.service.isRtl()) {
         trigger?.focusPrevTrigger();
@@ -408,7 +399,6 @@ export class MenubarSubComponent {
   }
 
   focusTrigger() {
-    // Small timeout to allow DOM to settle if parent closing logic is involved
     setTimeout(() => {
       this.trigger?.focus();
     }, 0);
@@ -477,7 +467,6 @@ export class MenubarSubTriggerComponent {
   onKeydown(event: KeyboardEvent) {
     if (event.key === 'ArrowRight') {
       if (this.service.isRtl()) {
-        // In RTL, ArrowRight usually closes, or goes back. If we want to open, it should be ArrowLeft.
         return;
       }
       event.preventDefault();

@@ -34,7 +34,6 @@ export class TableHeaderDirective {
     classes = computed(() => cn('[&_tr]:border-b', this.class()));
 }
 
-// Wrapper component for ui-table-header that renders as thead
 @Component({
     selector: 'ui-table-header',
     changeDetection: ChangeDetectionStrategy.OnPush,

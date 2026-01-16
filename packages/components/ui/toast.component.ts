@@ -98,24 +98,19 @@ export class ToastService {
 export class ToasterComponent {
   toastService = inject(ToastService);
 
-  /** Vertical position: top, center, or bottom */
   vertical = input<'top' | 'center' | 'bottom'>('bottom');
-
-  /** Horizontal position: start, center, or end */
   horizontal = input<'start' | 'center' | 'end'>('end');
 
   containerClasses = computed(() => {
     const v = this.vertical();
     const h = this.horizontal();
 
-    // Vertical position classes
     const verticalClasses: Record<string, string> = {
       'top': 'top-0',
       'center': 'top-1/2 -translate-y-1/2',
       'bottom': 'bottom-0',
     };
 
-    // Horizontal position classes - using ltr:/rtl: for proper mirroring
     const horizontalClasses: Record<string, string> = {
       'start': 'ltr:left-0 rtl:right-0',
       'center': 'left-1/2 -translate-x-1/2',

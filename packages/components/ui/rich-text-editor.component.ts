@@ -9,11 +9,9 @@ import {
     ElementRef,
     ViewChild,
     OnInit,
-    OnDestroy,
     forwardRef,
     effect,
     AfterViewInit,
-    DestroyRef,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
@@ -29,7 +27,6 @@ import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.compo
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
 
-// Editor variants using CVA
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
     {
@@ -56,14 +53,12 @@ export type EditorSize = VariantProps<typeof editorVariants>['size'];
 export type EditorMode = 'markdown' | 'html';
 export type ToolbarPosition = 'top' | 'floating' | 'none';
 
-// History entry for undo/redo
 interface HistoryEntry {
     html: string;
     selectionStart: number;
     selectionEnd: number;
 }
 
-// Default toolbar items
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
@@ -108,7 +103,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     }
 
     <div [class]="editorContainerClasses()">
-      <!-- WYSIWYG Editor (contentEditable) for both modes -->
       <div
         #editorDiv
         [attr.contenteditable]="!disabled() && !readonly()"
@@ -138,7 +132,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
       />
 
 
-      <!-- Floating toolbar (shown on selection) -->
       @if (toolbar() === 'floating' && !readonly() && showFloatingToolbar()) {
         <div 
           class="fixed z-9999 bg-popover border rounded-lg shadow-lg p-1"
@@ -155,7 +148,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         </div>
       }
 
-      <!-- Mention/Tag popover -->
       @if (mentionPopoverOpen()) {
         <ui-rich-text-mention-popover
           [type]="mentionType()"
@@ -168,7 +160,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
       }
     </div>
 
-    <!-- Character/word count (optional) -->
     @if (showCount()) {
       <div class="flex justify-end text-xs text-muted-foreground mt-1 px-1">
         <span>{{ characterCount() }} characters</span>
@@ -179,7 +170,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         class: 'block',
     },
 })
-export class RichTextEditorComponent implements ControlValueAccessor, OnInit, OnDestroy, AfterViewInit {
+export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
     private readonly domSanitizer = inject(DomSanitizer);
@@ -189,131 +180,55 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
-    // === CONFIGURATION INPUTS ===
-
-    /** Editor mode: 'markdown' stores Markdown internally, 'html' stores HTML */
     mode = input<EditorMode>('markdown');
-
-    /** Visual variant */
     variant = input<EditorVariant>('default');
-
-    /** Size variant */
     size = input<EditorSize>('default');
-
-    /** Toolbar position: 'top' | 'floating' | 'none' */
     toolbar = input<ToolbarPosition>('top');
-
-    /** Toolbar items to show */
     toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
-
-    /** Placeholder text */
     placeholder = input<string>('Write something...');
-
-    /** Minimum height */
     minHeight = input<string>('120px');
-
-    /** Maximum height */
     maxHeight = input<string>('400px');
-
-    /** Disabled state */
     disabled = input<boolean>(false);
-
-    /** Read-only mode */
     readonly = input<boolean>(false);
-
-    /** Enable mentions (@user) */
     mentions = input<boolean>(false);
-
-    /** Mention data source */
     mentionSource = input<Observable<MentionItem[]> | MentionItem[]>([]);
-
-    /** Enable tags (#tag) */
     tags = input<boolean>(false);
-
-    /** Tag data source */
     tagSource = input<Observable<TagItem[]> | TagItem[]>([]);
-
-    /** Enable emoji picker */
     emojiPicker = input<boolean>(true);
-
-    /** Enable images */
     images = input<boolean>(true);
-
-    /** Image upload handler */
     imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
-
-    /** Allowed image sources */
     imageSources = input<'all' | 'upload' | 'url'>('all');
-
-    /** Show character count */
     showCount = input<boolean>(false);
-
-    /** Max length (characters) */
     maxLength = input<number | undefined>(undefined);
-
-    /** Custom CSS classes */
     class = input<string>('');
-
-    /** ARIA label */
     ariaLabel = input<string | undefined>(undefined);
-
-    /** ARIA describedby */
     ariaDescribedBy = input<string | undefined>(undefined);
 
-    // === OUTPUTS ===
-
-    /** Emits sanitized HTML content */
     htmlChange = output<string>();
-
-    /** Emits Markdown content */
     markdownChange = output<string>();
-
-    /** Emits on focus */
     focus = output<void>();
-
-    /** Emits on blur */
     blur = output<void>();
 
-    // === INTERNAL STATE ===
-
-    /** Internal HTML content (always HTML for WYSIWYG) */
     private htmlContent = signal<string>('');
-
-    /** Currently active formats at cursor position */
     activeFormats = signal<Set<string>>(new Set());
-
-    /** Floating toolbar state */
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-
-    /** Empty formats for floating toolbar (buttons are actions, not toggles) */
     readonly emptyFormats = new Set<string>();
-
-    /** Mention popover state */
     mentionPopoverOpen = signal<boolean>(false);
     mentionType = signal<'mention' | 'tag'>('mention');
     mentionQuery = signal<string>('');
     mentionPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
-
-    /** Async mention/tag support */
-    private readonly destroyRef = inject(DestroyRef);
     private readonly mentionSearchQuery$ = new Subject<{ type: 'mention' | 'tag'; query: string }>();
     loadedMentionItems = signal<(MentionItem | TagItem)[]>([]);
     mentionLoading = signal<boolean>(false);
+    selectedImage = signal<HTMLImageElement | null>(null);
 
-    /** History for undo/redo */
     private history: HistoryEntry[] = [];
     private historyIndex = -1;
     private isUndoRedo = false;
-
-    /** Saved selection for restoring after blur (e.g., emoji picker) */
     private savedRange: Range | null = null;
-
-    /** ControlValueAccessor callbacks */
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
-
-    // === COMPUTED VALUES ===
 
     editorContainerClasses = computed(() =>
         cn(
@@ -346,34 +261,28 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
         )
     );
 
-    /** Get HTML output (always sanitized) */
     htmlOutput = computed(() => {
         return this.sanitizer.sanitize(this.htmlContent());
     });
 
-    /** Get Markdown output */
     markdownOutput = computed(() => {
         return this.markdownService.toMarkdown(this.htmlContent());
     });
 
-    /** Character count */
     characterCount = computed(() => {
         return this.sanitizer.stripTags(this.htmlContent()).length;
     });
 
-    /** Filtered mention items based on query */
     filteredMentionItems = computed(() => {
         const query = this.mentionQuery().toLowerCase();
         const source = this.mentionType() === 'mention'
             ? this.mentionSource()
             : this.tagSource();
 
-        // If source is Observable, use loadedMentionItems (populated by async subscription)
         if (isObservable(source)) {
             return this.loadedMentionItems();
         }
 
-        // Static array: filter locally
         const items = source as (MentionItem | TagItem)[];
         if (!query) return items.slice(0, 10);
 
@@ -385,8 +294,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             .slice(0, 10);
     });
 
-    /** Currently selected image for resizing */
-    selectedImage = signal<HTMLImageElement | null>(null);
 
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
@@ -403,19 +310,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     }
 
     constructor() {
-        // Effect to emit HTML changes
         effect(() => {
             const html = this.htmlOutput();
             this.htmlChange.emit(html);
         });
-
-        // Effect to emit Markdown changes
         effect(() => {
             const md = this.markdownOutput();
             this.markdownChange.emit(md);
         });
 
-        // Async mention/tag search subscription
         this.mentionSearchQuery$.pipe(
             debounceTime(200),
             tap(() => this.mentionLoading.set(true)),
@@ -425,7 +328,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
                     : this.tagSource();
 
                 if (!isObservable(source)) {
-                    // Static array - filter locally
                     const items = source as (MentionItem | TagItem)[];
                     const filtered = query
                         ? items.filter(item =>
@@ -436,8 +338,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
                     return of(filtered.slice(0, 10));
                 }
 
-                // Observable source - the source should handle filtering based on query
-                // We pass the query through and let the source handle it
                 return (source as Observable<(MentionItem | TagItem)[]>).pipe(
                     catchError(() => of([] as (MentionItem | TagItem)[])),
                 );
@@ -454,31 +354,22 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     }
 
     ngAfterViewInit() {
-        // Initial sync
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
         }
     }
-
-    ngOnDestroy() {
-        // Cleanup
-    }
-
-    // === ControlValueAccessor ===
 
     writeValue(value: string): void {
         if (value === null || value === undefined) {
             value = '';
         }
 
-        // If mode is markdown, convert to HTML for display
         if (this.mode() === 'markdown' && value) {
             this.htmlContent.set(this.markdownService.toHtml(value));
         } else {
             this.htmlContent.set(this.sanitizer.sanitize(value));
         }
 
-        // Sync to editor
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
         }
@@ -492,17 +383,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
         this.onTouched = fn;
     }
 
-    setDisabledState(isDisabled: boolean): void {
-        // Handled via input()
-    }
-
-    // === EVENT HANDLERS ===
-
     onInput(event: Event): void {
         const div = event.target as HTMLDivElement;
         const html = this.sanitizer.sanitize(div.innerHTML);
 
-        // Check for mention/tag triggers
         const textContent = div.textContent ?? '';
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
@@ -512,7 +396,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
 
         this.htmlContent.set(html);
 
-        // Emit value based on mode
         const outputValue = this.mode() === 'markdown'
             ? this.markdownService.toMarkdown(html)
             : html;
@@ -525,7 +408,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     }
 
     onKeydown(event: KeyboardEvent): void {
-        // Forward keyboard events to mention popover when open
         if (this.mentionPopoverOpen() && this.mentionPopover) {
             const popoverKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'];
             if (popoverKeys.includes(event.key)) {
@@ -535,7 +417,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             }
         }
 
-        // Keyboard shortcuts
         if (event.ctrlKey || event.metaKey) {
             switch (event.key.toLowerCase()) {
                 case 'b':
@@ -569,26 +450,22 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             }
         }
 
-        // Escape to close popovers
         if (event.key === 'Escape') {
             this.closeMentionPopover();
             this.showFloatingToolbar.set(false);
         }
 
-        // Tab key - insert tab character instead of moving focus
         if (event.key === 'Tab' && !this.mentionPopoverOpen()) {
             event.preventDefault();
             this.document.execCommand('insertText', false, '\t');
         }
 
-        // Enter key - handle code blocks specially
         if (event.key === 'Enter' && !event.shiftKey) {
             const selection = this.document.getSelection();
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
                 let node: Node | null = range.startContainer;
 
-                // Check if we're in a pre/code block
                 let preElement: HTMLPreElement | null = null;
                 while (node && node !== this.editorDiv?.nativeElement) {
                     if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'PRE') {
@@ -598,7 +475,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
                     node = node.parentNode;
                 }
 
-                // If in a pre block, handle Enter specially
                 if (preElement) {
                     event.preventDefault();
 
@@ -606,29 +482,23 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
                     const textNode = codeElement || preElement;
                     const textContent = textNode.textContent || '';
 
-                    // Check if we should exit (text ends with newline, meaning user is on empty line)
                     if (textContent.endsWith('\n')) {
-                        // Exit the code block - remove trailing newline and create paragraph after
                         textNode.textContent = textContent.slice(0, -1);
 
-                        // Create a new paragraph after the pre block
                         const p = this.document.createElement('p');
                         p.innerHTML = '<br>';
                         preElement.parentNode?.insertBefore(p, preElement.nextSibling);
 
-                        // Move cursor to the new paragraph
                         const newRange = this.document.createRange();
                         newRange.setStart(p, 0);
                         newRange.setEnd(p, 0);
                         selection.removeAllRanges();
                         selection.addRange(newRange);
                     } else {
-                        // Insert a newline character at cursor position
                         const textNodeToInsert = this.document.createTextNode('\n');
                         range.deleteContents();
                         range.insertNode(textNodeToInsert);
 
-                        // Move cursor after the newline
                         const newRange = this.document.createRange();
                         newRange.setStartAfter(textNodeToInsert);
                         newRange.setEndAfter(textNodeToInsert);
@@ -649,7 +519,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
 
-        // Sanitize and insert
         const sanitized = this.sanitizer.sanitize(html || text);
         this.insertHtml(sanitized);
         this.pushHistory();
@@ -660,7 +529,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     }
 
     onBlur(): void {
-        // Save current selection before blur (needed for emoji picker, etc.)
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -668,23 +536,19 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
 
         this.onTouched();
         this.blur.emit();
-        // Delay hiding to allow click on toolbar
         setTimeout(() => {
             this.showFloatingToolbar.set(false);
         }, 200);
     }
 
     onSelectionChange(): void {
-        // Update active formats
         this.updateActiveFormats();
 
-        // Show/hide floating toolbar based on selection
         const selection = this.document.getSelection();
         if (selection && !selection.isCollapsed && this.toolbar() === 'floating') {
             this.updateFloatingToolbarPosition();
             this.showFloatingToolbar.set(true);
         } else if (this.toolbar() === 'floating') {
-            // Small delay to allow clicking toolbar buttons
             setTimeout(() => {
                 const sel = this.document.getSelection();
                 if (!sel || sel.isCollapsed) {
@@ -693,8 +557,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             }, 100);
         }
     }
-
-    // === FORMAT COMMANDS ===
 
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
@@ -759,7 +621,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
                 break;
         }
 
-        // Update content after command
         if (this.editorDiv?.nativeElement) {
             const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
             this.htmlContent.set(html);
@@ -774,23 +635,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
         this.updateActiveFormats();
         this.pushHistory();
 
-        // For floating toolbar: after applying format, move cursor outside the formatted element
-        // This prevents the format from continuing when user starts typing new text
         if (this.toolbar() === 'floating') {
             const selection = this.document.getSelection();
             if (selection && selection.rangeCount > 0) {
                 const range = selection.getRangeAt(0);
 
-                // Collapse to end of selection first
                 range.collapse(false);
 
-                // Find the nearest inline formatting element (b, strong, i, em, u, etc.)
                 let formattedNode = range.startContainer;
                 while (formattedNode && formattedNode !== this.editorDiv?.nativeElement) {
                     if (formattedNode.nodeType === Node.ELEMENT_NODE) {
                         const tagName = (formattedNode as Element).tagName.toLowerCase();
                         if (['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'code'].includes(tagName)) {
-                            // Move cursor after this element
                             const newRange = this.document.createRange();
                             newRange.setStartAfter(formattedNode);
                             newRange.setEndAfter(formattedNode);
@@ -806,7 +662,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
         }
     }
 
-    /** Floating toolbar format command - applies once and closes toolbar (not a toggle) */
     onFloatingFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
 
@@ -816,7 +671,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
         const range = selection.getRangeAt(0);
         const selectedText = range.toString();
 
-        // Tag mapping for inline formats
         const inlineTagMap: Record<string, string> = {
             bold: 'b',
             italic: 'i',
@@ -825,27 +679,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
         };
 
         if (inlineTagMap[command] && selectedText) {
-            // Manually wrap the selection with the tag
             const tag = inlineTagMap[command];
             const wrapper = this.document.createElement(tag);
 
-            // Extract the selected content
             const fragment = range.extractContents();
             wrapper.appendChild(fragment);
 
-            // Insert the wrapper
             range.insertNode(wrapper);
 
-            // Insert an empty text node AFTER the wrapper to place cursor outside
-            const spaceNode = this.document.createTextNode('\u200B'); // Zero-width space
+            const spaceNode = this.document.createTextNode('\u200B');
             wrapper.parentNode?.insertBefore(spaceNode, wrapper.nextSibling);
 
-            // Create range for cursor position BEFORE any focus changes
             const cursorRange = this.document.createRange();
             cursorRange.setStart(spaceNode, 1);
             cursorRange.setEnd(spaceNode, 1);
 
-            // Sync content
             if (this.editorDiv?.nativeElement) {
                 const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
                 this.htmlContent.set(html);
@@ -858,13 +706,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
 
             this.showFloatingToolbar.set(false);
 
-            // Focus first, then restore selection
             this.editorDiv?.nativeElement?.focus();
             selection.removeAllRanges();
             selection.addRange(cursorRange);
 
             this.pushHistory();
-            return; // Early return for inline formats
+            return;
         }
 
         if (command === 'clear') {
@@ -882,7 +729,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             selection.collapseToEnd();
         }
 
-        // Sync content for non-inline formats
         if (this.editorDiv?.nativeElement) {
             const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
             this.htmlContent.set(html);
@@ -912,7 +758,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
                 link.textContent = data.text || safeUrl;
                 range.insertNode(link);
 
-                // Move cursor after link
                 range.setStartAfter(link);
                 range.setEndAfter(link);
                 selection.removeAllRanges();
@@ -934,10 +779,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     }
 
     onEmojiInsert(emoji: string): void {
-        // Restore saved selection if we lost focus (e.g., clicking emoji picker)
         this.restoreSelection();
         this.insertText(emoji);
-        // Save the new position for subsequent emoji insertions
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -945,19 +788,16 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     }
 
     onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
-        // Restore saved selection if we lost focus
         this.restoreSelection();
 
         if (event.type === 'fontColor') {
             this.document.execCommand('foreColor', false, event.color);
         } else {
-            // hiliteColor doesn't work in all browsers, use backColor as fallback
             if (!this.document.execCommand('hiliteColor', false, event.color)) {
                 this.document.execCommand('backColor', false, event.color);
             }
         }
 
-        // Update content after command
         if (this.editorDiv?.nativeElement) {
             const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
             this.htmlContent.set(html);
@@ -973,43 +813,31 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
     }
 
     onFontSizeSelect(size: string): void {
-        // Restore saved selection if we lost focus
         this.restoreSelection();
 
-        // 1. Apply a unique font size (7 is the largest standard HTML size)
         this.document.execCommand('fontSize', false, '7');
 
-        // 2. Find all <font size="7"> elements created by the command
-        // Note: Browsers might nest them or apply to existing ones.
-        // We scope this to the editor to avoid affecting outside elements.
         if (this.editorDiv?.nativeElement) {
             const fontElements = this.editorDiv.nativeElement.querySelectorAll('font[size="7"]');
 
-            // 3. Convert them to spans with the custom pixel size
             fontElements.forEach((font: Element) => {
                 const el = font as HTMLElement;
-                // Create a span with the correct style
                 const span = this.document.createElement('span');
                 const sizeVal = size.endsWith('px') ? size : `${size}px`;
                 span.style.fontSize = sizeVal;
 
-                // Move children to span
                 while (el.firstChild) {
                     span.appendChild(el.firstChild);
                 }
 
-                // Replace font with span
                 el.parentNode?.replaceChild(span, el);
             });
         }
 
-        // 4. Update content
         this.syncContentFromEditor();
         this.focusEditor();
         this.pushHistory();
     }
-
-    // === MENTION/TAG HANDLING ===
 
     private getCaretOffset(element: HTMLElement): number {
         const selection = this.document.getSelection();
@@ -1031,7 +859,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
                 this.mentionQuery.set(mentionMatch[1]);
                 this.updateMentionPopoverPosition();
                 this.mentionPopoverOpen.set(true);
-                // Trigger async search
                 this.mentionSearchQuery$.next({ type: 'mention', query: mentionMatch[1] });
                 return;
             }
@@ -1044,7 +871,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
                 this.mentionQuery.set(tagMatch[1]);
                 this.updateMentionPopoverPosition();
                 this.mentionPopoverOpen.set(true);
-                // Trigger async search
                 this.mentionSearchQuery$.next({ type: 'tag', query: tagMatch[1] });
                 return;
             }
@@ -1059,12 +885,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             ? `data-mention="${item.value}" data-mention-id="${item.id ?? item.value}"`
             : `data-tag="${item.value}" data-tag-id="${item.id ?? item.value}"`;
 
-        // Delete the trigger + query text, then insert the mention span
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
 
-            // Move back to delete trigger + query
             const query = this.mentionQuery();
             for (let i = 0; i <= query.length; i++) {
                 this.document.execCommand('delete', false);
@@ -1083,8 +907,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
         this.mentionPopoverOpen.set(false);
         this.mentionQuery.set('');
     }
-
-    // === HELPER METHODS ===
 
     private wrapSelectionWithTag(tagName: string): void {
         const selection = this.document.getSelection();
@@ -1106,7 +928,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             range.deleteContents();
             range.insertNode(pre);
 
-            // Move cursor inside code block
             const newRange = this.document.createRange();
             newRange.selectNodeContents(code);
             newRange.collapse(true);
@@ -1181,10 +1002,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
 
-            // Position above the selection
             this.floatingToolbarPosition.set({
-                x: rect.left + rect.width / 2 - 100, // Center toolbar
-                y: rect.top - 45, // Above selection
+                x: rect.left + rect.width / 2 - 100,
+                y: rect.top - 45,
             });
         }
     }
@@ -1202,18 +1022,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, On
             });
         }
     }
-
-    private getMentionSource(): MentionItem[] {
-        const source = this.mentionSource();
-        return Array.isArray(source) ? source : [];
-    }
-
-    private getTagSource(): TagItem[] {
-        const source = this.tagSource();
-        return Array.isArray(source) ? source : [];
-    }
-
-    // === UNDO/REDO ===
 
     private pushHistory(): void {
         const entry: HistoryEntry = {

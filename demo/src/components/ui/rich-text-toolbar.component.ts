@@ -91,7 +91,6 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'alignRight', label: 'Align Right' },
 ];
 
-// Inline SVG icons (16x16)
 const ICONS: Record<string, string> = {
   bold: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8"/></svg>`,
   italic: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" x2="10" y1="4" y2="4"/><line x1="14" x2="5" y1="20" y2="20"/><line x1="15" x2="9" y1="4" y2="20"/></svg>`,
@@ -149,7 +148,6 @@ const ICONS: Record<string, string> = {
         @if (item === 'separator') {
           <ui-separator orientation="vertical" class="mx-1 h-6" />
         } @else if (item === 'link') {
-          <!-- Link with popover -->
           <ui-popover>
             <ui-popover-trigger>
               <button
@@ -191,7 +189,6 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'image') {
-          <!-- Image with popover -->
           <ui-popover>
             <ui-popover-trigger>
               <button
@@ -233,7 +230,6 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'emoji') {
-          <!-- Emoji picker -->
           <ui-emoji-picker [closeOnSelect]="false" (emojiSelect)="onEmojiSelect($event)">
             <ui-emoji-picker-trigger>
               <button
@@ -247,7 +243,6 @@ const ICONS: Record<string, string> = {
             <ui-emoji-picker-content />
           </ui-emoji-picker>
         } @else if (item === 'fontColor') {
-          <!-- Font color picker -->
           <ui-popover>
             <ui-popover-trigger>
               <button
@@ -276,7 +271,6 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'fontSize') {
-          <!-- Font size selector -->
           <ui-popover>
             <ui-popover-trigger>
               <button
@@ -330,7 +324,6 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'backgroundColor') {
-          <!-- Background color picker -->
           <ui-popover>
             <ui-popover-trigger>
               <button
@@ -359,7 +352,6 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else {
-          <!-- Regular format button -->
           <button
             type="button"
             [class]="buttonClasses(item)"
@@ -381,7 +373,6 @@ const ICONS: Record<string, string> = {
 export class RichTextToolbarComponent {
   private readonly sanitizer = inject(DomSanitizer);
 
-  /** Items to display in toolbar */
   items = input<ToolbarItem[]>([
     'bold', 'italic', 'underline',
     'separator',
@@ -392,31 +383,16 @@ export class RichTextToolbarComponent {
     'link', 'image', 'emoji',
   ]);
 
-  /** Currently active formats */
   activeFormats = input<Set<string>>(new Set());
-
-  /** Compact mode for floating toolbar */
   compact = input<boolean>(false);
-
-  /** Custom CSS classes */
   class = input<string>('');
 
-  /** Emits format command */
   formatCommand = output<string>();
-
-  /** Emits link insert request */
   linkInsert = output<{ text: string; url: string }>();
-
-  /** Emits image insert request */
   imageInsert = output<{ alt: string; src: string }>();
-
-  /** Emits emoji insert */
   emojiInsert = output<string>();
-
-  /** Emits color selection */
   colorSelect = output<{ type: 'fontColor' | 'backgroundColor'; color: string }>();
 
-  /** Color palette for text */
   colorPalette = [
     '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#ffffff',
     '#980000', '#ff0000', '#ff9900', '#ffff00', '#00ff00', '#00ffff', '#4a86e8', '#0000ff',
@@ -424,7 +400,6 @@ export class RichTextToolbarComponent {
     '#c9daf8', '#cfe2f3', '#d9d2e9', '#ead1dc', '#dd7e6b', '#ea9999', '#f9cb9c', '#ffe599',
   ];
 
-  /** Color palette for highlights (lighter colors) */
   highlightPalette = [
     'transparent', '#ffffff', '#fef3c7', '#fef9c3', '#d9f99d', '#bbf7d0', '#a7f3d0', '#99f6e4',
     '#a5f3fc', '#bae6fd', '#c7d2fe', '#ddd6fe', '#f5d0fe', '#fce7f3', '#fed7aa', '#fecaca',
@@ -432,10 +407,8 @@ export class RichTextToolbarComponent {
     '#a5b4fc', '#c4b5fd', '#e879f9', '#f472b6', '#fb923c', '#f87171', '#facc15', '#a3e635',
   ];
 
-  /** Font size options (8-72 in steps of 2) */
   fontSizeOptions = Array.from({ length: 33 }, (_, i) => 8 + i * 2);
 
-  /** Emits font size selection */
   fontSizeSelect = output<string>();
 
   containerClasses = computed(() =>

@@ -79,13 +79,10 @@ export class NativeSelectComponent implements ControlValueAccessor {
   disabled = input(false);
   invalid = input(false);
 
-  // Internal value signal
   protected innerValue = signal('');
 
   private formDisabled = signal(false);
   isDisabled = computed(() => this.disabled() || this.formDisabled());
-
-  // ControlValueAccessor
   onChange: (value: string) => void = () => { };
   onTouched: () => void = () => { };
 

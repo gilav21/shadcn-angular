@@ -77,7 +77,6 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
   @ViewChild('viewport') viewportRef?: ElementRef<HTMLElement>;
   @ViewChild('scrollRoot') scrollRootRef?: ElementRef<HTMLElement>;
 
-  // Scroll state
   private scrollTop = signal(0);
   private scrollLeft = signal(0);
   private scrollHeight = signal(0);
@@ -161,7 +160,6 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
   ngAfterViewInit() {
     this.updateScrollMetrics();
 
-    // Observe size changes
     if (this.viewportRef?.nativeElement) {
       this.resizeObserver = new ResizeObserver(() => {
         this.updateScrollMetrics();

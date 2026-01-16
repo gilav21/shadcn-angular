@@ -69,13 +69,11 @@ export class SliderComponent {
 
     value = signal(0);
 
-    /** Check if the component is in RTL mode by reading from the DOM */
     rtl() {
         return isRtl(this.el.nativeElement);
     }
 
     constructor() {
-        // Initialize with default value
         const defaultVal = this.defaultValue();
         if (defaultVal !== undefined) {
             this.value.set(defaultVal);
@@ -104,7 +102,6 @@ export class SliderComponent {
         this.updateValueFromEvent(event);
         this.startDragging();
 
-        // Focus the thumb for keyboard accessibility
         const thumb = this.el.nativeElement.querySelector('[role="slider"]');
         thumb?.focus();
     }

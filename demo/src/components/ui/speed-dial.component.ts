@@ -58,25 +58,19 @@ export class SpeedDialComponent implements OnDestroy {
     private el = inject(ElementRef);
     private document = inject(DOCUMENT);
 
-    // Inputs
     type = input<SpeedDialType>('linear');
     direction = input<SpeedDialDirection>('up');
     radius = input(80);
     transitionDelay = input(30);
     disabled = input(false, { transform: booleanAttribute });
 
-    // State
     open = signal(false);
-
-    // Position for context menu mode
     contextPosition = signal<{ x: number; y: number } | null>(null);
 
-    // Outputs
     visibleChange = output<boolean>();
     onShow = output<void>();
     onHide = output<void>();
 
-    // Host classes - add relative positioning only when in context mode
     hostClasses = computed(() =>
         cn(
             'inline-flex',
@@ -204,17 +198,13 @@ export class SpeedDialContextTriggerComponent {
         event.preventDefault();
         event.stopPropagation();
 
-        // Calculate position relative to the trigger container
         const rect = (event.currentTarget as HTMLElement).getBoundingClientRect();
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
-
-        // Show the speed dial at click position
         this.speedDial?.showAt(x, y);
     }
 
     onClick(event: MouseEvent) {
-        // Left-click closes the menu if open
         if (this.speedDial?.open()) {
             this.speedDial.hide();
         }
@@ -252,13 +242,11 @@ export class SpeedDialContextTriggerDirective {
         const speedDial = this.uiSpeedDialContextTrigger();
         if (!speedDial) return;
 
-        // Use viewport coordinates directly for fixed positioning
         speedDial.showAt(event.clientX, event.clientY);
     }
 
     onClick(event: MouseEvent) {
         const speedDial = this.uiSpeedDialContextTrigger();
-        // Left-click closes the menu if open
         if (speedDial?.open()) {
             speedDial.hide();
         }
@@ -282,7 +270,6 @@ export class SpeedDialMenuComponent {
     class = input('');
     ariaLabel = input<string | undefined>(undefined);
 
-    // Track registered items
     private registeredItems: SpeedDialItemComponent[] = [];
 
     registerItem(item: SpeedDialItemComponent) {
@@ -322,12 +309,9 @@ export class SpeedDialMenuComponent {
         const direction = this.speedDial?.direction() ?? 'up';
         const contextPos = this.speedDial?.contextPosition();
 
-        // If context position is set, use fixed positioning at viewport coordinates
         if (contextPos) {
             return cn('fixed z-50', this.class());
         }
-
-        // For linear layout, use flex direction
         if (type === 'linear') {
             const directionClasses: Record<string, string> = {
                 up: 'absolute bottom-full left-1/2 -translate-x-1/2 mb-2 flex flex-col-reverse gap-2',
@@ -338,7 +322,6 @@ export class SpeedDialMenuComponent {
             return cn(directionClasses[direction] || directionClasses['up'], this.class());
         }
 
-        // For circular layouts, items are positioned absolutely
         return cn('absolute inset-0', this.class());
     });
 }
@@ -362,7 +345,6 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
     private menu = inject(SpeedDialMenuComponent, { optional: true });
     class = input('');
 
-    // These will be set by the parent menu component
     itemIndex = signal(0);
     totalItems = signal(1);
 
@@ -395,14 +377,12 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
         const transitionDelay = this.speedDial?.transitionDelay() ?? 30;
         const idx = this.itemIndex();
 
-        // Linear layout doesn't need absolute positioning
         if (type === 'linear') {
             return {
                 'transition-delay': `${idx * transitionDelay}ms`,
             };
         }
 
-        // Calculate position for circular layouts
         const pos = this.calculateCircularPosition(type, direction, radius, idx, this.totalItems());
 
         return {
@@ -410,7 +390,7 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
             'transition-delay': `${idx * transitionDelay}ms`,
             left: '50%',
             top: '50%',
-            'margin-left': '-1.125rem', // Half of typical icon button width
+            'margin-left': '-1.125rem',
             'margin-top': '-1.125rem',
         };
     });
@@ -479,7 +459,6 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
         }
 
         const angleRange = endAngle - startAngle;
-        // For circle, don't overlap start/end. For others, distribute across endpoints
         const itemCount = type === 'circle' ? totalItems : Math.max(totalItems - 1, 1);
         const angleStep = angleRange / itemCount;
         const angle = startAngle + index * angleStep;

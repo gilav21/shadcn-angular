@@ -152,7 +152,6 @@ export class TooltipDirective implements OnDestroy {
             'fixed z-[9999] whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground pointer-events-none'
         );
 
-        // Append first so we can measure it
         this.renderer.appendChild(document.body, this.tooltipElement);
 
         const hostEl = this.el.nativeElement as HTMLElement;
@@ -166,7 +165,6 @@ export class TooltipDirective implements OnDestroy {
 
         let side = this.tooltipSide();
 
-        // Calculate initial position to check for overflow
         const calculatePosition = (currentSide: string) => {
             let t = 0;
             let l = 0;
@@ -193,10 +191,8 @@ export class TooltipDirective implements OnDestroy {
 
         let pos = calculatePosition(side);
 
-        // Check for overflow and flip if needed
         const { innerWidth, innerHeight } = window;
 
-        // Check vertical overflow
         if (side === 'top' && pos.top < 0) {
             side = 'bottom';
             pos = calculatePosition(side);
@@ -205,7 +201,6 @@ export class TooltipDirective implements OnDestroy {
             pos = calculatePosition(side);
         }
 
-        // Check horizontal overflow
         if (side === 'left' && pos.left < 0) {
             side = 'right';
             pos = calculatePosition(side);
@@ -214,7 +209,6 @@ export class TooltipDirective implements OnDestroy {
             pos = calculatePosition(side);
         }
 
-        // Clamp to viewport if still overflowing (e.g. mobile)
         pos.top = Math.max(8, Math.min(innerHeight - tooltipRect.height - 8, pos.top));
         pos.left = Math.max(8, Math.min(innerWidth - tooltipRect.width - 8, pos.left));
 

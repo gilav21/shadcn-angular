@@ -171,6 +171,214 @@
 
     <ui-separator />
 
+    <!-- Timeline Section -->
+    <section class="space-y-4">
+      <h2 id="timeline" class="text-2xl font-semibold scroll-m-20">Timeline</h2>
+      <p class="text-muted-foreground">
+        A vertical list of events with connecting lines and markers.
+      </p>
+
+      <ui-timeline>
+        <ui-timeline-item>
+          <ui-timeline-header>
+            <ui-timeline-dot variant="success" />
+            <ui-timeline-connector />
+          </ui-timeline-header>
+          <ui-timeline-content>
+            <ui-timeline-title>Version 2.0 Released</ui-timeline-title>
+            <ui-timeline-description>Major update with new features and improvements.</ui-timeline-description>
+            <ui-timeline-time>January 2024</ui-timeline-time>
+          </ui-timeline-content>
+        </ui-timeline-item>
+        <ui-timeline-item>
+          <ui-timeline-header>
+            <ui-timeline-dot variant="filled" />
+            <ui-timeline-connector />
+          </ui-timeline-header>
+          <ui-timeline-content>
+            <ui-timeline-title>Beta Testing</ui-timeline-title>
+            <ui-timeline-description>Started beta testing with early adopters.</ui-timeline-description>
+            <ui-timeline-time>December 2023</ui-timeline-time>
+          </ui-timeline-content>
+        </ui-timeline-item>
+        <ui-timeline-item>
+          <ui-timeline-header>
+            <ui-timeline-dot variant="default" />
+          </ui-timeline-header>
+          <ui-timeline-content>
+            <ui-timeline-title>Project Started</ui-timeline-title>
+            <ui-timeline-description>Initial development began.</ui-timeline-description>
+            <ui-timeline-time>October 2023</ui-timeline-time>
+          </ui-timeline-content>
+        </ui-timeline-item>
+      </ui-timeline>
+    </section>
+
+    <ui-separator />
+
+    <!-- Tree View Section -->
+    <section class="space-y-4">
+      <h2 id="tree-view" class="text-2xl font-semibold scroll-m-20">Tree View</h2>
+      <p class="text-muted-foreground">
+        A hierarchical list for displaying nested data like file systems.
+      </p>
+
+      <div class="rounded-md border p-4 max-w-sm">
+        <ui-tree selectable="single">
+          <ui-tree-item value="documents">
+            <ui-tree-label>
+              <ui-tree-icon>📁</ui-tree-icon>
+              Documents
+            </ui-tree-label>
+            <ui-tree-item value="resume">
+              <ui-tree-label>
+                <ui-tree-icon>📄</ui-tree-icon>
+                Resume.pdf
+              </ui-tree-label>
+            </ui-tree-item>
+            <ui-tree-item value="cover-letter">
+              <ui-tree-label>
+                <ui-tree-icon>📄</ui-tree-icon>
+                Cover Letter.docx
+              </ui-tree-label>
+            </ui-tree-item>
+          </ui-tree-item>
+          <ui-tree-item value="images">
+            <ui-tree-label>
+              <ui-tree-icon>📁</ui-tree-icon>
+              Images
+            </ui-tree-label>
+            <ui-tree-item value="photo1">
+              <ui-tree-label>
+                <ui-tree-icon>🖼️</ui-tree-icon>
+                vacation.jpg
+              </ui-tree-label>
+            </ui-tree-item>
+          </ui-tree-item>
+        </ui-tree>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Rating Section -->
+    <section class="space-y-4">
+      <h2 id="rating" class="text-2xl font-semibold scroll-m-20">Rating</h2>
+      <p class="text-muted-foreground">
+        An interactive star rating input.
+      </p>
+
+      <div class="space-y-4">
+        <div class="space-y-2 flex items-center gap-1">
+          <ui-label class="text-sm font-medium">Default ({{ demoRating() }} stars)</ui-label>
+          <ui-rating [ngModel]="demoRating()" (ngModelChange)="demoRating.set($event)" />
+        </div>
+
+        <div class="space-y-2 flex items-center gap-1">
+          <ui-label class="text-sm font-medium">Half Precision ({{ demoRatingHalf() }} stars)</ui-label>
+          <ui-rating [ngModel]="demoRatingHalf()" (ngModelChange)="demoRatingHalf.set($event)" [precision]="0.5" />
+        </div>
+
+        <div class="space-y-2 flex items-center gap-1">
+          <ui-label class="text-sm font-medium">Readonly</ui-label>
+          <ui-rating [ngModel]="4" [readonly]="true" />
+        </div>
+
+        <div class="space-y-2 flex items-center gap-1">
+          <ui-label class="text-sm font-medium">Large Size (10 stars)</ui-label>
+          <ui-rating [ngModel]="7" [max]="10" size="lg" [readonly]="true" />
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Stepper Section -->
+    <section class="space-y-4">
+      <h2 id="stepper" class="text-2xl font-semibold scroll-m-20">Stepper</h2>
+      <p class="text-muted-foreground">
+        A progress indicator for multi-step forms.
+      </p>
+
+      <ui-stepper [(activeStep)]="activeStep">
+        <ui-stepper-item value="step-1">
+          <ui-stepper-trigger>
+            <ui-stepper-title>Account</ui-stepper-title>
+            <ui-stepper-description>Create your account</ui-stepper-description>
+          </ui-stepper-trigger>
+          <ui-stepper-content>
+            <div class="p-4 border rounded-md space-y-4">
+              <p class="text-sm text-muted-foreground">Enter your account information...</p>
+              <ui-button (click)="activeStep.set(1)">Continue</ui-button>
+            </div>
+          </ui-stepper-content>
+        </ui-stepper-item>
+        <ui-stepper-item value="step-2">
+          <ui-stepper-trigger>
+            <ui-stepper-title>Profile</ui-stepper-title>
+            <ui-stepper-description>Set up your profile</ui-stepper-description>
+          </ui-stepper-trigger>
+          <ui-stepper-content>
+            <div class="p-4 border rounded-md space-y-4">
+              <p class="text-sm text-muted-foreground">Configure your profile settings...</p>
+              <div class="flex gap-2">
+                <ui-button variant="outline" (click)="activeStep.set(0)">Back</ui-button>
+                <ui-button (click)="activeStep.set(2)">Continue</ui-button>
+              </div>
+            </div>
+          </ui-stepper-content>
+        </ui-stepper-item>
+        <ui-stepper-item value="step-3">
+          <ui-stepper-trigger>
+            <ui-stepper-title>Complete</ui-stepper-title>
+            <ui-stepper-description>Finish setup</ui-stepper-description>
+          </ui-stepper-trigger>
+          <ui-stepper-content>
+            <div class="p-4 border rounded-md space-y-4">
+              <p class="text-sm text-muted-foreground">All done! Your account is ready.</p>
+              <ui-button variant="outline" (click)="activeStep.set(1)">Back</ui-button>
+            </div>
+          </ui-stepper-content>
+        </ui-stepper-item>
+      </ui-stepper>
+    </section>
+
+    <ui-separator />
+
+    <!-- File Upload Section -->
+    <section class="space-y-4">
+      <h2 id="file-upload" class="text-2xl font-semibold scroll-m-20">File Upload</h2>
+      <p class="text-muted-foreground">
+        A drag-and-drop zone with file list preview, progress bars, and remove actions.
+      </p>
+
+      <div class="max-w-md">
+        <ui-file-upload accept="image/*,.pdf" [multiple]="true" [maxFiles]="5" [maxSize]="5242880" />
+      </div>
+    </section>
+
+    <ui-separator />
+
+    <!-- Color Picker Section -->
+    <section class="space-y-4">
+      <h2 id="color-picker" class="text-2xl font-semibold scroll-m-20">Color Picker</h2>
+      <p class="text-muted-foreground">
+        A popover component with a spectrum, hex/rgb inputs, and preset swatches.
+      </p>
+
+      <div class="flex items-center gap-4">
+        <ui-color-picker [ngModel]="demoColor()" (ngModelChange)="demoColor.set($event)" [presets]="colorPresets"
+          class="w-48" />
+        <div class="flex items-center gap-2">
+          <span class="text-sm text-muted-foreground">Selected:</span>
+          <span class="h-8 w-8 rounded border" [style.backgroundColor]="demoColor()"></span>
+          <code class="text-sm font-mono">{{ demoColor() }}</code>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
     <!-- Buttons Section -->
     <section class="space-y-4">
       <h2 id="buttons" class="text-2xl font-semibold scroll-m-20">Buttons</h2>
