@@ -379,6 +379,46 @@
 
     <ui-separator />
 
+    <!-- Confetti Section -->
+    <section class="space-y-4">
+      <h2 id="confetti" class="text-2xl font-semibold scroll-m-20">Confetti</h2>
+      <p class="text-muted-foreground">
+        A canvas-based celebration effect for success states.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Basic Usage -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Basic Trigger</h3>
+          <div
+            class="relative h-[200px] w-full border rounded-lg flex items-center justify-center bg-background overflow-hidden"
+            uiConfetti [manualTrigger]="confettiTrigger1()"
+            [options]="{ spread: 90, particleCount: 100, origin: { x: 0.6, y: 0.6 } }">
+            <ui-button (click)="fireConfetti1()">Celebrate!</ui-button>
+          </div>
+        </div>
+
+        <!-- Custom Shapes & Colors -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Custom Design</h3>
+          <div
+            class="relative h-[200px] w-full border rounded-lg flex items-center justify-center bg-background overflow-hidden"
+            uiConfetti [manualTrigger]="confettiTrigger2()" [options]="{ 
+                    colors: ['#000000', '#E11D48'], 
+                    shapes: ['square'], 
+                    spread: 90, 
+                    scalar: 1, 
+                    startVelocity: 50,
+                    gravity: 0.1
+                 }">
+            <ui-button variant="outline" (click)="fireConfetti2()">Black & Red</ui-button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
     <!-- Buttons Section -->
     <section class="space-y-4">
       <h2 id="buttons" class="text-2xl font-semibold scroll-m-20">Buttons</h2>

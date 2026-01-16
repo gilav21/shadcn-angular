@@ -80,6 +80,10 @@ export const registry: Record<string, ComponentDefinition> = {
     files: ['color-picker.component.ts'],
     dependencies: ['popover', 'input', 'tabs'],
   },
+  confetti: {
+    name: 'confetti',
+    files: ['confetti.directive.ts'],
+  },
   command: {
     name: 'command',
     files: ['command.component.ts'],

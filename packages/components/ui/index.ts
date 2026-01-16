@@ -63,3 +63,4 @@ export * from './rating.component';
 export * from './stepper.component';
 export * from './file-upload.component';
 export * from './color-picker.component';
+export * from './confetti.directive';

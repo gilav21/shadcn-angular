@@ -109,7 +109,6 @@ import {
   ContextMenuContentComponent,
   ContextMenuItemComponent,
   ContextMenuSeparatorComponent,
-  ContextMenuLabelComponent,
   ContextMenuShortcutComponent,
   DrawerComponent,
   DrawerTriggerComponent,
@@ -179,7 +178,6 @@ import {
   SidebarGroupContentComponent,
   SidebarMenuComponent,
   SidebarMenuItemComponent,
-  SidebarMenuButtonComponent,
   SidebarMenuLinkComponent,
   SidebarTriggerComponent,
   SidebarInsetComponent,
@@ -211,8 +209,6 @@ import {
   SpeedDialTriggerComponent,
   SpeedDialMenuComponent,
   SpeedDialItemComponent,
-  SpeedDialMaskComponent,
-  SpeedDialContextTriggerComponent,
   SpeedDialContextTriggerDirective,
   ChipListComponent,
   EmojiPickerComponent,
@@ -243,8 +239,9 @@ import {
   StepperDescriptionComponent,
   StepperContentComponent,
   FileUploadComponent,
-  ColorPickerComponent,
+  ColorPickerComponent
 } from '../components/ui';
+import { UiConfettiDirective } from "@/components/ui/confetti.directive";
 
 interface Framework {
   value: string;
@@ -492,6 +489,7 @@ interface Framework {
     StepperContentComponent,
     FileUploadComponent,
     ColorPickerComponent,
+    UiConfettiDirective
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -641,6 +639,7 @@ export class AppComponent {
     { title: 'Stepper', id: 'stepper' },
     { title: 'File Upload', id: 'file-upload' },
     { title: 'Color Picker', id: 'color-picker' },
+    { title: 'Confetti', id: 'confetti' },
   ];
 
   onKeydown(e: KeyboardEvent) {
@@ -687,4 +686,24 @@ export class AppComponent {
   activeStep = signal(0);
   demoColor = signal('#3b82f6');
   colorPresets = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+  // Confetti Demo
+  confettiTrigger1 = signal(false);
+  confettiTrigger2 = signal(false);
+  confettiTrigger3 = signal(false);
+
+  fireConfetti1() {
+    this.confettiTrigger1.set(false);
+    setTimeout(() => this.confettiTrigger1.set(true), 0);
+  }
+
+  fireConfetti2() {
+    this.confettiTrigger2.set(false);
+    setTimeout(() => this.confettiTrigger2.set(true), 0);
+  }
+
+  fireConfetti3() {
+    this.confettiTrigger3.set(false);
+    setTimeout(() => this.confettiTrigger3.set(true), 0);
+  }
 }
