@@ -75,15 +75,15 @@ class CVATestHostComponent {
 }
 
 describe('SelectComponent', () => {
-    let component: SelectComponent;
-    let fixture: ComponentFixture<SelectComponent>;
+    let component: SelectComponent<string>;
+    let fixture: ComponentFixture<SelectComponent<string>>;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [SelectComponent]
         }).compileComponents();
 
-        fixture = TestBed.createComponent(SelectComponent);
+        fixture = TestBed.createComponent(SelectComponent<string>);
         component = fixture.componentInstance;
         fixture.detectChanges();
     });
@@ -385,3 +385,345 @@ describe('Select Keyboard Navigation', () => {
         expect(document.activeElement === secondItem.nativeElement).toBe(true);
     });
 });
+
+// ============================================
+// DATA-DRIVEN MODE TESTS
+// ============================================
+
+// Simple data-driven test host with string array
+@Component({
+    template: `
+        <ui-select 
+            [options]="fruits" 
+            [(value)]="selected"
+            (valueChange)="onValueChange($event)"
+            placeholder="Select a fruit..."
+        />
+    `,
+    imports: [SelectComponent]
+})
+class DataDrivenStringTestHost {
+    fruits = ['Apple', 'Banana', 'Cherry', 'Date'];
+    selected: string | null = null;
+    onValueChange(value: string) {
+        this.selected = value;
+    }
+}
+
+describe('Select Data-Driven Mode (Strings)', () => {
+    let fixture: ComponentFixture<DataDrivenStringTestHost>;
+    let component: DataDrivenStringTestHost;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataDrivenStringTestHost]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataDrivenStringTestHost);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should render in data-driven mode', () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        expect(trigger).toBeTruthy();
+    });
+
+    it('should show placeholder when no value selected', () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        expect(trigger.nativeElement.textContent).toContain('Select a fruit...');
+    });
+
+    it('should open dropdown on click', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const listbox = fixture.debugElement.query(By.css('[role="listbox"]'));
+        expect(listbox).toBeTruthy();
+    });
+
+    it('should render all options', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+        expect(options.length).toBe(4);
+    });
+
+    it('should select option on click', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+        options[1].nativeElement.click(); // Select "Banana"
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.selected).toBe('Banana');
+    });
+
+    it('should close dropdown after selection', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+        options[0].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const listbox = fixture.debugElement.query(By.css('[role="listbox"]'));
+        expect(listbox).toBeNull();
+    });
+
+    it('should show selected value in trigger', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+        options[2].nativeElement.click(); // Select "Cherry"
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(trigger.nativeElement.textContent).toContain('Cherry');
+    });
+});
+
+// Object data-driven test host
+interface Country {
+    name: string;
+    code: string;
+}
+
+@Component({
+    template: `
+        <ui-select 
+            [options]="countries" 
+            [displayWith]="displayFn"
+            valueAttribute="code"
+            [(value)]="selected"
+            placeholder="Select a country..."
+        />
+    `,
+    imports: [SelectComponent]
+})
+class DataDrivenObjectTestHost {
+    countries: Country[] = [
+        { name: 'United States', code: 'US' },
+        { name: 'United Kingdom', code: 'UK' },
+        { name: 'Germany', code: 'DE' },
+    ];
+    selected: string | null = null;
+    displayFn = (country: Country) => country.name;
+}
+
+describe('Select Data-Driven Mode (Objects)', () => {
+    let fixture: ComponentFixture<DataDrivenObjectTestHost>;
+    let component: DataDrivenObjectTestHost;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataDrivenObjectTestHost]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataDrivenObjectTestHost);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should render options with displayWith', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+        expect(options[0].nativeElement.textContent).toContain('United States');
+        expect(options[1].nativeElement.textContent).toContain('United Kingdom');
+    });
+
+    it('should extract value using valueAttribute', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+        options[2].nativeElement.click(); // Select Germany
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.selected).toBe('DE');
+    });
+
+    it('should display selected option label in trigger', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+        options[1].nativeElement.click(); // Select UK
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(trigger.nativeElement.textContent).toContain('United Kingdom');
+    });
+});
+
+// Data-driven CVA test host
+@Component({
+    template: `
+        <ui-select 
+            [options]="options" 
+            [formControl]="control"
+            placeholder="Select..."
+        />
+    `,
+    imports: [SelectComponent, ReactiveFormsModule]
+})
+class DataDrivenCVATestHost {
+    options = ['Option A', 'Option B', 'Option C'];
+    control = new FormControl('');
+}
+
+describe('Select Data-Driven ControlValueAccessor', () => {
+    let fixture: ComponentFixture<DataDrivenCVATestHost>;
+    let component: DataDrivenCVATestHost;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataDrivenCVATestHost]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataDrivenCVATestHost);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should write value from FormControl', async () => {
+        component.control.setValue('Option B');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        expect(trigger.nativeElement.textContent).toContain('Option B');
+    });
+
+    it('should update FormControl on selection', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+        options[2].nativeElement.click(); // Option C
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.control.value).toBe('Option C');
+    });
+
+    it('should disable select when FormControl is disabled', async () => {
+        component.control.disable();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        expect(trigger.nativeElement.disabled).toBe(true);
+    });
+});
+
+// Data-driven keyboard navigation
+describe('Select Data-Driven Keyboard Navigation', () => {
+    let fixture: ComponentFixture<DataDrivenStringTestHost>;
+    let component: DataDrivenStringTestHost;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataDrivenStringTestHost]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataDrivenStringTestHost);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should open on Enter key', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.triggerEventHandler('keydown', { key: 'Enter', preventDefault: () => { } });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const listbox = fixture.debugElement.query(By.css('[role="listbox"]'));
+        expect(listbox).toBeTruthy();
+    });
+
+    it('should open on Space key', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.triggerEventHandler('keydown', { key: ' ', preventDefault: () => { } });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const listbox = fixture.debugElement.query(By.css('[role="listbox"]'));
+        expect(listbox).toBeTruthy();
+    });
+
+    it('should open on ArrowDown key', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.triggerEventHandler('keydown', { key: 'ArrowDown', preventDefault: () => { } });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const listbox = fixture.debugElement.query(By.css('[role="listbox"]'));
+        expect(listbox).toBeTruthy();
+    });
+
+    it('should close on Escape key', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Dispatch escape on document
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const listbox = fixture.debugElement.query(By.css('[role="listbox"]'));
+        expect(listbox).toBeNull();
+    });
+
+    it('should focus listbox when opened to enable keyboard navigation', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // Wait for any setTimeout in focus logic
+        await new Promise(resolve => setTimeout(resolve, 10));
+        fixture.detectChanges();
+
+        const listbox = fixture.debugElement.query(By.css('[role="listbox"]'));
+        expect(listbox).toBeTruthy();
+
+        // The listbox or first item should be focused for keyboard navigation to work
+        const activeElement = document.activeElement;
+        const options = fixture.debugElement.queryAll(By.css('[role="option"]'));
+
+        const isListboxFocused = activeElement === listbox.nativeElement;
+        const isFirstOptionFocused = options.length > 0 && activeElement === options[0].nativeElement;
+
+        expect(isListboxFocused || isFirstOptionFocused).toBe(true);
+    });
+});
+
