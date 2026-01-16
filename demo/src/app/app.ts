@@ -691,6 +691,7 @@ export class AppComponent {
   confettiTrigger1 = signal(false);
   confettiTrigger2 = signal(false);
   confettiTrigger3 = signal(false);
+  confettiTrigger4 = signal(false);
 
   fireConfetti1() {
     this.confettiTrigger1.set(false);
@@ -705,5 +706,10 @@ export class AppComponent {
   fireConfetti3() {
     this.confettiTrigger3.set(false);
     setTimeout(() => this.confettiTrigger3.set(true), 0);
+  }
+
+  fireConfetti4() {
+    this.confettiTrigger4.set(false);
+    setTimeout(() => this.confettiTrigger4.set(true), 0);
   }
 }

@@ -38,6 +38,8 @@ export interface ConfettiOptions {
     zIndex?: number;
     /** Whether to disable for reduced motion preference. */
     disableForReducedMotion?: boolean;
+    /** Variant of the confetti explosion. 'default' | 'side-cannons'. Default 'default'. */
+    variant?: 'default' | 'side-cannons';
 }
 
 interface Particle {
@@ -116,6 +118,33 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
         if (!this._canvas || !this._ctx) return;
 
         const opts = this.options();
+        const variant = opts.variant || 'default';
+
+        if (variant === 'side-cannons') {
+            // Left cannon
+            this._launchParticles({
+                ...opts,
+                origin: { x: 0, y: 1 },
+                angle: 60,
+                spread: 55
+            });
+            // Right cannon
+            this._launchParticles({
+                ...opts,
+                origin: { x: 1, y: 1 },
+                angle: 120,
+                spread: 55
+            });
+        } else {
+            this._launchParticles(opts);
+        }
+
+        if (this._animationFrameId === null) {
+            this._animate();
+        }
+    }
+
+    private _launchParticles(opts: ConfettiOptions): void {
         const particleCount = opts.particleCount || 50;
         const angle = opts.angle ?? 90;
         const spread = opts.spread || 45;
@@ -129,8 +158,8 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
         const shapes = opts.shapes || ['square', 'circle'];
         const scalar = opts.scalar || 1;
 
-        const canvasWidth = this._canvas.width;
-        const canvasHeight = this._canvas.height;
+        const canvasWidth = this._canvas!.width;
+        const canvasHeight = this._canvas!.height;
 
         const originX = origin.x * canvasWidth;
         const originY = origin.y * canvasHeight;
@@ -152,10 +181,6 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
                     ticks
                 )
             );
-        }
-
-        if (this._animationFrameId === null) {
-            this._animate();
         }
     }
 

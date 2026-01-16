@@ -414,6 +414,26 @@
             <ui-button variant="outline" (click)="fireConfetti2()">Black & Red</ui-button>
           </div>
         </div>
+
+        <!-- Side Cannons -->
+        <div class="space-y-4 md:col-span-2">
+          <h3 class="text-lg font-semibold">Side Cannons</h3>
+          <div
+            class="relative h-[200px] w-full border rounded-lg flex items-center justify-center bg-background overflow-hidden"
+            uiConfetti [manualTrigger]="confettiTrigger3()"
+            [options]="{ variant: 'side-cannons', particleCount: 300, ticks: 400, startVelocity: 60 }">
+            <ui-button variant="secondary" (click)="fireConfetti3()">Fill Container</ui-button>
+          </div>
+        </div>
+
+
+        <ui-button variant="secondary" class="w-[200px] p-0 " (click)="fireConfetti4()">
+          <div class="relative h-full w-full border flex items-center justify-center" uiConfetti
+            [manualTrigger]="confettiTrigger4()"
+            [options]="{ variant: 'side-cannons', particleCount: 85, ticks: 500, startVelocity: 15, angle: 120, gravity: 0.02 }">
+            Fill
+            Button</div>
+        </ui-button>
       </div>
     </section>
 
