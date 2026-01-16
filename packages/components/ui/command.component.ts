@@ -108,6 +108,7 @@ export class CommandService {
   selectActive() {
     const activeId = this.activeItemId();
     if (activeId) {
+
       if (!this.filteredItemIds().has(activeId)) return;
 
       const item = this.items().get(activeId);

@@ -122,14 +122,12 @@ export class SheetTriggerComponent {
         aria-modal="true"
         (keydown)="onKeydown($event)"
       >
-        <!-- Overlay -->
         <div
           class="fixed inset-0 bg-black/50 animate-in fade-in-0"
           [attr.data-slot]="'sheet-overlay'"
           (click)="onOverlayClick()"
           aria-hidden="true"
         ></div>
-        <!-- Content -->
         <div
           #contentEl
           [class]="classes()"
@@ -138,7 +136,6 @@ export class SheetTriggerComponent {
           tabindex="-1"
         >
           <ng-content />
-          <!-- Close button -->
           <button
             type="button"
             class="absolute ltr:right-4 rtl:left-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none"

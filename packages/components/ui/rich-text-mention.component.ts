@@ -15,7 +15,6 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
 import { ScrollAreaComponent } from './scroll-area.component';
-import { InputComponent } from './input.component';
 import { LucideAngularModule } from 'lucide-angular';
 
 export interface MentionItem {
@@ -36,7 +35,7 @@ export interface TagItem {
 @Component({
   selector: 'ui-rich-text-mention-popover',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ScrollAreaComponent, InputComponent, LucideAngularModule],
+  imports: [ScrollAreaComponent, LucideAngularModule],
   template: `
     <div
       [class]="containerClasses()"
@@ -116,11 +115,14 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
   @ViewChildren('itemButton') itemButtons!: QueryList<ElementRef<HTMLButtonElement>>;
 
   type = input<'mention' | 'tag'>('mention');
+
   query = input<string>('');
+
   items = input<(MentionItem | TagItem)[]>([]);
   position = input<{ x: number; y: number }>({ x: 0, y: 0 });
 
   itemSelect = output<MentionItem | TagItem>();
+
   close = output<void>();
 
   selectedIndex = signal<number>(0);

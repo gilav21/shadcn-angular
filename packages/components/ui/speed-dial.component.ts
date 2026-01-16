@@ -65,7 +65,6 @@ export class SpeedDialComponent implements OnDestroy {
     disabled = input(false, { transform: booleanAttribute });
 
     open = signal(false);
-
     contextPosition = signal<{ x: number; y: number } | null>(null);
 
     visibleChange = output<boolean>();

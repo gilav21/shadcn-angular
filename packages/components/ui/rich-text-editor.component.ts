@@ -454,7 +454,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.closeMentionPopover();
             this.showFloatingToolbar.set(false);
         }
-
         if (event.key === 'Tab' && !this.mentionPopoverOpen()) {
             event.preventDefault();
             this.document.execCommand('insertText', false, '\t');
@@ -484,7 +483,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
                     if (textContent.endsWith('\n')) {
                         textNode.textContent = textContent.slice(0, -1);
-
                         const p = this.document.createElement('p');
                         p.innerHTML = '<br>';
                         preElement.parentNode?.insertBefore(p, preElement.nextSibling);
@@ -498,7 +496,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                         const textNodeToInsert = this.document.createTextNode('\n');
                         range.deleteContents();
                         range.insertNode(textNodeToInsert);
-
                         const newRange = this.document.createRange();
                         newRange.setStartAfter(textNodeToInsert);
                         newRange.setEndAfter(textNodeToInsert);
@@ -689,7 +686,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
             const spaceNode = this.document.createTextNode('\u200B');
             wrapper.parentNode?.insertBefore(spaceNode, wrapper.nextSibling);
-
             const cursorRange = this.document.createRange();
             cursorRange.setStart(spaceNode, 1);
             cursorRange.setEnd(spaceNode, 1);
@@ -816,7 +812,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.restoreSelection();
 
         this.document.execCommand('fontSize', false, '7');
-
         if (this.editorDiv?.nativeElement) {
             const fontElements = this.editorDiv.nativeElement.querySelectorAll('font[size="7"]');
 
@@ -829,7 +824,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 while (el.firstChild) {
                     span.appendChild(el.firstChild);
                 }
-
                 el.parentNode?.replaceChild(span, el);
             });
         }
@@ -888,7 +882,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
-
             const query = this.mentionQuery();
             for (let i = 0; i <= query.length; i++) {
                 this.document.execCommand('delete', false);
