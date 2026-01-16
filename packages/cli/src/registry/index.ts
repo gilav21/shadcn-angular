@@ -75,6 +75,11 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'collapsible',
     files: ['collapsible.component.ts'],
   },
+  'color-picker': {
+    name: 'color-picker',
+    files: ['color-picker.component.ts'],
+    dependencies: ['popover', 'input', 'tabs'],
+  },
   command: {
     name: 'command',
     files: ['command.component.ts'],
@@ -108,6 +113,11 @@ export const registry: Record<string, ComponentDefinition> = {
   field: {
     name: 'field',
     files: ['field.component.ts'],
+  },
+  'file-upload': {
+    name: 'file-upload',
+    files: ['file-upload.component.ts'],
+    dependencies: ['button', 'progress'],
   },
   'hover-card': {
     name: 'hover-card',
@@ -161,6 +171,10 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'radio-group',
     files: ['radio-group.component.ts'],
   },
+  rating: {
+    name: 'rating',
+    files: ['rating.component.ts'],
+  },
   resizable: {
     name: 'resizable',
     files: ['resizable.component.ts'],
@@ -197,6 +211,10 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'spinner',
     files: ['spinner.component.ts'],
   },
+  stepper: {
+    name: 'stepper',
+    files: ['stepper.component.ts'],
+  },
   switch: {
     name: 'switch',
     files: ['switch.component.ts'],
@@ -213,6 +231,10 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'textarea',
     files: ['textarea.component.ts'],
   },
+  timeline: {
+    name: 'timeline',
+    files: ['timeline.component.ts'],
+  },
   toast: {
     name: 'toast',
     files: ['toast.component.ts'],
@@ -228,6 +250,10 @@ export const registry: Record<string, ComponentDefinition> = {
   tooltip: {
     name: 'tooltip',
     files: ['tooltip.component.ts'],
+  },
+  tree: {
+    name: 'tree',
+    files: ['tree.component.ts'],
   },
   'speed-dial': {
     name: 'speed-dial',
