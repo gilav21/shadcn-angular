@@ -155,7 +155,7 @@ export class PieChartDrilldownComponent {
   legendPosition = input<LegendPosition>('right');
   showTooltip = input(true);
   showBreadcrumb = input(true);
-  backButtonText = input('← Back');
+  backButtonText = input('Back');
   class = input('');
   title = input<string | undefined>(undefined);
 

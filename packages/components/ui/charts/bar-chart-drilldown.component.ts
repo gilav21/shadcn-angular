@@ -177,7 +177,7 @@ export class BarChartDrilldownComponent {
   barRadius = input(4);
   barGap = input(8);
   showBreadcrumb = input(true);
-  backButtonText = input('← Back');
+  backButtonText = input('Back');
   class = input('');
   title = input<string | undefined>(undefined);
 
