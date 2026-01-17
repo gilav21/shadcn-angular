@@ -471,6 +471,96 @@
 
     <ui-separator />
 
+    <!-- Charts Section -->
+    <section class="space-y-6">
+      <h2 id="charts" class="text-2xl font-semibold scroll-m-20">Charts</h2>
+      <p class="text-muted-foreground">
+        A collection of beautiful, interactive chart components built with pure SVG.
+      </p>
+
+      <div class="space-y-8">
+        <!-- Pie Chart -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Pie Chart</h3>
+          <p class="text-sm text-muted-foreground">Basic pie chart with legend and hover effects.</p>
+          <ui-pie-chart [data]="pieChartData" [size]="280" legendPosition="right" />
+        </div>
+
+        <!-- Donut Chart -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Donut Chart</h3>
+          <p class="text-sm text-muted-foreground">Pie chart with inner radius for a donut appearance.</p>
+          <ui-pie-chart [data]="pieChartData" [size]="280" [innerRadius]="0.5" legendPosition="right" />
+        </div>
+
+        <!-- Pie Chart with Drilldown -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Pie Chart with Drilldown</h3>
+          <p class="text-sm text-muted-foreground">Click on a slice to drill down into details. Hover to see drilldown
+            hints.</p>
+          <ui-pie-chart-drilldown [data]="drilldownData" [drilldownSeries]="drilldownSeries" [size]="280"
+            [innerRadius]="0" legendPosition="right" title="Browser Market Share" />
+        </div>
+
+        <!-- Bar Chart (Vertical) -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Bar Chart (Vertical)</h3>
+          <p class="text-sm text-muted-foreground">Column chart showing monthly revenue data.</p>
+          <ui-bar-chart [data]="barChartData" [width]="500" [height]="280" orientation="vertical" xAxisLabel="Month"
+            yAxisLabel="Revenue ($)" />
+        </div>
+
+        <!-- Bar Chart (Horizontal) -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Bar Chart (Horizontal)</h3>
+          <p class="text-sm text-muted-foreground">Horizontal bars for comparing categorical data.</p>
+          <ui-bar-chart [data]="pieChartData" [width]="500" [height]="280" orientation="horizontal" />
+        </div>
+
+        <!-- Bar Chart with Drilldown -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Column Chart with Drilldown</h3>
+          <p class="text-sm text-muted-foreground">Click a column to see the breakdown.</p>
+          <ui-bar-chart-drilldown [data]="drilldownData" [drilldownSeries]="drilldownSeries" [width]="500"
+            [height]="280" title="Browser Market Share" />
+        </div>
+
+        <!-- Stacked Bar Chart -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Stacked Bar Chart</h3>
+          <p class="text-sm text-muted-foreground">Multi-series stacked columns showing cumulative data.</p>
+          <ui-stacked-bar-chart [series]="stackedSeries" [categories]="stackedCategories" [width]="500" [height]="280"
+            stacking="absolute" [showTotal]="true" />
+        </div>
+
+        <!-- Stacked Bar Chart (Percent) -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Stacked Bar Chart (Percentage)</h3>
+          <p class="text-sm text-muted-foreground">100% stacked to show proportions.</p>
+          <ui-stacked-bar-chart [series]="stackedSeries" [categories]="stackedCategories" [width]="500" [height]="280"
+            stacking="percent" />
+        </div>
+
+        <!-- Column Range Chart -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Column Range Chart</h3>
+          <p class="text-sm text-muted-foreground">Shows temperature ranges (low to high) for each month.</p>
+          <ui-column-range-chart [data]="rangeChartData" [width]="500" [height]="280" unit="°C"
+            title="Monthly Temperature Range" />
+        </div>
+
+        <!-- Bar Race Chart -->
+        <div class="space-y-4">
+          <h3 class="text-lg font-semibold">Bar Race Chart</h3>
+          <p class="text-sm text-muted-foreground">Animated ranking chart. Click play to start the animation.</p>
+          <ui-bar-race-chart [frames]="barRaceFrames" [frameLabels]="barRaceLabels" [width]="600" [height]="320"
+            [maxBars]="6" [animationDuration]="600" title="Sales Leaderboard" />
+        </div>
+      </div>
+    </section>
+
+    <ui-separator />
+
     <!-- Buttons Section -->
     <section class="space-y-4">
       <h2 id="buttons" class="text-2xl font-semibold scroll-m-20">Buttons</h2>
