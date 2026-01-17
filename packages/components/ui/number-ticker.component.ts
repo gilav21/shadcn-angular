@@ -1,6 +1,7 @@
 import {
     Component,
     ElementRef,
+    ChangeDetectorRef,
     OnDestroy,
     computed,
     effect,
@@ -16,10 +17,7 @@ import { cn } from '../lib/utils';
     template: `
     <div class="relative inline-block overflow-hidden h-[1em] w-[0.6em] align-top">
       @if (isDigit()) {
-        <div class="flex flex-col transition-transform duration-300 will-change-transform"
-             [class.-translate-y-full]="animating()"
-             [class.translate-y-0]="!animating()"
-             (transitionend)="onTransitionEnd()">
+        <div class="flex flex-col will-change-transform">
           <span class="h-[1em] flex items-center justify-center">{{ prevDigit() }}</span>
           <span class="h-[1em] flex items-center justify-center">{{ digit() }}</span>
         </div>
@@ -32,12 +30,14 @@ import { cn } from '../lib/utils';
 export class NumberTickerDigitComponent {
     digit = input.required<string>();
 
+    private el = inject(ElementRef);
+    private cdr = inject(ChangeDetectorRef);
     prevDigit = signal<string>('0');
-    animating = signal(false);
     isDigit = computed(() => /^[0-9]$/.test(this.digit()));
 
     private _lastValue = '';
     private _initialized = false;
+    private _currentAnimation: Animation | null = null;
 
     constructor() {
         effect(() => {
@@ -51,25 +51,49 @@ export class NumberTickerDigitComponent {
             }
 
             if (current !== this._lastValue) {
+                // Finish any ongoing animation immediately to update state
+                if (this._currentAnimation) {
+                    this._currentAnimation.finish();
+                }
+
                 if (this.isDigit()) {
-                    this.prevDigit.set(this._lastValue);
-                    this.animating.set(false);
-                    setTimeout(() => {
-                        this.animating.set(true);
-                    }, 20);
+                    const previous = this._lastValue;
+                    this.prevDigit.set(previous);
+
+                    // Animate
+                    const container = this.el.nativeElement.querySelector('.flex');
+                    if (container) {
+                        const animation = container.animate(
+                            [
+                                { transform: 'translateY(0)' },
+                                { transform: 'translateY(-50%)' }
+                            ],
+                            {
+                                duration: 300,
+                                easing: 'cubic-bezier(0.23, 1, 0.32, 1)',
+                                fill: 'forwards'
+                            }
+                        );
+                        this._currentAnimation = animation;
+
+                        animation.onfinish = () => {
+                            this.prevDigit.set(current);
+                            this.cdr.detectChanges();
+                            animation.cancel();
+                            if (this._currentAnimation === animation) {
+                                this._currentAnimation = null;
+                            }
+                        };
+                    } else {
+                        // Fallback if element not found
+                        this.prevDigit.set(current);
+                    }
                 } else {
                     this.prevDigit.set(current);
                 }
                 this._lastValue = current;
             }
-        }, { allowSignalWrites: true });
-    }
-
-    onTransitionEnd() {
-        if (this.animating()) {
-            this.prevDigit.set(this.digit());
-            this.animating.set(false);
-        }
+        });
     }
 }
 
@@ -89,8 +113,9 @@ export class NumberTickerComponent implements OnDestroy {
     private readonly _el = inject(ElementRef);
 
     value = input.required<number>();
+    direction = input<'up' | 'down'>('up');
     delay = input<number>(0);
-    duration = input<number>(1.5);
+    duration = input<number>(1);
     decimalPlaces = input<number>(0);
     class = input<string>('');
 
@@ -136,11 +161,11 @@ export class NumberTickerComponent implements OnDestroy {
 
         const progress = Math.min(relativeProgress, 1);
 
-        const easeOutQuart = (x: number): number => {
-            return 1 - Math.pow(1 - x, 4);
+        const easeOutCubic = (x: number): number => {
+            return 1 - Math.pow(1 - x, 3);
         };
 
-        const easedProgress = easeOutQuart(progress);
+        const easedProgress = easeOutCubic(progress);
 
         this._currentValue = this._startValue + (this._endValue - this._startValue) * easedProgress;
 
