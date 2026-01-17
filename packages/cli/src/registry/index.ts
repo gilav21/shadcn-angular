@@ -298,4 +298,69 @@ export const registry: Record<string, ComponentDefinition> = {
       'scroll-area',
     ],
   },
+  // Chart Components
+  'pie-chart': {
+    name: 'pie-chart',
+    files: [
+      'charts/pie-chart.component.ts',
+      'charts/chart.types.ts',
+      'charts/chart.utils.ts',
+    ],
+  },
+  'pie-chart-drilldown': {
+    name: 'pie-chart-drilldown',
+    files: [
+      'charts/pie-chart-drilldown.component.ts',
+      'charts/chart.types.ts',
+      'charts/chart.utils.ts',
+    ],
+  },
+  'bar-chart': {
+    name: 'bar-chart',
+    files: [
+      'charts/bar-chart.component.ts',
+      'charts/chart.types.ts',
+      'charts/chart.utils.ts',
+    ],
+  },
+  'bar-chart-drilldown': {
+    name: 'bar-chart-drilldown',
+    files: [
+      'charts/bar-chart-drilldown.component.ts',
+      'charts/chart.types.ts',
+      'charts/chart.utils.ts',
+    ],
+  },
+  'stacked-bar-chart': {
+    name: 'stacked-bar-chart',
+    files: [
+      'charts/stacked-bar-chart.component.ts',
+      'charts/chart.types.ts',
+      'charts/chart.utils.ts',
+    ],
+  },
+  'column-range-chart': {
+    name: 'column-range-chart',
+    files: [
+      'charts/column-range-chart.component.ts',
+      'charts/chart.types.ts',
+      'charts/chart.utils.ts',
+    ],
+  },
+  'bar-race-chart': {
+    name: 'bar-race-chart',
+    files: [
+      'charts/bar-race-chart.component.ts',
+      'charts/chart.types.ts',
+      'charts/chart.utils.ts',
+    ],
+  },
+  'org-chart': {
+    name: 'org-chart',
+    files: [
+      'charts/org-chart.component.ts',
+      'charts/chart.types.ts',
+      'charts/chart.utils.ts',
+    ],
+  },
 };

@@ -165,50 +165,31 @@ import {
     },
 })
 export class BarChartDrilldownComponent {
-    private el = inject(ElementRef);
+    private readonly el = inject(ElementRef);
 
-    /** Main data points */
     data = input.required<DrilldownDataPoint[]>();
-    /** Drilldown series */
     drilldownSeries = input<DrilldownSeries[]>([]);
-    /** Chart width */
     width = input(500);
-    /** Chart height */
     height = input(300);
-    /** Show grid lines */
     showGrid = input(true);
-    /** Show value labels */
     showValues = input(true);
-    /** Show tooltip */
     showTooltip = input(true);
-    /** Bar corner radius */
     barRadius = input(4);
-    /** Gap between bars */
     barGap = input(8);
-    /** Show breadcrumb */
     showBreadcrumb = input(true);
-    /** Back button text */
     backButtonText = input('← Back');
-    /** Additional classes */
     class = input('');
-    /** Chart title */
     title = input<string | undefined>(undefined);
 
-    /** Emitted on drilldown */
     drilldown = output<DrilldownEvent>();
-    /** Emitted on drillup */
     drillup = output<void>();
-    /** Emitted on bar click */
     barClick = output<ChartClickEvent<DrilldownDataPoint>>();
-    /** Emitted on bar hover */
     barHover = output<ChartClickEvent<DrilldownDataPoint> | null>();
 
-    // State
     currentDrilldownId = signal<string | null>(null);
     hoveredIndex = signal<number | null>(null);
     tooltipPosition = signal({ x: 0, y: 0 });
 
-    // Computed
     svgWidth = computed(() => this.width());
     svgHeight = computed(() => this.height());
 
@@ -304,7 +285,6 @@ export class BarChartDrilldownComponent {
 
     containerClasses = computed(() => cn('relative inline-block', this.class()));
 
-    // Methods
     hasDrilldown(bar: BarRect): boolean {
         const point = bar.data as DrilldownDataPoint;
         return !!point.drilldown && this.drilldownSeries().some(s => s.id === point.drilldown);

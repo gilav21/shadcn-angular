@@ -52,12 +52,8 @@ export class NumberTickerDigitComponent {
 
             if (current !== this._lastValue) {
                 if (this.isDigit()) {
-                    // Slide logic
                     this.prevDigit.set(this._lastValue);
-                    // Reset animation to start from top (prevDigit)
                     this.animating.set(false);
-
-                    // Force reflow/wait for next tick to start animation
                     setTimeout(() => {
                         this.animating.set(true);
                     }, 20);
@@ -70,9 +66,7 @@ export class NumberTickerDigitComponent {
     }
 
     onTransitionEnd() {
-        // Animation done. We are currently showing 'digit' at the bottom.
-        // We want to reset so that 'digit' is at the top for the next run.
-        if (this.animating()) { // Only if we finished the slide-up
+        if (this.animating()) {
             this.prevDigit.set(this.digit());
             this.animating.set(false);
         }
@@ -94,17 +88,11 @@ export class NumberTickerDigitComponent {
 export class NumberTickerComponent implements OnDestroy {
     private readonly _el = inject(ElementRef);
 
-    /** The value to count to */
     value = input.required<number>();
-    /** The direction of the count */
     direction = input<'up' | 'down'>('up');
-    /** The delay in seconds before starting */
     delay = input<number>(0);
-    /** The duration of the animation in seconds */
     duration = input<number>(1);
-    /** The decimal places to show */
     decimalPlaces = input<number>(0);
-    /** Additional classes */
     class = input<string>('');
 
     classes = computed(() => cn('inline-block tabular-nums tracking-wider text-black dark:text-white', this.class()));

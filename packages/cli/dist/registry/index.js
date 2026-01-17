@@ -7,6 +7,11 @@ export const registry = {
         name: 'accordion',
         files: ['accordion.component.ts'],
     },
+    autocomplete: {
+        name: 'autocomplete',
+        files: ['autocomplete.component.ts', 'highlight.pipe.ts'],
+        dependencies: ['popover', 'command', 'badge'],
+    },
     alert: {
         name: 'alert',
         files: ['alert.component.ts'],
@@ -61,6 +66,15 @@ export const registry = {
         name: 'collapsible',
         files: ['collapsible.component.ts'],
     },
+    'color-picker': {
+        name: 'color-picker',
+        files: ['color-picker.component.ts'],
+        dependencies: ['popover', 'input', 'tabs'],
+    },
+    confetti: {
+        name: 'confetti',
+        files: ['confetti.directive.ts'],
+    },
     command: {
         name: 'command',
         files: ['command.component.ts'],
@@ -94,6 +108,11 @@ export const registry = {
     field: {
         name: 'field',
         files: ['field.component.ts'],
+    },
+    'file-upload': {
+        name: 'file-upload',
+        files: ['file-upload.component.ts'],
+        dependencies: ['button', 'progress'],
     },
     'hover-card': {
         name: 'hover-card',
@@ -131,6 +150,10 @@ export const registry = {
         name: 'navigation-menu',
         files: ['navigation-menu.component.ts'],
     },
+    'number-ticker': {
+        name: 'number-ticker',
+        files: ['number-ticker.component.ts'],
+    },
     pagination: {
         name: 'pagination',
         files: ['pagination.component.ts'],
@@ -146,6 +169,10 @@ export const registry = {
     'radio-group': {
         name: 'radio-group',
         files: ['radio-group.component.ts'],
+    },
+    rating: {
+        name: 'rating',
+        files: ['rating.component.ts'],
     },
     resizable: {
         name: 'resizable',
@@ -183,6 +210,10 @@ export const registry = {
         name: 'spinner',
         files: ['spinner.component.ts'],
     },
+    stepper: {
+        name: 'stepper',
+        files: ['stepper.component.ts'],
+    },
     switch: {
         name: 'switch',
         files: ['switch.component.ts'],
@@ -199,6 +230,10 @@ export const registry = {
         name: 'textarea',
         files: ['textarea.component.ts'],
     },
+    timeline: {
+        name: 'timeline',
+        files: ['timeline.component.ts'],
+    },
     toast: {
         name: 'toast',
         files: ['toast.component.ts'],
@@ -214,6 +249,10 @@ export const registry = {
     tooltip: {
         name: 'tooltip',
         files: ['tooltip.component.ts'],
+    },
+    tree: {
+        name: 'tree',
+        files: ['tree.component.ts'],
     },
     'speed-dial': {
         name: 'speed-dial',
@@ -248,6 +287,71 @@ export const registry = {
             'select',
             'input',
             'scroll-area',
+        ],
+    },
+    // Chart Components
+    'pie-chart': {
+        name: 'pie-chart',
+        files: [
+            'charts/pie-chart.component.ts',
+            'charts/chart.types.ts',
+            'charts/chart.utils.ts',
+        ],
+    },
+    'pie-chart-drilldown': {
+        name: 'pie-chart-drilldown',
+        files: [
+            'charts/pie-chart-drilldown.component.ts',
+            'charts/chart.types.ts',
+            'charts/chart.utils.ts',
+        ],
+    },
+    'bar-chart': {
+        name: 'bar-chart',
+        files: [
+            'charts/bar-chart.component.ts',
+            'charts/chart.types.ts',
+            'charts/chart.utils.ts',
+        ],
+    },
+    'bar-chart-drilldown': {
+        name: 'bar-chart-drilldown',
+        files: [
+            'charts/bar-chart-drilldown.component.ts',
+            'charts/chart.types.ts',
+            'charts/chart.utils.ts',
+        ],
+    },
+    'stacked-bar-chart': {
+        name: 'stacked-bar-chart',
+        files: [
+            'charts/stacked-bar-chart.component.ts',
+            'charts/chart.types.ts',
+            'charts/chart.utils.ts',
+        ],
+    },
+    'column-range-chart': {
+        name: 'column-range-chart',
+        files: [
+            'charts/column-range-chart.component.ts',
+            'charts/chart.types.ts',
+            'charts/chart.utils.ts',
+        ],
+    },
+    'bar-race-chart': {
+        name: 'bar-race-chart',
+        files: [
+            'charts/bar-race-chart.component.ts',
+            'charts/chart.types.ts',
+            'charts/chart.utils.ts',
+        ],
+    },
+    'org-chart': {
+        name: 'org-chart',
+        files: [
+            'charts/org-chart.component.ts',
+            'charts/chart.types.ts',
+            'charts/chart.utils.ts',
         ],
     },
 };
