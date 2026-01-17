@@ -1,4 +1,4 @@
-import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj } from '@storybook/angular';
 import { PieChartComponent } from './pie-chart.component';
 import { ChartDataPoint } from './chart.types';
 

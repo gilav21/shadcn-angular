@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BarRaceChartComponent } from './bar-race-chart.component';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
@@ -193,7 +193,8 @@ describe('BarRaceChartComponent', () => {
         fixture.componentRef.setInput('height', 450);
         fixture.detectChanges();
 
-        const svg = fixture.debugElement.query(By.css('svg'));
+        // Select the main chart SVG (the one with role="img")
+        const svg = fixture.debugElement.query(By.css('svg[role="img"]'));
         expect(svg.nativeElement.getAttribute('width')).toBe('700');
         expect(svg.nativeElement.getAttribute('height')).toBe('450');
     });

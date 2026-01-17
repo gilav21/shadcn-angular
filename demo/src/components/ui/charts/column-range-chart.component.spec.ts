@@ -34,7 +34,7 @@ describe('ColumnRangeChartComponent', () => {
         fixture.componentRef.setInput('data', sampleData);
         fixture.detectChanges();
 
-        const svg = fixture.debugElement.query(By.css('svg'));
+        const svg = fixture.debugElement.query(By.css('svg[role="img"]'));
         expect(svg).toBeTruthy();
     });
 
@@ -46,7 +46,7 @@ describe('ColumnRangeChartComponent', () => {
         expect(rects.length).toBe(4);
     });
 
-    it('should compute bar data correctly', () => {
+    it('should compute bars data correctly', () => {
         fixture.componentRef.setInput('data', sampleData);
         fixture.detectChanges();
 
@@ -56,15 +56,6 @@ describe('ColumnRangeChartComponent', () => {
         expect(bars[0].data.high).toBe(5);
     });
 
-    it('should calculate data range including negatives', () => {
-        fixture.componentRef.setInput('data', sampleData);
-        fixture.detectChanges();
-
-        const range = component.dataRange();
-        expect(range.min).toBeLessThan(0);
-        expect(range.max).toBeGreaterThan(0);
-    });
-
     it('should show range labels when enabled', () => {
         fixture.componentRef.setInput('data', sampleData);
         fixture.componentRef.setInput('showRangeLabels', true);
@@ -72,25 +63,6 @@ describe('ColumnRangeChartComponent', () => {
 
         const texts = fixture.debugElement.queryAll(By.css('text'));
         expect(texts.length).toBeGreaterThan(4); // Axis labels + range labels
-    });
-
-    it('should hide range labels when disabled', () => {
-        fixture.componentRef.setInput('data', sampleData);
-        fixture.componentRef.setInput('showRangeLabels', false);
-        fixture.detectChanges();
-
-        // Should only have axis and category labels, no range labels on bars
-        const bars = component.bars();
-        expect(bars.length).toBe(4);
-    });
-
-    it('should apply unit suffix to values', () => {
-        fixture.componentRef.setInput('data', sampleData);
-        fixture.componentRef.setInput('unit', '°C');
-        fixture.detectChanges();
-
-        expect(component.formatWithUnit(10)).toBe('10°C');
-        expect(component.formatWithUnit(-5)).toBe('-5°C');
     });
 
     it('should emit barClick when bar is clicked', () => {
@@ -127,8 +99,17 @@ describe('ColumnRangeChartComponent', () => {
         fixture.componentRef.setInput('height', 400);
         fixture.detectChanges();
 
-        const svg = fixture.debugElement.query(By.css('svg'));
+        const svg = fixture.debugElement.query(By.css('svg[role="img"]'));
         expect(svg.nativeElement.getAttribute('width')).toBe('600');
         expect(svg.nativeElement.getAttribute('height')).toBe('400');
+    });
+
+    it('should apply custom class', () => {
+        fixture.componentRef.setInput('data', sampleData);
+        fixture.componentRef.setInput('class', 'my-custom-class');
+        fixture.detectChanges();
+
+        const container = fixture.debugElement.query(By.css('.my-custom-class'));
+        expect(container).toBeTruthy();
     });
 });

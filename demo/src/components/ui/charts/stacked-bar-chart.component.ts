@@ -9,8 +9,6 @@ import {
 import { cn } from '../../lib/utils';
 import {
     ChartSeries,
-    ChartDataPoint,
-    ChartClickEvent,
     StackingMode,
 } from './chart.types';
 import {

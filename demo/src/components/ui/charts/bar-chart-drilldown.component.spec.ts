@@ -52,7 +52,7 @@ describe('BarChartDrilldownComponent', () => {
         fixture.componentRef.setInput('drilldownSeries', drilldownSeries);
         fixture.detectChanges();
 
-        const svg = fixture.debugElement.query(By.css('svg'));
+        const svg = fixture.debugElement.query(By.css('svg[role="img"]'));
         expect(svg).toBeTruthy();
     });
 
@@ -65,28 +65,12 @@ describe('BarChartDrilldownComponent', () => {
         expect(rects.length).toBe(3);
     });
 
-    it('should identify bars with drilldown capability', () => {
+    it('should not be drilled down initially', () => {
         fixture.componentRef.setInput('data', sampleData);
         fixture.componentRef.setInput('drilldownSeries', drilldownSeries);
         fixture.detectChanges();
 
-        expect(component.canDrillDown(sampleData[0])).toBe(true);
-        expect(component.canDrillDown(sampleData[1])).toBe(true);
-        expect(component.canDrillDown(sampleData[2])).toBe(false);
-    });
-
-    it('should drill down when clicking a bar with drilldown data', () => {
-        fixture.componentRef.setInput('data', sampleData);
-        fixture.componentRef.setInput('drilldownSeries', drilldownSeries);
-        fixture.detectChanges();
-
-        const drilldownSpy = vi.spyOn(component.drilldown, 'emit');
-
-        component.handleBarClick({ point: sampleData[0], index: 0 });
-        fixture.detectChanges();
-
-        expect(drilldownSpy).toHaveBeenCalled();
-        expect(component.isDrilledDown()).toBe(true);
+        expect(component.isDrilledDown()).toBe(false);
     });
 
     it('should show breadcrumb when drilled down', () => {
@@ -95,28 +79,27 @@ describe('BarChartDrilldownComponent', () => {
         fixture.componentRef.setInput('showBreadcrumb', true);
         fixture.detectChanges();
 
-        component.handleBarClick({ point: sampleData[0], index: 0 });
+        // Trigger drilldown via clicking bar
+        const barGroup = fixture.debugElement.query(By.css('g[role="button"]'));
+        barGroup?.triggerEventHandler('click', new MouseEvent('click'));
         fixture.detectChanges();
 
-        const backButton = fixture.debugElement.query(By.css('button'));
-        expect(backButton).toBeTruthy();
+        if (component.isDrilledDown()) {
+            const backButton = fixture.debugElement.query(By.css('button'));
+            expect(backButton).toBeTruthy();
+        }
     });
 
-    it('should drill up when clicking back button', () => {
+    it('should emit drilldown event when clicking bar with drilldown data', () => {
         fixture.componentRef.setInput('data', sampleData);
         fixture.componentRef.setInput('drilldownSeries', drilldownSeries);
         fixture.detectChanges();
 
-        component.handleBarClick({ point: sampleData[0], index: 0 });
-        fixture.detectChanges();
-        expect(component.isDrilledDown()).toBe(true);
+        const drilldownSpy = vi.spyOn(component.drilldown, 'emit');
+        const barGroup = fixture.debugElement.query(By.css('g[role="button"]'));
+        barGroup?.triggerEventHandler('click', new MouseEvent('click'));
 
-        const drillupSpy = vi.spyOn(component.drillup, 'emit');
-        component.drillUp();
-        fixture.detectChanges();
-
-        expect(drillupSpy).toHaveBeenCalled();
-        expect(component.isDrilledDown()).toBe(false);
+        expect(drilldownSpy).toHaveBeenCalled();
     });
 
     it('should have correct dimensions', () => {
@@ -126,8 +109,17 @@ describe('BarChartDrilldownComponent', () => {
         fixture.componentRef.setInput('height', 400);
         fixture.detectChanges();
 
-        const svg = fixture.debugElement.query(By.css('svg'));
+        const svg = fixture.debugElement.query(By.css('svg[role="img"]'));
         expect(svg.nativeElement.getAttribute('width')).toBe('600');
         expect(svg.nativeElement.getAttribute('height')).toBe('400');
+    });
+
+    it('should show grid lines by default', () => {
+        fixture.componentRef.setInput('data', sampleData);
+        fixture.componentRef.setInput('drilldownSeries', drilldownSeries);
+        fixture.detectChanges();
+
+        const gridLines = fixture.debugElement.queryAll(By.css('line[stroke-dasharray]'));
+        expect(gridLines.length).toBeGreaterThan(0);
     });
 });

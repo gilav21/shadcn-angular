@@ -8,7 +8,7 @@ import {
     ElementRef,
     inject,
 } from '@angular/core';
-import { cn, isRtl } from '../../lib/utils';
+import { cn } from '../../lib/utils';
 import {
     DrilldownDataPoint,
     DrilldownSeries,
