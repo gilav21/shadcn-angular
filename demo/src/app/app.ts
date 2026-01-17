@@ -242,6 +242,7 @@ import {
   ColorPickerComponent
 } from '../components/ui';
 import { UiConfettiDirective } from "@/components/ui/confetti.directive";
+import { NumberTickerComponent } from '@/components/ui/number-ticker.component';
 
 interface Framework {
   value: string;
@@ -489,7 +490,8 @@ interface Framework {
     StepperContentComponent,
     FileUploadComponent,
     ColorPickerComponent,
-    UiConfettiDirective
+    UiConfettiDirective,
+    NumberTickerComponent
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -521,10 +523,6 @@ export class AppComponent {
   isRtl = signal(false);
   selectedEmoji = signal<string | null>(null);
   closeOnSelect = signal(true);
-
-  constructor() {
-    console.log('test');
-  }
 
   toggleTheme(checked: boolean) {
     this.isDark.set(checked);
@@ -711,5 +709,17 @@ export class AppComponent {
   fireConfetti4() {
     this.confettiTrigger4.set(false);
     setTimeout(() => this.confettiTrigger4.set(true), 0);
+  }
+
+  // Subscribers Demo
+  subscribersValue = signal(8549);
+
+  constructor() {
+    console.log('AppComponent initialized');
+
+    // Simulate subscribers increasing
+    setInterval(() => {
+      this.subscribersValue.update(v => v + Math.floor(Math.random() * 3) + 1);
+    }, 5000);
   }
 }

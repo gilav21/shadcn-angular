@@ -159,6 +159,10 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'navigation-menu',
     files: ['navigation-menu.component.ts'],
   },
+  'number-ticker': {
+    name: 'number-ticker',
+    files: ['number-ticker.component.ts'],
+  },
   pagination: {
     name: 'pagination',
     files: ['pagination.component.ts'],
