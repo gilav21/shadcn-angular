@@ -1,9 +1,10 @@
 export interface Config {
     $schema: string;
-    style: 'default' | 'new-york';
+    style: 'default';
     tailwind: {
         css: string;
         baseColor: 'neutral' | 'slate' | 'stone' | 'gray' | 'zinc';
+        theme?: 'zinc' | 'slate' | 'stone' | 'gray' | 'neutral' | 'red' | 'rose' | 'orange' | 'green' | 'blue' | 'yellow' | 'violet' | 'amber';
         cssVariables: boolean;
     };
     aliases: {

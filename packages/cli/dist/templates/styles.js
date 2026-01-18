@@ -7,8 +7,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.145 0 0)',
             '--popover': 'oklch(1 0 0)',
             '--popover-foreground': 'oklch(0.145 0 0)',
-            '--primary': 'oklch(0.205 0 0)',
-            '--primary-foreground': 'oklch(0.985 0 0)',
             '--secondary': 'oklch(0.97 0 0)',
             '--secondary-foreground': 'oklch(0.205 0 0)',
             '--muted': 'oklch(0.97 0 0)',
@@ -18,7 +16,6 @@ const baseColors = {
             '--destructive': 'oklch(0.577 0.245 27.325)',
             '--border': 'oklch(0.922 0 0)',
             '--input': 'oklch(0.922 0 0)',
-            '--ring': 'oklch(0.708 0 0)',
         },
         dark: {
             '--background': 'oklch(0.145 0 0)',
@@ -27,8 +24,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.985 0 0)',
             '--popover': 'oklch(0.269 0 0)',
             '--popover-foreground': 'oklch(0.985 0 0)',
-            '--primary': 'oklch(0.922 0 0)',
-            '--primary-foreground': 'oklch(0.205 0 0)',
             '--secondary': 'oklch(0.269 0 0)',
             '--secondary-foreground': 'oklch(0.985 0 0)',
             '--muted': 'oklch(0.269 0 0)',
@@ -38,7 +33,6 @@ const baseColors = {
             '--destructive': 'oklch(0.704 0.191 22.216)',
             '--border': 'oklch(1 0 0 / 10%)',
             '--input': 'oklch(1 0 0 / 15%)',
-            '--ring': 'oklch(0.556 0 0)',
         },
     },
     slate: {
@@ -49,8 +43,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.129 0.042 264.695)',
             '--popover': 'oklch(1 0 0)',
             '--popover-foreground': 'oklch(0.129 0.042 264.695)',
-            '--primary': 'oklch(0.208 0.042 265.755)',
-            '--primary-foreground': 'oklch(0.984 0.003 247.858)',
             '--secondary': 'oklch(0.968 0.007 247.896)',
             '--secondary-foreground': 'oklch(0.208 0.042 265.755)',
             '--muted': 'oklch(0.968 0.007 247.896)',
@@ -60,7 +52,6 @@ const baseColors = {
             '--destructive': 'oklch(0.577 0.245 27.325)',
             '--border': 'oklch(0.929 0.013 255.508)',
             '--input': 'oklch(0.929 0.013 255.508)',
-            '--ring': 'oklch(0.704 0.04 256.788)',
         },
         dark: {
             '--background': 'oklch(0.129 0.042 264.695)',
@@ -69,8 +60,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.984 0.003 247.858)',
             '--popover': 'oklch(0.269 0.04 260.031)',
             '--popover-foreground': 'oklch(0.984 0.003 247.858)',
-            '--primary': 'oklch(0.929 0.013 255.508)',
-            '--primary-foreground': 'oklch(0.208 0.042 265.755)',
             '--secondary': 'oklch(0.269 0.04 260.031)',
             '--secondary-foreground': 'oklch(0.984 0.003 247.858)',
             '--muted': 'oklch(0.269 0.04 260.031)',
@@ -80,7 +69,6 @@ const baseColors = {
             '--destructive': 'oklch(0.704 0.191 22.216)',
             '--border': 'oklch(1 0 0 / 10%)',
             '--input': 'oklch(1 0 0 / 15%)',
-            '--ring': 'oklch(0.554 0.046 257.417)',
         },
     },
     stone: {
@@ -91,8 +79,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.147 0.004 49.25)',
             '--popover': 'oklch(1 0 0)',
             '--popover-foreground': 'oklch(0.147 0.004 49.25)',
-            '--primary': 'oklch(0.216 0.006 56.043)',
-            '--primary-foreground': 'oklch(0.985 0.001 106.423)',
             '--secondary': 'oklch(0.97 0.001 106.424)',
             '--secondary-foreground': 'oklch(0.216 0.006 56.043)',
             '--muted': 'oklch(0.97 0.001 106.424)',
@@ -102,7 +88,6 @@ const baseColors = {
             '--destructive': 'oklch(0.577 0.245 27.325)',
             '--border': 'oklch(0.923 0.003 48.717)',
             '--input': 'oklch(0.923 0.003 48.717)',
-            '--ring': 'oklch(0.709 0.01 56.259)',
         },
         dark: {
             '--background': 'oklch(0.147 0.004 49.25)',
@@ -111,8 +96,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.985 0.001 106.423)',
             '--popover': 'oklch(0.268 0.007 34.298)',
             '--popover-foreground': 'oklch(0.985 0.001 106.423)',
-            '--primary': 'oklch(0.923 0.003 48.717)',
-            '--primary-foreground': 'oklch(0.216 0.006 56.043)',
             '--secondary': 'oklch(0.268 0.007 34.298)',
             '--secondary-foreground': 'oklch(0.985 0.001 106.423)',
             '--muted': 'oklch(0.268 0.007 34.298)',
@@ -122,7 +105,6 @@ const baseColors = {
             '--destructive': 'oklch(0.704 0.191 22.216)',
             '--border': 'oklch(1 0 0 / 10%)',
             '--input': 'oklch(1 0 0 / 15%)',
-            '--ring': 'oklch(0.553 0.013 58.071)',
         },
     },
     gray: {
@@ -133,8 +115,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.13 0.028 261.692)',
             '--popover': 'oklch(1 0 0)',
             '--popover-foreground': 'oklch(0.13 0.028 261.692)',
-            '--primary': 'oklch(0.21 0.028 264.532)',
-            '--primary-foreground': 'oklch(0.985 0.002 247.839)',
             '--secondary': 'oklch(0.967 0.003 264.542)',
             '--secondary-foreground': 'oklch(0.21 0.028 264.532)',
             '--muted': 'oklch(0.967 0.003 264.542)',
@@ -144,7 +124,6 @@ const baseColors = {
             '--destructive': 'oklch(0.577 0.245 27.325)',
             '--border': 'oklch(0.928 0.006 264.531)',
             '--input': 'oklch(0.928 0.006 264.531)',
-            '--ring': 'oklch(0.707 0.022 264.436)',
         },
         dark: {
             '--background': 'oklch(0.13 0.028 261.692)',
@@ -153,8 +132,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.985 0.002 247.839)',
             '--popover': 'oklch(0.274 0.029 256.848)',
             '--popover-foreground': 'oklch(0.985 0.002 247.839)',
-            '--primary': 'oklch(0.928 0.006 264.531)',
-            '--primary-foreground': 'oklch(0.21 0.028 264.532)',
             '--secondary': 'oklch(0.274 0.029 256.848)',
             '--secondary-foreground': 'oklch(0.985 0.002 247.839)',
             '--muted': 'oklch(0.274 0.029 256.848)',
@@ -164,7 +141,6 @@ const baseColors = {
             '--destructive': 'oklch(0.704 0.191 22.216)',
             '--border': 'oklch(1 0 0 / 10%)',
             '--input': 'oklch(1 0 0 / 15%)',
-            '--ring': 'oklch(0.551 0.027 264.364)',
         },
     },
     zinc: {
@@ -175,8 +151,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.141 0.005 285.823)',
             '--popover': 'oklch(1 0 0)',
             '--popover-foreground': 'oklch(0.141 0.005 285.823)',
-            '--primary': 'oklch(0.21 0.006 285.885)',
-            '--primary-foreground': 'oklch(0.985 0 0)',
             '--secondary': 'oklch(0.967 0.001 286.375)',
             '--secondary-foreground': 'oklch(0.21 0.006 285.885)',
             '--muted': 'oklch(0.967 0.001 286.375)',
@@ -186,7 +160,6 @@ const baseColors = {
             '--destructive': 'oklch(0.577 0.245 27.325)',
             '--border': 'oklch(0.92 0.004 286.32)',
             '--input': 'oklch(0.92 0.004 286.32)',
-            '--ring': 'oklch(0.705 0.015 286.067)',
         },
         dark: {
             '--background': 'oklch(0.141 0.005 285.823)',
@@ -195,8 +168,6 @@ const baseColors = {
             '--card-foreground': 'oklch(0.985 0 0)',
             '--popover': 'oklch(0.274 0.006 286.033)',
             '--popover-foreground': 'oklch(0.985 0 0)',
-            '--primary': 'oklch(0.92 0.004 286.32)',
-            '--primary-foreground': 'oklch(0.21 0.006 285.885)',
             '--secondary': 'oklch(0.274 0.006 286.033)',
             '--secondary-foreground': 'oklch(0.985 0 0)',
             '--muted': 'oklch(0.274 0.006 286.033)',
@@ -206,8 +177,61 @@ const baseColors = {
             '--destructive': 'oklch(0.704 0.191 22.216)',
             '--border': 'oklch(1 0 0 / 10%)',
             '--input': 'oklch(1 0 0 / 15%)',
-            '--ring': 'oklch(0.552 0.016 285.938)',
         },
+    },
+};
+const themeColors = {
+    neutral: {
+        light: { '--primary': 'oklch(0.205 0 0)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.708 0 0)' },
+        dark: { '--primary': 'oklch(0.985 0 0)', '--primary-foreground': 'oklch(0.205 0 0)', '--ring': 'oklch(0.708 0 0)' },
+    },
+    zinc: {
+        light: { '--primary': 'oklch(0.205 0 0)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.708 0 0)' },
+        dark: { '--primary': 'oklch(0.985 0 0)', '--primary-foreground': 'oklch(0.205 0 0)', '--ring': 'oklch(0.708 0 0)' },
+    },
+    slate: {
+        light: { '--primary': 'oklch(0.208 0.042 265.755)', '--primary-foreground': 'oklch(0.984 0.003 247.858)', '--ring': 'oklch(0.704 0.04 256.788)' },
+        dark: { '--primary': 'oklch(0.929 0.013 255.508)', '--primary-foreground': 'oklch(0.208 0.042 265.755)', '--ring': 'oklch(0.704 0.04 256.788)' },
+    },
+    stone: {
+        light: { '--primary': 'oklch(0.216 0.006 56.043)', '--primary-foreground': 'oklch(0.985 0.001 106.423)', '--ring': 'oklch(0.709 0.01 56.259)' },
+        dark: { '--primary': 'oklch(0.923 0.003 48.717)', '--primary-foreground': 'oklch(0.216 0.006 56.043)', '--ring': 'oklch(0.553 0.013 58.071)' },
+    },
+    gray: {
+        light: { '--primary': 'oklch(0.21 0.028 264.532)', '--primary-foreground': 'oklch(0.985 0.002 247.839)', '--ring': 'oklch(0.707 0.022 264.436)' },
+        dark: { '--primary': 'oklch(0.928 0.006 264.531)', '--primary-foreground': 'oklch(0.21 0.028 264.532)', '--ring': 'oklch(0.551 0.027 264.364)' },
+    },
+    red: {
+        light: { '--primary': 'oklch(0.577 0.245 27.325)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.577 0.245 27.325)' },
+        dark: { '--primary': 'oklch(0.577 0.245 27.325)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.577 0.245 27.325)' },
+    },
+    rose: {
+        light: { '--primary': 'oklch(0.645 0.246 16.439)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.645 0.246 16.439)' },
+        dark: { '--primary': 'oklch(0.645 0.246 16.439)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.645 0.246 16.439)' },
+    },
+    orange: {
+        light: { '--primary': 'oklch(0.646 0.222 41.116)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.646 0.222 41.116)' },
+        dark: { '--primary': 'oklch(0.646 0.222 41.116)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.646 0.222 41.116)' },
+    },
+    green: {
+        light: { '--primary': 'oklch(0.623 0.214 131.655)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.623 0.214 131.655)' },
+        dark: { '--primary': 'oklch(0.623 0.214 131.655)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.623 0.214 131.655)' },
+    },
+    blue: {
+        light: { '--primary': 'oklch(0.546 0.245 262.881)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.546 0.245 262.881)' },
+        dark: { '--primary': 'oklch(0.546 0.245 262.881)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.546 0.245 262.881)' },
+    },
+    yellow: {
+        light: { '--primary': 'oklch(0.82 0.185 84.67)', '--primary-foreground': 'oklch(0.205 0 0)', '--ring': 'oklch(0.82 0.185 84.67)' },
+        dark: { '--primary': 'oklch(0.82 0.185 84.67)', '--primary-foreground': 'oklch(0.205 0 0)', '--ring': 'oklch(0.82 0.185 84.67)' },
+    },
+    violet: {
+        light: { '--primary': 'oklch(0.558 0.288 302.321)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.558 0.288 302.321)' },
+        dark: { '--primary': 'oklch(0.558 0.288 302.321)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.558 0.288 302.321)' },
+    },
+    amber: {
+        light: { '--primary': 'oklch(0.77 0.16 70)', '--primary-foreground': 'oklch(0.145 0 0)', '--ring': 'oklch(0.77 0.16 70)' },
+        dark: { '--primary': 'oklch(0.77 0.16 70)', '--primary-foreground': 'oklch(0.145 0 0)', '--ring': 'oklch(0.77 0.16 70)' },
     },
 };
 function generateCssVars(vars, indent = '  ') {
@@ -215,8 +239,11 @@ function generateCssVars(vars, indent = '  ') {
         .map(([key, value]) => `${indent}${key}: ${value};`)
         .join('\n');
 }
-export function getStylesTemplate(baseColor = 'neutral') {
-    const colors = baseColors[baseColor];
+export function getStylesTemplate(baseColor = 'neutral', themeColor = 'zinc') {
+    const base = baseColors[baseColor];
+    const theme = themeColors[themeColor] || themeColors.neutral;
+    const lightVars = { ...base.light, ...theme.light };
+    const darkVars = { ...base.dark, ...theme.dark };
     return `@import "tailwindcss";
 
 /* Tell Tailwind v4 where to scan for classes */
@@ -227,7 +254,7 @@ export function getStylesTemplate(baseColor = 'neutral') {
 
 :root {
   --radius: 0.625rem;
-${generateCssVars(colors.light)}
+${generateCssVars(lightVars)}
   --chart-1: oklch(0.646 0.222 41.116);
   --chart-2: oklch(0.6 0.118 184.704);
   --chart-3: oklch(0.398 0.07 227.392);
@@ -244,7 +271,7 @@ ${generateCssVars(colors.light)}
 }
 
 .dark {
-${generateCssVars(colors.dark)}
+${generateCssVars(darkVars)}
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
@@ -314,6 +341,7 @@ ${generateCssVars(colors.dark)}
   }
   html {
     font-family: var(--font-sans);
+    font-size: 16px;
   }
   button:not(:disabled),
   [role="button"]:not(:disabled) {

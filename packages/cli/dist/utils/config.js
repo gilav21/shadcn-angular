@@ -7,6 +7,7 @@ export function getDefaultConfig() {
         tailwind: {
             css: 'src/styles.scss',
             baseColor: 'neutral',
+            theme: 'zinc',
             cssVariables: true,
         },
         aliases: {

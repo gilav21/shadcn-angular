@@ -36,29 +36,66 @@ export async function init(options) {
         config = getDefaultConfig();
     }
     else {
+        const THEME_COLORS = {
+            zinc: '#71717a',
+            slate: '#64748b',
+            stone: '#78716c',
+            gray: '#6b7280',
+            neutral: '#737373',
+            red: '#ef4444',
+            rose: '#f43f5e',
+            orange: '#f97316', // bright orange
+            green: '#22c55e',
+            blue: '#3b82f6',
+            yellow: '#eab308',
+            violet: '#8b5cf6',
+            amber: '#d97706', // warm amber for preview
+        };
+        const themeChoices = [
+            { title: 'Zinc', value: 'zinc' },
+            { title: 'Slate', value: 'slate' },
+            { title: 'Stone', value: 'stone' },
+            { title: 'Gray', value: 'gray' },
+            { title: 'Neutral', value: 'neutral' },
+            { title: 'Red', value: 'red' },
+            { title: 'Rose', value: 'rose' },
+            { title: 'Orange', value: 'orange' },
+            { title: 'Green', value: 'green' },
+            { title: 'Blue', value: 'blue' },
+            { title: 'Yellow', value: 'yellow' },
+            { title: 'Violet', value: 'violet' },
+            { title: 'Amber', value: 'amber' },
+        ].map(c => ({
+            ...c,
+            title: `${chalk.hex(THEME_COLORS[c.value])('██')} ${c.title}`
+        }));
+        const baseColorChoices = [
+            { title: 'Neutral', value: 'neutral' },
+            { title: 'Slate', value: 'slate' },
+            { title: 'Stone', value: 'stone' },
+            { title: 'Gray', value: 'gray' },
+            { title: 'Zinc', value: 'zinc' },
+        ].map(c => ({
+            ...c,
+            title: `${chalk.hex(THEME_COLORS[c.value])('██')} ${c.title}`
+        }));
         const responses = await prompts([
-            {
-                type: 'select',
-                name: 'style',
-                message: 'Which style would you like to use?',
-                choices: [
-                    { title: 'Default', value: 'default' },
-                    { title: 'New York', value: 'new-york' },
-                ],
-                initial: 0,
-            },
             {
                 type: 'select',
                 name: 'baseColor',
                 message: 'Which color would you like to use as base color?',
-                choices: [
-                    { title: 'Neutral', value: 'neutral' },
-                    { title: 'Slate', value: 'slate' },
-                    { title: 'Stone', value: 'stone' },
-                    { title: 'Gray', value: 'gray' },
-                    { title: 'Zinc', value: 'zinc' },
-                ],
+                choices: baseColorChoices,
                 initial: 0,
+            },
+            {
+                type: 'select',
+                name: 'theme',
+                message: 'Which color would you like to use for the main theme?',
+                choices: themeChoices,
+                initial: (prev) => {
+                    const index = themeChoices.findIndex(c => c.value === prev);
+                    return index === -1 ? 0 : index;
+                },
             },
             {
                 type: 'text',
@@ -81,10 +118,11 @@ export async function init(options) {
         ]);
         config = {
             $schema: 'https://shadcn-angular.dev/schema.json',
-            style: responses.style,
+            style: 'default',
             tailwind: {
                 css: responses.globalCss,
                 baseColor: responses.baseColor,
+                theme: responses.theme,
                 cssVariables: true,
             },
             aliases: {
@@ -115,7 +153,7 @@ export async function init(options) {
         const stylesDir = path.dirname(path.join(cwd, config.tailwind.css));
         const tailwindCssPath = path.join(stylesDir, 'tailwind.css');
         // Write the tailwind.css file with all Tailwind directives
-        await fs.writeFile(tailwindCssPath, getStylesTemplate(config.tailwind.baseColor));
+        await fs.writeFile(tailwindCssPath, getStylesTemplate(config.tailwind.baseColor, config.tailwind.theme));
         spinner.text = 'Created tailwind.css';
         // Add import to the user's global styles file if not already present
         const userStylesPath = path.join(cwd, config.tailwind.css);

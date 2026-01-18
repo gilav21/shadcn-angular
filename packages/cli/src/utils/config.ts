@@ -3,10 +3,11 @@ import path from 'path';
 
 export interface Config {
     $schema: string;
-    style: 'default' | 'new-york';
+    style: 'default';
     tailwind: {
         css: string;
         baseColor: 'neutral' | 'slate' | 'stone' | 'gray' | 'zinc';
+        theme?: 'zinc' | 'slate' | 'stone' | 'gray' | 'neutral' | 'red' | 'rose' | 'orange' | 'green' | 'blue' | 'yellow' | 'violet' | 'amber';
         cssVariables: boolean;
     };
     aliases: {
@@ -24,6 +25,7 @@ export function getDefaultConfig(): Config {
         tailwind: {
             css: 'src/styles.scss',
             baseColor: 'neutral',
+            theme: 'zinc',
             cssVariables: true,
         },
         aliases: {
