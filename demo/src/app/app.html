@@ -598,6 +598,17 @@
       <h2 id="input" class="text-2xl font-semibold scroll-m-20">Input</h2>
       <p class="text-muted-foreground">Text input with label support.</p>
 
+      <!-- New InputGroup Demo -->
+      <div class="space-y-2 max-w-sm">
+        <ui-label>Input Group (Standard Input)</ui-label>
+        <ui-input-group>
+          <ui-input-group-addon>$</ui-input-group-addon>
+          <ui-input placeholder="0.00"></ui-input>
+          <ui-input-group-addon>USD</ui-input-group-addon>
+        </ui-input-group>
+        <p class="text-xs text-muted-foreground">Using standard ui-input inside group (auto-ghost)</p>
+      </div>
+
       <div class="grid gap-4 max-w-sm">
         <div class="space-y-2">
           <ui-label for="email">Email</ui-label>
@@ -609,9 +620,70 @@
           <ui-input type="password" placeholder="Enter password" [attr.id]="'password'" />
         </div>
 
+        <div class="space-y-2">
+          <ui-label for="underline-input">Underline Variant</ui-label>
+          <ui-input placeholder="Underline input" [attr.id]="'underline-input'" variant="underline" />
+        </div>
+
         <ui-input placeholder="Disabled input" [disabled]="true" />
       </div>
+
+      <!-- Input Group Variants Test -->
+      <div class="grid gap-4 max-w-sm pt-4">
+        <div class="space-y-2">
+          <ui-label>Input Group (Underline)</ui-label>
+          <ui-input-group variant="underline">
+            <ui-input-group-addon>$</ui-input-group-addon>
+            <ui-input placeholder="0.00"></ui-input>
+            <ui-input-group-addon>USD</ui-input-group-addon>
+          </ui-input-group>
+        </div>
+
+        <div class="space-y-2">
+          <ui-label>Input Group (Ghost)</ui-label>
+          <div class="rounded-lg border p-1">
+            <ui-input-group variant="ghost">
+              <ui-input-group-addon>$</ui-input-group-addon>
+              <ui-input placeholder="0.00"></ui-input>
+              <ui-input-group-addon>USD</ui-input-group-addon>
+            </ui-input-group>
+          </div>
+        </div>
+      </div>
     </section>
+
+    <ui-separator />
+
+    <!-- Chip List Section -->
+    <section class="space-y-4">
+      <h2 id="chip-list" class="text-2xl font-semibold scroll-m-20">Chip List</h2>
+      <p class="text-muted-foreground">Input that converts text to chips.</p>
+
+      <div class="grid gap-4 max-w-sm">
+        <div class="space-y-2">
+          <ui-label>Default (Outline)</ui-label>
+          <ui-chip-list />
+        </div>
+
+        <div class="space-y-2">
+          <ui-label>Underline</ui-label>
+          <ui-chip-list variant="underline" />
+        </div>
+
+        <div class="space-y-2">
+          <ui-label>Ghost</ui-label>
+          <div class="rounded-lg border p-1">
+            <ui-chip-list variant="ghost" />
+          </div>
+        </div>
+
+        <div class="space-y-2">
+          <ui-label>With Badge Variant (Secondary)</ui-label>
+          <ui-chip-list badgeVariant="secondary" />
+        </div>
+      </div>
+    </section>
+
 
     <ui-separator />
 
@@ -737,6 +809,10 @@
         <div class="space-y-2">
           <ui-label>Your message</ui-label>
           <ui-textarea placeholder="Type your message here..." [rows]="4" />
+        </div>
+        <div class="space-y-2">
+          <ui-label>Underline Variant</ui-label>
+          <ui-textarea placeholder="Type your message here..." [rows]="4" variant="underline" />
         </div>
         <ui-textarea placeholder="Disabled textarea" [disabled]="true" />
       </div>
@@ -1727,7 +1803,8 @@
         </ui-command-list>
       </ui-command>
       <div class="flex flex-col gap-2">
-        <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">Show command dialog</ui-button>
+        <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">Show command
+          dialog</ui-button>
         <p class="text-sm text-muted-foreground">Press <ui-kbd>⌘</ui-kbd> <ui-kbd>K</ui-kbd></p>
       </div>
 
@@ -2652,8 +2729,8 @@
         <!-- Variants -->
         <div class="grid gap-4">
           <div class="space-y-2">
-            <ui-label>Secondary variant</ui-label>
-            <ui-chip-list [(ngModel)]="chipListTags" variant="secondary" />
+            <ui-label>Underline variant</ui-label>
+            <ui-chip-list [(ngModel)]="chipListTags" variant="underline" />
           </div>
           <div class="space-y-2">
             <ui-label>Outline variant</ui-label>
@@ -2664,7 +2741,7 @@
         <!-- Max Rows -->
         <div class="space-y-2">
           <ui-label>Max 2 rows (scrollable)</ui-label>
-          <ui-chip-list [(ngModel)]="chipListFruits" [maxRows]="2" variant="secondary" placeholder="Add fruit..."
+          <ui-chip-list [(ngModel)]="chipListFruits" [maxRows]="2" variant="outline" placeholder="Add fruit..."
             placeholder="Add fruit..." />
         </div>
 

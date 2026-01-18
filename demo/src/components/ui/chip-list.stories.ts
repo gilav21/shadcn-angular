@@ -38,7 +38,7 @@ const meta: Meta<ChipListComponent> = {
   args: {
     placeholder: 'Add tag...',
     disabled: false,
-    variant: 'default',
+    variant: 'outline',
     maxRows: 0,
     allowDuplicates: false,
   },

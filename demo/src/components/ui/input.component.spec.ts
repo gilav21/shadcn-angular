@@ -91,11 +91,22 @@ describe('InputComponent', () => {
         expect(input.nativeElement.className).toContain('my-input');
     });
 
-    it('should apply base styling classes', () => {
+    it('should apply outline styling classes by default', () => {
         const input = fixture.debugElement.query(By.css('input'));
         expect(input.nativeElement.className).toContain('rounded-lg');
         expect(input.nativeElement.className).toContain('border');
         expect(input.nativeElement.className).toContain('w-full');
+    });
+
+    it('should apply underline styling classes', () => {
+        fixture.componentRef.setInput('variant', 'underline');
+        fixture.detectChanges();
+
+        const input = fixture.debugElement.query(By.css('input'));
+        expect(input.nativeElement.className).toContain('border-b');
+        expect(input.nativeElement.className).toContain('rounded-none');
+        expect(input.nativeElement.className).not.toContain('rounded-lg');
+        expect(input.nativeElement.className).toContain('px-0');
     });
 });
 

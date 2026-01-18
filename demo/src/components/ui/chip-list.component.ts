@@ -6,42 +6,45 @@ import {
   computed,
   signal,
   forwardRef,
-  ElementRef,
   viewChild,
 } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
 import { BadgeComponent, type BadgeVariant } from './badge.component';
 import { ButtonComponent } from './button.component';
+import { InputComponent } from './input.component';
+import { UI_INPUT_GROUP } from './input-group.token';
+import { cva, type VariantProps } from 'class-variance-authority';
 
-/**
- * ChipListComponent - An input that converts text into chips on Enter
- * 
- * Features:
- * - Type text and press Enter to add as a chip
- * - Click the X on a chip to remove it
- * - Backspace on empty input removes the last chip
- * - Configurable max rows before scrolling
- * - Works with Angular reactive forms
- * - Uses existing Badge and Button components for consistency
- * 
- * Usage:
- * <ui-chip-list 
- *   [(ngModel)]="tags" 
- *   placeholder="Add tag..."
- *   [maxRows]="3"
- * />
- */
+const chipListVariants = cva(
+  'w-full flex-wrap flex items-center gap-1.5 p-1 transition-[color,box-shadow] outline-none min-h-9 has-[input:focus-visible]:ring-[3px]',
+  {
+    variants: {
+      variant: {
+        outline: 'rounded-md border border-input shadow-xs has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-ring/50',
+        underline: 'rounded-none border-b border-input has-[input:focus-visible]:border-ring px-0 has-[input:focus-visible]:ring-0',
+        ghost: 'border-none shadow-none has-[input:focus-visible]:ring-0',
+      },
+    },
+    defaultVariants: {
+      variant: 'outline',
+    },
+  }
+);
+
+export type ChipListVariant = VariantProps<typeof chipListVariants>['variant'];
+
 @Component({
   selector: 'ui-chip-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, ButtonComponent],
+  imports: [BadgeComponent, ButtonComponent, InputComponent, FormsModule],
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
       useExisting: forwardRef(() => ChipListComponent),
       multi: true,
     },
+    { provide: UI_INPUT_GROUP, useExisting: forwardRef(() => ChipListComponent) }
   ],
   template: `
     <div
@@ -51,54 +54,50 @@ import { ButtonComponent } from './button.component';
       [attr.data-disabled]="disabled() || null"
       (click)="focusInput()"
     >
-      <div class="flex flex-wrap items-center gap-1.5 p-1">
-        @for (chip of chips(); track chip; let i = $index) {
-          <ui-badge 
-            [variant]="variant()" 
-            [class]="'shrink-0 gap-1' + (disabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
-            [attr.data-slot]="'chip'"
-          >
-            <span class="max-w-[200px] truncate">{{ chip }}</span>
-            @if (!disabled()) {
-              <ui-button
-                variant="ghost"
-                size="icon"
-                class="h-4 w-4 p-0 hover:bg-black/10 dark:hover:bg-white/10 rounded-full"
-                [ariaLabel]="'Remove ' + chip"
-                (click)="removeChip(i, $event)"
+      @for (chip of chips(); track chip; let i = $index) {
+        <ui-badge 
+          [variant]="badgeVariant()" 
+          [class]="'shrink-0 gap-1' + (disabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
+          [attr.data-slot]="'chip'"
+        >
+          <span class="max-w-[200px] truncate">{{ chip }}</span>
+          @if (!disabled()) {
+            <ui-button
+              variant="ghost"
+              size="icon"
+              class="h-4 w-4 p-0 hover:bg-black/10 dark:hover:bg-white/10 rounded-full"
+              [ariaLabel]="'Remove ' + chip"
+              (click)="removeChip(i, $event)"
+            >
+              <svg
+                class="h-3 w-3"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                stroke-width="2"
               >
-                <svg
-                  class="h-3 w-3"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </ui-button>
-            }
-          </ui-badge>
-        }
-        @if (!disabled()) {
-          <input
-            #inputElement
-            type="text"
-            [class]="inputClasses()"
-            [placeholder]="chips().length === 0 ? placeholder() : ''"
-            [disabled]="disabled()"
-            [value]="inputValue()"
-            (input)="onInput($event)"
-            (keydown)="onKeyDown($event)"
-            (blur)="onBlur()"
-            [attr.data-slot]="'chip-input'"
-          />
-        }
-      </div>
+                <path
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  d="M6 18L18 6M6 6l12 12"
+                />
+              </svg>
+            </ui-button>
+          }
+        </ui-badge>
+      }
+      
+      <ui-input
+        #inputRef
+        [placeholder]="chips().length === 0 ? placeholder() : ''"
+        [disabled]="disabled()"
+        [ngModel]="inputValue()"
+        (ngModelChange)="onInputChange($event)"
+        (keydown)="onKeyDown($event)"
+        (blur)="onBlur()"
+        class="flex-1 min-w-[80px] bg-transparent border-none outline-none shadow-none focus-visible:ring-0 p-0 h-auto"
+        variant="ghost"
+      />
     </div>
   `,
   host: {
@@ -108,7 +107,8 @@ import { ButtonComponent } from './button.component';
 export class ChipListComponent implements ControlValueAccessor {
   placeholder = input('Add item...');
   disabled = input(false);
-  variant = input<BadgeVariant>('default');
+  variant = input<ChipListVariant>('outline');
+  badgeVariant = input<BadgeVariant>('default');
   class = input('');
 
   maxRows = input(0);
@@ -121,25 +121,16 @@ export class ChipListComponent implements ControlValueAccessor {
   chips = signal<string[]>([]);
   inputValue = signal('');
 
-  inputElement = viewChild<ElementRef<HTMLInputElement>>('inputElement');
+  inputComponent = viewChild.required(InputComponent);
 
   private onChange: (value: string[]) => void = () => { };
   private onTouched: () => void = () => { };
 
   containerClasses = computed(() => cn(
-    'w-full rounded-lg border border-input bg-transparent',
-    'transition-colors',
-    'focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px]',
+    chipListVariants({ variant: this.variant() }),
     this.disabled() && 'opacity-50 cursor-not-allowed',
     this.maxRows() > 0 && 'overflow-y-auto',
     this.class()
-  ));
-
-  inputClasses = computed(() => cn(
-    'flex-1 min-w-[80px] bg-transparent border-none outline-none',
-    'text-sm placeholder:text-muted-foreground',
-    'py-1 px-1',
-    this.disabled() && 'cursor-not-allowed'
   ));
 
   maxHeightStyle = computed(() => {
@@ -151,12 +142,11 @@ export class ChipListComponent implements ControlValueAccessor {
 
   focusInput() {
     if (this.disabled()) return;
-    this.inputElement()?.nativeElement?.focus();
+    this.inputComponent().focus();
   }
 
-  onInput(event: Event) {
-    const target = event.target as HTMLInputElement;
-    this.inputValue.set(target.value);
+  onInputChange(value: string) {
+    this.inputValue.set(value);
   }
 
   onKeyDown(event: KeyboardEvent) {
@@ -201,6 +191,9 @@ export class ChipListComponent implements ControlValueAccessor {
     this.onChange(this.chips());
     this.chipRemoved.emit(removed);
     this.focusInput();
+
+    // Maintain focus on input after removal
+    setTimeout(() => this.focusInput());
   }
 
   onBlur() {

@@ -22,11 +22,16 @@ const meta: Meta<InputComponent> = {
         disabled: {
             control: 'boolean',
         },
+        variant: {
+            control: 'select',
+            options: ['outline', 'underline'],
+        },
     },
     args: {
         type: 'text',
         placeholder: 'Enter text...',
         disabled: false,
+        variant: 'outline',
     },
 };
 
@@ -36,7 +41,7 @@ type Story = StoryObj<InputComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-input [type]="type" [placeholder]="placeholder" [disabled]="disabled"></ui-input>`,
+        template: `<ui-input [type]="type" [placeholder]="placeholder" [disabled]="disabled" [variant]="variant"></ui-input>`,
     }),
 };
 
@@ -47,7 +52,7 @@ export const Disabled: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-input [type]="type" [placeholder]="placeholder" [disabled]="disabled"></ui-input>`,
+        template: `<ui-input [type]="type" [placeholder]="placeholder" [disabled]="disabled" [variant]="variant"></ui-input>`,
     }),
 };
 
@@ -58,6 +63,17 @@ export const Email: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-input [type]="type" [placeholder]="placeholder" [disabled]="disabled"></ui-input>`,
+        template: `<ui-input [type]="type" [placeholder]="placeholder" [disabled]="disabled" [variant]="variant"></ui-input>`,
+    }),
+};
+
+export const Underline: Story = {
+    args: {
+        variant: 'underline',
+        placeholder: 'Underline input',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-input [type]="type" [placeholder]="placeholder" [disabled]="disabled" [variant]="variant"></ui-input>`,
     }),
 };

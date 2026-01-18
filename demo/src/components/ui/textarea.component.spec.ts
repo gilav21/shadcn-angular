@@ -94,11 +94,23 @@ describe('TextareaComponent', () => {
         expect(textarea.nativeElement.className).toContain('my-textarea');
     });
 
-    it('should apply base styling classes', () => {
+    it('should apply outline styling classes by default', () => {
         const textarea = fixture.debugElement.query(By.css('textarea'));
         expect(textarea.nativeElement.className).toContain('rounded-md');
         expect(textarea.nativeElement.className).toContain('border');
         expect(textarea.nativeElement.className).toContain('w-full');
+    });
+
+    it('should apply underline styling classes', () => {
+        fixture.componentRef.setInput('variant', 'underline');
+        fixture.detectChanges();
+
+        const textarea = fixture.debugElement.query(By.css('textarea'));
+        expect(textarea.nativeElement.className).toContain('border-b');
+        expect(textarea.nativeElement.className).toContain('rounded-none');
+        expect(textarea.nativeElement.className).not.toContain('rounded-md');
+        expect(textarea.nativeElement.className).toContain('px-0');
+        expect(textarea.nativeElement.className).toContain('resize-none');
     });
 });
 

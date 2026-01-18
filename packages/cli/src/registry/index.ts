@@ -133,7 +133,8 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   'input-group': {
     name: 'input-group',
-    files: ['input-group.component.ts'],
+    files: ['input-group.component.ts', 'input-group.token.ts'],
+    dependencies: ['input'],
   },
   'input-otp': {
     name: 'input-otp',
@@ -271,7 +272,7 @@ export const registry: Record<string, ComponentDefinition> = {
   'chip-list': {
     name: 'chip-list',
     files: ['chip-list.component.ts'],
-    dependencies: ['badge', 'button'],
+    dependencies: ['badge', 'button', 'input', 'input-group'],
   },
   'emoji-picker': {
     name: 'emoji-picker',

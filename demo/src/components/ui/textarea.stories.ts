@@ -17,11 +17,16 @@ const meta: Meta<TextareaComponent> = {
         placeholder: { control: 'text' },
         disabled: { control: 'boolean' },
         rows: { control: 'number' },
+        variant: {
+            control: 'select',
+            options: ['outline', 'underline'],
+        },
     },
     args: {
         placeholder: 'Type your message here.',
         disabled: false,
         rows: 4,
+        variant: 'outline',
     },
 };
 
@@ -31,7 +36,18 @@ type Story = StoryObj<TextareaComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-textarea [placeholder]="placeholder" [disabled]="disabled" [rows]="rows"></ui-textarea>`,
+        template: `<ui-textarea [placeholder]="placeholder" [disabled]="disabled" [rows]="rows" [variant]="variant"></ui-textarea>`,
+    }),
+};
+
+export const Underline: Story = {
+    args: {
+        variant: 'underline',
+        placeholder: 'Underline textarea',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-textarea [placeholder]="placeholder" [disabled]="disabled" [rows]="rows" [variant]="variant"></ui-textarea>`,
     }),
 };
 
