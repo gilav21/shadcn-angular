@@ -12,8 +12,7 @@ import {
     ElementRef,
     viewChild
 } from '@angular/core';
-import { Directionality } from '@angular/cdk/bidi';
-import { cn } from '../lib/utils';
+import { cn, isRtl } from '../lib/utils';
 
 export interface TreeNode {
     key: string;
@@ -59,7 +58,7 @@ export class TreeComponent {
     treeRoot = viewChild<ElementRef<HTMLElement>>('treeRoot');
     items = contentChildren(forwardRef(() => TreeItemComponent), { descendants: true });
 
-    private dir = inject(Directionality, { optional: true });
+    private el = inject(ElementRef);
 
     activeDescendantId = computed(() => {
         const focused = this.focusedKey();
@@ -67,7 +66,9 @@ export class TreeComponent {
         return this.items().find(item => item.value() === focused)?.id() ?? null;
     });
 
-    isRtl = computed(() => this.dir?.value === 'rtl');
+    isRtl() {
+        return isRtl(this.el.nativeElement);
+    }
 
     classes = computed(() =>
         cn(
