@@ -124,29 +124,97 @@ export async function add(components: string[], options: AddOptions) {
         ? path.join(cwd, options.path)
         : path.join(cwd, 'src/components/ui');
 
-    // Check for existing files
-    const existing: string[] = [];
+    // Check for existing files and diff
+    const componentsToInstall: ComponentName[] = [];
+    const componentsToSkip: string[] = [];
+    const conflictingComponents: ComponentName[] = [];
+    const contentCache = new Map<string, string>();
+
+    const checkSpinner = ora('Checking for conflicts...').start();
+
     for (const name of allComponents) {
         const component = registry[name];
+        let hasChanges = false;
+        let isFullyPresent = true;
+
         for (const file of component.files) {
             const targetPath = path.join(targetDir, file);
             if (await fs.pathExists(targetPath)) {
-                existing.push(file);
+                const localContent = await fs.readFile(targetPath, 'utf-8');
+
+                try {
+                    let remoteContent = await fetchComponentContent(file, options);
+                    // Transform imports for comparison
+                    const utilsAlias = config.aliases.utils;
+                    remoteContent = remoteContent.replace(/(\.\.\/)+lib\/utils/g, utilsAlias);
+
+                    const normalize = (str: string) => str.replace(/\s+/g, '').trim();
+                    if (normalize(localContent) !== normalize(remoteContent)) {
+                        hasChanges = true;
+                    }
+                    contentCache.set(file, remoteContent); // Cache for installation
+                } catch (error) {
+                    // unexpected error fetching remote
+                    console.warn(`Could not fetch remote content for comparison: ${file}`);
+                    hasChanges = true; // Assume changed/unknown
+                }
+            } else {
+                isFullyPresent = false;
             }
+        }
+
+        if (isFullyPresent && !hasChanges) {
+            componentsToSkip.push(name);
+        } else if (hasChanges) {
+            conflictingComponents.push(name);
+        } else {
+            componentsToInstall.push(name);
         }
     }
 
-    if (existing.length > 0 && !options.overwrite && !options.yes) {
-        const { overwrite } = await prompts({
-            type: 'confirm',
-            name: 'overwrite',
-            message: `The following files already exist: ${existing.join(', ')}. Overwrite?`,
-            initial: false,
-        });
-        if (!overwrite) {
-            console.log(chalk.dim('Installation cancelled.'));
-            return;
+    checkSpinner.stop();
+
+    let componentsToOverwrite: ComponentName[] = [];
+
+    if (conflictingComponents.length > 0) {
+        if (options.overwrite) {
+            componentsToOverwrite = conflictingComponents;
+        } else if (options.yes) {
+            componentsToOverwrite = []; // Skip conflicts in non-interactive mode unless --overwrite
+        } else {
+            console.log(chalk.yellow(`\n${conflictingComponents.length} component(s) have local changes or are different from remote.`));
+            const { selected } = await prompts({
+                type: 'multiselect',
+                name: 'selected',
+                message: 'Select components to OVERWRITE (Unselected will be skipped):',
+                choices: conflictingComponents.map(name => ({
+                    title: name,
+                    value: name,
+                })),
+                hint: '- Space to select, Enter to confirm',
+            });
+            componentsToOverwrite = selected || [];
         }
+    }
+
+    // Final list of components to process
+    // We process:
+    // 1. componentsToInstall (Brand new or partial)
+    // 2. componentsToOverwrite (User selected)
+    // We SKIP:
+    // 1. componentsToSkip (Identical)
+    // 2. conflictingComponents NOT in componentsToOverwrite
+
+    const finalComponents = [...componentsToInstall, ...componentsToOverwrite];
+
+    if (finalComponents.length === 0 && componentsToSkip.length > 0) {
+        console.log(chalk.green(`\nAll components are up to date! (${componentsToSkip.length} skipped)`));
+        return;
+    }
+
+    if (finalComponents.length === 0) {
+        console.log(chalk.dim('\nNo components to install.'));
+        return;
     }
 
     const spinner = ora('Installing components...').start();
@@ -155,7 +223,7 @@ export async function add(components: string[], options: AddOptions) {
     try {
         await fs.ensureDir(targetDir);
 
-        for (const name of allComponents) {
+        for (const name of finalComponents) {
             const component = registry[name];
             let componentSuccess = true;
 
@@ -163,34 +231,47 @@ export async function add(components: string[], options: AddOptions) {
                 const targetPath = path.join(targetDir, file);
 
                 try {
-                    let content = await fetchComponentContent(file, options);
+                    let content = contentCache.get(file);
+                    if (!content) {
+                        content = await fetchComponentContent(file, options);
+                        // Transform imports if not already transformed (cached is transformed)
+                        const utilsAlias = config.aliases.utils;
+                        content = content.replace(/(\.\.\/)+lib\/utils/g, utilsAlias);
+                    }
 
-                    // Transform imports
-                    // Replace ../lib/utils (or similar relative paths) with the configured alias
-                    const utilsAlias = config.aliases.utils;
-                    content = content.replace(/(\.\.\/)+lib\/utils/g, utilsAlias);
                     await fs.ensureDir(path.dirname(targetPath));
                     await fs.writeFile(targetPath, content);
-                    spinner.text = `Added ${file}`;
+                    // spinner.text = `Added ${file}`; // Too verbose?
                 } catch (err: any) {
                     spinner.warn(`Could not add ${file}: ${err.message}`);
                     componentSuccess = false;
                 }
             }
-            if (componentSuccess) successCount++;
+            if (componentSuccess) {
+                successCount++;
+                spinner.text = `Added ${name}`;
+            }
         }
 
         if (successCount > 0) {
-            spinner.succeed(chalk.green(`Added ${successCount} component(s)`));
+            spinner.succeed(chalk.green(`Success! Added ${successCount} component(s)`));
 
             console.log('\n' + chalk.dim('Components added:'));
-            allComponents.forEach(name => {
+            finalComponents.forEach(name => {
                 console.log(chalk.dim('  - ') + chalk.cyan(name));
             });
-            console.log('');
         } else {
-            spinner.fail(chalk.red('Failed to add any components.'));
+            spinner.info('No new components installed.');
         }
+
+        if (componentsToSkip.length > 0) {
+            console.log('\n' + chalk.dim('Components skipped (up to date):'));
+            componentsToSkip.forEach(name => {
+                console.log(chalk.dim('  - ') + chalk.gray(name));
+            });
+        }
+
+        console.log('');
 
     } catch (error) {
         spinner.fail('Failed to add components');
