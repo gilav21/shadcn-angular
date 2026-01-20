@@ -140,7 +140,7 @@ export const ManyColumns: Story = {
     render: (args) => ({
         props: args,
         template: `
-            <div class="h-[600px] w-full p-4">
+            <div class="h-[600px] max-w-[800px] p-4">
                 <ui-data-table
                     [data]="data"
                     [columns]="columns"
@@ -159,6 +159,14 @@ export const ManyColumns: Story = {
             { accessorKey: 'email', header: 'Contact' },
             { accessorKey: 'name', header: 'Full Name' },
             { accessorKey: 'id', header: 'Employee ID' },
+            { accessorKey: 'role', header: 'Position' },
+            { accessorKey: 'email', header: 'Email Address' },
+            { accessorKey: 'name', header: 'Display Name' },
+            { accessorKey: 'id', header: 'User ID' },
+            { accessorKey: 'role', header: 'Team' },
+            { accessorKey: 'email', header: 'Secondary Email' },
+            { accessorKey: 'name', header: 'Nickname' },
+            { accessorKey: 'id', header: 'Badge Number' },
         ],
         showToolbar: true,
         showPagination: true,
