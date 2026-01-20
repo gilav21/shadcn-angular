@@ -1,5 +1,10 @@
 export * from './button.component';
 export * from './input.component';
+
+
+
+
+
 export * from './card.component';
 export * from './badge.component';
 export * from './label.component';
@@ -63,3 +68,4 @@ export * from './rating.component';
 export * from './stepper.component';
 export * from './file-upload.component';
 export * from './color-picker.component';
+export * from './data-table';

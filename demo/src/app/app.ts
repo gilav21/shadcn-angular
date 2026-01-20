@@ -1,6 +1,7 @@
-import { Component, ChangeDetectionStrategy, signal, inject } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, effect } from '@angular/core';
 import { JsonPipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { delay, of } from 'rxjs';
 import {
   ButtonComponent,
   InputComponent,
@@ -239,7 +240,11 @@ import {
   StepperDescriptionComponent,
   StepperContentComponent,
   FileUploadComponent,
-  ColorPickerComponent
+  ColorPickerComponent,
+  DataTableComponent,
+  ColumnDef,
+  SortState,
+  PaginationState,
 } from '../components/ui';
 import { UiConfettiDirective } from "@/components/ui/confetti.directive";
 import { NumberTickerComponent } from '@/components/ui/number-ticker.component';
@@ -261,6 +266,13 @@ import {
 interface Framework {
   value: string;
   label: string;
+}
+
+export interface Payment {
+  id: string;
+  amount: number;
+  status: 'pending' | 'processing' | 'success' | 'failed';
+  email: string;
 }
 
 @Component({
@@ -513,6 +525,8 @@ interface Framework {
     StackedBarChartComponent,
     ColumnRangeChartComponent,
     BarRaceChartComponent,
+    BarRaceChartComponent,
+    DataTableComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -538,8 +552,109 @@ export class AppComponent {
     'Elderberry',
     'Fig',
     'Grape',
-    'Honeydew',
   ]);
+
+  // Data Table Demo Data
+  payments = signal<Payment[]>([]);
+
+  // Selection State
+  selection = signal<Record<string, boolean>>({});
+  selectionCount = computed(() => Object.keys(this.selection()).filter(k => this.selection()[k]).length);
+
+  paymentColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', enableSorting: true, sticky: true, width: '100px' },
+    { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px' },
+    { accessorKey: 'amount', header: 'Amount', enableSorting: true, width: '150px' },
+    { accessorKey: 'status', header: 'Status', enableSorting: true, width: '150px' },
+    // Extra columns to force horizontal scroll
+    { accessorKey: 'clientName', header: 'Client Name', width: '200px' },
+    { accessorKey: 'role', header: 'Role', width: '150px' },
+  ];
+
+  constructor() {
+    // Generate 100 mock payments
+    const data: Payment[] = Array.from({ length: 100 }, (_, i) => ({
+      id: `PAY-${i + 1}`,
+      amount: Math.floor(Math.random() * 500) + 50,
+      status: ['pending', 'processing', 'success', 'failed'][Math.floor(Math.random() * 4)] as any,
+      email: `user${i + 1}@example.com`,
+    }));
+    this.payments.set(data);
+
+    // Initial server load
+    this.loadServerData();
+
+    // Simulate subscribers increasing
+    setInterval(() => {
+      this.subscribersValue.update(v => v + Math.floor(Math.random() * 3) + 1);
+    }, 5000);
+  }
+
+  // Server-Side Demo State
+  serverData = signal<Payment[]>([]);
+  serverTotal = signal(0);
+  serverLoading = signal(true);
+
+  // Params
+  serverSort = signal<SortState>({ column: 'email', direction: 'asc' });
+  serverPagination = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  serverFilter = signal('');
+
+  onServerSort(sort: SortState) {
+    this.serverSort.set(sort);
+    this.loadServerData();
+  }
+
+  onServerPage(page: PaginationState) {
+    this.serverPagination.set(page);
+    this.loadServerData();
+  }
+
+  onServerFilter(filter: string) {
+    this.serverFilter.set(filter);
+    this.serverPagination.update(p => ({ ...p, pageIndex: 0 })); // Reset to first page
+    this.loadServerData();
+  }
+
+  private loadServerData() {
+    this.serverLoading.set(true);
+
+    // Mock Server Logic
+    const allData = this.payments(); // Use same mock data source
+    const { pageIndex, pageSize } = this.serverPagination();
+    const sort = this.serverSort();
+    const filter = this.serverFilter().toLowerCase();
+
+    of(null).pipe(delay(1000)).subscribe(() => {
+      let filtered = allData;
+
+      // 1. Filter
+      if (filter) {
+        filtered = filtered.filter(row =>
+          Object.values(row).some(val => String(val).toLowerCase().includes(filter))
+        );
+      }
+
+      // 2. Sort
+      if (sort.column && sort.direction) {
+        filtered = [...filtered].sort((a, b) => {
+          const aVal = (a as any)[sort.column];
+          const bVal = (b as any)[sort.column];
+          if (aVal < bVal) return sort.direction === 'asc' ? -1 : 1;
+          if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
+          return 0;
+        });
+      }
+
+      // 3. Paginate
+      const start = pageIndex * pageSize;
+      const sliced = filtered.slice(start, start + pageSize);
+
+      this.serverData.set(sliced);
+      this.serverTotal.set(filtered.length);
+      this.serverLoading.set(false);
+    });
+  }
 
   isRtl = signal(false);
   selectedEmoji = signal<string | null>(null);
@@ -660,6 +775,7 @@ export class AppComponent {
     { title: 'Color Picker', id: 'color-picker' },
     { title: 'Confetti', id: 'confetti' },
     { title: 'Charts', id: 'charts' },
+    { title: 'Data Table', id: 'data-table' },
   ];
 
   onKeydown(e: KeyboardEvent) {
@@ -797,6 +913,7 @@ export class AppComponent {
       ]
     },
   ];
+
   stackedCategories = ['Q1', 'Q2', 'Q3', 'Q4'];
 
   rangeChartData: RangeDataPoint[] = [
@@ -817,13 +934,4 @@ export class AppComponent {
     [{ name: 'Alice', value: 265 }, { name: 'Bob', value: 290 }, { name: 'Charlie', value: 255 }, { name: 'Diana', value: 278 }, { name: 'Eve', value: 262 }, { name: 'Frank', value: 35 }],
   ];
   barRaceLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
-
-  constructor() {
-    console.log('AppComponent initialized');
-
-    // Simulate subscribers increasing
-    setInterval(() => {
-      this.subscribersValue.update(v => v + Math.floor(Math.random() * 3) + 1);
-    }, 5000);
-  }
 }

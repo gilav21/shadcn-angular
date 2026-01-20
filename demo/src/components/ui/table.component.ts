@@ -17,7 +17,7 @@ import { cn } from '../lib/utils';
       </table>
     </div>
   `,
-    host: { class: 'contents' },
+    host: { class: 'contents' }, // ui-table wrapper can stay contents, it wraps the internal table structure
 })
 export class TableComponent {
     class = input('');
@@ -37,8 +37,13 @@ export class TableHeaderDirective {
 @Component({
     selector: 'ui-table-header',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<thead [class]="classes()" [attr.data-slot]="'table-header'"><ng-content /></thead>`,
-    host: { class: 'contents' },
+    template: `<ng-content />`,
+    host: {
+        class: 'table-header-group',
+        '[class]': 'classes()',
+        '[attr.data-slot]': '"table-header"',
+        'role': 'rowgroup'
+    },
 })
 export class TableHeaderComponent {
     class = input('');
@@ -49,8 +54,13 @@ export class TableHeaderComponent {
 @Component({
     selector: 'ui-table-body',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<tbody [class]="classes()" [attr.data-slot]="'table-body'"><ng-content /></tbody>`,
-    host: { class: 'contents' },
+    template: `<ng-content />`,
+    host: {
+        class: 'table-row-group',
+        '[class]': 'classes()',
+        '[attr.data-slot]': '"table-body"',
+        'role': 'rowgroup'
+    },
 })
 export class TableBodyComponent {
     class = input('');
@@ -61,8 +71,13 @@ export class TableBodyComponent {
 @Component({
     selector: 'ui-table-footer',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<tfoot [class]="classes()" [attr.data-slot]="'table-footer'"><ng-content /></tfoot>`,
-    host: { class: 'contents' },
+    template: `<ng-content />`,
+    host: {
+        class: 'table-footer-group',
+        '[class]': 'classes()',
+        '[attr.data-slot]': '"table-footer"',
+        'role': 'rowgroup'
+    },
 })
 export class TableFooterComponent {
     class = input('');
@@ -73,8 +88,14 @@ export class TableFooterComponent {
 @Component({
     selector: 'ui-table-row',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<tr [class]="classes()" [attr.data-slot]="'table-row'" [attr.data-state]="selected() ? 'selected' : null"><ng-content /></tr>`,
-    host: { class: 'contents' },
+    template: `<ng-content />`,
+    host: {
+        class: 'table-row',
+        '[class]': 'classes()',
+        '[attr.data-slot]': '"table-row"',
+        '[attr.data-state]': 'selected() ? "selected" : null',
+        'role': 'row'
+    },
 })
 export class TableRowComponent {
     class = input('');
@@ -89,8 +110,13 @@ export class TableRowComponent {
 @Component({
     selector: 'ui-table-head',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<th [class]="classes()" [attr.data-slot]="'table-head'"><ng-content /></th>`,
-    host: { class: 'contents' },
+    template: `<ng-content />`,
+    host: {
+        class: 'table-cell',
+        '[class]': 'classes()',
+        '[attr.data-slot]': '"table-head"',
+        'role': 'columnheader'
+    },
 })
 export class TableHeadComponent {
     class = input('');
@@ -104,8 +130,13 @@ export class TableHeadComponent {
 @Component({
     selector: 'ui-table-cell',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<td [class]="classes()" [attr.data-slot]="'table-cell'"><ng-content /></td>`,
-    host: { class: 'contents' },
+    template: `<ng-content />`,
+    host: {
+        class: 'table-cell',
+        '[class]': 'classes()',
+        '[attr.data-slot]': '"table-cell"',
+        'role': 'cell'
+    },
 })
 export class TableCellComponent {
     class = input('');
@@ -119,8 +150,12 @@ export class TableCellComponent {
 @Component({
     selector: 'ui-table-caption',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<caption [class]="classes()" [attr.data-slot]="'table-caption'"><ng-content /></caption>`,
-    host: { class: 'contents' },
+    template: `<ng-content />`,
+    host: {
+        class: 'table-caption',
+        '[class]': 'classes()',
+        '[attr.data-slot]': '"table-caption"'
+    },
 })
 export class TableCaptionComponent {
     class = input('');

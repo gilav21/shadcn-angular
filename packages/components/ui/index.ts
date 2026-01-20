@@ -65,6 +65,7 @@ export * from './file-upload.component';
 export * from './color-picker.component';
 export * from './confetti.directive';
 export * from './number-ticker.component';
+export * from './data-table';
 
 // Charts
 export * from './charts';

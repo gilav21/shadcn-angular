@@ -24,7 +24,7 @@ import { cn } from '../lib/utils';
       type="button"
       role="checkbox"
       [attr.aria-checked]="checked()"
-      [attr.data-state]="checked() ? 'checked' : 'unchecked'"
+      [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
       [class]="classes()"
       [disabled]="disabled()"
       [attr.id]="elementId()"
@@ -33,7 +33,21 @@ import { cn } from '../lib/utils';
       [attr.data-slot]="'checkbox'"
       (click)="toggle()"
     >
-      @if (checked()) {
+      @if (indeterminate()) {
+        <svg
+          class="h-3 w-3"
+          fill="none"
+          viewBox="0 0 24 24"
+          stroke="currentColor"
+          stroke-width="3"
+        >
+          <path
+            stroke-linecap="round"
+            stroke-linejoin="round"
+            d="M5 12h14"
+          />
+        </svg>
+      } @else if (checked()) {
         <svg
           class="h-3 w-3"
           fill="none"
@@ -61,6 +75,7 @@ export class CheckboxComponent implements ControlValueAccessor {
   ariaLabel = input<string | undefined>(undefined);
   ariaLabelledby = input<string | undefined>(undefined);
   checked = model<boolean>(false);
+  indeterminate = input(false);
 
   private onChange: (value: boolean) => void = () => { };
   private onTouched: () => void = () => { };
@@ -68,7 +83,7 @@ export class CheckboxComponent implements ControlValueAccessor {
   classes = computed(() =>
     cn(
       'peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center',
-      this.checked()
+      this.checked() || this.indeterminate()
         ? 'bg-primary text-primary-foreground'
         : 'bg-background',
       this.class()

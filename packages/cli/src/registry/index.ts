@@ -98,6 +98,23 @@ export const registry: Record<string, ComponentDefinition> = {
     files: ['date-picker.component.ts'],
     dependencies: ['calendar'],
   },
+  'data-table': {
+    name: 'data-table',
+    files: [
+      'data-table/data-table.component.ts',
+      'data-table/data-table-column-header.component.ts',
+      'data-table/data-table-pagination.component.ts',
+      'data-table/data-table.types.ts',
+    ],
+    dependencies: [
+      'table',
+      'input',
+      'button',
+      'checkbox',
+      'select',
+      'pagination',
+    ],
+  },
   dialog: {
     name: 'dialog',
     files: ['dialog.component.ts'],

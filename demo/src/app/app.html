@@ -2753,6 +2753,42 @@
       </div>
     </section>
 
+    <!-- Data Table Section -->
+    <section class="space-y-4">
+      <h2 id="data-table" class="text-2xl font-semibold scroll-m-20">Data Table (Client-Side)</h2>
+      <p class="text-muted-foreground">
+        A powerful table component with sorting, filtering, and pagination.
+      </p>
+
+      <div class="rounded-md border h-[600px] overflow-auto relative">
+        <ui-data-table [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
+          [(rowSelection)]="selection" />
+      </div>
+      <div class="text-sm text-muted-foreground">
+        Selected {{ selectionCount() }} rows.
+      </div>
+    </section>
+
+    <!-- Server-Side Data Table Section -->
+    <section class="space-y-4">
+      <h2 class="text-2xl font-semibold scroll-m-20">Data Table (Server-Side)</h2>
+      <p class="text-muted-foreground">
+        Simulated server-side sorting, filtering, and pagination with 1s delay.
+      </p>
+
+      <div class="rounded-md border relative">
+        @if (serverLoading()) {
+        <div class="absolute inset-0 bg-background/50 z-10 flex items-center justify-center">
+          <ui-spinner class="h-8 w-8 text-primary" />
+        </div>
+        }
+
+        <ui-data-table [data]="serverData()" [columns]="paymentColumns" [total]="serverTotal()" [localSorting]="false"
+          [localPagination]="false" [localFiltering]="false" (sortChange)="onServerSort($event)"
+          (pageChange)="onServerPage($event)" (filterChange)="onServerFilter($event)" />
+      </div>
+    </section>
+
     <!-- Footer -->
     <div class="text-center text-muted-foreground text-sm pt-8">
       Built with Angular and Tailwind CSS. Open source.
