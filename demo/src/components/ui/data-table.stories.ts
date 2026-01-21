@@ -335,3 +335,51 @@ export const CustomFilterFunction: Story = {
     },
 };
 
+@Component({
+    selector: 'app-custom-empty-state',
+    standalone: true,
+    template: `
+        <div class="flex flex-col items-center justify-center p-8 text-center text-muted-foreground">
+            <div class="mb-4 rounded-full bg-muted/50 p-4">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-8 w-8">
+                    <circle cx="12" cy="12" r="10"/>
+                    <line x1="12" y1="8" x2="12" y2="12"/>
+                    <line x1="12" y1="16" x2="12.01" y2="16"/>
+                </svg>
+            </div>
+            <h3 class="text-lg font-semibold">No Data Found</h3>
+            <p class="mb-4 text-sm text-balance">We couldn't find any results matching your filters.</p>
+            <button class="inline-flex items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground shadow hover:bg-primary/90">
+                Clear Filters
+            </button>
+        </div>
+    `,
+})
+class CustomEmptyStateComponent { }
+
+export const WithCustomEmptyState: Story = {
+    render: (args) => ({
+        props: {
+            ...args,
+            emptyStateComponent: CustomEmptyStateComponent,
+        },
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="[]"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [emptyStateComponent]="emptyStateComponent"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: [],
+        columns: columns,
+        showToolbar: true,
+        showPagination: true,
+    },
+};
+

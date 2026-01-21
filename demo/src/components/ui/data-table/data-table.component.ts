@@ -7,6 +7,7 @@ import {
   signal,
   ChangeDetectionStrategy,
   ViewEncapsulation,
+  Type,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -147,6 +148,10 @@ import { cn } from '../../lib/utils';
                   }
                 </ui-table-head>
               }
+              <ui-table-head 
+                class="flex-1 pointer-events-none"
+                [class]="getHeaderClass({ _width: 'auto' })"
+              ></ui-table-head>
             </ui-table-row>
           </ui-table-header>
           <ui-table-body>
@@ -182,12 +187,25 @@ import { cn } from '../../lib/utils';
                       }
                     </ui-table-cell>
                   }
+                  <ui-table-cell 
+                    class="flex-1 pointer-events-none"
+                    [class]="getCellClass({ _width: 'auto' })"
+                  ></ui-table-cell>
                 </ui-table-row>
               }
             } @else {
-              <ui-table-row>
-                <ui-table-cell [attr.colspan]="columns().length" class="h-24 text-center">
-                  No results.
+              <ui-table-row class="hover:bg-transparent justify-center w-full">
+                <ui-table-cell class="h-96 text-center w-full p-0 border-none justify-center">
+                  @if (emptyStateComponent()) {
+                    <ng-container [uiCellHost]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
+                  } @else {
+                    <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
+                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 h-10 w-10 opacity-20">
+                        <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                      </svg>
+                      <p>No results found.</p>
+                    </div>
+                  }
                 </ui-table-cell>
               </ui-table-row>
             }
@@ -236,6 +254,9 @@ export class DataTableComponent<T> {
   enableRowSelection = input(false);
   rowSelection = model<Record<string, boolean>>({});
   getRowId = input<(row: T) => string>((row: any) => row.id ?? String(JSON.stringify(row)));
+
+  emptyStateComponent = input<Type<unknown>>();
+  emptyStateComponentInputs = input<Record<string, unknown>>({});
 
   globalFilter = signal('');
   columnFilters = signal<Record<string, any>>({});
