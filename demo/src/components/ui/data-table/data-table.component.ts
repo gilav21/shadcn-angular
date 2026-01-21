@@ -148,10 +148,12 @@ import { cn } from '../../lib/utils';
                   }
                 </ui-table-head>
               }
-              <ui-table-head 
-                class="flex-1 pointer-events-none"
-                [class]="getHeaderClass({ _width: 'auto' })"
-              ></ui-table-head>
+              @if (!hasFlexibleColumns()) {
+                <ui-table-head 
+                  class="flex-1 pointer-events-none"
+                  [class]="getHeaderClass({ _width: 'auto' })"
+                ></ui-table-head>
+              }
             </ui-table-row>
           </ui-table-header>
           <ui-table-body>
@@ -187,10 +189,12 @@ import { cn } from '../../lib/utils';
                       }
                     </ui-table-cell>
                   }
-                  <ui-table-cell 
-                    class="flex-1 pointer-events-none"
-                    [class]="getCellClass({ _width: 'auto' })"
-                  ></ui-table-cell>
+                  @if (!hasFlexibleColumns()) {
+                    <ui-table-cell 
+                      class="flex-1 pointer-events-none"
+                      [class]="getCellClass({ _width: 'auto' })"
+                    ></ui-table-cell>
+                  }
                 </ui-table-row>
               }
             } @else {
@@ -389,6 +393,10 @@ export class DataTableComponent<T> {
     return this.enhancedColumns().some(col => col.enableFiltering);
   });
 
+  hasFlexibleColumns = computed(() => {
+    return this.enhancedColumns().some(col => col._width === 'auto');
+  });
+
   getHeaderClass(col: any) {
     return cn(
       'sticky top-0 bg-background shadow-sm',
@@ -406,12 +414,17 @@ export class DataTableComponent<T> {
   }
 
   getCellStyle(col: any, isHeader = false) {
+    const width = col._width;
+    const isAuto = width === 'auto';
+
     const style: any = {
-      width: col._width,
-      minWidth: col._width,
-      maxWidth: col._width,
-      flexShrink: '0',
-      flexGrow: '0'
+      // For auto width, use flax-basis 0 to ensure equal distribution regardless of content
+      width: isAuto ? '0px' : width,
+      minWidth: isAuto ? '0px' : width,
+      maxWidth: isAuto ? 'none' : width,
+      flexShrink: isAuto ? '1' : '0',
+      flexGrow: isAuto ? '1' : '0',
+      flexBasis: isAuto ? '0px' : 'auto'
     };
 
     if (col.sticky) {

@@ -383,3 +383,31 @@ export const WithCustomEmptyState: Story = {
     },
 };
 
+export const AutoSizing: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [enableRowSelection]="enableRowSelection"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: [
+            { accessorKey: 'id', header: 'ID', width: '80px' },
+            { accessorKey: 'name', header: 'Name', width: 'auto' }, // Should fill
+            { accessorKey: 'email', header: 'Email', width: 'auto' }, // Should fill
+            { accessorKey: 'role', header: 'Role', width: '150px' },
+        ],
+        showToolbar: true,
+        showPagination: true,
+        enableRowSelection: true,
+    },
+};
