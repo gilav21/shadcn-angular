@@ -11,6 +11,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
+  TableComponent,
   TableHeaderComponent,
   TableBodyComponent,
   TableRowComponent,
@@ -30,6 +31,7 @@ import { cn } from '../../lib/utils';
   imports: [
     CommonModule,
     FormsModule,
+    TableComponent,
     TableHeaderComponent,
     TableBodyComponent,
     TableRowComponent,
@@ -61,13 +63,13 @@ import { cn } from '../../lib/utils';
       }
 
       <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full">
-        <div class="table border-collapse w-full h-full caption-bottom text-sm">
+        <ui-table>
           <ui-table-header class="bg-background">
             <ui-table-row>
               @for (col of enhancedColumns(); track col.accessorKey) {
                 <ui-table-head 
                   [class]="getHeaderClass(col)"
-                  [style]="getStickyStyle(col)"
+                  [style]="getCellStyle(col, true)"
                 >
                   @if (col.accessorKey === '_selection') {
                     <ui-checkbox 
@@ -102,7 +104,7 @@ import { cn } from '../../lib/utils';
                   @for (col of enhancedColumns(); track col.accessorKey) {
                     <ui-table-cell
                       [class]="getCellClass(col)"
-                      [style]="getStickyStyle(col)"
+                      [style]="getCellStyle(col)"
                     >
                       @if (col.accessorKey === '_selection') {
                         <ui-checkbox 
@@ -132,13 +134,13 @@ import { cn } from '../../lib/utils';
               @for (col of enhancedColumns(); track col.accessorKey) {
                 <ui-table-cell
                   [class]="getCellClass(col)"
-                  [style]="getStickyStyle(col)"
+                  [style]="getCellStyle(col)"
                   class="bg-background border-0 p-0"
                 ></ui-table-cell>
               }
             </ui-table-row>
           </ui-table-body>
-        </div>
+        </ui-table>
       </div>
 
       @if (showPagination()) {
@@ -278,20 +280,33 @@ export class DataTableComponent<T> {
   getCellClass(col: any) {
     return cn(
       'bg-background',
-      col.sticky && 'sticky z-10 border-r',
       this.showRowBorders() && 'border-b',
       this.showColumnBorders() && 'border-r'
     );
   }
 
-  getStickyStyle(col: any) {
-    if (!col.sticky) return {};
-    return {
-      left: `${col._stickyLeft}px`,
+  getCellStyle(col: any, isHeader = false) {
+    const style: any = {
       width: col._width,
       minWidth: col._width,
-      maxWidth: col._width
+      maxWidth: col._width,
+      flexShrink: '0',
+      flexGrow: '0'
     };
+
+    if (col.sticky) {
+      style.position = 'sticky';
+      style.left = `${col._stickyLeft}px`;
+      style.zIndex = isHeader ? '30' : '10';
+    }
+
+    if (isHeader) {
+      style.position = 'sticky';
+      style.top = '0';
+      style.zIndex = col.sticky ? '30' : '20';
+    }
+
+    return style;
   }
 
   isRowSelected(row: T): boolean {

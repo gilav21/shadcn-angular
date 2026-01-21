@@ -273,6 +273,8 @@ export interface Payment {
   amount: number;
   status: 'pending' | 'processing' | 'success' | 'failed';
   email: string;
+  clientName?: string;
+  role?: string;
 }
 
 @Component({
@@ -573,11 +575,16 @@ export class AppComponent {
 
   constructor() {
     // Generate 100 mock payments
+    const clientNames = ['Acme Corp', 'TechStart Inc', 'Global Solutions', 'Innovation Labs', 'Digital Ventures'];
+    const roles = ['Admin', 'User', 'Manager', 'Developer', 'Designer'];
+
     const data: Payment[] = Array.from({ length: 100 }, (_, i) => ({
       id: `PAY-${i + 1}`,
       amount: Math.floor(Math.random() * 500) + 50,
       status: ['pending', 'processing', 'success', 'failed'][Math.floor(Math.random() * 4)] as any,
       email: `user${i + 1}@example.com`,
+      clientName: clientNames[Math.floor(Math.random() * clientNames.length)],
+      role: roles[Math.floor(Math.random() * roles.length)],
     }));
     this.payments.set(data);
 

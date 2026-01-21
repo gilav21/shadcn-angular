@@ -11,18 +11,16 @@ import { cn } from '../lib/utils';
     selector: 'ui-table',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <div data-slot="table-container" class="relative w-full overflow-x-auto">
-      <table [class]="classes()" [attr.data-slot]="'table'">
-        <ng-content />
-      </table>
+    <div [class]="classes()" [attr.data-slot]="'table'">
+      <ng-content />
     </div>
   `,
-    host: { class: 'contents' }, // ui-table wrapper can stay contents, it wraps the internal table structure
+    host: { class: 'contents' },
 })
 export class TableComponent {
     class = input('');
 
-    classes = computed(() => cn('w-full caption-bottom text-sm', this.class()));
+    classes = computed(() => cn('flex flex-col w-full min-h-0', this.class()));
 }
 
 @Directive({
@@ -31,7 +29,7 @@ export class TableComponent {
 export class TableHeaderDirective {
     class = input('');
 
-    classes = computed(() => cn('[&_tr]:border-b', this.class()));
+    classes = computed(() => cn('', this.class()));
 }
 
 @Component({
@@ -39,7 +37,7 @@ export class TableHeaderDirective {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'table-header-group',
+        class: 'sticky top-0 z-20 bg-background flex-shrink-0',
         '[class]': 'classes()',
         '[attr.data-slot]': '"table-header"',
         'role': 'rowgroup'
@@ -48,7 +46,7 @@ export class TableHeaderDirective {
 export class TableHeaderComponent {
     class = input('');
 
-    classes = computed(() => cn('[&_tr]:border-b', this.class()));
+    classes = computed(() => cn('', this.class()));
 }
 
 @Component({
@@ -56,7 +54,7 @@ export class TableHeaderComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'table-row-group',
+        class: 'flex flex-col flex-1',
         '[class]': 'classes()',
         '[attr.data-slot]': '"table-body"',
         'role': 'rowgroup'
@@ -65,7 +63,7 @@ export class TableHeaderComponent {
 export class TableBodyComponent {
     class = input('');
 
-    classes = computed(() => cn('[&_tr:last-child]:border-0', this.class()));
+    classes = computed(() => cn('', this.class()));
 }
 
 @Component({
@@ -73,7 +71,7 @@ export class TableBodyComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'table-footer-group',
+        class: 'flex flex-col flex-shrink-0 bg-muted/50 border-t font-medium',
         '[class]': 'classes()',
         '[attr.data-slot]': '"table-footer"',
         'role': 'rowgroup'
@@ -82,7 +80,7 @@ export class TableBodyComponent {
 export class TableFooterComponent {
     class = input('');
 
-    classes = computed(() => cn('bg-muted/50 border-t font-medium [&>tr]:last:border-b-0', this.class()));
+    classes = computed(() => cn('', this.class()));
 }
 
 @Component({
@@ -90,7 +88,7 @@ export class TableFooterComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'table-row',
+        class: 'flex w-full min-w-max flex-shrink-0',
         '[class]': 'classes()',
         '[attr.data-slot]': '"table-row"',
         '[attr.data-state]': 'selected() ? "selected" : null',
@@ -102,7 +100,7 @@ export class TableRowComponent {
     selected = input(false);
 
     classes = computed(() => cn(
-        'hover:bg-muted/50 data-[state=selected]:bg-muted border-b transition-colors',
+        'hover:bg-muted/50 data-[state=selected]:bg-muted transition-colors',
         this.class()
     ));
 }
@@ -112,7 +110,7 @@ export class TableRowComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'table-cell',
+        class: 'flex items-center flex-shrink-0',
         '[class]': 'classes()',
         '[attr.data-slot]': '"table-head"',
         'role': 'columnheader'
@@ -122,7 +120,7 @@ export class TableHeadComponent {
     class = input('');
 
     classes = computed(() => cn(
-        'text-foreground h-10 px-2 ltr:text-left rtl:text-right align-middle font-medium whitespace-nowrap [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'text-foreground h-10 px-2 ltr:text-left rtl:text-right font-medium whitespace-nowrap overflow-hidden text-ellipsis [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
         this.class()
     ));
 }
@@ -132,7 +130,7 @@ export class TableHeadComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'table-cell',
+        class: 'flex items-center flex-shrink-0',
         '[class]': 'classes()',
         '[attr.data-slot]': '"table-cell"',
         'role': 'cell'
@@ -142,7 +140,7 @@ export class TableCellComponent {
     class = input('');
 
     classes = computed(() => cn(
-        'p-2 align-middle whitespace-nowrap [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'p-2 whitespace-nowrap overflow-hidden text-ellipsis border-r [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
         this.class()
     ));
 }
@@ -152,7 +150,7 @@ export class TableCellComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'table-caption',
+        class: 'flex',
         '[class]': 'classes()',
         '[attr.data-slot]': '"table-caption"'
     },
