@@ -569,11 +569,10 @@ export class AppComponent {
 
   paymentColumns: ColumnDef<Payment>[] = [
     { accessorKey: 'id', header: 'ID', enableSorting: true, sticky: true, width: '100px' },
-    { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px' },
+    { accessorKey: 'email', header: 'Email', enableSorting: true, width: 'auto' },
     { accessorKey: 'amount', header: 'Amount', enableSorting: true, width: '150px' },
     { accessorKey: 'status', header: 'Status', enableSorting: true, width: '150px' },
-    // Extra columns to force horizontal scroll
-    { accessorKey: 'clientName', header: 'Client Name', width: '200px' },
+    { accessorKey: 'clientName', header: 'Client Name', width: 'auto' },
     { accessorKey: 'role', header: 'Role', width: '150px' },
   ];
 
@@ -608,7 +607,7 @@ export class AppComponent {
       accessorKey: 'email',
       header: 'Email',
       enableSorting: true,
-      width: '250px',
+      width: 'auto',
       enableFiltering: true,
       filterComponent: TextFilterComponent
     },
