@@ -20,6 +20,8 @@ import {
 } from '../table.component';
 import { InputComponent } from '../input.component';
 import { CheckboxComponent } from '../checkbox.component';
+import { ButtonComponent } from '../button.component';
+import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover.component';
 import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
 import { DataTablePaginationComponent } from './data-table-pagination.component';
 import { CellHostDirective } from './cell-host.directive';
@@ -40,6 +42,10 @@ import { cn } from '../../lib/utils';
     TableCellComponent,
     InputComponent,
     CheckboxComponent,
+    ButtonComponent,
+    PopoverComponent,
+    PopoverTriggerComponent,
+    PopoverContentComponent,
     DataTableColumnHeaderComponent,
     DataTablePaginationComponent,
     CellHostDirective,
@@ -71,6 +77,7 @@ import { cn } from '../../lib/utils';
               @for (col of enhancedColumns(); track col.accessorKey) {
                 <ui-table-head 
                   [class]="getHeaderClass(col)"
+                  [class.overflow-visible]="col.enableFiltering && col.filterComponent"
                   [style]="getCellStyle(col, true)"
                 >
                   @if (col.accessorKey === '_selection') {
@@ -83,14 +90,60 @@ import { cn } from '../../lib/utils';
                   } @else if (col.headerTemplate) {
                     <ng-container *ngTemplateOutlet="col.headerTemplate; context: { $implicit: col }"></ng-container>
                   } @else if (col.enableSorting !== false) {
-                    <ui-data-table-column-header
-                      [title]="col.header"
-                      [column]="toString(col.accessorKey)"
-                      [direction]="getSortDirection(col.accessorKey)"
-                      (sort)="onSortChange(col.accessorKey, $event)"
-                    />
+                    <div class="flex items-center gap-2">
+                      <ui-data-table-column-header
+                        [title]="col.header"
+                        [column]="toString(col.accessorKey)"
+                        [direction]="getSortDirection(col.accessorKey)"
+                        (sort)="onSortChange(col.accessorKey, $event)"
+                      />
+                      @if (col.enableFiltering && col.filterComponent) {
+                        <ui-popover>
+                          <ui-popover-trigger>
+                            <button 
+                              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                              [attr.aria-label]="'Filter ' + col.header"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                              </svg>
+                            </button>
+                          </ui-popover-trigger>
+                          <ui-popover-content class="w-80">
+                            <div 
+                              [uiCellHost]="col.filterComponent" 
+                              [inputs]="col.filterComponentInputs || {}"
+                              [outputs]="getFilterOutputs(col)"
+                            ></div>
+                          </ui-popover-content>
+                        </ui-popover>
+                      }
+                    </div>
                   } @else {
-                    {{ col.header }}
+                    <div class="flex items-center gap-2">
+                      <span>{{ col.header }}</span>
+                      @if (col.enableFiltering && col.filterComponent) {
+                        <ui-popover>
+                          <ui-popover-trigger>
+                            <button 
+                              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                              [attr.aria-label]="'Filter ' + col.header"
+                            >
+                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
+                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                              </svg>
+                            </button>
+                          </ui-popover-trigger>
+                          <ui-popover-content class="w-80">
+                            <div 
+                              [uiCellHost]="col.filterComponent" 
+                              [inputs]="col.filterComponentInputs || {}"
+                              [outputs]="getFilterOutputs(col)"
+                            ></div>
+                          </ui-popover-content>
+                        </ui-popover>
+                      }
+                    </div>
                   }
                 </ui-table-head>
               }
@@ -185,21 +238,48 @@ export class DataTableComponent<T> {
   getRowId = input<(row: T) => string>((row: any) => row.id ?? String(JSON.stringify(row)));
 
   globalFilter = signal('');
+  columnFilters = signal<Record<string, any>>({});
   sortState = signal<SortState>({ column: '', direction: null });
   paginationState = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
 
   filteredData = computed(() => {
-    const data = this.data();
+    let data = this.data();
     if (!this.localFiltering()) return data;
 
-    const filter = this.globalFilter().toLowerCase();
-    if (!filter) return data;
+    // Apply global filter
+    const globalFilterValue = this.globalFilter().toLowerCase();
+    if (globalFilterValue) {
+      data = data.filter((row) =>
+        Object.values(row as any).some((val) =>
+          String(val).toLowerCase().includes(globalFilterValue)
+        )
+      );
+    }
 
-    return data.filter((row) =>
-      Object.values(row as any).some((val) =>
-        String(val).toLowerCase().includes(filter)
-      )
-    );
+    // Apply column-specific filters
+    const colFilters = this.columnFilters();
+    const columns = this.enhancedColumns();
+
+    Object.keys(colFilters).forEach(columnKey => {
+      const filterValue = colFilters[columnKey];
+      if (this.isFilterValueEmpty(filterValue)) return;
+
+      const column = columns.find(col => col.accessorKey === columnKey);
+      if (!column || !column.enableFiltering) return;
+
+      if (column.filterFn) {
+        // Use custom filter function
+        data = data.filter(row => column.filterFn!(row, filterValue));
+      } else {
+        // Default filter: check if cell value includes filter value
+        data = data.filter(row => {
+          const cellValue = this.getCellValue(row, columnKey);
+          return String(cellValue).toLowerCase().includes(String(filterValue).toLowerCase());
+        });
+      }
+    });
+
+    return data;
   });
 
   sortedData = computed(() => {
@@ -282,6 +362,10 @@ export class DataTableComponent<T> {
 
       return columnData;
     });
+  });
+
+  hasColumnFilters = computed(() => {
+    return this.enhancedColumns().some(col => col.enableFiltering);
   });
 
   getHeaderClass(col: any) {
@@ -377,6 +461,24 @@ export class DataTableComponent<T> {
   onFilterChange(value: string) {
     this.globalFilter.set(value);
     this.filterChange.emit(value);
+  }
+
+  onColumnFilterChange(columnKey: string | keyof T, value: any) {
+    this.columnFilters.update(filters => ({
+      ...filters,
+      [columnKey]: value
+    }));
+  }
+
+  getFilterOutputs(col: ColumnDef<T>): Record<string, (event: any) => void> {
+    return {
+      ...col.filterComponentOutputs,
+      filterChange: (value: any) => this.onColumnFilterChange(col.accessorKey, value)
+    };
+  }
+
+  private isFilterValueEmpty(value: unknown): boolean {
+    return value === undefined || value === null || value === '';
   }
 
   toString(key: string | keyof T): string {

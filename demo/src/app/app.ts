@@ -251,6 +251,7 @@ import { NumberTickerComponent } from '@/components/ui/number-ticker.component';
 import { StatusCellComponent } from './cells/status-cell.component';
 import { AmountCellComponent } from './cells/amount-cell.component';
 import { ActionsCellComponent } from './cells/actions-cell.component';
+import { TextFilterComponent } from './filters/text-filter.component';
 import {
   PieChartComponent,
   PieChartDrilldownComponent,
@@ -603,7 +604,14 @@ export class AppComponent {
   // Custom cells demo columns using components
   customCellsColumns: ColumnDef<Payment>[] = [
     { accessorKey: 'id', header: 'ID', enableSorting: true, width: '100px' },
-    { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px' },
+    {
+      accessorKey: 'email',
+      header: 'Email',
+      enableSorting: true,
+      width: '250px',
+      enableFiltering: true,
+      filterComponent: TextFilterComponent
+    },
     {
       accessorKey: 'amount',
       header: 'Amount',

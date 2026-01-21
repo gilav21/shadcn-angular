@@ -70,13 +70,25 @@ export class CellHostDirective implements OnInit, OnChanges, OnDestroy {
         const outputsObj = this.outputs();
         Object.keys(outputsObj).forEach(outputName => {
             const handler = outputsObj[outputName];
-            const outputEmitter = this.componentRef!.instance[outputName];
 
-            if (outputEmitter && typeof outputEmitter.subscribe === 'function') {
-                const subscription = outputEmitter.subscribe((event: any) => {
-                    handler(event);
-                });
-                this.subscriptions.push(subscription);
+            try {
+                const outputEmitter = this.componentRef!.instance[outputName];
+
+                if (outputEmitter && typeof outputEmitter.subscribe === 'function') {
+                    // Use simple callback for compatibility with both signal-based outputs and RxJS
+                    const subscription = outputEmitter.subscribe((event: any) => {
+                        try {
+                            handler(event);
+                        } catch (err) {
+                            console.error(`Error in output handler for '${outputName}':`, err);
+                        }
+                    });
+                    this.subscriptions.push(subscription);
+                } else if (outputEmitter !== undefined) {
+                    console.warn(`Output '${outputName}' exists but is not subscribable`);
+                }
+            } catch (err) {
+                console.error(`Failed to subscribe to output '${outputName}':`, err);
             }
         });
     }

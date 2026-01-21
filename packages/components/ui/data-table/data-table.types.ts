@@ -23,6 +23,11 @@ export interface ColumnDef<T> {
     componentOutputs?: (row: T) => Record<string, (event: any) => void>;
     enableSorting?: boolean;
     sortFn?: (a: T, b: T) => number;
+    enableFiltering?: boolean;
+    filterFn?: (row: T, filterValue: unknown) => boolean;
+    filterComponent?: Type<unknown>;
+    filterComponentInputs?: Record<string, unknown>;
+    filterComponentOutputs?: Record<string, (event: unknown) => void>;
     sticky?: boolean;
     width?: string;
 }

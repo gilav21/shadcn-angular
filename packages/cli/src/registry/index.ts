@@ -105,6 +105,7 @@ export const registry: Record<string, ComponentDefinition> = {
       'data-table/data-table-column-header.component.ts',
       'data-table/data-table-pagination.component.ts',
       'data-table/data-table.types.ts',
+      'data-table/cell-host.directive.ts',
     ],
     dependencies: [
       'table',
@@ -113,6 +114,7 @@ export const registry: Record<string, ComponentDefinition> = {
       'checkbox',
       'select',
       'pagination',
+      'popover',
     ],
   },
   dialog: {

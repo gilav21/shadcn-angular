@@ -2,7 +2,32 @@ import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/an
 import { DataTableComponent } from './data-table/data-table.component';
 import { ColumnDef } from './data-table/data-table.types';
 import { LucideAngularModule, ArrowDown, ArrowUp, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Check } from 'lucide-angular';
-import { importProvidersFrom } from '@angular/core';
+import { importProvidersFrom, Component, ChangeDetectionStrategy, output } from '@angular/core';
+import { InputComponent } from './input.component';
+
+// Filter component for stories
+@Component({
+    selector: 'app-text-filter',
+    standalone: true,
+    template: `
+        <ui-input
+            type="text"
+            placeholder="Filter..."
+            class="h-8 w-full"
+            (input)="onInputChange($event)"
+        />
+    `,
+    imports: [InputComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush
+})
+class TextFilterComponent {
+    filterChange = output<string>();
+
+    onInputChange(event: Event) {
+        const value = (event.target as HTMLInputElement).value;
+        this.filterChange.emit(value);
+    }
+}
 
 interface User {
     id: string;
@@ -202,3 +227,111 @@ export const LargeDataset: Story = {
         enableRowSelection: true,
     },
 };
+
+
+export const WithColumnFilters: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: [
+            {
+                accessorKey: 'id',
+                header: 'ID',
+                sticky: true,
+                width: '60px'
+            },
+            {
+                accessorKey: 'name',
+                header: 'Name',
+                enableSorting: true,
+                enableFiltering: true,
+                filterComponent: TextFilterComponent
+            },
+            {
+                accessorKey: 'email',
+                header: 'Email',
+                enableSorting: true,
+                enableFiltering: true,
+                filterComponent: TextFilterComponent
+            },
+            {
+                accessorKey: 'role',
+                header: 'Role',
+                enableSorting: true
+            },
+        ],
+        showToolbar: true,
+        showPagination: true,
+    },
+};
+
+export const CustomFilterFunction: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: [
+            {
+                accessorKey: 'id',
+                header: 'ID',
+                width: '60px'
+            },
+            {
+                accessorKey: 'name',
+                header: 'Name',
+                enableSorting: true
+            },
+            {
+                accessorKey: 'email',
+                header: 'Email',
+                enableSorting: true,
+                enableFiltering: true,
+                filterComponent: TextFilterComponent,
+                // Custom filter: exact match on domain
+                filterFn: (row: User, filterValue: unknown) => {
+                    if (!filterValue || typeof filterValue !== 'string') return true;
+                    const domain = row.email.split('@')[1];
+                    return domain.toLowerCase().includes(filterValue.toLowerCase());
+                }
+            },
+            {
+                accessorKey: 'role',
+                header: 'Role',
+                enableSorting: true,
+                enableFiltering: true,
+                filterComponent: TextFilterComponent,
+                // Custom filter: starts with
+                filterFn: (row: User, filterValue: unknown) => {
+                    if (!filterValue || typeof filterValue !== 'string') return true;
+                    return row.role.toLowerCase().startsWith(filterValue.toLowerCase());
+                }
+            },
+        ],
+        showToolbar: true,
+        showPagination: true,
+    },
+};
+
