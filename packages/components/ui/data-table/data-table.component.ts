@@ -209,7 +209,14 @@ export class DataTableComponent<T> {
     const sort = this.sortState();
     if (!sort.direction || !sort.column) return data;
 
+    const column = this.enhancedColumns().find(col => col.accessorKey === sort.column);
+
     return data.sort((a, b) => {
+      if (column?.sortFn) {
+        const result = column.sortFn(a, b);
+        return sort.direction === 'asc' ? result : -result;
+      }
+
       const aVal = this.getCellValue(a, sort.column);
       const bVal = this.getCellValue(b, sort.column);
 

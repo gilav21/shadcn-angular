@@ -22,6 +22,7 @@ export interface ColumnDef<T> {
     componentInputs?: (row: T) => Record<string, any>;
     componentOutputs?: (row: T) => Record<string, (event: any) => void>;
     enableSorting?: boolean;
+    sortFn?: (a: T, b: T) => number;
     sticky?: boolean;
     width?: string;
 }

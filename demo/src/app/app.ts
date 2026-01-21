@@ -618,7 +618,12 @@ export class AppComponent {
       enableSorting: true,
       width: '150px',
       component: StatusCellComponent,
-      componentInputs: (row) => ({ status: row.status })
+      componentInputs: (row) => ({ status: row.status }),
+      // Custom sort function: success > processing > pending > failed
+      sortFn: (a, b) => {
+        const statusOrder = { success: 0, processing: 1, pending: 2, failed: 3 };
+        return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
+      }
     },
     {
       accessorKey: 'actions',
