@@ -248,6 +248,9 @@ import {
 } from '../components/ui';
 import { UiConfettiDirective } from "@/components/ui/confetti.directive";
 import { NumberTickerComponent } from '@/components/ui/number-ticker.component';
+import { StatusCellComponent } from './cells/status-cell.component';
+import { AmountCellComponent } from './cells/amount-cell.component';
+import { ActionsCellComponent } from './cells/actions-cell.component';
 import {
   PieChartComponent,
   PieChartDrilldownComponent,
@@ -595,6 +598,51 @@ export class AppComponent {
     setInterval(() => {
       this.subscribersValue.update(v => v + Math.floor(Math.random() * 3) + 1);
     }, 5000);
+  }
+
+  // Custom cells demo columns using components
+  customCellsColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', enableSorting: true, width: '100px' },
+    { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px' },
+    {
+      accessorKey: 'amount',
+      header: 'Amount',
+      enableSorting: true,
+      width: '150px',
+      component: AmountCellComponent,
+      componentInputs: (row) => ({ amount: row.amount })
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      enableSorting: true,
+      width: '150px',
+      component: StatusCellComponent,
+      componentInputs: (row) => ({ status: row.status })
+    },
+    {
+      accessorKey: 'actions',
+      header: 'Actions',
+      width: '200px',
+      enableSorting: false,
+      component: ActionsCellComponent,
+      componentInputs: (row) => ({
+        id: row.id,
+        email: row.email
+      }),
+      componentOutputs: (row) => ({
+        view: (data: any) => this.handlePaymentAction('View', row),
+        edit: (data: any) => this.handlePaymentAction('Edit', row)
+      })
+    },
+  ];
+
+  handlePaymentAction(action: string, payment: Payment) {
+    this.toastService.toast({
+      title: `${action} Payment`,
+      description: `${action} payment ${payment.id} for ${payment.email}`,
+      variant: 'default'
+    });
   }
 
   // Server-Side Demo State

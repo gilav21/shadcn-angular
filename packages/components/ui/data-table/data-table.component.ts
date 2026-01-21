@@ -22,6 +22,7 @@ import { InputComponent } from '../input.component';
 import { CheckboxComponent } from '../checkbox.component';
 import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
 import { DataTablePaginationComponent } from './data-table-pagination.component';
+import { CellHostDirective } from './cell-host.directive';
 import { ColumnDef, SortState, SortDirection, PaginationState } from './data-table.types';
 import { cn } from '../../lib/utils';
 
@@ -41,6 +42,7 @@ import { cn } from '../../lib/utils';
     CheckboxComponent,
     DataTableColumnHeaderComponent,
     DataTablePaginationComponent,
+    CellHostDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   encapsulation: ViewEncapsulation.None,
@@ -112,6 +114,12 @@ import { cn } from '../../lib/utils';
                           (checkedChange)="toggleRow(row)"
                           ariaLabel="Select row"
                         />
+                      } @else if (col.component) {
+                        <div 
+                          [uiCellHost]="col.component" 
+                          [inputs]="col.componentInputs ? col.componentInputs(row) : {}"
+                          [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}"
+                        ></div>
                       } @else if (col.template) {
                         <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
                       } @else if (col.cell) {

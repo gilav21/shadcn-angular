@@ -1,4 +1,4 @@
-import { TemplateRef } from '@angular/core';
+import { TemplateRef, Type } from '@angular/core';
 
 export type SortDirection = 'asc' | 'desc' | '' | null;
 
@@ -18,6 +18,9 @@ export interface ColumnDef<T> {
     cell?: (row: T) => string;
     template?: TemplateRef<any>;
     headerTemplate?: TemplateRef<any>;
+    component?: Type<any>;
+    componentInputs?: (row: T) => Record<string, any>;
+    componentOutputs?: (row: T) => Record<string, (event: any) => void>;
     enableSorting?: boolean;
     sticky?: boolean;
     width?: string;

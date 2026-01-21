@@ -2789,6 +2789,19 @@
       </div>
     </section>
 
+    <!-- Custom Cells Demo Section -->
+    <section class="space-y-4">
+      <h2 id="data-table-custom" class="text-2xl font-semibold scroll-m-20">Data Table (Custom Cell Components)</h2>
+      <p class="text-muted-foreground">
+        Demonstrating dynamic component rendering with custom cell components. Each column specifies a component type
+        and inputs.
+      </p>
+
+      <div class="rounded-md border h-[600px] overflow-auto relative">
+        <ui-data-table [data]="payments()" [columns]="customCellsColumns" />
+      </div>
+    </section>
+
     <!-- Footer -->
     <div class="text-center text-muted-foreground text-sm pt-8">
       Built with Angular and Tailwind CSS. Open source.
