@@ -244,6 +244,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
             return;
         }
         this.inputEl()?.nativeElement.focus();
+        event.stopPropagation();
     }
 
     onFocus() {
