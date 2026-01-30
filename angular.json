@@ -36,25 +36,24 @@
           "skipTests": true
         }
       },
-      "root": "",
-      "sourceRoot": "src",
-      "prefix": "app",
+      "root": "demo",
+      "sourceRoot": "demo/src",
+      "prefix": "ui",
       "architect": {
         "build": {
           "builder": "@angular/build:application",
           "options": {
-            "browser": "src/main.ts",
-            "tsConfig": "tsconfig.app.json",
+            "browser": "demo/src/main.ts",
+            "tsConfig": "demo/tsconfig.app.json",
             "inlineStyleLanguage": "scss",
             "assets": [
               {
                 "glob": "**/*",
-                "input": "public"
-              },
-              "src/_redirects"
+                "input": "demo/public"
+              }
             ],
             "styles": [
-              "src/styles.css"
+              "demo/src/styles.css"
             ]
           },
           "configurations": {

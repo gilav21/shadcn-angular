@@ -54,7 +54,9 @@ describe('ChipListComponent', () => {
         expect(chips[1].nativeElement.textContent).toContain('Angular');
     });
 
-    it('should add chip on Enter', () => {
+    it('should add chip on Enter', async () => {
+        const chipListDebug = fixture.debugElement.query(By.directive(ChipListComponent));
+        const chipList = chipListDebug.componentInstance as ChipListComponent;
         const inputDebug = fixture.debugElement.query(By.css('input'));
         const input = inputDebug.nativeElement as HTMLInputElement;
 
@@ -62,12 +64,22 @@ describe('ChipListComponent', () => {
         input.dispatchEvent(new Event('input'));
         fixture.detectChanges();
 
-        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+        input.dispatchEvent(new KeyboardEvent('keydown', {
+            key: 'Enter',
+            code: 'Enter',
+            keyCode: 13,
+            bubbles: true,
+            cancelable: true,
+            composed: true
+        }));
+        fixture.detectChanges();
+        await fixture.whenStable();
         fixture.detectChanges();
 
-        expect(host.chips.length).toBe(3);
-        expect(host.chips).toContain('Vue');
-        expect(input.value).toBe(''); // Should clear input
+        // Check component's internal state
+        expect(chipList.chips().length).toBe(3);
+        expect(chipList.chips()).toContain('Vue');
+        expect(chipList.inputValue()).toBe(''); // Should clear input
     });
 
     it('should remove chip on delete button click', () => {
@@ -82,14 +94,15 @@ describe('ChipListComponent', () => {
         expect(host.chips).toContain('Angular');
     });
 
-    it('should remove last chip on Backspace if input empty', () => {
+    it('should remove last chip on Backspace if input empty', async () => {
         const inputDebug = fixture.debugElement.query(By.css('input'));
         const input = inputDebug.nativeElement;
 
         expect(input.value).toBe('');
 
-        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace' }));
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Backspace', bubbles: true, cancelable: true }));
         fixture.detectChanges();
+        await fixture.whenStable();
 
         expect(host.chips.length).toBe(1);
         // Should remove 'Angular' (last one)

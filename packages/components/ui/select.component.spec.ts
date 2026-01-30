@@ -395,7 +395,6 @@ describe('Select Keyboard Navigation', () => {
     template: `
         <ui-select 
             [options]="fruits" 
-            [(value)]="selected"
             (valueChange)="onValueChange($event)"
             placeholder="Select a fruit..."
         />
@@ -510,7 +509,7 @@ interface Country {
             [options]="countries" 
             [displayWith]="displayFn"
             valueAttribute="code"
-            [(value)]="selected"
+            (valueChange)="onValueChange($event)"
             placeholder="Select a country..."
         />
     `,
@@ -524,6 +523,9 @@ class DataDrivenObjectTestHost {
     ];
     selected: string | null = null;
     displayFn = (country: Country) => country.name;
+    onValueChange(value: unknown) {
+        this.selected = value as string;
+    }
 }
 
 describe('Select Data-Driven Mode (Objects)', () => {

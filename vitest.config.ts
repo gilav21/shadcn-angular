@@ -4,12 +4,14 @@ import angular from '@analogjs/vite-plugin-angular';
 import { playwright } from '@vitest/browser-playwright';
 
 export default defineConfig(({ mode }) => ({
-    plugins: [angular()],
+    plugins: [angular({
+        tsconfig: 'tsconfig.json'
+    })],
     test: {
         globals: true,
-        setupFiles: ['src/test-setup.ts'],
+        setupFiles: ['packages/test-setup.ts'],
         // environment: 'jsdom',
-        include: ['src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+        include: ['packages/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         reporters: ['default'],
         // Vitest browser config
         browser: {

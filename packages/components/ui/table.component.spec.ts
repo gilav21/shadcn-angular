@@ -3,18 +3,18 @@ import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import {
-    TableComponent,
-    TableHeaderComponent,
-    TableBodyComponent,
-    TableFooterComponent,
-    TableRowComponent,
-    TableHeadComponent,
-    TableCellComponent,
-    TableCaptionComponent
+  TableComponent,
+  TableHeaderComponent,
+  TableBodyComponent,
+  TableFooterComponent,
+  TableRowComponent,
+  TableHeadComponent,
+  TableCellComponent,
+  TableCaptionComponent
 } from './table.component';
 
 @Component({
-    template: `
+  template: `
     <div [dir]="dir()">
       <ui-table [class]="customClass">
         <ui-table-caption>List of Invoices</ui-table-caption>
@@ -42,7 +42,31 @@ import {
       </ui-table>
     </div>
   `,
-    imports: [
+  imports: [
+    TableComponent,
+    TableHeaderComponent,
+    TableBodyComponent,
+    TableFooterComponent,
+    TableRowComponent,
+    TableHeadComponent,
+    TableCellComponent,
+    TableCaptionComponent
+  ]
+})
+class TestHostComponent {
+  customClass = '';
+  selectedRow = false;
+  dir = signal<'ltr' | 'rtl'>('ltr');
+}
+
+describe('TableComponent', () => {
+  let fixture: ComponentFixture<TestHostComponent>;
+  let host: TestHostComponent;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [
+        TestHostComponent,
         TableComponent,
         TableHeaderComponent,
         TableBodyComponent,
@@ -51,112 +75,93 @@ import {
         TableHeadComponent,
         TableCellComponent,
         TableCaptionComponent
-    ]
-})
-class TestHostComponent {
-    customClass = '';
-    selectedRow = false;
-    dir = signal<'ltr' | 'rtl'>('ltr');
-}
+      ]
+    }).compileComponents();
 
-describe('TableComponent', () => {
-    let fixture: ComponentFixture<TestHostComponent>;
-    let host: TestHostComponent;
+    fixture = TestBed.createComponent(TestHostComponent);
+    host = fixture.componentInstance;
+    // fixture.detectChanges(); // Removed to prevent NG0100
+  });
 
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [
-                TestHostComponent,
-                TableComponent,
-                TableHeaderComponent,
-                TableBodyComponent,
-                TableFooterComponent,
-                TableRowComponent,
-                TableHeadComponent,
-                TableCellComponent,
-                TableCaptionComponent
-            ]
-        }).compileComponents();
+  it('should create all table parts', () => {
+    fixture.detectChanges();
+    expect(fixture.debugElement.query(By.directive(TableComponent))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(TableHeaderComponent))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(TableBodyComponent))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(TableFooterComponent))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(TableRowComponent))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(TableHeadComponent))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(TableCellComponent))).toBeTruthy();
+    expect(fixture.debugElement.query(By.directive(TableCaptionComponent))).toBeTruthy();
+  });
 
-        fixture = TestBed.createComponent(TestHostComponent);
-        host = fixture.componentInstance;
-        // fixture.detectChanges(); // Removed to prevent NG0100
-    });
+  it('should apply custom classes to table', () => {
+    host.customClass = 'my-custom-table';
+    fixture.detectChanges();
+    const table = fixture.debugElement.query(By.directive(TableComponent));
+    // The classes are applied to the inner div
+    const innerDiv = table.query(By.css('[data-slot="table"]'));
+    expect(innerDiv.nativeElement.classList.contains('my-custom-table')).toBe(true);
+    expect(innerDiv.nativeElement.classList.contains('w-full')).toBe(true);
+  });
 
-    it('should create all table parts', () => {
-        fixture.detectChanges();
-        expect(fixture.debugElement.query(By.directive(TableComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(TableHeaderComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(TableBodyComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(TableFooterComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(TableRowComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(TableHeadComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(TableCellComponent))).toBeTruthy();
-        expect(fixture.debugElement.query(By.directive(TableCaptionComponent))).toBeTruthy();
-    });
+  it('should handle selected row state', () => {
+    host.selectedRow = true;
+    fixture.detectChanges();
 
-    it('should apply custom classes to table', () => {
-        host.customClass = 'my-custom-table';
-        fixture.detectChanges();
-        const table = fixture.debugElement.query(By.css('table'));
-        expect(table.nativeElement.classList.contains('my-custom-table')).toBe(true);
-        expect(table.nativeElement.classList.contains('w-full')).toBe(true);
-    });
+    // Find row in body
+    const body = fixture.debugElement.query(By.directive(TableBodyComponent));
+    const row = body.query(By.directive(TableRowComponent));
 
-    it('should handle selected row state', () => {
-        host.selectedRow = true;
-        fixture.detectChanges();
+    expect(row.nativeElement.getAttribute('data-state')).toBe('selected');
+    expect(row.nativeElement.classList.contains('data-[state=selected]:bg-muted')).toBe(true);
+  });
 
-        // Find row in body
-        const body = fixture.debugElement.query(By.directive(TableBodyComponent));
-        const row = body.query(By.directive(TableRowComponent));
+  it('should render correct ARIA structure', () => {
+    fixture.detectChanges();
+    const table = fixture.debugElement.query(By.directive(TableComponent));
 
-        // Find row inside the component (host is display: contents)
-        const tr = row.query(By.css('tr'));
+    // Check for ARIA roles since it uses divs
+    const header = fixture.debugElement.query(By.directive(TableHeaderComponent));
+    expect(header.nativeElement.getAttribute('role')).toBe('rowgroup');
 
-        expect(tr.nativeElement.getAttribute('data-state')).toBe('selected');
-        expect(tr.nativeElement.classList.contains('data-[state=selected]:bg-muted')).toBe(true);
-    });
+    const body = fixture.debugElement.query(By.directive(TableBodyComponent));
+    expect(body.nativeElement.getAttribute('role')).toBe('rowgroup');
 
-    it('should render correct HTML structure', () => {
-        fixture.detectChanges();
-        const table = fixture.nativeElement.querySelector('table');
-        expect(table).toBeTruthy();
-        expect(table.querySelector('caption')).toBeTruthy();
-        expect(table.querySelector('thead')).toBeTruthy();
-        expect(table.querySelector('tbody')).toBeTruthy();
-        expect(table.querySelector('tfoot')).toBeTruthy();
-        expect(table.querySelector('tr')).toBeTruthy();
-        expect(table.querySelector('th')).toBeTruthy();
-        expect(table.querySelector('td')).toBeTruthy();
-    });
+    const row = fixture.debugElement.query(By.directive(TableRowComponent));
+    expect(row.nativeElement.getAttribute('role')).toBe('row');
 
-    it('should apply RTL text alignment classes to table head', async () => {
-        // TableHeadComponent has 'ltr:text-left rtl:text-right'
+    const cell = fixture.debugElement.query(By.directive(TableCellComponent));
+    expect(cell.nativeElement.getAttribute('role')).toBe('cell');
 
-        host.dir.set('rtl');
-        fixture.detectChanges();
-        await fixture.whenStable();
+    const headCell = fixture.debugElement.query(By.directive(TableHeadComponent));
+    expect(headCell.nativeElement.getAttribute('role')).toBe('columnheader');
+  });
 
-        const head = fixture.debugElement.query(By.directive(TableHeadComponent));
-        // The component host is ui-table-head (display: contents)
-        // The styles are on the <th> element inside
-        const th = head.query(By.css('th'));
-        const classes = th.nativeElement.className;
+  it('should apply RTL text alignment classes to table head', async () => {
+    // TableHeadComponent has 'ltr:text-left rtl:text-right'
 
-        expect(classes).toContain('ltr:text-left');
-        expect(classes).toContain('rtl:text-right');
-    });
+    host.dir.set('rtl');
+    fixture.detectChanges();
+    await fixture.whenStable();
 
-    it('should apply data-slot attributes', () => {
-        fixture.detectChanges();
-        expect(fixture.nativeElement.querySelector('[data-slot="table"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-slot="table-header"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-slot="table-body"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-slot="table-footer"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-slot="table-row"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-slot="table-head"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-slot="table-cell"]')).toBeTruthy();
-        expect(fixture.nativeElement.querySelector('[data-slot="table-caption"]')).toBeTruthy();
-    });
+    const head = fixture.debugElement.query(By.directive(TableHeadComponent));
+    // The host element itself has the classes
+    const classes = head.nativeElement.className;
+
+    expect(classes).toContain('ltr:text-left');
+    expect(classes).toContain('rtl:text-right');
+  });
+
+  it('should apply data-slot attributes', () => {
+    fixture.detectChanges();
+    expect(fixture.nativeElement.querySelector('[data-slot="table"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-slot="table-header"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-slot="table-body"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-slot="table-footer"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-slot="table-row"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-slot="table-head"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-slot="table-cell"]')).toBeTruthy();
+    expect(fixture.nativeElement.querySelector('[data-slot="table-caption"]')).toBeTruthy();
+  });
 });

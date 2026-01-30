@@ -7,11 +7,7 @@
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
-    "test-visual": "npx vitest --browser=chromium",
-    "docs:json": "compodoc -p tsconfig.json -e json -d .",
-    "storybook": "npm run docs:json && npx ng run demo:storybook",
-    "build-storybook": "npm run docs:json && npx ng run demo:build-storybook",
-    "test-storybook": "test-storybook --url http://localhost:6006"
+    "docs:json": "compodoc -p tsconfig.json -e json -d ."
   },
   "prettier": {
     "printWidth": 100,
@@ -45,30 +41,12 @@
     "tslib": "^2.3.0"
   },
   "devDependencies": {
-    "@analogjs/platform": "^2.2.1",
     "@angular-devkit/architect": "^0.2100.0",
     "@angular-devkit/build-angular": "^21.0.0",
     "@angular-devkit/core": "^21.0.0",
     "@angular/build": "^21.0.4",
     "@angular/cli": "^21.0.4",
     "@angular/compiler-cli": "^21.0.0",
-    "@angular/platform-browser-dynamic": "^21.0.0",
-    "@compodoc/compodoc": "^1.1.32",
-    "@storybook/addon-a11y": "^10.1.11",
-    "@storybook/addon-docs": "^10.1.11",
-    "@storybook/addon-onboarding": "^10.1.11",
-    "@storybook/angular": "^10.1.11",
-    "@storybook/test-runner": "^0.24.2",
-    "@tailwindcss/postcss": "^4.1.18",
-    "@vitest/browser": "^4.0.17",
-    "axe-playwright": "^2.2.2",
-    "jsdom": "^27.4.0",
-    "playwright": "^1.57.0",
-    "postcss": "^8.5.6",
-    "storybook": "^10.1.11",
-    "tailwindcss": "^4.1.18",
-    "typescript": "~5.9.2",
-    "vite": "^7.2.2",
-    "vitest": "^4.0.17"
+    "@angular/platform-browser-dynamic": "^21.0.0"
   }
 }

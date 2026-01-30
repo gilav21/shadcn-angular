@@ -1,7 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { beforeEach, describe, it, expect } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef } from './data-table.types';
 import { By } from '@angular/platform-browser';
+
+import { LucideAngularModule, ArrowUp, ArrowDown, ChevronsUpDown, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-angular';
 
 interface TestData {
     id: string;
@@ -29,7 +32,18 @@ describe('DataTableComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [DataTableComponent],
+            imports: [
+                DataTableComponent,
+                LucideAngularModule.pick({
+                    ArrowUp,
+                    ArrowDown,
+                    ChevronsUpDown,
+                    ChevronsLeft,
+                    ChevronLeft,
+                    ChevronRight,
+                    ChevronsRight
+                })
+            ],
         }).compileComponents();
 
         fixture = TestBed.createComponent(DataTableComponent<TestData>);
@@ -47,11 +61,12 @@ describe('DataTableComponent', () => {
     });
 
     it('should render correct number of rows', () => {
-        const rows = fixture.debugElement.queryAll(By.css('ui-table-row[data-state]')); // data-rows have data-state attribute
-        // Note: With default pagination size 10, all 5 rows should show
-        // Selector needs to be specific to avoid header row
-        const bodyRows = fixture.nativeElement.querySelectorAll('ui-table-body ui-table-row');
-        expect(bodyRows.length).toBe(5);
+        fixture.detectChanges();
+        // Query for rows in the body
+        const body = fixture.debugElement.query(By.css('[data-slot="table-body"]'));
+        const rows = body.queryAll(By.css('[data-slot="table-row"]'));
+        // 5 data rows + 1 spacer row
+        expect(rows.length).toBe(6);
     });
 
     it('should filter data correctly', () => {
@@ -103,31 +118,33 @@ describe('DataTableComponent', () => {
         const row = TEST_DATA[0];
 
         // Toggle one row
+        // Toggle one row
         component.toggleRow(row);
-        expect(component.isRowSelected(row)).toBeTrue();
-        expect(component.isAllSelected()).toBeFalse();
-        expect(component.isIndeterminate()).toBeTrue();
+        expect(component.isRowSelected(row)).toBe(true);
+        expect(component.isAllSelected()).toBe(false);
+        expect(component.isIndeterminate()).toBe(true);
 
         // Toggle all
         component.toggleAll(); // Selects all
-        expect(component.isAllSelected()).toBeTrue();
-        expect(component.isRowSelected(TEST_DATA[1])).toBeTrue();
+        expect(component.isAllSelected()).toBe(true);
+        expect(component.isRowSelected(TEST_DATA[1])).toBe(true);
 
         // Toggle all off
         component.toggleAll();
-        expect(component.isAllSelected()).toBeFalse();
+        expect(component.isAllSelected()).toBe(false);
     });
 
     it('should apply sticky classes correctly', () => {
         const stickyCol = { accessorKey: 'id', header: 'ID', sticky: true, _stickyLeft: 0, _width: '50px' };
 
         // Header
-        const headerClass = component.getStickyClass(stickyCol, 'header');
-        expect(headerClass).toContain('z-30'); // Corner
+        const headerClass = component.getHeaderClass(stickyCol);
+        expect(headerClass).toContain('z-30'); // Corner priority
+        expect(headerClass).toContain('sticky');
 
         // Cell
-        const cellClass = component.getStickyClass(stickyCol, 'cell');
-        expect(cellClass).toContain('sticky');
-        expect(cellClass).toContain('left-0'); // Actually styles set left, class sets sticky
+        const cellStyle = component.getCellStyle(stickyCol);
+        expect(cellStyle.position).toBe('sticky');
+        expect(cellStyle.left).toBe('0px');
     });
 });

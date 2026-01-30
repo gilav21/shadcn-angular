@@ -23,8 +23,13 @@ const meta: Meta<ChipListComponent> = {
     },
     variant: {
       control: 'select',
+      options: ['outline', 'underline', 'ghost'],
+      description: 'Container style variant for chip list',
+    },
+    badgeVariant: {
+      control: 'select',
       options: ['default', 'secondary', 'destructive', 'outline'],
-      description: 'Visual style variant for chips',
+      description: 'Visual style variant for chips (badges)',
     },
     maxRows: {
       control: 'number',
@@ -38,7 +43,7 @@ const meta: Meta<ChipListComponent> = {
   args: {
     placeholder: 'Add tag...',
     disabled: false,
-    variant: 'default',
+    variant: 'outline',
     maxRows: 0,
     allowDuplicates: false,
   },

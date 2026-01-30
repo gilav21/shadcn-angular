@@ -1,10 +1,8 @@
 @import "tailwindcss";
 
 /* Tell Tailwind v4 where to scan for classes */
-@source "../src/**/*.ts";
-@source "../src/**/*.html";
-@source "../../packages/**/*.ts";
-@source "../../packages/**/*.html";
+@source "../**/*.ts";
+@source "../**/*.html";
 
 @custom-variant dark (&:is(.dark *));
 
