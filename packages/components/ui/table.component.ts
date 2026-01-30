@@ -120,7 +120,7 @@ export class TableHeadComponent {
     class = input('');
 
     classes = computed(() => cn(
-        'text-foreground h-10 px-2 ltr:text-left rtl:text-right font-medium whitespace-nowrap overflow-hidden text-ellipsis [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'text-foreground h-10 px-2 ltr:text-left rtl:text-right font-medium flex-1 [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
         this.class()
     ));
 }
@@ -140,7 +140,7 @@ export class TableCellComponent {
     class = input('');
 
     classes = computed(() => cn(
-        'p-2 whitespace-nowrap overflow-hidden text-ellipsis border-r [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'p-2 flex-1 [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
         this.class()
     ));
 }

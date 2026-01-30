@@ -398,7 +398,7 @@ export class DataTableComponent<T> {
 
   getHeaderClass(col: any) {
     return cn(
-      'sticky top-0 bg-background shadow-sm',
+      'sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis',
       col.sticky ? 'z-30' : 'z-20',
       this.showColumnBorders() && 'border-r'
     );
@@ -406,7 +406,7 @@ export class DataTableComponent<T> {
 
   getCellClass(col: any) {
     return cn(
-      'bg-background',
+      'bg-background whitespace-nowrap overflow-hidden text-ellipsis',
       this.showRowBorders() && 'border-b',
       this.showColumnBorders() && 'border-r'
     );
