@@ -1,36 +1,36 @@
 import {
-    Component,
-    ChangeDetectionStrategy,
-    input,
-    output,
-    computed,
-    signal,
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  output,
+  computed,
+  signal,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { RangeDataPoint, ChartClickEvent } from './chart.types';
 import {
-    getChartColor,
-    formatChartValue,
-    getChartSummary,
-    calculateAxisTicks,
+  getChartColor,
+  formatChartValue,
+  getChartSummary,
+  calculateAxisTicks,
 } from './chart.utils';
 
 interface RangeBar {
-    index: number;
-    data: RangeDataPoint;
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-    color: string;
-    lowY: number;
-    highY: number;
+  index: number;
+  data: RangeDataPoint;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  color: string;
+  lowY: number;
+  highY: number;
 }
 
 @Component({
-    selector: 'ui-column-range-chart',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-column-range-chart',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <div [class]="containerClasses()">
       <svg
         [attr.width]="svgWidth()"
@@ -144,149 +144,149 @@ interface RangeBar {
       }
     </div>
   `,
-    host: {
-        class: 'block',
-    },
+  host: {
+    class: 'block',
+  },
 })
 export class ColumnRangeChartComponent {
-    data = input.required<RangeDataPoint[]>();
-    width = input(500);
-    height = input(300);
-    showGrid = input(true);
-    showRangeLabels = input(true);
-    barRadius = input(4);
-    barGap = input(12);
-    class = input('');
-    title = input<string | undefined>(undefined);
-    unit = input('');
+  data = input.required<RangeDataPoint[]>();
+  width = input(500);
+  height = input(300);
+  showGrid = input(true);
+  showRangeLabels = input(true);
+  barRadius = input(4);
+  barGap = input(12);
+  class = input('');
+  title = input<string | undefined>(undefined);
+  unit = input('');
 
-    barClick = output<ChartClickEvent<RangeDataPoint>>();
+  barClick = output<ChartClickEvent<RangeDataPoint>>();
 
-    hoveredIndex = signal<number | null>(null);
-    tooltipPosition = signal({ x: 0, y: 0 });
+  hoveredIndex = signal<number | null>(null);
+  tooltipPosition = signal({ x: 0, y: 0 });
 
-    svgWidth = computed(() => this.width());
-    svgHeight = computed(() => this.height());
+  svgWidth = computed(() => this.width());
+  svgHeight = computed(() => this.height());
 
-    padding = computed(() => ({
-        top: 30,
-        right: 20,
-        bottom: 35,
-        left: 50,
-    }));
+  padding = computed(() => ({
+    top: 30,
+    right: 20,
+    bottom: 35,
+    left: 50,
+  }));
 
-    chartArea = computed(() => {
-        const p = this.padding();
-        return {
-            left: p.left,
-            right: this.svgWidth() - p.right,
-            top: p.top,
-            bottom: this.svgHeight() - p.bottom,
-            width: this.svgWidth() - p.left - p.right,
-            height: this.svgHeight() - p.top - p.bottom,
-        };
+  chartArea = computed(() => {
+    const p = this.padding();
+    return {
+      left: p.left,
+      right: this.svgWidth() - p.right,
+      top: p.top,
+      bottom: this.svgHeight() - p.bottom,
+      width: this.svgWidth() - p.left - p.right,
+      height: this.svgHeight() - p.top - p.bottom,
+    };
+  });
+
+  dataRange = computed(() => {
+    const data = this.data();
+    if (data.length === 0) return { min: 0, max: 100 };
+
+    const lows = data.map(d => d.low);
+    const highs = data.map(d => d.high);
+    const min = Math.min(...lows);
+    const max = Math.max(...highs);
+    const padding = (max - min) * 0.1;
+
+    return { min: min - padding, max: max + padding };
+  });
+
+  axisTicks = computed(() => {
+    const range = this.dataRange();
+    return calculateAxisTicks(range.min, range.max, 5);
+  });
+
+  bars = computed((): RangeBar[] => {
+    const data = this.data();
+    if (data.length === 0) return [];
+
+    const area = this.chartArea();
+    const range = this.dataRange();
+    const gap = this.barGap();
+    const barCount = data.length;
+    const totalGaps = (barCount - 1) * gap;
+    const barWidth = (area.width - totalGaps) / barCount;
+
+    return data.map((point, index) => {
+      const normalizedLow = (point.low - range.min) / (range.max - range.min);
+      const normalizedHigh = (point.high - range.min) / (range.max - range.min);
+
+      const lowY = area.bottom - normalizedLow * area.height;
+      const highY = area.bottom - normalizedHigh * area.height;
+
+      const x = area.left + index * (barWidth + gap);
+      const y = highY;
+      const height = lowY - highY;
+      const color = getChartColor(index, point.color);
+
+      return {
+        index,
+        data: point,
+        x,
+        y,
+        width: barWidth,
+        height: Math.max(1, height),
+        color,
+        lowY,
+        highY,
+      };
     });
+  });
 
-    dataRange = computed(() => {
-        const data = this.data();
-        if (data.length === 0) return { min: 0, max: 100 };
+  hoveredBar = computed(() => {
+    const idx = this.hoveredIndex();
+    if (idx === null) return null;
+    return this.bars().find(b => b.index === idx) ?? null;
+  });
 
-        const lows = data.map(d => d.low);
-        const highs = data.map(d => d.high);
-        const min = Math.min(...lows);
-        const max = Math.max(...highs);
-        const padding = (max - min) * 0.1;
+  chartAriaLabel = computed(() =>
+    getChartSummary('Column range chart', this.data().length, this.title())
+  );
 
-        return { min: min - padding, max: max + padding };
+  containerClasses = computed(() => cn('relative inline-block', this.class()));
+
+  getTickPosition(tick: number): number {
+    const range = this.dataRange();
+    const area = this.chartArea();
+    const normalized = (tick - range.min) / (range.max - range.min);
+    return area.bottom - normalized * area.height;
+  }
+
+  onBarHover(bar: RangeBar) {
+    this.hoveredIndex.set(bar.index);
+  }
+
+  onBarLeave() {
+    this.hoveredIndex.set(null);
+  }
+
+  onBarClick(event: Event, bar: RangeBar) {
+    this.barClick.emit({
+      point: bar.data,
+      index: bar.index,
+      event: event instanceof MouseEvent ? event : undefined,
     });
+  }
 
-    axisTicks = computed(() => {
-        const range = this.dataRange();
-        return calculateAxisTicks(range.min, range.max, 5);
-    });
+  getBarAriaLabel(bar: RangeBar): string {
+    const unit = this.unit();
+    return `${bar.data.name}: ${bar.data.low}${unit} to ${bar.data.high}${unit}`;
+  }
 
-    bars = computed((): RangeBar[] => {
-        const data = this.data();
-        if (data.length === 0) return [];
+  formatValue(value: number): string {
+    return formatChartValue(value, { decimals: 0 }) + this.unit();
+  }
 
-        const area = this.chartArea();
-        const range = this.dataRange();
-        const gap = this.barGap();
-        const barCount = data.length;
-        const totalGaps = (barCount - 1) * gap;
-        const barWidth = (area.width - totalGaps) / barCount;
-
-        return data.map((point, index) => {
-            const normalizedLow = (point.low - range.min) / (range.max - range.min);
-            const normalizedHigh = (point.high - range.min) / (range.max - range.min);
-
-            const lowY = area.bottom - normalizedLow * area.height;
-            const highY = area.bottom - normalizedHigh * area.height;
-
-            const x = area.left + index * (barWidth + gap);
-            const y = highY;
-            const height = lowY - highY;
-            const color = getChartColor(index, point.color);
-
-            return {
-                index,
-                data: point,
-                x,
-                y,
-                width: barWidth,
-                height: Math.max(1, height),
-                color,
-                lowY,
-                highY,
-            };
-        });
-    });
-
-    hoveredBar = computed(() => {
-        const idx = this.hoveredIndex();
-        if (idx === null) return null;
-        return this.bars().find(b => b.index === idx) ?? null;
-    });
-
-    chartAriaLabel = computed(() =>
-        getChartSummary('Column range chart', this.data().length, this.title())
-    );
-
-    containerClasses = computed(() => cn('relative inline-block', this.class()));
-
-    getTickPosition(tick: number): number {
-        const range = this.dataRange();
-        const area = this.chartArea();
-        const normalized = (tick - range.min) / (range.max - range.min);
-        return area.bottom - normalized * area.height;
-    }
-
-    onBarHover(bar: RangeBar) {
-        this.hoveredIndex.set(bar.index);
-    }
-
-    onBarLeave() {
-        this.hoveredIndex.set(null);
-    }
-
-    onBarClick(event: Event, bar: RangeBar) {
-        this.barClick.emit({
-            point: bar.data,
-            index: bar.index,
-            event: event instanceof MouseEvent ? event : undefined,
-        });
-    }
-
-    getBarAriaLabel(bar: RangeBar): string {
-        const unit = this.unit();
-        return `${bar.data.name}: ${bar.data.low}${unit} to ${bar.data.high}${unit}`;
-    }
-
-    formatValue(value: number): string {
-        return formatChartValue(value, { decimals: 0 }) + this.unit();
-    }
-
-    formatAxisValue(value: number): string {
-        return formatChartValue(value, { compact: true, decimals: 0 }) + this.unit();
-    }
+  formatAxisValue(value: number): string {
+    return formatChartValue(value, { compact: true, decimals: 0 }) + this.unit();
+  }
 }

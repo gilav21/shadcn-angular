@@ -59,6 +59,7 @@ export class TreeComponent {
     items = contentChildren(forwardRef(() => TreeItemComponent), { descendants: true });
 
     private el = inject(ElementRef);
+    private dir = null; // Removed Directionality
 
     activeDescendantId = computed(() => {
         const focused = this.focusedKey();

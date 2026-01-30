@@ -43,7 +43,6 @@ import { cn } from '../../lib/utils';
     TableCellComponent,
     InputComponent,
     CheckboxComponent,
-    ButtonComponent,
     PopoverComponent,
     PopoverTriggerComponent,
     PopoverContentComponent,

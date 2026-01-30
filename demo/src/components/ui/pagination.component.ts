@@ -47,11 +47,14 @@ export class PaginationContentComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `<ng-content />`,
   host: {
-    '[class]': '"list-none"',
+    '[class]': 'classes()',
     '[attr.data-slot]': '"pagination-item"',
   },
 })
-export class PaginationItemComponent { }
+export class PaginationItemComponent {
+  class = input('');
+  classes = computed(() => cn('', this.class()));
+}
 
 @Component({
   selector: 'ui-pagination-link',

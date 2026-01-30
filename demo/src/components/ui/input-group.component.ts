@@ -3,11 +3,12 @@ import {
   ChangeDetectionStrategy,
   input,
   computed,
+  InjectionToken,
   forwardRef,
   signal,
 } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { UI_INPUT_GROUP } from './input-group.token';
 
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -18,7 +19,9 @@ import { cva, type VariantProps } from 'class-variance-authority';
  * Usage:
  * <ui-input-group>
  *   <ui-input-group-addon>$</ui-input-group-addon>
- *   <ui-input-group-input placeholder="0.00" />
+ *   <ui-input-group-input placeholder="0.00" /> <!-- Legacy/Simple -->
+ *   <!-- OR -->
+ *   <ui-input placeholder="0.00" /> <!-- Automatic ghost variant -->
  *   <ui-input-group-addon>USD</ui-input-group-addon>
  * </ui-input-group>
  */
@@ -71,6 +74,10 @@ export class InputGroupComponent {
   ));
 }
 
+/**
+ * InputGroupInput - The main input within an input group
+ * @deprecated Use ui-input instead
+ */
 @Component({
   selector: 'ui-input-group-input',
   imports: [FormsModule],
