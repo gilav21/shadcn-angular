@@ -115,15 +115,16 @@ let autocompleteIdCounter = 0;
               <ui-command-empty>No results found.</ui-command-empty>
               
                @for (option of options(); track getTrackBy(option)) {
-                 <ui-command-item
+                  <ui-command-item
                     [value]="getSearchValue(option)"
                     [selected]="isSelected(option)"
                     (select)="onSelect(option)"
+                    class="ltr:pr-8 rtl:pl-8"
                   >
-                   <span class="mr-2 flex h-4 w-4 items-center justify-center opacity-0" [class.opacity-100]="isSelected(option)">
+                   <span [innerHTML]="getDisplayValue(option) | highlight: searchTerm()"></span>
+                   <span class="absolute ltr:right-2 rtl:left-2 flex h-3.5 w-3.5 items-center justify-center opacity-0" [class.opacity-100]="isSelected(option)">
                       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="20 6 9 17 4 12"/></svg>
                    </span>
-                   <span [innerHTML]="getDisplayValue(option) | highlight: searchTerm()"></span>
                  </ui-command-item>
                }
             </ui-command-list>
