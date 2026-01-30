@@ -1,10 +1,10 @@
-import { ButtonComponent } from '@/components/ui';
+import { ButtonComponent } from '../../../../packages/components/ui';
 import { Component, ChangeDetectionStrategy, input, output } from '@angular/core';
 
 @Component({
-    selector: 'app-actions-cell',
-    standalone: true,
-    template: `
+  selector: 'app-actions-cell',
+  standalone: true,
+  template: `
     <div class="flex gap-2">
       <ui-button size="sm" variant="outline" (click)="onView()">
         View
@@ -14,21 +14,21 @@ import { Component, ChangeDetectionStrategy, input, output } from '@angular/core
       </ui-button>
     </div>
   `,
-    imports: [ButtonComponent],
-    changeDetection: ChangeDetectionStrategy.OnPush
+  imports: [ButtonComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class ActionsCellComponent {
-    id = input.required<string>();
-    email = input.required<string>();
+  id = input.required<string>();
+  email = input.required<string>();
 
-    view = output<{ id: string; email: string }>();
-    edit = output<{ id: string; email: string }>();
+  view = output<{ id: string; email: string }>();
+  edit = output<{ id: string; email: string }>();
 
-    onView() {
-        this.view.emit({ id: this.id(), email: this.email() });
-    }
+  onView() {
+    this.view.emit({ id: this.id(), email: this.email() });
+  }
 
-    onEdit() {
-        this.edit.emit({ id: this.id(), email: this.email() });
-    }
+  onEdit() {
+    this.edit.emit({ id: this.id(), email: this.email() });
+  }
 }

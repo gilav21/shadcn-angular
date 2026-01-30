@@ -1,10 +1,10 @@
 import { Component, ChangeDetectionStrategy, output } from '@angular/core';
-import { InputComponent } from '@/components/ui';
+import { InputComponent } from '../../../../packages/components/ui';
 
 @Component({
-    selector: 'app-text-filter',
-    standalone: true,
-    template: `
+  selector: 'app-text-filter',
+  standalone: true,
+  template: `
     <ui-input
       type="text"
       placeholder="Filter..."
@@ -12,14 +12,14 @@ import { InputComponent } from '@/components/ui';
       (input)="onInputChange($event)"
     />
   `,
-    imports: [InputComponent],
-    changeDetection: ChangeDetectionStrategy.OnPush
+  imports: [InputComponent],
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
 export class TextFilterComponent {
-    filterChange = output<string>();
+  filterChange = output<string>();
 
-    onInputChange(event: Event) {
-        const value = (event.target as HTMLInputElement).value;
-        this.filterChange.emit(value);
-    }
+  onInputChange(event: Event) {
+    const value = (event.target as HTMLInputElement).value;
+    this.filterChange.emit(value);
+  }
 }

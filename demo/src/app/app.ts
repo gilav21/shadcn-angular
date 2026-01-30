@@ -245,9 +245,9 @@ import {
   ColumnDef,
   SortState,
   PaginationState,
-} from '../components/ui';
-import { UiConfettiDirective } from "@/components/ui/confetti.directive";
-import { NumberTickerComponent } from '@/components/ui/number-ticker.component';
+} from '../../../packages/components/ui';
+import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
+import { NumberTickerComponent } from '../../../packages/components/ui/number-ticker.component';
 import { StatusCellComponent } from './cells/status-cell.component';
 import { AmountCellComponent } from './cells/amount-cell.component';
 import { ActionsCellComponent } from './cells/actions-cell.component';
@@ -265,7 +265,7 @@ import {
   DrilldownSeries,
   ChartSeries,
   RangeDataPoint,
-} from '@/components/ui/charts';
+} from '../../../packages/components/ui/charts';
 
 interface Framework {
   value: string;
