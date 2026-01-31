@@ -7,8 +7,9 @@ import {
   signal,
   ElementRef,
   inject,
+  AfterViewInit,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn, isRtl } from '../../lib/utils';
 import {
   DrilldownDataPoint,
   DrilldownSeries,
@@ -39,7 +40,11 @@ import {
             (click)="onDrillUp()"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="m15 18-6-6 6-6"/>
+              @if (isRtl()) {
+                 <path d="m9 18 6-6-6-6"/>
+              } @else {
+                 <path d="m15 18-6-6 6-6"/>
+              }
             </svg>
             {{ backButtonText() }}
           </button>
@@ -76,9 +81,9 @@ import {
         <g class="text-muted-foreground text-xs">
           @for (tick of axisTicks(); track tick) {
             <text
-              [attr.x]="chartArea().left - 8"
+              [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
               [attr.y]="getTickPosition(tick)"
-              text-anchor="end"
+              [attr.text-anchor]="'end'"
               dominant-baseline="middle"
               fill="currentColor"
             >
@@ -164,8 +169,31 @@ import {
     class: 'block',
   },
 })
-export class BarChartDrilldownComponent {
+export class BarChartDrilldownComponent implements AfterViewInit {
   private readonly el = inject(ElementRef);
+
+  // Internal signal to track DOM directionality
+  private _domRtl = signal(false);
+
+  // Allow explicit direction override
+  dir = input<import('./chart.types').ChartDirection>('auto');
+
+  // Reactive isRtl
+  isRtl = computed(() => {
+    const d = this.dir();
+    if (d === 'rtl') return true;
+    if (d === 'ltr') return false;
+    return this._domRtl();
+  });
+
+  ngAfterViewInit() {
+    this._checkDirection();
+    setTimeout(() => this._checkDirection(), 0);
+  }
+
+  private _checkDirection() {
+    this._domRtl.set(isRtl(this.el.nativeElement));
+  }
 
   data = input.required<DrilldownDataPoint[]>();
   drilldownSeries = input<DrilldownSeries[]>([]);
@@ -214,9 +242,9 @@ export class BarChartDrilldownComponent {
 
   padding = computed(() => ({
     top: 20,
-    right: 20,
+    right: this.isRtl() ? 70 : 20,
     bottom: 35,
-    left: 50,
+    left: this.isRtl() ? 20 : 70,
   }));
 
   chartArea = computed(() => {
@@ -255,7 +283,11 @@ export class BarChartDrilldownComponent {
     return data.map((point, index) => {
       const normalizedValue = (point.value - range.min) / (range.max - range.min);
       const barHeight = normalizedValue * area.height;
-      const x = area.left + index * (barWidth + gap);
+
+      const x = this.isRtl()
+        ? area.right - index * (barWidth + gap) - barWidth
+        : area.left + index * (barWidth + gap);
+
       const y = area.bottom - barHeight;
       const color = getChartColor(index, point.color);
 

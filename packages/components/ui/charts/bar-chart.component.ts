@@ -41,27 +41,27 @@ import {
         @if (showGrid()) {
           <g class="text-border">
             @for (tick of axisTicks(); track tick) {
-              @if (isVertical()) {
-                <line
-                  [attr.x1]="chartArea().left"
-                  [attr.y1]="getTickPosition(tick)"
-                  [attr.x2]="chartArea().right"
-                  [attr.y2]="getTickPosition(tick)"
-                  stroke="currentColor"
-                  stroke-opacity="0.2"
-                  stroke-dasharray="4 4"
-                />
-              } @else {
-                <line
-                  [attr.x1]="getTickPosition(tick)"
-                  [attr.y1]="chartArea().top"
-                  [attr.x2]="getTickPosition(tick)"
-                  [attr.y2]="chartArea().bottom"
-                  stroke="currentColor"
-                  stroke-opacity="0.2"
-                  stroke-dasharray="4 4"
-                />
-              }
+                @if (isVertical()) {
+                  <line
+                    [attr.x1]="chartArea().left"
+                    [attr.y1]="getTickPosition(tick)"
+                    [attr.x2]="chartArea().right"
+                    [attr.y2]="getTickPosition(tick)"
+                    stroke="currentColor"
+                    stroke-opacity="0.2"
+                    stroke-dasharray="4 4"
+                  />
+                } @else {
+                  <line
+                    [attr.x1]="getTickPosition(tick)"
+                    [attr.y1]="chartArea().top"
+                    [attr.x2]="getTickPosition(tick)"
+                    [attr.y2]="chartArea().bottom"
+                    stroke="currentColor"
+                    stroke-opacity="0.2"
+                    stroke-dasharray="4 4"
+                  />
+                }
             }
           </g>
         }
@@ -70,9 +70,9 @@ import {
           @for (tick of axisTicks(); track tick) {
             @if (isVertical()) {
               <text
-                [attr.x]="chartArea().left - 8"
+                [attr.x]="isRtl() ? chartArea().right + 8 : chartArea().left - 8"
                 [attr.y]="getTickPosition(tick)"
-                text-anchor="end"
+                [attr.text-anchor]="'end'"
                 dominant-baseline="middle"
                 fill="currentColor"
               >
@@ -105,9 +105,9 @@ import {
               </text>
             } @else {
               <text
-                [attr.x]="chartArea().left - 8"
+                [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
                 [attr.y]="bar.y + bar.height / 2"
-                text-anchor="end"
+                [attr.text-anchor]="'end'"
                 dominant-baseline="middle"
                 fill="currentColor"
               >
@@ -148,7 +148,7 @@ import {
                 <text
                   [attr.x]="bar.labelPosition.x"
                   [attr.y]="bar.labelPosition.y"
-                  [attr.text-anchor]="isVertical() ? 'middle' : 'start'"
+                  [attr.text-anchor]="isVertical() ? 'middle' : (isRtl() ? 'start' : 'start')"
                   [attr.dominant-baseline]="isVertical() ? 'auto' : 'middle'"
                   class="text-xs font-medium pointer-events-none"
                   [class.fill-foreground]="true"
@@ -173,10 +173,10 @@ import {
 
         @if (yAxisLabel()) {
           <text
-            [attr.x]="12"
+            [attr.x]="isRtl() ? svgWidth() - 12 : 12"
             [attr.y]="svgHeight() / 2"
             text-anchor="middle"
-            [attr.transform]="'rotate(-90 12 ' + svgHeight() / 2 + ')'"
+            [attr.transform]="isRtl() ? 'rotate(90 ' + (svgWidth() - 12) + ' ' + svgHeight() / 2 + ')' : 'rotate(-90 12 ' + svgHeight() / 2 + ')'"
             class="text-sm fill-muted-foreground"
           >
             {{ yAxisLabel() }}
@@ -223,17 +223,47 @@ export class BarChartComponent {
   hoveredIndex = signal<number | null>(null);
   tooltipPosition = signal({ x: 0, y: 0 });
 
+  // Internal signal to track DOM directionality
+  private _domRtl = signal(false);
+
+  // Allow explicit direction override
+  dir = input<import('./chart.types').ChartDirection>('auto');
+
   isVertical = computed(() => this.orientation() === 'vertical');
-  isRtl = computed(() => isRtl(this.el.nativeElement));
+
+  // Reactive isRtl: checks explicit 'dir' input first, then falls back to DOM state (captured in AfterViewInit/Resize)
+  isRtl = computed(() => {
+    const d = this.dir();
+    if (d === 'rtl') return true;
+    if (d === 'ltr') return false;
+    return this._domRtl();
+  });
+
+  constructor() {
+    // We can use an effect to check direction if inputs change that might affect it (though usually dir is static or explicitly bound)
+  }
+
+  ngAfterViewInit() {
+    // Capture initial DOM direction
+    this._checkDirection();
+
+    // Optional: Could add ResizeObserver to observe style changes if needed, but manual check in AfterViewInit is usually enough for initial render.
+    // Use a timeout to ensure styles are applied
+    setTimeout(() => this._checkDirection(), 0);
+  }
+
+  private _checkDirection() {
+    this._domRtl.set(isRtl(this.el.nativeElement));
+  }
 
   svgWidth = computed(() => this.width());
   svgHeight = computed(() => this.height());
 
   padding = computed(() => ({
     top: 20,
-    right: 20,
+    right: this.isRtl() ? 80 : 20,
     bottom: this.xAxisLabel() ? 50 : 35,
-    left: this.yAxisLabel() ? 60 : 50,
+    left: this.isRtl() ? 20 : 80,
   }));
 
   chartArea = computed(() => {
@@ -281,19 +311,34 @@ export class BarChartComponent {
       let labelX: number, labelY: number;
 
       if (isVert) {
-        x = area.left + index * (barSize + gap);
+        // Vertical (Column) Chart
+        if (this.isRtl()) {
+          x = area.right - index * (barSize + gap) - barSize;
+        } else {
+          x = area.left + index * (barSize + gap);
+        }
         y = area.bottom - barLength;
         width = barSize;
         height = barLength;
         labelX = x + width / 2;
         labelY = y - 6;
       } else {
-        x = area.left;
-        y = area.top + index * (barSize + gap);
-        width = barLength;
-        height = barSize;
-        labelX = x + width + 6;
-        labelY = y + height / 2;
+        // Horizontal (Bar) Chart
+        if (this.isRtl()) {
+          x = area.right - barLength;
+          y = area.top + index * (barSize + gap);
+          width = barLength;
+          height = barSize;
+          labelX = x - 6;
+          labelY = y + height / 2;
+        } else {
+          x = area.left;
+          y = area.top + index * (barSize + gap);
+          width = barLength;
+          height = barSize;
+          labelX = x + width + 6;
+          labelY = y + height / 2;
+        }
       }
 
       return {
@@ -331,6 +376,9 @@ export class BarChartComponent {
     if (this.isVertical()) {
       return area.bottom - normalized * area.height;
     } else {
+      if (this.isRtl()) {
+        return area.right - normalized * area.width;
+      }
       return area.left + normalized * area.width;
     }
   }

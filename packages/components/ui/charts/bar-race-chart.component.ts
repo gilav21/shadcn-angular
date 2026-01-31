@@ -6,8 +6,11 @@ import {
   computed,
   signal,
   OnDestroy,
+  ElementRef,
+  inject,
+  AfterViewInit,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn, isRtl } from '../../lib/utils';
 import { ChartDataPoint } from './chart.types';
 import {
   getChartColor,
@@ -81,7 +84,7 @@ interface RaceBar {
           @for (bar of displayBars(); track bar.name) {
             <g class="transition-transform duration-300 ease-out">
               <rect
-                [attr.x]="chartArea().left"
+                [attr.x]="bar.x"
                 [attr.y]="bar.animatedY"
                 [attr.width]="bar.animatedWidth"
                 [attr.height]="barHeight()"
@@ -90,10 +93,10 @@ interface RaceBar {
                 class="transition-all ease-out"
                 [style.transition-duration.ms]="animationDuration()"
               />
-              <text
-                [attr.x]="chartArea().left - 8"
+            <text
+                [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
                 [attr.y]="bar.animatedY + barHeight() / 2"
-                text-anchor="end"
+                [attr.text-anchor]="'end'"
                 dominant-baseline="middle"
                 class="text-sm fill-foreground font-medium transition-all ease-out"
                 [style.transition-duration.ms]="animationDuration()"
@@ -101,8 +104,9 @@ interface RaceBar {
                 {{ bar.name }}
               </text>
               <text
-                [attr.x]="chartArea().left + bar.animatedWidth + 8"
+                [attr.x]="isRtl() ? bar.x - 12 : chartArea().left + bar.animatedWidth + 12"
                 [attr.y]="bar.animatedY + barHeight() / 2"
+                [attr.text-anchor]="'start'"
                 dominant-baseline="middle"
                 class="text-sm fill-muted-foreground transition-all ease-out"
                 [style.transition-duration.ms]="animationDuration()"
@@ -137,8 +141,34 @@ interface RaceBar {
   host: {
     class: 'block',
   },
+
 })
-export class BarRaceChartComponent implements OnDestroy {
+export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
+  private readonly el = inject(ElementRef);
+
+  // Internal signal to track DOM directionality
+  private _domRtl = signal(false);
+
+  // Allow explicit direction override
+  dir = input<import('./chart.types').ChartDirection>('auto');
+
+  // Reactive isRtl
+  isRtl = computed(() => {
+    const d = this.dir();
+    if (d === 'rtl') return true;
+    if (d === 'ltr') return false;
+    return this._domRtl();
+  });
+
+  ngAfterViewInit() {
+    this._checkDirection();
+    setTimeout(() => this._checkDirection(), 0);
+  }
+
+  private _checkDirection() {
+    this._domRtl.set(isRtl(this.el.nativeElement));
+  }
+
   frames = input.required<ChartDataPoint[][]>();
   frameLabels = input<string[]>([]);
   animationDuration = input(500);
@@ -172,9 +202,9 @@ export class BarRaceChartComponent implements OnDestroy {
 
   padding = computed(() => ({
     top: 10,
-    right: 80,
+    right: this.isRtl() ? 120 : 80,
     bottom: 10,
-    left: 120,
+    left: this.isRtl() ? 80 : 120,
   }));
 
   chartArea = computed(() => {
@@ -230,13 +260,15 @@ export class BarRaceChartComponent implements OnDestroy {
       const barWidth = normalizedValue * area.width;
       const y = area.top + rank * (bHeight + gap);
 
+      const x = this.isRtl() ? area.right - barWidth : area.left;
+
       return {
         name: point.name,
         value: point.value,
         rank,
         previousRank: rank,
         color,
-        x: area.left,
+        x,
         y,
         width: barWidth,
         height: bHeight,

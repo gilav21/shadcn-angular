@@ -5,8 +5,11 @@ import {
   output,
   computed,
   signal,
+  inject,
+  ElementRef,
+  AfterViewInit,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn, isRtl } from '../../lib/utils';
 import { RangeDataPoint, ChartClickEvent } from './chart.types';
 import {
   getChartColor,
@@ -58,9 +61,9 @@ interface RangeBar {
         <g class="text-muted-foreground text-xs">
           @for (tick of axisTicks(); track tick) {
             <text
-              [attr.x]="chartArea().left - 8"
+              [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
               [attr.y]="getTickPosition(tick)"
-              text-anchor="end"
+              [attr.text-anchor]="'end'"
               dominant-baseline="middle"
               fill="currentColor"
             >
@@ -148,7 +151,32 @@ interface RangeBar {
     class: 'block',
   },
 })
-export class ColumnRangeChartComponent {
+export class ColumnRangeChartComponent implements AfterViewInit {
+  private readonly el = inject(ElementRef);
+
+  // Internal signal to track DOM directionality
+  private _domRtl = signal(false);
+
+  // Allow explicit direction override
+  dir = input<import('./chart.types').ChartDirection>('auto');
+
+  // Reactive isRtl
+  isRtl = computed(() => {
+    const d = this.dir();
+    if (d === 'rtl') return true;
+    if (d === 'ltr') return false;
+    return this._domRtl();
+  });
+
+  ngAfterViewInit() {
+    this._checkDirection();
+    setTimeout(() => this._checkDirection(), 0);
+  }
+
+  private _checkDirection() {
+    this._domRtl.set(isRtl(this.el.nativeElement));
+  }
+
   data = input.required<RangeDataPoint[]>();
   width = input(500);
   height = input(300);
@@ -170,9 +198,9 @@ export class ColumnRangeChartComponent {
 
   padding = computed(() => ({
     top: 30,
-    right: 20,
+    right: this.isRtl() ? 70 : 20,
     bottom: 35,
-    left: 50,
+    left: this.isRtl() ? 20 : 70,
   }));
 
   chartArea = computed(() => {
@@ -223,7 +251,12 @@ export class ColumnRangeChartComponent {
       const lowY = area.bottom - normalizedLow * area.height;
       const highY = area.bottom - normalizedHigh * area.height;
 
-      const x = area.left + index * (barWidth + gap);
+
+
+      const x = this.isRtl()
+        ? area.right - index * (barWidth + gap) - barWidth
+        : area.left + index * (barWidth + gap);
+
       const y = highY;
       const height = lowY - highY;
       const color = getChartColor(index, point.color);

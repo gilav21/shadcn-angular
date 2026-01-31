@@ -71,8 +71,13 @@ import { cn, isRtl } from '../lib/utils';
             >
               <defs>
                 <linearGradient [id]="'half-' + star.index">
-                  <stop offset="50%" stop-color="currentColor"/>
-                  <stop offset="50%" stop-color="transparent"/>
+                  @if (isRtl()) {
+                    <stop offset="50%" stop-color="transparent"/>
+                    <stop offset="50%" stop-color="currentColor"/>
+                  } @else {
+                    <stop offset="50%" stop-color="currentColor"/>
+                    <stop offset="50%" stop-color="transparent"/>
+                  }
                 </linearGradient>
               </defs>
               <polygon

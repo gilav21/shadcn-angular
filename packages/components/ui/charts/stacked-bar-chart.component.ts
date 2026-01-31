@@ -5,8 +5,12 @@ import {
   output,
   computed,
   signal,
+  inject,
+  ElementRef,
+  AfterViewInit,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn, isRtl } from '../../lib/utils';
+import { ChartDirection } from './chart.types';
 import {
   ChartSeries,
   StackingMode,
@@ -69,9 +73,9 @@ interface StackedSegment {
         <g class="text-muted-foreground text-xs">
           @for (tick of axisTicks(); track tick) {
             <text
-              [attr.x]="chartArea().left - 8"
+              [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
               [attr.y]="getTickPosition(tick)"
-              text-anchor="end"
+              [attr.text-anchor]="'end'"
               dominant-baseline="middle"
               fill="currentColor"
             >
@@ -168,7 +172,31 @@ interface StackedSegment {
     class: 'block',
   },
 })
-export class StackedBarChartComponent {
+export class StackedBarChartComponent implements AfterViewInit {
+  private readonly el = inject(ElementRef);
+
+  // Internal signal to track DOM directionality
+  private _domRtl = signal(false);
+
+  // Allow explicit direction override
+  dir = input<ChartDirection>('auto');
+
+  // Reactive isRtl
+  isRtl = computed(() => {
+    const d = this.dir();
+    if (d === 'rtl') return true;
+    if (d === 'ltr') return false;
+    return this._domRtl();
+  });
+
+  ngAfterViewInit() {
+    this._checkDirection();
+    setTimeout(() => this._checkDirection(), 0);
+  }
+
+  private _checkDirection() {
+    this._domRtl.set(isRtl(this.el.nativeElement));
+  }
   series = input.required<ChartSeries[]>();
   categories = input.required<string[]>();
   stacking = input<StackingMode>('absolute');
@@ -192,9 +220,9 @@ export class StackedBarChartComponent {
 
   padding = computed(() => ({
     top: 20,
-    right: 20,
+    right: this.isRtl() ? 70 : 20,
     bottom: 35,
-    left: 50,
+    left: this.isRtl() ? 20 : 70,
   }));
 
   chartArea = computed(() => {
@@ -245,7 +273,9 @@ export class StackedBarChartComponent {
     const maxVal = this.maxValue();
 
     return cats.map((category, catIndex) => {
-      const x = area.left + catIndex * (barWidth + gap);
+      const x = this.isRtl()
+        ? area.right - catIndex * (barWidth + gap) - barWidth
+        : area.left + catIndex * (barWidth + gap);
       let total = 0;
 
       for (const s of seriesData) {

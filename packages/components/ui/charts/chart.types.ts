@@ -67,6 +67,7 @@ export interface DrilldownEvent {
 
 export type LegendPosition = 'top' | 'bottom' | 'left' | 'right' | 'none';
 export type ChartOrientation = 'horizontal' | 'vertical';
+export type ChartDirection = 'ltr' | 'rtl' | 'auto';
 export type StackingMode = 'absolute' | 'percent';
 export type EasingFunction = 'linear' | 'easeOut' | 'easeInOut' | 'easeOutQuart';
 

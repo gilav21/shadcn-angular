@@ -506,55 +506,56 @@
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">Bar Chart (Vertical)</h3>
           <p class="text-sm text-muted-foreground">Column chart showing monthly revenue data.</p>
-          <ui-bar-chart [data]="barChartData" [width]="500" [height]="280" orientation="vertical" xAxisLabel="Month"
-            yAxisLabel="Revenue ($)" />
+          <ui-bar-chart [dir]="isRtl() ? 'rtl' : 'ltr'" [data]="barChartData" [width]="500" [height]="280"
+            orientation="vertical" xAxisLabel="Month" yAxisLabel="Revenue ($)" />
         </div>
 
         <!-- Bar Chart (Horizontal) -->
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">Bar Chart (Horizontal)</h3>
           <p class="text-sm text-muted-foreground">Horizontal bars for comparing categorical data.</p>
-          <ui-bar-chart [data]="pieChartData" [width]="500" [height]="280" orientation="horizontal" />
+          <ui-bar-chart [dir]="isRtl() ? 'rtl' : 'ltr'" [data]="pieChartData" [width]="500" [height]="280"
+            orientation="horizontal" />
         </div>
 
         <!-- Bar Chart with Drilldown -->
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">Column Chart with Drilldown</h3>
           <p class="text-sm text-muted-foreground">Click a column to see the breakdown.</p>
-          <ui-bar-chart-drilldown [data]="drilldownData" [drilldownSeries]="drilldownSeries" [width]="500"
-            [height]="280" title="Browser Market Share" />
+          <ui-bar-chart-drilldown [dir]="isRtl() ? 'rtl' : 'ltr'" [data]="drilldownData"
+            [drilldownSeries]="drilldownSeries" [width]="500" [height]="280" title="Browser Market Share" />
         </div>
 
         <!-- Stacked Bar Chart -->
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">Stacked Bar Chart</h3>
           <p class="text-sm text-muted-foreground">Multi-series stacked columns showing cumulative data.</p>
-          <ui-stacked-bar-chart [series]="stackedSeries" [categories]="stackedCategories" [width]="500" [height]="280"
-            stacking="absolute" [showTotal]="true" />
+          <ui-stacked-bar-chart [dir]="isRtl() ? 'rtl' : 'ltr'" [series]="stackedSeries"
+            [categories]="stackedCategories" [width]="500" [height]="280" stacking="absolute" [showTotal]="true" />
         </div>
 
         <!-- Stacked Bar Chart (Percent) -->
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">Stacked Bar Chart (Percentage)</h3>
           <p class="text-sm text-muted-foreground">100% stacked to show proportions.</p>
-          <ui-stacked-bar-chart [series]="stackedSeries" [categories]="stackedCategories" [width]="500" [height]="280"
-            stacking="percent" />
+          <ui-stacked-bar-chart [dir]="isRtl() ? 'rtl' : 'ltr'" [series]="stackedSeries"
+            [categories]="stackedCategories" [width]="500" [height]="280" stacking="percent" />
         </div>
 
         <!-- Column Range Chart -->
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">Column Range Chart</h3>
           <p class="text-sm text-muted-foreground">Shows temperature ranges (low to high) for each month.</p>
-          <ui-column-range-chart [data]="rangeChartData" [width]="500" [height]="280" unit="°C"
-            title="Monthly Temperature Range" />
+          <ui-column-range-chart [dir]="isRtl() ? 'rtl' : 'ltr'" [data]="rangeChartData" [width]="500" [height]="280"
+            unit="°C" title="Monthly Temperature Range" />
         </div>
 
         <!-- Bar Race Chart -->
         <div class="space-y-4">
           <h3 class="text-lg font-semibold">Bar Race Chart</h3>
           <p class="text-sm text-muted-foreground">Animated ranking chart. Click play to start the animation.</p>
-          <ui-bar-race-chart [frames]="barRaceFrames" [frameLabels]="barRaceLabels" [width]="600" [height]="320"
-            [maxBars]="6" [animationDuration]="600" title="Sales Leaderboard" />
+          <ui-bar-race-chart [dir]="isRtl() ? 'rtl' : 'ltr'" [frames]="barRaceFrames" [frameLabels]="barRaceLabels"
+            [width]="600" [height]="320" [maxBars]="6" [animationDuration]="600" title="Sales Leaderboard" />
         </div>
       </div>
     </section>
@@ -1812,6 +1813,20 @@
         <ui-command-input placeholder="Type a command or search..." />
         <ui-command-list>
           <ui-command-empty>No results found.</ui-command-empty>
+          <ui-command-group heading="Settings">
+            <ui-command-item value="direction" (select)="toggleDirection(!isRtl())">
+              <svg class="ltr:mr-2 rtl:ml-2 h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"
+                stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+              </svg>
+              <span>Toggle Direction</span>
+              <span class="ltr:ml-auto rtl:mr-auto text-xs text-muted-foreground">
+                {{ isRtl() ? 'RTL' : 'LTR' }}
+              </span>
+            </ui-command-item>
+          </ui-command-group>
+          <ui-command-separator />
           <ui-command-group heading="Components">
             @for (link of links; track link) {
             <ui-command-item [value]="link.title" (select)="scrollToSection(link.id)">

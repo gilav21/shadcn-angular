@@ -128,14 +128,25 @@ export const TenStars: Story = {
 
 export const RTL: Story = {
     render: () => ({
-        props: { value: signal(4) },
+        props: { value: signal(3.5) },
         template: `
-            <div dir="rtl" class="space-y-2">
-                <p class="text-sm text-muted-foreground">التقييم: {{ value() }} نجوم</p>
-                <ui-rating
-                    [ngModel]="value()"
-                    (ngModelChange)="value.set($event)"
-                />
+            <div dir="rtl" class="space-y-4">
+                <div class="space-y-2">
+                    <p class="text-sm text-muted-foreground">التقييم: {{ value() }} نجوم (3.5)</p>
+                    <ui-rating
+                        [ngModel]="value()"
+                        (ngModelChange)="value.set($event)"
+                        [precision]="0.5"
+                    />
+                </div>
+                 <div class="space-y-2">
+                    <p class="text-sm text-muted-foreground">التقييم: 2.5 نجوم</p>
+                    <ui-rating
+                        [ngModel]="2.5"
+                        [precision]="0.5"
+                        [readonly]="true"
+                    />
+                </div>
             </div>
         `,
     }),

@@ -8,9 +8,12 @@ import {
   ChangeDetectionStrategy,
   ViewEncapsulation,
   Type,
+  ElementRef,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { isRtl } from '../../lib/utils';
 import {
   TableComponent,
   TableHeaderComponent,
@@ -150,7 +153,11 @@ import { cn } from '../../lib/utils';
                   </div>
                   @if (enableColumnResize() && col.accessorKey !== '_selection' && col._width !== 'auto') {
                     <div 
-                      class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary/70 z-40 select-none translate-x-1/2"
+                      class="absolute top-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary/70 z-40 select-none"
+                      [class.right-0]="!isRtl()"
+                      [class.translate-x-1/2]="!isRtl()"
+                      [class.left-0]="isRtl()"
+                      [class.-translate-x-1/2]="isRtl()"
                       (mousedown)="onResizeStart($event, col)"
                       (touchstart)="onResizeTouchStart($event, col)"
                       role="separator"
@@ -249,6 +256,12 @@ import { cn } from '../../lib/utils';
   `,
 })
 export class DataTableComponent<T> {
+  private _el = inject(ElementRef);
+  isRtl() {
+    return isRtl(this._el.nativeElement);
+  }
+  private _isRtlResize = false;
+
   data = input.required<T[]>();
   columns = input.required<ColumnDef<T>[]>();
 
@@ -566,6 +579,7 @@ export class DataTableComponent<T> {
     this.resizingColumn = col;
     this.resizeStartX = clientX;
     this.resizeStartWidth = parseInt(col._width, 10) || 150;
+    this._isRtlResize = this.isRtl();
 
     const onMouseMove = (e: MouseEvent) => this.onResizeMove(e.clientX);
     const onTouchMove = (e: TouchEvent) => {
@@ -598,8 +612,9 @@ export class DataTableComponent<T> {
     if (!this.resizingColumn) return;
 
     const delta = clientX - this.resizeStartX;
+    const effectiveDelta = this._isRtlResize ? -delta : delta;
     const minWidth = parseInt(this.resizingColumn._minWidth, 10) || 50;
-    const newWidth = Math.max(minWidth, this.resizeStartWidth + delta);
+    const newWidth = Math.max(minWidth, this.resizeStartWidth + effectiveDelta);
     const key = String(this.resizingColumn.accessorKey);
 
     this.columnWidths.update(widths => ({

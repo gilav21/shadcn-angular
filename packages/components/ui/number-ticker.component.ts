@@ -106,6 +106,7 @@ export class NumberTickerDigitComponent {
       }
     </span>
   `,
+    host: { dir: 'ltr' }
 })
 export class NumberTickerComponent implements OnDestroy {
     private readonly _el = inject(ElementRef);

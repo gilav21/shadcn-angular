@@ -5,6 +5,8 @@ import {
   output,
   ChangeDetectionStrategy,
   ViewEncapsulation,
+  ElementRef,
+  inject,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -24,6 +26,7 @@ import {
 } from '../pagination.component';
 import { LucideAngularModule } from 'lucide-angular';
 import { PaginationState } from './data-table.types';
+import { isRtl } from '../../lib/utils';
 
 @Component({
   selector: 'ui-data-table-pagination',
@@ -78,7 +81,7 @@ import { PaginationState } from './data-table.types';
                   (click)="onFirstPage()"
                 >
                   <span class="sr-only">Go to first page</span>
-                  <lucide-icon name="chevrons-left" class="h-4 w-4" />
+                  <lucide-icon [name]="isRtl() ? 'chevrons-right' : 'chevrons-left'" class="h-4 w-4" />
                 </ui-pagination-link>
               </ui-pagination-item>
               <ui-pagination-item>
@@ -89,7 +92,7 @@ import { PaginationState } from './data-table.types';
                   (click)="onPreviousPage()"
                 >
                   <span class="sr-only">Go to previous page</span>
-                  <lucide-icon name="chevron-left" class="h-4 w-4" />
+                  <lucide-icon [name]="isRtl() ? 'chevron-right' : 'chevron-left'" class="h-4 w-4" />
                 </ui-pagination-link>
               </ui-pagination-item>
               
@@ -105,7 +108,7 @@ import { PaginationState } from './data-table.types';
                   (click)="onNextPage()"
                 >
                   <span class="sr-only">Go to next page</span>
-                  <lucide-icon name="chevron-right" class="h-4 w-4" />
+                  <lucide-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" class="h-4 w-4" />
                 </ui-pagination-link>
               </ui-pagination-item>
               <ui-pagination-item>
@@ -116,7 +119,7 @@ import { PaginationState } from './data-table.types';
                   (click)="onLastPage()"
                 >
                   <span class="sr-only">Go to last page</span>
-                  <lucide-icon name="chevrons-right" class="h-4 w-4" />
+                  <lucide-icon [name]="isRtl() ? 'chevrons-left' : 'chevrons-right'" class="h-4 w-4" />
                 </ui-pagination-link>
               </ui-pagination-item>
             </ui-pagination-content>
@@ -127,6 +130,12 @@ import { PaginationState } from './data-table.types';
   `,
 })
 export class DataTablePaginationComponent {
+  private _el = inject(ElementRef);
+
+  isRtl() {
+    return isRtl(this._el.nativeElement);
+  }
+
   total = input(0);
   state = input.required<PaginationState>();
 
