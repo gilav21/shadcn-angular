@@ -61,7 +61,7 @@ export class SpeedDialComponent implements OnDestroy {
     type = input<SpeedDialType>('linear');
     direction = input<SpeedDialDirection>('up');
     radius = input(80);
-    transitionDelay = input(30);
+    transitionDelay = input(80);
     disabled = input(false, { transform: booleanAttribute });
 
     open = signal(false);
@@ -257,11 +257,16 @@ export class SpeedDialContextTriggerDirective {
     selector: 'ui-speed-dial-menu',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    @if (speedDial?.open()) {
-      <div [class]="classes()" [style]="positionStyle()" [attr.data-slot]="'speed-dial-menu'" [attr.aria-label]="ariaLabel()">
+      <div 
+        [class]="classes()" 
+        [style]="positionStyle()" 
+        [attr.data-slot]="'speed-dial-menu'" 
+        [attr.data-state]="speedDial?.open() ? 'open' : 'closed'"
+        [attr.aria-label]="ariaLabel()"
+        [attr.aria-hidden]="!speedDial?.open()"
+      >
         <ng-content />
       </div>
-    }
   `,
     host: { class: 'contents' },
 })
@@ -308,9 +313,13 @@ export class SpeedDialMenuComponent {
         const type = this.speedDial?.type() ?? 'linear';
         const direction = this.speedDial?.direction() ?? 'up';
         const contextPos = this.speedDial?.contextPosition();
+        const isOpen = this.speedDial?.open();
+
+        // When closed, disable pointer events so hidden items don't block clicks
+        const pointerClass = isOpen ? '' : 'pointer-events-none';
 
         if (contextPos) {
-            return cn('fixed z-50', this.class());
+            return cn('fixed z-50', pointerClass, this.class());
         }
         if (type === 'linear') {
             const directionClasses: Record<string, string> = {
@@ -319,10 +328,10 @@ export class SpeedDialMenuComponent {
                 left: 'absolute right-full top-1/2 -translate-y-1/2 mr-2 flex flex-row-reverse gap-2',
                 right: 'absolute left-full top-1/2 -translate-y-1/2 ml-2 flex flex-row gap-2',
             };
-            return cn(directionClasses[direction] || directionClasses['up'], this.class());
+            return cn(directionClasses[direction] || directionClasses['up'], pointerClass, this.class());
         }
 
-        return cn('absolute inset-0', this.class());
+        return cn('absolute inset-0', pointerClass, this.class());
     });
 }
 
@@ -334,6 +343,7 @@ export class SpeedDialMenuComponent {
       [class]="classes()"
       [style]="positionStyle()"
       [attr.data-slot]="'speed-dial-item'"
+      [attr.data-state]="speedDial?.open() ? 'open' : 'closed'"
     >
       <ng-content />
     </div>
@@ -341,7 +351,7 @@ export class SpeedDialMenuComponent {
     host: { class: 'contents' },
 })
 export class SpeedDialItemComponent implements OnInit, OnDestroy {
-    private speedDial = inject(SpeedDialComponent, { optional: true });
+    protected speedDial = inject(SpeedDialComponent, { optional: true });
     private menu = inject(SpeedDialMenuComponent, { optional: true });
     class = input('');
 
@@ -359,13 +369,13 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
     classes = computed(() => {
         const type = this.speedDial?.type() ?? 'linear';
         const isCircular = type !== 'linear';
+        const isOpen = this.speedDial?.open();
 
         return cn(
-            'transition-all duration-200',
             isCircular && 'absolute',
-            this.speedDial?.open()
+            isOpen
                 ? 'opacity-100 scale-100'
-                : 'opacity-0 scale-50',
+                : 'opacity-0 scale-0',
             this.class()
         );
     });
@@ -376,20 +386,40 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
         const radius = this.speedDial?.radius() ?? 80;
         const transitionDelay = this.speedDial?.transitionDelay() ?? 30;
         const idx = this.itemIndex();
+        const totalItems = this.totalItems();
+        const isOpen = this.speedDial?.open();
+
+        // Calculate reverse index for closing animation (last item closes first)
+        const closeIdx = totalItems - 1 - idx;
+        const delay = isOpen ? idx * transitionDelay : closeIdx * transitionDelay;
+
+        // Spring easing for open, smooth ease-out for close
+        const easing = isOpen
+            ? 'cubic-bezier(0.34, 1.56, 0.64, 1)' // Spring/bounce effect
+            : 'cubic-bezier(0.4, 0, 0.2, 1)';     // Smooth ease-out
+
+        const duration = isOpen ? '300ms' : '200ms';
 
         if (type === 'linear') {
             return {
-                'transition-delay': `${idx * transitionDelay}ms`,
+                'transition': `all ${duration} ${easing}`,
+                'transition-delay': `${delay}ms`,
             };
         }
 
-        const pos = this.calculateCircularPosition(type, direction, radius, idx, this.totalItems());
+        const pos = this.calculateCircularPosition(type, direction, radius, idx, totalItems);
+
+        // When closed, items animate from/to center. When open, at calculated position.
+        const transform = isOpen
+            ? `translate(${pos.x}px, ${pos.y}px)`
+            : 'translate(0px, 0px)';
 
         return {
-            transform: `translate(${pos.x}px, ${pos.y}px)`,
-            'transition-delay': `${idx * transitionDelay}ms`,
-            left: '50%',
-            top: '50%',
+            'transform': transform,
+            'transition': `transform ${duration} ${easing}, opacity ${duration} ${easing}, scale ${duration} ${easing}`,
+            'transition-delay': `${delay}ms`,
+            'left': '50%',
+            'top': '50%',
             'margin-left': '-1.125rem',
             'margin-top': '-1.125rem',
         };

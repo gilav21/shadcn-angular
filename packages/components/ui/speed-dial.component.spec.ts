@@ -59,7 +59,7 @@ describe('SpeedDialComponent', () => {
 
     it('should be closed by default', () => {
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu).toBeFalsy();
+        expect(menu.nativeElement.getAttribute('data-state')).toBe('closed');
     });
 
     it('should open when trigger is clicked', () => {
@@ -80,7 +80,7 @@ describe('SpeedDialComponent', () => {
         fixture.detectChanges();
 
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu).toBeFalsy();
+        expect(menu.nativeElement.getAttribute('data-state')).toBe('closed');
     });
 
     it('should close when mask is clicked', () => {
@@ -93,7 +93,7 @@ describe('SpeedDialComponent', () => {
         fixture.detectChanges();
 
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu).toBeFalsy();
+        expect(menu.nativeElement.getAttribute('data-state')).toBe('closed');
     });
 
     it('should close on click outside', () => {
@@ -105,7 +105,7 @@ describe('SpeedDialComponent', () => {
         fixture.detectChanges();
 
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu).toBeFalsy();
+        expect(menu.nativeElement.getAttribute('data-state')).toBe('closed');
     });
 
     it('should rotate trigger when open', () => {
