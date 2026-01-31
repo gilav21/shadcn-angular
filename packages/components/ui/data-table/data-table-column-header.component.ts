@@ -14,7 +14,6 @@ import { cn } from '../../lib/utils';
 
 @Component({
   selector: 'ui-data-table-column-header',
-  standalone: true,
   imports: [
     CommonModule,
     ButtonComponent,

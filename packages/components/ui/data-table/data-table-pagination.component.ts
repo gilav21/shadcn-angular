@@ -27,7 +27,6 @@ import { PaginationState } from './data-table.types';
 
 @Component({
   selector: 'ui-data-table-pagination',
-  standalone: true,
   imports: [
     CommonModule,
     FormsModule,

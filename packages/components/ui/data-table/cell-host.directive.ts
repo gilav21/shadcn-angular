@@ -11,8 +11,7 @@ import {
 import { Subscription } from 'rxjs';
 
 @Directive({
-    selector: '[uiCellHost]',
-    standalone: true
+    selector: '[uiCellHost]'
 })
 export class CellHostDirective implements OnInit, OnChanges, OnDestroy {
     uiCellHost = input.required<any>();

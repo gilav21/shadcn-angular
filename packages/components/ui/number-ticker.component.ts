@@ -13,7 +13,6 @@ import { cn } from '../lib/utils';
 
 @Component({
     selector: 'ui-number-ticker-digit',
-    standalone: true,
     template: `
     <div class="relative inline-block overflow-hidden h-[1em] w-[0.6em] align-top">
       @if (isDigit()) {
@@ -99,7 +98,6 @@ export class NumberTickerDigitComponent {
 
 @Component({
     selector: 'ui-number-ticker',
-    standalone: true,
     imports: [NumberTickerDigitComponent],
     template: `
     <span [class]="classes()" #ticker>

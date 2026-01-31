@@ -162,7 +162,7 @@ export class NavigationMenuItemComponent {
         stroke-width="2" 
         stroke-linecap="round" 
         stroke-linejoin="round" 
-        class="relative top-[1px] ml-1 h-3 w-3 transition duration-200"
+        class="relative top-px ml-1 h-3 w-3 transition duration-200"
         [class.rotate-180]="item.isOpen()"
         aria-hidden="true"
       >

@@ -3,7 +3,6 @@ import { CommonModule } from '@angular/common';
 
 @Component({
     selector: 'ui-rich-text-image-resizer',
-    standalone: true,
     imports: [CommonModule],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `

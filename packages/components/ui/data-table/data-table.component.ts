@@ -31,7 +31,6 @@ import { cn } from '../../lib/utils';
 
 @Component({
   selector: 'ui-data-table',
-  standalone: true,
   imports: [
     CommonModule,
     FormsModule,
