@@ -120,8 +120,8 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     readonly valueChange = output<T>();
 
-    private static idCounter = 0;
-    readonly listId = `select-list-${++SelectComponent.idCounter}`;
+    private static nextId = 0;
+    readonly listId = `select-list-${++SelectComponent.nextId}`;
 
     private _onChange: (value: T) => void = () => { };
     private _onTouched: () => void = () => { };

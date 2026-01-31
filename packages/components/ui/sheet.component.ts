@@ -66,6 +66,7 @@ export class SheetComponent implements OnDestroy {
 
     private lockScroll() {
         const body = this.document.body;
+        this.scrollbarWidth = window.innerWidth - this.document.documentElement.clientWidth;
         body.style.overflow = 'hidden';
         body.style.paddingRight = `${this.scrollbarWidth}px`;
     }

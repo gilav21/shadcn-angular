@@ -117,8 +117,8 @@
       <!-- Character Count -->
       <div class="space-y-2">
         <h3 class="text-lg font-medium">With Character Count</h3>
-        <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true"
-          placeholder="Type to see the character count below..." minHeight="100px" />
+        <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true" [maxLength]="20"
+          placeholder="Type to see the character count below... (Max 20 chars)" minHeight="100px" />
       </div>
 
       <!-- HTML Mode -->

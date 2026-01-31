@@ -11,7 +11,7 @@ import { cn } from '../lib/utils';
     selector: 'ui-table',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <div [class]="classes()" [attr.data-slot]="'table'">
+    <div [class]="classes()" [attr.data-slot]="'table'" role="table">
       <ng-content />
     </div>
   `,

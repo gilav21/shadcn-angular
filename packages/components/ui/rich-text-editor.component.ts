@@ -123,6 +123,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         role="textbox"
         aria-multiline="true"
         (input)="onInput($event)"
+        (beforeinput)="onBeforeInput($event)"
         (keydown)="onKeydown($event)"
         (paste)="onPaste($event)"
         (focus)="onFocus()"
@@ -476,6 +477,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             }
         }
 
+
+
         if (event.ctrlKey || event.metaKey) {
             switch (event.key.toLowerCase()) {
                 case 'b':
@@ -569,11 +572,53 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    onBeforeInput(event: Event): void {
+        const inputEvent = event as InputEvent;
+        if (!this.maxLength() || !inputEvent.data || inputEvent.inputType.startsWith('delete') || inputEvent.inputType.startsWith('format')) {
+            return;
+        }
+
+        const max = this.maxLength()!;
+        const currentText = this.editorDiv?.nativeElement.textContent || '';
+
+        if (currentText.length >= max) {
+            const selection = this.document.getSelection();
+            if (selection && !selection.isCollapsed) {
+                return;
+            }
+            event.preventDefault();
+        }
+    }
+
     onPaste(event: ClipboardEvent): void {
         event.preventDefault();
 
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
+
+        if (this.maxLength()) {
+            const max = this.maxLength()!;
+            const currentText = this.editorDiv?.nativeElement.textContent || '';
+            const remaining = max - currentText.length;
+
+            if (remaining <= 0) {
+                return;
+            }
+
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html || text, 'text/html');
+            const pasteText = doc.body.textContent || '';
+
+            if (pasteText.length > remaining) {
+                const truncated = pasteText.substring(0, remaining);
+                this.insertText(truncated);
+                return;
+            }
+        }
+
+
+
+
 
         const sanitized = this.sanitizer.sanitize(html || text);
         this.insertHtml(sanitized);

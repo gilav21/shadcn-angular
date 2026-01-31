@@ -5,6 +5,7 @@ import {
   computed,
   forwardRef,
   model,
+  signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -26,7 +27,7 @@ import { cn } from '../lib/utils';
       [attr.aria-checked]="checked()"
       [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
       [class]="classes()"
-      [disabled]="disabled()"
+      [disabled]="isDisabled()"
       [attr.id]="elementId()"
       [attr.aria-label]="ariaLabel()"
       [attr.aria-labelledby]="ariaLabelledby()"
@@ -69,7 +70,10 @@ import { cn } from '../lib/utils';
   },
 })
 export class CheckboxComponent implements ControlValueAccessor {
+  readonly _disabled = signal(false);
   disabled = input(false);
+
+  protected isDisabled = computed(() => this.disabled() || this._disabled());
   class = input('');
   elementId = input<string | undefined>(undefined);
   ariaLabel = input<string | undefined>(undefined);
@@ -91,7 +95,7 @@ export class CheckboxComponent implements ControlValueAccessor {
   );
 
   toggle() {
-    if (this.disabled()) return;
+    if (this.isDisabled()) return;
     const newValue = !this.checked();
     this.checked.set(newValue);
     this.onChange(newValue);
@@ -110,5 +114,7 @@ export class CheckboxComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  setDisabledState(isDisabled: boolean): void { }
+  setDisabledState(isDisabled: boolean): void {
+    this._disabled.set(isDisabled);
+  }
 }

@@ -83,9 +83,12 @@ export class SliderComponent {
     percentage = computed(() => {
         const min = this.min();
         const max = this.max();
+        if (min >= max) {
+            console.warn('[ui-slider] min should be less than max');
+            return 0;
+        }
         const val = this.value();
         const range = max - min;
-        if (range <= 0) return 0;
         return ((val - min) / range) * 100;
     });
 

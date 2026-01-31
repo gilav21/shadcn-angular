@@ -135,6 +135,21 @@ export class ResizableHandleComponent implements AfterViewInit {
   private isDragging = signal(false);
   private detectedDirection = signal<'horizontal' | 'vertical'>('horizontal');
 
+  // Store cleanup functions
+  private listeners: (() => void)[] = [];
+
+  ngOnDestroy() {
+    this.cleanupListeners();
+  }
+
+  private cleanupListeners() {
+    this.listeners.forEach(remove => remove());
+    this.listeners = [];
+    this.isDragging.set(false);
+    document.body.style.cursor = '';
+    document.body.style.userSelect = '';
+  }
+
   ngAfterViewInit() {
     const handleEl = this.el.nativeElement as HTMLElement;
     const groupEl = handleEl.closest('[data-slot="resizable-panel-group"]');
@@ -275,13 +290,7 @@ export class ResizableHandleComponent implements AfterViewInit {
     };
 
     const onEnd = () => {
-      this.isDragging.set(false);
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onEnd);
-      document.removeEventListener('touchmove', onTouchMove);
-      document.removeEventListener('touchend', onEnd);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      this.cleanupListeners();
     };
 
     document.body.style.cursor = isHorizontal ? 'col-resize' : 'row-resize';
@@ -290,9 +299,19 @@ export class ResizableHandleComponent implements AfterViewInit {
     if (isTouch) {
       document.addEventListener('touchmove', onTouchMove, { passive: false });
       document.addEventListener('touchend', onEnd);
+
+      this.listeners.push(
+        () => document.removeEventListener('touchmove', onTouchMove),
+        () => document.removeEventListener('touchend', onEnd)
+      );
     } else {
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onEnd);
+
+      this.listeners.push(
+        () => document.removeEventListener('mousemove', onMouseMove),
+        () => document.removeEventListener('mouseup', onEnd)
+      );
     }
   }
 }
