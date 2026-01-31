@@ -26,6 +26,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
+import { ButtonComponent } from './button.component';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -80,7 +81,12 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
 @Component({
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [RichTextToolbarComponent, RichTextMentionPopoverComponent, RichTextImageResizerComponent],
+    imports: [
+        RichTextToolbarComponent,
+        RichTextMentionPopoverComponent,
+        RichTextImageResizerComponent,
+        ButtonComponent,
+    ],
     providers: [
         {
             provide: NG_VALUE_ACCESSOR,
@@ -93,6 +99,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
       <ui-rich-text-toolbar
         [items]="toolbarItems()"
         [activeFormats]="activeFormats()"
+        [selectedText]="selectedText()"
         (formatCommand)="onFormatCommand($event)"
         (linkInsert)="onLinkInsert($event)"
         (imageInsert)="onImageInsert($event)"
@@ -119,7 +126,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         (keydown)="onKeydown($event)"
         (paste)="onPaste($event)"
         (focus)="onFocus()"
-        (blur)="onBlur()"
+        (blur)="onBlur($event)"
         (mouseup)="onSelectionChange()"
         (keyup)="onSelectionChange()"
         (click)="onEditorClick($event)"
@@ -141,6 +148,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
           <ui-rich-text-toolbar
             [items]="['bold', 'italic', 'underline', 'separator', 'link', 'separator', 'clear']"
             [activeFormats]="emptyFormats"
+            [selectedText]="selectedText()"
             [compact]="true"
             (formatCommand)="onFloatingFormatCommand($event)"
             (linkInsert)="onLinkInsert($event)"
@@ -157,6 +165,52 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
           (itemSelect)="onMentionSelect($event)"
           (close)="closeMentionPopover()"
         />
+      }
+
+      @if (showLinkPopover()) {
+        <div 
+          class="fixed z-50 bg-popover border rounded-lg shadow-lg p-4 w-80"
+          [style.left.px]="linkPopoverPosition().x"
+          [style.top.px]="linkPopoverPosition().y"
+        >
+          <div class="space-y-3">
+            <div>
+              <label class="text-sm font-medium mb-1 block">Link Text</label>
+              <input
+                #linkText
+                type="text"
+                [value]="selectedText()"
+                placeholder="Display text"
+                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div>
+              <label class="text-sm font-medium mb-1 block">URL</label>
+              <input
+                #linkUrl
+                type="url"
+                placeholder="https://example.com"
+                class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+            </div>
+            <div class="flex gap-2">
+              <ui-button 
+                size="sm" 
+                class="flex-1"
+                (click)="insertLinkFromPopover(linkText.value, linkUrl.value)"
+              >
+                Insert Link
+              </ui-button>
+              <ui-button 
+                variant="outline"
+                size="sm" 
+                (click)="closeLinkPopover()"
+              >
+                Cancel
+              </ui-button>
+            </div>
+          </div>
+        </div>
       }
     </div>
 
@@ -222,6 +276,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     loadedMentionItems = signal<(MentionItem | TagItem)[]>([]);
     mentionLoading = signal<boolean>(false);
     selectedImage = signal<HTMLImageElement | null>(null);
+    showLinkPopover = signal<boolean>(false);
+    linkPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    selectedText = signal<string>('');
 
     private history: HistoryEntry[] = [];
     private historyIndex = -1;
@@ -253,6 +310,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-2',
             '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-2',
             '[&_li]:my-1',
+            // Link styling
+            '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:cursor-pointer [&_a]:font-medium hover:[&_a]:text-primary/80',
             // Code styling
             '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono',
             '[&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto',
@@ -525,7 +584,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.focus.emit();
     }
 
-    onBlur(): void {
+    onBlur(event?: FocusEvent): void {
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
@@ -533,15 +592,34 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         this.onTouched();
         this.blur.emit();
+
+        // Don't close floating toolbar if link popover is open
+        if (this.showLinkPopover()) {
+            return;
+        }
+
+        // Check regarding target to avoid timeouts
+        const relatedTarget = event?.relatedTarget as Node | null;
+        if (relatedTarget && this.el.nativeElement.contains(relatedTarget)) {
+            return;
+        }
+
         setTimeout(() => {
-            this.showFloatingToolbar.set(false);
+            // Only hide if link popover is still not open AND focus is outside the component
+            if (!this.showLinkPopover()) {
+                const activeElement = this.document.activeElement;
+                const isInsideComponent = this.el.nativeElement.contains(activeElement);
+                if (!isInsideComponent) {
+                    this.showFloatingToolbar.set(false);
+                }
+            }
         }, 200);
     }
 
     onSelectionChange(): void {
         this.updateActiveFormats();
-
         const selection = this.document.getSelection();
+        this.selectedText.set(selection?.toString() || '');
         if (selection && !selection.isCollapsed && this.toolbar() === 'floating') {
             this.updateFloatingToolbarPosition();
             this.showFloatingToolbar.set(true);
@@ -741,6 +819,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onLinkInsert(data: { text: string; url: string }): void {
+        this.restoreSelection();
         const safeUrl = this.sanitizer.sanitizeUrl(data.url);
         if (safeUrl) {
             const selection = this.document.getSelection();
@@ -930,12 +1009,38 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private showLinkDialog(): void {
-        const url = prompt('Enter URL:');
-        if (url) {
-            const selection = this.document.getSelection();
-            const text = selection?.toString() || 'Link';
-            this.onLinkInsert({ text, url });
+        const selection = this.document.getSelection();
+        this.selectedText.set(selection?.toString() || '');
+
+        // Explicitly save the range for later restoration
+        if (selection && selection.rangeCount > 0) {
+            this.savedRange = selection.getRangeAt(0).cloneRange();
         }
+
+        // Position popover near cursor
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            this.linkPopoverPosition.set({
+                x: rect.left,
+                y: rect.bottom + 8,
+            });
+        }
+
+        this.showLinkPopover.set(true);
+    }
+
+    insertLinkFromPopover(text: string, url: string): void {
+        if (url) {
+            this.onLinkInsert({ text: text || this.selectedText(), url });
+        }
+        this.closeLinkPopover();
+    }
+
+    closeLinkPopover(): void {
+        this.showLinkPopover.set(false);
+        this.selectedText.set('');
+        this.focusEditor();
     }
 
     private insertText(text: string): void {
