@@ -66,6 +66,7 @@ export class SpeedDialComponent implements OnDestroy {
 
     open = signal(false);
     contextPosition = signal<{ x: number; y: number } | null>(null);
+    isRepositioning = signal(false);
 
     visibleChange = output<boolean>();
     onShow = output<void>();
@@ -110,10 +111,19 @@ export class SpeedDialComponent implements OnDestroy {
 
     showAt(x: number, y: number) {
         if (this.disabled()) return;
+
+        // Force instant reset
+        this.open.set(false);
+        this.isRepositioning.set(true);
         this.contextPosition.set({ x, y });
-        this.open.set(true);
-        this.visibleChange.emit(true);
-        this.onShow.emit();
+
+        // Wait for next frame to ensure closed state is applied without transition
+        setTimeout(() => {
+            this.isRepositioning.set(false);
+            this.open.set(true);
+            this.visibleChange.emit(true);
+            this.onShow.emit();
+        }, 0);
     }
 
     hide() {
@@ -319,7 +329,25 @@ export class SpeedDialMenuComponent {
         const pointerClass = isOpen ? '' : 'pointer-events-none';
 
         if (contextPos) {
-            return cn('fixed z-50', pointerClass, this.class());
+            const contextTransforms: Record<string, string> = {
+                up: '-translate-x-1/2 -translate-y-full mt-[-8px]',
+                down: '-translate-x-1/2 mt-2',
+                left: '-translate-x-full -translate-y-1/2 mr-2',
+                right: '-translate-y-1/2 ml-2',
+            };
+
+            const directionClasses: Record<string, string> = {
+                up: 'flex flex-col-reverse gap-2',
+                down: 'flex flex-col gap-2',
+                left: 'flex flex-row-reverse gap-2',
+                right: 'flex flex-row gap-2',
+            };
+
+            const layoutClass = type === 'linear'
+                ? cn(directionClasses[direction], contextTransforms[direction])
+                : '';
+
+            return cn('fixed z-50', pointerClass, layoutClass, this.class());
         }
         if (type === 'linear') {
             const directionClasses: Record<string, string> = {
@@ -384,7 +412,8 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
         const type = this.speedDial?.type() ?? 'linear';
         const direction = this.speedDial?.direction() ?? 'up';
         const radius = this.speedDial?.radius() ?? 80;
-        const transitionDelay = this.speedDial?.transitionDelay() ?? 30;
+        const contextPos = this.speedDial?.contextPosition();
+        const transitionDelay = contextPos ? 30 : (this.speedDial?.transitionDelay() ?? 80);
         const idx = this.itemIndex();
         const totalItems = this.totalItems();
         const isOpen = this.speedDial?.open();
@@ -402,8 +431,8 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
 
         if (type === 'linear') {
             return {
-                'transition': `all ${duration} ${easing}`,
-                'transition-delay': `${delay}ms`,
+                'transition': this.speedDial?.isRepositioning() ? 'none' : `all ${duration} ${easing}`,
+                'transition-delay': this.speedDial?.isRepositioning() ? '0ms' : `${delay}ms`,
             };
         }
 
@@ -413,6 +442,18 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
         const transform = isOpen
             ? `translate(${pos.x}px, ${pos.y}px)`
             : 'translate(0px, 0px)';
+
+        if (this.speedDial?.isRepositioning()) {
+            return {
+                'transform': transform,
+                'transition': 'none',
+                'transition-delay': '0ms',
+                'left': '50%',
+                'top': '50%',
+                'margin-left': '-1.125rem',
+                'margin-top': '-1.125rem',
+            };
+        }
 
         return {
             'transform': transform,
