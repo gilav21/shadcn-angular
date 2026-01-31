@@ -112,6 +112,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     readonly options = input<T[]>([]);
     readonly displayWith = input<(option: T) => string>((opt) => String(opt));
     readonly valueAttribute = input<string | undefined>(undefined);
+    readonly disabledWith = input<(option: T) => boolean>(() => false);
 
     value = signal<T | undefined>(undefined);
     open = signal(false);
@@ -241,18 +242,25 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         return this.getValue(option) === this.value();
     }
 
+    isOptionDisabled(option: T): boolean {
+        return this.disabledWith()(option);
+    }
+
     itemClasses(option: T): string {
         const index = this.options().indexOf(option);
+        const isDisabled = this.isOptionDisabled(option);
         return cn(
             'relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 text-sm outline-none select-none',
-            'hover:bg-accent hover:text-accent-foreground',
-            'focus:bg-accent focus:text-accent-foreground',
             'ltr:pr-8 ltr:pl-2 rtl:pl-8 rtl:pr-2',
-            index === this.focusedIndex() && 'bg-accent text-accent-foreground'
+            isDisabled
+                ? 'text-muted-foreground cursor-not-allowed opacity-50'
+                : 'hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
+            !isDisabled && index === this.focusedIndex() && 'bg-accent text-accent-foreground'
         );
     }
 
     selectOption(option: T) {
+        if (this.isOptionDisabled(option)) return;
         const val = this.getValue(option) as T;
         this.value.set(val);
         this.valueChange.emit(val);
@@ -328,6 +336,18 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         }
     }
 
+    private findNextEnabledIndex(startIndex: number, direction: 1 | -1): number {
+        const opts = this.options();
+        let index = startIndex + direction;
+        while (index >= 0 && index < opts.length) {
+            if (!this.isOptionDisabled(opts[index])) {
+                return index;
+            }
+            index += direction;
+        }
+        return startIndex; // No enabled option found, stay at current
+    }
+
     onContentKeydown(event: KeyboardEvent) {
         const opts = this.options();
         if (!opts.length) return;
@@ -337,16 +357,16 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         switch (event.key) {
             case 'ArrowDown':
                 event.preventDefault();
-                this.focusedIndex.set(Math.min(currentIndex + 1, opts.length - 1));
+                this.focusedIndex.set(this.findNextEnabledIndex(currentIndex, 1));
                 break;
             case 'ArrowUp':
                 event.preventDefault();
-                this.focusedIndex.set(Math.max(currentIndex - 1, 0));
+                this.focusedIndex.set(this.findNextEnabledIndex(currentIndex, -1));
                 break;
             case 'Enter':
             case ' ':
                 event.preventDefault();
-                if (opts[currentIndex]) {
+                if (opts[currentIndex] && !this.isOptionDisabled(opts[currentIndex])) {
                     this.selectOption(opts[currentIndex]);
                 }
                 break;

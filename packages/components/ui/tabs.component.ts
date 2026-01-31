@@ -13,6 +13,8 @@ import { cn } from '../lib/utils';
 
 export const TABS = new InjectionToken<TabsComponent>('TABS');
 
+let tabsIdCounter = 0;
+
 @Component({
   selector: 'ui-tabs',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -28,6 +30,7 @@ export class TabsComponent {
   defaultValue = input<string>('');
   class = input('');
 
+  readonly tabsId = `tabs-${++tabsIdCounter}`;
   activeTab = signal<string>('');
   tabChange = output<string>();
 
@@ -42,6 +45,14 @@ export class TabsComponent {
   selectTab(value: string) {
     this.activeTab.set(value);
     this.tabChange.emit(value);
+  }
+
+  getTriggerId(value: string): string {
+    return `${this.tabsId}-trigger-${value}`;
+  }
+
+  getPanelId(value: string): string {
+    return `${this.tabsId}-panel-${value}`;
   }
 }
 
@@ -79,8 +90,11 @@ export class TabsListComponent {
     <button
       type="button"
       role="tab"
+      [attr.id]="triggerId()"
       [attr.aria-selected]="isActive()"
+      [attr.aria-controls]="panelId()"
       [attr.data-state]="isActive() ? 'active' : 'inactive'"
+      [attr.tabindex]="isActive() ? 0 : -1"
       [class]="classes()"
       [attr.data-slot]="'tabs-trigger'"
       (click)="select()"
@@ -97,6 +111,8 @@ export class TabsTriggerComponent {
   private tabs = inject(TABS, { optional: true });
 
   isActive = computed(() => this.tabs?.activeTab() === this.value());
+  triggerId = computed(() => this.tabs?.getTriggerId(this.value()) ?? '');
+  panelId = computed(() => this.tabs?.getPanelId(this.value()) ?? '');
 
   classes = computed(() =>
     cn(
@@ -122,6 +138,9 @@ export class TabsTriggerComponent {
     @if (isActive()) {
       <div
         role="tabpanel"
+        [attr.id]="panelId()"
+        [attr.aria-labelledby]="triggerId()"
+        [attr.tabindex]="0"
         [class]="classes()"
         [attr.data-slot]="'tabs-content'"
       >
@@ -138,6 +157,8 @@ export class TabsContentComponent {
   private tabs = inject(TABS, { optional: true });
 
   isActive = computed(() => this.tabs?.activeTab() === this.value());
+  triggerId = computed(() => this.tabs?.getTriggerId(this.value()) ?? '');
+  panelId = computed(() => this.tabs?.getPanelId(this.value()) ?? '');
 
   classes = computed(() =>
     cn(
@@ -146,3 +167,4 @@ export class TabsContentComponent {
     )
   );
 }
+

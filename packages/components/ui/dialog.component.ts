@@ -134,7 +134,7 @@ export class DialogContentComponent implements AfterViewInit {
         if (content) {
             this.contentEl = content;
             const focusable = content.querySelector(
-                'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+                'button:not([disabled]), [href]:not([tabindex="-1"]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"]):not([disabled])'
             ) as HTMLElement;
             if (focusable) {
                 focusable.focus();

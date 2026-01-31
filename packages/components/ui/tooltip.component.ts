@@ -149,7 +149,7 @@ export class TooltipDirective implements OnDestroy {
         this.renderer.setAttribute(
             this.tooltipElement,
             'class',
-            'fixed z-[9999] whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground pointer-events-none'
+            'fixed z-50 whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground pointer-events-none'
         );
 
         this.renderer.appendChild(document.body, this.tooltipElement);

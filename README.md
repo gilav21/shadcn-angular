@@ -7,7 +7,7 @@ This is an unofficial community-led port of [shadcn/ui](https://ui.shadcn.com/) 
 
 > **NOTE:** This library is a collection of re-usable components that you can copy and paste into your apps.
 
-> **VERSION:** Currently built using **Angular 20**. Further versions have not been tested yet.
+> **VERSION:** Currently built using **Angular 21**. Further versions have not been tested yet.
 
 ## Features
 

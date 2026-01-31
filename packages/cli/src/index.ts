@@ -8,7 +8,7 @@ const program = new Command();
 program
     .name('shadcn-angular')
     .description('CLI for adding shadcn-angular components to your Angular project')
-    .version('0.0.8');
+    .version('0.0.10');
 
 program
     .command('init')

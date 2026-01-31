@@ -45,6 +45,7 @@ export class ToastService {
   toasts = this.toastsSignal.asReadonly();
 
   private counter = 0;
+  private timeoutIds = new Map<string, ReturnType<typeof setTimeout>>();
 
   toast(options: Omit<ToastData, 'id'>) {
     const id = `toast-${++this.counter}`;
@@ -53,7 +54,8 @@ export class ToastService {
     this.toastsSignal.update(toasts => [...toasts, { ...options, id }]);
 
     if (duration > 0) {
-      setTimeout(() => this.dismiss(id), duration);
+      const timeoutId = setTimeout(() => this.dismiss(id), duration);
+      this.timeoutIds.set(id, timeoutId);
     }
 
     return id;
@@ -68,10 +70,17 @@ export class ToastService {
   }
 
   dismiss(id: string) {
+    const timeoutId = this.timeoutIds.get(id);
+    if (timeoutId) {
+      clearTimeout(timeoutId);
+      this.timeoutIds.delete(id);
+    }
     this.toastsSignal.update(toasts => toasts.filter(t => t.id !== id));
   }
 
   dismissAll() {
+    this.timeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
+    this.timeoutIds.clear();
     this.toastsSignal.set([]);
   }
 }

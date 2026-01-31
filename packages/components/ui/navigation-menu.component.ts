@@ -6,7 +6,6 @@ import {
   signal,
   inject,
   ElementRef,
-  HostListener,
   Injectable,
 } from '@angular/core';
 import { cn } from '../lib/utils';
@@ -51,7 +50,10 @@ let nextId = 0;
       <ng-content />
     </nav>
   `,
-  host: { class: 'contents' },
+  host: {
+    class: 'contents',
+    '(document:click)': 'onClick($event)',
+  },
 })
 export class NavigationMenuComponent {
   class = input('');
@@ -63,7 +65,6 @@ export class NavigationMenuComponent {
     this.class()
   ));
 
-  @HostListener('document:click', ['$event'])
   onClick(event: MouseEvent) {
     if (this.service.activeItem() && !this.el.nativeElement.contains(event.target)) {
       this.service.setActive(null);

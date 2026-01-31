@@ -12,6 +12,8 @@ import { cn } from '../lib/utils';
 
 export const ACCORDION = new InjectionToken<AccordionComponent>('ACCORDION');
 
+let accordionIdCounter = 0;
+
 @Component({
   selector: 'ui-accordion',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -27,6 +29,7 @@ export class AccordionComponent {
   type = input<'single' | 'multiple'>('single');
   class = input('');
 
+  readonly accordionId = `accordion-${++accordionIdCounter}`;
   openItems = signal<Set<string>>(new Set());
 
   classes = computed(() => cn('w-full', this.class()));
@@ -52,6 +55,14 @@ export class AccordionComponent {
 
   isOpen(value: string): boolean {
     return this.openItems().has(value);
+  }
+
+  getTriggerId(value: string): string {
+    return `${this.accordionId}-trigger-${value}`;
+  }
+
+  getPanelId(value: string): string {
+    return `${this.accordionId}-panel-${value}`;
   }
 }
 
@@ -81,8 +92,10 @@ export const ACCORDION_ITEM = new InjectionToken<AccordionItemComponent>('ACCORD
     <h3 class="flex">
       <button
         type="button"
+        [attr.id]="triggerId()"
         [class]="classes()"
         [attr.aria-expanded]="isOpen()"
+        [attr.aria-controls]="panelId()"
         [attr.data-state]="isOpen() ? 'open' : 'closed'"
         [attr.data-slot]="'accordion-trigger'"
         (click)="toggle()"
@@ -114,6 +127,16 @@ export class AccordionTriggerComponent {
     return val ? this.accordion?.isOpen(val) ?? false : false;
   });
 
+  triggerId = computed(() => {
+    const val = this.item?.value();
+    return val ? this.accordion?.getTriggerId(val) ?? '' : '';
+  });
+
+  panelId = computed(() => {
+    const val = this.item?.value();
+    return val ? this.accordion?.getPanelId(val) ?? '' : '';
+  });
+
   classes = computed(() =>
     cn(
       'flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180',
@@ -135,6 +158,9 @@ export class AccordionTriggerComponent {
   template: `
     @if (isOpen()) {
       <div
+        role="region"
+        [attr.id]="panelId()"
+        [attr.aria-labelledby]="triggerId()"
         [class]="classes()"
         [attr.data-state]="isOpen() ? 'open' : 'closed'"
         [attr.data-slot]="'accordion-content'"
@@ -158,7 +184,18 @@ export class AccordionContentComponent {
     return val ? this.accordion?.isOpen(val) ?? false : false;
   });
 
+  triggerId = computed(() => {
+    const val = this.item?.value();
+    return val ? this.accordion?.getTriggerId(val) ?? '' : '';
+  });
+
+  panelId = computed(() => {
+    const val = this.item?.value();
+    return val ? this.accordion?.getPanelId(val) ?? '' : '';
+  });
+
   classes = computed(() =>
     cn('overflow-hidden text-sm', this.class())
   );
 }
+

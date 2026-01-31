@@ -5,6 +5,7 @@ import {
     computed,
     model,
     forwardRef,
+    signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -25,7 +26,7 @@ import { cn } from '../lib/utils';
       role="switch"
       [attr.aria-checked]="checked()"
       [class]="trackClasses()"
-      [disabled]="disabled()"
+      [disabled]="isDisabled()"
       [attr.data-slot]="'switch'"
       [attr.id]="elementId()"
       [attr.aria-label]="ariaLabel()"
@@ -47,6 +48,9 @@ export class SwitchComponent implements ControlValueAccessor {
     ariaLabelledby = input<string | undefined>(undefined);
     checked = model(false);
 
+    private readonly _disabled = signal(false);
+    readonly isDisabled = computed(() => this.disabled() || this._disabled());
+
     private onChange: (value: boolean) => void = () => { };
     private onTouched: () => void = () => { };
 
@@ -66,7 +70,7 @@ export class SwitchComponent implements ControlValueAccessor {
     );
 
     toggle() {
-        if (this.disabled()) return;
+        if (this.isDisabled()) return;
         const newValue = !this.checked();
         this.checked.set(newValue);
         this.onChange(newValue);
@@ -85,5 +89,7 @@ export class SwitchComponent implements ControlValueAccessor {
         this.onTouched = fn;
     }
 
-    setDisabledState(isDisabled: boolean): void { }
+    setDisabledState(isDisabled: boolean): void {
+        this._disabled.set(isDisabled);
+    }
 }

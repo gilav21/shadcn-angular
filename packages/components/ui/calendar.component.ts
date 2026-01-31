@@ -161,7 +161,7 @@ export class CalendarComponent {
   showMonthSelect = input(false);
   showYearSelect = input(false);
   showTimeSelect = input(false);
-  weekStartsOn = input<0 | 1>(0); // 0 = Sunday, 1 = Monday
+  weekStartsOn = input<0 | 1 | 2 | 3 | 4 | 5 | 6>(0); // 0 = Sunday, 1 = Monday, etc.
   rtl = model<boolean>(false);
   locale = input<string>('en');
   selected = model<Date | DateRange | Date[] | string | string[] | null>(null);

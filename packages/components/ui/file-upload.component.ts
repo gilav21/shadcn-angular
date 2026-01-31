@@ -39,6 +39,7 @@ export interface FileUploadItem {
           #fileInput
           type="file"
           class="sr-only"
+          aria-label="Upload files"
           [accept]="accept()"
           [multiple]="multiple()"
           [disabled]="isDisabled()"
