@@ -12,6 +12,12 @@ export interface PaginationState {
     pageSize: number;
 }
 
+export interface ColumnResizeEvent {
+    columnKey: string;
+    oldWidth: string;
+    newWidth: string;
+}
+
 export interface ColumnDef<T> {
     accessorKey: keyof T | string;
     header: string;
@@ -30,6 +36,7 @@ export interface ColumnDef<T> {
     filterComponentOutputs?: Record<string, (event: unknown) => void>;
     sticky?: boolean;
     width?: string;
+    minWidth?: string;
 }
 
 export interface DataTableState<T> {

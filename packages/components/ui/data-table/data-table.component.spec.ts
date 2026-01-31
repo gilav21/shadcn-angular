@@ -147,4 +147,59 @@ describe('DataTableComponent', () => {
         expect(cellStyle.position).toBe('sticky');
         expect(cellStyle.left).toBe('0px');
     });
+
+    describe('Column Resizing', () => {
+        it('should not show resize handles when enableColumnResize is false', () => {
+            fixture.componentRef.setInput('enableColumnResize', false);
+            fixture.detectChanges();
+
+            const resizeHandles = fixture.debugElement.queryAll(By.css('[role="separator"]'));
+            expect(resizeHandles.length).toBe(0);
+        });
+
+        it('should show resize handles when enableColumnResize is true', () => {
+            fixture.componentRef.setInput('enableColumnResize', true);
+            fixture.detectChanges();
+
+            // Should have resize handles for columns (not selection column, not auto-width columns)
+            const resizeHandles = fixture.debugElement.queryAll(By.css('[role="separator"]'));
+            expect(resizeHandles.length).toBeGreaterThan(0);
+        });
+
+        it('should track column widths in signal', () => {
+            fixture.componentRef.setInput('enableColumnResize', true);
+            fixture.detectChanges();
+
+            // Initially empty
+            expect(Object.keys(component.columnWidths()).length).toBe(0);
+
+            // Simulate width change
+            component.columnWidths.set({ 'name': '250px' });
+            fixture.detectChanges();
+
+            expect(component.columnWidths()['name']).toBe('250px');
+        });
+
+        it('should use columnWidths signal in enhancedColumns', () => {
+            fixture.componentRef.setInput('enableColumnResize', true);
+            component.columnWidths.set({ 'name': '300px' });
+            fixture.detectChanges();
+
+            const nameColumn = component.enhancedColumns().find(col => col.accessorKey === 'name');
+            expect(nameColumn?._width).toBe('300px');
+        });
+
+        it('should respect minWidth from column definition', () => {
+            const colWithMinWidth: ColumnDef<TestData>[] = [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'name', header: 'Name', minWidth: '100px' },
+                { accessorKey: 'role', header: 'Role' },
+            ];
+            fixture.componentRef.setInput('columns', colWithMinWidth);
+            fixture.detectChanges();
+
+            const nameColumn = component.enhancedColumns().find(col => col.accessorKey === 'name');
+            expect(nameColumn?._minWidth).toBe('100px');
+        });
+    });
 });

@@ -243,6 +243,7 @@ import {
   ColorPickerComponent,
   DataTableComponent,
   ColumnDef,
+  ColumnResizeEvent,
   SortState,
   PaginationState,
 } from '../../../packages/components/ui';
@@ -575,6 +576,19 @@ export class AppComponent {
     { accessorKey: 'clientName', header: 'Client Name', width: 'auto' },
     { accessorKey: 'role', header: 'Role', width: '150px' },
   ];
+
+  resizableColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', enableSorting: true, width: '80px', minWidth: '60px' },
+    { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px', minWidth: '100px' },
+    { accessorKey: 'amount', header: 'Amount', enableSorting: true, width: '120px', minWidth: '80px' },
+    { accessorKey: 'status', header: 'Status', enableSorting: true, width: '130px', minWidth: '80px' },
+    { accessorKey: 'clientName', header: 'Client Name', width: '200px', minWidth: '100px' },
+    { accessorKey: 'role', header: 'Role', width: '120px', minWidth: '80px' },
+  ];
+
+  onColumnResize(event: ColumnResizeEvent) {
+    console.log('Column resized:', event);
+  }
 
   constructor() {
     // Generate 100 mock payments

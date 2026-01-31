@@ -26,7 +26,7 @@ import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } fr
 import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
 import { DataTablePaginationComponent } from './data-table-pagination.component';
 import { CellHostDirective } from './cell-host.directive';
-import { ColumnDef, SortState, SortDirection, PaginationState } from './data-table.types';
+import { ColumnDef, SortState, SortDirection, PaginationState, ColumnResizeEvent } from './data-table.types';
 import { cn } from '../../lib/utils';
 
 @Component({
@@ -80,70 +80,83 @@ import { cn } from '../../lib/utils';
                   [class.overflow-visible]="col.enableFiltering && col.filterComponent"
                   [style]="getCellStyle(col, true)"
                 >
-                  @if (col.accessorKey === '_selection') {
-                    <ui-checkbox 
-                      [checked]="isAllSelected()"
-                      [indeterminate]="isIndeterminate()"
-                      (checkedChange)="toggleAll()"
-                      ariaLabel="Select all"
-                    />
-                  } @else if (col.headerTemplate) {
-                    <ng-container *ngTemplateOutlet="col.headerTemplate; context: { $implicit: col }"></ng-container>
-                  } @else if (col.enableSorting !== false) {
-                    <div class="flex items-center gap-2">
-                      <ui-data-table-column-header
-                        [title]="col.header"
-                        [column]="toString(col.accessorKey)"
-                        [direction]="getSortDirection(col.accessorKey)"
-                        (sort)="onSortChange(col.accessorKey, $event)"
-                      />
-                      @if (col.enableFiltering && col.filterComponent) {
-                        <ui-popover>
-                          <ui-popover-trigger>
-                            <button 
-                              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
-                              [attr.aria-label]="'Filter ' + col.header"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
-                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                              </svg>
-                            </button>
-                          </ui-popover-trigger>
-                          <ui-popover-content class="w-80">
-                            <div 
-                              [uiCellHost]="col.filterComponent" 
-                              [inputs]="col.filterComponentInputs || {}"
-                              [outputs]="getFilterOutputs(col)"
-                            ></div>
-                          </ui-popover-content>
-                        </ui-popover>
+                  <div class="flex items-center w-full h-full">
+                    <div class="flex-1 min-w-0">
+                      @if (col.accessorKey === '_selection') {
+                        <ui-checkbox 
+                          [checked]="isAllSelected()"
+                          [indeterminate]="isIndeterminate()"
+                          (checkedChange)="toggleAll()"
+                          ariaLabel="Select all"
+                        />
+                      } @else if (col.headerTemplate) {
+                        <ng-container *ngTemplateOutlet="col.headerTemplate; context: { $implicit: col }"></ng-container>
+                      } @else if (col.enableSorting !== false) {
+                        <div class="flex items-center gap-2">
+                          <ui-data-table-column-header
+                            [title]="col.header"
+                            [column]="toString(col.accessorKey)"
+                            [direction]="getSortDirection(col.accessorKey)"
+                            (sort)="onSortChange(col.accessorKey, $event)"
+                          />
+                          @if (col.enableFiltering && col.filterComponent) {
+                            <ui-popover>
+                              <ui-popover-trigger>
+                                <button 
+                                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  [attr.aria-label]="'Filter ' + col.header"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
+                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                                  </svg>
+                                </button>
+                              </ui-popover-trigger>
+                              <ui-popover-content class="w-80">
+                                <div 
+                                  [uiCellHost]="col.filterComponent" 
+                                  [inputs]="col.filterComponentInputs || {}"
+                                  [outputs]="getFilterOutputs(col)"
+                                ></div>
+                              </ui-popover-content>
+                            </ui-popover>
+                          }
+                        </div>
+                      } @else {
+                        <div class="flex items-center gap-2">
+                          <span>{{ col.header }}</span>
+                          @if (col.enableFiltering && col.filterComponent) {
+                            <ui-popover>
+                              <ui-popover-trigger>
+                                <button 
+                                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  [attr.aria-label]="'Filter ' + col.header"
+                                >
+                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
+                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
+                                  </svg>
+                                </button>
+                              </ui-popover-trigger>
+                              <ui-popover-content class="w-80">
+                                <div 
+                                  [uiCellHost]="col.filterComponent" 
+                                  [inputs]="col.filterComponentInputs || {}"
+                                  [outputs]="getFilterOutputs(col)"
+                                ></div>
+                              </ui-popover-content>
+                            </ui-popover>
+                          }
+                        </div>
                       }
                     </div>
-                  } @else {
-                    <div class="flex items-center gap-2">
-                      <span>{{ col.header }}</span>
-                      @if (col.enableFiltering && col.filterComponent) {
-                        <ui-popover>
-                          <ui-popover-trigger>
-                            <button 
-                              class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
-                              [attr.aria-label]="'Filter ' + col.header"
-                            >
-                              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
-                                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                              </svg>
-                            </button>
-                          </ui-popover-trigger>
-                          <ui-popover-content class="w-80">
-                            <div 
-                              [uiCellHost]="col.filterComponent" 
-                              [inputs]="col.filterComponentInputs || {}"
-                              [outputs]="getFilterOutputs(col)"
-                            ></div>
-                          </ui-popover-content>
-                        </ui-popover>
-                      }
-                    </div>
+                  </div>
+                  @if (enableColumnResize() && col.accessorKey !== '_selection' && col._width !== 'auto') {
+                    <div 
+                      class="absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary/70 z-40 select-none translate-x-1/2"
+                      (mousedown)="onResizeStart($event, col)"
+                      (touchstart)="onResizeTouchStart($event, col)"
+                      role="separator"
+                      [attr.aria-label]="'Resize ' + col.header + ' column'"
+                    ></div>
                   }
                 </ui-table-head>
               }
@@ -258,6 +271,9 @@ export class DataTableComponent<T> {
   rowSelection = model<Record<string, boolean>>({});
   getRowId = input<(row: T) => string>((row: any) => row.id ?? String(JSON.stringify(row)));
 
+  enableColumnResize = input(false);
+  columnResize = output<ColumnResizeEvent>();
+
   emptyStateComponent = input<Type<unknown>>();
   emptyStateComponentInputs = input<Record<string, unknown>>({});
 
@@ -265,6 +281,7 @@ export class DataTableComponent<T> {
   columnFilters = signal<Record<string, any>>({});
   sortState = signal<SortState>({ column: '', direction: null });
   paginationState = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  columnWidths = signal<Record<string, string>>({});
 
   filteredData = computed(() => {
     let data = this.data();
@@ -356,6 +373,7 @@ export class DataTableComponent<T> {
 
   enhancedColumns = computed(() => {
     const cols = this.columns();
+    const widths = this.columnWidths();
     let computedCols = [...cols];
 
     if (this.enableRowSelection()) {
@@ -371,13 +389,16 @@ export class DataTableComponent<T> {
     let currentLeft = 0;
     return computedCols.map(col => {
       const isSticky = col.sticky === true;
-      const widthStr = col.width || '150px';
+      const key = String(col.accessorKey);
+      // Use dynamic width from signal if set, otherwise use column definition
+      const widthStr = widths[key] || col.width || '150px';
       const widthVal = parseInt(widthStr, 10) || 150;
 
       const columnData = {
         ...col,
         _stickyLeft: isSticky ? currentLeft : undefined,
-        _width: widthStr
+        _width: widthStr,
+        _minWidth: col.minWidth || '50px'
       };
 
       if (isSticky) {
@@ -400,7 +421,8 @@ export class DataTableComponent<T> {
     return cn(
       'sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis',
       col.sticky ? 'z-30' : 'z-20',
-      this.showColumnBorders() && 'border-r'
+      this.showColumnBorders() && 'border-r',
+      this.enableColumnResize() && col._width !== 'auto' && 'relative'
     );
   }
 
@@ -520,5 +542,86 @@ export class DataTableComponent<T> {
 
   getCellValue(row: T, key: string | keyof T): any {
     return (row as any)[key];
+  }
+
+  // Column Resize Methods
+  private resizingColumn: any = null;
+  private resizeStartX = 0;
+  private resizeStartWidth = 0;
+
+  onResizeStart(event: MouseEvent, col: any) {
+    event.preventDefault();
+    event.stopPropagation();
+    this.startResize(event.clientX, col);
+  }
+
+  onResizeTouchStart(event: TouchEvent, col: any) {
+    if (event.touches.length === 1) {
+      event.preventDefault();
+      event.stopPropagation();
+      this.startResize(event.touches[0].clientX, col);
+    }
+  }
+
+  private startResize(clientX: number, col: any) {
+    this.resizingColumn = col;
+    this.resizeStartX = clientX;
+    this.resizeStartWidth = parseInt(col._width, 10) || 150;
+
+    const onMouseMove = (e: MouseEvent) => this.onResizeMove(e.clientX);
+    const onTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 1) {
+        e.preventDefault();
+        this.onResizeMove(e.touches[0].clientX);
+      }
+    };
+
+    const onEnd = () => {
+      this.onResizeEnd();
+      document.removeEventListener('mousemove', onMouseMove);
+      document.removeEventListener('mouseup', onEnd);
+      document.removeEventListener('touchmove', onTouchMove);
+      document.removeEventListener('touchend', onEnd);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onEnd);
+    document.addEventListener('touchmove', onTouchMove, { passive: false });
+    document.addEventListener('touchend', onEnd);
+  }
+
+  private onResizeMove(clientX: number) {
+    if (!this.resizingColumn) return;
+
+    const delta = clientX - this.resizeStartX;
+    const minWidth = parseInt(this.resizingColumn._minWidth, 10) || 50;
+    const newWidth = Math.max(minWidth, this.resizeStartWidth + delta);
+    const key = String(this.resizingColumn.accessorKey);
+
+    this.columnWidths.update(widths => ({
+      ...widths,
+      [key]: `${newWidth}px`
+    }));
+  }
+
+  private onResizeEnd() {
+    if (this.resizingColumn) {
+      const key = String(this.resizingColumn.accessorKey);
+      const oldWidth = this.resizingColumn.width || '150px';
+      const newWidth = this.columnWidths()[key] || oldWidth;
+
+      this.columnResize.emit({
+        columnKey: key,
+        oldWidth,
+        newWidth
+      });
+
+      this.resizingColumn = null;
+    }
   }
 }

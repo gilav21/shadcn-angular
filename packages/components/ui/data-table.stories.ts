@@ -411,3 +411,42 @@ export const AutoSizing: Story = {
         enableRowSelection: true,
     },
 };
+
+export const ResizableColumns: Story = {
+    render: (args) => ({
+        props: {
+            ...args,
+            onColumnResize: (event: any) => console.log('Column resized:', event),
+        },
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="text-sm text-muted-foreground mb-4">
+                    Drag the right edge of column headers to resize columns.
+                    Minimum width is enforced (50px default, 80px for Name column).
+                </p>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [enableRowSelection]="enableRowSelection"
+                    [enableColumnResize]="enableColumnResize"
+                    (columnResize)="onColumnResize($event)"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: [
+            { accessorKey: 'id', header: 'ID', width: '80px', minWidth: '60px' },
+            { accessorKey: 'name', header: 'Name', enableSorting: true, width: '200px', minWidth: '80px' },
+            { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px', minWidth: '100px' },
+            { accessorKey: 'role', header: 'Role', enableSorting: true, width: '150px', minWidth: '80px' },
+        ],
+        showToolbar: true,
+        showPagination: true,
+        enableRowSelection: false,
+        enableColumnResize: true,
+    },
+};

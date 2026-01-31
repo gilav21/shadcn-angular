@@ -2771,6 +2771,19 @@
 
     <!-- Server-Side Data Table Section -->
     <section class="space-y-4">
+      <h2 id="data-table-resizable" class="text-2xl font-semibold scroll-m-20">Data Table (Resizable Columns)</h2>
+      <p class="text-muted-foreground">
+        Drag the right edge of column headers to resize columns. Minimum width is enforced.
+      </p>
+
+      <div class="rounded-md border h-[600px] overflow-auto relative">
+        <ui-data-table [data]="payments()" [columns]="resizableColumns" [enableColumnResize]="true"
+          (columnResize)="onColumnResize($event)" />
+      </div>
+    </section>
+
+    <!-- Server-Side Data Table Section -->
+    <section class="space-y-4">
       <h2 class="text-2xl font-semibold scroll-m-20">Data Table (Server-Side)</h2>
       <p class="text-muted-foreground">
         Simulated server-side sorting, filtering, and pagination with 1s delay.
