@@ -89,6 +89,25 @@ export const registry = {
         files: ['date-picker.component.ts'],
         dependencies: ['calendar'],
     },
+    'data-table': {
+        name: 'data-table',
+        files: [
+            'data-table/data-table.component.ts',
+            'data-table/data-table-column-header.component.ts',
+            'data-table/data-table-pagination.component.ts',
+            'data-table/data-table.types.ts',
+            'data-table/cell-host.directive.ts',
+        ],
+        dependencies: [
+            'table',
+            'input',
+            'button',
+            'checkbox',
+            'select',
+            'pagination',
+            'popover',
+        ],
+    },
     dialog: {
         name: 'dialog',
         files: ['dialog.component.ts'],
