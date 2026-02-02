@@ -66,7 +66,11 @@ export * from './color-picker.component';
 export * from './confetti.directive';
 export * from './number-ticker.component';
 export * from './data-table';
+export * from './chat.component';
+export * from './streaming-text.component';
+export * from './sparkles.component';
+export * from './code-block.component';
+export * from './text-reveal.component';
 
 // Charts
 export * from './charts';
-

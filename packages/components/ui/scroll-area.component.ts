@@ -218,4 +218,15 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
   }
+
+  scrollToBottom() {
+    const viewport = this.viewportRef?.nativeElement;
+    if (viewport) {
+      // Use requestAnimationFrame to ensure we scroll after layout updates
+      requestAnimationFrame(() => {
+        viewport.scrollTop = viewport.scrollHeight;
+        this.scrollTop.set(viewport.scrollTop); // Update signal
+      });
+    }
+  }
 }

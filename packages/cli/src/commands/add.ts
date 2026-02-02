@@ -6,6 +6,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getConfig } from '../utils/config.js';
 import { registry, type ComponentName } from '../registry/index.js';
+import { installPackages } from '../utils/package-manager.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -262,6 +263,27 @@ export async function add(components: string[], options: AddOptions) {
             });
         } else {
             spinner.info('No new components installed.');
+        }
+
+        if (finalComponents.length > 0) {
+            const npmDependencies = new Set<string>();
+            for (const name of finalComponents) {
+                const component = registry[name];
+                if (component.npmDependencies) {
+                    component.npmDependencies.forEach(dep => npmDependencies.add(dep));
+                }
+            }
+
+            if (npmDependencies.size > 0) {
+                const depSpinner = ora('Installing dependencies...').start();
+                try {
+                    await installPackages(Array.from(npmDependencies), { cwd });
+                    depSpinner.succeed('Dependencies installed.');
+                } catch (e) {
+                    depSpinner.fail('Failed to install dependencies.');
+                    console.error(e);
+                }
+            }
         }
 
         if (componentsToSkip.length > 0) {

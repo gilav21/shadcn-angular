@@ -19,7 +19,7 @@ import {
   RadioGroupComponent,
   RadioGroupItemComponent,
   TextareaComponent,
-  SkeletonComponent,
+
   TabsComponent,
   TabsListComponent,
   TabsTriggerComponent,
@@ -246,7 +246,17 @@ import {
   ColumnResizeEvent,
   SortState,
   PaginationState,
+  ChatMessageComponent,
+  ChatListComponent,
+  ChatInputComponent,
+  SparklesButtonComponent,
+  SparklesComponent,
+  StreamingTextComponent,
+  TextRevealComponent,
+  CodeBlockComponent,
+  SkeletonComponent,
 } from '../../../packages/components/ui';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
 import { NumberTickerComponent } from '../../../packages/components/ui/number-ticker.component';
 import { StatusCellComponent } from './cells/status-cell.component';
@@ -532,10 +542,17 @@ export interface Payment {
     StackedBarChartComponent,
     ColumnRangeChartComponent,
     BarRaceChartComponent,
-    BarRaceChartComponent,
     DataTableComponent,
+    ChatMessageComponent,
+    ChatListComponent,
+    ChatInputComponent,
+    SparklesButtonComponent,
+    SparklesComponent,
+    StreamingTextComponent,
+    CodeBlockComponent,
+    TextRevealComponent,
+    ReactiveFormsModule,
   ],
-
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -779,6 +796,52 @@ export class AppComponent {
 
   showCommandDialog = signal(false);
 
+  // Chat Demo
+  chatMessages = signal<{ role: 'user' | 'assistant', content: string }[]>([
+    { role: 'assistant', content: 'Hello! How can I help you today?' }
+  ]);
+
+  onChatSend(message: string) {
+    this.chatMessages.update(msgs => [...msgs, { role: 'user', content: message }]);
+    setTimeout(() => {
+      const response = 'I am a simulated AI response. I am streaming this text to demonstrate the real-time capabilities.';
+
+      // Add empty message
+      this.chatMessages.update(msgs => [...msgs, { role: 'assistant', content: '' }]);
+
+      let i = 0;
+      const interval = setInterval(() => {
+        if (i < response.length) {
+          this.chatMessages.update(msgs => {
+            const newMsgs = [...msgs];
+            const lastMsg = newMsgs[newMsgs.length - 1];
+            if (lastMsg.role === 'assistant') {
+              newMsgs[newMsgs.length - 1] = { ...lastMsg, content: lastMsg.content + response[i] };
+            }
+            return newMsgs;
+          });
+          i++;
+        } else {
+          clearInterval(interval);
+        }
+      }, 30);
+    }, 1000);
+  }
+
+  // Form Demo
+  demoForm = new FormGroup({
+    username: new FormControl('', [Validators.required, Validators.minLength(2)]),
+    email: new FormControl('', [Validators.required, Validators.email]),
+  });
+
+  onFormSubmit() {
+    if (this.demoForm.valid) {
+      this.toastService.success('Form Submitted', JSON.stringify(this.demoForm.value));
+    } else {
+      this.demoForm.markAllAsTouched();
+    }
+  }
+
   // Rich Text Editor demo data
   richTextContent = '';
   richTextHtml = '';
@@ -793,11 +856,19 @@ export class AppComponent {
     { id: '3', value: 'tailwind', label: 'TailwindCSS', color: '#06b6d4' },
   ];
 
+  codeBlockSample = `const greeting = 'Hello, World!';
+console.log(greeting);`;
+
   links = [
     { title: 'Accordion', id: 'accordion' },
     { title: 'Alert', id: 'alert' },
     { title: 'Alert Dialog', id: 'alert-dialog' },
     { title: 'Aspect Ratio', id: 'aspect-ratio' },
+    { title: 'Chat', id: 'chat' },
+    { title: 'Streaming Text', id: 'streaming-text' },
+    { title: 'Code Block', id: 'code-block' },
+    { title: 'Sparkles', id: 'sparkles' },
+    { title: 'Form', id: 'form' },
     { title: 'Avatar', id: 'avatar' },
     { title: 'Badge', id: 'badge' },
     { title: 'Breadcrumb', id: 'breadcrumb' },
