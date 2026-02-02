@@ -636,14 +636,6 @@
 
     <ui-separator />
 
-    <!-- Sparkles Section -->
-    <section class="space-y-4">
-      <h2 id="sparkles" class="text-2xl font-semibold scroll-m-20">Sparkles</h2>
-      <p class="text-muted-foreground">Animated sparkle effects.</p>
-    </section>
-
-    <ui-separator />
-
     <!-- Form Section -->
     <section class="space-y-4">
       <h2 id="form" class="text-2xl font-semibold scroll-m-20">Form</h2>
@@ -1219,8 +1211,7 @@
       <h2 id="sparkles" class="text-2xl font-semibold scroll-m-20">Sparkles</h2>
       <p class="text-muted-foreground">Animated particles effect.</p>
       <div class="flex gap-4 items-center">
-        <ui-sparkles-button text="Magic Button" />
-
+        <ui-sparkles-button>Magic Button</ui-sparkles-button>
       </div>
     </section>
 
@@ -1272,6 +1263,53 @@
       <h2 id="code-block" class="text-2xl font-semibold scroll-m-20">Code Block</h2>
       <p class="text-muted-foreground">Syntax highlighting with copy button.</p>
       <ui-code-block [code]="codeBlockSample" language="typescript" />
+
+      <h3 class="mt-4 font-semibold">YAML</h3>
+      <ui-code-block [code]="codeBlockYaml" language="yaml" />
+
+      <h3 class="mt-4 font-semibold">C#</h3>
+      <ui-code-block [code]="codeBlockCSharp" language="csharp" />
+
+      <h3 class="mt-4 font-semibold">Java</h3>
+      <ui-code-block [code]="codeBlockJava" language="java" />
+
+      <h3 class="mt-4 font-semibold">HTML</h3>
+      <ui-code-block [code]="codeBlockHtml" language="html" />
+
+      <h3 class="mt-4 font-semibold">CSS</h3>
+      <ui-code-block [code]="codeBlockCss" language="css" />
+
+      <h3 class="mt-4 font-semibold">JSON</h3>
+      <ui-code-block [code]="codeBlockJson" language="json" />
+
+      <h3 class="mt-4 font-semibold">Bash</h3>
+      <ui-code-block [code]="codeBlockBash" language="bash" />
+
+      <h3 class="mt-4 font-semibold text-purple-400">Custom Theme (Dracula)</h3>
+      <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="draculaTheme" />
+
+      <h3 class="mt-4 font-semibold text-blue-400">Custom Language (SQL)</h3>
+      <ui-code-block [code]="codeBlockSql" language="sql" [customLanguages]="sqlPatterns" />
+
+      <h3 class="mt-8 text-xl font-bold">Theme Presets</h3>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div>
+          <h4 class="font-semibold mb-2">VSCode Dark+</h4>
+          <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="themes['vscode']" />
+        </div>
+        <div>
+          <h4 class="font-semibold mb-2">Dracula</h4>
+          <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="themes['dracula']" />
+        </div>
+        <div>
+          <h4 class="font-semibold mb-2">GitHub Dark</h4>
+          <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="themes['github']" />
+        </div>
+        <div>
+          <h4 class="font-semibold mb-2">Monokai</h4>
+          <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="themes['monokai']" />
+        </div>
+      </div>
     </section>
 
     <ui-separator />

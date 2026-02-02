@@ -254,6 +254,7 @@ import {
   StreamingTextComponent,
   TextRevealComponent,
   CodeBlockComponent,
+  CODE_BLOCK_THEMES,
   SkeletonComponent,
 } from '../../../packages/components/ui';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -561,6 +562,8 @@ export interface Payment {
   },
 })
 export class AppComponent {
+  themes = CODE_BLOCK_THEMES;
+
   private toastService = inject(ToastService);
   isDark = signal(false);
 
@@ -856,8 +859,95 @@ export class AppComponent {
     { id: '3', value: 'tailwind', label: 'TailwindCSS', color: '#06b6d4' },
   ];
 
+  codeBlockCSharp = `using System;
+
+namespace DemoApp {
+    [Serializable]
+    public class Person {
+        public string Name { get; set; }
+        
+        public void SayHello() {
+            Console.WriteLine("Hello from C#!");
+        }
+    }
+}`;
+
+  codeBlockYaml = `name: CI
+on: [push]
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Run scripts
+        run: echo "Hello world"
+        env:
+          DEBUG: true`;
+
   codeBlockSample = `const greeting = 'Hello, World!';
 console.log(greeting);`;
+
+  codeBlockJava = `public class HelloWorld {
+    @Override
+    public static void main(String[] args) {
+        // Print "Hello" to the console
+        System.out.println("Hello, Java!");
+    }
+}`;
+
+  codeBlockHtml = `<div class="container">
+    <!-- Main Header -->
+    <h1 id="title">Welcome</h1>
+    <p data-info="intro">This is a demo.</p>
+</div>`;
+
+  codeBlockCss = `/* Main Container Style */
+.container {
+    background-color: #f0f0f0;
+    margin: 20px;
+    padding: 10px;
+    border-radius: 8px;
+}`;
+
+  codeBlockJson = `{
+    "name": "shadcn-angular",
+    "version": "1.0.0",
+    "features": ["highlighting", "components"],
+    "active": true
+}`;
+
+  codeBlockBash = `# Install dependencies
+npm install
+
+# Build the project
+ng build --prod`;
+
+  // Custom Theme Demo
+  draculaTheme = {
+    keyword: 'text-pink-500 font-bold',
+    string: 'text-yellow-300',
+    comment: 'text-purple-400',
+    function: 'text-green-400',
+    number: 'text-orange-300',
+    decorator: 'text-green-300',
+    tag: 'text-pink-500',
+    attr: 'text-green-300 italic'
+  };
+
+  // Custom Language Demo (SQL)
+  sqlPatterns = {
+    sql: [
+      { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON|AS|GROUP|BY|ORDER|LIMIT|create|table|int|varchar|primary|key)\b/i },
+      { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
+      { type: 'number', regex: /\b\d+\b/ },
+      { type: 'comment', regex: /--.*/ }
+    ]
+  };
+
+  codeBlockSql = `SELECT id, name, email
+FROM users
+WHERE status = 'active'
+ORDER BY created_at DESC;`;
 
   links = [
     { title: 'Accordion', id: 'accordion' },

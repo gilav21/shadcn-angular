@@ -1,27 +1,27 @@
 import {
-    Component,
-    ChangeDetectionStrategy,
-    input,
-    computed,
-    signal,
-    OnInit,
-    OnDestroy,
+  Component,
+  ChangeDetectionStrategy,
+  input,
+  computed,
+  signal,
+  OnInit,
+  OnDestroy,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { ButtonComponent } from './button.component';
 
 interface Sparkle {
-    id: string;
-    x: string;
-    y: string;
-    size: string;
-    style: any;
+  id: string;
+  x: string;
+  y: string;
+  size: string;
+  style: any;
 }
 
 @Component({
-    selector: 'ui-sparkles',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
+  selector: 'ui-sparkles',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
     <svg 
      [class]="classes()"
      viewBox="0 0 160 160" 
@@ -35,7 +35,7 @@ interface Sparkle {
     />
     </svg>
   `,
-    styles: [`
+  styles: [`
     .animate-ping-slow {
       animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
     }
@@ -45,18 +45,21 @@ interface Sparkle {
         opacity: 0;
       }
     }
-  `]
+  `],
+  host: {
+    style: 'display: contents'
+  }
 })
 export class SparklesComponent {
-    class = input('');
-    classes = computed(() => cn('pointer-events-none absolute', this.class()));
+  class = input('');
+  classes = computed(() => cn('pointer-events-none absolute', this.class()));
 }
 
 @Component({
-    selector: 'ui-sparkles-button',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [ButtonComponent, SparklesComponent],
-    template: `
+  selector: 'ui-sparkles-button',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ButtonComponent, SparklesComponent],
+  template: `
     <ui-button 
         [class]="classes()" 
         (mouseenter)="startSparkles()" 
@@ -66,26 +69,26 @@ export class SparklesComponent {
     >
       <ng-content />
       @if (hovering()) {
-        <ui-sparkles class="top-[-20%] right-[-10%] w-6 h-6 text-yellow-400" />
-        <ui-sparkles class="bottom-[-10%] left-[-5%] w-4 h-4 text-cyan-400 delay-75" />
-        <ui-sparkles class="top-[10%] left-[40%] w-3 h-3 text-purple-400 delay-150" />
+        <ui-sparkles [class]="'top-[-20%] right-[-10%] w-6 h-6 text-yellow-400'" />
+        <ui-sparkles [class]="'bottom-[-10%] left-[-5%] w-4 h-4 text-cyan-400 delay-75'" />
+        <ui-sparkles [class]="'top-[10%] left-[40%] w-3 h-3 text-purple-400 delay-150'" />
       }
     </ui-button>
   `,
 })
 export class SparklesButtonComponent {
-    class = input('');
-    variant = input<"default" | "destructive" | "outline" | "secondary" | "ghost" | "link">('default');
-    size = input<"default" | "sm" | "lg" | "icon">('default');
+  class = input('');
+  variant = input<"default" | "destructive" | "outline" | "secondary" | "ghost" | "link">('default');
+  size = input<"default" | "sm" | "lg" | "icon">('default');
 
-    hovering = signal(false);
-    classes = computed(() => cn('relative overflow-visible group gap-2', this.class()));
+  hovering = signal(false);
+  classes = computed(() => cn('relative overflow-visible group gap-2', this.class()));
 
-    startSparkles() {
-        this.hovering.set(true);
-    }
+  startSparkles() {
+    this.hovering.set(true);
+  }
 
-    stopSparkles() {
-        this.hovering.set(false);
-    }
+  stopSparkles() {
+    this.hovering.set(false);
+  }
 }
