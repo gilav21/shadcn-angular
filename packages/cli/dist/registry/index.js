@@ -89,6 +89,29 @@ export const registry = {
         files: ['date-picker.component.ts'],
         dependencies: ['calendar'],
     },
+    chat: {
+        name: 'chat',
+        files: ['chat.component.ts'],
+        dependencies: ['avatar', 'button', 'textarea', 'scroll-area'],
+    },
+    'streaming-text': {
+        name: 'streaming-text',
+        files: ['streaming-text.component.ts'],
+    },
+    sparkles: {
+        name: 'sparkles',
+        files: ['sparkles.component.ts'],
+        dependencies: ['button'],
+    },
+    'code-block': {
+        name: 'code-block',
+        files: ['code-block.component.ts'],
+        dependencies: ['button', 'scroll-area'],
+    },
+    'text-reveal': {
+        name: 'text-reveal',
+        files: ['text-reveal.component.ts'],
+    },
     'data-table': {
         name: 'data-table',
         files: [
@@ -217,6 +240,7 @@ export const registry = {
     sidebar: {
         name: 'sidebar',
         files: ['sidebar.component.ts'],
+        dependencies: ['scroll-area', 'tooltip'],
     },
     skeleton: {
         name: 'skeleton',

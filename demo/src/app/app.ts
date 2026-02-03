@@ -1,5 +1,5 @@
 import { Component, ChangeDetectionStrategy, signal, inject, computed, effect } from '@angular/core';
-import { JsonPipe } from '@angular/common';
+import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { delay, of } from 'rxjs';
 import {
@@ -250,11 +250,11 @@ import {
   ChatListComponent,
   ChatInputComponent,
   SparklesButtonComponent,
-  SparklesComponent,
   StreamingTextComponent,
   TextRevealComponent,
   CodeBlockComponent,
   CODE_BLOCK_THEMES,
+  SidebarMenuButtonComponent,
   SkeletonComponent,
 } from '../../../packages/components/ui';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -293,10 +293,20 @@ export interface Payment {
   role?: string;
 }
 
+export type ComponentCategory = 'Inputs' | 'Data Display' | 'Feedback' | 'Overlay' | 'Navigation' | 'Layout' | 'Charts' | 'Advanced';
+
+export interface ComponentNavItem {
+  id: string;
+  name: string;
+  category: ComponentCategory;
+}
+
 @Component({
   selector: 'app-root',
   imports: [
     JsonPipe,
+    TitleCasePipe,
+    CommonModule,
     FormsModule,
     ButtonComponent,
     InputComponent,
@@ -470,6 +480,7 @@ export interface Payment {
     SidebarMenuComponent,
     SidebarMenuItemComponent,
     SidebarMenuLinkComponent,
+    SidebarMenuButtonComponent,
     SidebarTriggerComponent,
     SidebarInsetComponent,
     SidebarSeparatorComponent,
@@ -548,12 +559,12 @@ export interface Payment {
     ChatListComponent,
     ChatInputComponent,
     SparklesButtonComponent,
-    SparklesComponent,
     StreamingTextComponent,
     CodeBlockComponent,
     TextRevealComponent,
     ReactiveFormsModule,
   ],
+
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
   styleUrl: './app.scss',
@@ -798,6 +809,7 @@ export class AppComponent {
   }
 
   showCommandDialog = signal(false);
+  sidebarCollapseMode = signal<'icon' | 'hidden'>('icon');
 
   // Chat Demo
   chatMessages = signal<{ role: 'user' | 'assistant', content: string }[]>([
@@ -949,77 +961,6 @@ FROM users
 WHERE status = 'active'
 ORDER BY created_at DESC;`;
 
-  links = [
-    { title: 'Accordion', id: 'accordion' },
-    { title: 'Alert', id: 'alert' },
-    { title: 'Alert Dialog', id: 'alert-dialog' },
-    { title: 'Aspect Ratio', id: 'aspect-ratio' },
-    { title: 'Chat', id: 'chat' },
-    { title: 'Streaming Text', id: 'streaming-text' },
-    { title: 'Code Block', id: 'code-block' },
-    { title: 'Sparkles', id: 'sparkles' },
-    { title: 'Form', id: 'form' },
-    { title: 'Avatar', id: 'avatar' },
-    { title: 'Badge', id: 'badge' },
-    { title: 'Breadcrumb', id: 'breadcrumb' },
-    { title: 'Button', id: 'buttons' },
-    { title: 'Button Group', id: 'button-group' },
-    { title: 'Calendar', id: 'calendar' },
-    { title: 'Card', id: 'card' },
-    { title: 'Carousel', id: 'carousel' },
-    { title: 'Checkbox', id: 'checkbox' },
-    { title: 'Chip List', id: 'chip-list' },
-    { title: 'Collapsible', id: 'collapsible' },
-    { title: 'Command', id: 'command' },
-    { title: 'Context Menu', id: 'context-menu' },
-    { title: 'Date Picker', id: 'date-picker' },
-    { title: 'Dialog', id: 'dialog' },
-    { title: 'Drawer', id: 'drawer' },
-    { title: 'Dropdown Menu', id: 'dropdown-menu' },
-    { title: 'Emoji Picker', id: 'emoji-picker' },
-    { title: 'Empty State', id: 'empty-state' },
-    { title: 'Field', id: 'field' },
-    { title: 'Hover Card', id: 'hover-card' },
-    { title: 'Input', id: 'input' },
-    { title: 'Input Group', id: 'input-group' },
-    { title: 'Input OTP', id: 'input-otp' },
-    { title: 'Keyboard Shortcut', id: 'keyboard-shortcut' },
-    { title: 'Menubar', id: 'menubar' },
-    { title: 'Native Select', id: 'native-select' },
-    { title: 'Navigation Menu', id: 'navigation-menu' },
-    { title: 'Pagination', id: 'pagination' },
-    { title: 'Popover', id: 'popover' },
-    { title: 'Progress', id: 'progress' },
-    { title: 'Radio Group', id: 'radio-group' },
-    { title: 'Resizable', id: 'resizable' },
-    { title: 'Rich Text Editor', id: 'rich-text-editor' },
-    { title: 'Scroll Area', id: 'scroll-area' },
-    { title: 'Select', id: 'select' },
-    { title: 'Sheet', id: 'sheet' },
-    { title: 'Sidebar', id: 'sidebar' },
-    { title: 'Skeleton', id: 'skeleton' },
-    { title: 'Slider', id: 'slider' },
-    { title: 'Speed Dial', id: 'speed-dial' },
-    { title: 'Spinner', id: 'spinner' },
-    { title: 'Table', id: 'table' },
-    { title: 'Tabs', id: 'tabs' },
-    { title: 'Textarea', id: 'textarea' },
-    { title: 'Toast', id: 'toast' },
-    { title: 'Toggle', id: 'toggle' },
-    { title: 'Toggle Group', id: 'toggle-group' },
-    { title: 'Tooltip', id: 'tooltip' },
-    { title: 'Autocomplete', id: 'autocomplete' },
-    { title: 'Timeline', id: 'timeline' },
-    { title: 'Tree View', id: 'tree-view' },
-    { title: 'Rating', id: 'rating' },
-    { title: 'Stepper', id: 'stepper' },
-    { title: 'File Upload', id: 'file-upload' },
-    { title: 'Color Picker', id: 'color-picker' },
-    { title: 'Confetti', id: 'confetti' },
-    { title: 'Charts', id: 'charts' },
-    { title: 'Data Table', id: 'data-table' },
-  ];
-
   onKeydown(e: KeyboardEvent) {
     if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
       e.preventDefault();
@@ -1027,12 +968,118 @@ ORDER BY created_at DESC;`;
     }
   }
 
-  scrollToSection(id: string) {
-    this.showCommandDialog.set(false);
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  activeComponent = signal('introduction');
+
+  componentLinks = [
+    { id: 'introduction', name: 'Introduction', category: 'Layout', icon: '📖' },
+    { id: 'emoji-picker', name: 'Emoji Picker', category: 'Advanced', icon: '😀' },
+    { id: 'rich-text-editor', name: 'Rich Text Editor', category: 'Advanced', icon: '📝' },
+    { id: 'autocomplete', name: 'Autocomplete', category: 'Inputs', icon: '🔍' },
+    { id: 'timeline', name: 'Timeline', category: 'Data Display', icon: '📅' },
+    { id: 'tree-view', name: 'Tree View', category: 'Data Display', icon: '🌳' },
+    { id: 'rating', name: 'Rating', category: 'Inputs', icon: '⭐' },
+    { id: 'stepper', name: 'Stepper', category: 'Navigation', icon: '👣' },
+    { id: 'file-upload', name: 'File Upload', category: 'Advanced', icon: '📤' },
+    { id: 'color-picker', name: 'Color Picker', category: 'Advanced', icon: '🎨' },
+    { id: 'confetti', name: 'Confetti', category: 'Advanced', icon: '🎉' },
+    { id: 'number-ticker', name: 'Number Ticker', category: 'Data Display', icon: '🔢' },
+    { id: 'charts', name: 'Charts', category: 'Charts', icon: '📊' },
+    { id: 'buttons', name: 'Buttons', category: 'Inputs', icon: '🔘' },
+    { id: 'chat', name: 'Chat', category: 'Advanced', icon: '💬' },
+    { id: 'streaming-text', name: 'Streaming Text', category: 'Advanced', icon: '⌨️' },
+    { id: 'form', name: 'Form', category: 'Inputs', icon: '📋' },
+    { id: 'input', name: 'Input', category: 'Inputs', icon: '✏️' },
+    { id: 'chip-list', name: 'Chip List', category: 'Inputs', icon: '🏷️' },
+    { id: 'card', name: 'Card', category: 'Data Display', icon: '🃏' },
+    { id: 'badge', name: 'Badge', category: 'Data Display', icon: '🔖' },
+    { id: 'checkbox', name: 'Checkbox', category: 'Inputs', icon: '☑️' },
+    { id: 'radio-group', name: 'Radio Group', category: 'Inputs', icon: '🔘' },
+    { id: 'textarea', name: 'Textarea', category: 'Inputs', icon: '📄' },
+    { id: 'skeleton', name: 'Skeleton', category: 'Feedback', icon: '💀' },
+    { id: 'tabs', name: 'Tabs', category: 'Navigation', icon: '📑' },
+    { id: 'accordion', name: 'Accordion', category: 'Data Display', icon: '🪗' },
+    { id: 'progress', name: 'Progress', category: 'Feedback', icon: '📈' },
+    { id: 'alert', name: 'Alert', category: 'Feedback', icon: '⚠️' },
+    { id: 'avatar', name: 'Avatar', category: 'Data Display', icon: '👤' },
+    { id: 'dialog', name: 'Dialog', category: 'Overlay', icon: '💭' },
+    { id: 'tooltip', name: 'Tooltip', category: 'Overlay', icon: '💡' },
+    { id: 'dropdown-menu', name: 'Dropdown Menu', category: 'Overlay', icon: '📜' },
+    { id: 'select', name: 'Select', category: 'Inputs', icon: '📋' },
+    { id: 'popover', name: 'Popover', category: 'Overlay', icon: '🗨️' },
+    { id: 'sparkles', name: 'Sparkles', category: 'Advanced', icon: '✨' },
+    { id: 'text-reveal', name: 'Text Reveal', category: 'Advanced', icon: '👁️' },
+    { id: 'shimmer', name: 'Shimmer & Skeleton', category: 'Feedback', icon: '🌊' },
+    { id: 'code-block', name: 'Code Block', category: 'Data Display', icon: '💻' },
+    { id: 'sheet', name: 'Sheet', category: 'Overlay', icon: '📃' },
+    { id: 'alert-dialog', name: 'Alert Dialog', category: 'Overlay', icon: '🚨' },
+    { id: 'slider', name: 'Slider', category: 'Inputs', icon: '🎚️' },
+    { id: 'collapsible', name: 'Collapsible', category: 'Data Display', icon: '📂' },
+    { id: 'toggle', name: 'Toggle', category: 'Inputs', icon: '🔀' },
+    { id: 'toggle-group', name: 'Toggle Group', category: 'Inputs', icon: '🎛️' },
+    { id: 'scroll-area', name: 'Scroll Area', category: 'Layout', icon: '📜' },
+    { id: 'table', name: 'Table', category: 'Data Display', icon: '📊' },
+    { id: 'breadcrumb', name: 'Breadcrumb', category: 'Navigation', icon: '🍞' },
+    { id: 'hover-card', name: 'Hover Card', category: 'Overlay', icon: '🖱️' },
+    { id: 'context-menu', name: 'Context Menu', category: 'Overlay', icon: '📋' },
+    { id: 'drawer', name: 'Drawer', category: 'Overlay', icon: '🗄️' },
+    { id: 'aspect-ratio', name: 'Aspect Ratio', category: 'Layout', icon: '📐' },
+    { id: 'toast', name: 'Toast', category: 'Feedback', icon: '🍞' },
+    { id: 'resizable', name: 'Resizable', category: 'Layout', icon: '↔️' },
+    { id: 'pagination', name: 'Pagination', category: 'Navigation', icon: '📄' },
+    { id: 'input-otp', name: 'Input OTP', category: 'Inputs', icon: '🔐' },
+    { id: 'calendar', name: 'Calendar', category: 'Inputs', icon: '📆' },
+    { id: 'command', name: 'Command', category: 'Overlay', icon: '⌘' },
+    { id: 'menubar', name: 'Menubar', category: 'Navigation', icon: '☰' },
+    { id: 'carousel', name: 'Carousel', category: 'Data Display', icon: '🎠' },
+    { id: 'navigation-menu', name: 'Navigation Menu', category: 'Navigation', icon: '🧭' },
+    { id: 'date-picker', name: 'Date Picker', category: 'Inputs', icon: '📅' },
+    { id: 'sidebar', name: 'Sidebar', category: 'Layout', icon: '📎' },
+    { id: 'spinner', name: 'Spinner', category: 'Feedback', icon: '🔄' },
+    { id: 'empty-state', name: 'Empty State', category: 'Data Display', icon: '📭' },
+    { id: 'keyboard-shortcut', name: 'Keyboard Shortcut', category: 'Data Display', icon: '⌨️' },
+    { id: 'button-group', name: 'Button Group', category: 'Inputs', icon: '🔲' },
+    { id: 'input-group', name: 'Input Group', category: 'Inputs', icon: '📥' },
+    { id: 'field', name: 'Field', category: 'Inputs', icon: '📝' },
+    { id: 'native-select', name: 'Native Select', category: 'Inputs', icon: '📋' },
+    { id: 'speed-dial', name: 'Speed Dial', category: 'Overlay', icon: '📞' },
+    { id: 'data-table', name: 'Data Table', category: 'Data Display', icon: '📊' },
+  ];
+
+  categories = computed(() => {
+    const categories = new Set(this.componentLinks.map(l => l.category));
+    return Array.from(categories).sort();
+  });
+
+  getCategoryIcon(category: string): string {
+    switch (category) {
+      case 'Data Display':
+        return 'M3 3v18h18V3H3zm8 16H5v-6h6v6zm0-8H5V5h6v6zm8 8h-6v-6h6v6zm0-8h-6V5h6v6z'; // LayoutGrid
+      case 'Feedback':
+        return 'M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z'; // MessageSquare
+      case 'Overlay':
+        return 'M2 12L12 17L22 12L12 7L2 12ZM2 17L12 22L22 17'; // Layers (simplified)
+      case 'Inputs':
+        return 'M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8'; // Inbox/Input
+      case 'Advanced':
+        return 'm12 3-1.9 5.8a2 2 0 0 1-1.3 1.3L3 12l5.8 1.9a2 2 0 0 1 1.3 1.3L12 21l1.9-5.8a2 2 0 0 1 1.3-1.3L21 12l-5.8-1.9a2 2 0 0 1-1.3-1.3Z'; // Sparkles
+      case 'Layout':
+        return 'M3 3h18v18H3zM3 9h18M9 21V9'; // LayoutDashboard-ish
+      case 'Navigation':
+        return 'M3 12a9 9 0 1 0 18 0a9 9 0 0 0-18 0 m9-2 2 2-2 2-2-2z'; // Compass-ish
+      default:
+        return 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z'; // File
     }
+  }
+
+  navTo(id: string) {
+    this.activeComponent.set(id);
+    this.showCommandDialog.set(false);
+  }
+
+  getLinksByCategory(category: string) {
+    return this.componentLinks
+      .filter(l => l.category === category)
+      .sort((a, b) => a.name.localeCompare(b.name));
   }
 
   // Autocomplete Demo

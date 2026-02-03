@@ -12,6 +12,8 @@ import {
   effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
+import { ScrollAreaComponent } from './scroll-area.component';
+import { TooltipDirective } from './tooltip.component';
 
 /**
  * Sidebar Service - Manages sidebar state across components
@@ -77,7 +79,7 @@ export class SidebarProviderComponent {
   }
 
   classes = computed(() => cn(
-    'flex min-h-screen w-full',
+    'flex min-h-screen w-full overflow-hidden',
     this.class()
   ));
 
@@ -122,7 +124,12 @@ export class SidebarProviderComponent {
 export class SidebarComponent implements AfterViewInit {
   class = input('');
   side = input<'left' | 'right'>('left');
-  collapsible = input<'icon' | 'none'>('icon');
+  variant = input<'sidebar' | 'floating' | 'inset'>('sidebar');
+  collapsible = input(true);
+  collapseMode = input<'icon' | 'hidden'>('icon');
+
+  // Mobile state
+  isMobile = signal(false);
   service = inject(SidebarService);
   private el = inject(ElementRef);
 
@@ -213,9 +220,10 @@ export class SidebarComponent implements AfterViewInit {
         'transition-transform duration-300 ease-in-out',
         isOpen ? 'translate-x-0' : (sideValue === 'left' ? '-translate-x-full' : 'translate-x-full'),
       ] : [
-        'relative',
+        'sticky top-0 h-screen',
+        'border-r border-sidebar-border hidden md:flex',
         'transition-[width] duration-300 ease-in-out',
-        isCollapsed ? 'w-[60px]' : 'w-[280px]',
+        isCollapsed ? (this.collapseMode() === 'hidden' ? 'w-0 border-none overflow-hidden' : 'w-[60px]') : 'w-[280px]',
       ],
       this.class()
     );
@@ -249,10 +257,11 @@ export class SidebarHeaderComponent {
 @Component({
   selector: 'ui-sidebar-content',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [ScrollAreaComponent],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'sidebar-content'">
+    <ui-scroll-area [class]="classes()" [attr.data-slot]="'sidebar-content'">
       <ng-content />
-    </div>
+    </ui-scroll-area>
   `,
   host: { class: 'contents' },
 })
@@ -260,7 +269,7 @@ export class SidebarContentComponent {
   class = input('');
 
   classes = computed(() => cn(
-    'flex-1 overflow-auto py-2',
+    'flex-1 py-2',
     this.class()
   ));
 }
@@ -402,6 +411,7 @@ export class SidebarMenuItemComponent {
 @Component({
   selector: 'ui-sidebar-menu-button',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [TooltipDirective],
   template: `
     <button
       type="button"
@@ -410,6 +420,9 @@ export class SidebarMenuItemComponent {
       [attr.data-active]="isActive()"
       [attr.data-collapsed]="isCollapsedState()"
       (click)="onClick.emit($event)"
+      [uiTooltip]="tooltip()"
+      tooltipSide="right"
+      [tooltipDisabled]="!isCollapsedState() || !tooltip()"
     >
       <ng-content />
     </button>
@@ -419,6 +432,7 @@ export class SidebarMenuItemComponent {
 export class SidebarMenuButtonComponent {
   class = input('');
   isActive = input(false);
+  tooltip = input('');
   onClick = output<MouseEvent>();
   service = inject(SidebarService);
 
@@ -434,7 +448,7 @@ export class SidebarMenuButtonComponent {
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       'transition-colors',
       this.isActive() && 'bg-sidebar-accent text-sidebar-accent-foreground',
-      isCollapsed && 'justify-center px-2 overflow-hidden [&>span]:hidden [&>svg]:shrink-0',
+      isCollapsed && 'justify-center px-2 overflow-hidden [&>span:not(:first-child)]:hidden [&>svg]:shrink-0',
       this.class()
     );
   });
@@ -474,7 +488,7 @@ export class SidebarMenuLinkComponent {
       'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
       'transition-colors',
       this.isActive() && 'bg-sidebar-accent text-sidebar-accent-foreground',
-      isCollapsed && 'justify-center px-2 overflow-hidden [&>span]:hidden [&>svg]:shrink-0',
+      isCollapsed && 'justify-center px-2 overflow-hidden [&>span:not(:first-child)]:hidden [&>svg]:shrink-0',
       this.class()
     );
   });
@@ -528,7 +542,9 @@ export class SidebarTriggerComponent {
       <ng-content />
     </main>
   `,
-  host: { class: 'contents' },
+  host: {
+    '[class]': '"flex flex-1 flex-col min-w-0 max-h-screen " + class()',
+  },
 })
 export class SidebarInsetComponent {
   class = input('');

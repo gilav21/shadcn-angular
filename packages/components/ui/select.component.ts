@@ -527,6 +527,7 @@ export class SelectContentComponent implements AfterViewInit {
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private offsetY = signal(0);
+    private effectivePosition = signal<'popper' | 'item-aligned'>('item-aligned');
     private previousActiveElement: HTMLElement | null = null;
 
     constructor() {
@@ -543,6 +544,8 @@ export class SelectContentComponent implements AfterViewInit {
                     this.previousActiveElement.focus();
                 }
                 this.previousActiveElement = null;
+                // Reset effective position when closed
+                this.effectivePosition.set(this.select?.position() ?? this.position());
             }
         });
     }
@@ -555,11 +558,43 @@ export class SelectContentComponent implements AfterViewInit {
     }
 
     private calculatePosition() {
-        const pos = this.select?.position() ?? this.position();
-        if (pos === 'item-aligned' && this.contentEl?.nativeElement) {
+        const requestedPos = this.select?.position() ?? this.position();
+
+        if (requestedPos === 'item-aligned' && this.contentEl?.nativeElement) {
             const selectedOffset = this.select?.getSelectedItemOffset() ?? 0;
-            this.offsetY.set(-(selectedOffset + 4));
+            const triggerEl = this.select?.getTriggerElement();
+            const contentEl = this.contentEl.nativeElement;
+
+            if (triggerEl) {
+                const triggerRect = triggerEl.getBoundingClientRect();
+                const contentHeight = contentEl.scrollHeight;
+
+                // Calculate where the content top would be with item-aligned positioning
+                const proposedTop = triggerRect.top - selectedOffset - 4;
+                const proposedBottom = proposedTop + contentHeight;
+
+                const viewportHeight = window.innerHeight;
+                const viewportPadding = 8; // Minimum padding from viewport edges
+
+                // Check if content would overflow viewport
+                const wouldOverflowTop = proposedTop < viewportPadding;
+                const wouldOverflowBottom = proposedBottom > viewportHeight - viewportPadding;
+
+                if (wouldOverflowTop || wouldOverflowBottom) {
+                    // Fall back to popper mode
+                    this.effectivePosition.set('popper');
+                    this.offsetY.set(0);
+                } else {
+                    // Use item-aligned mode
+                    this.effectivePosition.set('item-aligned');
+                    this.offsetY.set(-(selectedOffset + 4));
+                }
+            } else {
+                this.effectivePosition.set('item-aligned');
+                this.offsetY.set(-(selectedOffset + 4));
+            }
         } else {
+            this.effectivePosition.set('popper');
             this.offsetY.set(0);
         }
     }
@@ -604,7 +639,7 @@ export class SelectContentComponent implements AfterViewInit {
     }
 
     positionStyles = computed(() => {
-        const pos = this.select?.position() ?? this.position();
+        const pos = this.effectivePosition();
         if (pos === 'item-aligned') {
             const offset = this.offsetY();
             return `top: ${offset}px; margin-top: 0;`;
@@ -613,7 +648,7 @@ export class SelectContentComponent implements AfterViewInit {
     });
 
     classes = computed(() => {
-        const pos = this.select?.position() ?? this.position();
+        const pos = this.effectivePosition();
         const isItemAligned = pos === 'item-aligned';
 
         return cn(

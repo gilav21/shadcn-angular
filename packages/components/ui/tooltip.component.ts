@@ -119,6 +119,7 @@ export class TooltipContentComponent {
 export class TooltipDirective implements OnDestroy {
     uiTooltip = input.required<string>();
     tooltipSide = input<'top' | 'bottom' | 'left' | 'right'>('top');
+    tooltipDisabled = input(false);
 
     private el = inject(ElementRef);
     private renderer = inject(Renderer2);
@@ -126,6 +127,8 @@ export class TooltipDirective implements OnDestroy {
     private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     onMouseEnter() {
+        if (this.tooltipDisabled()) return;
+
         this.timeoutId = setTimeout(() => {
             this.showTooltip();
         }, 200);

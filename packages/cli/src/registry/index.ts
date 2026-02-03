@@ -251,6 +251,7 @@ export const registry: Record<string, ComponentDefinition> = {
   sidebar: {
     name: 'sidebar',
     files: ['sidebar.component.ts'],
+    dependencies: ['scroll-area', 'tooltip'],
   },
   skeleton: {
     name: 'skeleton',
