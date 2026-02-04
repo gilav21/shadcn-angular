@@ -266,3 +266,95 @@ describe('StepperComponent', () => {
         });
     });
 });
+
+// Test host for simple mode (data-driven)
+@Component({
+    template: `
+        <ui-stepper 
+            [steps]="steps()" 
+            [(activeStep)]="activeStep"
+            (stepChange)="onStepChange($event)"
+        />
+    `,
+    imports: [StepperComponent]
+})
+class SimpleModeTestHostComponent {
+    steps = signal([
+        { value: 'step-1', title: 'Account', description: 'Create account' },
+        { value: 'step-2', title: 'Profile', description: 'Set up profile' },
+        { value: 'step-3', title: 'Complete' },
+    ]);
+    activeStep = signal(0);
+    lastStepChange = signal(-1);
+
+    onStepChange(step: number) {
+        this.lastStepChange.set(step);
+    }
+}
+
+describe('Stepper Simple Mode (Data-Driven)', () => {
+    let fixture: ComponentFixture<SimpleModeTestHostComponent>;
+    let component: SimpleModeTestHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleModeTestHostComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should render stepper items automatically', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
+        expect(items.length).toBe(3);
+    });
+
+    it('should render stepper triggers', () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="stepper-trigger"]'));
+        expect(triggers.length).toBe(3);
+    });
+
+    it('should render step titles from config', () => {
+        const titles = fixture.debugElement.queryAll(By.css('[data-slot="stepper-title"]'));
+        expect(titles.length).toBe(3);
+        expect(titles[0].nativeElement.textContent).toContain('Account');
+        expect(titles[1].nativeElement.textContent).toContain('Profile');
+        expect(titles[2].nativeElement.textContent).toContain('Complete');
+    });
+
+    it('should render descriptions when provided', () => {
+        const descriptions = fixture.debugElement.queryAll(By.css('[data-slot="stepper-description"]'));
+        expect(descriptions.length).toBe(2); // Only 2 have descriptions
+    });
+
+    it('should mark first step as current', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
+        expect(items[0].nativeElement.getAttribute('data-status')).toBe('current');
+    });
+
+    it('should update status when activeStep changes', async () => {
+        component.activeStep.set(1);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
+        expect(items[0].nativeElement.getAttribute('data-status')).toBe('complete');
+        expect(items[1].nativeElement.getAttribute('data-status')).toBe('current');
+    });
+
+    it('should emit stepChange on click', async () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="stepper-trigger"]'));
+        triggers[1].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.lastStepChange()).toBe(1);
+    });
+
+    it('should render separators between steps', () => {
+        const separators = fixture.nativeElement.querySelectorAll('.h-0\\.5.bg-border, .h-0\\.5.bg-primary');
+        expect(separators.length).toBeGreaterThan(0);
+    });
+});

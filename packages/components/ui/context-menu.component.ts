@@ -220,7 +220,12 @@ export class ContextMenuContentComponent implements OnDestroy {
 @Component({
     selector: 'ui-context-menu-item',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    template: `
+        <ng-content />
+        @if (shortcut()) {
+            <span class="ml-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
+        }
+    `,
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"context-menu-item"',
@@ -236,6 +241,7 @@ export class ContextMenuItemComponent {
     inset = input(false);
     variant = input<'default' | 'destructive'>('default');
     disabled = input(false);
+    shortcut = input('');
 
     classes = computed(() => cn(
         'relative flex cursor-default select-none items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none transition-colors',
@@ -254,6 +260,7 @@ export class ContextMenuItemComponent {
         }
     }
 }
+
 
 @Component({
     selector: 'ui-context-menu-separator',

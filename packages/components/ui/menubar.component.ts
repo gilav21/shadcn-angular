@@ -320,6 +320,9 @@ export class MenubarContentComponent {
       (keydown.enter)="onClick()"
     >
       <ng-content />
+      @if (shortcut()) {
+        <span class="ml-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
+      }
     </div>
   `,
   host: { class: 'contents' },
@@ -328,6 +331,7 @@ export class MenubarItemComponent {
   class = input('');
   disabled = input(false, { transform: booleanAttribute });
   inset = input(false, { transform: booleanAttribute });
+  shortcut = input('');
 
   select = output<void>();
   menu = inject(MenubarMenuComponent, { optional: true });
@@ -348,6 +352,7 @@ export class MenubarItemComponent {
     }
   }
 }
+
 
 @Component({
   selector: 'ui-menubar-separator',

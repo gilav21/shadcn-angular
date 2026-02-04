@@ -11,10 +11,23 @@ import {
     booleanAttribute,
     Injectable,
     ViewChild,
+    forwardRef,
     effect,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { cn, isRtl } from '../lib/utils';
+
+export interface DropdownItem {
+    label?: string;
+    value?: string;
+    icon?: string;
+    shortcut?: string;
+    disabled?: boolean;
+    type?: 'item' | 'separator' | 'label' | 'sub';
+    children?: DropdownItem[];
+    inset?: boolean;
+    click?: (item: DropdownItem) => void;
+}
 
 @Injectable()
 export class DropdownMenuService {
@@ -43,7 +56,51 @@ export class DropdownMenuService {
     selector: 'ui-dropdown-menu',
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [DropdownMenuService],
-    template: `<ng-content />`,
+    imports: [
+        NgTemplateOutlet,
+        forwardRef(() => DropdownMenuContentComponent),
+        forwardRef(() => DropdownMenuItemComponent),
+        forwardRef(() => DropdownMenuLabelComponent),
+        forwardRef(() => DropdownMenuSeparatorComponent),
+        forwardRef(() => DropdownMenuSubComponent),
+        forwardRef(() => DropdownMenuSubTriggerComponent),
+        forwardRef(() => DropdownMenuSubContentComponent),
+    ],
+    template: `
+      <ng-content />
+      @if (items().length > 0) {
+        <ui-dropdown-menu-content>
+          <ng-container *ngTemplateOutlet="menuItemsTpl; context: { $implicit: items() }"></ng-container>
+        </ui-dropdown-menu-content>
+      }
+  
+      <ng-template #menuItemsTpl let-items>
+        @for (item of items; track $index) {
+          @if (item.type === 'separator') {
+              <ui-dropdown-menu-separator />
+          } @else if (item.type === 'label') {
+              <ui-dropdown-menu-label>{{ item.label }}</ui-dropdown-menu-label>
+          } @else if (item.type === 'sub') {
+               <ui-dropdown-menu-sub>
+                  <ui-dropdown-menu-sub-trigger [inset]="item.inset" [disabled]="item.disabled">
+                      {{ item.label }}
+                  </ui-dropdown-menu-sub-trigger>
+                  <ui-dropdown-menu-sub-content>
+                      <ng-container *ngTemplateOutlet="menuItemsTpl; context: { $implicit: item.children }"></ng-container>
+                  </ui-dropdown-menu-sub-content>
+               </ui-dropdown-menu-sub>
+          } @else {
+               <ui-dropdown-menu-item 
+                  [disabled]="item.disabled" 
+                  [inset]="item.inset" 
+                  [shortcut]="item.shortcut"
+                  (click)="item.click ? item.click(item) : null">
+                  {{ item.label }}
+               </ui-dropdown-menu-item>
+          }
+        }
+      </ng-template>
+    `,
     host: {
         class: 'relative inline-block',
     },
@@ -53,6 +110,7 @@ export class DropdownMenuComponent implements OnDestroy {
     private document = inject(DOCUMENT);
     private service = inject(DropdownMenuService);
 
+    items = input<DropdownItem[]>([]);
     open = model(false);
 
     constructor() {
@@ -238,7 +296,12 @@ export class DropdownMenuContentComponent {
 @Component({
     selector: 'ui-dropdown-menu-item',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    template: `
+        <ng-content />
+        @if (shortcut()) {
+            <span class="ml-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
+        }
+    `,
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"dropdown-item"',
@@ -253,6 +316,7 @@ export class DropdownMenuContentComponent {
 export class DropdownMenuItemComponent {
     class = input('');
     disabled = input(false, { transform: booleanAttribute });
+    shortcut = input('');
 
     private menu = inject(DropdownMenuComponent, { optional: true });
 
@@ -278,6 +342,7 @@ export class DropdownMenuItemComponent {
         this.onClick();
     }
 }
+
 
 @Component({
     selector: 'ui-dropdown-menu-separator',

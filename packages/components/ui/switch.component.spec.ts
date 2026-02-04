@@ -196,3 +196,54 @@ describe('Switch RTL Support', () => {
         expect(button.nativeElement.getAttribute('aria-checked')).toBe('true');
     });
 });
+
+describe('SwitchComponent with Label', () => {
+    let component: SwitchComponent;
+    let fixture: ComponentFixture<SwitchComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SwitchComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SwitchComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('label', 'Enable notifications');
+        fixture.detectChanges();
+    });
+
+    it('should render label when label input is provided', () => {
+        const label = fixture.debugElement.query(By.css('label'));
+        expect(label).toBeTruthy();
+        expect(label.nativeElement.textContent).toContain('Enable notifications');
+    });
+
+    it('should render switch with label in flex container', () => {
+        const container = fixture.debugElement.query(By.css('div.flex.items-center.gap-2'));
+        expect(container).toBeTruthy();
+    });
+
+    it('should associate label with switch via for/id', () => {
+        const label = fixture.debugElement.query(By.css('label'));
+        const button = fixture.debugElement.query(By.css('button'));
+        const buttonId = button.nativeElement.getAttribute('id');
+        const labelFor = label.nativeElement.getAttribute('for');
+        expect(buttonId).toBeTruthy();
+        expect(labelFor).toBe(buttonId);
+    });
+
+    it('should toggle switch when clicking switch button', () => {
+        expect(component.checked()).toBe(false);
+
+        const button = fixture.debugElement.query(By.css('button'));
+        button.nativeElement.click();
+        fixture.detectChanges();
+
+        expect(component.checked()).toBe(true);
+    });
+
+    it('should have role=switch on button', () => {
+        const button = fixture.debugElement.query(By.css('button'));
+        expect(button.nativeElement.getAttribute('role')).toBe('switch');
+    });
+});

@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, effect } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input } from '@angular/core';
 import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { delay, of } from 'rxjs';
@@ -44,6 +44,7 @@ import {
   DialogFooterComponent,
   TooltipDirective,
   DropdownMenuComponent,
+  DropdownItem,
   DropdownMenuTriggerComponent,
   DropdownMenuContentComponent,
   DropdownMenuItemComponent,
@@ -278,6 +279,34 @@ import {
   ChartSeries,
   RangeDataPoint,
 } from '../../../packages/components/ui/charts';
+
+@Component({
+  selector: 'app-tabs-demo',
+  standalone: true,
+  imports: [CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, ButtonComponent, InputComponent, LabelComponent, FormsModule],
+  template: `
+    <ui-card>
+      <ui-card-header>
+        <ui-card-title>Account Settings</ui-card-title>
+        <ui-card-description>Manage your account settings and preferences.</ui-card-description>
+      </ui-card-header>
+      <ui-card-content class="space-y-2">
+        <div class="space-y-1">
+          <ui-label>Username</ui-label>
+          <ui-input [ngModel]="username()" readonly />
+        </div>
+        <div class="space-y-1">
+          <ui-label>Email</ui-label>
+          <ui-input ngModel="user@example.com" />
+        </div>
+        <ui-button class="mt-4">Save Changes</ui-button>
+      </ui-card-content>
+    </ui-card>
+  `
+})
+export class TabsDemoComponent {
+  username = input<string>('johndoe');
+}
 
 interface Framework {
   value: string;
@@ -580,6 +609,42 @@ export class AppComponent {
 
   verticalTopSize = signal(40);
   verticalBottomSize = signal(60);
+
+  complexTabs = [
+    { value: 'account', label: 'Account', content: 'Make changes to your account here. Click save when you\'re done.' },
+    { value: 'password', label: 'Password', content: 'Change your password here. After saving, you\'ll be logged out.' },
+    { value: 'settings', label: 'Settings', content: TabsDemoComponent, contentContext: { username: 'shadcn' } },
+  ];
+
+  simpleDropdownItems: DropdownItem[] = [
+    { label: 'My Account', type: 'label' },
+    { type: 'separator' },
+    { label: 'Profile', shortcut: '⇧⌘P' },
+    { label: 'Billing', shortcut: '⌘B' },
+    { label: 'Settings', shortcut: '⌘S' },
+    { label: 'Keyboard shortcuts', shortcut: '⌘K' },
+    { type: 'separator' },
+    { label: 'Team', type: 'label' },
+    {
+      label: 'Invite users', type: 'sub', children: [
+        { label: 'Email', shortcut: '⌘E' },
+        { label: 'Message', shortcut: '⌘M' },
+        { type: 'separator' },
+        {
+          label: 'More', type: 'sub', children: [
+            { label: 'Discord' },
+            { label: 'Slack' }
+          ]
+        }
+      ]
+    },
+    { type: 'separator' },
+    { label: 'GitHub' },
+    { label: 'Support' },
+    { label: 'API' },
+    { type: 'separator' },
+    { label: 'Log out', shortcut: '⇧⌘Q' }
+  ];
 
   chipListTags = signal<string[]>(['Angular', 'TypeScript', 'Signals']);
   chipListFruits = signal<string[]>([
@@ -1015,6 +1080,7 @@ ORDER BY created_at DESC;`;
     { id: 'slider', name: 'Slider', category: 'Inputs', icon: '🎚️' },
     { id: 'collapsible', name: 'Collapsible', category: 'Data Display', icon: '📂' },
     { id: 'toggle', name: 'Toggle', category: 'Inputs', icon: '🔀' },
+    { id: 'switch', name: 'Switch', category: 'Inputs', icon: '⚡' },
     { id: 'toggle-group', name: 'Toggle Group', category: 'Inputs', icon: '🎛️' },
     { id: 'scroll-area', name: 'Scroll Area', category: 'Layout', icon: '📜' },
     { id: 'table', name: 'Table', category: 'Data Display', icon: '📊' },

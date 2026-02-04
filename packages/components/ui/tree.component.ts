@@ -13,6 +13,8 @@ import {
     viewChild
 } from '@angular/core';
 import { cn, isRtl } from '../lib/utils';
+import { NgTemplateOutlet } from '@angular/common';
+
 
 export interface TreeNode {
     key: string;
@@ -39,14 +41,38 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
       [attr.aria-activedescendant]="activeDescendantId()"
       (keydown)="onKeydown($event)"
     >
-      <ng-content />
+      @if (data().length > 0) {
+        <!-- Simple mode: auto-generate tree from data -->
+        <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: data(), depth: 0 }" />
+        <ng-template #nodeTemplate let-nodes="nodes" let-depth="depth">
+          @for (node of nodes; track node.key) {
+            <ui-tree-item [value]="node.key">
+              <ui-tree-label>
+                @if (node.icon) {
+                  <ui-tree-icon>{{ node.icon }}</ui-tree-icon>
+                }
+                {{ node.label }}
+              </ui-tree-label>
+              @if (node.children && node.children.length > 0) {
+                <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: node.children, depth: depth + 1 }" />
+              }
+            </ui-tree-item>
+          }
+        </ng-template>
+      } @else {
+        <!-- Template mode: project content -->
+        <ng-content />
+      }
     </div>
   `,
     host: { class: 'block' },
+    imports: [NgTemplateOutlet, forwardRef(() => TreeItemComponent), forwardRef(() => TreeLabelComponent), forwardRef(() => TreeIconComponent)],
 })
 export class TreeComponent {
     class = input('');
     selectable = input<'single' | 'multiple' | 'none'>('none');
+    data = input<TreeNode[]>([]);
+
 
     expandedKeys = signal<Set<string>>(new Set());
     selectedKeys = signal<Set<string>>(new Set());

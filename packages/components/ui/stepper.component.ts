@@ -9,10 +9,17 @@ import {
   contentChildren,
   model,
   output,
+  signal,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
 export type StepStatus = 'pending' | 'current' | 'complete' | 'error';
+
+export interface StepConfig {
+  value: string;
+  title: string;
+  description?: string;
+}
 
 export const STEPPER = new InjectionToken<StepperComponent>('STEPPER');
 
@@ -27,7 +34,50 @@ export const STEPPER = new InjectionToken<StepperComponent>('STEPPER');
       [attr.data-orientation]="orientation()"
       role="list"
     >
-      <ng-content />
+      @if (steps().length > 0) {
+        <!-- Simple mode: auto-generate stepper items -->
+        @for (step of steps(); track step.value; let idx = $index; let last = $last) {
+          <div class="contents" role="listitem">
+            <div
+              [class]="stepItemClasses()"
+              [attr.data-slot]="'stepper-item'"
+              [attr.data-status]="getStepStatusByIndex(idx)"
+              [attr.data-orientation]="orientation()"
+            >
+              <button
+                type="button"
+                [class]="stepTriggerClasses(canNavigateToIndex(idx))"
+                [attr.data-slot]="'stepper-trigger'"
+                [attr.data-status]="getStepStatusByIndex(idx)"
+                [disabled]="!canNavigateToIndex(idx)"
+                (click)="goToStep(idx)"
+              >
+                <div [class]="indicatorClasses(getStepStatusByIndex(idx))">
+                  @if (getStepStatusByIndex(idx) === 'complete') {
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
+                      <polyline points="20 6 9 17 4 12"/>
+                    </svg>
+                  } @else {
+                    <span class="text-sm font-medium">{{ idx + 1 }}</span>
+                  }
+                </div>
+                <div class="flex flex-col items-start">
+                  <span class="text-sm font-medium" data-slot="stepper-title">{{ step.title }}</span>
+                  @if (step.description) {
+                    <span class="text-xs text-muted-foreground" data-slot="stepper-description">{{ step.description }}</span>
+                  }
+                </div>
+              </button>
+            </div>
+            @if (!last && orientation() === 'horizontal') {
+              <div class="flex-1 h-0.5 bg-border mt-4" [class.bg-primary]="getStepStatusByIndex(idx) === 'complete'"></div>
+            }
+          </div>
+        }
+      } @else {
+        <!-- Template mode: project content -->
+        <ng-content />
+      }
     </div>
   `,
   host: { class: 'block' },
@@ -38,9 +88,15 @@ export class StepperComponent {
   activeStep = model(0);
   linear = input(false);
 
+  // Simple mode: steps array
+  steps = input<StepConfig[]>([]);
+
   stepChange = output<number>();
 
   items = contentChildren(forwardRef(() => StepperItemComponent));
+
+  // For simple mode, use steps array length
+  private simpleStepCount = computed(() => this.steps().length);
 
   classes = computed(() =>
     cn(
@@ -50,7 +106,35 @@ export class StepperComponent {
     )
   );
 
+  stepItemClasses = computed(() =>
+    cn(
+      'flex',
+      this.orientation() === 'vertical' ? 'flex-row gap-4' : 'flex-col items-center gap-2'
+    )
+  );
+
+  stepTriggerClasses = (canClick: boolean) =>
+    cn(
+      'group flex items-center gap-3 text-left',
+      'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md',
+      !canClick && 'cursor-not-allowed opacity-50'
+    );
+
+  indicatorClasses = (status: StepStatus) =>
+    cn(
+      'flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 transition-colors',
+      {
+        'border-muted bg-muted text-muted-foreground': status === 'pending',
+        'border-primary bg-primary text-primary-foreground': status === 'current' || status === 'complete',
+        'border-destructive bg-destructive text-destructive-foreground': status === 'error',
+      }
+    );
+
   getStepIndex(value: string): number {
+    // For simple mode, find in steps array
+    if (this.steps().length > 0) {
+      return this.steps().findIndex((s) => s.value === value);
+    }
     return this.items().findIndex((item) => item.value() === value);
   }
 
@@ -61,9 +145,17 @@ export class StepperComponent {
     return 'pending';
   }
 
+  getStepStatusByIndex(index: number): StepStatus {
+    return this.getStepStatus(index);
+  }
+
   canNavigateTo(index: number): boolean {
     if (!this.linear()) return true;
     return index <= this.activeStep();
+  }
+
+  canNavigateToIndex(index: number): boolean {
+    return this.canNavigateTo(index);
   }
 
   goToStep(index: number) {
@@ -74,7 +166,8 @@ export class StepperComponent {
   }
 
   nextStep() {
-    const next = Math.min(this.activeStep() + 1, this.items().length - 1);
+    const count = this.steps().length > 0 ? this.steps().length : this.items().length;
+    const next = Math.min(this.activeStep() + 1, count - 1);
     this.goToStep(next);
   }
 
@@ -83,6 +176,7 @@ export class StepperComponent {
     this.goToStep(prev);
   }
 }
+
 
 @Component({
   selector: 'ui-stepper-item',

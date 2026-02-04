@@ -281,3 +281,104 @@ describe('Pagination RTL Support', () => {
         expect(activePage).toBeTruthy();
     });
 });
+
+// Test host for simple mode (data-driven)
+@Component({
+    template: `
+        <ui-pagination 
+            [currentPage]="currentPage()" 
+            [totalPages]="totalPages()"
+            (pageChange)="onPageChange($event)" 
+        />
+    `,
+    imports: [PaginationComponent]
+})
+class SimpleModeTestHostComponent {
+    currentPage = signal(1);
+    totalPages = signal(10);
+    lastPageChange = signal(0);
+
+    onPageChange(page: number) {
+        this.lastPageChange.set(page);
+        this.currentPage.set(page);
+    }
+}
+
+describe('Pagination Simple Mode (Data-Driven)', () => {
+    let fixture: ComponentFixture<SimpleModeTestHostComponent>;
+    let component: SimpleModeTestHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleModeTestHostComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should render pagination content automatically', () => {
+        const content = fixture.debugElement.query(By.css('[data-slot="pagination-content"]'));
+        expect(content).toBeTruthy();
+    });
+
+    it('should render previous and next buttons', () => {
+        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
+        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
+        expect(prev).toBeTruthy();
+        expect(next).toBeTruthy();
+    });
+
+    it('should render page number buttons', () => {
+        const links = fixture.debugElement.queryAll(By.css('[data-slot="pagination-link"]'));
+        expect(links.length).toBeGreaterThan(0);
+    });
+
+    it('should mark current page with aria-current', () => {
+        const activePage = fixture.debugElement.query(By.css('[aria-current="page"]'));
+        expect(activePage).toBeTruthy();
+        expect(activePage.nativeElement.textContent.trim()).toBe('1');
+    });
+
+    it('should disable previous button on first page', () => {
+        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
+        expect(prev.nativeElement.disabled).toBe(true);
+    });
+
+    it('should emit pageChange on page click', async () => {
+        const links = fixture.debugElement.queryAll(By.css('[data-slot="pagination-link"]'));
+        const page2 = links.find(l => l.nativeElement.textContent.trim() === '2');
+        page2?.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.lastPageChange()).toBe(2);
+    });
+
+    it('should emit pageChange on next click', async () => {
+        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
+        next.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.lastPageChange()).toBe(2);
+    });
+
+    it('should disable next button on last page', async () => {
+        component.currentPage.set(10);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
+        expect(next.nativeElement.disabled).toBe(true);
+    });
+
+    it('should render ellipsis for large page counts', () => {
+        component.currentPage.set(5);
+        fixture.detectChanges();
+
+        const ellipsis = fixture.debugElement.queryAll(By.css('[data-slot="pagination-ellipsis"]'));
+        expect(ellipsis.length).toBeGreaterThan(0);
+    });
+});

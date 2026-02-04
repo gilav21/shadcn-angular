@@ -9,7 +9,24 @@ import { cn } from '../lib/utils';
 @Component({
     selector: 'ui-card',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    template: `
+        @if (title()) {
+            <!-- Simple mode: auto-generate card structure -->
+            <div class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6" data-slot="card-header">
+                <div class="leading-none font-semibold" data-slot="card-title">{{ title() }}</div>
+                @if (description()) {
+                    <div class="text-muted-foreground text-sm" data-slot="card-description">{{ description() }}</div>
+                }
+            </div>
+            @if (content()) {
+                <div class="px-6" data-slot="card-content">{{ content() }}</div>
+            }
+            <ng-content />
+        } @else {
+            <!-- Template mode: project content -->
+            <ng-content />
+        }
+    `,
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"card"',
@@ -17,6 +34,9 @@ import { cn } from '../lib/utils';
 })
 export class CardComponent {
     class = input('');
+    title = input('');
+    description = input('');
+    content = input('');
 
     classes = computed(() =>
         cn(
@@ -25,6 +45,7 @@ export class CardComponent {
         )
     );
 }
+
 
 @Component({
     selector: 'ui-card-header',

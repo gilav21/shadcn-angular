@@ -11,7 +11,28 @@ import { cn } from '../lib/utils';
 @Component({
     selector: 'ui-avatar',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    template: `
+        @if (src()) {
+            <!-- Simple mode: auto-generate avatar -->
+            <img
+                [src]="src()"
+                [alt]="alt()"
+                class="aspect-square h-full w-full"
+                data-slot="avatar-image"
+                [style.display]="status() === 'loaded' ? 'block' : 'none'"
+                (load)="onLoad()"
+                (error)="onError()"
+            />
+            @if (status() !== 'loaded' && fallback()) {
+                <div class="flex h-full w-full items-center justify-center rounded-full bg-muted" data-slot="avatar-fallback">
+                    {{ fallback() }}
+                </div>
+            }
+        } @else {
+            <!-- Template mode: project content -->
+            <ng-content />
+        }
+    `,
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"avatar"',
@@ -19,6 +40,9 @@ import { cn } from '../lib/utils';
 })
 export class AvatarComponent {
     class = input('');
+    src = input('');
+    alt = input('');
+    fallback = input('');
     status = signal<'loading' | 'loaded' | 'error'>('loading');
 
     classes = computed(() =>
@@ -27,7 +51,16 @@ export class AvatarComponent {
             this.class()
         )
     );
+
+    onLoad() {
+        this.status.set('loaded');
+    }
+
+    onError() {
+        this.status.set('error');
+    }
 }
+
 
 @Component({
     selector: 'ui-avatar-image',

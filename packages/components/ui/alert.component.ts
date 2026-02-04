@@ -28,7 +28,19 @@ export type AlertVariant = VariantProps<typeof alertVariants>['variant'];
 @Component({
     selector: 'ui-alert',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    template: `
+        @if (title()) {
+            <!-- Simple mode: auto-generate alert structure -->
+            <div class="mb-1 font-medium leading-none tracking-tight" data-slot="alert-title">{{ title() }}</div>
+            @if (description()) {
+                <div class="text-sm [&_p]:leading-relaxed" data-slot="alert-description">{{ description() }}</div>
+            }
+            <ng-content />
+        } @else {
+            <!-- Template mode: project content -->
+            <ng-content />
+        }
+    `,
     host: {
         class: 'block',
         '[class]': 'classes()',
@@ -39,11 +51,14 @@ export type AlertVariant = VariantProps<typeof alertVariants>['variant'];
 export class AlertComponent {
     variant = input<AlertVariant>('default');
     class = input('');
+    title = input('');
+    description = input('');
 
     classes = computed(() =>
         cn(alertVariants({ variant: this.variant() }), this.class())
     );
 }
+
 
 @Component({
     selector: 'ui-alert-title',

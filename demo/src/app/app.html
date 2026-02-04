@@ -859,7 +859,17 @@
               </ui-card-content>
             </ui-card>
           </div>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using title, description, and content inputs instead of content
+            projection.</p>
+          <div class="grid md:grid-cols-2 gap-6">
+            <ui-card title="Quick Card" description="A card created with simple inputs."
+              content="This card content was passed via the [content] input." />
+            <ui-card title="Another Card" description="Minimal configuration required." />
+          </div>
         </section>
+
 
         }
         @case ('badge') {
@@ -875,6 +885,37 @@
           </div>
         </section>
 
+        }
+
+        @case ('switch') {
+        <section class="space-y-4">
+          <h2 id="switch" class="text-2xl font-semibold scroll-m-20">Switch</h2>
+          <p class="text-muted-foreground">A control that allows the user to toggle between checked and not checked.</p>
+
+          <div class="flex flex-col gap-6">
+            <div class="flex flex-col gap-2">
+              <h3 class="text-lg font-medium">Basic</h3>
+              <div class="flex items-center space-x-2">
+                <ui-switch id="airplane-mode"></ui-switch>
+                <ui-label htmlFor="airplane-mode">Airplane Mode</ui-label>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <h3 class="text-lg font-medium">With Inline Label (Simple Mode)</h3>
+              <div class="flex items-center space-x-2">
+                <ui-switch label="Notifications"></ui-switch>
+              </div>
+            </div>
+
+            <div class="flex flex-col gap-2">
+              <h3 class="text-lg font-medium">Disabled</h3>
+              <div class="flex items-center space-x-2">
+                <ui-switch [disabled]="true" label="Disabled Switch"></ui-switch>
+              </div>
+            </div>
+          </div>
+        </section>
         }
         @case ('checkbox') {
         <section class="space-y-4">
@@ -894,11 +935,18 @@
               <ui-checkbox [disabled]="true" />
               <ui-label class="opacity-50">Disabled checkbox</ui-label>
             </div>
-            <div class="flex items-center gap-2">
-              <ui-checkbox [checked]="true" label="Checked checkbox" />
-            </div>
+          </div>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (With Label Input)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using the label input instead of a separate &lt;ui-label&gt;
+            element.</p>
+          <div class="space-y-3 flex flex-col gap-2">
+            <ui-checkbox label="Accept terms and conditions" />
+            <ui-checkbox label="Subscribe to newsletter" [checked]="true" />
+            <ui-checkbox label="Disabled checkbox" [disabled]="true" />
           </div>
         </section>
+
 
         }
         @case ('radio-group') {
@@ -919,11 +967,18 @@
               <ui-radio-group-item value="option3" />
               <ui-label>Compact layout</ui-label>
             </div>
-            <div class="flex items-center gap-2">
-              <ui-radio-group-item value="option4" label="Anoter layout" />
-            </div>
+          </ui-radio-group>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (With Label Input)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using the label input instead of a separate &lt;ui-label&gt;
+            element.</p>
+          <ui-radio-group class="max-w-sm">
+            <ui-radio-group-item value="easy" label="Easy to use" />
+            <ui-radio-group-item value="flexible" label="Flexible configuration" />
+            <ui-radio-group-item value="accessible" label="Fully accessible" />
           </ui-radio-group>
         </section>
+
 
         }
         @case ('textarea') {
@@ -1002,7 +1057,20 @@
               </ui-card>
             </ui-tabs-content>
           </ui-tabs>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using tabs input array instead of content projection.</p>
+          <ui-tabs class="max-w-md" [tabs]="[
+            { value: 'overview', label: 'Overview', content: 'This is the overview tab content.' },
+            { value: 'features', label: 'Features', content: 'These are the features of the product.' },
+            { value: 'pricing', label: 'Pricing', content: 'Check out our pricing plans.' }
+          ]" />
+
+          <h3 class="text-lg font-medium mt-8">Complex Mode (Components)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Rendering components and passing context data in tabs.</p>
+          <ui-tabs class="max-w-md" [tabs]="complexTabs" />
         </section>
+
 
         }
         @case ('accordion') {
@@ -1158,38 +1226,7 @@
         </section>
 
         }
-        @case ('dropdown-menu') {
-        <section class="space-y-4">
-          <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">Dropdown Menu</h2>
-          <p class="text-muted-foreground">Dropdown menu with items.</p>
 
-          <ui-dropdown-menu>
-            <ui-dropdown-menu-trigger>
-              <ui-button variant="outline">Open Menu</ui-button>
-            </ui-dropdown-menu-trigger>
-            <ui-dropdown-menu-content>
-              <ui-dropdown-menu-label>My Account</ui-dropdown-menu-label>
-              <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-item>Profile</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item>Settings</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item>Billing</ui-dropdown-menu-item>
-              <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-sub>
-                <ui-dropdown-menu-sub-trigger>Invite users</ui-dropdown-menu-sub-trigger>
-                <ui-dropdown-menu-sub-content>
-                  <ui-dropdown-menu-item>Email</ui-dropdown-menu-item>
-                  <ui-dropdown-menu-item>Message</ui-dropdown-menu-item>
-                  <ui-dropdown-menu-separator />
-                  <ui-dropdown-menu-item>More...</ui-dropdown-menu-item>
-                </ui-dropdown-menu-sub-content>
-              </ui-dropdown-menu-sub>
-              <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-item>Log out</ui-dropdown-menu-item>
-            </ui-dropdown-menu-content>
-          </ui-dropdown-menu>
-        </section>
-
-        }
         @case ('select') {
         <section class="space-y-4">
           <h2 id="select" class="text-2xl font-semibold scroll-m-20">Select</h2>
@@ -1989,6 +2026,61 @@
           </div>
         </section>
 
+        }
+        @case ('dropdown-menu') {
+        <section class="space-y-4">
+          <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">Dropdown Menu</h2>
+          <p class="text-muted-foreground">Displays a menu to the user — such as a set of actions or functions —
+            triggered by a button.</p>
+
+          <div class="flex flex-col gap-8">
+            <!-- Simple Mode (Data-Driven) -->
+            <div class="space-y-4">
+              <h3 class="text-lg font-medium">Simple Mode (Data-Driven)</h3>
+              <ui-dropdown-menu [items]="simpleDropdownItems">
+                <ui-dropdown-menu-trigger>
+                  <ui-button variant="outline">Open Menu (Data)</ui-button>
+                </ui-dropdown-menu-trigger>
+              </ui-dropdown-menu>
+            </div>
+
+            <!-- Complex Mode (Template-Driven) -->
+            <div class="space-y-4">
+              <h3 class="text-lg font-medium">Complex Mode (Template-Driven)</h3>
+              <ui-dropdown-menu>
+                <ui-dropdown-menu-trigger>
+                  <ui-button variant="outline">Open Menu (Template)</ui-button>
+                </ui-dropdown-menu-trigger>
+                <ui-dropdown-menu-content class="w-56">
+                  <ui-dropdown-menu-label>My Account</ui-dropdown-menu-label>
+                  <ui-dropdown-menu-separator />
+                  <ui-dropdown-menu-item shortcut="⇧⌘P">Profile</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item shortcut="⌘B">Billing</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item shortcut="⌘S">Settings</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item shortcut="⌘K">Keyboard shortcuts</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-separator />
+                  <ui-dropdown-menu-item>Team</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-sub>
+                    <ui-dropdown-menu-sub-trigger>Invite users</ui-dropdown-menu-sub-trigger>
+                    <ui-dropdown-menu-sub-content>
+                      <ui-dropdown-menu-item>Email</ui-dropdown-menu-item>
+                      <ui-dropdown-menu-item>Message</ui-dropdown-menu-item>
+                      <ui-dropdown-menu-separator />
+                      <ui-dropdown-menu-item>More...</ui-dropdown-menu-item>
+                    </ui-dropdown-menu-sub-content>
+                  </ui-dropdown-menu-sub>
+                  <ui-dropdown-menu-item shortcut="⌘+T">New Team</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-separator />
+                  <ui-dropdown-menu-item>GitHub</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item>Support</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item [disabled]="true">API</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-separator />
+                  <ui-dropdown-menu-item shortcut="⇧⌘Q">Log out</ui-dropdown-menu-item>
+                </ui-dropdown-menu-content>
+              </ui-dropdown-menu>
+            </div>
+          </div>
+        </section>
         }
         @case ('command') {
         <section class="space-y-4">
@@ -3058,7 +3150,216 @@
           Built with Angular and Tailwind CSS. Open source.
         </div>
         }
+
+        @case ('alert') {
+        <section class="space-y-4">
+          <h2 id="alert" class="text-2xl font-semibold scroll-m-20">Alert</h2>
+          <p class="text-muted-foreground">Displays a callout for user attention.</p>
+
+          <div class="space-y-4">
+            <ui-alert>
+              <ui-alert-title>Heads up!</ui-alert-title>
+              <ui-alert-description>
+                You can add components to your app using the cli.
+              </ui-alert-description>
+            </ui-alert>
+
+            <ui-alert variant="destructive">
+              <ui-alert-title>Error</ui-alert-title>
+              <ui-alert-description>
+                Your session has expired. Please log in again.
+              </ui-alert-description>
+            </ui-alert>
+          </div>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using title and description inputs.</p>
+          <div class="space-y-4">
+            <ui-alert title="Note" description="This is a simple alert using inputs." />
+            <ui-alert variant="destructive" title="Critical Error"
+              description="Something went wrong, and this alert was created with just two inputs." />
+          </div>
+        </section>
         }
+
+        @case ('avatar') {
+        <section class="space-y-4">
+          <h2 id="avatar" class="text-2xl font-semibold scroll-m-20">Avatar</h2>
+          <p class="text-muted-foreground">An image element with a fallback for representing the user.</p>
+
+          <div class="flex gap-4">
+            <ui-avatar>
+              <ui-avatar-image src="https://github.com/shadcn.png" alt="@shadcn" />
+              <ui-avatar-fallback>CN</ui-avatar-fallback>
+            </ui-avatar>
+            <ui-avatar>
+              <ui-avatar-fallback>JD</ui-avatar-fallback>
+            </ui-avatar>
+          </div>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using src, alt, and fallback inputs.</p>
+          <div class="flex gap-4">
+            <ui-avatar src="https://github.com/shadcn.png" alt="@shadcn" fallback="CN" />
+            <ui-avatar fallback="AB" />
+            <ui-avatar src="broken-link.jpg" alt="Broken" fallback="!!" />
+          </div>
+        </section>
+        }
+
+        @case ('breadcrumb') {
+        <section class="space-y-4">
+          <h2 id="breadcrumb" class="text-2xl font-semibold scroll-m-20">Breadcrumb</h2>
+          <p class="text-muted-foreground">Displays the path to the current resource.</p>
+
+          <ui-breadcrumb>
+            <ui-breadcrumb-list>
+              <ui-breadcrumb-item>
+                <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
+              </ui-breadcrumb-item>
+              <ui-breadcrumb-separator />
+              <ui-breadcrumb-item>
+                <ui-breadcrumb-link href="/components">Components</ui-breadcrumb-link>
+              </ui-breadcrumb-item>
+              <ui-breadcrumb-separator />
+              <ui-breadcrumb-item>
+                <ui-breadcrumb-page>Breadcrumb</ui-breadcrumb-page>
+              </ui-breadcrumb-item>
+            </ui-breadcrumb-list>
+          </ui-breadcrumb>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using the items input array on ui-breadcrumb-list.</p>
+          <ui-breadcrumb>
+            <ui-breadcrumb-list [items]="[
+              { label: 'Home', href: '/' },
+              { label: 'Products', href: '/products' },
+              { label: 'Electronics', href: '/products/electronics' },
+              { label: 'Laptops' }
+            ]" />
+          </ui-breadcrumb>
+
+        </section>
+        }
+
+        @case ('pagination') {
+        <section class="space-y-4">
+          <h2 id="pagination" class="text-2xl font-semibold scroll-m-20">Pagination</h2>
+          <p class="text-muted-foreground">Pagination with page navigation, next and previous links.</p>
+
+          <ui-pagination>
+            <ui-pagination-content>
+              <ui-pagination-item>
+                <ui-pagination-previous href="#" />
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-link href="#">1</ui-pagination-link>
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-link href="#" [isActive]="true">2</ui-pagination-link>
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-link href="#">3</ui-pagination-link>
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-ellipsis />
+              </ui-pagination-item>
+              <ui-pagination-item>
+                <ui-pagination-next href="#" />
+              </ui-pagination-item>
+            </ui-pagination-content>
+          </ui-pagination>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using totalPages and currentPage inputs.</p>
+          <ui-pagination [totalPages]="10" [currentPage]="1" />
+        </section>
+        }
+
+        @case ('stepper') {
+        <section class="space-y-4">
+          <h2 id="stepper" class="text-2xl font-semibold scroll-m-20">Stepper</h2>
+          <p class="text-muted-foreground">A stepper component to display progress through a sequence of steps.</p>
+
+          <ui-stepper [activeStep]="1">
+            <ui-stepper-item value="step-1">
+              <ui-stepper-trigger>
+                <div class="flex flex-col items-start gap-1">
+                  <ui-stepper-title>Step 1</ui-stepper-title>
+                  <ui-stepper-description>Enter details</ui-stepper-description>
+                </div>
+              </ui-stepper-trigger>
+              <ui-stepper-content>Completed step content</ui-stepper-content>
+            </ui-stepper-item>
+            <ui-stepper-item value="step-2">
+              <ui-stepper-trigger>
+                <div class="flex flex-col items-start gap-1">
+                  <ui-stepper-title>Step 2</ui-stepper-title>
+                  <ui-stepper-description>Review</ui-stepper-description>
+                </div>
+              </ui-stepper-trigger>
+              <ui-stepper-content>Active step content</ui-stepper-content>
+            </ui-stepper-item>
+            <ui-stepper-item value="step-3">
+              <ui-stepper-trigger>
+                <div class="flex flex-col items-start gap-1">
+                  <ui-stepper-title>Step 3</ui-stepper-title>
+                  <ui-stepper-description>Confirm</ui-stepper-description>
+                </div>
+              </ui-stepper-trigger>
+              <ui-stepper-content>Inactive step content</ui-stepper-content>
+            </ui-stepper-item>
+          </ui-stepper>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using the steps input array.</p>
+          <ui-stepper [steps]="[
+            { title: 'Personal Info', description: 'Name and email', value: 'info' },
+            { title: 'Account', description: 'Setup password', value: 'account' },
+            { title: 'Review', description: 'Check details', value: 'review' }
+          ]" />
+        </section>
+        }
+
+        @case ('tree-view') {
+        <section class="space-y-4">
+          <h2 id="tree-view" class="text-2xl font-semibold scroll-m-20">Tree View</h2>
+          <p class="text-muted-foreground">A hierarchical list of items.</p>
+
+          <ui-tree>
+            <ui-tree-item value="root">
+              <ui-tree-label>Documents</ui-tree-label>
+              <ui-tree-item value="doc-1">
+                <ui-tree-label>Resume.pdf</ui-tree-label>
+              </ui-tree-item>
+              <ui-tree-item value="doc-2">
+                <ui-tree-label>CoverLetter.docx</ui-tree-label>
+              </ui-tree-item>
+            </ui-tree-item>
+            <ui-tree-item value="images">
+              <ui-tree-label>Images</ui-tree-label>
+              <ui-tree-item value="img-1">
+                <ui-tree-label>Vacation.png</ui-tree-label>
+              </ui-tree-item>
+            </ui-tree-item>
+          </ui-tree>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using the data input.</p>
+          <ui-tree [data]="[
+            { key: '1', label: 'Projects', children: [
+                { key: '1-1', label: 'Frontend', children: [
+                    { key: '1-1-1', label: 'app.component.ts', icon: '📄' },
+                    { key: '1-1-2', label: 'app.html', icon: '📄' }
+                ]},
+                { key: '1-2', label: 'Backend' }
+            ]},
+            { key: '2', label: 'Settings', icon: '⚙️' }
+          ]" />
+        </section>
+        }
+        }
+
       </div>
     </div>
   </ui-sidebar-inset>

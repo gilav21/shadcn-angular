@@ -21,32 +21,65 @@ import { cn } from '../lib/utils';
         },
     ],
     template: `
-    <button
-      type="button"
-      role="switch"
-      [attr.aria-checked]="checked()"
-      [class]="trackClasses()"
-      [disabled]="isDisabled()"
-      [attr.data-slot]="'switch'"
-      [attr.id]="elementId()"
-      [attr.aria-label]="ariaLabel()"
-      [attr.aria-labelledby]="ariaLabelledby()"
-      (click)="toggle()"
-    >
-      <span [class]="thumbClasses()"></span>
-    </button>
+    @if (label()) {
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          role="switch"
+          [attr.aria-checked]="checked()"
+          [class]="trackClasses()"
+          [disabled]="isDisabled()"
+          [attr.data-slot]="'switch'"
+          [attr.id]="computedId()"
+          (click)="toggle()"
+        >
+          <span [class]="thumbClasses()"></span>
+        </button>
+        <label
+          [attr.for]="computedId()"
+          class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          (click)="toggle(); $event.preventDefault()"
+        >
+          {{ label() }}
+        </label>
+      </div>
+    } @else {
+      <button
+        type="button"
+        role="switch"
+        [attr.aria-checked]="checked()"
+        [class]="trackClasses()"
+        [disabled]="isDisabled()"
+        [attr.data-slot]="'switch'"
+        [attr.id]="elementId()"
+        [attr.aria-label]="ariaLabel()"
+        [attr.aria-labelledby]="ariaLabelledby()"
+        (click)="toggle()"
+      >
+        <span [class]="thumbClasses()"></span>
+      </button>
+    }
   `,
     host: {
         '[class]': '"contents"',
     },
 })
 export class SwitchComponent implements ControlValueAccessor {
+    private static idCounter = 0;
+
     disabled = input(false);
     class = input('');
     elementId = input<string | undefined>(undefined);
     ariaLabel = input<string | undefined>(undefined);
     ariaLabelledby = input<string | undefined>(undefined);
     checked = model(false);
+
+    // Simple mode: inline label
+    label = input<string | undefined>(undefined);
+
+    // Auto-generate ID when label is used
+    private _generatedId = `switch-${++SwitchComponent.idCounter}`;
+    computedId = computed(() => this._generatedId);
 
     private readonly _disabled = signal(false);
     readonly isDisabled = computed(() => this.disabled() || this._disabled());
@@ -93,3 +126,4 @@ export class SwitchComponent implements ControlValueAccessor {
         this._disabled.set(isDisabled);
     }
 }
+

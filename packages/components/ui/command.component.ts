@@ -331,6 +331,9 @@ export class CommandGroupComponent {
       [class.hidden]="!isVisible()"
     >
       <ng-content />
+      @if (shortcut()) {
+        <span class="ml-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
+      }
     </div>
   `,
   host: { class: 'contents' },
@@ -340,6 +343,7 @@ export class CommandItemComponent implements OnInit, OnDestroy {
   disabled = input(false);
   selected = input(false);
   value = input('');
+  shortcut = input('');
 
   select = output<string>();
 
@@ -386,6 +390,7 @@ export class CommandItemComponent implements OnInit, OnDestroy {
     }
   }
 }
+
 
 @Component({
   selector: 'ui-command-separator',
