@@ -263,3 +263,76 @@ describe('RadioGroup RTL Support', () => {
         expect(items[0].nativeElement.getAttribute('aria-checked')).toBe('true');
     });
 });
+
+// Test host for label mode
+@Component({
+    template: `
+        <ui-radio-group (valueChange)="onValueChange($event)">
+            <ui-radio-group-item value="option1" label="First option" />
+            <ui-radio-group-item value="option2" label="Second option" />
+            <ui-radio-group-item value="option3" label="Third option" />
+        </ui-radio-group>
+    `,
+    imports: [RadioGroupComponent, RadioGroupItemComponent]
+})
+class LabelModeTestHostComponent {
+    selectedValue = '';
+    onValueChange(value: string) {
+        this.selectedValue = value;
+    }
+}
+
+describe('RadioGroupItem with Label', () => {
+    let fixture: ComponentFixture<LabelModeTestHostComponent>;
+    let component: LabelModeTestHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [LabelModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(LabelModeTestHostComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should render labels for all items', () => {
+        const labels = fixture.debugElement.queryAll(By.css('label'));
+        expect(labels.length).toBe(3);
+    });
+
+    it('should display correct label text', () => {
+        const labels = fixture.debugElement.queryAll(By.css('label'));
+        expect(labels[0].nativeElement.textContent).toContain('First option');
+        expect(labels[1].nativeElement.textContent).toContain('Second option');
+        expect(labels[2].nativeElement.textContent).toContain('Third option');
+    });
+
+    it('should associate labels with radio buttons via for/id', () => {
+        const labels = fixture.debugElement.queryAll(By.css('label'));
+        const buttons = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+
+        labels.forEach((label, index) => {
+            const labelFor = label.nativeElement.getAttribute('for');
+            const buttonId = buttons[index].nativeElement.getAttribute('id');
+            expect(labelFor).toBeTruthy();
+            expect(buttonId).toBeTruthy();
+            expect(labelFor).toBe(buttonId);
+        });
+    });
+
+    it('should render items in flex container with gap', () => {
+        const containers = fixture.debugElement.queryAll(By.css('div.flex.items-center.gap-2'));
+        expect(containers.length).toBe(3);
+    });
+
+    it('should select item by clicking radio button', async () => {
+        const buttons = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        buttons[1].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(component.selectedValue).toBe('option2');
+        expect(buttons[1].nativeElement.getAttribute('aria-checked')).toBe('true');
+    });
+});

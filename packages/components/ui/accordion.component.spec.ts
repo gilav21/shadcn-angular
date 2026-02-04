@@ -332,3 +332,110 @@ describe('Accordion RTL Support', () => {
         expect(items[1].componentInstance.value()).toBe('item-2');
     });
 });
+
+// Test host for simple mode (data-driven)
+@Component({
+    template: `
+        <ui-accordion [type]="type()">
+            <ui-accordion-item value="item-1" title="First Question" content="First answer content" />
+            <ui-accordion-item value="item-2" title="Second Question" content="Second answer content" />
+            <ui-accordion-item value="item-3" title="Third Question" content="Third answer content" />
+        </ui-accordion>
+    `,
+    imports: [AccordionComponent, AccordionItemComponent]
+})
+class SimpleModeTestHostComponent {
+    type = signal<'single' | 'multiple'>('single');
+}
+
+describe('Accordion Simple Mode (Data-Driven)', () => {
+    let fixture: ComponentFixture<SimpleModeTestHostComponent>;
+    let component: SimpleModeTestHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleModeTestHostComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should render all items', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="accordion-item"]'));
+        expect(items.length).toBe(3);
+    });
+
+    it('should render triggers with title text', () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="accordion-trigger"]'));
+        expect(triggers.length).toBe(3);
+        expect(triggers[0].nativeElement.textContent).toContain('First Question');
+        expect(triggers[1].nativeElement.textContent).toContain('Second Question');
+        expect(triggers[2].nativeElement.textContent).toContain('Third Question');
+    });
+
+    it('should not show content initially', () => {
+        const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
+        expect(contents.length).toBe(0);
+    });
+
+    it('should show content on trigger click', async () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="accordion-trigger"]'));
+        triggers[0].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
+        expect(contents.length).toBe(1);
+        expect(contents[0].nativeElement.textContent).toContain('First answer content');
+    });
+
+    it('should have aria-expanded on triggers', () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="accordion-trigger"]'));
+        expect(triggers[0].nativeElement.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('should update aria-expanded when opened', async () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="accordion-trigger"]'));
+        triggers[1].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(triggers[1].nativeElement.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('should close previous item in single mode', async () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="accordion-trigger"]'));
+
+        triggers[0].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        triggers[1].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
+        expect(contents.length).toBe(1);
+        expect(contents[0].nativeElement.textContent).toContain('Second answer content');
+    });
+
+    it('should allow multiple open items in multiple mode', async () => {
+        component.type.set('multiple');
+        fixture.detectChanges();
+
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="accordion-trigger"]'));
+
+        triggers[0].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        triggers[1].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const contents = fixture.debugElement.queryAll(By.css('[data-slot="accordion-content"]'));
+        expect(contents.length).toBe(2);
+    });
+});

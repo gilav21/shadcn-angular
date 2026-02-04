@@ -65,3 +65,49 @@ describe('CheckboxComponent', () => {
         expect(button.nativeElement.className).toContain('custom-class');
     });
 });
+
+describe('CheckboxComponent with Label', () => {
+    let component: CheckboxComponent;
+    let fixture: ComponentFixture<CheckboxComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [CheckboxComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(CheckboxComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('label', 'Accept terms');
+        fixture.detectChanges();
+    });
+
+    it('should render label when label input is provided', () => {
+        const label = fixture.debugElement.query(By.css('label'));
+        expect(label).toBeTruthy();
+        expect(label.nativeElement.textContent).toContain('Accept terms');
+    });
+
+    it('should render checkbox with label in flex container', () => {
+        const container = fixture.debugElement.query(By.css('div.flex.items-center.gap-2'));
+        expect(container).toBeTruthy();
+    });
+
+    it('should associate label with checkbox via for/id', () => {
+        const label = fixture.debugElement.query(By.css('label'));
+        const button = fixture.debugElement.query(By.css('button'));
+        const buttonId = button.nativeElement.getAttribute('id');
+        const labelFor = label.nativeElement.getAttribute('for');
+        expect(buttonId).toBeTruthy();
+        expect(labelFor).toBe(buttonId);
+    });
+
+    it('should toggle checkbox when clicking label', () => {
+        expect(component.checked()).toBe(false);
+
+        const button = fixture.debugElement.query(By.css('button'));
+        button.nativeElement.click();
+        fixture.detectChanges();
+
+        expect(component.checked()).toBe(true);
+    });
+});

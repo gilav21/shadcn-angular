@@ -186,3 +186,67 @@ describe('Breadcrumb RTL Support', () => {
         expect(items.length).toBe(2);
     });
 });
+
+// Test host for simple mode (data-driven)
+@Component({
+    template: `
+        <ui-breadcrumb>
+            <ui-breadcrumb-list [items]="items" />
+        </ui-breadcrumb>
+    `,
+    imports: [BreadcrumbComponent, BreadcrumbListComponent]
+})
+class SimpleModeTestHostComponent {
+    items = [
+        { label: 'Home', href: '/' },
+        { label: 'Products', href: '/products' },
+        { label: 'Current Page', isCurrentPage: true }
+    ];
+}
+
+describe('Breadcrumb Simple Mode (Data-Driven)', () => {
+    let fixture: ComponentFixture<SimpleModeTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleModeTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should render all items from input array', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-item"]'));
+        expect(items.length).toBe(3);
+    });
+
+    it('should render links for non-current items', () => {
+        const links = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-link"]'));
+        expect(links.length).toBe(2);
+    });
+
+    it('should render current page with aria-current', () => {
+        const page = fixture.debugElement.query(By.css('[data-slot="breadcrumb-page"]'));
+        expect(page).toBeTruthy();
+        expect(page.nativeElement.getAttribute('aria-current')).toBe('page');
+    });
+
+    it('should auto-insert separators between items', () => {
+        const separators = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-separator"]'));
+        expect(separators.length).toBe(2); // 3 items = 2 separators
+    });
+
+    it('should render correct href on links', () => {
+        const links = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-link"]'));
+        expect(links[0].nativeElement.getAttribute('href')).toBe('/');
+        expect(links[1].nativeElement.getAttribute('href')).toBe('/products');
+    });
+
+    it('should render correct labels', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="breadcrumb-item"]'));
+        expect(items[0].nativeElement.textContent).toContain('Home');
+        expect(items[1].nativeElement.textContent).toContain('Products');
+        expect(items[2].nativeElement.textContent).toContain('Current Page');
+    });
+});
