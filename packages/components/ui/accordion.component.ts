@@ -66,12 +66,56 @@ export class AccordionComponent {
   }
 }
 
+export const ACCORDION_ITEM = new InjectionToken<AccordionItemComponent>('ACCORDION_ITEM');
+
 @Component({
   selector: 'ui-accordion-item',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [{ provide: ACCORDION_ITEM, useExisting: forwardRef(() => AccordionItemComponent) }],
   template: `
     <div [class]="classes()" [attr.data-slot]="'accordion-item'">
-      <ng-content />
+      @if (title()) {
+        <!-- Simple mode: render built-in trigger and content -->
+        <h3 class="flex">
+          <button
+            type="button"
+            [attr.id]="triggerId()"
+            class="flex flex-1 items-center justify-between py-4 text-sm font-medium transition-all hover:underline [&[data-state=open]>svg]:rotate-180"
+            [attr.aria-expanded]="isOpen()"
+            [attr.aria-controls]="panelId()"
+            [attr.data-state]="isOpen() ? 'open' : 'closed'"
+            [attr.data-slot]="'accordion-trigger'"
+            (click)="toggle()"
+          >
+            {{ title() }}
+            <svg
+              class="h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200"
+              [class.rotate-180]="isOpen()"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7" />
+            </svg>
+          </button>
+        </h3>
+        @if (isOpen()) {
+          <div
+            role="region"
+            [attr.id]="panelId()"
+            [attr.aria-labelledby]="triggerId()"
+            class="overflow-hidden text-sm"
+            [attr.data-state]="'open'"
+            [attr.data-slot]="'accordion-content'"
+          >
+            <div class="pb-4 pt-0">{{ content() }}</div>
+          </div>
+        }
+      } @else {
+        <!-- Custom mode: render projected content -->
+        <ng-content />
+      }
     </div>
   `,
   host: { '[class]': '"contents"' },
@@ -80,10 +124,30 @@ export class AccordionItemComponent {
   value = input.required<string>();
   class = input('');
 
+  // Simple mode: title and content inputs
+  title = input<string | undefined>(undefined);
+  content = input<string | undefined>(undefined);
+
+  private accordion = inject(ACCORDION, { optional: true });
+
+  isOpen = computed(() => {
+    return this.accordion?.isOpen(this.value()) ?? false;
+  });
+
+  triggerId = computed(() => {
+    return this.accordion?.getTriggerId(this.value()) ?? '';
+  });
+
+  panelId = computed(() => {
+    return this.accordion?.getPanelId(this.value()) ?? '';
+  });
+
+  toggle() {
+    this.accordion?.toggle(this.value());
+  }
+
   classes = computed(() => cn('border-b', this.class()));
 }
-
-export const ACCORDION_ITEM = new InjectionToken<AccordionItemComponent>('ACCORDION_ITEM');
 
 @Component({
   selector: 'ui-accordion-trigger',

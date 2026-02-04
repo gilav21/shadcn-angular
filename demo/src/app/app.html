@@ -894,6 +894,9 @@
               <ui-checkbox [disabled]="true" />
               <ui-label class="opacity-50">Disabled checkbox</ui-label>
             </div>
+            <div class="flex items-center gap-2">
+              <ui-checkbox [checked]="true" label="Checked checkbox" />
+            </div>
           </div>
         </section>
 
@@ -915,6 +918,9 @@
             <div class="flex items-center gap-2">
               <ui-radio-group-item value="option3" />
               <ui-label>Compact layout</ui-label>
+            </div>
+            <div class="flex items-center gap-2">
+              <ui-radio-group-item value="option4" label="Anoter layout" />
             </div>
           </ui-radio-group>
         </section>
@@ -1640,6 +1646,17 @@
                 <ui-breadcrumb-page>Breadcrumb</ui-breadcrumb-page>
               </ui-breadcrumb-item>
             </ui-breadcrumb-list>
+          </ui-breadcrumb>
+
+          <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
+          <p class="text-muted-foreground text-sm mb-4">Auto-generated from items array with separators.</p>
+          <ui-breadcrumb>
+            <ui-breadcrumb-list [items]="[
+              { label: 'Home', href: '/' },
+              { label: 'Products', href: '/products' },
+              { label: 'Laptops', href: '/products/laptops' },
+              { label: 'MacBook Pro', isCurrentPage: true }
+            ]" />
           </ui-breadcrumb>
         </section>
 

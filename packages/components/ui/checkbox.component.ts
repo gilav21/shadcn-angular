@@ -6,6 +6,8 @@ import {
   forwardRef,
   model,
   signal,
+  ElementRef,
+  viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -21,55 +23,70 @@ import { cn } from '../lib/utils';
     },
   ],
   template: `
-    <button
-      type="button"
-      role="checkbox"
-      [attr.aria-checked]="checked()"
-      [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
-      [class]="classes()"
-      [disabled]="isDisabled()"
-      [attr.id]="elementId()"
-      [attr.aria-label]="ariaLabel()"
-      [attr.aria-labelledby]="ariaLabelledby()"
-      [attr.data-slot]="'checkbox'"
-      (click)="toggle()"
-    >
-      @if (indeterminate()) {
-        <svg
-          class="h-3 w-3"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          stroke-width="3"
+    @if (label()) {
+      <div class="flex items-center gap-2">
+        <button
+          type="button"
+          role="checkbox"
+          [attr.aria-checked]="checked()"
+          [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
+          [class]="classes()"
+          [disabled]="isDisabled()"
+          [attr.id]="computedId()"
+          [attr.data-slot]="'checkbox'"
+          (click)="toggle()"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M5 12h14"
-          />
-        </svg>
-      } @else if (checked()) {
-        <svg
-          class="h-3 w-3"
-          fill="none"
-          viewBox="0 0 24 24"
-          stroke="currentColor"
-          stroke-width="3"
+          @if (indeterminate()) {
+            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+            </svg>
+          } @else if (checked()) {
+            <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+            </svg>
+          }
+        </button>
+        <label 
+          [attr.for]="computedId()" 
+          class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+          (click)="toggle(); $event.preventDefault()"
         >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            d="M5 13l4 4L19 7"
-          />
-        </svg>
-      }
-    </button>
+          {{ label() }}
+        </label>
+      </div>
+    } @else {
+      <button
+        type="button"
+        role="checkbox"
+        [attr.aria-checked]="checked()"
+        [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
+        [class]="classes()"
+        [disabled]="isDisabled()"
+        [attr.id]="elementId()"
+        [attr.aria-label]="ariaLabel()"
+        [attr.aria-labelledby]="ariaLabelledby()"
+        [attr.data-slot]="'checkbox'"
+        (click)="toggle()"
+      >
+        @if (indeterminate()) {
+          <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+          </svg>
+        } @else if (checked()) {
+          <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+          </svg>
+        }
+      </button>
+    }
   `,
   host: {
     '[class]': '"contents"',
   },
 })
 export class CheckboxComponent implements ControlValueAccessor {
+  private static idCounter = 0;
+
   readonly _disabled = signal(false);
   disabled = input(false);
 
@@ -80,6 +97,13 @@ export class CheckboxComponent implements ControlValueAccessor {
   ariaLabelledby = input<string | undefined>(undefined);
   checked = model<boolean>(false);
   indeterminate = input(false);
+
+  // Simple mode: inline label
+  label = input<string | undefined>(undefined);
+
+  // Auto-generate ID when label is used
+  private _generatedId = `checkbox-${++CheckboxComponent.idCounter}`;
+  computedId = computed(() => this.elementId() ?? this._generatedId);
 
   private onChange: (value: boolean) => void = () => { };
   private onTouched: () => void = () => { };
