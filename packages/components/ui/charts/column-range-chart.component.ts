@@ -10,7 +10,7 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
-import { RangeDataPoint, ChartClickEvent } from './chart.types';
+import { RangeDataPoint, ChartClickEvent, ChartDirection } from './chart.types';
 import {
   getChartColor,
   formatChartValue,
@@ -152,15 +152,11 @@ interface RangeBar {
   },
 })
 export class ColumnRangeChartComponent implements AfterViewInit {
+  dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
 
-  // Internal signal to track DOM directionality
   private _domRtl = signal(false);
 
-  // Allow explicit direction override
-  dir = input<import('./chart.types').ChartDirection>('auto');
-
-  // Reactive isRtl
   isRtl = computed(() => {
     const d = this.dir();
     if (d === 'rtl') return true;

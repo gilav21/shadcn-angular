@@ -16,6 +16,7 @@ import {
   DrilldownEvent,
   ChartClickEvent,
   BarRect,
+  ChartDirection,
 } from './chart.types';
 import {
   getChartColor,
@@ -170,15 +171,11 @@ import {
   },
 })
 export class BarChartDrilldownComponent implements AfterViewInit {
+  dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
 
-  // Internal signal to track DOM directionality
   private _domRtl = signal(false);
 
-  // Allow explicit direction override
-  dir = input<import('./chart.types').ChartDirection>('auto');
-
-  // Reactive isRtl
   isRtl = computed(() => {
     const d = this.dir();
     if (d === 'rtl') return true;

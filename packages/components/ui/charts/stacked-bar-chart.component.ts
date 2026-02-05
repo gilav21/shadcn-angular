@@ -173,15 +173,12 @@ interface StackedSegment {
   },
 })
 export class StackedBarChartComponent implements AfterViewInit {
+  dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
 
-  // Internal signal to track DOM directionality
   private _domRtl = signal(false);
 
-  // Allow explicit direction override
-  dir = input<ChartDirection>('auto');
 
-  // Reactive isRtl
   isRtl = computed(() => {
     const d = this.dir();
     if (d === 'rtl') return true;

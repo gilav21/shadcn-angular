@@ -151,7 +151,7 @@ export class DataTablePaginationComponent {
   onPageSizeChange(value: string) {
     const pageSize = Number(value);
     this.paginationChange.emit({
-      pageIndex: 0, // Reset to first page on size change
+      pageIndex: 0,
       pageSize,
     });
   }

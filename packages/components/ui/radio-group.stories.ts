@@ -52,3 +52,43 @@ export const Default: Story = {
     `,
   }),
 };
+
+export const DataDriven: Story = {
+  args: {
+    options: ['Default', 'Comfortable', 'Compact'],
+  },
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-radio-group 
+        [orientation]="orientation" 
+        [disabled]="disabled" 
+        [options]="options"
+      />
+    `,
+  }),
+};
+
+export const DataDrivenObjects: Story = {
+  args: {
+    options: [
+      { id: '1', label: 'Default', value: 'default' },
+      { id: '2', label: 'Comfortable', value: 'comfortable' },
+      { id: '3', label: 'Compact', value: 'compact' },
+    ],
+    valueAttribute: 'value',
+    displayWith: (opt: any) => opt.label,
+  },
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-radio-group 
+        [orientation]="orientation" 
+        [disabled]="disabled" 
+        [options]="options"
+        [valueAttribute]="valueAttribute"
+        [displayWith]="displayWith"
+      />
+    `,
+  }),
+};

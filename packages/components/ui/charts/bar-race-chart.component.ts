@@ -11,7 +11,7 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
-import { ChartDataPoint } from './chart.types';
+import { ChartDataPoint, ChartDirection } from './chart.types';
 import {
   getChartColor,
   formatChartValue,
@@ -144,15 +144,12 @@ interface RaceBar {
 
 })
 export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
+  dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
 
-  // Internal signal to track DOM directionality
   private _domRtl = signal(false);
 
-  // Allow explicit direction override
-  dir = input<import('./chart.types').ChartDirection>('auto');
 
-  // Reactive isRtl
   isRtl = computed(() => {
     const d = this.dir();
     if (d === 'rtl') return true;

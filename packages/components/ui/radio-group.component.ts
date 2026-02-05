@@ -142,7 +142,7 @@ export class RadioGroupItemComponent {
     '[class]': '"contents"',
   },
 })
-export class RadioGroupComponent<T = any> implements ControlValueAccessor {
+export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
   orientation = input<'horizontal' | 'vertical'>('vertical');
   disabled = input(false);
   class = input('');

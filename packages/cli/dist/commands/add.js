@@ -210,7 +210,6 @@ export async function add(components, options) {
                     }
                     await fs.ensureDir(path.dirname(targetPath));
                     await fs.writeFile(targetPath, content);
-                    // spinner.text = `Added ${file}`; // Too verbose?
                 }
                 catch (err) {
                     spinner.warn(`Could not add ${file}: ${err.message}`);

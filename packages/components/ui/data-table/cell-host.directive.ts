@@ -63,7 +63,6 @@ export class CellHostDirective implements OnInit, OnChanges, OnDestroy {
     private subscribeToOutputs() {
         if (!this.componentRef) return;
 
-        // Unsubscribe from previous subscriptions
         this.unsubscribeAll();
 
         const outputsObj = this.outputs();
@@ -74,7 +73,6 @@ export class CellHostDirective implements OnInit, OnChanges, OnDestroy {
                 const outputEmitter = this.componentRef!.instance[outputName];
 
                 if (outputEmitter && typeof outputEmitter.subscribe === 'function') {
-                    // Use simple callback for compatibility with both signal-based outputs and RxJS
                     const subscription = outputEmitter.subscribe((event: any) => {
                         try {
                             handler(event);

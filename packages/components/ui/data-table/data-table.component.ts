@@ -299,7 +299,6 @@ export class DataTableComponent<T> {
     let data = this.data();
     if (!this.localFiltering()) return data;
 
-    // Apply global filter
     const globalFilterValue = this.globalFilter().toLowerCase();
     if (globalFilterValue) {
       data = data.filter((row) =>
@@ -309,7 +308,6 @@ export class DataTableComponent<T> {
       );
     }
 
-    // Apply column-specific filters
     const colFilters = this.columnFilters();
     const columns = this.enhancedColumns();
 
@@ -321,10 +319,8 @@ export class DataTableComponent<T> {
       if (!column || !column.enableFiltering) return;
 
       if (column.filterFn) {
-        // Use custom filter function
         data = data.filter(row => column.filterFn!(row, filterValue));
       } else {
-        // Default filter: check if cell value includes filter value
         data = data.filter(row => {
           const cellValue = this.getCellValue(row, columnKey);
           return String(cellValue).toLowerCase().includes(String(filterValue).toLowerCase());
@@ -402,7 +398,6 @@ export class DataTableComponent<T> {
     return computedCols.map(col => {
       const isSticky = col.sticky === true;
       const key = String(col.accessorKey);
-      // Use dynamic width from signal if set, otherwise use column definition
       const widthStr = widths[key] || col.width || '150px';
       const widthVal = parseInt(widthStr, 10) || 150;
 
@@ -451,7 +446,6 @@ export class DataTableComponent<T> {
     const isAuto = width === 'auto';
 
     const style: any = {
-      // For auto width, use flax-basis 0 to ensure equal distribution regardless of content
       width: isAuto ? '0px' : width,
       minWidth: isAuto ? '0px' : width,
       maxWidth: isAuto ? 'none' : width,
@@ -556,7 +550,6 @@ export class DataTableComponent<T> {
     return (row as any)[key];
   }
 
-  // Column Resize Methods
   private resizingColumn: any = null;
   private resizeStartX = 0;
   private resizeStartWidth = 0;

@@ -14,6 +14,7 @@ import {
   ChartClickEvent,
   ChartOrientation,
   BarRect,
+  ChartDirection,
 } from './chart.types';
 import {
   getChartColor,
@@ -216,6 +217,7 @@ export class BarChartComponent {
   yAxisLabel = input('');
   class = input('');
   title = input<string | undefined>(undefined);
+  dir = input<ChartDirection>('auto');
 
   barClick = output<ChartClickEvent>();
   barHover = output<ChartClickEvent | null>();
@@ -223,15 +225,11 @@ export class BarChartComponent {
   hoveredIndex = signal<number | null>(null);
   tooltipPosition = signal({ x: 0, y: 0 });
 
-  // Internal signal to track DOM directionality
   private _domRtl = signal(false);
 
-  // Allow explicit direction override
-  dir = input<import('./chart.types').ChartDirection>('auto');
 
   isVertical = computed(() => this.orientation() === 'vertical');
 
-  // Reactive isRtl: checks explicit 'dir' input first, then falls back to DOM state (captured in AfterViewInit/Resize)
   isRtl = computed(() => {
     const d = this.dir();
     if (d === 'rtl') return true;
@@ -240,15 +238,11 @@ export class BarChartComponent {
   });
 
   constructor() {
-    // We can use an effect to check direction if inputs change that might affect it (though usually dir is static or explicitly bound)
   }
 
   ngAfterViewInit() {
-    // Capture initial DOM direction
     this._checkDirection();
 
-    // Optional: Could add ResizeObserver to observe style changes if needed, but manual check in AfterViewInit is usually enough for initial render.
-    // Use a timeout to ensure styles are applied
     setTimeout(() => this._checkDirection(), 0);
   }
 
