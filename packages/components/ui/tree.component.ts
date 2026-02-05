@@ -43,7 +43,6 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
       (keydown)="onKeydown($event)"
     >
       @if (data().length > 0) {
-        <!-- Simple mode: auto-generate tree from data -->
         <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: data(), depth: 0 }" />
         <ng-template #nodeTemplate let-nodes="nodes" let-depth="depth">
           @for (node of nodes; track node.key) {
@@ -61,7 +60,6 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
           }
         </ng-template>
       } @else {
-        <!-- Template mode: project content -->
         <ng-content />
       }
     </div>
@@ -342,7 +340,6 @@ export class TreeComponent {
                         }
                         if (parentKey) {
                             this.focusedKey.set(parentKey);
-                            // Close the parent
                             if (this.isExpanded(parentKey)) {
                                 this.toggleExpanded(parentKey);
                             }
@@ -453,13 +450,11 @@ export class TreeItemComponent {
     tree = inject(TREE, { optional: true });
     children = contentChildren(forwardRef(() => TreeItemComponent));
 
-    // Allow manual override for data-driven mode where children might not be rendered yet
     hasNested = input<boolean | undefined>(undefined);
 
     hasChildren = computed(() => this.hasNested() ?? this.children().length > 0);
 
     constructor() {
-        // Register with parent tree
         effect((onCleanup) => {
             if (this.tree) {
                 this.tree.registerItem(this);
