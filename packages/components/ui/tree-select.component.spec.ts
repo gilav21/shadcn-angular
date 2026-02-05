@@ -3,26 +3,40 @@ import { TreeSelectComponent } from './tree-select.component';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { TreeNode } from './tree.component';
+import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
+import { TreeComponent, TreeNode } from './tree.component';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 
 const SAMPLE_NODES: TreeNode[] = [
     {
-        key: 'docs',
+        key: 'documents',
         label: 'Documents',
-        icon: 'folder',
+        icon: '📁',
         children: [
-            { key: 'work', label: 'Work', icon: 'folder' },
-            { key: 'personal', label: 'Personal', icon: 'folder' }
+            {
+                key: 'work', label: 'Work', icon: '📂', children: [
+                    { key: 'report', label: 'Report.docx', icon: '📄' },
+                    { key: 'expenses', label: 'Expenses.xlsx', icon: '📊' }
+                ]
+            },
+            {
+                key: 'personal', label: 'Personal', icon: '📂', children: [
+                    { key: 'resume', label: 'Resume.pdf', icon: '📄' }
+                ]
+            }
         ]
     },
     {
         key: 'images',
         label: 'Images',
-        icon: 'image',
+        icon: '🖼️',
         children: [
-            { key: 'vacation', label: 'Vacation', icon: 'image' }
+            {
+                key: 'vacation', label: 'Vacation', children: [
+                    { key: 'beach', label: 'Beach.jpg', icon: '📷' },
+                    { key: 'mountains', label: 'Mountains.jpg', icon: '📷' }
+                ]
+            }
         ]
     }
 ];
@@ -34,8 +48,13 @@ const SAMPLE_NODES: TreeNode[] = [
             [(ngModel)]="value"
             placeholder="Select item..."
         />
+        <ui-tree-select 
+            [nodes]="nodes" 
+            placeholder="Select..." 
+            [disabled]="true" 
+        />
     `,
-    imports: [TreeSelectComponent, ReactiveFormsModule]
+    imports: [TreeSelectComponent, ReactiveFormsModule, FormsModule]
 })
 class TestHostComponent {
     nodes = SAMPLE_NODES;
@@ -97,8 +116,7 @@ describe('TreeSelectComponent', () => {
         expect(component.isOpen()).toBe(false);
     });
 });
-
-describe.skip('TreeSelect Integration', () => {
+describe('TreeSelect Integration', () => {
     let component: TestHostComponent;
     let fixture: ComponentFixture<TestHostComponent>;
 
@@ -137,6 +155,70 @@ describe.skip('TreeSelect Integration', () => {
 
         expect(component.value).toBe('work');
         expect(treeSelect.isOpen()).toBe(false); // Should close on select
+    });
+
+    it('should navigate to child on Right Arrow when expanded', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges(); // Render popover content
+
+        const tree = fixture.debugElement.query(By.directive(TreeComponent));
+        const treeInstance = tree.componentInstance as TreeComponent;
+
+        // Focus first item 'documents'
+        treeInstance.focus('documents');
+        fixture.detectChanges();
+
+        // Simulating sequence of events
+        // 1. Expand 'documents'
+        const arrowRight = new KeyboardEvent('keydown', { key: 'ArrowRight' });
+        treeInstance.onKeydown(arrowRight);
+        fixture.detectChanges();
+
+        expect(treeInstance.isExpanded('documents')).toBe(true);
+
+        // 2. Wait for children to render/register
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        // 3. Navigate into 'documents' (should select first child 'work')
+        treeInstance.onKeydown(arrowRight);
+        fixture.detectChanges();
+
+        expect(treeInstance.focusedKey()).toBe('work'); // 'work' is the first child of 'documents'
+    });
+
+    it('should collapse folder on Left Arrow when expanded', async () => {
+        const trigger = fixture.debugElement.query(By.css('button[role="combobox"]'));
+        trigger.nativeElement.click();
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const tree = fixture.debugElement.query(By.directive(TreeComponent));
+        const treeInstance = tree.componentInstance as TreeComponent;
+
+        // Expand 'documents' first
+        treeInstance.toggleExpanded('documents');
+        treeInstance.focus('documents');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(treeInstance.isExpanded('documents')).toBe(true);
+        expect(treeInstance.focusedKey()).toBe('documents');
+
+        // Press Left Arrow
+        const arrowLeft = new KeyboardEvent('keydown', { key: 'ArrowLeft' });
+        treeInstance.onKeydown(arrowLeft);
+        fixture.detectChanges();
+
+        // Should be collapsed
+        expect(treeInstance.isExpanded('documents')).toBe(false);
+        // Should remain focused on documents
+        expect(treeInstance.focusedKey()).toBe('documents');
     });
 });
 

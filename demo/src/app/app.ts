@@ -264,6 +264,7 @@ import {
   SplitButtonMenuComponent,
   SplitButtonItemComponent,
   SplitButtonItem,
+  TreeNode,
 } from '../../../packages/components/ui';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
@@ -1329,7 +1330,7 @@ ORDER BY created_at DESC;`;
   barRaceLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
 
   // Tree Select Demo
-  treeSelectNodes = signal<any[]>([
+  treeSelectNodes = signal<TreeNode[]>([
     {
       key: 'documents',
       label: 'Documents',

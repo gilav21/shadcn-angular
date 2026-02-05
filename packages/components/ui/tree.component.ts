@@ -83,11 +83,17 @@ export class TreeComponent {
     expandChange = output<string[]>();
 
     treeRoot = viewChild<ElementRef<HTMLElement>>('treeRoot');
-    // Using a manual registry to handle both Content (transcluded) and View (data-driven) items
     items = signal<TreeItemComponent[]>([]);
     private _itemRegistry = new Set<TreeItemComponent>();
 
     private el = inject(ElementRef);
+
+    constructor() {
+        effect(() => {
+            this.data();
+            this.ancestorCache.clear();
+        });
+    }
 
     activeDescendantId = computed(() => {
         const focused = this.focusedKey();
@@ -175,12 +181,95 @@ export class TreeComponent {
         this.updateItemsList();
     }
 
+    private flattenedKeys = computed(() => {
+        const nodes = this.data();
+        if (nodes.length === 0) return null;
+
+        const keyMap = new Map<string, number>();
+        let index = 0;
+
+        const traverse = (list: TreeNode[]) => {
+            for (const node of list) {
+                keyMap.set(node.key, index++);
+                if (node.children) {
+                    traverse(node.children);
+                }
+            }
+        };
+
+        traverse(nodes);
+        return keyMap;
+    });
+
+    private parentMap = computed(() => {
+        const nodes = this.data();
+        if (nodes.length === 0) return null;
+
+        const map = new Map<string, string>();
+
+        const traverse = (list: TreeNode[], parentKey?: string) => {
+            for (const node of list) {
+                if (parentKey) {
+                    map.set(node.key, parentKey);
+                }
+                if (node.children) {
+                    traverse(node.children, node.key);
+                }
+            }
+        };
+
+        traverse(nodes);
+        return map;
+    });
+
+    private ancestorCache = new Map<string, string[]>();
+
+    private getAncestors(key: string): string[] {
+        if (this.ancestorCache.has(key)) {
+            return this.ancestorCache.get(key)!;
+        }
+
+        const ancestors: string[] = [];
+        const parentMap = this.parentMap();
+
+        if (parentMap) {
+            let current = key;
+            while (true) {
+                const parent = parentMap.get(current);
+                if (!parent) break;
+                ancestors.push(parent);
+                current = parent;
+            }
+        } else {
+            const item = this.items().find(i => i.value() === key);
+            let current = item?.parentItem;
+            while (current) {
+                ancestors.push(current.value());
+                current = current.parentItem;
+            }
+        }
+
+        this.ancestorCache.set(key, ancestors);
+        return ancestors;
+    }
+
+    private isItemVisible(key: string): boolean {
+        const ancestors = this.getAncestors(key);
+        return ancestors.every(ancestor => this.isExpanded(ancestor));
+    }
+
     private updateItemsList() {
-        // Convert Set to Array and sort by DOM position to ensure correct keyboard navigation order
         const arr = Array.from(this._itemRegistry);
-        if (arr.length > 1) {
+        const orderMap = this.flattenedKeys();
+
+        if (orderMap) {
             arr.sort((a, b) => {
-                // Return -1 if a comes before b, 1 if b comes before a
+                const indexA = orderMap.get(a.value()) ?? Infinity;
+                const indexB = orderMap.get(b.value()) ?? Infinity;
+                return indexA - indexB;
+            });
+        } else if (arr.length > 1) {
+            arr.sort((a, b) => {
                 const pos = a.elementRef.nativeElement.compareDocumentPosition(b.elementRef.nativeElement);
                 return (pos & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
             });
@@ -189,10 +278,7 @@ export class TreeComponent {
     }
 
     private getVisibleItems(): readonly TreeItemComponent[] {
-        // Relaxed check: if we have items, trust they are "visible" enough for keyboard nav
-        // unless explicitly hidden by css display:none which we aren't doing efficiently here anyway.
-        // The rect check was failing during animation.
-        return this.items();
+        return this.items().filter(item => this.isItemVisible(item.value()));
     }
 
     onKeydown(event: KeyboardEvent) {
@@ -204,6 +290,7 @@ export class TreeComponent {
         const currentIndex = currentFocus ? itemValues.indexOf(currentFocus) : -1;
 
         const expandKey = this.isRtl() ? 'ArrowLeft' : 'ArrowRight';
+
         const collapseKey = this.isRtl() ? 'ArrowRight' : 'ArrowLeft';
 
         switch (event.key) {
@@ -249,9 +336,16 @@ export class TreeComponent {
                         this.toggleExpanded(currentFocus);
                     } else {
                         const currentItem = items.find(i => i.value() === currentFocus);
-                        const parent = currentItem?.parentItem;
-                        if (parent) {
-                            this.focusedKey.set(parent.value());
+                        let parentKey = currentItem?.parentItem?.value();
+                        if (!parentKey) {
+                            parentKey = this.parentMap()?.get(currentFocus);
+                        }
+                        if (parentKey) {
+                            this.focusedKey.set(parentKey);
+                            // Close the parent
+                            if (this.isExpanded(parentKey)) {
+                                this.toggleExpanded(parentKey);
+                            }
                         }
                     }
                 }
