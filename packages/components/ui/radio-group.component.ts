@@ -15,81 +15,6 @@ import { cn } from '../lib/utils';
 export const RADIO_GROUP = new InjectionToken<RadioGroupComponent>('RADIO_GROUP');
 
 @Component({
-  selector: 'ui-radio-group',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [
-    {
-      provide: NG_VALUE_ACCESSOR,
-      useExisting: forwardRef(() => RadioGroupComponent),
-      multi: true,
-    },
-    {
-      provide: RADIO_GROUP,
-      useExisting: RadioGroupComponent,
-    },
-  ],
-  template: `
-    <div
-      role="radiogroup"
-      [attr.aria-orientation]="orientation()"
-      [class]="classes()"
-      [attr.data-slot]="'radio-group'"
-    >
-      <ng-content />
-    </div>
-  `,
-  host: {
-    '[class]': '"contents"',
-  },
-})
-export class RadioGroupComponent implements ControlValueAccessor {
-  orientation = input<'horizontal' | 'vertical'>('vertical');
-  disabled = input(false);
-  class = input('');
-
-  private formDisabled = signal(false);
-  isDisabled = computed(() => this.disabled() || this.formDisabled());
-
-  value = signal<string | null>(null);
-  valueChange = output<string>();
-
-  private onChange: (value: string) => void = () => { };
-  private onTouched: () => void = () => { };
-
-  classes = computed(() =>
-    cn(
-      'grid gap-2',
-      this.orientation() === 'horizontal' ? 'grid-flow-col' : 'grid-flow-row',
-      this.class()
-    )
-  );
-
-  selectValue(val: string) {
-    if (this.isDisabled()) return;
-    this.value.set(val);
-    this.onChange(val);
-    this.valueChange.emit(val);
-    this.onTouched();
-  }
-
-  writeValue(value: string): void {
-    this.value.set(value);
-  }
-
-  registerOnChange(fn: (value: string) => void): void {
-    this.onChange = fn;
-  }
-
-  registerOnTouched(fn: () => void): void {
-    this.onTouched = fn;
-  }
-
-  setDisabledState(isDisabled: boolean): void {
-    this.formDisabled.set(isDisabled);
-  }
-}
-
-@Component({
   selector: 'ui-radio-group-item',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -175,5 +100,113 @@ export class RadioGroupItemComponent {
   select() {
     if (this.isDisabled() || !this.group) return;
     this.group.selectValue(this.value());
+  }
+}
+
+@Component({
+  selector: 'ui-radio-group',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [RadioGroupItemComponent],
+  providers: [
+    {
+      provide: NG_VALUE_ACCESSOR,
+      useExisting: forwardRef(() => RadioGroupComponent),
+      multi: true,
+    },
+    {
+      provide: RADIO_GROUP,
+      useExisting: RadioGroupComponent,
+    },
+  ],
+  template: `
+    <div
+      role="radiogroup"
+      [attr.aria-orientation]="orientation()"
+      [class]="classes()"
+      [attr.data-slot]="'radio-group'"
+    >
+      @if (isDataDriven()) {
+        @for (option of options(); track $index) {
+           <ui-radio-group-item 
+              [value]="getValue(option)" 
+              [label]="getDisplayValue(option)" 
+              [disabled]="isOptionDisabled(option)" 
+           />
+        }
+      } @else {
+        <ng-content />
+      }
+    </div>
+  `,
+  host: {
+    '[class]': '"contents"',
+  },
+})
+export class RadioGroupComponent<T = any> implements ControlValueAccessor {
+  orientation = input<'horizontal' | 'vertical'>('vertical');
+  disabled = input(false);
+  class = input('');
+
+  // Data-driven inputs
+  readonly options = input<T[]>([]);
+  readonly displayWith = input<(option: T) => string>((opt) => String(opt));
+  readonly valueAttribute = input<string | undefined>(undefined);
+  readonly disabledWith = input<(option: T) => boolean>(() => false);
+
+  private formDisabled = signal(false);
+  isDisabled = computed(() => this.disabled() || this.formDisabled());
+  readonly isDataDriven = computed(() => this.options().length > 0);
+
+  value = signal<string | null>(null);
+  valueChange = output<string>();
+
+  private onChange: (value: string) => void = () => { };
+  private onTouched: () => void = () => { };
+
+  classes = computed(() =>
+    cn(
+      'grid gap-2',
+      this.orientation() === 'horizontal' ? 'grid-flow-col' : 'grid-flow-row',
+      this.class()
+    )
+  );
+
+  getDisplayValue(option: T): string {
+    return this.displayWith()(option);
+  }
+
+  getValue(option: T): string {
+    if (this.valueAttribute()) {
+      return String((option as Record<string, unknown>)[this.valueAttribute()!]);
+    }
+    return String(option);
+  }
+
+  isOptionDisabled(option: T): boolean {
+    return this.disabledWith()(option);
+  }
+
+  selectValue(val: string) {
+    if (this.isDisabled()) return;
+    this.value.set(val);
+    this.onChange(val);
+    this.valueChange.emit(val);
+    this.onTouched();
+  }
+
+  writeValue(value: string): void {
+    this.value.set(value);
+  }
+
+  registerOnChange(fn: (value: string) => void): void {
+    this.onChange = fn;
+  }
+
+  registerOnTouched(fn: () => void): void {
+    this.onTouched = fn;
+  }
+
+  setDisabledState(isDisabled: boolean): void {
+    this.formDisabled.set(isDisabled);
   }
 }

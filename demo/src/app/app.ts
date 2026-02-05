@@ -604,6 +604,9 @@ export interface ComponentNavItem {
 export class AppComponent {
   themes = CODE_BLOCK_THEMES;
 
+  selectOptions = ['Apple', 'Banana', 'Blueberry', 'Grapes', 'Pineapple'];
+  radioOptions = ['Default', 'Comfortable', 'Compact'];
+
   private toastService = inject(ToastService);
   isDark = signal(false);
 
@@ -1101,14 +1104,16 @@ ORDER BY created_at DESC;`;
     { id: 'date-picker', name: 'Date Picker', category: 'Inputs', icon: '📅' },
     { id: 'sidebar', name: 'Sidebar', category: 'Layout', icon: '📎' },
     { id: 'spinner', name: 'Spinner', category: 'Feedback', icon: '🔄' },
-    { id: 'empty-state', name: 'Empty State', category: 'Data Display', icon: '📭' },
-    { id: 'keyboard-shortcut', name: 'Keyboard Shortcut', category: 'Data Display', icon: '⌨️' },
+    { id: 'empty', name: 'Empty', category: 'Data Display', icon: '📭' },
+    { id: 'kbd', name: 'Kbd', category: 'Data Display', icon: '⌨️' },
     { id: 'button-group', name: 'Button Group', category: 'Inputs', icon: '🔲' },
     { id: 'input-group', name: 'Input Group', category: 'Inputs', icon: '📥' },
     { id: 'field', name: 'Field', category: 'Inputs', icon: '📝' },
     { id: 'native-select', name: 'Native Select', category: 'Inputs', icon: '📋' },
     { id: 'speed-dial', name: 'Speed Dial', category: 'Overlay', icon: '📞' },
     { id: 'data-table', name: 'Data Table', category: 'Data Display', icon: '📊' },
+    { id: 'separator', name: 'Separator', category: 'Data Display', icon: '➖' },
+    { id: 'label', name: 'Label', category: 'Inputs', icon: '🏷️' },
   ];
 
   categories = computed(() => {

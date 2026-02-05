@@ -1,3 +1,4 @@
+<!-- HMR -->
 <ui-toaster />
 <ui-sidebar-provider>
   <ui-sidebar [collapseMode]="sidebarCollapseMode()">
@@ -917,6 +918,93 @@
           </div>
         </section>
         }
+
+        @case ('separator') {
+        <section class="space-y-4">
+          <h2 id="separator" class="text-2xl font-semibold scroll-m-20">Separator</h2>
+          <p class="text-muted-foreground">Visually or semantically separates content.</p>
+
+          <div class="space-y-4">
+            <div>
+              <h4 class="text-sm font-medium leading-none">Radix Primitives</h4>
+              <p class="text-sm text-muted-foreground">
+                An open-source UI component library.
+              </p>
+            </div>
+            <ui-separator class="my-4" />
+            <div class="flex h-5 items-center space-x-4 text-sm">
+              <div>Blog</div>
+              <ui-separator orientation="vertical" />
+              <div>Docs</div>
+              <ui-separator orientation="vertical" />
+              <div>Source</div>
+            </div>
+          </div>
+        </section>
+        }
+
+        @case ('label') {
+        <section class="space-y-4">
+          <h2 id="label" class="text-2xl font-semibold scroll-m-20">Label</h2>
+          <p class="text-muted-foreground">Renders an accessible label associated with a control.</p>
+
+          <div class="grid gap-2">
+            <div class="flex items-center gap-2">
+              <ui-checkbox id="terms" />
+              <ui-label htmlFor="terms">Accept terms and conditions</ui-label>
+            </div>
+          </div>
+        </section>
+        }
+
+        @case ('kbd') {
+        <section class="space-y-4">
+          <h2 id="kbd" class="text-2xl font-semibold scroll-m-20">Kbd</h2>
+          <p class="text-muted-foreground">Display keyboard shortcuts or keystrokes.</p>
+
+          <div class="flex flex-col gap-4">
+            <div class="flex items-center gap-2">
+              <span>Press</span>
+              <ui-kbd>Ctrl</ui-kbd>
+              <span>+</span>
+              <ui-kbd>K</ui-kbd>
+              <span>to search</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span>Press</span>
+              <ui-kbd>⌘</ui-kbd>
+              <ui-kbd>⇧</ui-kbd>
+              <ui-kbd>P</ui-kbd>
+              <span>to open command palette</span>
+            </div>
+          </div>
+        </section>
+        }
+
+        @case ('empty') {
+        <section class="space-y-4">
+          <h2 id="empty" class="text-2xl font-semibold scroll-m-20">Empty</h2>
+          <p class="text-muted-foreground">A unified empty state component for lists, tables, and other data displays.
+          </p>
+
+          <div class="border rounded-lg p-8 max-w-md">
+            <ui-empty>
+              <ui-empty-header>
+                <ui-empty-media>
+                  <span class="text-4xl">📭</span>
+                </ui-empty-media>
+                <ui-empty-title>No messages</ui-empty-title>
+                <ui-empty-description>
+                  You haven't received any messages yet.
+                </ui-empty-description>
+              </ui-empty-header>
+              <ui-empty-content>
+                <ui-button>Send Message</ui-button>
+              </ui-empty-content>
+            </ui-empty>
+          </div>
+        </section>
+        }
         @case ('checkbox') {
         <section class="space-y-4">
           <h2 id="checkbox" class="text-2xl font-semibold scroll-m-20">Checkbox</h2>
@@ -977,6 +1065,10 @@
             <ui-radio-group-item value="flexible" label="Flexible configuration" />
             <ui-radio-group-item value="accessible" label="Fully accessible" />
           </ui-radio-group>
+
+          <h3 class="text-lg font-medium mt-8">Data-Driven Mode</h3>
+          <p class="text-muted-foreground text-sm mb-4">Using <code>[options]</code> input.</p>
+          <ui-radio-group class="max-w-sm" [options]="radioOptions" />
         </section>
 
 
@@ -1253,6 +1345,13 @@
                   </ui-select-group>
                 </ui-select-content>
               </ui-select>
+            </div>
+
+            <!-- Simple Mode (Data-Driven) -->
+            <div class="space-y-2">
+              <h3 class="text-sm font-medium">Simple Mode (Data-Driven)</h3>
+              <p class="text-xs text-muted-foreground">Uses <code>[options]</code> input.</p>
+              <ui-select class="w-[200px]" [options]="selectOptions" placeholder="Select a fruit" />
             </div>
 
             <!-- Popper -->
