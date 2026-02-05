@@ -104,6 +104,7 @@ export class SpeedDialComponent implements OnDestroy {
 
     show() {
         if (this.disabled()) return;
+        this.contextPosition.set(null);
         this.open.set(true);
         this.visibleChange.emit(true);
         this.onShow.emit();
@@ -112,12 +113,9 @@ export class SpeedDialComponent implements OnDestroy {
     showAt(x: number, y: number) {
         if (this.disabled()) return;
 
-        // Force instant reset
         this.open.set(false);
         this.isRepositioning.set(true);
         this.contextPosition.set({ x, y });
-
-        // Wait for next frame to ensure closed state is applied without transition
         setTimeout(() => {
             this.isRepositioning.set(false);
             this.open.set(true);
@@ -128,7 +126,6 @@ export class SpeedDialComponent implements OnDestroy {
 
     hide() {
         this.open.set(false);
-        this.contextPosition.set(null);
         this.visibleChange.emit(false);
         this.onHide.emit();
     }
