@@ -10,7 +10,8 @@ import {
     contentChildren,
     output,
     ElementRef,
-    viewChild
+    viewChild,
+    effect
 } from '@angular/core';
 import { cn, isRtl } from '../lib/utils';
 import { NgTemplateOutlet } from '@angular/common';
@@ -46,7 +47,7 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
         <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: data(), depth: 0 }" />
         <ng-template #nodeTemplate let-nodes="nodes" let-depth="depth">
           @for (node of nodes; track node.key) {
-            <ui-tree-item [value]="node.key">
+            <ui-tree-item [value]="node.key" [hasNested]="!!(node.children && node.children.length > 0)">
               <ui-tree-label>
                 @if (node.icon) {
                   <ui-tree-icon>{{ node.icon }}</ui-tree-icon>
@@ -82,7 +83,9 @@ export class TreeComponent {
     expandChange = output<string[]>();
 
     treeRoot = viewChild<ElementRef<HTMLElement>>('treeRoot');
-    items = contentChildren(forwardRef(() => TreeItemComponent), { descendants: true });
+    // Using a manual registry to handle both Content (transcluded) and View (data-driven) items
+    items = signal<TreeItemComponent[]>([]);
+    private _itemRegistry = new Set<TreeItemComponent>();
 
     private el = inject(ElementRef);
 
@@ -152,13 +155,44 @@ export class TreeComponent {
         this.expandChange.emit([]);
     }
 
-    private getVisibleItems(): TreeItemComponent[] {
-        return this.items().filter(item => {
-            const header = item.headerElement()?.nativeElement;
-            if (!header) return false;
-            const rect = header.getBoundingClientRect();
-            return rect.width > 0 || rect.height > 0;
-        });
+    focus(key?: string | null) {
+        if (key) {
+            this.focusedKey.set(key);
+        } else if (!this.focusedKey() && this.items().length > 0) {
+            // Default to first item if nothing triggered
+            this.focusedKey.set(this.items()[0].value());
+        }
+        this.treeRoot()?.nativeElement.focus();
+    }
+
+    registerItem(item: TreeItemComponent) {
+        this._itemRegistry.add(item);
+        this.updateItemsList();
+    }
+
+    unregisterItem(item: TreeItemComponent) {
+        this._itemRegistry.delete(item);
+        this.updateItemsList();
+    }
+
+    private updateItemsList() {
+        // Convert Set to Array and sort by DOM position to ensure correct keyboard navigation order
+        const arr = Array.from(this._itemRegistry);
+        if (arr.length > 1) {
+            arr.sort((a, b) => {
+                // Return -1 if a comes before b, 1 if b comes before a
+                const pos = a.elementRef.nativeElement.compareDocumentPosition(b.elementRef.nativeElement);
+                return (pos & Node.DOCUMENT_POSITION_FOLLOWING) ? -1 : 1;
+            });
+        }
+        this.items.set(arr);
+    }
+
+    private getVisibleItems(): readonly TreeItemComponent[] {
+        // Relaxed check: if we have items, trust they are "visible" enough for keyboard nav
+        // unless explicitly hidden by css display:none which we aren't doing efficiently here anyway.
+        // The rect check was failing during animation.
+        return this.items();
     }
 
     onKeydown(event: KeyboardEvent) {
@@ -325,19 +359,28 @@ export class TreeItemComponent {
     tree = inject(TREE, { optional: true });
     children = contentChildren(forwardRef(() => TreeItemComponent));
 
-    hasChildren = computed(() => this.children().length > 0);
+    // Allow manual override for data-driven mode where children might not be rendered yet
+    hasNested = input<boolean | undefined>(undefined);
 
-    isExpanded(): boolean {
-        return this.tree?.isExpanded(this.value()) ?? false;
+    hasChildren = computed(() => this.hasNested() ?? this.children().length > 0);
+
+    constructor() {
+        // Register with parent tree
+        effect((onCleanup) => {
+            if (this.tree) {
+                this.tree.registerItem(this);
+                onCleanup(() => {
+                    this.tree?.unregisterItem(this);
+                });
+            }
+        });
     }
 
-    isSelected(): boolean {
-        return this.tree?.isSelected(this.value()) ?? false;
-    }
+    isExpanded = computed(() => this.tree?.isExpanded(this.value()) ?? false);
 
-    isFocused(): boolean {
-        return this.tree?.isFocused(this.value()) ?? false;
-    }
+    isSelected = computed(() => this.tree?.isSelected(this.value()) ?? false);
+
+    isFocused = computed(() => this.tree?.isFocused(this.value()) ?? false);
 
     isRtl = computed(() => this.tree?.isRtl() ?? false);
 

@@ -257,6 +257,13 @@ import {
   CODE_BLOCK_THEMES,
   SidebarMenuButtonComponent,
   SkeletonComponent,
+  TreeSelectComponent,
+  InputMaskDirective,
+  SplitButtonComponent,
+  SplitButtonPrimaryComponent,
+  SplitButtonMenuComponent,
+  SplitButtonItemComponent,
+  SplitButtonItem,
 } from '../../../packages/components/ui';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
@@ -590,8 +597,14 @@ export interface ComponentNavItem {
     SparklesButtonComponent,
     StreamingTextComponent,
     CodeBlockComponent,
-    TextRevealComponent,
+    InputMaskDirective,
     ReactiveFormsModule,
+    SplitButtonComponent,
+    SplitButtonItemComponent,
+    SplitButtonMenuComponent,
+    SplitButtonPrimaryComponent,
+    TextRevealComponent,
+    TreeSelectComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -687,6 +700,23 @@ export class AppComponent {
 
   onColumnResize(event: ColumnResizeEvent) {
     console.log('Column resized:', event);
+  }
+
+  // Split Button Demo
+  splitButtonItems: SplitButtonItem[] = [
+    { label: 'Edit', value: 'edit', icon: '✎' },
+    { label: 'Duplicate', value: 'duplicate', icon: '📄' },
+    { label: 'Delete', value: 'delete', icon: '🗑️', disabled: true }, // Using unicode until icons are clearer
+  ];
+
+  onSplitPrimaryClick() {
+    console.log('Primary action clicked');
+    alert('Primary action triggered!');
+  }
+
+  onSplitItemClick(item: SplitButtonItem) {
+    console.log('Item clicked:', item);
+    alert(`Menu item clicked: ${item.label}`);
   }
 
   constructor() {
@@ -1057,6 +1087,8 @@ ORDER BY created_at DESC;`;
     { id: 'streaming-text', name: 'Streaming Text', category: 'Advanced', icon: '⌨️' },
     { id: 'form', name: 'Form', category: 'Inputs', icon: '📋' },
     { id: 'input', name: 'Input', category: 'Inputs', icon: '✏️' },
+    { id: 'input-mask', name: 'Input Mask', category: 'Inputs', icon: '🎭' },
+    { id: 'split-button', name: 'Split Button', category: 'Inputs', icon: '🔽' },
     { id: 'chip-list', name: 'Chip List', category: 'Inputs', icon: '🏷️' },
     { id: 'card', name: 'Card', category: 'Data Display', icon: '🃏' },
     { id: 'badge', name: 'Badge', category: 'Data Display', icon: '🔖' },
@@ -1114,6 +1146,7 @@ ORDER BY created_at DESC;`;
     { id: 'data-table', name: 'Data Table', category: 'Data Display', icon: '📊' },
     { id: 'separator', name: 'Separator', category: 'Data Display', icon: '➖' },
     { id: 'label', name: 'Label', category: 'Inputs', icon: '🏷️' },
+    { id: 'tree-select', name: 'Tree Select', category: 'Inputs', icon: '🌲' },
   ];
 
   categories = computed(() => {
@@ -1294,4 +1327,40 @@ ORDER BY created_at DESC;`;
     [{ name: 'Alice', value: 265 }, { name: 'Bob', value: 290 }, { name: 'Charlie', value: 255 }, { name: 'Diana', value: 278 }, { name: 'Eve', value: 262 }, { name: 'Frank', value: 35 }],
   ];
   barRaceLabels = ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6'];
+
+  // Tree Select Demo
+  treeSelectNodes = signal<any[]>([
+    {
+      key: 'documents',
+      label: 'Documents',
+      icon: '📁',
+      children: [
+        {
+          key: 'work', label: 'Work', icon: '📂', children: [
+            { key: 'report', label: 'Report.docx', icon: '📄' },
+            { key: 'expenses', label: 'Expenses.xlsx', icon: '📊' }
+          ]
+        },
+        {
+          key: 'personal', label: 'Personal', icon: '📂', children: [
+            { key: 'resume', label: 'Resume.pdf', icon: '📄' }
+          ]
+        }
+      ]
+    },
+    {
+      key: 'images',
+      label: 'Images',
+      icon: '🖼️',
+      children: [
+        {
+          key: 'vacation', label: 'Vacation', children: [
+            { key: 'beach', label: 'Beach.jpg', icon: '📷' },
+            { key: 'mountains', label: 'Mountains.jpg', icon: '📷' }
+          ]
+        }
+      ]
+    }
+  ]);
+  treeSelectValue = signal<string | null>(null);
 }
