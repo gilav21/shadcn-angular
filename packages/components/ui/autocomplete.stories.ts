@@ -45,7 +45,10 @@ type Story = StoryObj<AutocompleteComponent<Country>>;
 
 export const Default: Story = {
     render: (args) => ({
-        props: args,
+        props: {
+            ...args,
+            displayWith: (opt: Country) => opt?.name,
+        },
         template: `
       <div class="w-[300px]">
          <ui-autocomplete 
@@ -62,9 +65,13 @@ export const Default: Story = {
 export const Multiple: Story = {
     args: {
         multiple: true,
+        displayWith: (opt: Country) => opt?.name,
     },
     render: (args) => ({
-        props: args,
+        props: {
+            ...args,
+            displayWith: (opt: Country) => opt?.name,
+        },
         template: `
       <div class="w-[400px]">
          <ui-autocomplete 
@@ -87,6 +94,7 @@ export const Debounced: Story = {
         props: {
             ...args,
             searchCount: 0,
+            displayWith: (opt: Country) => opt?.name,
             onSearch: function (this: { searchCount: number }, term: string) {
                 this.searchCount++;
                 console.log(`Search triggered: "${term}" (count: ${this.searchCount})`);
@@ -111,29 +119,31 @@ export const Debounced: Story = {
 
 export const Async: Story = {
     render: (args) => {
+        const options = signal<Country[]>([]);
+        const onSearch = (term: string) => {
+            // Mock async API
+            setTimeout(() => {
+                const results = countries.filter(c => c.name.toLowerCase().includes(term.toLowerCase()));
+                options.set(results);
+            }, 300);
+        };
+
         return {
             props: {
                 ...args,
-                options: signal<Country[]>([]),
-                searchTerm: '',
-                onSearch: (term: string) => {
-                    // Mock async API
-                    const results = countries.filter(c => c.name.toLowerCase().includes(term.toLowerCase()));
-                    // In a real app this would be an HTTP call
-                }
+                options: options,
+                displayWith: (opt: Country) => opt?.name,
+                onSearch
             },
             template: `
          <div class="h-[200px] w-[300px]">
              <p class="mb-2 text-sm text-muted-foreground">Async filtering (client-side simulation)</p>
-             <!-- 
-                Note: True async requires a wrapper component to handle the (search) event and update [options]. 
-                Here we just demonstrate the component UI.
-             -->
              <ui-autocomplete 
-                [options]="options"
+                [options]="options()"
                 [displayWith]="displayWith"
                 [filter]="false" 
-                placeholder="Type to search (mock...)"
+                (search)="onSearch($event)"
+                placeholder="Type to search (e.g. 'Un')..."
              />
          </div>
       `

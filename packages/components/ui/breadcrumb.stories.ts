@@ -27,15 +27,7 @@ const meta: Meta<BreadcrumbComponent> = {
       ],
     }),
   ],
-  argTypes: {
-    rtl: {
-      control: 'boolean',
-      description: 'Enable right-to-left layout',
-    },
-  },
-  args: {
-    rtl: false,
-  },
+  args: {},
 };
 
 export default meta;
@@ -45,7 +37,7 @@ export const Default: Story = {
   render: (args) => ({
     props: args,
     template: `
-      <ui-breadcrumb [rtl]="rtl">
+      <ui-breadcrumb>
         <ui-breadcrumb-list>
           <ui-breadcrumb-item>
             <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
@@ -68,7 +60,7 @@ export const CustomSeparator: Story = {
   render: (args) => ({
     props: args,
     template: `
-        <ui-breadcrumb [rtl]="rtl">
+        <ui-breadcrumb>
           <ui-breadcrumb-list>
             <ui-breadcrumb-item>
               <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>
@@ -91,7 +83,7 @@ export const WithEllipsis: Story = {
   render: (args) => ({
     props: args,
     template: `
-      <ui-breadcrumb [rtl]="rtl">
+      <ui-breadcrumb>
         <ui-breadcrumb-list>
           <ui-breadcrumb-item>
             <ui-breadcrumb-link href="/">Home</ui-breadcrumb-link>

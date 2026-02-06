@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input, viewChild } from '@angular/core';
 import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { delay, of } from 'rxjs';
@@ -265,10 +265,14 @@ import {
   SplitButtonItemComponent,
   SplitButtonItem,
   TreeNode,
+  VirtualScrollState,
+  VirtualScrollComponent,
+  VirtualItemDirective
 } from '../../../packages/components/ui';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
 import { NumberTickerComponent } from '../../../packages/components/ui/number-ticker.component';
+
 import { StatusCellComponent } from './cells/status-cell.component';
 import { AmountCellComponent } from './cells/amount-cell.component';
 import { ActionsCellComponent } from './cells/actions-cell.component';
@@ -287,6 +291,31 @@ import {
   ChartSeries,
   RangeDataPoint,
 } from '../../../packages/components/ui/charts';
+
+
+// Virtual Scroll Demo Types
+interface VirtualScrollItem {
+  id: number;
+  title: string;
+  description: string;
+  height: number;
+  type: string;
+  color: string;
+  author?: string;
+  avatar?: string;
+  timestamp?: string;
+  likes?: number;
+  comments?: number;
+  shares?: number;
+  paragraphs?: string[];
+  images?: { url: string; caption: string }[];
+  tags?: string[];
+  subItems?: { id: number; name: string }[];
+  imageSize?: string;
+  chartData?: { month: string; value: number }[];
+  expandedContent?: string;
+}
+
 
 @Component({
   selector: 'app-tabs-demo',
@@ -606,6 +635,8 @@ export interface ComponentNavItem {
     SplitButtonPrimaryComponent,
     TextRevealComponent,
     TreeSelectComponent,
+    VirtualScrollComponent,
+    VirtualItemDirective,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -1148,6 +1179,7 @@ ORDER BY created_at DESC;`;
     { id: 'separator', name: 'Separator', category: 'Data Display', icon: '➖' },
     { id: 'label', name: 'Label', category: 'Inputs', icon: '🏷️' },
     { id: 'tree-select', name: 'Tree Select', category: 'Inputs', icon: '🌲' },
+    { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
   ];
 
   categories = computed(() => {
@@ -1364,4 +1396,216 @@ ORDER BY created_at DESC;`;
     }
   ]);
   treeSelectValue = signal<string | null>(null);
+
+  // Virtual Scroll Demo State
+  virtualScrollRef = viewChild<VirtualScrollComponent<any>>('virtualScrollRef');
+  virtualScrollItems = signal<VirtualScrollItem[]>([]);
+  virtualScrollLoading = signal(false);
+  virtualScrollHasMoreTop = signal(true);
+  virtualScrollHasMoreBottom = signal(true);
+  virtualScrollWindowStart = signal(0);
+  virtualScrollWindowEnd = signal(0);
+  virtualScrollVisibleCount = signal(0);
+  virtualScrollProgress = signal(0);
+  private virtualScrollPageTop = 0;
+  private virtualScrollPageBottom = 0;
+  private readonly ITEMS_PER_PAGE = 50;
+
+  private generateVirtualScrollItems() {
+    const items = [];
+    const types = ['card', 'list', 'image', 'chart'];
+    const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+    // Heights from 50px to 2000px with weighted distribution
+    const getHeight = () => {
+      const rand = Math.random();
+      if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);      // 40% small (50-150px)
+      if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);     // 30% medium (150-350px)
+      if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);     // 20% large (350-750px)
+      return 750 + Math.floor(Math.random() * 1250);                     // 10% extra large (750-2000px)
+    };
+
+    for (let i = 0; i < this.ITEMS_PER_PAGE * 2; i++) {
+      const height = getHeight();
+      const type = types[Math.floor(Math.random() * types.length)];
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const id = i + 1;
+
+      items.push({
+        id,
+        title: `Complex Item #${id}`,
+        description: `This is a ${type} item with ${height}px height. It demonstrates the virtual scroll's ability to handle dramatically different item sizes efficiently.`,
+        height,
+        type,
+        color,
+        tags: type === 'card' ? ['Tag A', 'Tag B', 'Tag C'] : [],
+        subItems: type === 'list' ? [
+          { id: 1, name: 'Sub-item One' },
+          { id: 2, name: 'Sub-item Two' },
+          { id: 3, name: 'Sub-item Three' },
+          { id: 4, name: 'Sub-item Four' },
+        ] : [],
+        imageSize: type === 'image' ? '1920x1080' : '',
+        chartData: type === 'chart' ? [
+          { month: 'Jan', value: 30 + Math.random() * 70 },
+          { month: 'Feb', value: 30 + Math.random() * 70 },
+          { month: 'Mar', value: 30 + Math.random() * 70 },
+          { month: 'Apr', value: 30 + Math.random() * 70 },
+          { month: 'May', value: 30 + Math.random() * 70 },
+          { month: 'Jun', value: 30 + Math.random() * 70 },
+        ] : [],
+        expandedContent: height > 500 ?
+          'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. '.repeat(5) : '',
+      });
+    }
+
+    this.virtualScrollItems.set(items);
+    this.virtualScrollPageBottom = 2;
+  }
+
+  onVirtualScrollEnd(direction: 'top' | 'bottom') {
+    if (direction === 'bottom') {
+      this.loadMoreBottom();
+    } else {
+      this.loadMoreTop();
+    }
+  }
+
+  loadMoreBottom() {
+    if (this.virtualScrollLoading() || !this.virtualScrollHasMoreBottom()) return;
+
+    this.virtualScrollLoading.set(true);
+
+    // Simulate API call
+    setTimeout(() => {
+      const currentItems = this.virtualScrollItems();
+      const newItems = [];
+      const types = ['card', 'list', 'image', 'chart'];
+      const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+      const getHeight = () => {
+        const rand = Math.random();
+        if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);
+        if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);
+        if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);
+        return 750 + Math.floor(Math.random() * 1250);
+      };
+
+      const startId = currentItems.length + 1;
+
+      for (let i = 0; i < this.ITEMS_PER_PAGE; i++) {
+        const height = getHeight();
+        const type = types[Math.floor(Math.random() * types.length)];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const id = startId + i;
+
+        newItems.push({
+          id,
+          title: `Complex Item #${id}`,
+          description: `This is a ${type} item with ${height}px height. It demonstrates the virtual scroll's ability to handle dramatically different item sizes efficiently.`,
+          height,
+          type,
+          color,
+          tags: type === 'card' ? ['Tag A', 'Tag B', 'Tag C'] : [],
+          subItems: type === 'list' ? [
+            { id: 1, name: 'Sub-item One' },
+            { id: 2, name: 'Sub-item Two' },
+            { id: 3, name: 'Sub-item Three' },
+            { id: 4, name: 'Sub-item Four' },
+          ] : [],
+          imageSize: type === 'image' ? '1920x1080' : '',
+          chartData: type === 'chart' ? [
+            { month: 'Jan', value: 30 + Math.random() * 70 },
+            { month: 'Feb', value: 30 + Math.random() * 70 },
+            { month: 'Mar', value: 30 + Math.random() * 70 },
+            { month: 'Apr', value: 30 + Math.random() * 70 },
+            { month: 'May', value: 30 + Math.random() * 70 },
+            { month: 'Jun', value: 30 + Math.random() * 70 },
+          ] : [],
+          expandedContent: height > 500 ?
+            'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(20) : '',
+        });
+      }
+
+      this.virtualScrollItems.set([...currentItems, ...newItems]);
+      this.virtualScrollPageBottom++;
+      this.virtualScrollLoading.set(false);
+
+      // Stop after 10 pages
+      if (this.virtualScrollPageBottom >= 10) {
+        this.virtualScrollHasMoreBottom.set(false);
+      }
+    }, 500);
+  }
+
+  loadMoreTop() {
+    if (this.virtualScrollLoading() || !this.virtualScrollHasMoreTop()) return;
+
+    this.virtualScrollLoading.set(true);
+
+    setTimeout(() => {
+      const currentItems = this.virtualScrollItems();
+      const newItems = [];
+      const types = ['card', 'list', 'image', 'chart'];
+      const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+      const getHeight = () => {
+        const rand = Math.random();
+        if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);
+        if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);
+        if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);
+        return 750 + Math.floor(Math.random() * 1250);
+      };
+
+      for (let i = 0; i < this.ITEMS_PER_PAGE; i++) {
+        const height = getHeight();
+        const type = types[Math.floor(Math.random() * types.length)];
+        const color = colors[Math.floor(Math.random() * colors.length)];
+        const id = -(this.virtualScrollPageTop * this.ITEMS_PER_PAGE + i + 1);
+
+        newItems.unshift({
+          id,
+          title: `Complex Item #${id}`,
+          description: `This is a ${type} item with ${height}px height.`,
+          height,
+          type,
+          color,
+          tags: type === 'card' ? ['Tag A', 'Tag B', 'Tag C'] : [],
+          subItems: type === 'list' ? [
+            { id: 1, name: 'Sub-item One' },
+            { id: 2, name: 'Sub-item Two' },
+          ] : [],
+          imageSize: type === 'image' ? '1920x1080' : '',
+          chartData: type === 'chart' ? [
+            { month: 'Jan', value: 30 + Math.random() * 70 },
+            { month: 'Feb', value: 30 + Math.random() * 70 },
+          ] : [],
+          expandedContent: height > 500 ? 'Expanded content...' : '',
+        });
+      }
+
+      this.virtualScrollItems.set([...newItems, ...currentItems]);
+      this.virtualScrollPageTop++;
+      this.virtualScrollLoading.set(false);
+
+      if (this.virtualScrollPageTop >= 5) {
+        this.virtualScrollHasMoreTop.set(false);
+      }
+    }, 500);
+  }
+
+  onVirtualScrollStateChange(state: VirtualScrollState) {
+    this.virtualScrollWindowStart.set(state.windowStart);
+    this.virtualScrollWindowEnd.set(state.windowEnd);
+    this.virtualScrollVisibleCount.set(state.windowSize);
+    this.virtualScrollProgress.set(state.scrollProgress);
+  }
+
+  scrollVirtualToTop() {
+    this.virtualScrollRef()?.scrollToTop();
+  }
+
+  scrollVirtualToBottom() {
+    this.virtualScrollRef()?.scrollToBottom();
+  }
 }

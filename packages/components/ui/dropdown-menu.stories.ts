@@ -47,7 +47,7 @@ export const Default: Story = {
   render: (args) => ({
     props: args,
     template: `
-      <ui-dropdown-menu [rtl]="rtl">
+      <ui-dropdown-menu>
         <ui-dropdown-menu-trigger>
           <ui-button variant="outline">Open Menu</ui-button>  
         </ui-dropdown-menu-trigger>

@@ -195,7 +195,6 @@ export const EmailInput: Story = {
           [(ngModel)]="emails" 
           [placeholder]="placeholder"
           [variant]="variant"
-          [rtl]="rtl"
         />
         <p class="mt-2 text-sm text-muted-foreground">
           Type an email and press Enter to add
@@ -222,7 +221,7 @@ export const CommaSeparated: Story = {
           [placeholder]="placeholder"
           [separatorKeys]="separatorKeys"
           [variant]="variant"
-          [rtl]="rtl"
+
         />
         <p class="mt-2 text-sm text-muted-foreground">
           Press Enter or type a comma to add tags

@@ -222,7 +222,7 @@ describe('TreeSelect Integration', () => {
     });
 });
 
-describe.skip('TreeSelect ControlValueAccessor', () => {
+describe('TreeSelect ControlValueAccessor', () => {
     let component: CVATestHostComponent;
     let fixture: ComponentFixture<CVATestHostComponent>;
 

@@ -8,6 +8,7 @@ import {
   forwardRef,
   inject,
   InjectionToken,
+  effect,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -152,12 +153,13 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
   readonly displayWith = input<(option: T) => string>((opt) => String(opt));
   readonly valueAttribute = input<string | undefined>(undefined);
   readonly disabledWith = input<(option: T) => boolean>(() => false);
+  readonly value = input<string | undefined>(undefined);
 
   private formDisabled = signal(false);
   isDisabled = computed(() => this.disabled() || this.formDisabled());
   readonly isDataDriven = computed(() => this.options().length > 0);
 
-  value = signal<string | null>(null);
+  internalValue = signal<string | null>(null);
   valueChange = output<string>();
 
   private onChange: (value: string) => void = () => { };
@@ -171,8 +173,18 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
     )
   );
 
+  constructor() {
+    effect(() => {
+      const val = this.value();
+      if (val !== undefined && val !== null) {
+        this.internalValue.set(val);
+      }
+    });
+  }
+
   getDisplayValue(option: T): string {
-    return this.displayWith()(option);
+    const fn = this.displayWith();
+    return typeof fn === 'function' ? fn(option) : String(option);
   }
 
   getValue(option: T): string {
@@ -188,14 +200,14 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
 
   selectValue(val: string) {
     if (this.isDisabled()) return;
-    this.value.set(val);
+    this.internalValue.set(val);
     this.onChange(val);
     this.valueChange.emit(val);
     this.onTouched();
   }
 
   writeValue(value: string): void {
-    this.value.set(value);
+    this.internalValue.set(value);
   }
 
   registerOnChange(fn: (value: string) => void): void {

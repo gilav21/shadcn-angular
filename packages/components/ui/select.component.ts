@@ -111,10 +111,11 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     readonly position = input<'popper' | 'item-aligned'>('item-aligned');
     readonly options = input<T[]>([]);
     readonly displayWith = input<(option: T) => string>((opt) => String(opt));
+    readonly value = input<T | undefined>(undefined);
     readonly valueAttribute = input<string | undefined>(undefined);
     readonly disabledWith = input<(option: T) => boolean>(() => false);
 
-    value = signal<T | undefined>(undefined);
+    internalValue = signal<T | undefined>(undefined);
     open = signal(false);
     focusedIndex = signal(0);
 
@@ -129,10 +130,10 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     readonly isDisabled = computed(() => this.disabled() || this._disabled());
     readonly isDataDriven = computed(() => this.options().length > 0);
-    readonly hasValue = computed(() => this.value() !== undefined && this.value() !== null);
+    readonly hasValue = computed(() => this.internalValue() !== undefined && this.internalValue() !== null);
 
     readonly selectedDisplayValue = computed(() => {
-        const val = this.value();
+        const val = this.internalValue();
         if (val === undefined || val === null) return '';
 
         if (this.isDataDriven()) {
@@ -179,14 +180,21 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
         effect(() => {
             const defaultVal = this.defaultValue();
-            if (defaultVal !== undefined && this.value() === undefined) {
-                this.value.set(defaultVal);
+            if (defaultVal !== undefined && this.internalValue() === undefined) {
+                this.internalValue.set(defaultVal);
+            }
+        });
+
+        effect(() => {
+            const val = this.value();
+            if (val !== undefined) {
+                this.internalValue.set(val);
             }
         });
 
         effect(() => {
             if (this.open()) {
-                const currentVal = this.value();
+                const currentVal = this.internalValue();
                 if (currentVal !== undefined) {
                     const index = this.options().findIndex(opt => this.getValue(opt) === currentVal);
                     this.focusedIndex.set(index >= 0 ? index : 0);
@@ -239,7 +247,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     }
 
     isSelected(option: T): boolean {
-        return this.getValue(option) === this.value();
+        return this.getValue(option) === this.internalValue();
     }
 
     isOptionDisabled(option: T): boolean {
@@ -262,7 +270,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     selectOption(option: T) {
         if (this.isOptionDisabled(option)) return;
         const val = this.getValue(option) as T;
-        this.value.set(val);
+        this.internalValue.set(val);
         this.valueChange.emit(val);
         this._onChange(val);
         this.close();
@@ -280,7 +288,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     }
 
     select(val: T) {
-        this.value.set(val);
+        this.internalValue.set(val);
         this.valueChange.emit(val);
         this._onChange(val);
         this.close();
@@ -295,7 +303,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     }
 
     getSelectedItemOffset(): number {
-        const currentValue = this.value();
+        const currentValue = this.internalValue();
         if (currentValue !== undefined) {
             const element = this.itemElements.get(String(currentValue));
             if (element) {
@@ -381,7 +389,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     }
 
     writeValue(value: T): void {
-        this.value.set(value);
+        this.internalValue.set(value);
     }
 
     registerOnChange(fn: (value: T) => void): void {
@@ -486,8 +494,8 @@ export class SelectValueComponent {
     placeholder = input('Select an option');
     displayValue = input<string | undefined>(undefined);
 
-    hasValue = computed(() => this.select?.value() !== undefined && this.select?.value() !== null);
-    shownValue = computed(() => this.displayValue() ?? String(this.select?.value() ?? ''));
+    hasValue = computed(() => this.select?.internalValue() !== undefined && this.select?.internalValue() !== null);
+    shownValue = computed(() => this.displayValue() ?? String(this.select?.internalValue() ?? ''));
 
     hostClasses = computed(() =>
         cn(
@@ -692,7 +700,7 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
     disabled = input(false);
     class = input('');
 
-    isSelected = computed(() => this.select?.value() === this.value());
+    isSelected = computed(() => this.select?.internalValue() === this.value());
 
     classes = computed(() => {
         return cn(

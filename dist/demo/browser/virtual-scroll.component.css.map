@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["packages/components/ui/virtual-scroll.component.ts", "virtual-scroll.component.ts"],
+  "sourcesContent": ["\n    :host {\n      display: contents;\n    }\n  ", ":host {\n  display: contents;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJmaWxlOi8vL0Q6L0RldmVsb3BtZW50L3NoYWRjZC9zaGFkY24tYW5ndWxhci9wYWNrYWdlcy9jb21wb25lbnRzL3VpL3ZpcnR1YWwtc2Nyb2xsLmNvbXBvbmVudC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDSTtFQUNFIiwic291cmNlc0NvbnRlbnQiOlsiXG4gICAgOmhvc3Qge1xuICAgICAgZGlzcGxheTogY29udGVudHM7XG4gICAgfVxuICAiXX0= */"],
+  "mappings": ";AACI;AACE,WAAA;ACAN;",
+  "names": []
+}

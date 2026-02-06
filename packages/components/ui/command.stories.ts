@@ -49,7 +49,7 @@ export const Default: Story = {
     props: args,
     template: `
       <div class="w-[450px] rounded-lg border shadow-md" [attr.dir]="rtl ? 'rtl' : 'ltr'">
-        <ui-command class="rounded-lg border shadow-md" [rtl]="rtl">
+        <ui-command class="rounded-lg border shadow-md">
           <ui-command-input placeholder="Type a command or search..." ariaLabel="Search command" />
           <ui-command-list ariaLabel="Results">
             <ui-command-empty>No results found.</ui-command-empty>

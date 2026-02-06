@@ -13,6 +13,7 @@
   ],
   "include": [
     "../packages/**/*.stories.*",
+    "../demo/src/**/*.stories.*",
     "./preview.ts"
   ],
   "files": [

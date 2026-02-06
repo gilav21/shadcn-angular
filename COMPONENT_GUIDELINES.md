@@ -252,6 +252,22 @@ classes = computed(() => cn(
 
 ---
 
+## Quality Standards
+
+### 1. Composition
+- **Prefer Package Components**: When building compound components, prioritize using existing package components (e.g., `ui-button`, `ui-badge`) over native HTML elements. This ensures consistent styling, functionality, and accessibility.
+
+### 2. Code Hygiene
+- **No Non-JSDoc Comments**: Avoid implementation comments inside methods. Code should be self-documenting. Use JSDoc `/** ... */` only for public APIs (inputs, outputs, exported methods).
+- **Clean Imports**: Remove all unused imports in TypeScript files and the `@Component({ imports: [...] })` array.
+
+### 3. Testing & Documentation
+- **Meaningful Unit Tests**: Tests must verify actual functionality (interactions, state changes), not just component creation.
+- **Storybook**: Every component must have a Storybook story showing all inputs/options.
+- **Demo Page**: Create a rich demo page with unique variants and "copy-paste ready" examples for developers.
+
+---
+
 ## Checklist for New Components
 
 Before submitting a component, verify:
@@ -261,8 +277,14 @@ Before submitting a component, verify:
 - [ ] Uses `input()` and `computed()` (not decorators)
 - [ ] Has `data-slot` attribute for testing/styling hooks
 - [ ] If compound: supports both simple and custom modes
-- [ ] Accessibility: proper ARIA attributes
-- [ ] Tests cover both usage modes
+- [ ] If compound: uses existing package components (not raw HTML) where possible
+- [ ] Accessibility: proper ARIA attributes and keyboard navigation
+- [ ] RTL Support: verifies correct rendering in RTL mode
+- [ ] Tests cover both usage modes and verify functionality
+- [ ] Storybook covers all options/variants
+- [ ] Demo page includes copy-paste examples
+- [ ] No unused imports or commercial comments
+- [ ] Strict typing (no `any`, handles `undefined`)
 
 ---
 
@@ -277,6 +299,7 @@ When generating or modifying components:
 5. **Use `@ContentChild`** to detect projection
 6. **Test both modes** in the spec file
 7. **Follow naming conventions** exactly
+8. **Form Components**: Support both `value` input and `ControlValueAccessor`
 
 ### Template for New Compound Components
 

@@ -10,7 +10,8 @@ import {
     ElementRef,
     viewChild,
     DestroyRef,
-    inject
+    inject,
+    effect
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
@@ -144,6 +145,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     disabled = input(false);
     class = input('');
     debounceTime = input(0);
+    readonly value = input<T | T[] | undefined>(undefined);
 
     search = output<string>();
 
@@ -211,10 +213,26 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
             rxDebounceTime(this.debounceTime()),
             takeUntilDestroyed(this.destroyRef)
         ).subscribe(val => this.search.emit(val));
+
+        effect(() => {
+            const val = this.value();
+            if (val !== undefined) {
+                if (Array.isArray(val)) {
+                    this.internalValue.set(val);
+                } else {
+                    this.internalValue.set([val]);
+                }
+            }
+        });
     }
 
     getDisplayValue(option: T): string {
-        return this.displayWith()(option);
+        const displayFn = this.displayWith();
+        if (typeof displayFn !== 'function') {
+            console.warn('Autocomplete: displayWith is not a function', displayFn);
+            return String(option);
+        }
+        return displayFn(option);
     }
 
     getValue(option: T): unknown {

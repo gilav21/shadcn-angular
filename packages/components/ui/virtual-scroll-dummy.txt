@@ -1,0 +1,86 @@
+  private generateVirtualScrollItems() {
+    const items: VirtualScrollItem[] = [];
+    const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#14b8a6', '#f43f5e', '#8b5cf6'];
+    const authors = ['Alice Johnson', 'Bob Smith', 'Carol White', 'David Brown', 'Emma Davis', 'Frank Miller', 'Grace Lee', 'Henry Wilson'];
+    const avatars = ['👩‍💼', '👨‍💻', '👩‍🎨', '👨‍🔬', '👩‍🚀', '👨‍🎤', '👩‍🏫', '👨‍🍳'];
+    
+    // Sample content for long posts
+    const longParagraphs = [
+      'Just spent the weekend hiking in the mountains! The views were absolutely breathtaking. We started early in the morning and reached the summit by noon. The trail was challenging but worth every step.',
+      'The weather was perfect - clear blue skies and a gentle breeze. We could see for miles in every direction. The sense of accomplishment when we reached the top was incredible.',
+      'On the way down, we stopped at a mountain lake for lunch. The water was crystal clear and ice cold. We even saw some wildlife - a family of deer grazing near the trail!',
+      'I highly recommend this trail to anyone looking for a challenging but rewarding hike. Make sure to bring plenty of water, snacks, and a good camera. You will want to capture these views!',
+      'Already planning our next adventure. Thinking about trying the northern ridge trail next month. Who is interested in joining? Let me know in the comments below! 🏔️🥾',
+    ];
+    
+    const shortParagraphs = [
+      'Having a great day! ☀️',
+      'Coffee time! ☕️',
+      'New project launched! 🚀',
+      'Weekend vibes! 🎉',
+      'Work in progress... 💻',
+    ];
+
+    // Heights from 100px to 2000px with weighted distribution  
+    const getHeight = () => {
+      const rand = Math.random();
+      if (rand < 0.15) return 100 + Math.floor(Math.random() * 150);      // 15% small (100-250px) - short status
+      if (rand < 0.45) return 250 + Math.floor(Math.random() * 300);      // 30% medium (250-550px) - standard post
+      if (rand < 0.75) return 550 + Math.floor(Math.random() * 450);      // 30% large (550-1000px) - article with images
+      return 1000 + Math.floor(Math.random() * 1000);                      // 25% extra large (1000-2000px) - long articles
+    };
+
+    const getType = (height: number): 'text' | 'article' | 'gallery' | 'mixed' => {
+      if (height < 250) return 'text';
+      if (height < 550) return Math.random() > 0.5 ? 'text' : 'gallery';
+      if (height < 1000) return Math.random() > 0.5 ? 'article' : 'mixed';
+      return 'article';
+    };
+
+    const getParagraphs = (height: number): string[] => {
+      if (height < 250) return [shortParagraphs[Math.floor(Math.random() * shortParagraphs.length)]];
+      if (height < 550) return shortParagraphs.slice(0, 2 + Math.floor(Math.random() * 2));
+      if (height < 1000) return longParagraphs.slice(0, 2 + Math.floor(Math.random() * 2));
+      return longParagraphs;
+    };
+
+    const getImages = (height: number, type: string): { url: string; caption: string }[] => {
+      const imageCount = type === 'gallery' ? 3 + Math.floor(Math.random() * 3) : 
+                        type === 'mixed' ? 2 + Math.floor(Math.random() * 2) :
+                        height > 600 ? 1 + Math.floor(Math.random() * 2) : 0;
+      
+      return Array.from({ length: imageCount }, (_, i) => ({
+        url: `https://picsum.photos/800/${400 + Math.floor(Math.random() * 400)}?random=${Date.now() + i}`,
+        caption: `Image ${i + 1} - ${['Beautiful view', 'Amazing shot', 'Great moment', 'Perfect timing'][Math.floor(Math.random() * 4)]}`,
+      }));
+    };
+
+    for (let i = 0; i < this.ITEMS_PER_PAGE * 2; i++) {
+      const height = getHeight();
+      const type = getType(height);
+      const color = colors[Math.floor(Math.random() * colors.length)];
+      const authorIndex = Math.floor(Math.random() * authors.length);
+      const id = i + 1;
+      
+      items.push({
+        id,
+        title: `${type === 'text' ? 'Quick Update' : type === 'article' ? 'Long Read' : type === 'gallery' ? 'Photo Gallery' : 'Mixed Content'} #${id}`,
+        description: type === 'text' ? 'Short status update' : type === 'article' ? 'In-depth article with multiple sections' : type === 'gallery' ? 'Collection of photos' : 'Text and images combined',
+        height,
+        type,
+        color,
+        author: authors[authorIndex],
+        avatar: avatars[authorIndex],
+        timestamp: new Date(Date.now() - Math.floor(Math.random() * 7 * 24 * 60 * 60 * 1000)).toLocaleDateString(),
+        likes: Math.floor(Math.random() * 500) + 10,
+        comments: Math.floor(Math.random() * 100) + 1,
+        shares: Math.floor(Math.random() * 50) + 1,
+        paragraphs: getParagraphs(height),
+        images: getImages(height, type),
+        tags: Math.random() > 0.7 ? ['#adventure', '#travel', '#photography', '#nature'].slice(0, Math.floor(Math.random() * 3) + 1) : [],
+      });
+    }
+
+    this.virtualScrollItems.set(items);
+    this.virtualScrollPageBottom = 2;
+  }

@@ -2924,6 +2924,253 @@
         </section>
 
         }
+        @case ('virtual-scroll') {
+        <section class="space-y-4">
+          <h2 id="virtual-scroll" class="text-2xl font-semibold scroll-m-20">Virtual Scroll</h2>
+          <p class="text-muted-foreground">Window-based virtual scrolling for large lists. No height measurement needed
+            - works with any content size.</p>
+
+          <!-- Complex Items Demo -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Complex Variable-Height Items (50px - 2000px)</h3>
+            <p class="text-sm text-muted-foreground">
+              Items with dramatically different heights. The window shifts smoothly at 90% scroll threshold.
+              <span class="font-medium">Total items: {{ virtualScrollItems().length }}</span>
+            </p>
+
+            <div class="border rounded-lg overflow-hidden bg-background h-[600px]">
+              <ui-virtual-scroll [items]="virtualScrollItems()" [minItemHeight]="100" [buffer]="5"
+                [loading]="virtualScrollLoading()" [hasMore]="virtualScrollHasMoreBottom()"
+                (scrollEnd)="loadMoreBottom()" (scrollState)="onVirtualScrollStateChange($event)" #virtualScrollRef>
+                <ng-template virtualItem let-item let-index="index">
+                  <div class="border-b border-border p-6 transition-colors hover:bg-accent/30"
+                    [style.background]="$any(item).color + '05'">
+                    <!-- Social Media Post Header -->
+                    <div class="flex items-start gap-4 mb-4">
+                      <div class="flex-shrink-0">
+                        <div class="w-12 h-12 rounded-full flex items-center justify-center text-xl shadow-md"
+                          [style.background-color]="$any(item).color + '20'">
+                          {{ ['👤', '👩‍💼', '👨‍💻', '👩‍🎨', '👨‍🔬', '👩‍🚀'][($any(item).id - 1) % 6] }}
+                        </div>
+                      </div>
+                      <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 flex-wrap">
+                          <h4 class="font-bold text-base">User {{ $any(item).id }}</h4>
+                          <span class="text-sm text-muted-foreground">@user{{ $any(item).id }}</span>
+                          <span class="text-sm text-muted-foreground">·</span>
+                          <span class="text-sm text-muted-foreground">{{ $any(item).height > 800 ? '2h ago' :
+                            $any(item).height > 500 ? '5h ago' : '1d ago' }}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <!-- Post Content -->
+                    <div class="space-y-4">
+                      <!-- Title/Subject -->
+                      <h5 class="font-semibold text-lg">{{ $any(item).title }}</h5>
+
+                      <!-- Description - longer for tall items -->
+                      <p class="text-base leading-relaxed">{{ $any(item).description }}</p>
+
+                      <!-- Long content for tall items -->
+                      @if ($any(item).height > 400) {
+                      <div class="space-y-3">
+                        @for (para of ['Just wanted to share my thoughts on this topic. It has been something I have
+                        been thinking about for a while now, and I believe it is worth discussing with the community.',
+                        $any(item).height > 800 ? 'There are many aspects to consider here, and I think we need to look
+                        at this from multiple angles to really understand the full picture.' : '',
+                        $any(item).height > 1200 ? 'What do you all think? I would love to hear your perspectives and
+                        experiences. Please share in the comments below!' : '']; track $index) {
+                        @if (para) {
+                        <p class="text-base leading-relaxed text-foreground/90">{{ para }}</p>
+                        }
+                        }
+                      </div>
+                      }
+
+                      <!-- Tags -->
+                      @if ($any(item).tags?.length > 0) {
+                      <div class="flex flex-wrap gap-2 pt-2">
+                        @for (tag of $any(item).tags; track tag) {
+                        <span class="text-sm text-primary hover:underline cursor-pointer">{{ tag }}</span>
+                        }
+                      </div>
+                      }
+
+                      <!-- Large Image Placeholder -->
+                      @if ($any(item).height > 300) {
+                      <div
+                        class="mt-4 rounded-xl overflow-hidden border border-border bg-gradient-to-b from-muted/50 to-muted"
+                        [style.min-height.px]="$any(item).height > 1000 ? 400 : $any(item).height > 600 ? 300 : 200">
+                        <div class="h-full flex flex-col items-center justify-center p-8 text-center">
+                          <div class="text-8xl mb-4" [style.opacity]="0.3">🖼️</div>
+                          <p class="text-lg font-medium text-muted-foreground">Large Image</p>
+                          <p class="text-sm text-muted-foreground mt-1">
+                            {{ $any(item).height > 1000 ? '1920x1080' : $any(item).height > 600 ? '1200x800' : '800x600'
+                            }}
+                          </p>
+                          <p class="text-xs text-muted-foreground mt-2 opacity-60">
+                            This placeholder represents a large image that would normally load here
+                          </p>
+                        </div>
+                      </div>
+                      }
+
+                      <!-- Additional images for extra tall items -->
+                      @if ($any(item).height > 1200) {
+                      <div class="grid grid-cols-2 gap-4 mt-4">
+                        @for (img of [1, 2]; track img) {
+                        <div
+                          class="rounded-lg overflow-hidden border border-border bg-muted min-h-[200px] flex items-center justify-center">
+                          <div class="text-5xl opacity-30">📸</div>
+                        </div>
+                        }
+                      </div>
+                      }
+
+                      <!-- Chart for visualization items -->
+                      @if ($any(item).type === 'chart' || $any(item).type === 'mixed') {
+                      <div class="mt-4 p-6 bg-muted/30 rounded-xl">
+                        <p class="text-sm font-medium mb-4">Engagement Overview</p>
+                        <div class="flex items-end gap-3 h-32">
+                          @for (bar of [{h: 40}, {h: 65}, {h: 45}, {h: 80}, {h: 55}, {h: 70}]; track $index) {
+                          <div class="flex-1 flex flex-col items-center gap-2">
+                            <div class="w-full rounded-t-md transition-all" [style.height.%]="bar.h"
+                              [style.background-color]="$any(item).color" [style.opacity]="0.6"></div>
+                            <span class="text-[10px] text-muted-foreground">{{ ['M', 'T', 'W', 'T', 'F', 'S'][$index]
+                              }}</span>
+                          </div>
+                          }
+                        </div>
+                      </div>
+                      }
+
+                      <!-- Comments section for very tall items -->
+                      @if ($any(item).height > 800) {
+                      <div class="mt-6 pt-6 border-t border-border space-y-4">
+                        <p class="text-sm font-medium text-muted-foreground">Comments ({{ ($any(item).id * 3) % 15 + 2
+                          }})</p>
+                        @for (comment of [1, 2, 3]; track comment) {
+                        <div class="flex gap-3">
+                          <div class="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm">
+                            {{ ['👤', '👩', '👨'][comment - 1] }}
+                          </div>
+                          <div class="flex-1">
+                            <div class="bg-muted/50 rounded-2xl rounded-tl-sm px-4 py-3">
+                              <p class="text-sm font-medium mb-1">Commenter {{ comment }}</p>
+                              <p class="text-sm text-muted-foreground">
+                                {{ comment === 1 ? 'This is really insightful! Thanks for sharing your thoughts on this
+                                topic.' :
+                                comment === 2 ? 'I completely agree. Have you considered the alternative perspective as
+                                well?' :
+                                'Great post! Looking forward to more content like this.' }}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                        }
+                      </div>
+                      }
+                    </div>
+
+                    <!-- Post Footer / Actions -->
+                    <div class="flex items-center gap-6 mt-6 pt-4 border-t border-border">
+                      <button
+                        class="flex items-center gap-2 text-muted-foreground hover:text-red-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path
+                            d="M19 14c1.49-1.46 3-3.21 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.76 0-3 .5-4.5 2-1.5-1.5-2.74-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.05 3 5.5l7 7Z" />
+                        </svg>
+                        <span class="text-sm">{{ ($any(item).id * 17) % 234 + 12 }}</span>
+                      </button>
+                      <button
+                        class="flex items-center gap-2 text-muted-foreground hover:text-blue-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+                        </svg>
+                        <span class="text-sm">{{ ($any(item).id * 7) % 45 + 3 }}</span>
+                      </button>
+                      <button
+                        class="flex items-center gap-2 text-muted-foreground hover:text-green-500 transition-colors">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                          stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="m22 2-7 20-4-9-9-4Z" />
+                          <path d="M22 2 11 13" />
+                        </svg>
+                        <span class="text-sm">{{ ($any(item).id * 3) % 18 + 1 }}</span>
+                      </button>
+                      @if ($any(item).height > 500) {
+                      <span class="ml-auto text-xs text-yellow-600 bg-yellow-100 px-2 py-1 rounded-full">
+                        📏 {{ $any(item).height }}px
+                      </span>
+                      }
+                    </div>
+                  </div>
+                </ng-template>
+              </ui-virtual-scroll>
+            </div>
+
+            <div class="flex justify-between items-center text-sm text-muted-foreground">
+              <div class="flex gap-4">
+                <span>Window: {{ virtualScrollWindowStart() }} - {{ virtualScrollWindowEnd() }}</span>
+                <span>Progress: {{ (virtualScrollProgress() * 100).toFixed(0) }}%</span>
+                <span>Rendered: {{ virtualScrollVisibleCount() }} items</span>
+              </div>
+              <div class="flex gap-2">
+                <button uiButton variant="outline" size="sm" (click)="loadMoreBottom()"
+                  [disabled]="virtualScrollLoading() || !virtualScrollHasMoreBottom()">
+                  Load More
+                </button>
+                <button uiButton variant="outline" size="sm" (click)="scrollVirtualToTop()">
+                  Top
+                </button>
+                <button uiButton variant="outline" size="sm" (click)="scrollVirtualToBottom()">
+                  Bottom
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Performance Stats -->
+          <div class="grid grid-cols-4 gap-4">
+            <div class="p-4 border rounded-lg">
+              <div class="text-2xl font-bold text-primary">{{ virtualScrollItems().length }}</div>
+              <div class="text-sm text-muted-foreground">Total Items</div>
+            </div>
+            <div class="p-4 border rounded-lg">
+              <div class="text-2xl font-bold text-primary">{{ virtualScrollVisibleCount() }}</div>
+              <div class="text-sm text-muted-foreground">Window Size</div>
+            </div>
+            <div class="p-4 border rounded-lg">
+              <div class="text-2xl font-bold text-primary">{{ virtualScrollWindowStart() }}</div>
+              <div class="text-sm text-muted-foreground">Window Start</div>
+            </div>
+            <div class="p-4 border rounded-lg">
+              <div class="text-2xl font-bold text-primary">{{ (virtualScrollProgress() * 100).toFixed(0) }}%
+              </div>
+              <div class="text-sm text-muted-foreground">Scroll Progress</div>
+            </div>
+          </div>
+
+          <!-- Info -->
+          <div class="p-4 bg-muted rounded-lg text-sm space-y-2">
+            <p class="font-medium">How it works:</p>
+            <ul class="list-disc list-inside space-y-1 text-muted-foreground">
+              <li><strong>Window-based rendering:</strong> Only renders a fixed "window" of items (default: 8
+                visible + 4 buffer on each side)</li>
+              <li><strong>No height measurement:</strong> Uses estimated height for scrollbar only - actual
+                rendering doesn't depend on it</li>
+              <li><strong>90% threshold:</strong> When you scroll to 90% of the window, it shifts to show new
+                items</li>
+              <li><strong>Infinite scroll:</strong> Works seamlessly with bi-directional loading</li>
+              <li><strong>Works with any content:</strong> From 50px to 2000px+ items - no configuration needed
+              </li>
+            </ul>
+          </div>
+        </section>
+        }
         @case ('speed-dial') {
         <section class="space-y-4">
           <h2 id="speed-dial" class="text-2xl font-semibold scroll-m-20">Speed Dial</h2>

@@ -39,7 +39,7 @@ import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } fr
           type="button"
           role="combobox"
           [class]="triggerClasses()"
-          [disabled]="disabled()"
+          [disabled]="isDisabled()"
           [attr.aria-expanded]="isOpen()"
           aria-haspopup="tree"
         >
@@ -91,8 +91,9 @@ export class TreeSelectComponent implements ControlValueAccessor {
   placeholder = input('Select an item');
   disabled = input(false);
   class = input('');
+  value = input<string | null | undefined>(undefined);
 
-  value = signal<string | null>(null);
+  internalValue = signal<string | null>(null);
   isOpen = signal(false);
 
   // Child reference
@@ -103,22 +104,29 @@ export class TreeSelectComponent implements ControlValueAccessor {
     effect(() => {
       const isOpen = this.isOpen();
       const tree = this.tree();
-      const value = this.value();
+      const val = this.internalValue();
 
       if (isOpen && tree) {
         // Ensure DOM is ready (rAF was too fast)
         setTimeout(() => {
-          console.log('TreeSelect: focusing tree with value', value);
-          tree.focus(value);
+          console.log('TreeSelect: focusing tree with value', val);
+          tree.focus(val);
         }, 50);
       }
     });
+
+    effect(() => {
+      const val = this.value();
+      if (val !== undefined) {
+        this.internalValue.set(val)
+      }
+    })
   }
 
 
   // Helper to find node by key
   selectedNode = computed(() => {
-    const val = this.value();
+    const val = this.internalValue();
     if (!val) return null;
     return this.findNode(this.nodes(), val);
   });
@@ -132,7 +140,7 @@ export class TreeSelectComponent implements ControlValueAccessor {
   private onTouched: () => void = () => { };
 
   writeValue(value: string | null): void {
-    this.value.set(value);
+    this.internalValue.set(value);
   }
 
   registerOnChange(fn: any): void {
@@ -143,13 +151,16 @@ export class TreeSelectComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
+  isDisabled = computed(() => this.disabled() || this.formDisabled());
+  private formDisabled = signal(false);
+
   setDisabledState(isDisabled: boolean): void {
-    // handled by input signal, but we could sync a separate signal if needed
+    this.formDisabled.set(isDisabled);
   }
 
   onSelectionChange(selection: string[]) {
     const newVal = selection[0] || null;
-    this.value.set(newVal);
+    this.internalValue.set(newVal);
     this.onChange(newVal);
     this.isOpen.set(false);
   }

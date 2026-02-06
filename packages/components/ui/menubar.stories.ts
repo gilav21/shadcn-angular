@@ -47,7 +47,7 @@ export const Default: Story = {
   render: (args) => ({
     props: args,
     template: `
-      <ui-menubar [rtl]="rtl">
+      <ui-menubar>
         <ui-menubar-menu>
           <ui-menubar-trigger>File</ui-menubar-trigger>
           <ui-menubar-content>

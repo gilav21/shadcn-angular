@@ -62,6 +62,8 @@ export * from './rich-text-mention.component';
 export * from './timeline.component';
 export * from './tree.component';
 export * from './tree-select.component';
+export * from './virtual-scroll.component';
+export * from './context-menu-integrations';
 
 export * from './rating.component';
 export * from './stepper.component';
