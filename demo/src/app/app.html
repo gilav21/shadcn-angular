@@ -3539,11 +3539,30 @@
 
           <div class="rounded-md border h-[600px] overflow-auto relative">
             <ui-data-table [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
-              [(rowSelection)]="selection" />
+              [(rowSelection)]="selection" [uiDataTableContextMenu]="tableContextMenu" />
           </div>
           <div class="text-sm text-muted-foreground">
             Selected {{ selectionCount() }} rows.
           </div>
+
+          <ui-context-menu #tableContextMenu>
+            <ui-context-menu-content class="w-64">
+              <ui-context-menu-item (click)="onContextMenuAction('view', tableContextMenu.data())">
+                View Details
+                <ui-context-menu-shortcut>⌘V</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+              <ui-context-menu-item (click)="onContextMenuAction('edit', tableContextMenu.data())">
+                Edit Payment
+                <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+              <ui-context-menu-separator />
+              <ui-context-menu-item variant="destructive"
+                (click)="onContextMenuAction('delete', tableContextMenu.data())">
+                Delete
+                <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+            </ui-context-menu-content>
+          </ui-context-menu>
         </section>
 
         <!-- Server-Side Data Table Section -->

@@ -4,6 +4,8 @@ import { ColumnDef } from './data-table/data-table.types';
 import { LucideAngularModule, ArrowDown, ArrowUp, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Check } from 'lucide-angular';
 import { importProvidersFrom, Component, ChangeDetectionStrategy, output } from '@angular/core';
 import { InputComponent } from './input.component';
+import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent } from './context-menu.component';
+import { ContextMenuIntegrations } from './context-menu-integrations';
 
 // Filter component for stories
 @Component({
@@ -448,5 +450,63 @@ export const ResizableColumns: Story = {
         showPagination: true,
         enableRowSelection: false,
         enableColumnResize: true,
+    },
+};
+
+export const WithContextMenu: Story = {
+    render: (args) => ({
+        props: {
+            ...args,
+            onContextMenuAction: (action: string, row: any) => {
+                console.log(`Action: ${action}`, row);
+                alert(`Action: ${action}\nUser: ${row?.name || 'Unknown'}`);
+            }
+        },
+        moduleMetadata: {
+            imports: [
+                ContextMenuComponent,
+                ContextMenuTriggerDirective,
+                ContextMenuContentComponent,
+                ContextMenuItemComponent,
+                ContextMenuShortcutComponent,
+                ContextMenuSeparatorComponent,
+                ...ContextMenuIntegrations
+            ]
+        },
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [uiDataTableContextMenu]="tableContextMenu"
+                />
+
+                <ui-context-menu #tableContextMenu>
+                    <ui-context-menu-content class="w-64">
+                        <ui-context-menu-item (click)="onContextMenuAction('view', tableContextMenu.data())">
+                            View Details
+                            <ui-context-menu-shortcut>⌘V</ui-context-menu-shortcut>
+                        </ui-context-menu-item>
+                        <ui-context-menu-item (click)="onContextMenuAction('edit', tableContextMenu.data())">
+                            Edit User
+                            <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
+                        </ui-context-menu-item>
+                        <ui-context-menu-separator />
+                        <ui-context-menu-item variant="destructive" (click)="onContextMenuAction('delete', tableContextMenu.data())">
+                            Delete
+                            <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
+                        </ui-context-menu-item>
+                    </ui-context-menu-content>
+                </ui-context-menu>
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: columns,
+        showToolbar: true,
+        showPagination: true,
     },
 };

@@ -243,6 +243,7 @@ import {
   FileUploadComponent,
   ColorPickerComponent,
   DataTableComponent,
+  DataTableContextMenuDirective,
   ColumnDef,
   ColumnResizeEvent,
   SortState,
@@ -267,7 +268,8 @@ import {
   TreeNode,
   VirtualScrollState,
   VirtualScrollComponent,
-  VirtualItemDirective
+  VirtualItemDirective,
+  ContextMenuIntegrations
 } from '../../../packages/components/ui';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
@@ -637,6 +639,7 @@ export interface ComponentNavItem {
     TreeSelectComponent,
     VirtualScrollComponent,
     VirtualItemDirective,
+    ...ContextMenuIntegrations
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -732,6 +735,15 @@ export class AppComponent {
 
   onColumnResize(event: ColumnResizeEvent) {
     console.log('Column resized:', event);
+  }
+
+  onContextMenuAction(action: string, row: any) {
+    console.log(`Context Menu Action: ${action}`, row);
+    this.toastService.toast({
+      title: 'Context Menu Action',
+      description: `Action: ${action} on row ${row?.id}`,
+      variant: 'default',
+    });
   }
 
   // Split Button Demo

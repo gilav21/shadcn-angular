@@ -36,6 +36,7 @@ export class ContextMenuComponent implements OnDestroy {
 
     open = signal(false);
     position = signal({ x: 0, y: 0 });
+    data = signal<any>(undefined);
 
     private clickListener = (event: MouseEvent) => {
         this.close();
@@ -63,8 +64,9 @@ export class ContextMenuComponent implements OnDestroy {
         this.document.removeEventListener('scroll', this.scrollListener, true);
     }
 
-    show(x: number, y: number) {
+    show(x: number, y: number, data?: any) {
         this.position.set({ x, y });
+        this.data.set(data);
         this.open.set(true);
     }
 

@@ -176,9 +176,11 @@ import { cn } from '../../lib/utils';
           </ui-table-header>
           <ui-table-body>
             @if (processedData().length > 0) {
-              @for (row of processedData(); track row) {
+              @for (row of processedData(); track row; let i = $index) {
                 <ui-table-row 
                   [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                  [attr.data-row-index]="i"
+                  [attr.data-row]="serializeRow(row)"
                   class="border-0"
                 >
                   @for (col of enhancedColumns(); track col.accessorKey) {
@@ -630,5 +632,9 @@ export class DataTableComponent<T> {
 
       this.resizingColumn = null;
     }
+  }
+
+  serializeRow(row: T): string {
+    return JSON.stringify(row);
   }
 }

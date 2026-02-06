@@ -8,41 +8,42 @@ import {
 } from '@angular/core';
 import { ContextMenuComponent } from './context-menu.component';
 
-export interface ContextMenuEvent<T = any> {
+export interface ContextMenuEvent<T> {
   event: MouseEvent;
   item: T;
   index?: number;
 }
 
+export interface TreeContextMenuEvent<T = unknown> {
+  node: T;
+  event: MouseEvent;
+}
+
+export interface TableRowContextMenuEvent<T = unknown> {
+  row: T;
+  index: number;
+  event: MouseEvent;
+}
+
+export interface TableCellContextMenuEvent<T = unknown> extends TableRowContextMenuEvent<T> {
+  column: string;
+}
+
+export interface DataTableHeaderContextMenuEvent {
+  column: { id: string | null; name: string; element: HTMLElement };
+  event: MouseEvent;
+}
+
 /**
  * ContextMenuAttachDirective - Attach context menu to any element with data
- * 
- * Usage:
- * <ui-context-menu #rowContextMenu>
- *   <ui-context-menu-content>
- *     <ui-context-menu-item (click)="onEdit(contextMenuData)">Edit</ui-context-menu-item>
- *     <ui-context-menu-item (click)="onDelete(contextMenuData)">Delete</ui-context-menu-item>
- *   </ui-context-menu-content>
- * </ui-context-menu>
- * 
- * <div 
- *   *ngFor="let item of items; let i = index"
- *   [uiContextMenuAttach]="rowContextMenu"
- *   [contextMenuData]="{ item: item, index: i }"
- *   (contextMenuTriggered)="onContextMenu($event)"
- * >
- *   {{ item.name }}
- * </div>
  */
 @Directive({
   selector: '[uiContextMenuAttach]',
   standalone: true,
 })
-export class ContextMenuAttachDirective<T = any> {
-  private elementRef = inject(ElementRef);
-
+export class ContextMenuAttachDirective<T> {
   uiContextMenuAttach = input.required<ContextMenuComponent>();
-  contextMenuData = input<T | null>(null);
+  contextMenuData = input.required<T>();
   disabled = input<boolean>(false);
 
   contextMenuTriggered = output<ContextMenuEvent<T>>();
@@ -59,10 +60,9 @@ export class ContextMenuAttachDirective<T = any> {
     const contextMenu = this.uiContextMenuAttach();
     if (!contextMenu) return;
 
-    const data = this.contextMenuData();
     this.contextMenuTriggered.emit({
       event,
-      item: data!,
+      item: this.contextMenuData(),
     });
 
     contextMenu.show(event.clientX, event.clientY);
@@ -71,33 +71,16 @@ export class ContextMenuAttachDirective<T = any> {
 
 /**
  * TreeContextMenuDirective - Specialized directive for Tree nodes
- * 
- * Usage:
- * <ui-context-menu #treeContextMenu>
- *   <ui-context-menu-content>
- *     <ui-context-menu-item (click)="onExpandNode(selectedTreeNode)">Expand</ui-context-menu-item>
- *     <ui-context-menu-item (click)="onCollapseNode(selectedTreeNode)">Collapse</ui-context-menu-item>
- *     <ui-context-menu-separator></ui-context-menu-separator>
- *     <ui-context-menu-item variant="destructive" (click)="onDeleteNode(selectedTreeNode)">Delete</ui-context-menu-item>
- *   </ui-context-menu-content>
- * </ui-context-menu>
- * 
- * <ui-tree 
- *   [data]="treeData"
- *   [uiTreeContextMenu]="treeContextMenu"
- *   (nodeContextMenu)="selectedTreeNode = $event"
- * >
- * </ui-tree>
  */
 @Directive({
   selector: 'ui-tree[uiTreeContextMenu]',
   standalone: true,
 })
-export class TreeContextMenuDirective {
+export class TreeContextMenuDirective<T = unknown> {
   uiTreeContextMenu = input.required<ContextMenuComponent>();
   contextMenuDisabled = input<boolean>(false);
 
-  nodeContextMenu = output<{ node: any; event: MouseEvent }>();
+  nodeContextMenu = output<TreeContextMenuEvent<T>>();
 
   private treeElement = inject(ElementRef);
 
@@ -106,14 +89,13 @@ export class TreeContextMenuDirective {
   }
 
   private setupTreeContextMenu() {
-    const element = this.treeElement.nativeElement;
+    const element = this.treeElement.nativeElement as HTMLElement;
 
     element.addEventListener('contextmenu', (event: MouseEvent) => {
       if (this.contextMenuDisabled()) {
         return;
       }
 
-      // Find the closest tree item
       const target = event.target as HTMLElement;
       const treeItem = target.closest('[data-slot="tree-item"]');
 
@@ -121,7 +103,6 @@ export class TreeContextMenuDirective {
         event.preventDefault();
         event.stopPropagation();
 
-        // Extract node data from the tree item
         const nodeData = this.extractNodeData(treeItem as HTMLElement);
 
         this.nodeContextMenu.emit({
@@ -137,13 +118,11 @@ export class TreeContextMenuDirective {
     });
   }
 
-  private extractNodeData(element: HTMLElement): any {
-    // Try to get data from data attributes
+  private extractNodeData(element: HTMLElement): T {
     const key = element.getAttribute('data-key');
     const expanded = element.getAttribute('data-expanded') === 'true';
     const selected = element.getAttribute('data-selected') === 'true';
 
-    // Get label from nested tree-label
     const labelElement = element.querySelector('[data-slot="tree-label"]');
     const label = labelElement?.textContent?.trim() || '';
 
@@ -153,38 +132,24 @@ export class TreeContextMenuDirective {
       expanded,
       selected,
       element,
-    };
+    } as unknown as T;
   }
 }
 
 /**
  * TableContextMenuDirective - Specialized directive for Table rows
- * 
- * Usage:
- * <ui-context-menu #tableContextMenu>
- *   <ui-context-menu-content>
- *     <ui-context-menu-item (click)="onEditRow(selectedTableRow)">Edit</ui-context-menu-item>
- *     <ui-context-menu-item (click)="onDuplicateRow(selectedTableRow)">Duplicate</ui-context-menu-item>
- *     <ui-context-menu-separator></ui-context-menu-separator>
- *     <ui-context-menu-item variant="destructive" (click)="onDeleteRow(selectedTableRow)">Delete</ui-context-menu-item>
- *   </ui-context-menu-content>
- * </ui-context-menu>
- * 
- * <table ui-table [uiTableContextMenu]="tableContextMenu" (rowContextMenu)="selectedTableRow = $event">
- *   ...
- * </table>
  */
 @Directive({
   selector: 'table[uiTableContextMenu], [uiTable]',
   standalone: true,
 })
-export class TableContextMenuDirective {
+export class TableContextMenuDirective<T = unknown> {
   uiTableContextMenu = input<ContextMenuComponent | null>(null);
   contextMenuDisabled = input<boolean>(false);
   rowDataAttribute = input<string>('data-row');
 
-  rowContextMenu = output<{ row: any; index: number; event: MouseEvent }>();
-  cellContextMenu = output<{ row: any; column: string; index: number; event: MouseEvent }>();
+  rowContextMenu = output<TableRowContextMenuEvent<T>>();
+  cellContextMenu = output<TableCellContextMenuEvent<T>>();
 
   private tableElement = inject(ElementRef);
 
@@ -193,7 +158,7 @@ export class TableContextMenuDirective {
   }
 
   private setupTableContextMenu() {
-    const element = this.tableElement.nativeElement;
+    const element = this.tableElement.nativeElement as HTMLElement;
 
     element.addEventListener('contextmenu', (event: MouseEvent) => {
       if (this.contextMenuDisabled() || !this.uiTableContextMenu()) {
@@ -228,32 +193,29 @@ export class TableContextMenuDirective {
 
           const contextMenu = this.uiTableContextMenu();
           if (contextMenu) {
-            contextMenu.show(event.clientX, event.clientY);
+            contextMenu.show(event.clientX, event.clientY, rowData.data);
           }
         }
       }
     });
   }
 
-  private extractRowData(rowElement: HTMLElement, cellElement: HTMLElement): { data: any; index: number; column: string } {
-    // Get row index
+  private extractRowData(rowElement: HTMLElement, cellElement: HTMLElement): { data: T; index: number; column: string } {
     const indexAttr = rowElement.getAttribute('data-row-index') || rowElement.getAttribute('data-index');
     const index = indexAttr ? parseInt(indexAttr, 10) : 0;
 
-    // Get row data from attribute
     const dataAttr = rowElement.getAttribute(this.rowDataAttribute());
-    let data: any = {};
+    let data: T = {} as T;
 
     if (dataAttr) {
       try {
         data = JSON.parse(dataAttr);
       } catch {
-        data = { value: dataAttr };
+        data = { value: dataAttr } as unknown as T;
       }
     }
 
-    // Get column name
-    const columnAttr = cellElement.getAttribute('data-column') || (cellElement as HTMLTableCellElement).cellIndex;
+    const columnAttr = cellElement.getAttribute('data-column') || (cellElement as HTMLTableCellElement).cellIndex.toString();
     const column = typeof columnAttr === 'string' ? columnAttr : `column_${columnAttr}`;
 
     return { data, index, column };
@@ -262,27 +224,18 @@ export class TableContextMenuDirective {
 
 /**
  * DataTableContextMenuDirective - Specialized directive for Data Table component
- * 
- * Usage:
- * <ui-data-table 
- *   [data]="tableData"
- *   [columns]="columns"
- *   [uiDataTableContextMenu]="tableContextMenu"
- *   (rowContextMenu)="onRowContextMenu($event)"
- * >
- * </ui-data-table>
  */
 @Directive({
   selector: 'ui-data-table[uiDataTableContextMenu]',
   standalone: true,
 })
-export class DataTableContextMenuDirective {
+export class DataTableContextMenuDirective<T = unknown> {
   uiDataTableContextMenu = input.required<ContextMenuComponent>();
   contextMenuDisabled = input<boolean>(false);
   contextMenuRowsOnly = input<boolean>(true);
 
-  rowContextMenu = output<{ row: any; index: number; event: MouseEvent }>();
-  headerContextMenu = output<{ column: any; event: MouseEvent }>();
+  rowContextMenu = output<TableRowContextMenuEvent<T>>();
+  headerContextMenu = output<DataTableHeaderContextMenuEvent>();
 
   private tableElement = inject(ElementRef);
 
@@ -291,7 +244,7 @@ export class DataTableContextMenuDirective {
   }
 
   private setupDataTableContextMenu() {
-    const element = this.tableElement.nativeElement;
+    const element = this.tableElement.nativeElement as HTMLElement;
 
     element.addEventListener('contextmenu', (event: MouseEvent) => {
       if (this.contextMenuDisabled()) {
@@ -300,8 +253,7 @@ export class DataTableContextMenuDirective {
 
       const target = event.target as HTMLElement;
 
-      // Check for row context menu
-      const row = target.closest('[data-slot="data-table-row"], tr[data-row-index]');
+      const row = target.closest('[data-slot="table-row"], [data-slot="data-table-row"], tr[data-row-index]');
       if (row) {
         event.preventDefault();
         event.stopPropagation();
@@ -316,14 +268,13 @@ export class DataTableContextMenuDirective {
 
         const contextMenu = this.uiDataTableContextMenu();
         if (contextMenu) {
-          contextMenu.show(event.clientX, event.clientY);
+          contextMenu.show(event.clientX, event.clientY, rowData.data);
         }
         return;
       }
 
-      // Check for header context menu
       if (!this.contextMenuRowsOnly()) {
-        const header = target.closest('[data-slot="data-table-header"], th');
+        const header = target.closest('[data-slot="table-head"], [data-slot="data-table-header"], th');
         if (header) {
           event.preventDefault();
           event.stopPropagation();
@@ -337,34 +288,32 @@ export class DataTableContextMenuDirective {
 
           const contextMenu = this.uiDataTableContextMenu();
           if (contextMenu) {
-            contextMenu.show(event.clientX, event.clientY);
+            contextMenu.show(event.clientX, event.clientY, columnData);
           }
         }
       }
     });
   }
 
-  private extractDataTableRow(rowElement: HTMLElement): { data: any; index: number } {
+  private extractDataTableRow(rowElement: HTMLElement): { data: T; index: number } {
     const indexAttr = rowElement.getAttribute('data-row-index');
     const index = indexAttr ? parseInt(indexAttr, 10) : 0;
 
-    // Try to get data from element
     const dataStr = rowElement.getAttribute('data-row');
-    let data: any = {};
+    let data: T = {} as T;
 
     if (dataStr) {
       try {
         data = JSON.parse(dataStr);
       } catch {
-        // If can't parse, create simple object
-        data = { id: dataStr };
+        data = { id: dataStr } as unknown as T;
       }
     }
 
     return { data, index };
   }
 
-  private extractHeaderData(headerElement: HTMLElement): any {
+  private extractHeaderData(headerElement: HTMLElement): { id: string | null; name: string; element: HTMLElement } {
     const columnId = headerElement.getAttribute('data-column-id');
     const columnName = headerElement.textContent?.trim() || '';
 
@@ -376,7 +325,6 @@ export class DataTableContextMenuDirective {
   }
 }
 
-// Export all directives
 export const ContextMenuIntegrations = [
   ContextMenuAttachDirective,
   TreeContextMenuDirective,
