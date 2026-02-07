@@ -166,11 +166,23 @@ export class BentoGridItemComponent {
             [class.ring-primary]="isSelected(item.id) || (resizePreview()?.id === item.id)"
             [class.hover:shadow-lg]="editable()"
             [class.opacity-50]="isDragging(item.id)"
-            [class.z-50]="resizePreview()?.id === item.id"
-            [style.grid-column-start]="(resizePreview()?.id === item.id ? resizePreview()?.x : item.x)"
-            [style.grid-column-end]="'span ' + (resizePreview()?.id === item.id ? resizePreview()?.cols : item.cols)"
-            [style.grid-row-start]="(resizePreview()?.id === item.id ? resizePreview()?.y : item.y)"
-            [style.grid-row-end]="'span ' + (resizePreview()?.id === item.id ? resizePreview()?.rows : item.rows)"
+            [class.z-50]="resizePreview()?.id === item.id || (isDragging(item.id) && dropPreview())"
+            [style.grid-column-start]="
+                resizePreview()?.id === item.id ? resizePreview()?.x : 
+                (isDragging(item.id) && dropPreview() ? dropPreview()?.x : item.x)
+            "
+            [style.grid-column-end]="'span ' + (
+                resizePreview()?.id === item.id ? resizePreview()?.cols : 
+                (isDragging(item.id) && dropPreview() ? dropPreview()?.cols : item.cols)
+            )"
+            [style.grid-row-start]="
+                resizePreview()?.id === item.id ? resizePreview()?.y : 
+                (isDragging(item.id) && dropPreview() ? dropPreview()?.y : item.y)
+            "
+            [style.grid-row-end]="'span ' + (
+                resizePreview()?.id === item.id ? resizePreview()?.rows : 
+                (isDragging(item.id) && dropPreview() ? dropPreview()?.rows : item.rows)
+            )"
             [attr.draggable]="editable()"
             (click)="toggleSelection(item.id, $event.ctrlKey || $event.metaKey)"
             (contextmenu)="onContextMenu($event, item, menu)"
@@ -195,28 +207,43 @@ export class BentoGridItemComponent {
                 </div>
                 
                 <!-- Resize Handles -->
-                <!-- SE (Bottom-Right) -->
-                 <div 
-                    class="absolute bottom-1 right-1 cursor-se-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10"
-                    (mousedown)="onResizeStart($event, item, 'se')"
-                 >
-                     <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M21 15v6h-6"/><path d="M21 3v6h-6"/><path d="M3 21h6v-6"/><path d="M10 14L3 21"/><path d="M14 10l7-7"/></svg>
-                 </div>
-                 
-                 <!-- SW (Bottom-Left) -->
-                 <div class="absolute bottom-1 left-1 cursor-sw-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" (mousedown)="onResizeStart($event, item, 'sw')">
-                    <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
-                 </div>
-                 
-                 <!-- NE (Top-Right) -->
-                 <div class="absolute top-1 right-1 cursor-ne-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" (mousedown)="onResizeStart($event, item, 'ne')">
-                    <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
-                 </div>
-                 
-                 <!-- NW (Top-Left) -->
-                 <div class="absolute top-1 left-1 cursor-nw-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-10" (mousedown)="onResizeStart($event, item, 'nw')">
-                    <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
-                 </div>
+                <!-- Edge Handles -->
+                @if (resizeHandleType() === 'edges' || resizeHandleType() === 'both') {
+                     <!-- Top (N) -->
+                     <div class="absolute top-0 inset-x-2 h-1 cursor-n-resize hover:bg-primary/50 transition-colors z-10" (mousedown)="onResizeStart($event, item, 'n')"></div>
+                     <!-- Bottom (S) -->
+                     <div class="absolute bottom-0 inset-x-2 h-1 cursor-s-resize hover:bg-primary/50 transition-colors z-10" (mousedown)="onResizeStart($event, item, 's')"></div>
+                     <!-- Left (W) -->
+                     <div class="absolute left-0 inset-y-2 w-1 cursor-w-resize hover:bg-primary/50 transition-colors z-10" (mousedown)="onResizeStart($event, item, 'w')"></div>
+                     <!-- Right (E) -->
+                     <div class="absolute right-0 inset-y-2 w-1 cursor-e-resize hover:bg-primary/50 transition-colors z-10" (mousedown)="onResizeStart($event, item, 'e')"></div>
+                }
+
+                <!-- Corner Handles -->
+                @if (resizeHandleType() === 'corners' || resizeHandleType() === 'both') {
+                     <!-- SE (Bottom-Right) -->
+                     <div 
+                        class="absolute bottom-1 right-1 cursor-se-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                        (mousedown)="onResizeStart($event, item, 'se')"
+                     >
+                         <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M21 15v6h-6"/><path d="M21 3v6h-6"/><path d="M3 21h6v-6"/><path d="M10 14L3 21"/><path d="M14 10l7-7"/></svg>
+                     </div>
+                     
+                     <!-- SW (Bottom-Left) -->
+                     <div class="absolute bottom-1 left-1 cursor-sw-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'sw')">
+                        <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
+                     </div>
+                     
+                     <!-- NE (Top-Right) -->
+                     <div class="absolute top-1 right-1 cursor-ne-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'ne')">
+                        <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
+                     </div>
+                     
+                     <!-- NW (Top-Left) -->
+                     <div class="absolute top-1 left-1 cursor-nw-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'nw')">
+                        <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
+                     </div>
+                 }
             }
          </div>
       }
@@ -485,6 +512,10 @@ export class BentoGridComponent {
         if (event.dataTransfer) {
             event.dataTransfer.effectAllowed = 'move';
             event.dataTransfer.setData('text/plain', item.id);
+            // Hide the default browser ghost image
+            const emptyImg = new Image();
+            emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+            event.dataTransfer.setDragImage(emptyImg, 0, 0);
         }
     }
 
@@ -497,7 +528,7 @@ export class BentoGridComponent {
         if (!this.editable()) return;
         event.preventDefault(); // Necessary to allow dropping
         // Stop propagation so container doesn't get it if we are over an item
-        event.stopPropagation();
+        // event.stopPropagation(); // REMOVED to allow container to update drop preview
 
         // Visual feedback could be added here
         if (event.dataTransfer) {
@@ -535,16 +566,57 @@ export class BentoGridComponent {
         event.preventDefault();
         event.stopPropagation(); // Handled by item
 
-        this.dropPreview.set(null); // Clear preview
+        // this.dropPreview.set(null); // Keep preview for calculation!
 
         const draggedId = this.draggedItemId();
 
         // Handle internal reordering (Item to Item)
         if (draggedId) {
             if (draggedId === targetItem.id) {
+                const preview = this.dropPreview();
+                if (preview) {
+                    // Commit the move to the preview coordinates
+                    let currentItems = [...this.items()];
+                    const itemIndex = currentItems.findIndex(i => i.id === draggedId);
+
+                    if (itemIndex > -1) {
+                        // 1. Valid move?
+                        // Update the dragged item to new position
+                        const updatedDraggedItem = {
+                            ...currentItems[itemIndex],
+                            x: preview.x,
+                            y: preview.y
+                        };
+                        currentItems[itemIndex] = updatedDraggedItem;
+
+                        // 2. Handle Collisions (Shrink/Clip others)
+                        // Iterate through ALL other items to check for overlap
+                        for (let i = 0; i < currentItems.length; i++) {
+                            if (currentItems[i].id === draggedId) continue;
+
+                            const shrinking = this.shrinkItem(updatedDraggedItem, currentItems[i]);
+                            if (shrinking) {
+                                currentItems[i] = shrinking;
+                            } else if (this.isOverlapping(updatedDraggedItem, currentItems[i])) {
+                                // Overlapping but shrink returned null (fully covered)
+                                // We should probably remove it or keep it hidden? 
+                                // User said "clip overwriting blocks", usually implies removing overwritten parts.
+                                // If fully overwritten, removing seems correct for "clip".
+                                // Marking as hidden or removing? Let's remove for now to avoid ghosts.
+                                currentItems.splice(i, 1);
+                                i--; // Adjust index
+                            }
+                        }
+
+                        this.itemsChange.emit(currentItems);
+                    }
+                }
+
                 this.draggedItemId.set(null);
+                this.dropPreview.set(null);
                 return;
             }
+
             this.handleDrop(draggedId, targetItem);
             this.draggedItemId.set(null);
             return;
@@ -638,6 +710,56 @@ export class BentoGridComponent {
         return { x: gridX, y: gridY };
     }
 
+    // Shrinks 'loser' to the largest rectangular area that doesn't overlap 'winner'
+    private shrinkItem(winner: { x: number, y: number, cols: number, rows: number }, loser: DashboardItem): DashboardItem | null {
+        // 1. Check Intersection
+        const x1 = Math.max(winner.x, loser.x);
+        const y1 = Math.max(winner.y, loser.y);
+        const x2 = Math.min(winner.x + winner.cols, loser.x + loser.cols);
+        const y2 = Math.min(winner.y + winner.rows, loser.y + loser.rows);
+
+        if (x1 >= x2 || y1 >= y2) {
+            return loser; // No overlap
+        }
+
+        // 2. Overlap detected. Calculate 4 possible slices.
+        const candidates: DashboardItem[] = [];
+
+        // Top Slice (Keep Top part of Loser)
+        if (loser.y < winner.y) {
+            candidates.push({ ...loser, rows: winner.y - loser.y });
+        }
+        // Bottom Slice (Keep Bottom part of Loser)
+        if (loser.y + loser.rows > winner.y + winner.rows) {
+            const newY = winner.y + winner.rows;
+            candidates.push({ ...loser, y: newY, rows: (loser.y + loser.rows) - newY });
+        }
+        // Left Slice (Keep Left part of Loser)
+        if (loser.x < winner.x) {
+            candidates.push({ ...loser, cols: winner.x - loser.x });
+        }
+        // Right Slice (Keep Right part of Loser)
+        if (loser.x + loser.cols > winner.x + winner.cols) {
+            const newX = winner.x + winner.cols;
+            candidates.push({ ...loser, x: newX, cols: (loser.x + loser.cols) - newX });
+        }
+
+        if (candidates.length === 0) return null; // Fully covered?
+
+        // 3. Pick Max Area
+        return candidates.reduce((prev, current) =>
+            (prev.cols * prev.rows > current.cols * current.rows) ? prev : current
+        );
+    }
+
+    private isOverlapping(rect1: { x: number, y: number, cols: number, rows: number }, rect2: { x: number, y: number, cols: number, rows: number }): boolean {
+        const x1 = Math.max(rect1.x, rect2.x);
+        const y1 = Math.max(rect1.y, rect2.y);
+        const x2 = Math.min(rect1.x + rect1.cols, rect2.x + rect2.cols);
+        const y2 = Math.min(rect1.y + rect1.rows, rect2.y + rect2.rows);
+        return x1 < x2 && y1 < y2;
+    }
+
     private handleDrop(draggedId: string, targetItem: DashboardItem) {
         const currentItems = [...this.items()];
         const draggedIndex = currentItems.findIndex(i => i.id === draggedId);
@@ -699,7 +821,8 @@ export class BentoGridComponent {
 
     // Resize Logic
     resizingItemId = signal<string | null>(null);
-    resizeDirection = signal<'nw' | 'ne' | 'sw' | 'se' | null>(null);
+    resizeHandleType = input<'corners' | 'edges' | 'both'>('both');
+    resizeDirection = signal<'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w' | null>(null);
     initialResizeState: {
         x: number, y: number,
         w: number, h: number,
@@ -731,12 +854,11 @@ export class BentoGridComponent {
             newCols = Math.max(1, this.initialResizeState.cols + colsDiff);
             newRows = Math.max(1, this.initialResizeState.rows + rowsDiff);
         } else if (direction === 'sw') {
-            // Change X and Cols
-            // If we drag left (negative delta), cols increase, x decreases
+            // Change X, Cols AND Rows (if moving down)
             newCols = Math.max(1, this.initialResizeState.cols - colsDiff);
             newX = this.initialResizeState.itemX + (this.initialResizeState.cols - newCols);
+            newRows = Math.max(1, this.initialResizeState.rows + rowsDiff); // Allow height change
         } else if (direction === 'ne') {
-            // Change Y and Rows
             newRows = Math.max(1, this.initialResizeState.rows - rowsDiff);
             newY = this.initialResizeState.itemY + (this.initialResizeState.rows - newRows);
             newCols = Math.max(1, this.initialResizeState.cols + colsDiff);
@@ -744,6 +866,18 @@ export class BentoGridComponent {
             newCols = Math.max(1, this.initialResizeState.cols - colsDiff);
             newRows = Math.max(1, this.initialResizeState.rows - rowsDiff);
             newX = this.initialResizeState.itemX + (this.initialResizeState.cols - newCols);
+            newY = this.initialResizeState.itemY + (this.initialResizeState.rows - newRows);
+        }
+        // Edge Resizing
+        else if (direction === 'e') {
+            newCols = Math.max(1, this.initialResizeState.cols + colsDiff);
+        } else if (direction === 'w') {
+            newCols = Math.max(1, this.initialResizeState.cols - colsDiff);
+            newX = this.initialResizeState.itemX + (this.initialResizeState.cols - newCols);
+        } else if (direction === 's') {
+            newRows = Math.max(1, this.initialResizeState.rows + rowsDiff);
+        } else if (direction === 'n') {
+            newRows = Math.max(1, this.initialResizeState.rows - rowsDiff);
             newY = this.initialResizeState.itemY + (this.initialResizeState.rows - newRows);
         }
 
@@ -762,7 +896,7 @@ export class BentoGridComponent {
         this.resizePreview.set(null);
     }
 
-    onResizeStart(event: MouseEvent, item: DashboardItem, direction: 'nw' | 'ne' | 'sw' | 'se') {
+    onResizeStart(event: MouseEvent, item: DashboardItem, direction: 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w') {
         if (!this.editable()) return;
         event.preventDefault();
         event.stopPropagation();
@@ -770,14 +904,14 @@ export class BentoGridComponent {
         const element = (event.target as HTMLElement).closest('.bento-item') as HTMLElement;
         const rect = element.getBoundingClientRect();
 
-        // Calculate accurate grid steps (compensating for gaps)
-        const gap = 16; // 1rem = 16px
+        // Use container metrics for consistent sensitivity (Repeated logic from earlier fix)
+        const container = element.closest('.grid') as HTMLElement;
+        if (!container) return;
 
-        // Solve: width = cols * colWidth + (cols - 1) * gap
-        // colWidth = (width - (cols - 1) * gap) / cols
-        // step = colWidth + gap
-        const colWidth = (rect.width - (item.cols - 1) * gap) / item.cols;
-        const rowHeight = (rect.height - (item.rows - 1) * gap) / item.rows;
+        const containerRect = container.getBoundingClientRect();
+        const gap = 16;
+        const colWidth = (containerRect.width - (this.cols() - 1) * gap) / this.cols();
+        const rowHeight = 100;
 
         const colStep = colWidth + gap;
         const rowStep = rowHeight + gap;
@@ -799,64 +933,40 @@ export class BentoGridComponent {
         this.resizePreview.set({ id: item.id, cols: item.cols, rows: item.rows, x: item.x, y: item.y });
     }
 
-    commitResize() {
+    private commitResize() {
+        const id = this.resizingItemId();
         const preview = this.resizePreview();
-        const item = this.items().find(i => i.id === preview?.id);
-        if (!item || !preview) return;
+        if (!id || !preview) return;
 
-        // Validation for Overlap
-        // We only want to remove/overwrite items if we are expanding into them?
-        // User asked: "remove items if they exist there, or just expend"
-        // But in point 4 user said: "suppose to detect and not let me create this size at that position" (for Add)
-        // For RESIZE, usually we push or prevent. 
-        // Let's stick to "Overwrite" for now as per initial design but maybe block if it's invalid?
-        // Actually, logic said "overwrite/push".
-        // Let's keep "Overwrite" but add checking.
+        let currentItems = [...this.items()];
+        const itemIndex = currentItems.findIndex(i => i.id === id);
 
-        const newRect = {
-            x: preview.x,
-            y: preview.y,
-            cols: preview.cols,
-            rows: preview.rows
-        };
+        if (itemIndex > -1) {
+            const updatedItem = {
+                ...currentItems[itemIndex],
+                cols: preview.cols,
+                rows: preview.rows,
+                x: preview.x,
+                y: preview.y
+            };
+            currentItems[itemIndex] = updatedItem;
 
-        const overlappingItems = this.items().filter(i =>
-            i.id !== item.id &&
-            this.isOverlapping(newRect, i)
-        );
+            // Handle Collisions (Shrink/Clip others)
+            for (let i = 0; i < currentItems.length; i++) {
+                if (currentItems[i].id === id) continue;
 
-        // Remove overlapping items
-        let newItems = this.items().filter(i =>
-            i.id === item.id || !overlappingItems.find(o => o.id === i.id)
-        );
-
-        // Update resized item
-        newItems = newItems.map(i => {
-            if (i.id === item.id) {
-                return { ...i, cols: preview.cols, rows: preview.rows, x: preview.x, y: preview.y };
+                const shrinking = this.shrinkItem(updatedItem, currentItems[i]);
+                if (shrinking) {
+                    currentItems[i] = shrinking;
+                } else if (this.isOverlapping(updatedItem, currentItems[i])) {
+                    // Overlapping but shrink returned null (fully covered)
+                    currentItems.splice(i, 1);
+                    i--;
+                }
             }
-            return i;
-        });
 
-        this.itemsChange.emit(newItems);
-    }
-
-    isOverlapping(a: { x: number, y: number, cols: number, rows: number }, b: DashboardItem) {
-        // Standard AABB overlap check
-        // A x-range: [x, x + cols - 1]
-        // B x-range: [x, x + cols - 1]
-
-        const aX1 = a.x;
-        const aX2 = a.x + a.cols - 1;
-        const aY1 = a.y;
-        const aY2 = a.y + a.rows - 1;
-
-        const bX1 = b.x;
-        const bX2 = b.x + b.cols - 1;
-        const bY1 = b.y;
-        const bY2 = b.y + b.rows - 1;
-
-        return !(aX2 < bX1 || aX1 > bX2 || aY2 < bY1 || aY1 > bY2);
+            this.itemsChange.emit(currentItems);
+        }
     }
 
     // Container Context Menu

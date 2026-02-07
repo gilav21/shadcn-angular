@@ -391,10 +391,7 @@ export interface ComponentNavItem {
     TitleCasePipe,
     CommonModule,
     FormsModule,
-    MetricWidgetComponent,
-    CalendarWidgetComponent,
-    TeamWidgetComponent,
-    ActivityWidgetComponent,
+
     ButtonComponent,
     InputComponent,
     CardComponent,
