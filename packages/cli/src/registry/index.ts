@@ -432,4 +432,11 @@ export const registry: Record<string, ComponentDefinition> = {
       'charts/chart.utils.ts',
     ],
   },
+  'bento-grid': {
+    name: 'bento-grid',
+    dependencies: ['context-menu'],
+    files: [
+      'ui/bento-grid.component.ts',
+    ],
+  },
 };

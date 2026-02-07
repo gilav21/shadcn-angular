@@ -275,8 +275,19 @@ import {
   DockIconComponent,
   DockLabelComponent
 } from '../../../packages/components/ui';
+import {
+  MetricWidgetComponent,
+  CalendarWidgetComponent,
+  TeamWidgetComponent,
+  ActivityWidgetComponent
+} from './dashboard-widgets';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
+import {
+  BentoGridComponent,
+  BentoGridItemComponent,
+  DashboardItem,
+} from '../../../packages/components/ui/bento-grid.component';
 import { NumberTickerComponent } from '../../../packages/components/ui/number-ticker.component';
 
 import { StatusCellComponent } from './cells/status-cell.component';
@@ -380,6 +391,10 @@ export interface ComponentNavItem {
     TitleCasePipe,
     CommonModule,
     FormsModule,
+    MetricWidgetComponent,
+    CalendarWidgetComponent,
+    TeamWidgetComponent,
+    ActivityWidgetComponent,
     ButtonComponent,
     InputComponent,
     CardComponent,
@@ -644,6 +659,7 @@ export interface ComponentNavItem {
     VirtualScrollComponent,
     VirtualScrollComponent,
     VirtualItemDirective,
+    BentoGridComponent,
     DockComponent,
     DockItemComponent,
     DockIconComponent,
@@ -1211,6 +1227,7 @@ ORDER BY created_at DESC;`;
     { id: 'tree-select', name: 'Tree Select', category: 'Inputs', icon: '🌲' },
     { id: 'tree', name: 'Tree', category: 'Data Display', icon: '🌳' },
     { id: 'dock', name: 'Dock', category: 'Advanced', icon: '⚓' },
+    { id: 'bento-grid', name: 'Bento Grid', category: 'Layout', icon: '🍱' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
   ];
 
@@ -1444,6 +1461,71 @@ ORDER BY created_at DESC;`;
     this.dockItems.update(items => items.map((item, i) =>
       i === index ? { ...item, active: !item.active } : item
     ));
+  }
+
+  // Bento Grid / Dashboard
+  isEditMode = signal(false);
+  widgets = signal<{ id: string, title: string, component: any, icon: string }[]>([
+    { id: 'metric', title: 'Metric Card', component: MetricWidgetComponent, icon: '📊' },
+    { id: 'calendar', title: 'Calendar', component: CalendarWidgetComponent, icon: '📅' },
+    { id: 'team', title: 'Team Members', component: TeamWidgetComponent, icon: '👥' },
+    { id: 'activity', title: 'Activity Feed', component: ActivityWidgetComponent, icon: '🔔' },
+  ]);
+
+  dashboardItems = signal<DashboardItem[]>([
+    {
+      id: '1', x: 1, y: 1, cols: 4, rows: 2,
+      content: MetricWidgetComponent,
+      inputs: { title: 'Total Revenue', value: '$45,231.89', trend: 20.1 }
+    },
+    {
+      id: '2', x: 5, y: 1, cols: 4, rows: 2,
+      content: MetricWidgetComponent,
+      inputs: { title: 'Subscriptions', value: '+2350', trend: 180.1 }
+    },
+    {
+      id: '3', x: 9, y: 1, cols: 4, rows: 2,
+      content: MetricWidgetComponent,
+      inputs: { title: 'Sales', value: '+12,234', trend: 19 }
+    },
+    {
+      id: '4', x: 1, y: 3, cols: 8, rows: 4,
+      content: ActivityWidgetComponent
+    },
+    {
+      id: '5', x: 9, y: 3, cols: 4, rows: 4,
+      content: TeamWidgetComponent
+    },
+    {
+      id: '6', x: 1, y: 7, cols: 4, rows: 4,
+      content: CalendarWidgetComponent
+    }
+  ]);
+
+  onExternalDrop(event: { widgetId: string, targetId: string }) {
+    const widget = this.widgets().find(w => w.id === event.widgetId);
+    if (!widget) return;
+
+    this.dashboardItems.update(items =>
+      items.map(item => {
+        if (item.id === event.targetId) {
+          return {
+            ...item,
+            content: widget.component,
+            inputs: widget.id === 'metric' ? { title: 'New Metric', value: '0', trend: 0 } : {}
+          };
+        }
+        return item;
+      })
+    );
+  }
+
+  onDashboardItemsChange(items: DashboardItem[]) {
+    this.dashboardItems.set(items);
+  }
+
+  toggleEditMode() {
+    this.isEditMode.update(v => !v);
   }
 
   // Virtual Scroll Demo State

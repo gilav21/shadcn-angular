@@ -4060,6 +4060,49 @@
           </div>
         </section>
         }
+        @case ('bento-grid') {
+        <section class="space-y-4">
+          <div class="flex items-center justify-between">
+            <h2 id="bento-grid" class="text-2xl font-semibold scroll-m-20">Bento Grid (Dashboard)</h2>
+            <button (click)="toggleEditMode()"
+              class="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors">
+              {{ isEditMode() ? 'Done' : 'Edit Layout' }}
+            </button>
+          </div>
+          <p class="text-muted-foreground">
+            A dashboard builder with drag-and-drop, resizable, and mergeable cells.
+          </p>
+
+          <div class="flex gap-6">
+            <!-- Component Selector (Sidebar) -->
+            @if (isEditMode()) {
+            <aside class="w-64 flex-none space-y-4">
+              <div class="font-medium text-sm text-muted-foreground mb-2">Components</div>
+              <div class="grid gap-2">
+                @for (widget of widgets(); track widget.id) {
+                <div
+                  class="flex items-center gap-3 p-3 rounded-md border bg-card hover:bg-accent/50 cursor-grab active:cursor-grabbing transition-colors"
+                  draggable="true"
+                  (dragstart)="$event.dataTransfer?.setData('application/json', '{&quot;type&quot;:&quot;widget&quot;, &quot;id&quot;:&quot;' + widget.id + '&quot;}')">
+                  <span class="text-xl">{{ widget.icon }}</span>
+                  <span class="font-medium text-sm">{{ widget.title }}</span>
+                </div>
+                }
+              </div>
+              <div class="p-4 bg-muted/50 rounded-lg text-xs text-muted-foreground">
+                <p>Drag components onto the grid to add them.</p>
+              </div>
+            </aside>
+            }
+
+            <!-- Grid Area -->
+            <div class="flex-1 p-6 border rounded-lg bg-zinc-50/50 dark:bg-zinc-900/50 min-h-[600px]">
+              <ui-bento-grid [items]="dashboardItems()" [editable]="isEditMode()" [collisionStrategy]="'swap'"
+                (itemsChange)="onDashboardItemsChange($event)" (externalDrop)="onExternalDrop($event)" />
+            </div>
+          </div>
+        </section>
+        }
         }
       </div>
     </div>
