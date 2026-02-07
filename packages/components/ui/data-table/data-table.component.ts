@@ -6,7 +6,6 @@ import {
   model,
   signal,
   ChangeDetectionStrategy,
-  ViewEncapsulation,
   Type,
   ElementRef,
   inject,
@@ -53,7 +52,6 @@ import { cn } from '../../lib/utils';
     CellHostDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   host: {
     class: 'block h-full w-full',
   },

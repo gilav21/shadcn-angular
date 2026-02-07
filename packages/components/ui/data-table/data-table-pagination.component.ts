@@ -4,7 +4,6 @@ import {
   input,
   output,
   ChangeDetectionStrategy,
-  ViewEncapsulation,
   ElementRef,
   inject,
 } from '@angular/core';
@@ -46,7 +45,6 @@ import { isRtl } from '../../lib/utils';
     LucideAngularModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   template: `
     <div class="flex items-center justify-between px-2">
       <div class="flex-1 text-sm text-muted-foreground">

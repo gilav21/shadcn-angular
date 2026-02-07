@@ -4,7 +4,6 @@ import {
     input,
     signal,
     computed,
-    ViewEncapsulation,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { ButtonComponent } from './button.component';
@@ -63,7 +62,6 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
 @Component({
     selector: 'ui-code-block',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    encapsulation: ViewEncapsulation.None,
     imports: [ButtonComponent],
     template: `
     <div [class]="classes()">

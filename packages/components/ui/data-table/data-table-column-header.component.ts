@@ -4,7 +4,6 @@ import {
   input,
   output,
   ChangeDetectionStrategy,
-  ViewEncapsulation,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { SortDirection } from './data-table.types';
@@ -20,7 +19,6 @@ import { cn } from '../../lib/utils';
     LucideAngularModule,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  encapsulation: ViewEncapsulation.None,
   template: `
     <div [class]="containerClasses()">
       @if (!enableSorting()) {

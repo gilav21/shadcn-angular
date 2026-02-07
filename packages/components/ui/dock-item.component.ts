@@ -5,11 +5,11 @@ import {
     inject,
     input,
     signal,
-    ViewChild
+    ViewChild,
+    Renderer2
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { cn } from '../lib/utils';
-import { DockComponent } from './dock.component';
 
 @Component({
     selector: 'ui-dock-item',
@@ -24,16 +24,17 @@ import { DockComponent } from './dock.component';
     </div>
   `,
     host: {
-        '[style.width.px]': 'width()',
-        '[class]': 'classes()'
+        '[class]': 'classes()',
+        '[style.width.px]': '40'
     }
 })
 export class DockItemComponent {
-    private dock = inject(DockComponent);
     private el = inject(ElementRef);
 
     class = input<string>('');
     active = input<boolean>(false);
+
+    private _renderer = inject(Renderer2);
 
     // Bounce animation state
     isBouncing = signal(false);
@@ -50,29 +51,12 @@ export class DockItemComponent {
         setTimeout(() => this.isBouncing.set(false), 750); // Duration of roughly one bounce cycle
     }
 
-    width = computed(() => {
-        const mouseX = this.dock.mouseX();
-        const magnification = this.dock.magnification();
-        const distance = this.dock.distance();
-        const baseWidth = 40;
+    public updateWidth(width: number) {
+        this._renderer.setStyle(this.el.nativeElement, 'width', `${width}px`);
+    }
 
-        if (mouseX === Infinity) {
-            return baseWidth;
-        }
-
+    public getCenter(): number {
         const bounds = this.el.nativeElement.getBoundingClientRect();
-        const centerX = bounds.x + bounds.width / 2;
-        const dist = mouseX - centerX;
-
-        let width = baseWidth;
-
-        if (Math.abs(dist) < distance) {
-            const val = Math.abs(dist);
-            const weights = Math.cos((val / distance) * (Math.PI / 2));
-            // Add scale factor based on weight
-            width = baseWidth + (magnification - baseWidth) * weights;
-        }
-
-        return width;
-    });
+        return bounds.x + bounds.width / 2;
+    }
 }
