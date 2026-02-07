@@ -77,6 +77,10 @@ export * from './streaming-text.component';
 export * from './sparkles.component';
 export * from './code-block.component';
 export * from './text-reveal.component';
+export * from './dock.component';
+export * from './dock-item.component';
+export * from './dock-icon.component';
+export * from './dock-label.component';
 
 // Charts
 export * from './charts';

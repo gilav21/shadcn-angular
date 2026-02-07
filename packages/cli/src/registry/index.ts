@@ -145,6 +145,29 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'dialog',
     files: ['dialog.component.ts'],
   },
+  dock: {
+    name: 'dock',
+    files: [
+      'dock.component.ts',
+      'dock-item.component.ts',
+      'dock-icon.component.ts',
+      'dock-label.component.ts',
+    ],
+  },
+  'tree-select': {
+    name: 'tree-select',
+    files: ['tree-select.component.ts'],
+    dependencies: ['popover', 'tree'],
+  },
+  'virtual-scroll': {
+    name: 'virtual-scroll',
+    files: ['virtual-scroll.component.ts'],
+  },
+  'input-mask': {
+    name: 'input-mask',
+    files: ['input-mask.directive.ts'],
+    dependencies: ['input'],
+  },
   drawer: {
     name: 'drawer',
     files: ['drawer.component.ts'],

@@ -269,7 +269,11 @@ import {
   VirtualScrollState,
   VirtualScrollComponent,
   VirtualItemDirective,
-  ContextMenuIntegrations
+  ContextMenuIntegrations,
+  DockComponent,
+  DockItemComponent,
+  DockIconComponent,
+  DockLabelComponent
 } from '../../../packages/components/ui';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
@@ -638,7 +642,12 @@ export interface ComponentNavItem {
     TextRevealComponent,
     TreeSelectComponent,
     VirtualScrollComponent,
+    VirtualScrollComponent,
     VirtualItemDirective,
+    DockComponent,
+    DockItemComponent,
+    DockIconComponent,
+    DockLabelComponent,
     ...ContextMenuIntegrations
   ],
 
@@ -1201,6 +1210,7 @@ ORDER BY created_at DESC;`;
     { id: 'label', name: 'Label', category: 'Inputs', icon: '🏷️' },
     { id: 'tree-select', name: 'Tree Select', category: 'Inputs', icon: '🌲' },
     { id: 'tree', name: 'Tree', category: 'Data Display', icon: '🌳' },
+    { id: 'dock', name: 'Dock', category: 'Advanced', icon: '⚓' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
   ];
 
@@ -1418,6 +1428,23 @@ ORDER BY created_at DESC;`;
     }
   ]);
   treeSelectValue = signal<string | null>(null);
+
+  // Dock Demo
+  dockMagnification = signal(60);
+  dockDistance = signal(100);
+  dockItems = signal([
+    { label: 'Home', icon: '🏠', active: true },
+    { label: 'Profile', icon: '👤', active: false },
+    { label: 'Settings', icon: '⚙️', active: false },
+    { label: 'Messages', icon: '✉️', active: false },
+    { label: 'Calendar', icon: '📅', active: false },
+  ]);
+
+  toggleDockItem(index: number) {
+    this.dockItems.update(items => items.map((item, i) =>
+      i === index ? { ...item, active: !item.active } : item
+    ));
+  }
 
   // Virtual Scroll Demo State
   virtualScrollRef = viewChild<VirtualScrollComponent<any>>('virtualScrollRef');
