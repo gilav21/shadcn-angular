@@ -203,7 +203,7 @@ classes = computed(() => cn(
 ```typescript
 // BAD: Forcing developers to extend/override
 @Component({
-  encapsulation: ViewEncapsulation.None,  // Required to style
+  encapsulation: ViewEncapsulation.None,  // DONT DO THIS
   // Deep component hierarchy that's hard to customize
 })
 ```

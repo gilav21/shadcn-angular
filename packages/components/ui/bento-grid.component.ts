@@ -7,24 +7,19 @@ import {
     signal,
     output,
     Type,
-    TemplateRef,
-    ViewEncapsulation,
-    forwardRef,
     inject,
     ElementRef,
-    Directive,
-    ViewChild,
+    effect,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { cn } from '../lib/utils';
+import { cn, isRtl } from '../lib/utils';
 import {
     ContextMenuComponent,
     ContextMenuContentComponent,
     ContextMenuItemComponent,
-    ContextMenuTriggerDirective
 } from './context-menu.component';
 
-export type CollisionStrategy = 'swap' | 'replace' | 'prevent';
+
 
 export interface DashboardItem {
     id: string;
@@ -83,12 +78,10 @@ export class BentoGridItemComponent {
          (dragover)="onContainerDragOver($event)"
          (drop)="onContainerDrop($event)">
          
-         <!-- Background Grid (Real Cells) -->
          @if (editable()) {
              <div class="absolute inset-0 grid grid-cols-12 auto-rows-[100px] gap-4 -z-10 pointer-events-none overflow-hidden">
                 @for (cell of gridCells(); track cell.id) {
                     <div class="relative w-full h-full">
-                        <!-- Corner Dots -->
                         <div class="absolute -top-[2px] -left-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
                         <div class="absolute -top-[2px] -right-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
                         <div class="absolute -bottom-[2px] -left-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
@@ -99,7 +92,6 @@ export class BentoGridItemComponent {
          }
       <ui-context-menu #menu>
           <ui-context-menu-content>
-              <!-- Item Context Menu -->
               @if (!menu.data()?.type) {
                   <ui-context-menu-item (click)="splitItem(menu.data()?.id, 'vertical')">
                       <span class="flex items-center gap-2">
@@ -121,7 +113,6 @@ export class BentoGridItemComponent {
                   </ui-context-menu-item>
               }
               
-              <!-- Empty Spot Context Menu -->
               @if (menu.data()?.type === 'empty') {
                   <ui-context-menu-item (click)="addItemAt(menu.data().x, menu.data().y, 1, 1)">
                     <span class="flex items-center gap-2">
@@ -141,7 +132,6 @@ export class BentoGridItemComponent {
 
       <ng-content />
       
-      <!-- Drop Placeholder -->
       <!-- Drop Placeholder -->
       @if (dropPreview()) {
           <div 
@@ -262,22 +252,31 @@ export class BentoGridItemComponent {
       display: block;
     }
   `],
-    encapsulation: ViewEncapsulation.None,
 })
 export class BentoGridComponent {
     class = input<string>('');
     items = input<DashboardItem[]>([]);
     editable = input<boolean>(false);
-    collisionStrategy = input<CollisionStrategy>('swap');
-    cols = input<number>(12); // Default 12 column grid
+    cols = input<number>(12);
 
     itemsChange = output<DashboardItem[]>();
     externalDrop = output<{ widgetId: string, targetId: string }>();
 
-    // State
+    private el = inject(ElementRef);
+
+
+
     draggedItemId = signal<string | null>(null);
     dropTargetId = signal<string | null>(null);
     selectedItemIds = signal<string[]>([]);
+
+    constructor() {
+        effect(() => {
+            if (!this.editable()) {
+                this.selectedItemIds.set([]);
+            }
+        });
+    }
 
     selectedIds = computed(() => new Set(this.selectedItemIds()));
 
@@ -306,7 +305,8 @@ export class BentoGridComponent {
         const items = this.items().filter(i => selectedIds.includes(i.id));
         if (items.length !== selectedIds.length) return false;
 
-        // Calculate bounding box
+
+
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         let totalArea = 0;
 
@@ -320,11 +320,7 @@ export class BentoGridComponent {
 
         const boundingBoxArea = (maxX - minX + 1) * (maxY - minY + 1);
 
-        // 1. Area Check: The sum of areas must equal the bounding box area (No gaps)
-        if (totalArea !== boundingBoxArea) return false;
 
-        // 2. Connectivity Check: All items must be connected
-        // Simple BFS/DFS to ensure all items are reachable from the first one
         const visited = new Set<string>();
         const queue = [items[0]];
         visited.add(items[0].id);
@@ -332,7 +328,6 @@ export class BentoGridComponent {
         while (queue.length > 0) {
             const current = queue.shift()!;
 
-            // Find neighbors in 'items' that haven't been visited
             const neighbors = items.filter(other =>
                 !visited.has(other.id) && this.areAdjacent(current, other)
             );
@@ -347,7 +342,6 @@ export class BentoGridComponent {
     });
 
     areAdjacent(a: DashboardItem, b: DashboardItem) {
-        // A is adjacent to B if limits touch
         const aX1 = a.x, aX2 = a.x + a.cols;
         const aY1 = a.y, aY2 = a.y + a.rows;
         const bX1 = b.x, bX2 = b.x + b.cols;
@@ -365,8 +359,8 @@ export class BentoGridComponent {
         const selectedIds = this.selectedItemIds();
         const itemsToMerge = this.items().filter(i => selectedIds.includes(i.id));
 
-        // Determine top-left item for content and ID
-        // Sort by y, then x
+
+
         itemsToMerge.sort((a, b) => {
             if (a.y === b.y) return a.x - b.x;
             return a.y - b.y;
@@ -374,7 +368,6 @@ export class BentoGridComponent {
 
         const primary = itemsToMerge[0];
 
-        // Calculate new dimensions
         let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
 
         itemsToMerge.forEach(item => {
@@ -392,12 +385,12 @@ export class BentoGridComponent {
             rows: maxY - minY + 1,
         };
 
-        // Remove old items, add new item
+
         const newItems = this.items().filter(i => !selectedIds.includes(i.id));
         newItems.push(newItem);
 
         this.itemsChange.emit(newItems);
-        this.selectedItemIds.set([]); // Clear selection
+        this.selectedItemIds.set([]);
     }
 
     onContextMenu(event: MouseEvent, item: DashboardItem, menu: ContextMenuComponent) {
@@ -416,7 +409,7 @@ export class BentoGridComponent {
         if (!item) return;
 
         if (direction === 'vertical') {
-            if (item.cols < 2) return; // Cannot split 1 column
+            if (item.cols < 2) return;
 
             const splitCol = Math.floor(item.cols / 2);
             const remainderCol = item.cols - splitCol;
@@ -439,7 +432,7 @@ export class BentoGridComponent {
             this.itemsChange.emit(newItems);
 
         } else {
-            if (item.rows < 2) return; // Cannot split 1 row
+            if (item.rows < 2) return;
 
             const splitRow = Math.floor(item.rows / 2);
             const remainderRow = item.rows - splitRow;
@@ -464,31 +457,26 @@ export class BentoGridComponent {
     }
 
     classes = computed(() => cn(
-        'grid w-full auto-rows-[100px] gap-4 relative', // Strict 100px rows
+        'grid w-full auto-rows-[100px] gap-4 relative',
         `grid-cols-${this.cols()}`,
         this.items().length > 0 ? 'grid-cols-12' : 'grid-cols-1 md:grid-cols-3',
         this.class()
     ));
 
-    // Grid Visuals is now real cells, not gradient
     gridGradient = computed(() => 'none');
 
-    // Generate background cells
     gridCells = computed(() => {
         if (!this.editable()) return [];
 
-        // Calculate needed rows based on items or min height
-        let maxRow = 8; // Default min
+        let maxRow = 8;
         for (const item of this.items()) {
             maxRow = Math.max(maxRow, item.y + item.rows);
         }
-        // Add some breathing room
         maxRow += 2;
 
         const totalCells = this.cols() * maxRow;
         return Array(totalCells).fill(0).map((_, i) => ({
             id: i,
-            // optional: x/y if needed, but flex/grid repeat works for flows
         }));
     });
 
@@ -504,7 +492,7 @@ export class BentoGridComponent {
         return content as Type<any>;
     }
 
-    // Drag and Drop Logic
+
     onDragStart(event: DragEvent, item: DashboardItem) {
         if (!this.editable()) return;
 
@@ -512,7 +500,6 @@ export class BentoGridComponent {
         if (event.dataTransfer) {
             event.dataTransfer.effectAllowed = 'move';
             event.dataTransfer.setData('text/plain', item.id);
-            // Hide the default browser ghost image
             const emptyImg = new Image();
             emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
             event.dataTransfer.setDragImage(emptyImg, 0, 0);
@@ -526,11 +513,10 @@ export class BentoGridComponent {
 
     onDragOver(event: DragEvent, targetItem: DashboardItem) {
         if (!this.editable()) return;
-        event.preventDefault(); // Necessary to allow dropping
-        // Stop propagation so container doesn't get it if we are over an item
-        // event.stopPropagation(); // REMOVED to allow container to update drop preview
+        event.preventDefault();
 
-        // Visual feedback could be added here
+
+
         if (event.dataTransfer) {
             event.dataTransfer.dropEffect = 'move';
         }
@@ -543,8 +529,7 @@ export class BentoGridComponent {
             event.dataTransfer.dropEffect = 'move';
         }
 
-        // Calculate drop preview
-        // Need to know what we are dragging
+
         const draggedId = this.draggedItemId();
         if (draggedId) {
             const item = this.items().find(i => i.id === draggedId);
@@ -556,73 +541,53 @@ export class BentoGridComponent {
     }
 
     onContainerDragLeave(event: DragEvent) {
-        // Optional: clear preview if leaving container?
-        // But dragleave fires when entering children (items), so be careful.
-        // For now, let's rely on drop/end clearing it or ensure we track it well.
     }
 
     onDrop(event: DragEvent, targetItem: DashboardItem) {
         if (!this.editable()) return;
         event.preventDefault();
-        event.stopPropagation(); // Handled by item
-
-        // this.dropPreview.set(null); // Keep preview for calculation!
+        event.stopPropagation();
 
         const draggedId = this.draggedItemId();
 
-        // Handle internal reordering (Item to Item)
         if (draggedId) {
-            if (draggedId === targetItem.id) {
-                const preview = this.dropPreview();
-                if (preview) {
-                    // Commit the move to the preview coordinates
-                    let currentItems = [...this.items()];
-                    const itemIndex = currentItems.findIndex(i => i.id === draggedId);
+            const preview = this.dropPreview();
+            if (preview) {
+                let currentItems = [...this.items()];
+                const itemIndex = currentItems.findIndex(i => i.id === draggedId);
 
-                    if (itemIndex > -1) {
-                        // 1. Valid move?
-                        // Update the dragged item to new position
-                        const updatedDraggedItem = {
-                            ...currentItems[itemIndex],
-                            x: preview.x,
-                            y: preview.y
-                        };
-                        currentItems[itemIndex] = updatedDraggedItem;
+                if (itemIndex > -1) {
+                    const updatedDraggedItem = {
+                        ...currentItems[itemIndex],
+                        x: preview.x,
+                        y: preview.y
+                    };
+                    currentItems[itemIndex] = updatedDraggedItem;
 
-                        // 2. Handle Collisions (Shrink/Clip others)
-                        // Iterate through ALL other items to check for overlap
-                        for (let i = 0; i < currentItems.length; i++) {
-                            if (currentItems[i].id === draggedId) continue;
+                    for (let i = 0; i < currentItems.length; i++) {
+                        if (currentItems[i].id === draggedId) continue;
 
-                            const shrinking = this.shrinkItem(updatedDraggedItem, currentItems[i]);
-                            if (shrinking) {
-                                currentItems[i] = shrinking;
-                            } else if (this.isOverlapping(updatedDraggedItem, currentItems[i])) {
-                                // Overlapping but shrink returned null (fully covered)
-                                // We should probably remove it or keep it hidden? 
-                                // User said "clip overwriting blocks", usually implies removing overwritten parts.
-                                // If fully overwritten, removing seems correct for "clip".
-                                // Marking as hidden or removing? Let's remove for now to avoid ghosts.
-                                currentItems.splice(i, 1);
-                                i--; // Adjust index
-                            }
+                        const shrinking = this.shrinkItem(updatedDraggedItem, currentItems[i]);
+                        if (shrinking) {
+                            currentItems[i] = shrinking;
+                        } else if (this.isOverlapping(updatedDraggedItem, currentItems[i])) {
+                            // If we can't shrink, we remove/clip completely or handle overlap
+                            // For now, based on "clipping", we might let them overlap or remove?
+                            // The previous code had splicing here:
+                            currentItems.splice(i, 1);
+                            i--;
                         }
-
-                        this.itemsChange.emit(currentItems);
                     }
-                }
 
-                this.draggedItemId.set(null);
-                this.dropPreview.set(null);
-                return;
+                    this.itemsChange.emit(currentItems);
+                }
             }
 
-            this.handleDrop(draggedId, targetItem);
             this.draggedItemId.set(null);
+            this.dropPreview.set(null);
             return;
         }
 
-        // Handle external drops (New Widgets) -> to Item (Replace)
         const data = event.dataTransfer?.getData('application/json');
         if (data) {
             try {
@@ -639,24 +604,16 @@ export class BentoGridComponent {
     onContainerDrop(event: DragEvent) {
         if (!this.editable()) return;
         event.preventDefault();
-        this.dropPreview.set(null); // Clear preview
+        this.dropPreview.set(null);
 
-        // 1. Handle Internal Drag to Empty
         const draggedId = this.draggedItemId();
         if (draggedId) {
             const { x, y } = this.getGridCoordinates(event);
-
-            // Check if occupied? 
-            // The user wants "move to empty spots".
-            // If we drop on an empty spot, we move the item there.
-            // If the item itself (cols/rows) would overlap, we might need validation.
-            // For now, let's just update x/y.
 
             const currentItems = [...this.items()];
             const itemIndex = currentItems.findIndex(i => i.id === draggedId);
             if (itemIndex > -1) {
                 const item = currentItems[itemIndex];
-                // Check if new position + dimensions overlaps with OTHERS (excluding self)
                 const newRect = { ...item, x, y };
                 const overlapping = currentItems.some(i => i.id !== draggedId && this.isOverlapping(newRect, i));
 
@@ -670,39 +627,32 @@ export class BentoGridComponent {
             return;
         }
 
-        // 2. Handle External Drag to Empty (Add New)
-        // If user drags a widget to empty space, we should probably add it there?
-        // User didn't strictly ask for this in "Drag to Empty" (context was moving items), 
-        // but it makes sense.
-        // Let's implement it for completeness.
         const data = event.dataTransfer?.getData('application/json');
         if (data) {
             try {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'widget' && parsed.id) {
                     const { x, y } = this.getGridCoordinates(event);
-                    // We don't have the widget content here directly to add it.
-                    // The parent handles "externalDrop" but that expects a targetId.
-                    // We might need a new event `externalDropAt` or similar.
-                    // For now, let's skip external-to-empty unless requested or easy.
-                    // Actually, we can emit a special event or reuse externalDrop with a null targetId but add coords?
-                    // Let's hold off on this specific external-to-empty workflow to avoid scope creep, focus on "moving items".
                 }
             } catch (e) {
-                // ignore
             }
         }
     }
 
-    // Helper for grid coordinates
     private getGridCoordinates(event: DragEvent | MouseEvent) {
         const container = (event.currentTarget as HTMLElement);
         const rect = container.getBoundingClientRect();
-        const x = event.clientX - rect.left;
+        const _isRtl = isRtl(this.el.nativeElement);
+
+        let x = event.clientX - rect.left;
+        if (_isRtl) {
+            x = rect.right - event.clientX;
+        }
+
         const y = event.clientY - rect.top;
         const gap = 16;
         const colWidth = (rect.width - (this.cols() - 1) * gap) / this.cols();
-        const rowHeight = 100; // Consistent with other calcs
+        const rowHeight = 100;
 
         const gridX = Math.floor(x / (colWidth + gap)) + 1;
         const gridY = Math.floor(y / (rowHeight + gap)) + 1;
@@ -710,43 +660,35 @@ export class BentoGridComponent {
         return { x: gridX, y: gridY };
     }
 
-    // Shrinks 'loser' to the largest rectangular area that doesn't overlap 'winner'
     private shrinkItem(winner: { x: number, y: number, cols: number, rows: number }, loser: DashboardItem): DashboardItem | null {
-        // 1. Check Intersection
         const x1 = Math.max(winner.x, loser.x);
         const y1 = Math.max(winner.y, loser.y);
         const x2 = Math.min(winner.x + winner.cols, loser.x + loser.cols);
         const y2 = Math.min(winner.y + winner.rows, loser.y + loser.rows);
 
         if (x1 >= x2 || y1 >= y2) {
-            return loser; // No overlap
+            return loser;
         }
 
-        // 2. Overlap detected. Calculate 4 possible slices.
         const candidates: DashboardItem[] = [];
 
-        // Top Slice (Keep Top part of Loser)
         if (loser.y < winner.y) {
             candidates.push({ ...loser, rows: winner.y - loser.y });
         }
-        // Bottom Slice (Keep Bottom part of Loser)
         if (loser.y + loser.rows > winner.y + winner.rows) {
             const newY = winner.y + winner.rows;
             candidates.push({ ...loser, y: newY, rows: (loser.y + loser.rows) - newY });
         }
-        // Left Slice (Keep Left part of Loser)
         if (loser.x < winner.x) {
             candidates.push({ ...loser, cols: winner.x - loser.x });
         }
-        // Right Slice (Keep Right part of Loser)
         if (loser.x + loser.cols > winner.x + winner.cols) {
             const newX = winner.x + winner.cols;
             candidates.push({ ...loser, x: newX, cols: (loser.x + loser.cols) - newX });
         }
 
-        if (candidates.length === 0) return null; // Fully covered?
+        if (candidates.length === 0) return null;
 
-        // 3. Pick Max Area
         return candidates.reduce((prev, current) =>
             (prev.cols * prev.rows > current.cols * current.rows) ? prev : current
         );
@@ -760,66 +702,7 @@ export class BentoGridComponent {
         return x1 < x2 && y1 < y2;
     }
 
-    private handleDrop(draggedId: string, targetItem: DashboardItem) {
-        const currentItems = [...this.items()];
-        const draggedIndex = currentItems.findIndex(i => i.id === draggedId);
-        const targetIndex = currentItems.findIndex(i => i.id === targetItem.id);
 
-        if (draggedIndex === -1 || targetIndex === -1) return;
-
-        const draggedItem = currentItems[draggedIndex];
-
-        const strategy = this.collisionStrategy();
-
-        if (strategy === 'swap') {
-            // Swap positions (x, y) AND dimensions (cols, rows)
-            // The dragged item takes the target's position and size
-            const newDragged = {
-                ...draggedItem,
-                x: targetItem.x,
-                y: targetItem.y,
-                cols: targetItem.cols,
-                rows: targetItem.rows
-            };
-
-            // The target item takes the dragged item's position and size
-            const newTarget = {
-                ...targetItem,
-                x: draggedItem.x,
-                y: draggedItem.y,
-                cols: draggedItem.cols,
-                rows: draggedItem.rows
-            };
-
-            // Update array
-            currentItems[draggedIndex] = newDragged;
-            currentItems[targetIndex] = newTarget;
-
-            this.itemsChange.emit(currentItems);
-        } else if (strategy === 'replace') {
-            // Move dragged to target position, remove target
-            // This implies dragging onto an existing item 'replaces' it
-            const newDragged = { ...draggedItem, x: targetItem.x, y: targetItem.y };
-
-            // Remove target, update dragged
-            // Note: We need to handle where the dragged item CAME from. It leaves a hole.
-            // And we remove the target item entirely? Or push it somewhere?
-            // "Replace" usually means overwrite/delete the old one.
-
-            // Remove target item
-            currentItems.splice(targetIndex, 1);
-            // Find dragged index again as it might have shifted if target was before it
-            const newDraggedIndex = currentItems.findIndex(i => i.id === draggedId);
-            currentItems[newDraggedIndex] = newDragged;
-
-            this.itemsChange.emit(currentItems);
-        } else if (strategy === 'prevent') {
-            // Do nothing
-            console.log('Drop prevented by collision strategy');
-        }
-    }
-
-    // Resize Logic
     resizingItemId = signal<string | null>(null);
     resizeHandleType = input<'corners' | 'edges' | 'both'>('both');
     resizeDirection = signal<'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w' | null>(null);
@@ -833,12 +716,27 @@ export class BentoGridComponent {
     resizePreview = signal<{ id: string, cols: number, rows: number, x: number, y: number } | null>(null);
     dropPreview = signal<{ x: number, y: number, cols: number, rows: number } | null>(null);
 
-    // Global event listeners for resizing
+
     onWindowMouseMove(event: MouseEvent) {
         if (!this.resizingItemId() || !this.initialResizeState || !this.resizeDirection()) return;
 
-        const deltaX = event.clientX - this.initialResizeState.x;
+        const _isRtl = isRtl(this.el.nativeElement);
+
+        let deltaX = event.clientX - this.initialResizeState.x;
         const deltaY = event.clientY - this.initialResizeState.y;
+
+        let direction = this.resizeDirection()!;
+        if (_isRtl) {
+            deltaX = -deltaX;
+
+            const rtlMap: Record<string, any> = {
+                'nw': 'ne', 'ne': 'nw',
+                'sw': 'se', 'se': 'sw',
+                'w': 'e', 'e': 'w',
+                'n': 'n', 's': 's'
+            };
+            direction = rtlMap[direction] || direction;
+        }
 
         const colsDiff = Math.round(deltaX / this.initialResizeState.colStep);
         const rowsDiff = Math.round(deltaY / this.initialResizeState.rowStep);
@@ -848,16 +746,13 @@ export class BentoGridComponent {
         let newX = this.initialResizeState.itemX;
         let newY = this.initialResizeState.itemY;
 
-        const direction = this.resizeDirection();
-
         if (direction === 'se') {
             newCols = Math.max(1, this.initialResizeState.cols + colsDiff);
             newRows = Math.max(1, this.initialResizeState.rows + rowsDiff);
         } else if (direction === 'sw') {
-            // Change X, Cols AND Rows (if moving down)
             newCols = Math.max(1, this.initialResizeState.cols - colsDiff);
             newX = this.initialResizeState.itemX + (this.initialResizeState.cols - newCols);
-            newRows = Math.max(1, this.initialResizeState.rows + rowsDiff); // Allow height change
+            newRows = Math.max(1, this.initialResizeState.rows + rowsDiff);
         } else if (direction === 'ne') {
             newRows = Math.max(1, this.initialResizeState.rows - rowsDiff);
             newY = this.initialResizeState.itemY + (this.initialResizeState.rows - newRows);
@@ -867,9 +762,7 @@ export class BentoGridComponent {
             newRows = Math.max(1, this.initialResizeState.rows - rowsDiff);
             newX = this.initialResizeState.itemX + (this.initialResizeState.cols - newCols);
             newY = this.initialResizeState.itemY + (this.initialResizeState.rows - newRows);
-        }
-        // Edge Resizing
-        else if (direction === 'e') {
+        } else if (direction === 'e') {
             newCols = Math.max(1, this.initialResizeState.cols + colsDiff);
         } else if (direction === 'w') {
             newCols = Math.max(1, this.initialResizeState.cols - colsDiff);
@@ -904,7 +797,8 @@ export class BentoGridComponent {
         const element = (event.target as HTMLElement).closest('.bento-item') as HTMLElement;
         const rect = element.getBoundingClientRect();
 
-        // Use container metrics for consistent sensitivity (Repeated logic from earlier fix)
+
+
         const container = element.closest('.grid') as HTMLElement;
         if (!container) return;
 
@@ -951,7 +845,6 @@ export class BentoGridComponent {
             };
             currentItems[itemIndex] = updatedItem;
 
-            // Handle Collisions (Shrink/Clip others)
             for (let i = 0; i < currentItems.length; i++) {
                 if (currentItems[i].id === id) continue;
 
@@ -959,7 +852,6 @@ export class BentoGridComponent {
                 if (shrinking) {
                     currentItems[i] = shrinking;
                 } else if (this.isOverlapping(updatedItem, currentItems[i])) {
-                    // Overlapping but shrink returned null (fully covered)
                     currentItems.splice(i, 1);
                     i--;
                 }
@@ -967,47 +859,34 @@ export class BentoGridComponent {
 
             this.itemsChange.emit(currentItems);
         }
+
+        this.resizingItemId.set(null);
+        this.resizePreview.set(null);
+        this.initialResizeState = null;
+        this.resizeDirection.set(null);
     }
 
-    // Container Context Menu
     onContainerContextMenu(event: MouseEvent, menu: ContextMenuComponent) {
         if (!this.editable()) return;
 
-        // Ensure we clicked the container background, not an item
-        // (items stop propagation, so this should be fine if we wire it up correctly)
-        // But to be safe:
         if ((event.target as HTMLElement).closest('.bento-item')) return;
 
         event.preventDefault();
 
-        // Calculate grid coordinates
-        // We need the container element
         const container = (event.currentTarget as HTMLElement);
         const rect = container.getBoundingClientRect();
 
-        // Assuming uniform grid
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        // Estimate cell size
-        // We can get it from computed style of the grid or just divide width by cols
-        const gap = 16; // 1rem = 16px (approx) - strictly checking computed style is better but complex
-        // Let's use the width / cols approximation for now
+        const gap = 16;
         const colWidth = (rect.width - (this.cols() - 1) * gap) / this.cols();
+        const rowHeight = 100;
 
-        // Row height is tricky because of auto-rows. 
-        // But defaults to minmax(100px, auto). Let's assume ~116px (100 + gap) step or just use the same logic if we can.
-        // Or better: find the row based on scroll? No, use clientY.
-        // Let's assume a fixed row height step for now for "empty" spots or try to reverse calc.
-        const rowHeight = 100; // Base height from CSS
-
-        // Rough calc
         const gridX = Math.floor(x / (colWidth + gap)) + 1;
         const gridY = Math.floor(y / (rowHeight + gap)) + 1;
 
-        // Check if occupied
-        // We need to check exact overlap
-        const tempItem = { x: gridX, y: gridY, cols: 1, rows: 1, id: 'temp', content: '' };
+        const tempItem: DashboardItem = { x: gridX, y: gridY, cols: 1, rows: 1, id: 'temp', content: '' };
         const isOccupied = this.items().some(i => this.isOverlapping(tempItem, i));
 
         if (!isOccupied) {
@@ -1016,7 +895,6 @@ export class BentoGridComponent {
     }
 
     addItemAt(x: number, y: number, cols: number = 1, rows: number = 1) {
-        // Validation: Check if the new item would overlap with anything
         const newItem: DashboardItem = {
             id: crypto.randomUUID(),
             x, y, cols, rows,
@@ -1026,7 +904,6 @@ export class BentoGridComponent {
         const isOverlapping = this.items().some(i => this.isOverlapping(newItem, i));
 
         if (isOverlapping) {
-            // Optional: visual feedback or toast
             console.warn('Cannot add item: Overlaps with existing item');
             return;
         }
