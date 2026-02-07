@@ -746,6 +746,15 @@ export class AppComponent {
     });
   }
 
+  onTreeContextMenu(action: string, node: any) {
+    console.log(`Tree Context Menu Action: ${action}`, node);
+    this.toastService.toast({
+      title: 'Tree Context Menu Action',
+      description: `Action: ${action} on node ${node?.label}`,
+      variant: 'default',
+    });
+  }
+
   // Split Button Demo
   splitButtonItems: SplitButtonItem[] = [
     { label: 'Edit', value: 'edit', icon: '✎' },
@@ -1191,6 +1200,7 @@ ORDER BY created_at DESC;`;
     { id: 'separator', name: 'Separator', category: 'Data Display', icon: '➖' },
     { id: 'label', name: 'Label', category: 'Inputs', icon: '🏷️' },
     { id: 'tree-select', name: 'Tree Select', category: 'Inputs', icon: '🌲' },
+    { id: 'tree', name: 'Tree', category: 'Data Display', icon: '🌳' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
   ];
 

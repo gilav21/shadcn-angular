@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["packages/components/ui/sparkles.component.ts", "sparkles.component.ts"],
-  "sourcesContent": ["\n    .animate-ping-slow {\n      animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;\n    }\n    @keyframes ping {\n       75%, 100% {\n        transform: scale(2);\n        opacity: 0;\n      }\n    }\n  ", ".animate-ping-slow {\n  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;\n}\n\n@keyframes ping {\n  75%, 100% {\n    transform: scale(2);\n    opacity: 0;\n  }\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJmaWxlOi8vL0Q6L0RldmVsb3BtZW50L3NoYWRjZC9zaGFkY24tYW5ndWxhci9wYWNrYWdlcy9jb21wb25lbnRzL3VpL3NwYXJrbGVzLmNvbXBvbmVudC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDSTtFQUNFOzs7QUFFRjtFQUNHO0lBQ0M7SUFDQSIsInNvdXJjZXNDb250ZW50IjpbIlxuICAgIC5hbmltYXRlLXBpbmctc2xvdyB7XG4gICAgICBhbmltYXRpb246IHBpbmcgMS41cyBjdWJpYy1iZXppZXIoMCwgMCwgMC4yLCAxKSBpbmZpbml0ZTtcbiAgICB9XG4gICAgQGtleWZyYW1lcyBwaW5nIHtcbiAgICAgICA3NSUsIDEwMCUge1xuICAgICAgICB0cmFuc2Zvcm06IHNjYWxlKDIpO1xuICAgICAgICBvcGFjaXR5OiAwO1xuICAgICAgfVxuICAgIH1cbiAgIl19 */"],
-  "mappings": ";AACI,CAAA;AACE,aAAA,KAAA,KAAA,aAAA,CAAA,EAAA,CAAA,EAAA,GAAA,EAAA,GAAA;ACAN;ADEI,WAFE;AAGC;AACC,eAAA,MAAA;AACA,aAAA;ACCN;AACF;",
-  "names": []
-}

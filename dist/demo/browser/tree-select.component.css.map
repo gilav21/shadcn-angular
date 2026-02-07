@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["packages/components/ui/tree-select.component.ts", "tree-select.component.ts"],
-  "sourcesContent": ["\n    :host {\n      display: block;\n    }\n    ui-popover {\n      width: 100%;\n      display: block;\n    }\n  ", ":host {\n  display: block;\n}\n\nui-popover {\n  width: 100%;\n  display: block;\n}\n/*# sourceMappingURL=data:application/json;charset=utf-8;base64,eyJ2ZXJzaW9uIjozLCJzb3VyY2VSb290IjoiIiwic291cmNlcyI6WyJmaWxlOi8vL0Q6L0RldmVsb3BtZW50L3NoYWRjZC9zaGFkY24tYW5ndWxhci9wYWNrYWdlcy9jb21wb25lbnRzL3VpL3RyZWUtc2VsZWN0LmNvbXBvbmVudC50cyJdLCJuYW1lcyI6W10sIm1hcHBpbmdzIjoiQUFDSTtFQUNFOzs7QUFFRjtFQUNFO0VBQ0EiLCJzb3VyY2VzQ29udGVudCI6WyJcbiAgICA6aG9zdCB7XG4gICAgICBkaXNwbGF5OiBibG9jaztcbiAgICB9XG4gICAgdWktcG9wb3ZlciB7XG4gICAgICB3aWR0aDogMTAwJTtcbiAgICAgIGRpc3BsYXk6IGJsb2NrO1xuICAgIH1cbiAgIl19 */"],
-  "mappings": ";AACI;AACE,WAAA;ACAN;ADEI;AACE,SAAA;AACA,WAAA;ACCN;",
-  "names": []
-}

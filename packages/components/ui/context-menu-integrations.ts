@@ -112,7 +112,7 @@ export class TreeContextMenuDirective<T = unknown> {
 
         const contextMenu = this.uiTreeContextMenu();
         if (contextMenu) {
-          contextMenu.show(event.clientX, event.clientY);
+          contextMenu.show(event.clientX, event.clientY, nodeData);
         }
       }
     });

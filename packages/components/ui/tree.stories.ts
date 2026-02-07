@@ -5,6 +5,15 @@ import {
     TreeLabelComponent,
     TreeIconComponent,
 } from './tree.component';
+import {
+    ContextMenuComponent,
+    ContextMenuTriggerDirective,
+    ContextMenuContentComponent,
+    ContextMenuItemComponent,
+    ContextMenuShortcutComponent,
+    ContextMenuSeparatorComponent,
+} from './context-menu.component';
+import { ContextMenuIntegrations } from './context-menu-integrations';
 
 const meta: Meta = {
     title: 'UI/Tree',
@@ -140,6 +149,83 @@ export const RTL: Story = {
                         </ui-tree-item>
                     </ui-tree-item>
                 </ui-tree>
+            </div>
+        `,
+    }),
+};
+
+export const WithContextMenu: Story = {
+    render: (args) => ({
+        props: {
+            ...args,
+            onContextMenuAction: (action: string, node: any) => {
+                console.log(`Action: ${action}`, node);
+                alert(`Action: ${action}\nNode: ${node?.label || 'Unknown'} (${node?.key || 'No Key'})`);
+            }
+        },
+        moduleMetadata: {
+            imports: [
+                ContextMenuComponent,
+                ContextMenuTriggerDirective,
+                ContextMenuContentComponent,
+                ContextMenuItemComponent,
+                ContextMenuShortcutComponent,
+                ContextMenuSeparatorComponent,
+                ...ContextMenuIntegrations
+            ]
+        },
+        template: `
+            <div class="max-w-sm border rounded-md p-4">
+                <ui-tree [uiTreeContextMenu]="treeContextMenu">
+                    <ui-tree-item value="documents">
+                        <ui-tree-label>
+                            <ui-tree-icon>📁</ui-tree-icon>
+                            Documents
+                        </ui-tree-label>
+                        <ui-tree-item value="resume">
+                            <ui-tree-label>
+                                <ui-tree-icon>📄</ui-tree-icon>
+                                Resume.pdf
+                            </ui-tree-label>
+                        </ui-tree-item>
+                        <ui-tree-item value="cover-letter">
+                            <ui-tree-label>
+                                <ui-tree-icon>📄</ui-tree-icon>
+                                Cover Letter.docx
+                            </ui-tree-label>
+                        </ui-tree-item>
+                    </ui-tree-item>
+                    <ui-tree-item value="images">
+                        <ui-tree-label>
+                            <ui-tree-icon>📁</ui-tree-icon>
+                            Images
+                        </ui-tree-label>
+                        <ui-tree-item value="vacation">
+                            <ui-tree-label>
+                                <ui-tree-icon>🖼️</ui-tree-icon>
+                                vacation.jpg
+                            </ui-tree-label>
+                        </ui-tree-item>
+                    </ui-tree-item>
+                </ui-tree>
+
+                <ui-context-menu #treeContextMenu>
+                    <ui-context-menu-content class="w-64">
+                        <ui-context-menu-item (click)="onContextMenuAction('open', treeContextMenu.data())">
+                            Open
+                            <ui-context-menu-shortcut>⏎</ui-context-menu-shortcut>
+                        </ui-context-menu-item>
+                        <ui-context-menu-item (click)="onContextMenuAction('properties', treeContextMenu.data())">
+                            Properties
+                            <ui-context-menu-shortcut>⌘I</ui-context-menu-shortcut>
+                        </ui-context-menu-item>
+                        <ui-context-menu-separator />
+                        <ui-context-menu-item variant="destructive" (click)="onContextMenuAction('delete', treeContextMenu.data())">
+                            Delete
+                            <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
+                        </ui-context-menu-item>
+                    </ui-context-menu-content>
+                </ui-context-menu>
             </div>
         `,
     }),
