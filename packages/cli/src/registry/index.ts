@@ -92,7 +92,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   'context-menu': {
     name: 'context-menu',
-    files: ['context-menu.component.ts'],
+    files: ['context-menu.component.ts', 'context-menu-integrations.ts'],
   },
   'date-picker': {
     name: 'date-picker',
@@ -436,7 +436,12 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'bento-grid',
     dependencies: ['context-menu'],
     files: [
-      'ui/bento-grid.component.ts',
+      'bento-grid.component.ts',
     ],
+  },
+  'split-button': {
+    name: 'split-button',
+    files: ['split-button.component.ts'],
+    dependencies: ['button', 'dropdown-menu'],
   },
 };

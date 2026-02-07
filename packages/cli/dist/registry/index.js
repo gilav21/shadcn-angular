@@ -82,7 +82,7 @@ export const registry = {
     },
     'context-menu': {
         name: 'context-menu',
-        files: ['context-menu.component.ts'],
+        files: ['context-menu.component.ts', 'context-menu-integrations.ts'],
     },
     'date-picker': {
         name: 'date-picker',
@@ -134,6 +134,29 @@ export const registry = {
     dialog: {
         name: 'dialog',
         files: ['dialog.component.ts'],
+    },
+    dock: {
+        name: 'dock',
+        files: [
+            'dock.component.ts',
+            'dock-item.component.ts',
+            'dock-icon.component.ts',
+            'dock-label.component.ts',
+        ],
+    },
+    'tree-select': {
+        name: 'tree-select',
+        files: ['tree-select.component.ts'],
+        dependencies: ['popover', 'tree'],
+    },
+    'virtual-scroll': {
+        name: 'virtual-scroll',
+        files: ['virtual-scroll.component.ts'],
+    },
+    'input-mask': {
+        name: 'input-mask',
+        files: ['input-mask.directive.ts'],
+        dependencies: ['input'],
     },
     drawer: {
         name: 'drawer',
@@ -397,5 +420,17 @@ export const registry = {
             'charts/chart.types.ts',
             'charts/chart.utils.ts',
         ],
+    },
+    'bento-grid': {
+        name: 'bento-grid',
+        dependencies: ['context-menu'],
+        files: [
+            'bento-grid.component.ts',
+        ],
+    },
+    'split-button': {
+        name: 'split-button',
+        files: ['split-button.component.ts'],
+        dependencies: ['button', 'dropdown-menu'],
     },
 };
