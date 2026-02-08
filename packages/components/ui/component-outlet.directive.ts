@@ -11,10 +11,11 @@ import {
 import { Subscription } from 'rxjs';
 
 @Directive({
-    selector: '[uiCellHost]'
+    selector: '[uiComponentOutlet]',
+    standalone: true
 })
-export class CellHostDirective implements OnInit, OnChanges, OnDestroy {
-    uiCellHost = input.required<any>();
+export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy {
+    component = input.required<any>({ alias: 'uiComponentOutlet' });
     inputs = input<Record<string, any>>({});
     outputs = input<Record<string, (event: any) => void>>({});
 
@@ -31,6 +32,9 @@ export class CellHostDirective implements OnInit, OnChanges, OnDestroy {
         if (changes['inputs'] && !changes['inputs'].firstChange) {
             this.updateInputs();
         }
+        if (changes['component'] && !changes['component'].firstChange) {
+            this.renderComponent();
+        }
         if (changes['outputs'] && !changes['outputs'].firstChange) {
             this.subscribeToOutputs();
         }
@@ -43,7 +47,7 @@ export class CellHostDirective implements OnInit, OnChanges, OnDestroy {
     private renderComponent() {
         this.viewContainerRef.clear();
 
-        const componentType = this.uiCellHost();
+        const componentType = this.component();
         if (!componentType) return;
 
         this.componentRef = this.viewContainerRef.createComponent(componentType);

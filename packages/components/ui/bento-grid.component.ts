@@ -18,6 +18,7 @@ import {
     ContextMenuContentComponent,
     ContextMenuItemComponent,
 } from './context-menu.component';
+import { UiComponentOutletDirective } from './component-outlet.directive';
 
 
 
@@ -29,6 +30,7 @@ export interface DashboardItem {
     rows: number;
     content: string | Type<any>;
     inputs?: Record<string, any>;
+    outputs?: Record<string, (event: any) => void>;
 }
 
 @Component({
@@ -67,7 +69,8 @@ export class BentoGridItemComponent {
         CommonModule,
         ContextMenuComponent,
         ContextMenuContentComponent,
-        ContextMenuItemComponent
+        ContextMenuItemComponent,
+        UiComponentOutletDirective
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -183,7 +186,7 @@ export class BentoGridItemComponent {
          >
             <!-- Content Rendering Logic -->
             @if (isComponent(item.content)) {
-                <ng-container *ngComponentOutlet="asComponent(item.content); inputs: item.inputs || {}" />
+                <ng-container [uiComponentOutlet]="asComponent(item.content)" [inputs]="item.inputs || {}" [outputs]="item.outputs || {}" />
             } @else {
                 <p>{{ item.content }}</p>
             }

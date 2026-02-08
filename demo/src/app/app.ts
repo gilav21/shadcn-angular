@@ -279,7 +279,8 @@ import {
   MetricWidgetComponent,
   CalendarWidgetComponent,
   TeamWidgetComponent,
-  ActivityWidgetComponent
+  ActivityWidgetComponent,
+  ActionWidgetComponent
 } from './dashboard-widgets';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
@@ -1496,8 +1497,19 @@ ORDER BY created_at DESC;`;
     {
       id: '6', x: 1, y: 7, cols: 4, rows: 4,
       content: CalendarWidgetComponent
+    },
+    {
+      id: '7', x: 5, y: 7, cols: 4, rows: 3,
+      content: ActionWidgetComponent,
+      outputs: {
+        action: (type: string) => this.onWidgetAction(type)
+      }
     }
   ]);
+
+  onWidgetAction(type: string) {
+    this.toastService.success('Widget Action', `Action triggered: ${type}`);
+  }
 
   onExternalDrop(event: { widgetId: string, targetId: string }) {
     const widget = this.widgets().find(w => w.id === event.widgetId);

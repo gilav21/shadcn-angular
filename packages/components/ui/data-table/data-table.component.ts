@@ -23,11 +23,10 @@ import {
 } from '../table.component';
 import { InputComponent } from '../input.component';
 import { CheckboxComponent } from '../checkbox.component';
-import { ButtonComponent } from '../button.component';
 import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover.component';
 import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
 import { DataTablePaginationComponent } from './data-table-pagination.component';
-import { CellHostDirective } from './cell-host.directive';
+import { UiComponentOutletDirective } from '../component-outlet.directive';
 import { ColumnDef, SortState, SortDirection, PaginationState, ColumnResizeEvent } from './data-table.types';
 import { cn } from '../../lib/utils';
 
@@ -49,7 +48,7 @@ import { cn } from '../../lib/utils';
     PopoverContentComponent,
     DataTableColumnHeaderComponent,
     DataTablePaginationComponent,
-    CellHostDirective,
+    UiComponentOutletDirective,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -113,7 +112,7 @@ import { cn } from '../../lib/utils';
                               </ui-popover-trigger>
                               <ui-popover-content class="w-80">
                                 <div 
-                                  [uiCellHost]="col.filterComponent" 
+                                  [uiComponentOutlet]="col.filterComponent" 
                                   [inputs]="col.filterComponentInputs || {}"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
@@ -138,7 +137,7 @@ import { cn } from '../../lib/utils';
                               </ui-popover-trigger>
                               <ui-popover-content class="w-80">
                                 <div 
-                                  [uiCellHost]="col.filterComponent" 
+                                  [uiComponentOutlet]="col.filterComponent" 
                                   [inputs]="col.filterComponentInputs || {}"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
@@ -194,7 +193,7 @@ import { cn } from '../../lib/utils';
                         />
                       } @else if (col.component) {
                         <div 
-                          [uiCellHost]="col.component" 
+                          [uiComponentOutlet]="col.component" 
                           [inputs]="col.componentInputs ? col.componentInputs(row) : {}"
                           [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}"
                         ></div>
@@ -219,7 +218,7 @@ import { cn } from '../../lib/utils';
               <ui-table-row class="hover:bg-transparent justify-center w-full">
                 <ui-table-cell class="h-96 text-center w-full p-0 border-none justify-center">
                   @if (emptyStateComponent()) {
-                    <ng-container [uiCellHost]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
+                    <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
                   } @else {
                     <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
                       <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 h-10 w-10 opacity-20">
