@@ -4103,6 +4103,9 @@
           </div>
         </section>
         }
+        @case ('page-builder') {
+        <ui-page-builder [components]="pageBuilderComponents()" />
+        }
         }
       </div>
     </div>

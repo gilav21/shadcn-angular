@@ -2,6 +2,7 @@ import {
     Directive,
     ViewContainerRef,
     input,
+    output,
     OnInit,
     OnChanges,
     OnDestroy,
@@ -18,6 +19,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
     component = input.required<any>({ alias: 'uiComponentOutlet' });
     inputs = input<Record<string, any>>({});
     outputs = input<Record<string, (event: any) => void>>({});
+    initialized = output<ComponentRef<any>>();
 
     private componentRef: ComponentRef<any> | null = null;
     private subscriptions: Subscription[] = [];
@@ -53,6 +55,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         this.componentRef = this.viewContainerRef.createComponent(componentType);
         this.updateInputs();
         this.subscribeToOutputs();
+        this.initialized.emit(this.componentRef);
     }
 
     private updateInputs() {

@@ -81,6 +81,8 @@ export * from './dock.component';
 export * from './dock-item.component';
 export * from './dock-icon.component';
 export * from './dock-label.component';
+export * from './page-builder/page-builder.component';
+export * from './page-builder/page-builder.types';
 export * from './component-outlet.directive';
 
 // Charts

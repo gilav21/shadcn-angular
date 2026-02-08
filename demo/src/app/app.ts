@@ -273,7 +273,9 @@ import {
   DockComponent,
   DockItemComponent,
   DockIconComponent,
-  DockLabelComponent
+  DockLabelComponent,
+  PageBuilderComponent,
+  ComponentMeta
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -655,13 +657,18 @@ export interface ComponentNavItem {
     TextRevealComponent,
     TreeSelectComponent,
     VirtualScrollComponent,
-    VirtualScrollComponent,
     VirtualItemDirective,
     BentoGridComponent,
     DockComponent,
     DockItemComponent,
     DockIconComponent,
     DockLabelComponent,
+    PageBuilderComponent,
+    MetricWidgetComponent,
+    CalendarWidgetComponent,
+    TeamWidgetComponent,
+    ActivityWidgetComponent,
+    ActionWidgetComponent,
     ...ContextMenuIntegrations
   ],
 
@@ -1226,6 +1233,7 @@ ORDER BY created_at DESC;`;
     { id: 'tree', name: 'Tree', category: 'Data Display', icon: '🌳' },
     { id: 'dock', name: 'Dock', category: 'Advanced', icon: '⚓' },
     { id: 'bento-grid', name: 'Bento Grid', category: 'Layout', icon: '🍱' },
+    { id: 'page-builder', name: 'Page Builder', category: 'Layout', icon: '🏗️' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
   ];
 
@@ -1511,7 +1519,224 @@ ORDER BY created_at DESC;`;
     this.toastService.success('Widget Action', `Action triggered: ${type}`);
   }
 
-  onExternalDrop(event: { widgetId: string, targetId: string }) {
+
+
+  // ... (keep existing imports)
+
+  // Inside AppComponent class:
+
+  // Page Builder Demo
+  pageBuilderComponents = signal<ComponentMeta[]>([
+    // LAYOUT
+    {
+      id: 'card',
+      name: 'Card',
+      category: 'Layout',
+      component: CardComponent,
+      icon: 'layout',
+      defaultInputs: {},
+    },
+    {
+      id: 'tabs',
+      name: 'Tabs',
+      category: 'Layout',
+      component: TabsComponent,
+      icon: 'panels-top-left',
+      defaultInputs: {},
+    },
+    {
+      id: 'accordion',
+      name: 'Accordion',
+      category: 'Layout',
+      component: AccordionComponent,
+      icon: 'list-collapse',
+      defaultInputs: {},
+    },
+    {
+      id: 'separator',
+      name: 'Separator',
+      category: 'Layout',
+      component: SeparatorComponent,
+      icon: 'minus',
+      defaultInputs: {},
+    },
+
+    // INPUTS
+    {
+      id: 'button',
+      name: 'Button',
+      category: 'Inputs',
+      component: ButtonComponent,
+      icon: 'box-select',
+      defaultInputs: { variant: 'default', size: 'default' },
+      inputs: [
+        { name: 'variant', type: 'select', options: ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] },
+        { name: 'size', type: 'select', options: ['default', 'sm', 'lg', 'icon'] }
+      ]
+    },
+    {
+      id: 'input',
+      name: 'Input',
+      category: 'Inputs',
+      component: InputComponent,
+      icon: 'text-cursor',
+      defaultInputs: { placeholder: 'Type something...' }
+    },
+    {
+      id: 'textarea',
+      name: 'Textarea',
+      category: 'Inputs',
+      component: TextareaComponent,
+      icon: 'file-text',
+      defaultInputs: { placeholder: 'Start typing...' }
+    },
+    {
+      id: 'switch',
+      name: 'Switch',
+      category: 'Inputs',
+      component: SwitchComponent,
+      icon: 'toggle-right',
+      defaultInputs: { checked: false }
+    },
+    {
+      id: 'checkbox',
+      name: 'Checkbox',
+      category: 'Inputs',
+      component: CheckboxComponent,
+      icon: 'check-square',
+      defaultInputs: { checked: false }
+    },
+    {
+      id: 'slider',
+      name: 'Slider',
+      category: 'Inputs',
+      component: SliderComponent,
+      icon: 'sliders-horizontal',
+      defaultInputs: { value: [50], min: 0, max: 100, step: 1 }
+    },
+    {
+      id: 'radio-group',
+      name: 'Radio Group',
+      category: 'Inputs',
+      component: RadioGroupComponent,
+      icon: 'circle-dot',
+      defaultInputs: { options: ['Option 1', 'Option 2', 'Option 3'] }
+    },
+    {
+      id: 'rating',
+      name: 'Rating',
+      category: 'Inputs',
+      component: RatingComponent,
+      icon: 'star',
+      defaultInputs: { value: 3 }
+    },
+
+    // DATA DISPLAY
+    {
+      id: 'badge',
+      name: 'Badge',
+      category: 'Data Display',
+      component: BadgeComponent,
+      icon: 'tag',
+      defaultInputs: { variant: 'default' },
+      inputs: [{ name: 'variant', type: 'select', options: ['default', 'secondary', 'destructive', 'outline'] }]
+    },
+    {
+      id: 'avatar',
+      name: 'Avatar',
+      category: 'Data Display',
+      component: AvatarComponent,
+      icon: 'user-circle',
+      defaultInputs: {}
+    },
+    {
+      id: 'timeline',
+      name: 'Timeline',
+      category: 'Data Display',
+      component: TimelineComponent,
+      icon: 'clock',
+      defaultInputs: {}
+    },
+    {
+      id: 'breadcrumb',
+      name: 'Breadcrumb',
+      category: 'Data Display',
+      component: BreadcrumbComponent,
+      icon: 'chevron-right',
+      defaultInputs: {}
+    },
+    {
+      id: 'code-block',
+      name: 'Code Block',
+      category: 'Data Display',
+      component: CodeBlockComponent,
+      icon: 'code',
+      defaultInputs: { code: 'console.log("Hello Page Builder!");', language: 'javascript' }
+    },
+
+    // FEEDBACK
+    {
+      id: 'alert',
+      name: 'Alert',
+      category: 'Feedback',
+      component: AlertComponent,
+      icon: 'alert-triangle',
+      defaultInputs: { variant: 'default' },
+      inputs: [{ name: 'variant', type: 'select', options: ['default', 'destructive'] }]
+    },
+    {
+      id: 'progress',
+      name: 'Progress',
+      category: 'Feedback',
+      component: ProgressComponent,
+      icon: 'loader',
+      defaultInputs: { value: 66 }
+    },
+    {
+      id: 'spinner',
+      name: 'Spinner',
+      category: 'Feedback',
+      component: SpinnerComponent,
+      icon: 'refresh-cw',
+      defaultInputs: { size: 'md' }
+    },
+
+    // ADVANCED
+    {
+      id: 'metric',
+      name: 'Metric',
+      category: 'Advanced',
+      component: MetricWidgetComponent,
+      icon: 'bar-chart-2',
+      defaultInputs: { title: 'Revenue', value: '$12,842', trend: 12.5 }
+    },
+    {
+      id: 'sparkles',
+      name: 'Sparkles Button',
+      category: 'Advanced',
+      component: SparklesButtonComponent,
+      icon: 'sparkles',
+      defaultInputs: { label: 'Magic Button' }
+    },
+    {
+      id: 'chat-list',
+      name: 'Chat List',
+      category: 'Advanced',
+      component: ChatListComponent,
+      icon: 'message-square',
+      defaultInputs: {}
+    },
+    {
+      id: 'streaming-text',
+      name: 'Streaming Text',
+      category: 'Advanced',
+      component: StreamingTextComponent,
+      icon: 'type',
+      defaultInputs: { text: 'This text is appearing character by character...', speed: 50 }
+    }
+  ]);
+
+  onExternalDrop(event: { widgetId: string, targetId: string | null, x?: number, y?: number }) {
     const widget = this.widgets().find(w => w.id === event.widgetId);
     if (!widget) return;
 
@@ -1527,7 +1752,15 @@ ORDER BY created_at DESC;`;
         return item;
       })
     );
+    // Note: app.html for bento-grid demo might strictly look for `targetId: string` if it binds to a specific type,
+    // but since we updated the handler here, it should be fine if we updated the generic correctly.
+    // However, the dashboard items replacement logic is SPECIFIC to the dashboard demo (replacing content of existing item).
+    // Page Builder uses a different logic (adding NEW item).
+    // We are reusing `onExternalDrop`? No, PageBuilder has its OWN `onExternalDrop`.
+    // The error was in `app.html` which calls `onExternalDrop` for the EXISTING BentoGrid demo.
+    // So I must ensure this method signature matches what `BentoGrid` emits.
   }
+
 
   onDashboardItemsChange(items: DashboardItem[]) {
     this.dashboardItems.set(items);

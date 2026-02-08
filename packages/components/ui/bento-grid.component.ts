@@ -10,6 +10,7 @@ import {
     inject,
     ElementRef,
     effect,
+    ComponentRef,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { cn, isRtl } from '../lib/utils';
@@ -75,6 +76,7 @@ export class BentoGridItemComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div [class]="classes()" 
+         [style.grid-template-columns]="gridTemplateColumns()"
          (contextmenu)="onContainerContextMenu($event, menu)"
          (window:mousemove)="onWindowMouseMove($event)"
          (window:mouseup)="onWindowMouseUp()"
@@ -82,7 +84,7 @@ export class BentoGridItemComponent {
          (drop)="onContainerDrop($event)">
          
          @if (editable()) {
-             <div class="absolute inset-0 grid grid-cols-12 auto-rows-[100px] gap-4 -z-10 pointer-events-none overflow-hidden">
+             <div class="absolute inset-0 grid auto-rows-[100px] gap-4 pointer-events-none overflow-hidden" [style.grid-template-columns]="gridTemplateColumns()">
                 @for (cell of gridCells(); track cell.id) {
                     <div class="relative w-full h-full">
                         <div class="absolute -top-[2px] -left-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
@@ -186,7 +188,12 @@ export class BentoGridItemComponent {
          >
             <!-- Content Rendering Logic -->
             @if (isComponent(item.content)) {
-                <ng-container [uiComponentOutlet]="asComponent(item.content)" [inputs]="item.inputs || {}" [outputs]="item.outputs || {}" />
+                <ng-container 
+                    [uiComponentOutlet]="asComponent(item.content)" 
+                    [inputs]="item.inputs || {}" 
+                    [outputs]="item.outputs || {}" 
+                    (initialized)="componentInit.emit({ id: item.id, ref: $event })"
+                />
             } @else {
                 <p>{{ item.content }}</p>
             }
@@ -263,7 +270,9 @@ export class BentoGridComponent {
     cols = input<number>(12);
 
     itemsChange = output<DashboardItem[]>();
-    externalDrop = output<{ widgetId: string, targetId: string }>();
+    externalDrop = output<{ widgetId: string, targetId: string | null, x?: number, y?: number }>();
+    selectionChange = output<string[]>();
+    componentInit = output<{ id: string, ref: ComponentRef<any> }>();
 
     private el = inject(ElementRef);
 
@@ -287,14 +296,22 @@ export class BentoGridComponent {
         if (!this.editable()) return;
 
         this.selectedItemIds.update(ids => {
+            let newIds;
             if (ids.includes(id)) {
-                return ids.filter(i => i !== id);
+                newIds = ids.filter(i => i !== id);
+            } else if (multi) {
+                newIds = [...ids, id];
+            } else {
+                newIds = [id];
             }
-            if (multi) {
-                return [...ids, id];
-            }
-            return [id];
+            return newIds;
         });
+        this.selectionChange.emit(this.selectedItemIds());
+    }
+
+    clearSelection() {
+        this.selectedItemIds.set([]);
+        this.selectionChange.emit([]);
     }
 
     isSelected(id: string) {
@@ -394,6 +411,7 @@ export class BentoGridComponent {
 
         this.itemsChange.emit(newItems);
         this.selectedItemIds.set([]);
+        this.selectionChange.emit([]);
     }
 
     onContextMenu(event: MouseEvent, item: DashboardItem, menu: ContextMenuComponent) {
@@ -460,11 +478,11 @@ export class BentoGridComponent {
     }
 
     classes = computed(() => cn(
-        'grid w-full auto-rows-[100px] gap-4 relative',
-        `grid-cols-${this.cols()}`,
-        this.items().length > 0 ? 'grid-cols-12' : 'grid-cols-1 md:grid-cols-3',
+        'grid w-full auto-rows-[100px] gap-4 relative grid-cols-12',
         this.class()
     ));
+
+    gridTemplateColumns = computed(() => `repeat(${this.cols()}, minmax(0, 1fr))`);
 
     gridGradient = computed(() => 'none');
 
@@ -636,6 +654,7 @@ export class BentoGridComponent {
                 const parsed = JSON.parse(data);
                 if (parsed.type === 'widget' && parsed.id) {
                     const { x, y } = this.getGridCoordinates(event);
+                    this.externalDrop.emit({ widgetId: parsed.id, targetId: null, x, y });
                 }
             } catch (e) {
             }
