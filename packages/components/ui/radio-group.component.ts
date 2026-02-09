@@ -87,7 +87,7 @@ export class RadioGroupItemComponent {
 
   private group = inject(RADIO_GROUP, { optional: true });
 
-  isSelected = computed(() => this.group?.value() === this.value());
+  isSelected = computed(() => this.group?.internalValue() === this.value());
   isDisabled = computed(() => this.disabled() || (this.group?.isDisabled() ?? false));
 
   classes = computed(() =>

@@ -112,7 +112,7 @@ describe('SelectComponent', () => {
         component.open.set(true);
         component.select('test-value');
 
-        expect(component.value()).toBe('test-value');
+        expect(component.internalValue()).toBe('test-value');
         expect(component.open()).toBe(false);
     });
 });
