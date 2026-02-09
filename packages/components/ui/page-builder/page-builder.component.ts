@@ -17,7 +17,6 @@ import {
     Grid,
     Type as TypeIcon,
     Image as ImageIcon,
-    List,
     BoxSelect,
     TextCursor,
     BarChart2,
@@ -439,7 +438,8 @@ export class PageBuilderComponent {
     instanceMap = signal<Map<string, any>>(new Map());
     isSelecting = signal(false);
 
-    // Grid Customization
+
+
     gridRowHeight = signal<string>('120px');
     gridColumnWidth = signal<string>('1fr');
     gridCols = signal<number>(12);
@@ -449,14 +449,12 @@ export class PageBuilderComponent {
     gridItemPadding = signal<string>('1rem');
     gridSquareCells = signal<boolean>(false);
 
-    // Live Data Simulation
+
+
     simulatingData = signal<boolean>(false);
     private simulationInterval?: any;
 
     constructor() {
-        // ... (pre-existing effects if any)
-
-        // Square Cells Sync
         effect(() => {
             if (this.gridSquareCells()) {
                 const height = this.gridRowHeight();
@@ -502,7 +500,6 @@ export class PageBuilderComponent {
     });
 
     updateGridSetting(signal: WritableSignal<string>, value: string) {
-        // If value is a number or numeric string without unit, append px
         if (value && !isNaN(parseFloat(value)) && isFinite(Number(value))) {
             signal.set(`${value}px`);
         } else {
@@ -604,12 +601,10 @@ export class PageBuilderComponent {
         this.items.update(items => items.map(item => {
             if (item.id === id) {
                 if (typeof event.prop === 'string' && !['x', 'y', 'cols', 'rows'].includes(event.prop)) {
-                    // This is an input change
                     const newInputs = { ...(item.inputs || {}) };
                     newInputs[event.prop] = event.value;
                     return { ...item, inputs: newInputs };
                 } else {
-                    // This is a property change (x, y, cols, rows)
                     return { ...item, [event.prop]: event.value };
                 }
             }
@@ -658,7 +653,6 @@ export class PageBuilderComponent {
         const jsonString = JSON.stringify(data, null, 2);
 
         try {
-            // Try the modern File System Access API (Chrome/Edge/Opera)
             const win = window as unknown as WindowWithFileSystem;
             if (win.showSaveFilePicker) {
                 const handle = await win.showSaveFilePicker({
@@ -674,12 +668,10 @@ export class PageBuilderComponent {
                 return;
             }
         } catch (err) {
-            // User cancelled or API failed, fall back to download
             console.log('Save cancelled or failed, falling back to download:', err);
-            if ((err as Error).name === 'AbortError') return; // User cancelled
+            if ((err as Error).name === 'AbortError') return;
         }
 
-        // Fallback: Anchor tag download
         const blob = new Blob([jsonString], { type: 'application/json' });
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
@@ -698,7 +690,6 @@ export class PageBuilderComponent {
 
     async importJson() {
         try {
-            // Try the modern File System Access API
             const win = window as unknown as WindowWithFileSystem;
             if (win.showOpenFilePicker) {
                 const [handle] = await win.showOpenFilePicker({
@@ -718,10 +709,9 @@ export class PageBuilderComponent {
             if ((err as Error).name === 'AbortError') return;
         }
 
-        // Fallback: Trigger hidden file input
         const fileInput = document.getElementById('import-json-input') as HTMLInputElement;
         if (fileInput) {
-            fileInput.value = ''; // Reset to allow re-selecting same file
+            fileInput.value = '';
             fileInput.click();
         }
     }
@@ -743,13 +733,11 @@ export class PageBuilderComponent {
         try {
             const data = JSON.parse(jsonString);
 
-            // Validate basic structure
             if (!data.grid || !Array.isArray(data.items)) {
                 alert('Invalid layout file format');
                 return;
             }
 
-            // Restore Grid Settings
             if (data.grid.cols) this.gridCols.set(data.grid.cols);
             if (data.grid.rowHeight) this.gridRowHeight.set(data.grid.rowHeight);
             if (data.grid.columnWidth) this.gridColumnWidth.set(data.grid.columnWidth);
@@ -759,7 +747,6 @@ export class PageBuilderComponent {
             if (data.grid.itemPadding) this.gridItemPadding.set(data.grid.itemPadding);
             if (data.grid.squareCells !== undefined) this.gridSquareCells.set(data.grid.squareCells);
 
-            // Restore Items
             const newItems: DashboardItem[] = data.items.map((item: any) => {
                 const componentMeta = this.components().find(c => c.id === item.componentId);
                 return {
@@ -773,23 +760,9 @@ export class PageBuilderComponent {
                 };
             }).filter((item: DashboardItem) => item.content !== null);
 
-            // Rebuild Instance Map (simulate adding components)
-            const newInstanceMap = new Map<string, any>();
-
-            // We need to re-instantiate components logic if needed, 
-            // but for now we rely on the grid to render them based on inputs.
-            // PageBuilder uses instanceMap mainly for inputs? 
-            // Actually instanceMap stores ComponentRef. We can't easily restore refs from JSON.
-            // But PageBuilder re-creates them when items change? 
-            // Let's check how items are rendered. they use <ng-container *componentOutlet>.
-            // BentoGridComponent renders them. 
-            // PageBuilder maintains instanceMap for property editor updates.
-            // valid items will trigger BentoGrid to render. 
-            // BentoGrid emits componentInit. PageBuilder listens to it to populate instanceMap.
-
             this.items.set(newItems);
             this.selectedItemId.set(null);
-            this.instanceMap.set(new Map()); // Clear instances, let them re-register via componentInit
+            this.instanceMap.set(new Map());
 
         } catch (err) {
             console.error('Failed to parse layout file:', err);
@@ -807,7 +780,6 @@ export class PageBuilderComponent {
         const meta = this.components().find(c => c.component === item.content);
         if (!meta) return undefined;
 
-        // Auto-extract inputs using Angular reflection
         const mirror = reflectComponentType(meta.component);
         if (!mirror) return meta;
 
@@ -816,22 +788,18 @@ export class PageBuilderComponent {
             const defaultValue = meta.defaultInputs?.[name];
             const instance = this.instanceMap().get(item.id);
 
-            // Heuristic Type Inference
             let type: InputType = 'string';
 
-            // 1. Check live instance if available
             if (instance && instance[name] !== undefined) {
                 const val = typeof instance[name] === 'function' ? instance[name]() : instance[name];
                 if (typeof val === 'number') type = 'number';
                 else if (typeof val === 'boolean') type = 'boolean';
             }
-            // 2. Check default value type
             else if (typeof defaultValue === 'number') {
                 type = 'number';
             } else if (typeof defaultValue === 'boolean') {
                 type = 'boolean';
             }
-            // 3. Check name heuristics (if type is still string)
             else if (
                 name === 'disabled' ||
                 name === 'checked' ||
@@ -851,24 +819,17 @@ export class PageBuilderComponent {
             };
         });
 
-        // If no manual inputs, return auto inputs
         if (!meta.inputs || meta.inputs.length === 0) {
             return { ...meta, inputs: autoInputs };
         }
-
-        // Merge: Auto inputs are base, Manual inputs are overrides
-        // We want to keep all auto inputs, but specific ones might be overridden by manual config
-        // (e.g. to change type to 'select' which reflection can't guess)
 
         const mergedInputs = [...autoInputs];
 
         meta.inputs.forEach(manualInput => {
             const index = mergedInputs.findIndex(i => i.name === manualInput.name);
             if (index > -1) {
-                // Override existing auto-input
                 mergedInputs[index] = { ...mergedInputs[index], ...manualInput };
             } else {
-                // Add new manual input (rare, but maybe for virtual inputs)
                 mergedInputs.push(manualInput);
             }
         });

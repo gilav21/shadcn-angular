@@ -440,6 +440,23 @@ export const registry: Record<string, ComponentDefinition> = {
       'bento-grid.component.ts',
     ],
   },
+  'page-builder': {
+    name: 'page-builder',
+    dependencies: [
+      'bento-grid',
+      'button',
+      'input',
+      'label',
+      'select',
+      'switch',
+      'slider'
+    ],
+    files: [
+      'page-builder/page-builder.component.ts',
+      'page-builder/page-builder.types.ts',
+      'page-builder/property-editor.component.ts'
+    ],
+  },
   'component-outlet': {
     name: 'component-outlet',
     files: ['component-outlet.directive.ts'],
