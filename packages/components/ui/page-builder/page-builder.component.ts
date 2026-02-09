@@ -53,7 +53,8 @@ import {
     Box,
     ToggleLeft,
     CreditCard,
-    Layout
+    Layout,
+    Upload
 } from 'lucide-angular';
 import {
     BentoGridComponent,
@@ -77,6 +78,7 @@ import { cn } from '../../lib/utils';
             Grid,
             Trash2,
             Download,
+            Upload,
             Settings2,
             LayoutTemplate,
             MousePointerClick,
@@ -207,6 +209,14 @@ export class PageBuilderIconsModule { }
                             <span>Clear</span>
                         </button>
                         <button 
+                            (click)="importJson()"
+                            class="h-9 px-3 rounded-md hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm transition-colors mr-2"
+                            title="Import Layout"
+                        >
+                            <lucide-icon name="upload" class="h-4 w-4"></lucide-icon>
+                            Import
+                        </button>
+                        <button 
                             (click)="exportJson()"
                             class="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
                         >
@@ -249,6 +259,13 @@ export class PageBuilderIconsModule { }
                     </div>
                 </div>
             </main>
+            <input 
+                type="file" 
+                id="import-json-input" 
+                accept=".json" 
+                class="hidden" 
+                (change)="handleFileInput($event)"
+            >
 
             <!-- RIGHT INSPECTOR -->
             @if (viewMode() === 'edit') {
@@ -667,7 +684,7 @@ export class PageBuilderComponent {
         const url = window.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
-        link.setAttribute('download', fileName); // explicit attribute
+        link.setAttribute('download', fileName);
         link.style.display = 'none';
         document.body.appendChild(link);
 
@@ -677,6 +694,107 @@ export class PageBuilderComponent {
             document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
         }, 2000);
+    }
+
+    async importJson() {
+        try {
+            // Try the modern File System Access API
+            const win = window as unknown as WindowWithFileSystem;
+            if (win.showOpenFilePicker) {
+                const [handle] = await win.showOpenFilePicker({
+                    types: [{
+                        description: 'JSON File',
+                        accept: { 'application/json': ['.json'] },
+                    }],
+                    multiple: false
+                });
+                const file = await handle.getFile();
+                const text = await file.text();
+                this.loadLayout(text);
+                return;
+            }
+        } catch (err) {
+            console.log('Import cancelled or failed, falling back to input:', err);
+            if ((err as Error).name === 'AbortError') return;
+        }
+
+        // Fallback: Trigger hidden file input
+        const fileInput = document.getElementById('import-json-input') as HTMLInputElement;
+        if (fileInput) {
+            fileInput.value = ''; // Reset to allow re-selecting same file
+            fileInput.click();
+        }
+    }
+
+    handleFileInput(event: Event) {
+        const input = event.target as HTMLInputElement;
+        const file = input.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const text = e.target?.result as string;
+            this.loadLayout(text);
+        };
+        reader.readAsText(file);
+    }
+
+    private loadLayout(jsonString: string) {
+        try {
+            const data = JSON.parse(jsonString);
+
+            // Validate basic structure
+            if (!data.grid || !Array.isArray(data.items)) {
+                alert('Invalid layout file format');
+                return;
+            }
+
+            // Restore Grid Settings
+            if (data.grid.cols) this.gridCols.set(data.grid.cols);
+            if (data.grid.rowHeight) this.gridRowHeight.set(data.grid.rowHeight);
+            if (data.grid.columnWidth) this.gridColumnWidth.set(data.grid.columnWidth);
+            if (data.grid.gap) this.gridGap.set(data.grid.gap);
+            if (data.grid.showBorders !== undefined) this.gridShowBorders.set(data.grid.showBorders);
+            if (data.grid.borderRadius) this.gridBorderRadius.set(data.grid.borderRadius);
+            if (data.grid.itemPadding) this.gridItemPadding.set(data.grid.itemPadding);
+            if (data.grid.squareCells !== undefined) this.gridSquareCells.set(data.grid.squareCells);
+
+            // Restore Items
+            const newItems: DashboardItem[] = data.items.map((item: any) => {
+                const componentMeta = this.components().find(c => c.id === item.componentId);
+                return {
+                    id: item.id,
+                    x: item.x,
+                    y: item.y,
+                    cols: item.cols,
+                    rows: item.rows,
+                    content: componentMeta ? componentMeta.component : null,
+                    inputs: item.inputs || {}
+                };
+            }).filter((item: DashboardItem) => item.content !== null);
+
+            // Rebuild Instance Map (simulate adding components)
+            const newInstanceMap = new Map<string, any>();
+
+            // We need to re-instantiate components logic if needed, 
+            // but for now we rely on the grid to render them based on inputs.
+            // PageBuilder uses instanceMap mainly for inputs? 
+            // Actually instanceMap stores ComponentRef. We can't easily restore refs from JSON.
+            // But PageBuilder re-creates them when items change? 
+            // Let's check how items are rendered. they use <ng-container *componentOutlet>.
+            // BentoGridComponent renders them. 
+            // PageBuilder maintains instanceMap for property editor updates.
+            // valid items will trigger BentoGrid to render. 
+            // BentoGrid emits componentInit. PageBuilder listens to it to populate instanceMap.
+
+            this.items.set(newItems);
+            this.selectedItemId.set(null);
+            this.instanceMap.set(new Map()); // Clear instances, let them re-register via componentInit
+
+        } catch (err) {
+            console.error('Failed to parse layout file:', err);
+            alert('Failed to parse layout file');
+        }
     }
 
     clearBoard() {

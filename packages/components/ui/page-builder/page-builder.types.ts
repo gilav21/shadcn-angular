@@ -52,6 +52,16 @@ export interface SaveFilePickerOptions {
     excludeAcceptAllOption?: boolean;
 }
 
+export interface OpenFilePickerOptions {
+    multiple?: boolean;
+    types?: {
+        description?: string;
+        accept: Record<string, string[]>;
+    }[];
+    excludeAcceptAllOption?: boolean;
+}
+
 export interface WindowWithFileSystem extends Window {
     showSaveFilePicker(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
+    showOpenFilePicker(options?: OpenFilePickerOptions): Promise<FileSystemFileHandle[]>;
 }
