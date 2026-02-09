@@ -1534,7 +1534,7 @@ ORDER BY created_at DESC;`;
       category: 'Layout',
       component: CardComponent,
       icon: 'layout',
-      defaultInputs: {},
+      defaultInputs: { title: 'New Card', description: 'Card description goes here.' },
     },
     {
       id: 'tabs',
@@ -1568,7 +1568,7 @@ ORDER BY created_at DESC;`;
       category: 'Inputs',
       component: ButtonComponent,
       icon: 'box-select',
-      defaultInputs: { variant: 'default', size: 'default' },
+      defaultInputs: { variant: 'default', size: 'default', label: 'Click Me' },
       inputs: [
         { name: 'variant', type: 'select', options: ['default', 'destructive', 'outline', 'secondary', 'ghost', 'link'] },
         { name: 'size', type: 'select', options: ['default', 'sm', 'lg', 'icon'] }
@@ -1580,7 +1580,7 @@ ORDER BY created_at DESC;`;
       category: 'Inputs',
       component: InputComponent,
       icon: 'text-cursor',
-      defaultInputs: { placeholder: 'Type something...' }
+      defaultInputs: { placeholder: 'Type something...', value: '' }
     },
     {
       id: 'textarea',
@@ -1588,7 +1588,7 @@ ORDER BY created_at DESC;`;
       category: 'Inputs',
       component: TextareaComponent,
       icon: 'file-text',
-      defaultInputs: { placeholder: 'Start typing...' }
+      defaultInputs: { placeholder: 'Start typing...', value: '' }
     },
     {
       id: 'switch',
@@ -1596,7 +1596,7 @@ ORDER BY created_at DESC;`;
       category: 'Inputs',
       component: SwitchComponent,
       icon: 'toggle-right',
-      defaultInputs: { checked: false }
+      defaultInputs: { checked: false, label: 'Enable setting' }
     },
     {
       id: 'checkbox',
@@ -1604,7 +1604,7 @@ ORDER BY created_at DESC;`;
       category: 'Inputs',
       component: CheckboxComponent,
       icon: 'check-square',
-      defaultInputs: { checked: false }
+      defaultInputs: { checked: false, label: 'Accept terms' }
     },
     {
       id: 'slider',
@@ -1638,7 +1638,7 @@ ORDER BY created_at DESC;`;
       category: 'Data Display',
       component: BadgeComponent,
       icon: 'tag',
-      defaultInputs: { variant: 'default' },
+      defaultInputs: { variant: 'default', label: 'New' },
       inputs: [{ name: 'variant', type: 'select', options: ['default', 'secondary', 'destructive', 'outline'] }]
     },
     {
@@ -1647,7 +1647,7 @@ ORDER BY created_at DESC;`;
       category: 'Data Display',
       component: AvatarComponent,
       icon: 'user-circle',
-      defaultInputs: {}
+      defaultInputs: { src: 'https://github.com/shadcn.png' }
     },
     {
       id: 'timeline',
@@ -1681,7 +1681,7 @@ ORDER BY created_at DESC;`;
       category: 'Feedback',
       component: AlertComponent,
       icon: 'alert-triangle',
-      defaultInputs: { variant: 'default' },
+      defaultInputs: { variant: 'default', title: 'Attention!', description: 'Something important happened.' },
       inputs: [{ name: 'variant', type: 'select', options: ['default', 'destructive'] }]
     },
     {

@@ -74,6 +74,7 @@ import {
 } from './page-builder.types';
 import { FormsModule } from '@angular/forms';
 import { PropertyEditorComponent } from './property-editor.component';
+import { cn } from '../../lib/utils';
 
 @NgModule({
     imports: [
@@ -135,31 +136,31 @@ export class PageBuilderIconsModule { }
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-        <div class="flex h-full w-full bg-background text-foreground overflow-hidden">
-            <!-- LEFT PALETTE -->
-            <aside class="w-64 border-r flex flex-col bg-muted/10 border-r-border">
-                <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur">
-                    <lucide-icon name="layout-dashboard" class="h-4 w-4 text-muted-foreground"></lucide-icon>
+        <div [class]="classes()" [attr.data-slot]="'page-builder'" class="h-screen bg-background overflow-hidden flex">
+            <!-- Sidebar -->
+            <aside class="w-80 border-r bg-card flex flex-col border-r-border h-full">
+                <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
+                    <lucide-icon name="box" class="h-4 w-4 text-muted-foreground"></lucide-icon>
                     Components
                 </div>
-                <div class="flex-1 overflow-y-auto p-4 space-y-6">
+                <div class="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain">
                     @for (category of categories(); track category) {
-                        <div class="space-y-3">
-                            <h3 class="text-[10px] font-bold text-muted-foreground uppercase tracking-wider px-1">{{ category }}</h3>
-                            <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <h3 class="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-2">
+                                {{ category }}
+                            </h3>
+                            <div class="grid grid-cols-2 gap-2">
                                 @for (comp of componentsByCategory()[category]; track comp.id) {
                                     <div 
-                                        class="group relative flex flex-col items-center justify-center p-4 rounded-xl border bg-card hover:bg-accent hover:text-accent-foreground hover:border-primary/50 cursor-grab active:cursor-grabbing transition-all shadow-sm hover:shadow-md gap-3 text-center"
                                         draggable="true"
                                         (dragstart)="onDragStart($event, comp)"
+                                        class="flex flex-col items-center justify-center p-3 rounded-lg border bg-background hover:bg-accent hover:text-accent-foreground cursor-grab active:cursor-grabbing transition-all group border-border/50 hover:border-primary/50 shadow-sm hover:shadow-md"
+                                        [title]="comp.name"
                                     >
-                                        <div class="p-2 rounded-lg bg-muted group-hover:bg-background transition-colors">
-                                            <lucide-icon [name]="comp.icon" class="h-5 w-5"></lucide-icon>
+                                        <div class="p-2 rounded-md bg-muted group-hover:bg-primary/10 transition-colors mb-2">
+                                            <lucide-icon [name]="comp.icon" class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors"></lucide-icon>
                                         </div>
-                                        <span class="text-xs font-medium">{{ comp.name }}</span>
-                                        
-                                        <!-- Hover Effect -->
-                                        <div class="absolute inset-0 rounded-xl ring-2 ring-primary/0 group-hover:ring-primary/10 transition-all"></div>
+                                        <span class="text-[11px] font-medium truncate w-full text-center">{{ comp.name }}</span>
                                     </div>
                                 }
                             </div>
@@ -168,18 +169,32 @@ export class PageBuilderIconsModule { }
                 </div>
             </aside>
 
-            <!-- CENTER STAGE -->
-            <main class="flex-1 flex flex-col min-w-0 bg-background relative selection-area">
+            <!-- Main Area -->
+            <main class="flex-1 flex flex-col bg-muted/30 h-full overflow-hidden">
                 <!-- Toolbar -->
-                <header class="h-14 border-b flex items-center justify-between px-6 bg-background/50 backdrop-blur z-10">
+                <header class="h-14 border-b bg-background flex items-center justify-between px-6 shrink-0 z-10">
                     <div class="flex items-center gap-4">
-                        <div class="flex items-center gap-2 text-sm text-muted-foreground">
+                        <div class="flex items-center gap-2 text-sm font-medium">
                             <lucide-icon name="layers" class="h-4 w-4"></lucide-icon>
                             <span>{{ items().length }} Items</span>
                         </div>
                     </div>
 
                     <div class="flex items-center gap-2">
+                        <div class="flex items-center bg-muted/50 rounded-lg p-1 mr-2 border border-border/50">
+                            <button 
+                                (click)="toggleSimulatedData()"
+                                class="h-7 px-3 rounded-md flex items-center gap-2 text-[11px] font-medium transition-all"
+                                [class.bg-primary]="simulatingData()"
+                                [class.text-primary-foreground]="simulatingData()"
+                                [class.bg-transparent]="!simulatingData()"
+                                title="Toggle Live Data Simulation"
+                            >
+                                <lucide-icon [name]="simulatingData() ? 'refresh-cw' : 'loader'" [class.animate-spin]="simulatingData()" class="h-3.5 w-3.5"></lucide-icon>
+                                <span>{{ simulatingData() ? 'Stop Sim' : 'Live Demo' }}</span>
+                            </button>
+                        </div>
+
                         <button 
                             (click)="viewMode.set(viewMode() === 'edit' ? 'preview' : 'edit')"
                             class="h-9 px-3 rounded-md hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm transition-colors"
@@ -209,8 +224,8 @@ export class PageBuilderIconsModule { }
                 </header>
 
                 <!-- Grid Area -->
-                <div class="flex-1 overflow-auto p-8 relative">
-                    <div class="max-w-[1200px] mx-auto min-h-full bg-card/30 rounded-xl border border-dashed border-border/50 relative">
+                <div class="flex-1 overflow-auto p-8 relative overscroll-contain flex flex-col">
+                    <div class="max-w-[1200px] w-full mx-auto flex-1 flex flex-col bg-card/30 rounded-xl border border-dashed border-border/50 relative">
                         
                         @if (items().length === 0) {
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground pointer-events-none">
@@ -225,11 +240,13 @@ export class PageBuilderIconsModule { }
                             [items]="items()"
                             (itemsChange)="onItemsChange($event)"
                             [cols]="12"
+                            [rowHeight]="gridRowHeight()"
+                            [gap]="gridGap()"
                             [editable]="viewMode() === 'edit'"
                             (selectionChange)="onSelectionChange($event)"
                             (externalDrop)="onExternalDrop($event)"
                             (componentInit)="onComponentInit($event)"
-                            class="min-h-[600px] transition-all duration-300"
+                            class="flex-1 transition-all duration-300"
                         >
                         </ui-bento-grid>
                     </div>
@@ -238,19 +255,59 @@ export class PageBuilderIconsModule { }
 
             <!-- RIGHT INSPECTOR -->
             @if (viewMode() === 'edit') {
-                <aside class="w-80 border-l bg-card flex flex-col border-l-border">
-                    <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur">
+                <aside class="w-80 border-l bg-card flex flex-col border-l-border h-full">
+                    <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
                         <lucide-icon name="settings-2" class="h-4 w-4 text-muted-foreground"></lucide-icon>
-                        Properties
+                        {{ selectedItemId() ? 'Properties' : 'Grid Settings' }}
                     </div>
-                    <div class="flex-1 overflow-hidden">
-                        <ui-property-editor
-                            [item]="selectedItem()"
-                            [componentMeta]="selectedComponentMeta()"
-                            [isLoading]="!!(selectedItemId() && !instanceMap().has(selectedItemId()!))"
-                            (itemChange)="onItemChange($event)"
-                            (delete)="onDeleteItem()"
-                        />
+                    <div class="flex-1 overflow-auto p-4">
+                        @if (selectedItemId()) {
+                            <ui-property-editor
+                                [item]="selectedItem()"
+                                [componentMeta]="selectedComponentMeta()"
+                                [isLoading]="!!(selectedItemId() && !instanceMap().has(selectedItemId()!))"
+                                (itemChange)="onItemChange($event)"
+                                (delete)="onDeleteItem()"
+                            />
+                        } @else {
+                            <div class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
+                                <div class="space-y-4">
+                                    <div class="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                                        <lucide-icon name="grid" class="h-3 w-3"></lucide-icon>
+                                        Layout Configuration
+                                    </div>
+                                    
+                                    <div class="space-y-3 p-3 rounded-lg border bg-muted/30">
+                                        <div class="space-y-1.5">
+                                            <label class="text-xs font-medium">Row Height</label>
+                                            <input 
+                                                type="text" 
+                                                [ngModel]="gridRowHeight()" 
+                                                (ngModelChange)="gridRowHeight.set($event)"
+                                                class="w-full h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
+                                                placeholder="e.g. 100px"
+                                            >
+                                        </div>
+                                        
+                                        <div class="space-y-1.5">
+                                            <label class="text-xs font-medium">Gap Size</label>
+                                            <input 
+                                                type="text" 
+                                                [ngModel]="gridGap()" 
+                                                (ngModelChange)="gridGap.set($event)"
+                                                class="w-full h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
+                                                placeholder="e.g. 1rem"
+                                            >
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed">
+                                    <p class="font-medium text-primary mb-1">Tip:</p>
+                                    Use standard CSS units like px, rem, or vh to customize your grid's spacing.
+                                </div>
+                            </div>
+                        }
                     </div>
                 </aside>
             }
@@ -258,13 +315,24 @@ export class PageBuilderIconsModule { }
     `,
 })
 export class PageBuilderComponent {
+    class = input('');
     components = input<ComponentMeta[]>([]);
 
+    viewMode = signal<'edit' | 'preview'>('edit');
     items = signal<DashboardItem[]>([]);
     selectedItemId = signal<string | null>(null);
     instanceMap = signal<Map<string, any>>(new Map());
     isSelecting = signal(false);
-    viewMode = signal<'edit' | 'preview'>('edit');
+
+    // Grid Customization
+    gridRowHeight = signal<string>('120px');
+    gridGap = signal<string>('1.5rem');
+
+    // Live Data Simulation
+    simulatingData = signal<boolean>(false);
+    private simulationInterval?: any;
+
+    classes = computed(() => cn('flex h-full w-full bg-background text-foreground overflow-hidden', this.class()));
 
     selectedItem = computed(() => {
         const id = this.selectedItemId();
@@ -291,37 +359,53 @@ export class PageBuilderComponent {
         return grouped;
     });
 
+    toggleSimulatedData() {
+        this.simulatingData.update(v => !v);
+        if (this.simulatingData()) {
+            this.startSimulation();
+        } else {
+            this.stopSimulation();
+        }
+    }
+
+    private startSimulation() {
+        this.simulationInterval = setInterval(() => {
+            this.items.update(items => items.map(item => {
+                const meta = this.getComponentMeta(item);
+                if (meta?.id === 'progress') {
+                    const current = item.inputs?.['value'] || 0;
+                    const next = (current + 5) % 105;
+                    return { ...item, inputs: { ...item.inputs, value: next } };
+                }
+                return item;
+            }));
+        }, 1000);
+    }
+
+    private stopSimulation() {
+        if (this.simulationInterval) {
+            clearInterval(this.simulationInterval);
+            this.simulationInterval = undefined;
+        }
+    }
+
     onDragStart(event: DragEvent, comp: ComponentMeta) {
         if (event.dataTransfer) {
             event.dataTransfer.setData('application/json', JSON.stringify({
                 type: 'widget',
                 id: comp.id
             }));
-            event.dataTransfer.effectAllowed = 'copyMove';
+            event.dataTransfer.effectAllowed = 'all';
         }
     }
 
     onExternalDrop(event: { widgetId: string, targetId: string | null, x?: number, y?: number }) {
-        const compMeta = this.components().find(c => c.id === event.widgetId);
-        if (!compMeta) return;
+        const comp = this.components().find(c => c.id === event.widgetId);
+        if (!comp) return;
 
-        if (event.targetId) {
-            // Replace content logic
-            this.items.update(items => items.map(item => {
-                if (item.id === event.targetId) {
-                    return {
-                        ...item,
-                        content: compMeta.component,
-                        inputs: { ...compMeta.defaultInputs }
-                    };
-                }
-                return item;
-            }));
-            return;
-        }
-
-        this.addItem(compMeta, event.x, event.y);
+        this.addItem(comp, event.x, event.y);
     }
+
 
     addItem(comp: ComponentMeta, x?: number, y?: number) {
         let finalX = x ?? 0;

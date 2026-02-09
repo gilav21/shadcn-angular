@@ -76,7 +76,7 @@ export class BentoGridItemComponent {
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <div [class]="classes()" 
-         [style.grid-template-columns]="gridTemplateColumns()"
+         [ngStyle]="gridStyles()"
          (contextmenu)="onContainerContextMenu($event, menu)"
          (window:mousemove)="onWindowMouseMove($event)"
          (window:mouseup)="onWindowMouseUp()"
@@ -84,7 +84,10 @@ export class BentoGridItemComponent {
          (drop)="onContainerDrop($event)">
          
          @if (editable()) {
-             <div class="absolute inset-0 grid auto-rows-[100px] gap-4 pointer-events-none overflow-hidden" [style.grid-template-columns]="gridTemplateColumns()">
+             <div class="absolute inset-0 grid pointer-events-none overflow-hidden" 
+                  [style.grid-template-columns]="gridTemplateColumns()"
+                  [style.grid-auto-rows]="rowHeight()"
+                  [style.gap]="gap()">
                 @for (cell of gridCells(); track cell.id) {
                     <div class="relative w-full h-full">
                         <div class="absolute -top-[2px] -left-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
@@ -259,7 +262,9 @@ export class BentoGridItemComponent {
   `,
     styles: [`
     :host {
-      display: block;
+      display: flex;
+      flex-direction: column;
+      height: 100%;
     }
   `],
 })
@@ -268,6 +273,8 @@ export class BentoGridComponent {
     items = input<DashboardItem[]>([]);
     editable = input<boolean>(false);
     cols = input<number>(12);
+    rowHeight = input<string>('100px');
+    gap = input<string>('1rem');
 
     itemsChange = output<DashboardItem[]>();
     externalDrop = output<{ widgetId: string, targetId: string | null, x?: number, y?: number }>();
@@ -478,9 +485,15 @@ export class BentoGridComponent {
     }
 
     classes = computed(() => cn(
-        'grid w-full auto-rows-[100px] gap-4 relative grid-cols-12',
+        'grid w-full relative grid-cols-12 min-h-full',
         this.class()
     ));
+
+    gridStyles = computed(() => ({
+        'grid-template-columns': this.gridTemplateColumns(),
+        'grid-auto-rows': this.rowHeight(),
+        'gap': this.gap()
+    }));
 
     gridTemplateColumns = computed(() => `repeat(${this.cols()}, minmax(0, 1fr))`);
 
@@ -547,9 +560,9 @@ export class BentoGridComponent {
         if (!this.editable()) return;
         event.preventDefault();
         if (event.dataTransfer) {
-            event.dataTransfer.dropEffect = 'move';
+            const isExternal = event.dataTransfer.types.includes('application/json');
+            event.dataTransfer.dropEffect = isExternal ? 'copy' : 'move';
         }
-
 
         const draggedId = this.draggedItemId();
         if (draggedId) {

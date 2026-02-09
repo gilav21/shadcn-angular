@@ -29,7 +29,13 @@ export type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
 @Component({
     selector: 'ui-badge',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    template: `
+        @if (label()) {
+            {{ label() }}
+        } @else {
+            <ng-content />
+        }
+    `,
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"badge"',
@@ -37,6 +43,7 @@ export type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
 })
 export class BadgeComponent {
     variant = input<BadgeVariant>('default');
+    label = input<string>('');
     class = input('');
 
     classes = computed(() =>
