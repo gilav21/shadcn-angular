@@ -4,6 +4,8 @@ import {
     input,
     signal,
     computed,
+    effect,
+    WritableSignal,
     reflectComponentType,
     NgModule,
     ComponentRef
@@ -44,17 +46,7 @@ import {
     Plus,
     Settings2,
     Trash2,
-    Monitor,
-    Smartphone,
-    Tablet,
-    Undo2,
-    Redo2,
-    Save,
     Download,
-    Upload,
-    MoreVertical,
-    Check,
-    X,
     Layers,
     LayoutTemplate,
     MousePointerClick,
@@ -70,7 +62,8 @@ import {
 import {
     ComponentMeta,
     InputDefinition,
-    InputType
+    InputType,
+    WindowWithFileSystem
 } from './page-builder.types';
 import { FormsModule } from '@angular/forms';
 import { PropertyEditorComponent } from './property-editor.component';
@@ -239,9 +232,13 @@ export class PageBuilderIconsModule { }
                         <ui-bento-grid
                             [items]="items()"
                             (itemsChange)="onItemsChange($event)"
-                            [cols]="12"
+                            [cols]="gridCols()"
                             [rowHeight]="gridRowHeight()"
+                            [columnWidth]="gridColumnWidth()"
                             [gap]="gridGap()"
+                            [showBorders]="gridShowBorders()"
+                            [borderRadius]="gridBorderRadius()"
+                            [itemPadding]="gridItemPadding()"
                             [editable]="viewMode() === 'edit'"
                             (selectionChange)="onSelectionChange($event)"
                             (externalDrop)="onExternalDrop($event)"
@@ -284,23 +281,124 @@ export class PageBuilderIconsModule { }
                                                 type="text" 
                                                 [ngModel]="gridRowHeight()" 
                                                 (ngModelChange)="gridRowHeight.set($event)"
+                                                (blur)="updateGridSetting(gridRowHeight, gridRowHeight())"
                                                 class="w-full h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
                                                 placeholder="e.g. 100px"
                                             >
                                         </div>
                                         
-                                        <div class="space-y-1.5">
-                                            <label class="text-xs font-medium">Gap Size</label>
-                                            <input 
-                                                type="text" 
-                                                [ngModel]="gridGap()" 
-                                                (ngModelChange)="gridGap.set($event)"
-                                                class="w-full h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
-                                                placeholder="e.g. 1rem"
-                                            >
+                                         <div class="space-y-1.5">
+                                             <label class="text-xs font-medium">Gap Size</label>
+                                             <input 
+                                                 type="text" 
+                                                 [ngModel]="gridGap()" 
+                                                 (ngModelChange)="gridGap.set($event)"
+                                                 (blur)="updateGridSetting(gridGap, gridGap())"
+                                                 class="w-full h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
+                                                 placeholder="e.g. 1rem"
+                                             >
+                                         </div>
+
+                                         <div class="space-y-3 pt-2 border-t border-border/50">
+                                            <div class="flex items-center justify-between">
+                                                <div class="flex items-center gap-2">
+                                                    <lucide-icon name="box-select" class="h-3 w-3 text-muted-foreground"></lucide-icon>
+                                                    <label class="text-xs font-medium">Square Cells (Symmetry)</label>
+                                                </div>
+                                                <button 
+                                                    (click)="toggleSquareCells()"
+                                                    class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                                                    [class.bg-primary]="gridSquareCells()"
+                                                    [class.bg-input]="!gridSquareCells()"
+                                                >
+                                                    <span 
+                                                        class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform"
+                                                        [style.transform]="gridSquareCells() ? 'translateX(1rem)' : 'translateX(0)'"
+                                                    ></span>
+                                                </button>
+                                            </div>
+
+                                            @if (!gridSquareCells()) {
+                                                <div class="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                    <label class="text-xs font-medium text-muted-foreground">Column Configuration</label>
+                                                    <div class="grid grid-cols-2 gap-2">
+                                                        <div class="space-y-1">
+                                                            <span class="text-[10px] text-muted-foreground">Count</span>
+                                                            <input 
+                                                                type="number" 
+                                                                [(ngModel)]="gridCols"
+                                                                class="w-full h-8 px-2 rounded-md border bg-background text-xs focus:ring-1 focus:ring-primary outline-none"
+                                                            >
+                                                        </div>
+                                                        <div class="space-y-1">
+                                                            <span class="text-[10px] text-muted-foreground">Width</span>
+                                                            <input 
+                                                                type="text" 
+                                                                [ngModel]="gridColumnWidth()"
+                                                                (ngModelChange)="gridColumnWidth.set($event)"
+                                                                (blur)="updateGridSetting(gridColumnWidth, gridColumnWidth())"
+                                                                class="w-full h-8 px-2 rounded-md border bg-background text-xs focus:ring-1 focus:ring-primary outline-none"
+                                                                placeholder="1fr or px"
+                                                            >
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            }
+                                         </div>
+
+                                        <div class="space-y-1.5 pt-2 border-t border-border/50">
+                                            <div class="flex items-center justify-between">
+                                                <label class="text-xs font-medium">Show Borders (Preview)</label>
+                                                <button 
+                                                    (click)="gridShowBorders.set(!gridShowBorders())"
+                                                    class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                                    [class.bg-primary]="gridShowBorders()"
+                                                    [class.bg-input]="!gridShowBorders()"
+                                                >
+                                                    <span 
+                                                        class="pointer-events-none block h-4 w-4 rounded-full bg-background shadow-lg ring-0 transition-transform"
+                                                        [style.transform]="gridShowBorders() ? 'translateX(1rem)' : 'translateX(0)'"
+                                                    ></span>
+                                                </button>
+                                            </div>
                                         </div>
-                                    </div>
-                                </div>
+
+                                         <div class="space-y-1.5">
+                                             <label class="text-xs font-medium">Border Radius</label>
+                                             <div class="flex items-center gap-2">
+                                                 <input 
+                                                     type="text" 
+                                                     [ngModel]="gridBorderRadius()" 
+                                                     (ngModelChange)="gridBorderRadius.set($event)"
+                                                     (blur)="updateGridSetting(gridBorderRadius, gridBorderRadius())"
+                                                     class="flex-1 h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
+                                                     placeholder="e.g. 0.75rem"
+                                                 >
+                                                 <div class="flex gap-1">
+                                                     <button (click)="gridBorderRadius.set('0px')" class="h-6 w-6 rounded border text-[10px] flex items-center justify-center hover:bg-accent">0</button>
+                                                     <button (click)="gridBorderRadius.set('0.75rem')" class="h-6 w-6 rounded-md border text-[10px] flex items-center justify-center hover:bg-accent">M</button>
+                                                     <button (click)="gridBorderRadius.set('1.5rem')" class="h-6 w-6 rounded-lg border text-[10px] flex items-center justify-center hover:bg-accent">L</button>
+                                                 </div>
+                                             </div>
+                                         </div>
+
+                                         <div class="space-y-1.5 pt-2 border-t border-border/50">
+                                            <label class="text-xs font-medium">Item Padding (Fix Snapping)</label>
+                                            <div class="flex items-center gap-2">
+                                                <input 
+                                                    type="text" 
+                                                    [ngModel]="gridItemPadding()" 
+                                                    (ngModelChange)="gridItemPadding.set($event)"
+                                                    (blur)="updateGridSetting(gridItemPadding, gridItemPadding())"
+                                                    class="flex-1 h-8 px-2 rounded-md border bg-background text-sm focus:ring-1 focus:ring-primary outline-none"
+                                                    placeholder="e.g. 1rem"
+                                                >
+                                                <button (click)="gridItemPadding.set('0px')" class="h-8 px-2 rounded border text-[10px] hover:bg-accent">None</button>
+                                            </div>
+                                            <p class="text-[10px] text-muted-foreground">Reduce padding to allow items to fit in very small rows (< 30px).</p>
+                                         </div>
+                                     </div>
+                                 </div>
 
                                 <div class="p-4 rounded-xl bg-primary/5 border border-primary/10 text-xs text-muted-foreground leading-relaxed">
                                     <p class="font-medium text-primary mb-1">Tip:</p>
@@ -326,11 +424,38 @@ export class PageBuilderComponent {
 
     // Grid Customization
     gridRowHeight = signal<string>('120px');
+    gridColumnWidth = signal<string>('1fr');
+    gridCols = signal<number>(12);
     gridGap = signal<string>('1.5rem');
+    gridShowBorders = signal<boolean>(true);
+    gridBorderRadius = signal<string>('0.75rem');
+    gridItemPadding = signal<string>('1rem');
+    gridSquareCells = signal<boolean>(false);
 
     // Live Data Simulation
     simulatingData = signal<boolean>(false);
     private simulationInterval?: any;
+
+    constructor() {
+        // ... (pre-existing effects if any)
+
+        // Square Cells Sync
+        effect(() => {
+            if (this.gridSquareCells()) {
+                const height = this.gridRowHeight();
+                this.gridColumnWidth.set(height);
+            }
+        });
+    }
+
+    toggleSquareCells() {
+        this.gridSquareCells.update(v => !v);
+        if (this.gridSquareCells()) {
+            this.gridColumnWidth.set(this.gridRowHeight());
+        } else {
+            this.gridColumnWidth.set('1fr');
+        }
+    }
 
     classes = computed(() => cn('flex h-full w-full bg-background text-foreground overflow-hidden', this.class()));
 
@@ -358,6 +483,15 @@ export class PageBuilderComponent {
         }
         return grouped;
     });
+
+    updateGridSetting(signal: WritableSignal<string>, value: string) {
+        // If value is a number or numeric string without unit, append px
+        if (value && !isNaN(parseFloat(value)) && isFinite(Number(value))) {
+            signal.set(`${value}px`);
+        } else {
+            signal.set(value);
+        }
+    }
 
     toggleSimulatedData() {
         this.simulatingData.update(v => !v);
@@ -479,8 +613,18 @@ export class PageBuilderComponent {
         }
     }
 
-    exportJson() {
+    async exportJson() {
         const data = {
+            grid: {
+                cols: this.gridCols(),
+                rowHeight: this.gridRowHeight(),
+                columnWidth: this.gridColumnWidth(),
+                gap: this.gridGap(),
+                showBorders: this.gridShowBorders(),
+                borderRadius: this.gridBorderRadius(),
+                itemPadding: this.gridItemPadding(),
+                squareCells: this.gridSquareCells()
+            },
             items: this.items().map(item => ({
                 id: item.id,
                 x: item.x,
@@ -493,28 +637,52 @@ export class PageBuilderComponent {
             timestamp: new Date().toISOString()
         };
 
-        const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = `page-builder-export-${Date.now()}.json`;
-        document.body.appendChild(a);
-        a.click();
+        const fileName = `page-builder-export.json`;
+        const jsonString = JSON.stringify(data, null, 2);
 
-        // Cleanup
+        try {
+            // Try the modern File System Access API (Chrome/Edge/Opera)
+            const win = window as unknown as WindowWithFileSystem;
+            if (win.showSaveFilePicker) {
+                const handle = await win.showSaveFilePicker({
+                    suggestedName: fileName,
+                    types: [{
+                        description: 'JSON File',
+                        accept: { 'application/json': ['.json'] },
+                    }],
+                });
+                const writable = await handle.createWritable();
+                await writable.write(jsonString);
+                await writable.close();
+                return;
+            }
+        } catch (err) {
+            // User cancelled or API failed, fall back to download
+            console.log('Save cancelled or failed, falling back to download:', err);
+            if ((err as Error).name === 'AbortError') return; // User cancelled
+        }
+
+        // Fallback: Anchor tag download
+        const blob = new Blob([jsonString], { type: 'application/json' });
+        const url = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', fileName); // explicit attribute
+        link.style.display = 'none';
+        document.body.appendChild(link);
+
+        link.click();
+
         setTimeout(() => {
-            document.body.removeChild(a);
+            document.body.removeChild(link);
             window.URL.revokeObjectURL(url);
-        }, 100);
+        }, 2000);
     }
 
     clearBoard() {
-        if (confirm('Are you sure you want to clear the board?')) {
-            this.items.set([]);
-            this.selectedItemId.set(null);
-            this.instanceMap.set(new Map());
-        }
+        this.items.set([]);
+        this.selectedItemId.set(null);
+        this.instanceMap.set(new Map());
     }
 
     getComponentMeta(item: DashboardItem): ComponentMeta | undefined {

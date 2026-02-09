@@ -77,6 +77,9 @@ export class BentoGridItemComponent {
     template: `
     <div [class]="classes()" 
          [ngStyle]="gridStyles()"
+         [style.grid-template-columns]="columnWidth() === '1fr' ? gridTemplateColumns() : 'repeat(' + cols() + ', ' + columnWidth() + ')'"
+         [style.grid-auto-rows]="rowHeight()"
+         [style.grid-auto-columns]="columnWidth() === '1fr' ? 'auto' : columnWidth()"
          (contextmenu)="onContainerContextMenu($event, menu)"
          (window:mousemove)="onWindowMouseMove($event)"
          (window:mouseup)="onWindowMouseUp()"
@@ -84,18 +87,9 @@ export class BentoGridItemComponent {
          (drop)="onContainerDrop($event)">
          
          @if (editable()) {
-             <div class="absolute inset-0 grid pointer-events-none overflow-hidden" 
-                  [style.grid-template-columns]="gridTemplateColumns()"
-                  [style.grid-auto-rows]="rowHeight()"
-                  [style.gap]="gap()">
-                @for (cell of gridCells(); track cell.id) {
-                    <div class="relative w-full h-full">
-                        <div class="absolute -top-[2px] -left-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
-                        <div class="absolute -top-[2px] -right-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
-                        <div class="absolute -bottom-[2px] -left-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
-                        <div class="absolute -bottom-[2px] -right-[2px] w-1 h-1 bg-neutral-400 dark:bg-neutral-600 rounded-full"></div>
-                    </div>
-                }
+             <div class="absolute inset-0 pointer-events-none overflow-hidden" 
+                  [style.background-image]="gridPattern()"
+                  [style.background-size]="gridBackgroundSize()">
              </div>
          }
       <ui-context-menu #menu>
@@ -158,7 +152,11 @@ export class BentoGridItemComponent {
       
       @for (item of items(); track item.id) {
          <div 
-            class="bento-item relative group rounded-xl border bg-card text-card-foreground shadow p-4 transition-all duration-200 overflow-hidden"
+            class="bento-item relative group bg-card text-card-foreground transition-all duration-200 overflow-hidden min-h-0"
+            [class.border]="editable() || showBorders()"
+            [class.shadow]="showBorders()"
+            [style.border-radius]="borderRadius()"
+            [style.padding]="itemPadding()"
             [class.cursor-grab]="editable()"
             [class.ring-2]="isSelected(item.id) || (resizePreview()?.id === item.id)"
             [class.ring-primary]="isSelected(item.id) || (resizePreview()?.id === item.id)"
@@ -270,18 +268,102 @@ export class BentoGridItemComponent {
 })
 export class BentoGridComponent {
     class = input<string>('');
+    // Inputs
     items = input<DashboardItem[]>([]);
-    editable = input<boolean>(false);
     cols = input<number>(12);
-    rowHeight = input<string>('100px');
-    gap = input<string>('1rem');
+    rowHeight = input<string, string | number>('120px', {
+        transform: v => {
+            if (typeof v === 'number') return `${v}px`;
+            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            return v;
+        }
+    });
+    columnWidth = input<string, string | number>('1fr', {
+        transform: v => {
+            if (typeof v === 'number') return `${v}px`;
+            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            return v;
+        }
+    });
+    gap = input<string, string | number>('1.5rem', {
+        transform: v => {
+            if (typeof v === 'number') return `${v}px`;
+            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            return v;
+        }
+    });
+    showBorders = input<boolean>(true);
+    borderRadius = input<string, string | number>('0.75rem', {
+        transform: v => {
+            if (typeof v === 'number') return `${v}px`;
+            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            return v;
+        }
+    });
+    itemPadding = input<string, string | number>('1rem', {
+        transform: v => {
+            if (typeof v === 'number') return `${v}px`;
+            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            return v;
+        }
+    });
+    editable = input<boolean>(true);
 
+    // Outputs
     itemsChange = output<DashboardItem[]>();
-    externalDrop = output<{ widgetId: string, targetId: string | null, x?: number, y?: number }>();
     selectionChange = output<string[]>();
+    externalDrop = output<{ widgetId: string, targetId: string | null, x?: number, y?: number }>();
     componentInit = output<{ id: string, ref: ComponentRef<any> }>();
 
     private el = inject(ElementRef);
+
+    gridPattern = computed(() => {
+        const color = 'currentColor';
+        return `radial-gradient(circle at 1px 1px, ${color} 1px, transparent 0)`;
+    });
+
+    gridBackgroundSize = computed(() => {
+        const gap = this.gap();
+        const rowHeight = this.rowHeight();
+        const cols = this.cols();
+        const colWidth = this.columnWidth();
+
+        const rowSize = `calc(${rowHeight} + ${gap})`;
+        const colSize = colWidth === '1fr'
+            ? `calc((100% + ${gap}) / ${cols})`
+            : `calc(${colWidth} + ${gap})`;
+
+        return `${colSize} ${rowSize}`;
+    });
+
+    /**
+     * Parses a CSS dimension string into a pixel value.
+     * @param value The CSS dimension string (e.g., '1rem', '16px', '10%').
+     * @param referenceValue The reference value for percentage calculations (e.g., container width).
+     * @returns The pixel value.
+     */
+    private parseCssDimension(value: string, referenceValue: number = 0): number {
+        if (!value) return 0;
+        const num = parseFloat(value);
+        if (isNaN(num)) return 0;
+
+        if (value.endsWith('rem')) {
+            const fontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+            return num * fontSize;
+        }
+        if (value.endsWith('em')) {
+            const fontSize = parseFloat(getComputedStyle(this.el.nativeElement).fontSize) || 16;
+            return num * fontSize;
+        }
+        if (value.endsWith('%')) {
+            return (num / 100) * referenceValue;
+        }
+        if (value.endsWith('px')) {
+            return num;
+        }
+        // Default to pixels if no unit
+        return num;
+    }
 
 
 
@@ -527,23 +609,6 @@ export class BentoGridComponent {
     }
 
 
-    onDragStart(event: DragEvent, item: DashboardItem) {
-        if (!this.editable()) return;
-
-        this.draggedItemId.set(item.id);
-        if (event.dataTransfer) {
-            event.dataTransfer.effectAllowed = 'move';
-            event.dataTransfer.setData('text/plain', item.id);
-            const emptyImg = new Image();
-            emptyImg.src = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
-            event.dataTransfer.setDragImage(emptyImg, 0, 0);
-        }
-    }
-
-    onDragEnd(event: DragEvent) {
-        this.draggedItemId.set(null);
-        this.dropPreview.set(null);
-    }
 
     onDragOver(event: DragEvent, targetItem: DashboardItem) {
         if (!this.editable()) return;
@@ -679,20 +744,33 @@ export class BentoGridComponent {
         const rect = container.getBoundingClientRect();
         const _isRtl = isRtl(this.el.nativeElement);
 
-        let x = event.clientX - rect.left;
-        if (_isRtl) {
-            x = rect.right - event.clientX;
+        // Calculate click/drag position relative to container
+        let clientX = event.clientX;
+        let clientY = event.clientY;
+
+        // Apply drag offset if available to sync top-left of item with cursor
+        const offset = this.dragOffset();
+        if (offset) {
+            clientX -= offset.x;
+            clientY -= offset.y;
         }
 
-        const y = event.clientY - rect.top;
-        const gap = 16;
-        const colWidth = (rect.width - (this.cols() - 1) * gap) / this.cols();
-        const rowHeight = 100;
+        let x = clientX - rect.left;
+        if (_isRtl) {
+            x = rect.right - clientX;
+        }
 
-        const gridX = Math.floor(x / (colWidth + gap)) + 1;
-        const gridY = Math.floor(y / (rowHeight + gap)) + 1;
+        const y = clientY - rect.top;
 
-        return { x: gridX, y: gridY };
+        // Use dynamic dimensions
+        const gapNum = this.parseCssDimension(this.gap(), rect.width);
+        const rowHeightNum = this.parseCssDimension(this.rowHeight(), rect.height);
+        const colWidth = this.getColWidth(rect.width);
+
+        const gridX = Math.floor(x / (colWidth + gapNum)) + 1;
+        const gridY = Math.floor(y / (rowHeightNum + gapNum)) + 1;
+
+        return { x: Math.max(1, gridX), y: Math.max(1, gridY) };
     }
 
     private shrinkItem(winner: { x: number, y: number, cols: number, rows: number }, loser: DashboardItem): DashboardItem | null {
@@ -750,7 +828,7 @@ export class BentoGridComponent {
     } | null = null;
     resizePreview = signal<{ id: string, cols: number, rows: number, x: number, y: number } | null>(null);
     dropPreview = signal<{ x: number, y: number, cols: number, rows: number } | null>(null);
-
+    dragOffset = signal<{ x: number, y: number } | null>(null);
 
     onWindowMouseMove(event: MouseEvent) {
         if (!this.resizingItemId() || !this.initialResizeState || !this.resizeDirection()) return;
@@ -824,6 +902,14 @@ export class BentoGridComponent {
         this.resizePreview.set(null);
     }
 
+    private getColWidth(containerWidth: number): number {
+        const gapNum = this.parseCssDimension(this.gap(), containerWidth);
+        if (this.columnWidth() === '1fr') {
+            return (containerWidth - (this.cols() - 1) * gapNum) / this.cols();
+        }
+        return this.parseCssDimension(this.columnWidth(), containerWidth);
+    }
+
     onResizeStart(event: MouseEvent, item: DashboardItem, direction: 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w') {
         if (!this.editable()) return;
         event.preventDefault();
@@ -838,12 +924,12 @@ export class BentoGridComponent {
         if (!container) return;
 
         const containerRect = container.getBoundingClientRect();
-        const gap = 16;
-        const colWidth = (containerRect.width - (this.cols() - 1) * gap) / this.cols();
-        const rowHeight = 100;
+        const gapNum = this.parseCssDimension(this.gap(), containerRect.width);
+        const rowHeightNum = this.parseCssDimension(this.rowHeight(), containerRect.height);
+        const colWidth = this.getColWidth(containerRect.width);
 
-        const colStep = colWidth + gap;
-        const rowStep = rowHeight + gap;
+        const colStep = colWidth + gapNum;
+        const rowStep = rowHeightNum + gapNum;
 
         this.resizingItemId.set(item.id);
         this.resizeDirection.set(direction);
@@ -860,6 +946,31 @@ export class BentoGridComponent {
             rowStep
         };
         this.resizePreview.set({ id: item.id, cols: item.cols, rows: item.rows, x: item.x, y: item.y });
+    }
+
+    onDragStart(event: DragEvent, item: DashboardItem) {
+        if (!this.editable()) return;
+
+        const element = (event.target as HTMLElement).closest('.bento-item') as HTMLElement;
+        const rect = element.getBoundingClientRect();
+
+        // Capture offset relative to the item's top-left corner
+        this.dragOffset.set({
+            x: event.clientX - rect.left,
+            y: event.clientY - rect.top
+        });
+
+        this.draggedItemId.set(item.id);
+        if (event.dataTransfer) {
+            event.dataTransfer.effectAllowed = 'move';
+            // Optional: set drag image or ghost
+        }
+    }
+
+    onDragEnd(event: DragEvent) {
+        this.draggedItemId.set(null);
+        this.dropPreview.set(null);
+        this.dragOffset.set(null);
     }
 
     private commitResize() {
@@ -914,12 +1025,12 @@ export class BentoGridComponent {
         const x = event.clientX - rect.left;
         const y = event.clientY - rect.top;
 
-        const gap = 16;
-        const colWidth = (rect.width - (this.cols() - 1) * gap) / this.cols();
-        const rowHeight = 100;
+        const gapNum = this.parseCssDimension(this.gap(), rect.width);
+        const rowHeightNum = this.parseCssDimension(this.rowHeight(), rect.height);
+        const colWidth = this.getColWidth(rect.width);
 
-        const gridX = Math.floor(x / (colWidth + gap)) + 1;
-        const gridY = Math.floor(y / (rowHeight + gap)) + 1;
+        const gridX = Math.floor(x / (colWidth + gapNum)) + 1;
+        const gridY = Math.floor(y / (rowHeightNum + gapNum)) + 1;
 
         const tempItem: DashboardItem = { x: gridX, y: gridY, cols: 1, rows: 1, id: 'temp', content: '' };
         const isOccupied = this.items().some(i => this.isOverlapping(tempItem, i));

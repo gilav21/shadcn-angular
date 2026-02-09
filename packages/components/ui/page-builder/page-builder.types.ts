@@ -26,3 +26,32 @@ export interface ComponentMeta {
 export interface PageBuilderConfig {
     components: ComponentMeta[];
 }
+
+
+// --- File System Access API Types ---
+
+export interface FileSystemWritableFileStream extends WritableStream {
+    write(data: any): Promise<void>;
+    seek(position: number): Promise<void>;
+    truncate(size: number): Promise<void>;
+}
+
+export interface FileSystemFileHandle {
+    kind: 'file';
+    name: string;
+    createWritable(options?: any): Promise<FileSystemWritableFileStream>;
+    getFile(): Promise<File>;
+}
+
+export interface SaveFilePickerOptions {
+    suggestedName?: string;
+    types?: {
+        description?: string;
+        accept: Record<string, string[]>;
+    }[];
+    excludeAcceptAllOption?: boolean;
+}
+
+export interface WindowWithFileSystem extends Window {
+    showSaveFilePicker(options?: SaveFilePickerOptions): Promise<FileSystemFileHandle>;
+}
