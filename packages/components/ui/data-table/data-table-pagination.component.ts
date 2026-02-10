@@ -23,7 +23,7 @@ import {
   PaginationItemComponent,
   PaginationLinkComponent
 } from '../pagination.component';
-import { LucideAngularModule } from 'lucide-angular';
+import { IconComponent } from '../icon.component';
 import { PaginationState } from './data-table.types';
 import { isRtl } from '../../lib/utils';
 
@@ -42,13 +42,12 @@ import { isRtl } from '../../lib/utils';
     PaginationContentComponent,
     PaginationItemComponent,
     PaginationLinkComponent,
-    LucideAngularModule,
+    IconComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div class="flex items-center justify-between px-2">
       <div class="flex-1 text-sm text-muted-foreground">
-        <!-- Optional: Selected row count could go here -->
       </div>
         <div class="flex items-center space-x-6 lg:space-x-8">
         <div class="flex items-center space-x-2">
@@ -79,7 +78,7 @@ import { isRtl } from '../../lib/utils';
                   (click)="onFirstPage()"
                 >
                   <span class="sr-only">Go to first page</span>
-                  <lucide-icon [name]="isRtl() ? 'chevrons-right' : 'chevrons-left'" class="h-4 w-4" />
+                  <ui-icon [name]="isRtl() ? 'chevrons-right' : 'chevrons-left'" class="h-4 w-4" />
                 </ui-pagination-link>
               </ui-pagination-item>
               <ui-pagination-item>
@@ -90,7 +89,7 @@ import { isRtl } from '../../lib/utils';
                   (click)="onPreviousPage()"
                 >
                   <span class="sr-only">Go to previous page</span>
-                  <lucide-icon [name]="isRtl() ? 'chevron-right' : 'chevron-left'" class="h-4 w-4" />
+                  <ui-icon [name]="isRtl() ? 'chevron-right' : 'chevron-left'" class="h-4 w-4" />
                 </ui-pagination-link>
               </ui-pagination-item>
               
@@ -106,7 +105,7 @@ import { isRtl } from '../../lib/utils';
                   (click)="onNextPage()"
                 >
                   <span class="sr-only">Go to next page</span>
-                  <lucide-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" class="h-4 w-4" />
+                  <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" class="h-4 w-4" />
                 </ui-pagination-link>
               </ui-pagination-item>
               <ui-pagination-item>
@@ -117,7 +116,7 @@ import { isRtl } from '../../lib/utils';
                   (click)="onLastPage()"
                 >
                   <span class="sr-only">Go to last page</span>
-                  <lucide-icon [name]="isRtl() ? 'chevrons-left' : 'chevrons-right'" class="h-4 w-4" />
+                  <ui-icon [name]="isRtl() ? 'chevrons-left' : 'chevrons-right'" class="h-4 w-4" />
                 </ui-pagination-link>
               </ui-pagination-item>
             </ui-pagination-content>

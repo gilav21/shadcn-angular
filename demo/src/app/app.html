@@ -1515,35 +1515,6 @@
         </section>
 
         }
-        @case ('shimmer') {
-        <section class="space-y-4">
-          <h2 id="shimmer" class="text-2xl font-semibold scroll-m-20">Shimmer & Skeleton</h2>
-          <p class="text-muted-foreground">Loading states with pulse and shimmer animations.</p>
-          <div class="flex flex-col gap-4 max-w-sm">
-            <div class="space-y-2">
-              <span class="text-sm font-medium">Pulse (Default)</span>
-              <div class="flex items-center space-x-4">
-                <ui-skeleton class="h-12 w-12 rounded-full" />
-                <div class="space-y-2">
-                  <ui-skeleton class="h-4 w-[250px]" />
-                  <ui-skeleton class="h-4 w-[200px]" />
-                </div>
-              </div>
-            </div>
-            <div class="space-y-2">
-              <span class="text-sm font-medium">Shimmer (Appearance="shimmer")</span>
-              <div class="flex items-center space-x-4">
-                <ui-skeleton variant="shimmer" class="h-12 w-12 rounded-full" />
-                <div class="space-y-2">
-                  <ui-skeleton variant="shimmer" class="h-4 w-[250px]" />
-                  <ui-skeleton variant="shimmer" class="h-4 w-[200px]" />
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        }
         @case ('code-block') {
         <section class="space-y-4">
           <h2 id="code-block" class="text-2xl font-semibold scroll-m-20">Code Block</h2>
@@ -4105,6 +4076,9 @@
         }
         @case ('page-builder') {
         <ui-page-builder [components]="pageBuilderComponents()" />
+        }
+        @case ('page-renderer') {
+        <app-page-viewer-demo />
         }
         }
       </div>

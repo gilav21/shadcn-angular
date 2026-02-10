@@ -10,6 +10,34 @@ export interface InputDefinition {
     defaultValue?: any;
 }
 
+export interface PageGridConfig {
+    cols: number;
+    rowHeight: string;
+    columnWidth: string;
+    gap: string;
+    showBorders: boolean;
+    borderRadius: string;
+    itemPadding: string;
+    squareCells: boolean;
+}
+
+export interface PageItemData {
+    id: string;
+    x: number;
+    y: number;
+    cols: number;
+    rows: number;
+    componentId: string;
+    inputs?: Record<string, any>;
+    bindings?: Record<string, string>; // Maps input name -> context path (e.g. 'title' -> 'user.name')
+}
+
+export interface PageData {
+    grid: PageGridConfig;
+    items: PageItemData[];
+    timestamp?: string;
+}
+
 export interface ComponentMeta {
     id: string; // Unique ID for the registry
     name: string; // Display name

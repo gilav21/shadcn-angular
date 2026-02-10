@@ -19,7 +19,6 @@ import {
   RadioGroupComponent,
   RadioGroupItemComponent,
   TextareaComponent,
-
   TabsComponent,
   TabsListComponent,
   TabsTriggerComponent,
@@ -284,15 +283,14 @@ import {
   ActivityWidgetComponent,
   ActionWidgetComponent
 } from './dashboard-widgets';
+import { PageViewerDemoComponent } from './page-viewer-demo.component';
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
 import {
   BentoGridComponent,
-  BentoGridItemComponent,
   DashboardItem,
 } from '../../../packages/components/ui/bento-grid.component';
 import { NumberTickerComponent } from '../../../packages/components/ui/number-ticker.component';
-
 import { StatusCellComponent } from './cells/status-cell.component';
 import { AmountCellComponent } from './cells/amount-cell.component';
 import { ActionsCellComponent } from './cells/actions-cell.component';
@@ -313,7 +311,6 @@ import {
 } from '../../../packages/components/ui/charts';
 
 
-// Virtual Scroll Demo Types
 interface VirtualScrollItem {
   id: number;
   title: string;
@@ -394,7 +391,6 @@ export interface ComponentNavItem {
     TitleCasePipe,
     CommonModule,
     FormsModule,
-
     ButtonComponent,
     InputComponent,
     CardComponent,
@@ -664,11 +660,7 @@ export interface ComponentNavItem {
     DockIconComponent,
     DockLabelComponent,
     PageBuilderComponent,
-    MetricWidgetComponent,
-    CalendarWidgetComponent,
-    TeamWidgetComponent,
-    ActivityWidgetComponent,
-    ActionWidgetComponent,
+    PageViewerDemoComponent,
     ...ContextMenuIntegrations
   ],
 
@@ -1152,7 +1144,6 @@ ORDER BY created_at DESC;`;
   activeComponent = signal('introduction');
 
   componentLinks = [
-    { id: 'introduction', name: 'Introduction', category: 'Layout', icon: '📖' },
     { id: 'emoji-picker', name: 'Emoji Picker', category: 'Advanced', icon: '😀' },
     { id: 'rich-text-editor', name: 'Rich Text Editor', category: 'Advanced', icon: '📝' },
     { id: 'autocomplete', name: 'Autocomplete', category: 'Inputs', icon: '🔍' },
@@ -1191,7 +1182,6 @@ ORDER BY created_at DESC;`;
     { id: 'popover', name: 'Popover', category: 'Overlay', icon: '🗨️' },
     { id: 'sparkles', name: 'Sparkles', category: 'Advanced', icon: '✨' },
     { id: 'text-reveal', name: 'Text Reveal', category: 'Advanced', icon: '👁️' },
-    { id: 'shimmer', name: 'Shimmer & Skeleton', category: 'Feedback', icon: '🌊' },
     { id: 'code-block', name: 'Code Block', category: 'Data Display', icon: '💻' },
     { id: 'sheet', name: 'Sheet', category: 'Overlay', icon: '📃' },
     { id: 'alert-dialog', name: 'Alert Dialog', category: 'Overlay', icon: '🚨' },
@@ -1234,6 +1224,7 @@ ORDER BY created_at DESC;`;
     { id: 'dock', name: 'Dock', category: 'Advanced', icon: '⚓' },
     { id: 'bento-grid', name: 'Bento Grid', category: 'Layout', icon: '🍱' },
     { id: 'page-builder', name: 'Page Builder', category: 'Layout', icon: '🏗️' },
+    { id: 'page-renderer', name: 'Page Renderer', icon: '📄', category: 'Layout' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
   ];
 

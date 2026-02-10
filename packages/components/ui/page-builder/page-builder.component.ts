@@ -7,54 +7,9 @@ import {
     effect,
     WritableSignal,
     reflectComponentType,
-    NgModule,
     ComponentRef
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import {
-    LucideAngularModule,
-    LayoutDashboard,
-    Grid,
-    Type as TypeIcon,
-    Image as ImageIcon,
-    BoxSelect,
-    TextCursor,
-    BarChart2,
-    GripVertical,
-    Eye,
-    Pencil,
-    PanelsTopLeft,
-    ListCollapse,
-    Minus,
-    FileText,
-    ToggleRight,
-    CheckSquare,
-    SlidersHorizontal,
-    CircleDot,
-    Star,
-    Tag,
-    UserCircle,
-    Clock,
-    ChevronRight,
-    Code,
-    Loader,
-    RefreshCw,
-    Sparkles,
-    MessageSquare,
-    AlertTriangle,
-    Plus,
-    Settings2,
-    Trash2,
-    Download,
-    Layers,
-    LayoutTemplate,
-    MousePointerClick,
-    Box,
-    ToggleLeft,
-    CreditCard,
-    Layout,
-    Upload
-} from 'lucide-angular';
 import {
     BentoGridComponent,
     DashboardItem
@@ -68,55 +23,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { PropertyEditorComponent } from './property-editor.component';
 import { cn } from '../../lib/utils';
-
-@NgModule({
-    imports: [
-        LucideAngularModule.pick({
-            LayoutDashboard,
-            Layers,
-            Grid,
-            Trash2,
-            Download,
-            Upload,
-            Settings2,
-            LayoutTemplate,
-            MousePointerClick,
-            Plus,
-            Box,
-            Type: TypeIcon,
-            ToggleLeft,
-            CreditCard,
-            Layout,
-            AlertTriangle,
-            BoxSelect,
-            TextCursor,
-            BarChart2,
-            GripVertical,
-            Eye,
-            Pencil,
-            PanelsTopLeft,
-            ListCollapse,
-            Minus,
-            FileText,
-            ToggleRight,
-            CheckSquare,
-            SlidersHorizontal,
-            CircleDot,
-            Star,
-            Tag,
-            UserCircle,
-            Clock,
-            ChevronRight,
-            Code,
-            Loader,
-            RefreshCw,
-            Sparkles,
-            MessageSquare
-        })
-    ],
-    exports: [LucideAngularModule]
-})
-export class PageBuilderIconsModule { }
+import { IconComponent } from '../icon.component';
 
 @Component({
     selector: 'ui-page-builder',
@@ -124,9 +31,9 @@ export class PageBuilderIconsModule { }
     imports: [
         CommonModule,
         BentoGridComponent,
-        PageBuilderIconsModule,
         FormsModule,
-        PropertyEditorComponent
+        PropertyEditorComponent,
+        IconComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
@@ -134,7 +41,7 @@ export class PageBuilderIconsModule { }
             <!-- Sidebar -->
             <aside class="w-80 border-r bg-card flex flex-col border-r-border h-full">
                 <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
-                    <lucide-icon name="box" class="h-4 w-4 text-muted-foreground"></lucide-icon>
+                    <ui-icon name="box" class="h-4 w-4 text-muted-foreground"></ui-icon>
                     Components
                 </div>
                 <div class="flex-1 overflow-y-auto p-4 space-y-6 overscroll-contain">
@@ -152,7 +59,7 @@ export class PageBuilderIconsModule { }
                                         [title]="comp.name"
                                     >
                                         <div class="p-2 rounded-md bg-muted group-hover:bg-primary/10 transition-colors mb-2">
-                                            <lucide-icon [name]="comp.icon" class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors"></lucide-icon>
+                                            <ui-icon [name]="comp.icon || 'box'" class="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors"></ui-icon>
                                         </div>
                                         <span class="text-[11px] font-medium truncate w-full text-center">{{ comp.name }}</span>
                                     </div>
@@ -169,7 +76,7 @@ export class PageBuilderIconsModule { }
                 <header class="h-14 border-b bg-background flex items-center justify-between px-6 shrink-0 z-10">
                     <div class="flex items-center gap-4">
                         <div class="flex items-center gap-2 text-sm font-medium">
-                            <lucide-icon name="layers" class="h-4 w-4"></lucide-icon>
+                            <ui-icon name="layers" class="h-4 w-4"></ui-icon>
                             <span>{{ items().length }} Items</span>
                         </div>
                     </div>
@@ -184,7 +91,7 @@ export class PageBuilderIconsModule { }
                                 [class.bg-transparent]="!simulatingData()"
                                 title="Toggle Live Data Simulation"
                             >
-                                <lucide-icon [name]="simulatingData() ? 'refresh-cw' : 'loader'" [class.animate-spin]="simulatingData()" class="h-3.5 w-3.5"></lucide-icon>
+                                <ui-icon [name]="simulatingData() ? 'refresh-cw' : 'loader'" [class.animate-spin]="simulatingData()" class="h-3.5 w-3.5"></ui-icon>
                                 <span>{{ simulatingData() ? 'Stop Sim' : 'Live Demo' }}</span>
                             </button>
                         </div>
@@ -195,7 +102,7 @@ export class PageBuilderIconsModule { }
                             [class.bg-accent]="viewMode() === 'preview'"
                             [title]="viewMode() === 'preview' ? 'Switch to Edit Mode' : 'Switch to Preview Mode'"
                         >
-                            <lucide-icon [name]="viewMode() === 'preview' ? 'pencil' : 'eye'" class="h-4 w-4"></lucide-icon>
+                            <ui-icon [name]="viewMode() === 'preview' ? 'pencil' : 'eye'" class="h-4 w-4"></ui-icon>
                             <span>{{ viewMode() === 'preview' ? 'Edit' : 'Preview' }}</span>
                         </button>
                         <div class="h-4 w-px bg-border mx-2"></div>
@@ -204,7 +111,7 @@ export class PageBuilderIconsModule { }
                             class="h-9 px-3 rounded-md hover:bg-destructive/10 hover:text-destructive flex items-center gap-2 text-sm transition-colors"
                             title="Clear Board"
                         >
-                            <lucide-icon name="trash-2" class="h-4 w-4"></lucide-icon>
+                            <ui-icon name="trash-2" class="h-4 w-4"></ui-icon>
                             <span>Clear</span>
                         </button>
                         <button 
@@ -212,14 +119,14 @@ export class PageBuilderIconsModule { }
                             class="h-9 px-3 rounded-md hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm transition-colors mr-2"
                             title="Import Layout"
                         >
-                            <lucide-icon name="upload" class="h-4 w-4"></lucide-icon>
+                            <ui-icon name="upload" class="h-4 w-4"></ui-icon>
                             Import
                         </button>
                         <button 
                             (click)="exportJson()"
                             class="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
                         >
-                            <lucide-icon name="download" class="h-4 w-4"></lucide-icon>
+                            <ui-icon name="download" class="h-4 w-4"></ui-icon>
                             Export
                         </button>
                     </div>
@@ -232,7 +139,7 @@ export class PageBuilderIconsModule { }
                         @if (items().length === 0) {
                             <div class="absolute inset-0 flex flex-col items-center justify-center text-muted-foreground pointer-events-none">
                                 <div class="bg-background/50 p-6 rounded-full mb-4 ring-1 ring-border/50">
-                                    <lucide-icon name="layout-template" class="h-8 w-8 opacity-50"></lucide-icon>
+                                    <ui-icon name="layout-template" class="h-8 w-8 opacity-50"></ui-icon>
                                 </div>
                                 <p class="text-sm font-medium">Drag components here to build your page</p>
                             </div>
@@ -270,7 +177,7 @@ export class PageBuilderIconsModule { }
             @if (viewMode() === 'edit') {
                 <aside class="w-80 border-l bg-card flex flex-col border-l-border h-full">
                     <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
-                        <lucide-icon name="settings-2" class="h-4 w-4 text-muted-foreground"></lucide-icon>
+                        <ui-icon name="settings-2" class="h-4 w-4 text-muted-foreground"></ui-icon>
                         {{ selectedItemId() ? 'Properties' : 'Grid Settings' }}
                     </div>
                     <div class="flex-1 overflow-auto p-4">
@@ -286,7 +193,7 @@ export class PageBuilderIconsModule { }
                             <div class="space-y-6 animate-in fade-in slide-in-from-right-4 duration-300">
                                 <div class="space-y-4">
                                     <div class="flex items-center gap-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                                        <lucide-icon name="grid" class="h-3 w-3"></lucide-icon>
+                                        <ui-icon name="grid" class="h-3 w-3"></ui-icon>
                                         Layout Configuration
                                     </div>
                                     
@@ -318,7 +225,7 @@ export class PageBuilderIconsModule { }
                                          <div class="space-y-3 pt-2 border-t border-border/50">
                                             <div class="flex items-center justify-between">
                                                 <div class="flex items-center gap-2">
-                                                    <lucide-icon name="box-select" class="h-3 w-3 text-muted-foreground"></lucide-icon>
+                                                    <ui-icon name="box-select" class="h-3 w-3 text-muted-foreground"></ui-icon>
                                                     <label class="text-xs font-medium">Square Cells (Symmetry)</label>
                                                 </div>
                                                 <button 
@@ -460,7 +367,7 @@ export class PageBuilderComponent {
                 const height = this.gridRowHeight();
                 this.gridColumnWidth.set(height);
             }
-        });
+        }, { allowSignalWrites: true });
     }
 
     toggleSquareCells() {
@@ -600,7 +507,7 @@ export class PageBuilderComponent {
 
         this.items.update(items => items.map(item => {
             if (item.id === id) {
-                if (typeof event.prop === 'string' && !['x', 'y', 'cols', 'rows'].includes(event.prop)) {
+                if (typeof event.prop === 'string' && !['x', 'y', 'cols', 'rows', 'bindings'].includes(event.prop)) {
                     const newInputs = { ...(item.inputs || {}) };
                     newInputs[event.prop] = event.value;
                     return { ...item, inputs: newInputs };
@@ -644,7 +551,8 @@ export class PageBuilderComponent {
                 cols: item.cols,
                 rows: item.rows,
                 componentId: this.getComponentMeta(item)?.id,
-                inputs: item.inputs
+                inputs: item.inputs,
+                bindings: item.bindings
             })),
             timestamp: new Date().toISOString()
         };
@@ -756,7 +664,8 @@ export class PageBuilderComponent {
                     cols: item.cols,
                     rows: item.rows,
                     content: componentMeta ? componentMeta.component : null,
-                    inputs: item.inputs || {}
+                    inputs: item.inputs || {},
+                    bindings: item.bindings || {}
                 };
             }).filter((item: DashboardItem) => item.content !== null);
 

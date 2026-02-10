@@ -15,7 +15,6 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
 import { ScrollAreaComponent } from './scroll-area.component';
-import { LucideAngularModule } from 'lucide-angular';
 
 export interface MentionItem {
   id?: string;
@@ -35,7 +34,7 @@ export interface TagItem {
 @Component({
   selector: 'ui-rich-text-mention-popover',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [ScrollAreaComponent, LucideAngularModule],
+  imports: [ScrollAreaComponent],
   template: `
     <div
       [class]="containerClasses()"

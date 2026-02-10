@@ -36,7 +36,6 @@
     "@types/jest": "^30.0.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-angular": "^0.562.0",
     "rxjs": "~7.8.0",
     "tailwind-merge": "^3.4.0",
     "tslib": "^2.3.0"

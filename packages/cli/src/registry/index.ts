@@ -140,6 +140,7 @@ export const registry: Record<string, ComponentDefinition> = {
       'pagination',
       'popover',
       'component-outlet',
+      'icon',
     ],
   },
   dialog: {
@@ -154,11 +155,12 @@ export const registry: Record<string, ComponentDefinition> = {
       'dock-icon.component.ts',
       'dock-label.component.ts',
     ],
+    dependencies: ['icon'],
   },
   'tree-select': {
     name: 'tree-select',
     files: ['tree-select.component.ts'],
-    dependencies: ['popover', 'tree'],
+    dependencies: ['popover', 'tree', 'icon'],
   },
   'virtual-scroll': {
     name: 'virtual-scroll',
@@ -184,6 +186,10 @@ export const registry: Record<string, ComponentDefinition> = {
   field: {
     name: 'field',
     files: ['field.component.ts'],
+  },
+  icon: {
+    name: 'icon',
+    files: ['icon.component.ts'],
   },
 
   'file-upload': {
@@ -275,7 +281,7 @@ export const registry: Record<string, ComponentDefinition> = {
   sidebar: {
     name: 'sidebar',
     files: ['sidebar.component.ts'],
-    dependencies: ['scroll-area', 'tooltip'],
+    dependencies: ['scroll-area', 'tooltip', 'icon'],
   },
   skeleton: {
     name: 'skeleton',
@@ -332,6 +338,7 @@ export const registry: Record<string, ComponentDefinition> = {
   tree: {
     name: 'tree',
     files: ['tree.component.ts'],
+    dependencies: ['icon'],
   },
   'speed-dial': {
     name: 'speed-dial',
@@ -435,7 +442,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   'bento-grid': {
     name: 'bento-grid',
-    dependencies: ['context-menu', 'component-outlet'],
+    dependencies: ['context-menu', 'component-outlet', 'icon'],
     files: [
       'bento-grid.component.ts',
     ],
@@ -449,12 +456,14 @@ export const registry: Record<string, ComponentDefinition> = {
       'label',
       'select',
       'switch',
-      'slider'
+      'slider',
+      'icon'
     ],
     files: [
       'page-builder/page-builder.component.ts',
       'page-builder/page-builder.types.ts',
-      'page-builder/property-editor.component.ts'
+      'page-builder/property-editor.component.ts',
+      'page-builder/page-renderer.component.ts'
     ],
   },
   'component-outlet': {

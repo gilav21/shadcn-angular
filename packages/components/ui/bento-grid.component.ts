@@ -32,6 +32,7 @@ export interface DashboardItem {
     content: string | Type<any>;
     inputs?: Record<string, any>;
     outputs?: Record<string, (event: any) => void>;
+    bindings?: Record<string, string>;
 }
 
 @Component({

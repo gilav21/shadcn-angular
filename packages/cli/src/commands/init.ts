@@ -145,7 +145,6 @@ export async function init(options: InitOptions) {
                 utils: responses.utilsPath.replace('src/', '@/').replace('.ts', ''),
                 ui: responses.componentsPath.replace('src/', '@/'),
             },
-            iconLibrary: 'lucide-angular',
         };
     }
 
@@ -204,7 +203,6 @@ export async function init(options: InitOptions) {
             'clsx',
             'tailwind-merge',
             'class-variance-authority',
-            'lucide-angular',
             'tailwindcss',
             'postcss',
             '@tailwindcss/postcss'
@@ -224,43 +222,6 @@ export async function init(options: InitOptions) {
             await fs.writeJson(postcssrcPath, configContent, { spaces: 4 });
         }
 
-        // Configure app.config.ts with Lucide icons
-        spinner.text = 'Configuring icons in app.config.ts...';
-        const appConfigPath = path.join(cwd, 'src/app/app.config.ts');
-
-        if (await fs.pathExists(appConfigPath)) {
-            let appConfigContent = await fs.readFile(appConfigPath, 'utf-8');
-
-            // Add imports
-            if (!appConfigContent.includes('LucideAngularModule')) {
-                const iconImports = "import { LucideAngularModule, ArrowDown, ArrowUp, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-angular';";
-                appConfigContent = iconImports + '\n' + appConfigContent;
-            }
-
-            if (!appConfigContent.includes('importProvidersFrom')) {
-                appConfigContent = "import { importProvidersFrom } from '@angular/core';\n" + appConfigContent;
-            }
-
-            // Add provider
-            const providerCode = `
-    importProvidersFrom(LucideAngularModule.pick({ 
-      ArrowDown, 
-      ArrowUp, 
-      ChevronsUpDown, 
-      ChevronLeft, 
-      ChevronRight, 
-      ChevronsLeft, 
-      ChevronsRight 
-    }))`;
-
-            if (!appConfigContent.includes('LucideAngularModule.pick')) {
-                appConfigContent = appConfigContent.replace(
-                    /providers:\s*\[/,
-                    `providers: [${providerCode},`
-                );
-                await fs.writeFile(appConfigPath, appConfigContent);
-            }
-        }
 
         spinner.succeed(chalk.green('Project initialized successfully!'));
 

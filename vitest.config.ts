@@ -11,7 +11,7 @@ export default defineConfig(({ mode }) => ({
         globals: true,
         setupFiles: ['packages/test-setup.ts'],
         // environment: 'jsdom',
-        include: ['packages/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+        include: ['packages/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}', 'demo/src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
         reporters: ['default'],
         // Vitest browser config
         browser: {

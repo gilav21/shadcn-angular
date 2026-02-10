@@ -4,8 +4,6 @@ import { DataTableComponent } from './data-table.component';
 import { ColumnDef } from './data-table.types';
 import { By } from '@angular/platform-browser';
 
-import { LucideAngularModule, ArrowUp, ArrowDown, ChevronsUpDown, ChevronsLeft, ChevronLeft, ChevronRight, ChevronsRight } from 'lucide-angular';
-
 interface TestData {
     id: string;
     name: string;
@@ -34,15 +32,6 @@ describe('DataTableComponent', () => {
         await TestBed.configureTestingModule({
             imports: [
                 DataTableComponent,
-                LucideAngularModule.pick({
-                    ArrowUp,
-                    ArrowDown,
-                    ChevronsUpDown,
-                    ChevronsLeft,
-                    ChevronLeft,
-                    ChevronRight,
-                    ChevronsRight
-                })
             ],
         }).compileComponents();
 

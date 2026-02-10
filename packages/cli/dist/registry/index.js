@@ -119,7 +119,7 @@ export const registry = {
             'data-table/data-table-column-header.component.ts',
             'data-table/data-table-pagination.component.ts',
             'data-table/data-table.types.ts',
-            'data-table/cell-host.directive.ts',
+            'data-table/index.ts',
         ],
         dependencies: [
             'table',
@@ -129,6 +129,7 @@ export const registry = {
             'select',
             'pagination',
             'popover',
+            'component-outlet',
         ],
     },
     dialog: {
@@ -423,10 +424,31 @@ export const registry = {
     },
     'bento-grid': {
         name: 'bento-grid',
-        dependencies: ['context-menu'],
+        dependencies: ['context-menu', 'component-outlet'],
         files: [
             'bento-grid.component.ts',
         ],
+    },
+    'page-builder': {
+        name: 'page-builder',
+        dependencies: [
+            'bento-grid',
+            'button',
+            'input',
+            'label',
+            'select',
+            'switch',
+            'slider'
+        ],
+        files: [
+            'page-builder/page-builder.component.ts',
+            'page-builder/page-builder.types.ts',
+            'page-builder/property-editor.component.ts'
+        ],
+    },
+    'component-outlet': {
+        name: 'component-outlet',
+        files: ['component-outlet.directive.ts'],
     },
     'split-button': {
         name: 'split-button',

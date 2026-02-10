@@ -8,7 +8,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { SortDirection } from './data-table.types';
 import { ButtonComponent } from '../button.component';
-import { LucideAngularModule } from 'lucide-angular';
+import { IconComponent } from '../icon.component';
 import { cn } from '../../lib/utils';
 
 @Component({
@@ -16,7 +16,7 @@ import { cn } from '../../lib/utils';
   imports: [
     CommonModule,
     ButtonComponent,
-    LucideAngularModule,
+    IconComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -32,11 +32,11 @@ import { cn } from '../../lib/utils';
         >
           <span>{{ title() }}</span>
           @if (direction() === 'desc') {
-            <lucide-icon name="arrow-down" class="ml-2 h-4 w-4" />
+            <ui-icon name="arrow-down" class="ml-2 h-4 w-4" />
           } @else if (direction() === 'asc') {
-            <lucide-icon name="arrow-up" class="ml-2 h-4 w-4" />
+            <ui-icon name="arrow-up" class="ml-2 h-4 w-4" />
           } @else {
-            <lucide-icon name="chevrons-up-down" class="ml-2 h-4 w-4" />
+            <ui-icon name="chevrons-up-down" class="ml-2 h-4 w-4" />
           }
         </ui-button>
       }

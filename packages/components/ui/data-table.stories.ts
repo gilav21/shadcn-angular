@@ -1,7 +1,6 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table/data-table.component';
 import { ColumnDef } from './data-table/data-table.types';
-import { LucideAngularModule, ArrowDown, ArrowUp, ChevronsUpDown, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Check } from 'lucide-angular';
 import { importProvidersFrom, Component, ChangeDetectionStrategy, output } from '@angular/core';
 import { InputComponent } from './input.component';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent } from './context-menu.component';
@@ -47,20 +46,7 @@ const meta: Meta<DataTableComponent<User>> = {
             imports: [DataTableComponent],
         }),
         applicationConfig({
-            providers: [
-                importProvidersFrom(
-                    LucideAngularModule.pick({
-                        ArrowDown,
-                        ArrowUp,
-                        ChevronsUpDown,
-                        ChevronLeft,
-                        ChevronRight,
-                        ChevronsLeft,
-                        ChevronsRight,
-                        Check,
-                    })
-                ),
-            ],
+            providers: [],
         }),
     ],
     parameters: {

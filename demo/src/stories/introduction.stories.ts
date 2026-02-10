@@ -39,7 +39,7 @@ export const CLIDocumentation: StoryObj = {
                 <li>Creates a <code>components.json</code> configuration file.</li>
                 <li>Creates a <code>utils.ts</code> file for cn() helper.</li>
                 <li>Updates your global CSS file with CSS variables for theming.</li>
-                <li>Installs dependencies: <code>tailwindcss</code>, <code>postcss</code>, <code>lucide-angular</code>, <code>class-variance-authority</code>, etc.</li>
+                <li>Installs dependencies: <code>tailwindcss</code>, <code>postcss</code>, <code>class-variance-authority</code>, etc.</li>
                 <li>Configures aliases (e.g., <code>@/components</code>) in your project.</li>
             </ul>
 

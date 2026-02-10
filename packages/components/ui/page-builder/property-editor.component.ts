@@ -2,20 +2,10 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
-    computed,
-    NgModule
+    output
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import {
-    LucideAngularModule,
-    Box,
-    Columns2,
-    Rows2,
-    Trash2,
-    MousePointerClick
-} from 'lucide-angular';
 import { DashboardItem } from '../bento-grid.component';
 import { ComponentMeta } from './page-builder.types';
 import { SwitchComponent } from '../switch.component';
@@ -26,20 +16,7 @@ import {
     SelectContentComponent,
     SelectItemComponent
 } from '../select.component';
-
-@NgModule({
-    imports: [
-        LucideAngularModule.pick({
-            Box,
-            Columns2,
-            Rows2,
-            Trash2,
-            MousePointerClick
-        })
-    ],
-    exports: [LucideAngularModule]
-})
-export class PropertyEditorIconsModule { }
+import { IconComponent } from '../icon.component';
 
 @Component({
     selector: 'ui-property-editor',
@@ -47,23 +24,20 @@ export class PropertyEditorIconsModule { }
     imports: [
         CommonModule,
         FormsModule,
-        PropertyEditorIconsModule,
         SwitchComponent,
         SelectComponent,
         SelectTriggerComponent,
         SelectValueComponent,
         SelectContentComponent,
-        SelectItemComponent
+        SelectItemComponent,
+        IconComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <div class="h-full flex flex-col bg-background">
-        <!-- We removed the header from here because the parent now handles the main header -->
-        
+    <div class="h-full flex flex-col bg-background">       
         <div class="flex-1 overflow-y-auto">
             @if (item()) {
                 <div class="p-6 space-y-8">
-                    <!-- Loading State -->
                     @if (isLoading()) {
                         <div class="space-y-6 animate-pulse">
                             <div class="flex items-start gap-4 p-4 rounded-xl border bg-card/10">
@@ -90,18 +64,15 @@ export class PropertyEditorIconsModule { }
                             </div>
                         </div>
                     } @else {
-                        <!-- Selected Component Header -->
                         <div class="flex items-start gap-4 p-4 rounded-xl border bg-card/50">
                             <div class="h-12 w-12 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                                <lucide-icon [name]="componentMeta()?.icon || 'box'" class="h-6 w-6 text-primary" />
+                                <ui-icon [name]="componentMeta()?.icon || 'box'" class="h-6 w-6 text-primary" />
                             </div>
                             <div class="flex-1 min-w-0">
                                 <h3 class="font-semibold text-lg leading-tight truncate">{{ componentMeta()?.name }}</h3>
                                 <p class="text-xs text-muted-foreground font-mono mt-1 truncate">{{ item()!.id }}</p>
                             </div>
                         </div>
-
-                        <!-- Basic Layout Properties -->
                         <div class="space-y-4">
                             <div class="flex items-center justify-between">
                                  <h4 class="text-sm font-semibold text-foreground">Layout</h4>
@@ -119,7 +90,7 @@ export class PropertyEditorIconsModule { }
                                             min="1" max="12"
                                         />
                                         <div class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                            <lucide-icon name="columns-2" class="h-4 w-4" />
+                                            <ui-icon name="columns-2" class="h-4 w-4" />
                                         </div>
                                     </div>
                                 </div>
@@ -134,7 +105,7 @@ export class PropertyEditorIconsModule { }
                                             min="1"
                                         />
                                         <div class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                                            <lucide-icon name="rows-2" class="h-4 w-4" />
+                                            <ui-icon name="rows-2" class="h-4 w-4" />
                                         </div>
                                     </div>
                                 </div>
@@ -142,8 +113,6 @@ export class PropertyEditorIconsModule { }
                         </div>
                         
                         <div class="h-px bg-border"></div>
-
-                        <!-- Component Specific Inputs -->
                         @if (componentMeta()?.inputs?.length) {
                             <div class="space-y-4">
                                 <div class="flex items-center justify-between">
@@ -153,43 +122,70 @@ export class PropertyEditorIconsModule { }
                                 
                                 @for (inputDef of componentMeta()?.inputs; track inputDef.name) {
                                 <div class="space-y-2">
-                                    <label class="text-xs font-medium text-foreground block">
-                                        {{ inputDef.label || inputDef.name }}
-                                    </label>
-                                    @switch (inputDef.type) {
-                                        @case ('boolean') {
-                                            <div class="flex items-center justify-between h-10 px-3 rounded-md border bg-card/50">
-                                                <span class="text-sm font-medium text-foreground">{{ inputDef.label || inputDef.name }}</span>
-                                                <ui-switch 
-                                                    [checked]="getItemInput(inputDef.name)" 
-                                                    (checkedChange)="onInputChange(inputDef.name, $event)"
-                                                />
-                                            </div>
-                                        }
-                                        @case ('select') {
-                                            <ui-select 
-                                                [value]="getItemInput(inputDef.name)"
-                                                (valueChange)="onInputChange(inputDef.name, $event)"
-                                                [options]="inputDef.options || []"
-                                                [placeholder]="'Select ' + (inputDef.label || inputDef.name)"
-                                            >
-                                                <ui-select-trigger class="w-full">
-                                                    <ui-select-value />
-                                                </ui-select-trigger>
-                                                <ui-select-content>
-                                                    @for (opt of inputDef.options; track opt) {
-                                                        <ui-select-item [value]="opt">{{ opt }}</ui-select-item>
-                                                    }
-                                                </ui-select-content>
-                                            </ui-select>
-                                        }
-                                        @default {
+                                    <div class="flex items-center justify-between">
+                                        <label class="text-xs font-medium text-foreground block">
+                                            {{ inputDef.label || inputDef.name }}
+                                        </label>
+                                        <button 
+                                            class="text-[10px] text-muted-foreground hover:text-primary flex items-center gap-1 transition-colors"
+                                            [class.text-primary]="hasBinding(inputDef.name)"
+                                            (click)="toggleBinding(inputDef.name)"
+                                            title="Toggle Data Binding"
+                                        >
+                                            <ui-icon name="box" class="h-3 w-3" />
+                                            {{ hasBinding(inputDef.name) ? 'Bound' : 'Static' }}
+                                        </button>
+                                    </div>
+                                    
+                                    @if (hasBinding(inputDef.name)) {
+                                        <div class="relative">
                                             <input 
-                                                [type]="inputDef.type === 'number' ? 'number' : 'text'"
-                                                [ngModel]="getItemInput(inputDef.name)"
-                                                (ngModelChange)="onInputChange(inputDef.name, $event)"
-                                                class="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                type="text"
+                                                [ngModel]="getBinding(inputDef.name)"
+                                                (ngModelChange)="onBindingChange(inputDef.name, $event)"
+                                                class="flex h-10 w-full rounded-md border border-primary/50 bg-primary/5 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-8 font-mono text-primary"
+                                                placeholder="e.g. user.name"
                                             />
+                                            <div class="absolute left-2.5 top-1/2 -translate-y-1/2 text-primary">
+                                                <span class="text-xs font-bold">@</span>
+                                            </div>
+                                        </div>
+                                    } @else {
+                                        @switch (inputDef.type) {
+                                            @case ('boolean') {
+                                                <div class="flex items-center justify-between h-10 px-3 rounded-md border bg-card/50">
+                                                    <span class="text-sm font-medium text-foreground">{{ inputDef.label || inputDef.name }}</span>
+                                                    <ui-switch 
+                                                        [checked]="getItemInput(inputDef.name)" 
+                                                        (checkedChange)="onInputChange(inputDef.name, $event)"
+                                                    />
+                                                </div>
+                                            }
+                                            @case ('select') {
+                                                <ui-select 
+                                                    [value]="getItemInput(inputDef.name)"
+                                                    (valueChange)="onInputChange(inputDef.name, $event)"
+                                                    [options]="inputDef.options || []"
+                                                    [placeholder]="'Select ' + (inputDef.label || inputDef.name)"
+                                                >
+                                                    <ui-select-trigger class="w-full">
+                                                        <ui-select-value />
+                                                    </ui-select-trigger>
+                                                    <ui-select-content>
+                                                        @for (opt of inputDef.options; track opt) {
+                                                            <ui-select-item [value]="opt">{{ opt }}</ui-select-item>
+                                                        }
+                                                    </ui-select-content>
+                                                </ui-select>
+                                            }
+                                            @default {
+                                                <input 
+                                                    [type]="inputDef.type === 'number' ? 'number' : 'text'"
+                                                    [ngModel]="getItemInput(inputDef.name)"
+                                                    (ngModelChange)="onInputChange(inputDef.name, $event)"
+                                                    class="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                                                />
+                                            }
                                         }
                                     }
                                 </div>
@@ -204,7 +200,7 @@ export class PropertyEditorIconsModule { }
                             class="w-full flex items-center justify-center gap-2 h-10 rounded-md bg-destructive/5 text-destructive hover:bg-destructive/15 border border-destructive/20 hover:border-destructive/30 text-sm font-medium transition-all"
                             (click)="delete.emit()"
                             >
-                                <lucide-icon name="trash-2" class="h-4 w-4" />
+                                <ui-icon name="trash-2" class="h-4 w-4" />
                                 Delete Component
                             </button>
                         </div>
@@ -214,7 +210,7 @@ export class PropertyEditorIconsModule { }
             } @else {
                 <div class="flex flex-col items-center justify-center h-full text-muted-foreground p-8 text-center bg-muted/5">
                     <div class="h-20 w-20 rounded-full bg-muted flex items-center justify-center mb-6">
-                        <lucide-icon name="mouse-pointer-click" class="h-10 w-10 opacity-50" />
+                        <ui-icon name="mouse-pointer-click" class="h-10 w-10 opacity-50" />
                     </div>
                     <h3 class="font-medium text-foreground mb-2">No Selection</h3>
                     <p class="text-sm max-w-[200px]">Select an item on the board to edit its layout and properties.</p>
@@ -246,5 +242,40 @@ export class PropertyEditorComponent {
         const item = this.item();
         if (!item) return;
         this.itemChange.emit({ id: item.id, prop: name, value });
+    }
+
+    // Binding Helpers
+    hasBinding(name: string): boolean {
+        return !!this.item()?.bindings?.[name];
+    }
+
+    getBinding(name: string): string {
+        return this.item()?.bindings?.[name] || '';
+    }
+
+    toggleBinding(name: string) {
+        const item = this.item();
+        if (!item) return;
+
+        const currentBindings = item.bindings || {};
+        const newBindings = { ...currentBindings };
+
+        if (this.hasBinding(name)) {
+            delete newBindings[name];
+        } else {
+            newBindings[name] = '';
+        }
+
+        this.itemChange.emit({ id: item.id, prop: 'bindings', value: newBindings });
+    }
+
+    onBindingChange(name: string, value: string) {
+        const item = this.item();
+        if (!item) return;
+
+        const currentBindings = item.bindings || {};
+        const newBindings = { ...currentBindings, [name]: value };
+
+        this.itemChange.emit({ id: item.id, prop: 'bindings', value: newBindings });
     }
 }

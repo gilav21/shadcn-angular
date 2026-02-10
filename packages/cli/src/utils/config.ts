@@ -15,7 +15,6 @@ export interface Config {
         utils: string;
         ui: string;
     };
-    iconLibrary: string;
 }
 
 export function getDefaultConfig(): Config {
@@ -33,7 +32,6 @@ export function getDefaultConfig(): Config {
             utils: '@/components/lib/utils',
             ui: '@/components/ui',
         },
-        iconLibrary: 'lucide-angular',
     };
 }
 
