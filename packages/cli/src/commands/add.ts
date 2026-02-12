@@ -37,6 +37,21 @@ interface AddOptions {
     remote?: boolean; // Force remote fetch
 }
 
+function resolveProjectPath(cwd: string, inputPath: string): string {
+    const resolved = path.resolve(cwd, inputPath);
+    const relative = path.relative(cwd, resolved);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error(`Path must stay inside the project directory: ${inputPath}`);
+    }
+    return resolved;
+}
+
+function aliasToProjectPath(aliasOrPath: string): string {
+    return aliasOrPath.startsWith('@/')
+        ? path.join('src', aliasOrPath.slice(2))
+        : aliasOrPath;
+}
+
 async function fetchComponentContent(file: string, options: AddOptions): Promise<string> {
     const localDir = getLocalComponentsDir();
 
@@ -121,9 +136,8 @@ export async function add(components: string[], options: AddOptions) {
     };
     componentsToAdd.forEach(c => resolveDeps(c));
 
-    const targetDir = options.path
-        ? path.join(cwd, options.path)
-        : path.join(cwd, 'src/components/ui');
+    const uiBasePath = options.path ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
+    const targetDir = resolveProjectPath(cwd, uiBasePath);
 
     // Check for existing files and diff
     const componentsToInstall: ComponentName[] = [];
@@ -149,7 +163,7 @@ export async function add(components: string[], options: AddOptions) {
                     const utilsAlias = config.aliases.utils;
                     remoteContent = remoteContent.replace(/(\.\.\/)+lib\/utils/g, utilsAlias);
 
-                    const normalize = (str: string) => str.replace(/\s+/g, '').trim();
+                    const normalize = (str: string) => str.replace(/\r\n/g, '\n').trim();
                     if (normalize(localContent) !== normalize(remoteContent)) {
                         hasChanges = true;
                     }

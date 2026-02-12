@@ -84,6 +84,9 @@ export class DockComponent implements OnInit, OnDestroy, AfterViewInit {
     @ViewChildren(DockItemComponent) private viewItems!: QueryList<DockItemComponent>;
 
     private _itemCenters: number[] = [];
+    private readonly onMouseMoveBound = this.onMouseMove.bind(this);
+    private readonly onMouseLeaveBound = this.onMouseLeave.bind(this);
+    private readonly onMouseEnterBound = this.onMouseEnter.bind(this);
 
     private get allItems(): DockItemComponent[] {
         return [...(this.projectedItems?.toArray() || []), ...(this.viewItems?.toArray() || [])];
@@ -96,16 +99,20 @@ export class DockComponent implements OnInit, OnDestroy, AfterViewInit {
 
     ngOnInit() {
         this._ngZone.runOutsideAngular(() => {
-            this._el.nativeElement.addEventListener('mousemove', this.onMouseMove.bind(this));
-            this._el.nativeElement.addEventListener('mouseleave', this.onMouseLeave.bind(this));
-            this._el.nativeElement.addEventListener('mouseenter', this.onMouseEnter.bind(this));
+            this._el.nativeElement.addEventListener('mousemove', this.onMouseMoveBound);
+            this._el.nativeElement.addEventListener('mouseleave', this.onMouseLeaveBound);
+            this._el.nativeElement.addEventListener('mouseenter', this.onMouseEnterBound);
         });
     }
 
     ngOnDestroy() {
-        this._el.nativeElement.removeEventListener('mousemove', this.onMouseMove.bind(this));
-        this._el.nativeElement.removeEventListener('mouseleave', this.onMouseLeave.bind(this));
-        this._el.nativeElement.removeEventListener('mouseenter', this.onMouseEnter.bind(this));
+        this._el.nativeElement.removeEventListener('mousemove', this.onMouseMoveBound);
+        this._el.nativeElement.removeEventListener('mouseleave', this.onMouseLeaveBound);
+        this._el.nativeElement.removeEventListener('mouseenter', this.onMouseEnterBound);
+        if (this._rafId) {
+            cancelAnimationFrame(this._rafId);
+            this._rafId = null;
+        }
     }
 
     private _rafId: number | null = null;

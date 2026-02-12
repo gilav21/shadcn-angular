@@ -3,14 +3,30 @@ import path from 'path';
 import prompts from 'prompts';
 import chalk from 'chalk';
 import ora from 'ora';
-import { execa } from 'execa';
 import { getDefaultConfig, type Config } from '../utils/config.js';
 import { getStylesTemplate } from '../templates/styles.js';
 import { getUtilsTemplate } from '../templates/utils.js';
+import { installPackages } from '../utils/package-manager.js';
 
 interface InitOptions {
     yes?: boolean;
     defaults?: boolean;
+}
+
+function resolveProjectPath(cwd: string, inputPath: string): string {
+    const resolved = path.resolve(cwd, inputPath);
+    const relative = path.relative(cwd, resolved);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
+        throw new Error(`Path must stay inside the project directory: ${inputPath}`);
+    }
+    return resolved;
+}
+
+function resolveAliasOrPath(cwd: string, aliasOrPath: string): string {
+    const normalized = aliasOrPath.startsWith('@/')
+        ? path.join('src', aliasOrPath.slice(2))
+        : aliasOrPath;
+    return resolveProjectPath(cwd, normalized);
 }
 
 export async function init(options: InitOptions) {
@@ -29,12 +45,14 @@ export async function init(options: InitOptions) {
     // Check if already initialized
     const componentsJsonPath = path.join(cwd, 'components.json');
     if (await fs.pathExists(componentsJsonPath)) {
-        const { overwrite } = await prompts({
-            type: 'confirm',
-            name: 'overwrite',
-            message: 'components.json already exists. Overwrite?',
-            initial: false,
-        });
+        const overwrite = options.yes
+            ? true
+            : (await prompts({
+                type: 'confirm',
+                name: 'overwrite',
+                message: 'components.json already exists. Overwrite?',
+                initial: false,
+            })).overwrite;
         if (!overwrite) {
             console.log(chalk.dim('Initialization cancelled.'));
             return;
@@ -162,23 +180,24 @@ export async function init(options: InitOptions) {
         // If config came from defaults, aliases are set.
         // We can reverse-map alias to path: @/ -> src/
 
-        const utilsPathResolved = config.aliases.utils.replace('@/', 'src/');
-        const utilsDir = path.dirname(path.join(cwd, utilsPathResolved + '.ts')); // utils usually ends in path/to/utils
+        const utilsPathResolved = resolveAliasOrPath(cwd, config.aliases.utils + '.ts');
+        const utilsDir = path.dirname(utilsPathResolved); // utils usually ends in path/to/utils
 
         await fs.ensureDir(utilsDir);
-        await fs.writeFile(path.join(cwd, utilsPathResolved + '.ts'), getUtilsTemplate());
+        await fs.writeFile(utilsPathResolved, getUtilsTemplate());
         spinner.text = 'Created utils.ts';
 
         // Create tailwind.css file in the same directory as the global styles
-        const stylesDir = path.dirname(path.join(cwd, config.tailwind.css));
+        const userStylesPath = resolveProjectPath(cwd, config.tailwind.css);
+        const stylesDir = path.dirname(userStylesPath);
         const tailwindCssPath = path.join(stylesDir, 'tailwind.css');
 
         // Write the tailwind.css file with all Tailwind directives
+        await fs.ensureDir(stylesDir);
         await fs.writeFile(tailwindCssPath, getStylesTemplate(config.tailwind.baseColor, config.tailwind.theme));
         spinner.text = 'Created tailwind.css';
 
         // Add import to the user's global styles file if not already present
-        const userStylesPath = path.join(cwd, config.tailwind.css);
         let userStyles = await fs.pathExists(userStylesPath)
             ? await fs.readFile(userStylesPath, 'utf-8')
             : '';
@@ -192,8 +211,7 @@ export async function init(options: InitOptions) {
         }
 
         // Create components/ui directory
-        const uiPathResolved = config.aliases.ui.replace('@/', 'src/');
-        const uiDir = path.join(cwd, uiPathResolved);
+        const uiDir = resolveAliasOrPath(cwd, config.aliases.ui);
         await fs.ensureDir(uiDir);
         spinner.text = 'Created components directory';
 
@@ -207,7 +225,7 @@ export async function init(options: InitOptions) {
             'postcss',
             '@tailwindcss/postcss'
         ];
-        await execa('npm', ['install', ...dependencies], { cwd });
+        await installPackages(dependencies, { cwd });
 
         // Setup PostCSS - create .postcssrc.json which is the preferred format for Angular
         spinner.text = 'Configuring PostCSS...';

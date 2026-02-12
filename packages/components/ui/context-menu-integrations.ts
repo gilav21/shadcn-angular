@@ -2,6 +2,7 @@ import {
   Directive,
   ElementRef,
   HostListener,
+  OnDestroy,
   inject,
   input,
   output,
@@ -82,40 +83,43 @@ export class TreeContextMenuDirective<T = unknown> {
 
   nodeContextMenu = output<TreeContextMenuEvent<T>>();
 
-  private treeElement = inject(ElementRef);
+  private treeElement = inject(ElementRef<HTMLElement>);
+  private readonly contextMenuListener = (event: MouseEvent) => {
+    if (this.contextMenuDisabled()) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+    const treeItem = target.closest('[data-slot="tree-item"]');
+
+    if (treeItem) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const nodeData = this.extractNodeData(treeItem as HTMLElement);
+
+      this.nodeContextMenu.emit({
+        node: nodeData,
+        event,
+      });
+
+      const contextMenu = this.uiTreeContextMenu();
+      if (contextMenu) {
+        contextMenu.show(event.clientX, event.clientY, nodeData);
+      }
+    }
+  };
 
   constructor() {
     this.setupTreeContextMenu();
   }
 
   private setupTreeContextMenu() {
-    const element = this.treeElement.nativeElement as HTMLElement;
+    this.treeElement.nativeElement.addEventListener('contextmenu', this.contextMenuListener);
+  }
 
-    element.addEventListener('contextmenu', (event: MouseEvent) => {
-      if (this.contextMenuDisabled()) {
-        return;
-      }
-
-      const target = event.target as HTMLElement;
-      const treeItem = target.closest('[data-slot="tree-item"]');
-
-      if (treeItem) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        const nodeData = this.extractNodeData(treeItem as HTMLElement);
-
-        this.nodeContextMenu.emit({
-          node: nodeData,
-          event,
-        });
-
-        const contextMenu = this.uiTreeContextMenu();
-        if (contextMenu) {
-          contextMenu.show(event.clientX, event.clientY, nodeData);
-        }
-      }
-    });
+  ngOnDestroy() {
+    this.treeElement.nativeElement.removeEventListener('contextmenu', this.contextMenuListener);
   }
 
   private extractNodeData(element: HTMLElement): T {
@@ -143,7 +147,7 @@ export class TreeContextMenuDirective<T = unknown> {
   selector: 'table[uiTableContextMenu], [uiTable]',
   standalone: true,
 })
-export class TableContextMenuDirective<T = unknown> {
+export class TableContextMenuDirective<T = unknown> implements OnDestroy {
   uiTableContextMenu = input<ContextMenuComponent | null>(null);
   contextMenuDisabled = input<boolean>(false);
   rowDataAttribute = input<string>('data-row');
@@ -151,53 +155,56 @@ export class TableContextMenuDirective<T = unknown> {
   rowContextMenu = output<TableRowContextMenuEvent<T>>();
   cellContextMenu = output<TableCellContextMenuEvent<T>>();
 
-  private tableElement = inject(ElementRef);
+  private tableElement = inject(ElementRef<HTMLElement>);
+  private readonly contextMenuListener = (event: MouseEvent) => {
+    if (this.contextMenuDisabled() || !this.uiTableContextMenu()) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+
+    const cell = target.closest('td, [data-slot="table-cell"]');
+    if (cell) {
+      const row = cell.closest('tr, [data-slot="table-row"]');
+      if (row) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const rowData = this.extractRowData(row as HTMLElement, cell as HTMLElement);
+
+        if (cell.tagName === 'TD' || cell.getAttribute('data-slot') === 'table-cell') {
+          this.cellContextMenu.emit({
+            row: rowData.data,
+            column: rowData.column,
+            index: rowData.index,
+            event,
+          });
+        }
+
+        this.rowContextMenu.emit({
+          row: rowData.data,
+          index: rowData.index,
+          event,
+        });
+
+        const contextMenu = this.uiTableContextMenu();
+        if (contextMenu) {
+          contextMenu.show(event.clientX, event.clientY, rowData.data);
+        }
+      }
+    }
+  };
 
   constructor() {
     this.setupTableContextMenu();
   }
 
   private setupTableContextMenu() {
-    const element = this.tableElement.nativeElement as HTMLElement;
+    this.tableElement.nativeElement.addEventListener('contextmenu', this.contextMenuListener);
+  }
 
-    element.addEventListener('contextmenu', (event: MouseEvent) => {
-      if (this.contextMenuDisabled() || !this.uiTableContextMenu()) {
-        return;
-      }
-
-      const target = event.target as HTMLElement;
-
-      const cell = target.closest('td, [data-slot="table-cell"]');
-      if (cell) {
-        const row = cell.closest('tr, [data-slot="table-row"]');
-        if (row) {
-          event.preventDefault();
-          event.stopPropagation();
-
-          const rowData = this.extractRowData(row as HTMLElement, cell as HTMLElement);
-
-          if (cell.tagName === 'TD' || cell.getAttribute('data-slot') === 'table-cell') {
-            this.cellContextMenu.emit({
-              row: rowData.data,
-              column: rowData.column,
-              index: rowData.index,
-              event,
-            });
-          }
-
-          this.rowContextMenu.emit({
-            row: rowData.data,
-            index: rowData.index,
-            event,
-          });
-
-          const contextMenu = this.uiTableContextMenu();
-          if (contextMenu) {
-            contextMenu.show(event.clientX, event.clientY, rowData.data);
-          }
-        }
-      }
-    });
+  ngOnDestroy() {
+    this.tableElement.nativeElement.removeEventListener('contextmenu', this.contextMenuListener);
   }
 
   private extractRowData(rowElement: HTMLElement, cellElement: HTMLElement): { data: T; index: number; column: string } {
@@ -229,7 +236,7 @@ export class TableContextMenuDirective<T = unknown> {
   selector: 'ui-data-table[uiDataTableContextMenu]',
   standalone: true,
 })
-export class DataTableContextMenuDirective<T = unknown> {
+export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
   uiDataTableContextMenu = input.required<ContextMenuComponent>();
   contextMenuDisabled = input<boolean>(false);
   contextMenuRowsOnly = input<boolean>(true);
@@ -237,62 +244,65 @@ export class DataTableContextMenuDirective<T = unknown> {
   rowContextMenu = output<TableRowContextMenuEvent<T>>();
   headerContextMenu = output<DataTableHeaderContextMenuEvent>();
 
-  private tableElement = inject(ElementRef);
+  private tableElement = inject(ElementRef<HTMLElement>);
+  private readonly contextMenuListener = (event: MouseEvent) => {
+    if (this.contextMenuDisabled()) {
+      return;
+    }
+
+    const target = event.target as HTMLElement;
+
+    const row = target.closest('[data-slot="table-row"], [data-slot="data-table-row"], tr[data-row-index]');
+    if (row) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const rowData = this.extractDataTableRow(row as HTMLElement);
+
+      this.rowContextMenu.emit({
+        row: rowData.data,
+        index: rowData.index,
+        event,
+      });
+
+      const contextMenu = this.uiDataTableContextMenu();
+      if (contextMenu) {
+        contextMenu.show(event.clientX, event.clientY, rowData.data);
+      }
+      return;
+    }
+
+    if (!this.contextMenuRowsOnly()) {
+      const header = target.closest('[data-slot="table-head"], [data-slot="data-table-header"], th');
+      if (header) {
+        event.preventDefault();
+        event.stopPropagation();
+
+        const columnData = this.extractHeaderData(header as HTMLElement);
+
+        this.headerContextMenu.emit({
+          column: columnData,
+          event,
+        });
+
+        const contextMenu = this.uiDataTableContextMenu();
+        if (contextMenu) {
+          contextMenu.show(event.clientX, event.clientY, columnData);
+        }
+      }
+    }
+  };
 
   constructor() {
     this.setupDataTableContextMenu();
   }
 
   private setupDataTableContextMenu() {
-    const element = this.tableElement.nativeElement as HTMLElement;
+    this.tableElement.nativeElement.addEventListener('contextmenu', this.contextMenuListener);
+  }
 
-    element.addEventListener('contextmenu', (event: MouseEvent) => {
-      if (this.contextMenuDisabled()) {
-        return;
-      }
-
-      const target = event.target as HTMLElement;
-
-      const row = target.closest('[data-slot="table-row"], [data-slot="data-table-row"], tr[data-row-index]');
-      if (row) {
-        event.preventDefault();
-        event.stopPropagation();
-
-        const rowData = this.extractDataTableRow(row as HTMLElement);
-
-        this.rowContextMenu.emit({
-          row: rowData.data,
-          index: rowData.index,
-          event,
-        });
-
-        const contextMenu = this.uiDataTableContextMenu();
-        if (contextMenu) {
-          contextMenu.show(event.clientX, event.clientY, rowData.data);
-        }
-        return;
-      }
-
-      if (!this.contextMenuRowsOnly()) {
-        const header = target.closest('[data-slot="table-head"], [data-slot="data-table-header"], th');
-        if (header) {
-          event.preventDefault();
-          event.stopPropagation();
-
-          const columnData = this.extractHeaderData(header as HTMLElement);
-
-          this.headerContextMenu.emit({
-            column: columnData,
-            event,
-          });
-
-          const contextMenu = this.uiDataTableContextMenu();
-          if (contextMenu) {
-            contextMenu.show(event.clientX, event.clientY, columnData);
-          }
-        }
-      }
-    });
+  ngOnDestroy() {
+    this.tableElement.nativeElement.removeEventListener('contextmenu', this.contextMenuListener);
   }
 
   private extractDataTableRow(rowElement: HTMLElement): { data: T; index: number } {

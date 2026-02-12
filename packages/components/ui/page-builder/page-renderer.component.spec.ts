@@ -104,8 +104,10 @@ describe('PageRendererComponent', () => {
         expect(renderItems.length).toBe(1);
 
         const item = renderItems[0];
-        expect(item.inputs['title']).toBe('Static Title');
-        expect(item.inputs['description']).toBe('Admin'); // Resolved from context
+        expect(item).toBeDefined();
+        expect(item?.inputs).toBeDefined();
+        expect(item?.inputs?.['title']).toBe('Static Title');
+        expect(item?.inputs?.['description']).toBe('Admin'); // Resolved from context
     });
 
     it('should update resolved bindings when context changes', () => {
@@ -120,6 +122,8 @@ describe('PageRendererComponent', () => {
         fixture.detectChanges();
 
         const renderItems = component.dashboardItems();
-        expect(renderItems[0].inputs['description']).toBe('SuperAdmin');
+        expect(renderItems.length).toBe(1);
+        expect(renderItems[0]?.inputs).toBeDefined();
+        expect(renderItems[0]?.inputs?.['description']).toBe('SuperAdmin');
     });
 });

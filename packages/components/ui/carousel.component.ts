@@ -48,7 +48,8 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
 
     private scrollContainer: HTMLElement | null = null;
     private resizeObserver: ResizeObserver | null = null;
-    private items: HTMLElement[] = [];
+    private scrollListener: (() => void) | null = null;
+    private setupTimer: ReturnType<typeof setTimeout> | null = null;
 
     constructor() {
         this.updateRtlState();
@@ -70,10 +71,11 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
     ));
 
     ngAfterContentInit() {
-        setTimeout(() => {
+        this.setupTimer = setTimeout(() => {
             this.scrollContainer = this.containerEl.nativeElement.querySelector('[data-slot="carousel-content"]');
             if (this.scrollContainer) {
-                this.scrollContainer.addEventListener('scroll', () => this.updateScrollState());
+                this.scrollListener = () => this.updateScrollState();
+                this.scrollContainer.addEventListener('scroll', this.scrollListener);
                 this.updateScrollState();
 
                 this.resizeObserver = new ResizeObserver(() => this.updateScrollState());
@@ -83,6 +85,14 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
     }
 
     ngOnDestroy() {
+        if (this.setupTimer) {
+            clearTimeout(this.setupTimer);
+            this.setupTimer = null;
+        }
+        if (this.scrollContainer && this.scrollListener) {
+            this.scrollContainer.removeEventListener('scroll', this.scrollListener);
+        }
+        this.scrollListener = null;
         this.resizeObserver?.disconnect();
         this.dirObserver?.disconnect();
     }
