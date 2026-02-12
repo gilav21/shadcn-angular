@@ -20,6 +20,7 @@ export interface ColumnResizeEvent {
 
 export interface ColumnDef<T> {
     accessorKey: keyof T | string;
+    accessorFn?: (row: T) => unknown;
     header: string;
     cell?: (row: T) => string;
     template?: TemplateRef<any>;

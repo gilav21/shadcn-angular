@@ -84,6 +84,20 @@ describe('DataTableComponent', () => {
         expect(dataDesc[4].name).toBe('Alice');
     });
 
+    it('should resolve nested values with dot-path accessor keys', () => {
+        const row = { profile: { email: 'alice@example.com' } } as any;
+        expect(component.getCellValue(row, 'profile.email')).toBe('alice@example.com');
+    });
+
+    it('should prefer accessorFn when provided', () => {
+        const column: ColumnDef<TestData> = {
+            accessorKey: 'name',
+            header: 'Display Name',
+            accessorFn: (row) => `${row.name} (${row.role})`,
+        };
+        expect(component.getCellValue(TEST_DATA[0], 'name', column)).toBe('Alice (Admin)');
+    });
+
     it('should paginate data correctly', () => {
         // Set page size to 2
         component.paginationState.set({ pageIndex: 0, pageSize: 2 });
@@ -98,6 +112,23 @@ describe('DataTableComponent', () => {
 
         expect(component.processedData().length).toBe(2);
         expect(component.processedData()[0].name).toBe('Charlie');
+    });
+
+    it('should not clamp server-side pagination to zero when localPagination is false', () => {
+        fixture.componentRef.setInput('localPagination', false);
+        fixture.componentRef.setInput('total', 100);
+        fixture.detectChanges();
+
+        let emittedPageIndex = -1;
+        component.pageChange.subscribe((state) => {
+            emittedPageIndex = state.pageIndex;
+        });
+
+        component.onPaginationChange({ pageIndex: 3, pageSize: 10 });
+        fixture.detectChanges();
+
+        expect(component.paginationState().pageIndex).toBe(3);
+        expect(emittedPageIndex).toBe(3);
     });
 
     it('should handle row selection', () => {
@@ -121,6 +152,35 @@ describe('DataTableComponent', () => {
         // Toggle all off
         component.toggleAll();
         expect(component.isAllSelected()).toBe(false);
+    });
+
+    it('should preserve off-filter selection when toggling all on filtered rows', () => {
+        fixture.componentRef.setInput('enableRowSelection', true);
+        fixture.detectChanges();
+
+        component.toggleRow(TEST_DATA[0]); // Alice
+        component.toggleRow(TEST_DATA[1]); // Bob
+        fixture.detectChanges();
+
+        component.onFilterChange('Admin'); // Alice + David
+        fixture.detectChanges();
+
+        component.toggleAll(); // Select all filtered rows only
+        fixture.detectChanges();
+
+        expect(component.isRowSelected(TEST_DATA[0])).toBe(true); // Alice
+        expect(component.isRowSelected(TEST_DATA[1])).toBe(true); // Bob preserved
+        expect(component.isRowSelected(TEST_DATA[3])).toBe(true); // David selected via filtered toggle all
+    });
+
+    it('should reset page to first page when filter changes', () => {
+        component.paginationState.set({ pageIndex: 2, pageSize: 2 });
+        fixture.detectChanges();
+
+        component.onFilterChange('Alice');
+        fixture.detectChanges();
+
+        expect(component.paginationState().pageIndex).toBe(0);
     });
 
     it('should apply sticky classes correctly', () => {

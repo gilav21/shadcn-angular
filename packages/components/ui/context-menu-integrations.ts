@@ -8,6 +8,7 @@ import {
   output,
 } from '@angular/core';
 import { ContextMenuComponent } from './context-menu.component';
+import { DataTableComponent } from './data-table/data-table.component';
 
 export interface ContextMenuEvent<T> {
   event: MouseEvent;
@@ -245,6 +246,7 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
   headerContextMenu = output<DataTableHeaderContextMenuEvent>();
 
   private tableElement = inject(ElementRef<HTMLElement>);
+  private dataTable = inject<DataTableComponent<T> | null>(DataTableComponent as any, { optional: true });
   private readonly contextMenuListener = (event: MouseEvent) => {
     if (this.contextMenuDisabled()) {
       return;
@@ -309,18 +311,15 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
     const indexAttr = rowElement.getAttribute('data-row-index');
     const index = indexAttr ? parseInt(indexAttr, 10) : 0;
 
-    const dataStr = rowElement.getAttribute('data-row');
-    let data: T = {} as T;
-
-    if (dataStr) {
-      try {
-        data = JSON.parse(dataStr);
-      } catch {
-        data = { id: dataStr } as unknown as T;
-      }
+    const renderedRow = this.dataTable?.getRenderedRowAt(index);
+    if (renderedRow !== undefined) {
+      return { data: renderedRow, index };
     }
 
-    return { data, index };
+    const rowId = rowElement.getAttribute('data-row-id');
+    const fallbackData = rowId ? ({ id: rowId } as unknown as T) : ({} as T);
+
+    return { data: fallbackData, index };
   }
 
   private extractHeaderData(headerElement: HTMLElement): { id: string | null; name: string; element: HTMLElement } {

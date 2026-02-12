@@ -1,6 +1,7 @@
 import {
   Component,
   computed,
+  effect,
   input,
   output,
   model,
@@ -77,6 +78,7 @@ import { cn } from '../../lib/utils';
                 <ui-table-head 
                   [class]="getHeaderClass(col)"
                   [class.overflow-visible]="col.enableFiltering && col.filterComponent"
+                  [attr.data-column-id]="toString(col.accessorKey)"
                   [style]="getCellStyle(col, true)"
                 >
                   <div class="flex items-center w-full h-full">
@@ -173,16 +175,17 @@ import { cn } from '../../lib/utils';
           </ui-table-header>
           <ui-table-body>
             @if (processedData().length > 0) {
-              @for (row of processedData(); track row; let i = $index) {
+              @for (row of processedData(); track getRowId()(row); let i = $index) {
                 <ui-table-row 
                   [attr.data-state]="isRowSelected(row) ? 'selected' : null"
                   [attr.data-row-index]="i"
-                  [attr.data-row]="serializeRow(row)"
+                  [attr.data-row-id]="getRowId()(row)"
                   class="border-0"
                 >
                   @for (col of enhancedColumns(); track col.accessorKey) {
                     <ui-table-cell
                       [class]="getCellClass(col)"
+                      [attr.data-column]="toString(col.accessorKey)"
                       [style]="getCellStyle(col)"
                     >
                       @if (col.accessorKey === '_selection') {
@@ -202,7 +205,7 @@ import { cn } from '../../lib/utils';
                       } @else if (col.cell) {
                          {{ col.cell(row) }}
                       } @else {
-                        {{ getCellValue(row, col.accessorKey) }}
+                        {{ getCellValue(row, col.accessorKey, col) }}
                       }
                     </ui-table-cell>
                   }
@@ -321,7 +324,7 @@ export class DataTableComponent<T> {
         data = data.filter(row => column.filterFn!(row, filterValue));
       } else {
         data = data.filter(row => {
-          const cellValue = this.getCellValue(row, columnKey);
+          const cellValue = this.getCellValue(row, columnKey, column);
           return String(cellValue).toLowerCase().includes(String(filterValue).toLowerCase());
         });
       }
@@ -345,8 +348,8 @@ export class DataTableComponent<T> {
         return sort.direction === 'asc' ? result : -result;
       }
 
-      const aVal = this.getCellValue(a, sort.column);
-      const bVal = this.getCellValue(b, sort.column);
+      const aVal = this.getCellValue(a, sort.column, column);
+      const bVal = this.getCellValue(b, sort.column, column);
 
       if (aVal < bVal) return sort.direction === 'asc' ? -1 : 1;
       if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
@@ -366,6 +369,38 @@ export class DataTableComponent<T> {
   activeTotalItems = computed(() =>
     this.localPagination() ? this.filteredData().length : this.total()
   );
+  private filteredRowIds = computed(() => this.filteredData().map(row => this.getRowId()(row)));
+  private filteredSelectionCount = computed(() => {
+    const selected = this.rowSelection();
+    let count = 0;
+    this.filteredRowIds().forEach(id => {
+      if (selected[id]) {
+        count += 1;
+      }
+    });
+    return count;
+  });
+
+  constructor() {
+    effect(() => {
+      if (!this.localPagination()) {
+        return;
+      }
+
+      const { pageIndex, pageSize } = this.paginationState();
+      const sanitizedPageSize = pageSize > 0 ? pageSize : 10;
+      const totalItems = this.filteredData().length;
+      const maxPageIndex = Math.max(0, Math.ceil(totalItems / sanitizedPageSize) - 1);
+      const clampedPageIndex = Math.min(maxPageIndex, Math.max(0, pageIndex));
+
+      if (sanitizedPageSize !== pageSize || clampedPageIndex !== pageIndex) {
+        this.paginationState.set({
+          pageIndex: clampedPageIndex,
+          pageSize: sanitizedPageSize,
+        });
+      }
+    });
+  }
 
   getSortDirection(columnKey: string | keyof T): SortDirection {
     const sort = this.sortState();
@@ -488,38 +523,54 @@ export class DataTableComponent<T> {
   }
 
   toggleAll() {
-    const data = this.filteredData();
+    const selected = this.rowSelection();
+    const visibleIds = this.filteredRowIds();
+
     if (this.isAllSelected()) {
-      this.rowSelection.set({});
-    } else {
-      const newSelection: Record<string, boolean> = {};
-      data.forEach(row => {
-        newSelection[this.getRowId()(row)] = true;
+      const remainingSelection = { ...selected };
+      visibleIds.forEach(id => {
+        delete remainingSelection[id];
       });
-      this.rowSelection.set(newSelection);
+      this.rowSelection.set(remainingSelection);
+    } else {
+      const nextSelection = { ...selected };
+      visibleIds.forEach(id => {
+        nextSelection[id] = true;
+      });
+      this.rowSelection.set(nextSelection);
     }
   }
 
-  private selectionCount = computed(() => Object.keys(this.rowSelection()).length);
-
   isAllSelected = computed(() => {
-    const dataLength = this.filteredData().length;
-    if (dataLength === 0) return false;
-    return this.selectionCount() === dataLength;
+    const visibleCount = this.filteredRowIds().length;
+    if (visibleCount === 0) {
+      return false;
+    }
+    return this.filteredSelectionCount() === visibleCount;
   });
 
   isIndeterminate = computed(() => {
-    const count = this.selectionCount();
-    return count > 0 && count < this.filteredData().length;
+    const count = this.filteredSelectionCount();
+    const visibleCount = this.filteredRowIds().length;
+    return count > 0 && count < visibleCount;
   });
 
   onPaginationChange(state: PaginationState) {
-    this.paginationState.set(state);
-    this.pageChange.emit(state);
+    const totalItems = this.localPagination() ? this.filteredData().length : this.total();
+    const safePageSize = state.pageSize > 0 ? state.pageSize : this.paginationState().pageSize;
+    const maxPageIndex = Math.max(0, Math.ceil(totalItems / safePageSize) - 1);
+    const nextState = {
+      pageIndex: Math.min(maxPageIndex, Math.max(0, state.pageIndex)),
+      pageSize: safePageSize,
+    };
+
+    this.paginationState.set(nextState);
+    this.pageChange.emit(nextState);
   }
 
   onFilterChange(value: string) {
     this.globalFilter.set(value);
+    this.paginationState.update(state => ({ ...state, pageIndex: 0 }));
     this.filterChange.emit(value);
   }
 
@@ -528,6 +579,7 @@ export class DataTableComponent<T> {
       ...filters,
       [columnKey]: value
     }));
+    this.paginationState.update(state => ({ ...state, pageIndex: 0 }));
   }
 
   getFilterOutputs(col: ColumnDef<T>): Record<string, (event: any) => void> {
@@ -545,8 +597,25 @@ export class DataTableComponent<T> {
     return String(key);
   }
 
-  getCellValue(row: T, key: string | keyof T): any {
+  getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): any {
+    if (column?.accessorFn) {
+      return column.accessorFn(row);
+    }
+
+    if (typeof key === 'string' && key.includes('.')) {
+      return key.split('.').reduce<any>((value, segment) => {
+        if (value === null || value === undefined) {
+          return undefined;
+        }
+        return value[segment];
+      }, row as any);
+    }
+
     return (row as any)[key];
+  }
+
+  getRenderedRowAt(index: number): T | undefined {
+    return this.processedData()[index];
   }
 
   private resizingColumn: any = null;
@@ -618,7 +687,7 @@ export class DataTableComponent<T> {
   private onResizeEnd() {
     if (this.resizingColumn) {
       const key = String(this.resizingColumn.accessorKey);
-      const oldWidth = this.resizingColumn.width || '150px';
+      const oldWidth = this.columnWidths()[key] || this.resizingColumn.width || '150px';
       const newWidth = this.columnWidths()[key] || oldWidth;
 
       this.columnResize.emit({
@@ -629,9 +698,5 @@ export class DataTableComponent<T> {
 
       this.resizingColumn = null;
     }
-  }
-
-  serializeRow(row: T): string {
-    return JSON.stringify(row);
   }
 }

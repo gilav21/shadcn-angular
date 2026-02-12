@@ -140,7 +140,10 @@ export class DataTablePaginationComponent {
 
   pageSizeString = computed(() => this.state().pageSize.toString());
   currentPage = computed(() => this.state().pageIndex + 1);
-  totalPages = computed(() => Math.ceil(this.total() / this.state().pageSize));
+  totalPages = computed(() => {
+    const pageSize = this.state().pageSize > 0 ? this.state().pageSize : 10;
+    return Math.max(1, Math.ceil(this.total() / pageSize));
+  });
 
   canPrevious = computed(() => this.state().pageIndex > 0);
   canNext = computed(() => this.state().pageIndex < this.totalPages() - 1);
@@ -149,7 +152,7 @@ export class DataTablePaginationComponent {
     const pageSize = Number(value);
     this.paginationChange.emit({
       pageIndex: 0,
-      pageSize,
+      pageSize: pageSize > 0 ? pageSize : this.state().pageSize,
     });
   }
 
@@ -158,14 +161,23 @@ export class DataTablePaginationComponent {
   }
 
   onLastPage() {
-    this.paginationChange.emit({ ...this.state(), pageIndex: this.totalPages() - 1 });
+    this.paginationChange.emit({
+      ...this.state(),
+      pageIndex: Math.max(0, this.totalPages() - 1),
+    });
   }
 
   onNextPage() {
-    this.paginationChange.emit({ ...this.state(), pageIndex: this.state().pageIndex + 1 });
+    this.paginationChange.emit({
+      ...this.state(),
+      pageIndex: Math.min(this.totalPages() - 1, this.state().pageIndex + 1),
+    });
   }
 
   onPreviousPage() {
-    this.paginationChange.emit({ ...this.state(), pageIndex: this.state().pageIndex - 1 });
+    this.paginationChange.emit({
+      ...this.state(),
+      pageIndex: Math.max(0, this.state().pageIndex - 1),
+    });
   }
 }
