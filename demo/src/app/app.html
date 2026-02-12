@@ -3630,6 +3630,90 @@
           </div>
         </section>
 
+        <section class="space-y-4">
+          <h2 class="text-2xl font-semibold scroll-m-20">Data Table (Operations Console)</h2>
+          <p class="text-muted-foreground">
+            Realistic incident operations grid using server-mode pagination/filter/sort, multi-sort (Shift+Click),
+            right/left pinning, row expansion, layout persistence, and trigger-aware custom loaders.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-3 rounded-md border p-3">
+            <ui-button size="sm" variant="outline" (click)="refreshOpsData()">Refresh</ui-button>
+            <ui-button size="sm" variant="outline" (click)="applyOpsCompactPreset()">Apply Compact Layout</ui-button>
+            <ui-button size="sm" variant="outline" (click)="moveOpsPriorityToFront()">Move Priority Next</ui-button>
+            <ui-button size="sm" variant="outline" (click)="saveOpsLayout()">Save Layout</ui-button>
+            <ui-button size="sm" variant="outline" (click)="restoreOpsLayout()">Restore Layout</ui-button>
+
+            <div class="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+              <span>Loader triggers:</span>
+              <label class="flex items-center gap-2">
+                <ui-checkbox
+                  [checked]="opsLoadingVisibility().initial !== false"
+                  (checkedChange)="toggleOpsLoaderTrigger('initial', $event)"
+                  ariaLabel="Toggle initial loader"
+                />
+                initial
+              </label>
+              <label class="flex items-center gap-2">
+                <ui-checkbox
+                  [checked]="opsLoadingVisibility().pagination !== false"
+                  (checkedChange)="toggleOpsLoaderTrigger('pagination', $event)"
+                  ariaLabel="Toggle pagination loader"
+                />
+                pagination
+              </label>
+              <label class="flex items-center gap-2">
+                <ui-checkbox
+                  [checked]="opsLoadingVisibility().sorting !== false"
+                  (checkedChange)="toggleOpsLoaderTrigger('sorting', $event)"
+                  ariaLabel="Toggle sorting loader"
+                />
+                sorting
+              </label>
+              <label class="flex items-center gap-2">
+                <ui-checkbox
+                  [checked]="opsLoadingVisibility().filtering !== false"
+                  (checkedChange)="toggleOpsLoaderTrigger('filtering', $event)"
+                  ariaLabel="Toggle filtering loader"
+                />
+                filtering
+              </label>
+            </div>
+          </div>
+
+          <div class="rounded-md border h-[680px] overflow-auto relative">
+            <ui-data-table
+              #opsGrid
+              [data]="opsData()"
+              [columns]="opsColumns"
+              [total]="opsTotal()"
+              [loading]="opsLoading()"
+              [loadingVisibility]="opsLoadingVisibility()"
+              [loaderComponent]="opsLoaderComponent"
+              [loaderComponentInputs]="{ total: opsTotal() }"
+              [enableColumnResize]="true"
+              [enableRowExpansion]="true"
+              [rowDetailComponent]="opsDetailComponent"
+              [rowDetailComponentInputs]="opsDetailInputs"
+              [enableMultiSort]="true"
+              [localSorting]="false"
+              [localPagination]="false"
+              [localFiltering]="false"
+              (sortChange)="onOpsSort($event)"
+              (multiSortChange)="onOpsMultiSort($event)"
+              (pageChange)="onOpsPage($event)"
+              (filterChange)="onOpsFilter($event)"
+              [(columnOrder)]="opsColumnOrder"
+              [(columnVisibility)]="opsColumnVisibility"
+              [(expandedRows)]="opsExpandedRows"
+            />
+          </div>
+
+          <div class="text-xs text-muted-foreground">
+            Showing {{ opsData().length }} of {{ opsTotal() }} incidents. Shift+Click headers to multi-sort.
+          </div>
+        </section>
+
         <!-- Custom Cells Demo Section -->
         <section class="space-y-4">
           <h2 id="data-table-custom" class="text-2xl font-semibold scroll-m-20">Data Table (Custom Cell Components)</h2>

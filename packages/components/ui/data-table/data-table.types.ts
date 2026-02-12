@@ -31,13 +31,39 @@ export interface ColumnDef<T> {
     enableSorting?: boolean;
     sortFn?: (a: T, b: T) => number;
     enableFiltering?: boolean;
+    enableGlobalFilter?: boolean;
     filterFn?: (row: T, filterValue: unknown) => boolean;
     filterComponent?: Type<unknown>;
     filterComponentInputs?: Record<string, unknown>;
     filterComponentOutputs?: Record<string, (event: unknown) => void>;
     sticky?: boolean;
+    pin?: 'left' | 'right';
     width?: string;
     minWidth?: string;
+    enableHiding?: boolean;
+}
+
+export interface DataTableRowEvent<T> {
+    row: T;
+    index: number;
+    event: MouseEvent;
+}
+
+export interface DataTableColumnState {
+    columnKey: string;
+    width?: string;
+    visible?: boolean;
+    pin?: 'left' | 'right';
+    order?: number;
+}
+
+export type DataTableLoadingTrigger = 'initial' | 'pagination' | 'sorting' | 'filtering';
+
+export interface DataTableLoadingVisibility {
+    initial?: boolean;
+    pagination?: boolean;
+    sorting?: boolean;
+    filtering?: boolean;
 }
 
 export interface DataTableState<T> {

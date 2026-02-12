@@ -1,7 +1,7 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table/data-table.component';
-import { ColumnDef } from './data-table/data-table.types';
-import { importProvidersFrom, Component, ChangeDetectionStrategy, output } from '@angular/core';
+import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility } from './data-table/data-table.types';
+import { importProvidersFrom, Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from './input.component';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent } from './context-menu.component';
 import { ContextMenuIntegrations } from './context-menu-integrations';
@@ -35,6 +35,184 @@ interface User {
     name: string;
     email: string;
     role: string;
+}
+
+interface OpsTicket {
+    id: string;
+    account: string;
+    service: string;
+    priority: 'P1' | 'P2' | 'P3' | 'P4';
+    status: 'Open' | 'Investigating' | 'Mitigated' | 'Resolved';
+    owner: string;
+    mrr: number;
+    updatedAt: string;
+    summary: string;
+}
+
+@Component({
+    selector: 'app-ops-loader-story',
+    standalone: true,
+    template: `
+      <div class="rounded-md border bg-background px-3 py-2 text-xs shadow-sm">
+        <p class="font-medium">Loading operations feed...</p>
+        <p class="text-muted-foreground">trigger={{ trigger() }}, rows={{ total() }}</p>
+      </div>
+    `,
+})
+class OpsLoaderStoryComponent {
+    trigger = input<string>('initial');
+    total = input<number>(0);
+}
+
+@Component({
+    selector: 'app-ops-detail-story',
+    standalone: true,
+    template: `
+      @if (ticket()) {
+        <div class="space-y-1 p-2 text-xs">
+          <p><strong>{{ ticket()!.id }}</strong> · {{ ticket()!.account }} · {{ ticket()!.service }}</p>
+          <p class="text-muted-foreground">{{ ticket()!.summary }}</p>
+          <p class="text-muted-foreground">Owner: {{ ticket()!.owner }} · Updated: {{ ticket()!.updatedAt }}</p>
+        </div>
+      }
+    `,
+})
+class OpsDetailStoryComponent {
+    ticket = input<OpsTicket | undefined>(undefined);
+}
+
+@Component({
+    selector: 'app-enterprise-ops-table-story',
+    standalone: true,
+    imports: [DataTableComponent],
+    template: `
+      <div class="h-[680px] w-full p-4">
+        <ui-data-table
+          [data]="rows()"
+          [columns]="columns"
+          [total]="total()"
+          [loading]="loading()"
+          [loadingVisibility]="loadingVisibility"
+          [loaderComponent]="loaderComponent"
+          [loaderComponentInputs]="{ total: total() }"
+          [enableColumnResize]="true"
+          [enableRowExpansion]="true"
+          [rowDetailComponent]="detailComponent"
+          [rowDetailComponentInputs]="detailInputs"
+          [enableMultiSort]="true"
+          [localSorting]="false"
+          [localPagination]="false"
+          [localFiltering]="false"
+          (sortChange)="onSort($event)"
+          (multiSortChange)="onMultiSort($event)"
+          (pageChange)="onPage($event)"
+          (filterChange)="onFilter($event)"
+        />
+      </div>
+    `,
+})
+class EnterpriseOpsTableStoryComponent {
+    rows = signal<OpsTicket[]>([]);
+    total = signal(0);
+    loading = signal(true);
+    filter = signal('');
+    sort = signal<SortState>({ column: '', direction: null });
+    sorts = signal<SortState[]>([]);
+    page = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
+
+    loaderComponent = OpsLoaderStoryComponent;
+    detailComponent = OpsDetailStoryComponent;
+    detailInputs = (row: OpsTicket) => ({ ticket: row });
+
+    loadingVisibility: DataTableLoadingVisibility = {
+        initial: true,
+        pagination: true,
+        sorting: true,
+        filtering: true,
+    };
+
+    columns: ColumnDef<OpsTicket>[] = [
+        { accessorKey: 'id', header: 'Ticket', pin: 'left', width: '120px', enableSorting: true, enableHiding: false },
+        { accessorKey: 'account', header: 'Account', width: '180px', enableSorting: true },
+        { accessorKey: 'service', header: 'Service', width: '160px', enableSorting: true },
+        { accessorKey: 'priority', header: 'Priority', width: '90px', enableSorting: true },
+        { accessorKey: 'status', header: 'Status', width: '140px', enableSorting: true },
+        { accessorKey: 'owner', header: 'Owner', width: '130px', enableSorting: true },
+        { accessorKey: 'mrr', header: 'MRR', width: '120px', enableSorting: true, cell: (r) => `$${r.mrr.toLocaleString()}` },
+        { accessorKey: 'updatedAt', header: 'Updated', width: '160px', enableSorting: true, pin: 'right' },
+        { accessorKey: 'summary', header: 'Summary', width: 'auto', enableSorting: false, enableGlobalFilter: false },
+    ];
+
+    private source: OpsTicket[] = Array.from({ length: 120 }, (_, i) => ({
+        id: `INC-${(1000 + i).toString()}`,
+        account: ['Acme Retail', 'Helios Health', 'Nova Bank', 'Orbit Logistics'][i % 4],
+        service: ['Checkout API', 'Billing Engine', 'Ledger Sync', 'Route Optimizer'][i % 4],
+        priority: ['P1', 'P2', 'P3', 'P4'][i % 4] as OpsTicket['priority'],
+        status: ['Open', 'Investigating', 'Mitigated', 'Resolved'][i % 4] as OpsTicket['status'],
+        owner: ['Elena', 'Marcus', 'Priya', 'Noah'][i % 4],
+        mrr: 10000 + i * 1250,
+        updatedAt: new Date(Date.now() - i * 1000 * 60 * 45).toISOString(),
+        summary: 'Latency and error budget alerts correlated in current deployment wave.',
+    }));
+
+    constructor() {
+        this.load();
+    }
+
+    onSort(sort: SortState) {
+        this.sort.set(sort);
+    }
+
+    onMultiSort(sorts: SortState[]) {
+        this.sorts.set(sorts);
+        this.load();
+    }
+
+    onPage(page: PaginationState) {
+        this.page.set(page);
+        this.load();
+    }
+
+    onFilter(filter: string) {
+        this.filter.set(filter);
+        this.page.update((state) => ({ ...state, pageIndex: 0 }));
+        this.load();
+    }
+
+    private load() {
+        this.loading.set(true);
+        const query = this.filter().toLowerCase();
+        const sorts = this.sorts().length > 0 ? this.sorts() : (this.sort().direction ? [this.sort()] : []);
+        const { pageIndex, pageSize } = this.page();
+
+        setTimeout(() => {
+            let data = this.source;
+
+            if (query) {
+                data = data.filter(row =>
+                    [row.id, row.account, row.service, row.owner, row.status, row.summary].join(' ').toLowerCase().includes(query)
+                );
+            }
+
+            if (sorts.length > 0) {
+                data = [...data].sort((a, b) => {
+                    for (const sort of sorts) {
+                        const key = sort.column as keyof OpsTicket;
+                        const direction = sort.direction === 'desc' ? -1 : 1;
+                        const aVal = a[key];
+                        const bVal = b[key];
+                        if (aVal === bVal) continue;
+                        return (aVal! > bVal! ? 1 : -1) * direction;
+                    }
+                    return 0;
+                });
+            }
+
+            this.total.set(data.length);
+            this.rows.set(data.slice(pageIndex * pageSize, pageIndex * pageSize + pageSize));
+            this.loading.set(false);
+        }, 500);
+    }
 }
 
 const meta: Meta<DataTableComponent<User>> = {
@@ -495,4 +673,14 @@ export const WithContextMenu: Story = {
         showToolbar: true,
         showPagination: true,
     },
+};
+
+export const EnterpriseOperationsConsole: Story = {
+    render: () => ({
+        props: {},
+        template: `<app-enterprise-ops-table-story />`,
+        moduleMetadata: {
+            imports: [EnterpriseOpsTableStoryComponent],
+        },
+    }),
 };

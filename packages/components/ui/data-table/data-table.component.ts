@@ -8,6 +8,7 @@ import {
   signal,
   ChangeDetectionStrategy,
   Type,
+  TemplateRef,
   ElementRef,
   inject,
 } from '@angular/core';
@@ -28,7 +29,16 @@ import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } fr
 import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
 import { DataTablePaginationComponent } from './data-table-pagination.component';
 import { UiComponentOutletDirective } from '../component-outlet.directive';
-import { ColumnDef, SortState, SortDirection, PaginationState, ColumnResizeEvent } from './data-table.types';
+import {
+  ColumnDef,
+  SortState,
+  SortDirection,
+  PaginationState,
+  ColumnResizeEvent,
+  DataTableColumnState,
+  DataTableLoadingTrigger,
+  DataTableLoadingVisibility,
+} from './data-table.types';
 import { cn } from '../../lib/utils';
 
 @Component({
@@ -67,10 +77,56 @@ import { cn } from '../../lib/utils';
               class="h-8 w-[150px] lg:w-[250px]"
             />
           </div>
+          @if (showColumnVisibilityToggle() && hideableColumns().length > 0) {
+            <ui-popover>
+              <ui-popover-trigger>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                  aria-label="Toggle columns"
+                >
+                  Columns
+                </button>
+              </ui-popover-trigger>
+              <ui-popover-content class="w-56 p-2">
+                <div class="space-y-1">
+                  @for (col of hideableColumns(); track col.accessorKey) {
+                    <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground">
+                      <ui-checkbox
+                        [checked]="isColumnVisible(col.accessorKey)"
+                        (checkedChange)="setColumnVisibility(col.accessorKey, $event)"
+                        [ariaLabel]="'Toggle ' + col.header + ' column'"
+                      />
+                      <span>{{ col.header }}</span>
+                    </label>
+                  }
+                </div>
+              </ui-popover-content>
+            </ui-popover>
+          }
         </div>
       }
 
       <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full">
+        @if (isLoaderVisible()) {
+          <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+            @if (loaderTemplate()) {
+              <ng-container
+                *ngTemplateOutlet="loaderTemplate(); context: { $implicit: loadingTrigger(), trigger: loadingTrigger() }"
+              ></ng-container>
+            } @else if (loaderComponent()) {
+              <ng-container
+                [uiComponentOutlet]="loaderComponent()"
+                [inputs]="resolvedLoaderComponentInputs()"
+              ></ng-container>
+            } @else {
+              <div class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+                <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"></span>
+                <span>Loading...</span>
+              </div>
+            }
+          </div>
+        }
         <ui-table>
           <ui-table-header class="bg-background">
             <ui-table-row>
@@ -90,6 +146,8 @@ import { cn } from '../../lib/utils';
                           (checkedChange)="toggleAll()"
                           ariaLabel="Select all"
                         />
+                      } @else if (col.accessorKey === '_expander') {
+                        <span class="sr-only">Expand row</span>
                       } @else if (col.headerTemplate) {
                         <ng-container *ngTemplateOutlet="col.headerTemplate; context: { $implicit: col }"></ng-container>
                       } @else if (col.enableSorting !== false) {
@@ -98,7 +156,8 @@ import { cn } from '../../lib/utils';
                             [title]="col.header"
                             [column]="toString(col.accessorKey)"
                             [direction]="getSortDirection(col.accessorKey)"
-                            (sort)="onSortChange(col.accessorKey, $event)"
+                            [sortIndex]="getSortIndex(col.accessorKey)"
+                            (sortMeta)="onSortChange(col.accessorKey, $event.direction, $event.multi)"
                           />
                           @if (col.enableFiltering && col.filterComponent) {
                             <ui-popover>
@@ -194,6 +253,24 @@ import { cn } from '../../lib/utils';
                           (checkedChange)="toggleRow(row)"
                           ariaLabel="Select row"
                         />
+                      } @else if (col.accessorKey === '_expander') {
+                        <button
+                          type="button"
+                          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                          [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'"
+                          [attr.aria-expanded]="isRowExpanded(row)"
+                          (click)="toggleRowExpanded(row, $event)"
+                        >
+                          @if (isRowExpanded(row)) {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <polyline points="18 15 12 9 6 15"></polyline>
+                            </svg>
+                          } @else {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                              <polyline points="6 9 12 15 18 9"></polyline>
+                            </svg>
+                          }
+                        </button>
                       } @else if (col.component) {
                         <div 
                           [uiComponentOutlet]="col.component" 
@@ -216,6 +293,24 @@ import { cn } from '../../lib/utils';
                     ></ui-table-cell>
                   }
                 </ui-table-row>
+                @if (enableRowExpansion() && isRowExpanded(row)) {
+                  <ui-table-row class="border-0 bg-muted/20">
+                    <ui-table-cell class="flex-1 border-b" style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;">
+                      @if (rowDetailTemplate()) {
+                        <ng-container
+                          *ngTemplateOutlet="rowDetailTemplate(); context: { $implicit: row, row: row }"
+                        ></ng-container>
+                      } @else if (rowDetailComponent()) {
+                        <div
+                          [uiComponentOutlet]="rowDetailComponent()"
+                          [inputs]="getRowDetailComponentInputs(row)"
+                        ></div>
+                      } @else {
+                        <pre class="text-xs text-muted-foreground whitespace-pre-wrap">{{ row | json }}</pre>
+                      }
+                    </ui-table-cell>
+                  </ui-table-row>
+                }
               }
             } @else {
               <ui-table-row class="hover:bg-transparent justify-center w-full">
@@ -268,6 +363,7 @@ export class DataTableComponent<T> {
   columns = input.required<ColumnDef<T>[]>();
 
   showToolbar = input(true);
+  showColumnVisibilityToggle = input(true);
   showPagination = input(true);
   showRowBorders = input(true);
   showColumnBorders = input(true);
@@ -275,15 +371,34 @@ export class DataTableComponent<T> {
   localSorting = input(true);
   localPagination = input(true);
   localFiltering = input(true);
+  loading = input(false);
+  loadingVisibility = input<DataTableLoadingVisibility>({
+    initial: true,
+    pagination: true,
+    sorting: true,
+    filtering: true,
+  });
+  loaderTemplate = input<TemplateRef<unknown>>();
+  loaderComponent = input<Type<unknown>>();
+  loaderComponentInputs = input<Record<string, unknown>>({});
+  globalFilterFn = input<((row: T, filterValue: string, columns: ColumnDef<T>[]) => boolean) | undefined>(undefined);
+  enableMultiSort = input(false);
+  maxMultiSortColumns = input(3);
   total = input(0);
 
   sortChange = output<SortState>();
+  multiSortChange = output<SortState[]>();
   pageChange = output<PaginationState>();
   filterChange = output<string>();
 
   enableRowSelection = input(false);
   rowSelection = model<Record<string, boolean>>({});
   getRowId = input<(row: T) => string>((row: any) => row.id ?? String(JSON.stringify(row)));
+  enableRowExpansion = input(false);
+  expandedRows = model<Record<string, boolean>>({});
+  rowDetailTemplate = input<TemplateRef<unknown>>();
+  rowDetailComponent = input<Type<unknown>>();
+  rowDetailComponentInputs = input<((row: T) => Record<string, unknown>) | undefined>(undefined);
 
   enableColumnResize = input(false);
   columnResize = output<ColumnResizeEvent>();
@@ -294,8 +409,17 @@ export class DataTableComponent<T> {
   globalFilter = signal('');
   columnFilters = signal<Record<string, any>>({});
   sortState = signal<SortState>({ column: '', direction: null });
+  multiSortState = signal<SortState[]>([]);
   paginationState = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
   columnWidths = signal<Record<string, string>>({});
+  columnVisibility = model<Record<string, boolean>>({});
+  columnOrder = model<string[]>([]);
+  loadingTrigger = signal<DataTableLoadingTrigger>('initial');
+  isLoaderVisible = computed(() => this.loading() && this.shouldShowLoaderFor(this.loadingTrigger()));
+  resolvedLoaderComponentInputs = computed(() => ({
+    ...this.loaderComponentInputs(),
+    trigger: this.loadingTrigger(),
+  }));
 
   filteredData = computed(() => {
     let data = this.data();
@@ -303,11 +427,19 @@ export class DataTableComponent<T> {
 
     const globalFilterValue = this.globalFilter().toLowerCase();
     if (globalFilterValue) {
-      data = data.filter((row) =>
-        Object.values(row as any).some((val) =>
-          String(val).toLowerCase().includes(globalFilterValue)
-        )
-      );
+      const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+      const globalFilterFn = this.globalFilterFn();
+      if (globalFilterFn) {
+        data = data.filter(row => globalFilterFn(row, globalFilterValue, columns));
+      } else {
+        const globallyFilterableColumns = columns.filter(col => col.enableGlobalFilter !== false);
+        data = data.filter((row) =>
+          globallyFilterableColumns.some((col) => {
+            const value = this.getCellValue(row, col.accessorKey, col);
+            return String(value).toLowerCase().includes(globalFilterValue);
+          })
+        );
+      }
     }
 
     const colFilters = this.columnFilters();
@@ -337,22 +469,31 @@ export class DataTableComponent<T> {
     const data = [...this.filteredData()];
     if (!this.localSorting()) return data;
 
-    const sort = this.sortState();
-    if (!sort.direction || !sort.column) return data;
-
-    const column = this.enhancedColumns().find(col => col.accessorKey === sort.column);
+    const sorts = this.activeSorts();
+    if (sorts.length === 0) return data;
 
     return data.sort((a, b) => {
-      if (column?.sortFn) {
-        const result = column.sortFn(a, b);
-        return sort.direction === 'asc' ? result : -result;
+      for (const sort of sorts) {
+        const column = this.enhancedColumns().find(col => col.accessorKey === sort.column);
+        if (!column || !sort.direction) {
+          continue;
+        }
+
+        let result = 0;
+        if (column.sortFn) {
+          result = column.sortFn(a, b);
+        } else {
+          const aVal = this.getCellValue(a, sort.column, column);
+          const bVal = this.getCellValue(b, sort.column, column);
+          if (aVal < bVal) result = -1;
+          if (aVal > bVal) result = 1;
+        }
+
+        if (result !== 0) {
+          return sort.direction === 'asc' ? result : -result;
+        }
       }
 
-      const aVal = this.getCellValue(a, sort.column, column);
-      const bVal = this.getCellValue(b, sort.column, column);
-
-      if (aVal < bVal) return sort.direction === 'asc' ? -1 : 1;
-      if (aVal > bVal) return sort.direction === 'asc' ? 1 : -1;
       return 0;
     });
   });
@@ -402,21 +543,66 @@ export class DataTableComponent<T> {
     });
   }
 
-  getSortDirection(columnKey: string | keyof T): SortDirection {
+  activeSorts = computed(() => {
+    if (this.enableMultiSort()) {
+      return this.multiSortState().filter(sort => !!sort.column && !!sort.direction);
+    }
+
     const sort = this.sortState();
-    return sort.column === columnKey ? sort.direction : null;
+    if (!sort.column || !sort.direction) {
+      return [];
+    }
+    return [sort];
+  });
+
+  getSortDirection(columnKey: string | keyof T): SortDirection {
+    const activeSort = this.activeSorts().find(sort => sort.column === String(columnKey));
+    return activeSort?.direction ?? null;
   }
 
-  onSortChange(columnKey: string | keyof T, direction: SortDirection) {
-    const newState = { column: String(columnKey), direction };
+  getSortIndex(columnKey: string | keyof T): number | null {
+    if (!this.enableMultiSort()) {
+      return null;
+    }
+
+    const index = this.activeSorts().findIndex(sort => sort.column === String(columnKey));
+    return index === -1 ? null : index;
+  }
+
+  onSortChange(columnKey: string | keyof T, direction: SortDirection, multi = false) {
+    this.loadingTrigger.set('sorting');
+    const key = String(columnKey);
+
+    if (this.enableMultiSort() && multi) {
+      const existing = this.multiSortState().filter(sort => sort.column !== key);
+      const next = direction ? [...existing, { column: key, direction }] : existing;
+      const maxColumns = Math.max(1, this.maxMultiSortColumns());
+      const trimmed = next.slice(-maxColumns);
+      const primary = trimmed[0] ?? { column: '', direction: null as SortDirection };
+
+      this.multiSortState.set(trimmed);
+      this.sortState.set(primary);
+      this.multiSortChange.emit(trimmed);
+      this.sortChange.emit(primary);
+      return;
+    }
+
+    const newState = { column: key, direction };
     this.sortState.set(newState);
     this.sortChange.emit(newState);
+
+    if (this.enableMultiSort()) {
+      const next = direction ? [newState] : [];
+      this.multiSortState.set(next);
+      this.multiSortChange.emit(next);
+    }
   }
 
   enhancedColumns = computed(() => {
     const cols = this.columns();
     const widths = this.columnWidths();
-    let computedCols = [...cols];
+    const visibleCols = this.applyColumnOrder(cols.filter(col => this.isColumnVisible(col.accessorKey)));
+    let computedCols = [...visibleCols];
 
     if (this.enableRowSelection()) {
       const selectionCol: ColumnDef<T> = {
@@ -425,24 +611,54 @@ export class DataTableComponent<T> {
         sticky: true,
         width: '40px'
       };
-      computedCols = [selectionCol, ...cols];
+      computedCols = [selectionCol, ...visibleCols];
+    }
+
+    if (this.enableRowExpansion()) {
+      const expanderCol: ColumnDef<T> = {
+        accessorKey: '_expander',
+        header: '',
+        sticky: true,
+        width: '40px',
+        enableSorting: false,
+      };
+      computedCols = [expanderCol, ...computedCols];
     }
 
     let currentLeft = 0;
-    return computedCols.map(col => {
-      const isSticky = col.sticky === true;
+    let currentRight = 0;
+    const rightOffsets = new Map<number, number>();
+
+    for (let i = computedCols.length - 1; i >= 0; i -= 1) {
+      const col = computedCols[i];
       const key = String(col.accessorKey);
       const widthStr = widths[key] || col.width || '150px';
       const widthVal = parseInt(widthStr, 10) || 150;
+      if (col.pin === 'right') {
+        rightOffsets.set(i, currentRight);
+        currentRight += widthVal;
+      }
+    }
+
+    return computedCols.map((col, index) => {
+      const isSticky = col.sticky === true;
+      const isPinnedLeft = col.pin === 'left';
+      const isPinnedRight = col.pin === 'right';
+      const key = String(col.accessorKey);
+      const widthStr = widths[key] || col.width || '150px';
+      const widthVal = parseInt(widthStr, 10) || 150;
+      const isStickyLeft = isSticky || isPinnedLeft;
 
       const columnData = {
         ...col,
-        _stickyLeft: isSticky ? currentLeft : undefined,
+        _stickyLeft: isStickyLeft ? currentLeft : undefined,
+        _stickyRight: isPinnedRight ? rightOffsets.get(index) ?? 0 : undefined,
+        _pin: isPinnedRight ? 'right' : isStickyLeft ? 'left' : undefined,
         _width: widthStr,
         _minWidth: col.minWidth || '50px'
       };
 
-      if (isSticky) {
+      if (isStickyLeft) {
         currentLeft += widthVal;
       }
 
@@ -457,6 +673,10 @@ export class DataTableComponent<T> {
   hasFlexibleColumns = computed(() => {
     return this.enhancedColumns().some(col => col._width === 'auto');
   });
+
+  hideableColumns = computed(() =>
+    this.columns().filter(col => col.accessorKey !== '_selection' && col.enableHiding !== false)
+  );
 
   getHeaderClass(col: any) {
     return cn(
@@ -488,7 +708,11 @@ export class DataTableComponent<T> {
       flexBasis: isAuto ? '0px' : 'auto'
     };
 
-    if (col.sticky) {
+    if (col._pin === 'right') {
+      style.position = 'sticky';
+      style.right = `${col._stickyRight}px`;
+      style.zIndex = isHeader ? '30' : '10';
+    } else if (col.sticky || col._pin === 'left') {
       style.position = 'sticky';
       style.left = `${col._stickyLeft}px`;
       style.zIndex = isHeader ? '30' : '10';
@@ -520,6 +744,29 @@ export class DataTableComponent<T> {
       newSelection[id] = true;
     }
     this.rowSelection.set(newSelection);
+  }
+
+  isRowExpanded(row: T): boolean {
+    const id = this.getRowId()(row);
+    return !!this.expandedRows()[id];
+  }
+
+  toggleRowExpanded(row: T, event?: Event) {
+    event?.stopPropagation();
+    const id = this.getRowId()(row);
+    const current = this.expandedRows();
+    const next = { ...current };
+    if (next[id]) {
+      delete next[id];
+    } else {
+      next[id] = true;
+    }
+    this.expandedRows.set(next);
+  }
+
+  getRowDetailComponentInputs(row: T): Record<string, unknown> {
+    const resolver = this.rowDetailComponentInputs();
+    return resolver ? resolver(row) : {};
   }
 
   toggleAll() {
@@ -556,6 +803,7 @@ export class DataTableComponent<T> {
   });
 
   onPaginationChange(state: PaginationState) {
+    this.loadingTrigger.set('pagination');
     const totalItems = this.localPagination() ? this.filteredData().length : this.total();
     const safePageSize = state.pageSize > 0 ? state.pageSize : this.paginationState().pageSize;
     const maxPageIndex = Math.max(0, Math.ceil(totalItems / safePageSize) - 1);
@@ -569,17 +817,100 @@ export class DataTableComponent<T> {
   }
 
   onFilterChange(value: string) {
+    this.loadingTrigger.set('filtering');
     this.globalFilter.set(value);
     this.paginationState.update(state => ({ ...state, pageIndex: 0 }));
     this.filterChange.emit(value);
   }
 
   onColumnFilterChange(columnKey: string | keyof T, value: any) {
+    this.loadingTrigger.set('filtering');
     this.columnFilters.update(filters => ({
       ...filters,
       [columnKey]: value
     }));
     this.paginationState.update(state => ({ ...state, pageIndex: 0 }));
+  }
+
+  isColumnVisible(columnKey: string | keyof T): boolean {
+    return this.columnVisibility()[String(columnKey)] !== false;
+  }
+
+  setColumnVisibility(columnKey: string | keyof T, visible: boolean) {
+    this.columnVisibility.update((current) => ({
+      ...current,
+      [String(columnKey)]: visible,
+    }));
+  }
+
+  moveColumn(columnKey: string | keyof T, targetIndex: number) {
+    const key = String(columnKey);
+    const currentOrder = this.applyKeyOrder(this.columns().map(col => String(col.accessorKey)));
+    const currentIndex = currentOrder.findIndex(item => item === key);
+    if (currentIndex === -1) {
+      return;
+    }
+
+    const boundedTarget = Math.max(0, Math.min(targetIndex, currentOrder.length - 1));
+    const nextOrder = [...currentOrder];
+    nextOrder.splice(currentIndex, 1);
+    nextOrder.splice(boundedTarget, 0, key);
+    this.columnOrder.set(nextOrder);
+  }
+
+  getColumnState(): DataTableColumnState[] {
+    const widths = this.columnWidths();
+    const visibility = this.columnVisibility();
+    const order = this.applyKeyOrder(this.columns().map(col => String(col.accessorKey)));
+    const orderIndex = new Map(order.map((key, index) => [key, index]));
+
+    return this.columns().map((col) => {
+      const key = String(col.accessorKey);
+      return {
+        columnKey: key,
+        width: widths[key] ?? col.width,
+        visible: visibility[key] !== false,
+        pin: col.pin,
+        order: orderIndex.get(key),
+      };
+    });
+  }
+
+  applyColumnState(states: DataTableColumnState[]) {
+    if (!states || states.length === 0) {
+      return;
+    }
+
+    const nextVisibility = { ...this.columnVisibility() };
+    const nextWidths = { ...this.columnWidths() };
+    const orderEntries: Array<{ key: string; order: number }> = [];
+
+    states.forEach((state) => {
+      const key = String(state.columnKey);
+      if (state.visible !== undefined) {
+        nextVisibility[key] = state.visible;
+      }
+      if (state.width) {
+        nextWidths[key] = state.width;
+      }
+      if (state.order !== undefined) {
+        orderEntries.push({ key, order: state.order });
+      }
+    });
+
+    if (orderEntries.length > 0) {
+      const sortedOrder = [...orderEntries]
+        .sort((a, b) => a.order - b.order)
+        .map((entry) => entry.key);
+      this.columnOrder.set(sortedOrder);
+    }
+
+    this.columnVisibility.set(nextVisibility);
+    this.columnWidths.set(nextWidths);
+  }
+
+  setLoadingTrigger(trigger: DataTableLoadingTrigger) {
+    this.loadingTrigger.set(trigger);
   }
 
   getFilterOutputs(col: ColumnDef<T>): Record<string, (event: any) => void> {
@@ -612,6 +943,48 @@ export class DataTableComponent<T> {
     }
 
     return (row as any)[key];
+  }
+
+  private applyColumnOrder<U extends { accessorKey: string | keyof T }>(columns: U[]): U[] {
+    const order = this.columnOrder();
+    if (order.length === 0) {
+      return columns;
+    }
+
+    const priority = new Map(order.map((key, index) => [key, index]));
+    return [...columns].sort((a, b) => {
+      const aIndex = priority.get(String(a.accessorKey));
+      const bIndex = priority.get(String(b.accessorKey));
+      if (aIndex === undefined && bIndex === undefined) return 0;
+      if (aIndex === undefined) return 1;
+      if (bIndex === undefined) return -1;
+      return aIndex - bIndex;
+    });
+  }
+
+  private applyKeyOrder(keys: string[]): string[] {
+    const order = this.columnOrder();
+    if (order.length === 0) {
+      return keys;
+    }
+
+    const priority = new Map(order.map((key, index) => [key, index]));
+    return [...keys].sort((a, b) => {
+      const aIndex = priority.get(a);
+      const bIndex = priority.get(b);
+      if (aIndex === undefined && bIndex === undefined) return 0;
+      if (aIndex === undefined) return 1;
+      if (bIndex === undefined) return -1;
+      return aIndex - bIndex;
+    });
+  }
+
+  private shouldShowLoaderFor(trigger: DataTableLoadingTrigger): boolean {
+    const visibility = this.loadingVisibility();
+    if (trigger === 'pagination') return visibility.pagination !== false;
+    if (trigger === 'sorting') return visibility.sorting !== false;
+    if (trigger === 'filtering') return visibility.filtering !== false;
+    return visibility.initial !== false;
   }
 
   getRenderedRowAt(index: number): T | undefined {

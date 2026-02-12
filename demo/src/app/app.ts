@@ -244,6 +244,8 @@ import {
   DataTableComponent,
   DataTableContextMenuDirective,
   ColumnDef,
+  DataTableColumnState,
+  DataTableLoadingVisibility,
   ColumnResizeEvent,
   SortState,
   PaginationState,
@@ -382,6 +384,95 @@ export interface ComponentNavItem {
   id: string;
   name: string;
   category: ComponentCategory;
+}
+
+interface OpsTicketTimelineEvent {
+  at: string;
+  actor: string;
+  note: string;
+}
+
+interface OpsTicket {
+  id: string;
+  account: string;
+  service: string;
+  region: 'NA' | 'EU' | 'APAC' | 'LATAM';
+  priority: 'P1' | 'P2' | 'P3' | 'P4';
+  status: 'Open' | 'Investigating' | 'Mitigated' | 'Resolved';
+  owner: string;
+  mrr: number;
+  slaMinutes: number;
+  createdAt: string;
+  updatedAt: string;
+  summary: string;
+  tags: string[];
+  timeline: OpsTicketTimelineEvent[];
+}
+
+@Component({
+  selector: 'app-ops-table-loader',
+  standalone: true,
+  imports: [CommonModule, BadgeComponent],
+  template: `
+    <div class="flex min-w-[260px] flex-col gap-2 rounded-md border bg-background p-4 shadow-sm">
+      <div class="flex items-center justify-between">
+        <p class="text-sm font-medium">Syncing incident feed</p>
+        <ui-badge variant="outline">{{ trigger() }}</ui-badge>
+      </div>
+      <div class="h-2 overflow-hidden rounded bg-muted">
+        <div class="h-full w-1/3 animate-pulse bg-primary/60"></div>
+      </div>
+      <p class="text-xs text-muted-foreground">Working set: {{ total() }} records</p>
+    </div>
+  `,
+})
+class OpsTableLoaderComponent {
+  trigger = input<string>('initial');
+  total = input(0);
+}
+
+@Component({
+  selector: 'app-ops-ticket-detail',
+  standalone: true,
+  imports: [CommonModule, BadgeComponent],
+  template: `
+    @if (ticket()) {
+      <div class="space-y-4 p-3">
+        <div class="flex items-center justify-between gap-3">
+          <div>
+            <p class="text-sm font-semibold">{{ ticket()!.id }} · {{ ticket()!.account }}</p>
+            <p class="text-xs text-muted-foreground">{{ ticket()!.summary }}</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <ui-badge variant="outline">{{ ticket()!.priority }}</ui-badge>
+            <ui-badge variant="secondary">{{ ticket()!.status }}</ui-badge>
+          </div>
+        </div>
+
+        <div class="grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+          <p>Service: {{ ticket()!.service }}</p>
+          <p>Owner: {{ ticket()!.owner }}</p>
+          <p>SLA Remaining: {{ ticket()!.slaMinutes }} min</p>
+        </div>
+
+        <div class="space-y-2">
+          <p class="text-xs font-medium uppercase tracking-wide text-muted-foreground">Timeline</p>
+          @for (event of ticket()!.timeline; track event.at + event.actor) {
+            <div class="rounded-md border p-2">
+              <div class="flex items-center justify-between gap-2">
+                <p class="text-xs font-medium">{{ event.actor }}</p>
+                <p class="text-[11px] text-muted-foreground">{{ event.at }}</p>
+              </div>
+              <p class="text-xs text-muted-foreground">{{ event.note }}</p>
+            </div>
+          }
+        </div>
+      </div>
+    }
+  `,
+})
+class OpsTicketDetailComponent {
+  ticket = input<OpsTicket | undefined>(undefined);
 }
 
 @Component({
@@ -638,6 +729,8 @@ export interface ComponentNavItem {
     ColumnRangeChartComponent,
     BarRaceChartComponent,
     DataTableComponent,
+    OpsTableLoaderComponent,
+    OpsTicketDetailComponent,
     ChatMessageComponent,
     ChatListComponent,
     ChatInputComponent,
@@ -811,6 +904,8 @@ export class AppComponent {
 
     // Initial server load
     this.loadServerData();
+    this.createOpsDataset();
+    this.loadOpsData();
 
     // Simulate subscribers increasing
     setInterval(() => {
@@ -939,6 +1034,241 @@ export class AppComponent {
       this.serverTotal.set(filtered.length);
       this.serverLoading.set(false);
     });
+  }
+
+  // Realistic operations grid demo
+  opsGrid = viewChild<DataTableComponent<OpsTicket>>('opsGrid');
+  opsSource = signal<OpsTicket[]>([]);
+  opsData = signal<OpsTicket[]>([]);
+  opsTotal = signal(0);
+  opsLoading = signal(false);
+  opsFilter = signal('');
+  opsPagination = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  opsSort = signal<SortState>({ column: '', direction: null });
+  opsMultiSort = signal<SortState[]>([]);
+  opsColumnOrder = signal<string[]>([]);
+  opsColumnVisibility = signal<Record<string, boolean>>({ createdAt: false });
+  opsExpandedRows = signal<Record<string, boolean>>({});
+  opsSavedLayout = signal<DataTableColumnState[] | null>(null);
+  opsLoadingVisibility = signal<DataTableLoadingVisibility>({
+    initial: true,
+    pagination: true,
+    sorting: true,
+    filtering: true,
+  });
+
+  opsLoaderComponent = OpsTableLoaderComponent;
+  opsDetailComponent = OpsTicketDetailComponent;
+  opsDetailInputs = (ticket: OpsTicket) => ({ ticket });
+
+  opsColumns: ColumnDef<OpsTicket>[] = [
+    { accessorKey: 'id', header: 'Ticket', pin: 'left', width: '130px', enableSorting: true, enableHiding: false },
+    { accessorKey: 'account', header: 'Account', width: '180px', enableSorting: true },
+    { accessorKey: 'service', header: 'Service', width: '160px', enableSorting: true },
+    { accessorKey: 'region', header: 'Region', width: '110px', enableSorting: true },
+    {
+      accessorKey: 'priority',
+      header: 'Priority',
+      width: '95px',
+      enableSorting: true,
+      sortFn: (a, b) => ({ P1: 0, P2: 1, P3: 2, P4: 3 }[a.priority] - ({ P1: 0, P2: 1, P3: 2, P4: 3 }[b.priority]))
+    },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      width: '140px',
+      enableSorting: true,
+      sortFn: (a, b) => ({ Open: 0, Investigating: 1, Mitigated: 2, Resolved: 3 }[a.status] - ({ Open: 0, Investigating: 1, Mitigated: 2, Resolved: 3 }[b.status]))
+    },
+    { accessorKey: 'owner', header: 'Owner', width: '140px', enableSorting: true },
+    {
+      accessorKey: 'mrr',
+      header: 'MRR',
+      width: '120px',
+      enableSorting: true,
+      cell: (row) => `$${row.mrr.toLocaleString()}`,
+      enableGlobalFilter: false,
+    },
+    { accessorKey: 'slaMinutes', header: 'SLA (min)', width: '100px', enableSorting: true },
+    {
+      accessorKey: 'updatedAt',
+      header: 'Updated',
+      width: '160px',
+      enableSorting: true,
+      sortFn: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
+    },
+    {
+      accessorKey: 'createdAt',
+      header: 'Created',
+      width: '160px',
+      enableSorting: true,
+      sortFn: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+    },
+    { accessorKey: 'summary', header: 'Summary', width: 'auto', enableSorting: false, enableGlobalFilter: false },
+  ];
+
+  onOpsFilter(filter: string) {
+    this.opsFilter.set(filter);
+    this.opsPagination.update((state) => ({ ...state, pageIndex: 0 }));
+    this.loadOpsData();
+  }
+
+  onOpsPage(page: PaginationState) {
+    this.opsPagination.set(page);
+    this.loadOpsData();
+  }
+
+  onOpsSort(sort: SortState) {
+    this.opsSort.set(sort);
+  }
+
+  onOpsMultiSort(sorts: SortState[]) {
+    this.opsMultiSort.set(sorts);
+    this.loadOpsData();
+  }
+
+  toggleOpsLoaderTrigger(trigger: keyof DataTableLoadingVisibility, enabled: boolean) {
+    this.opsLoadingVisibility.update((state) => ({ ...state, [trigger]: enabled }));
+  }
+
+  refreshOpsData() {
+    this.opsGrid()?.setLoadingTrigger('initial');
+    this.loadOpsData();
+  }
+
+  saveOpsLayout() {
+    const table = this.opsGrid();
+    if (!table) return;
+    this.opsSavedLayout.set(table.getColumnState());
+    this.toastService.success('Layout Saved', 'Column layout state saved for this session.');
+  }
+
+  restoreOpsLayout() {
+    const table = this.opsGrid();
+    const layout = this.opsSavedLayout();
+    if (!table || !layout) return;
+
+    table.applyColumnState(layout);
+    this.opsColumnOrder.set(table.columnOrder());
+    this.opsColumnVisibility.set(table.columnVisibility());
+    this.toastService.toast({ title: 'Layout Restored', description: 'Saved layout re-applied.' });
+  }
+
+  applyOpsCompactPreset() {
+    const table = this.opsGrid();
+    if (!table) return;
+
+    table.applyColumnState([
+      { columnKey: 'id', order: 0, visible: true, width: '120px' },
+      { columnKey: 'priority', order: 1, visible: true, width: '90px' },
+      { columnKey: 'status', order: 2, visible: true, width: '120px' },
+      { columnKey: 'owner', order: 3, visible: true, width: '130px' },
+      { columnKey: 'updatedAt', order: 4, visible: true, width: '160px' },
+      { columnKey: 'summary', order: 5, visible: true },
+      { columnKey: 'account', visible: false },
+      { columnKey: 'service', visible: false },
+      { columnKey: 'region', visible: false },
+      { columnKey: 'mrr', visible: false },
+      { columnKey: 'createdAt', visible: false },
+      { columnKey: 'slaMinutes', visible: false },
+    ]);
+
+    this.opsColumnOrder.set(table.columnOrder());
+    this.opsColumnVisibility.set(table.columnVisibility());
+  }
+
+  moveOpsPriorityToFront() {
+    const table = this.opsGrid();
+    if (!table) return;
+    table.moveColumn('priority', 1);
+    this.opsColumnOrder.set(table.columnOrder());
+  }
+
+  private loadOpsData() {
+    this.opsLoading.set(true);
+
+    const source = this.opsSource();
+    const filter = this.opsFilter().toLowerCase();
+    const sorts = this.opsMultiSort().length > 0 ? this.opsMultiSort() : (this.opsSort().direction ? [this.opsSort()] : []);
+    const { pageIndex, pageSize } = this.opsPagination();
+
+    of(null).pipe(delay(650)).subscribe(() => {
+      let rows = source;
+
+      if (filter) {
+        rows = rows.filter(row =>
+          [row.id, row.account, row.service, row.owner, row.status, row.summary, row.tags.join(' ')]
+            .join(' ')
+            .toLowerCase()
+            .includes(filter)
+        );
+      }
+
+      if (sorts.length > 0) {
+        rows = [...rows].sort((a, b) => {
+          for (const sort of sorts) {
+            const key = sort.column as keyof OpsTicket;
+            const direction = sort.direction === 'desc' ? -1 : 1;
+            const aVal = a[key];
+            const bVal = b[key];
+            if (aVal === bVal) continue;
+            return (aVal! > bVal! ? 1 : -1) * direction;
+          }
+          return 0;
+        });
+      }
+
+      const total = rows.length;
+      const start = pageIndex * pageSize;
+      const paged = rows.slice(start, start + pageSize);
+
+      this.opsData.set(paged);
+      this.opsTotal.set(total);
+      this.opsLoading.set(false);
+    });
+  }
+
+  private createOpsDataset() {
+    const accounts = ['Acme Retail', 'Nova Bank', 'Helios Health', 'Orbit Logistics', 'Sierra Energy'];
+    const services = ['Checkout API', 'Ledger Sync', 'Claims Gateway', 'Route Optimizer', 'Billing Engine'];
+    const owners = ['Elena', 'Marcus', 'Priya', 'Noah', 'Fatima', 'Jin'];
+    const regions: OpsTicket['region'][] = ['NA', 'EU', 'APAC', 'LATAM'];
+    const priorities: OpsTicket['priority'][] = ['P1', 'P2', 'P3', 'P4'];
+    const statuses: OpsTicket['status'][] = ['Open', 'Investigating', 'Mitigated', 'Resolved'];
+
+    const data: OpsTicket[] = Array.from({ length: 240 }, (_, i) => {
+      const created = new Date(Date.now() - (i + 1) * 1000 * 60 * 60 * 6);
+      const updated = new Date(created.getTime() + (Math.floor(Math.random() * 18) + 1) * 1000 * 60 * 30);
+      const priority = priorities[Math.floor(Math.random() * priorities.length)];
+      const account = accounts[Math.floor(Math.random() * accounts.length)];
+      const service = services[Math.floor(Math.random() * services.length)];
+      const owner = owners[Math.floor(Math.random() * owners.length)];
+      const region = regions[Math.floor(Math.random() * regions.length)];
+      const status = statuses[Math.floor(Math.random() * statuses.length)];
+
+      return {
+        id: `INC-${(1000 + i).toString()}`,
+        account,
+        service,
+        region,
+        priority,
+        status,
+        owner,
+        mrr: 12000 + Math.floor(Math.random() * 185000),
+        slaMinutes: 45 + Math.floor(Math.random() * 720),
+        createdAt: created.toISOString(),
+        updatedAt: updated.toISOString(),
+        summary: `${service} latency spike detected for ${account} (${region})`,
+        tags: [priority, service.split(' ')[0], region],
+        timeline: [
+          { at: created.toLocaleString(), actor: owner, note: 'Ticket opened and triage started.' },
+          { at: new Date(created.getTime() + 1000 * 60 * 45).toLocaleString(), actor: 'AutoMonitor', note: 'Threshold alert correlated with error budget burn.' },
+          { at: updated.toLocaleString(), actor: owner, note: 'Latest remediation update posted.' },
+        ],
+      };
+    });
+
+    this.opsSource.set(data);
   }
 
   isRtl = signal(false);
