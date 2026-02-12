@@ -15,12 +15,11 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { DOCUMENT } from '@angular/common';
-import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
-import { Observable, isObservable, of, Subject } from 'rxjs';
+import { Observable, isObservable, of, Subject, firstValueFrom } from 'rxjs';
 import { debounceTime, switchMap, catchError, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
@@ -100,6 +99,8 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         [items]="toolbarItems()"
         [activeFormats]="activeFormats()"
         [selectedText]="selectedText()"
+        [disabled]="disabled()"
+        [readonly]="readonly()"
         (formatCommand)="onFormatCommand($event)"
         (linkInsert)="onLinkInsert($event)"
         (imageInsert)="onImageInsert($event)"
@@ -131,7 +132,20 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         (mouseup)="onSelectionChange()"
         (keyup)="onSelectionChange()"
         (click)="onEditorClick($event)"
+        (dragover)="onEditorDragOver($event)"
+        (dragleave)="onEditorDragLeave($event)"
+        (drop)="onEditorDrop($event)"
       ></div>
+
+      @if (dragOver()) {
+        <div class="absolute inset-0 pointer-events-none border-2 border-dashed border-primary/60 rounded-md bg-primary/5"></div>
+      }
+
+      @if (imageUploading()) {
+        <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+          <div class="text-sm text-muted-foreground">Uploading image...</div>
+        </div>
+      }
 
       <ui-rich-text-image-resizer 
           [target]="selectedImage()" 
@@ -151,6 +165,8 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
             [activeFormats]="emptyFormats"
             [selectedText]="selectedText()"
             [compact]="true"
+            [disabled]="disabled()"
+            [readonly]="readonly()"
             (formatCommand)="onFloatingFormatCommand($event)"
             (linkInsert)="onLinkInsert($event)"
           />
@@ -215,9 +231,14 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
       }
     </div>
 
-    @if (showCount()) {
+    @if (showCount() || showWordCount()) {
       <div class="flex justify-end text-xs text-muted-foreground mt-1 px-1">
-        <span>{{ characterCount() }} characters</span>
+        @if (showCount()) {
+          <span>{{ characterCount() }} characters</span>
+        }
+        @if (showWordCount()) {
+          <span [class.ml-3]="showCount()">{{ wordCount() }} words</span>
+        }
       </div>
     }
   `,
@@ -228,7 +249,6 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
 export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
-    private readonly domSanitizer = inject(DomSanitizer);
     private readonly document = inject(DOCUMENT);
     private readonly el = inject(ElementRef);
 
@@ -254,15 +274,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
     imageSources = input<'all' | 'upload' | 'url'>('all');
     showCount = input<boolean>(false);
+    showWordCount = input<boolean>(false);
     maxLength = input<number | undefined>(undefined);
+    historyLimit = input<number>(100);
     class = input<string>('');
     ariaLabel = input<string | undefined>(undefined);
     ariaDescribedBy = input<string | undefined>(undefined);
 
     htmlChange = output<string>();
     markdownChange = output<string>();
+    wordCountChange = output<number>();
     focus = output<void>();
     blur = output<void>();
+    imageUploadStart = output<File>();
+    imageUploadComplete = output<string>();
+    imageUploadError = output<string>();
 
     private htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
@@ -280,6 +306,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     showLinkPopover = signal<boolean>(false);
     linkPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     selectedText = signal<string>('');
+    dragOver = signal<boolean>(false);
+    imageUploading = signal<boolean>(false);
 
     private history: HistoryEntry[] = [];
     private historyIndex = -1;
@@ -333,6 +361,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return this.sanitizer.stripTags(this.htmlContent()).length;
     });
 
+    wordCount = computed(() => {
+        const text = this.sanitizer.stripTags(this.htmlContent()).trim();
+        if (!text) return 0;
+        return text.split(/\s+/).length;
+    });
+
     filteredMentionItems = computed(() => {
         const query = this.mentionQuery().toLowerCase();
         const source = this.mentionType() === 'mention'
@@ -377,6 +411,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         effect(() => {
             const md = this.markdownOutput();
             this.markdownChange.emit(md);
+        });
+        effect(() => {
+            this.wordCountChange.emit(this.wordCount());
         });
 
         this.mentionSearchQuery$.pipe(
@@ -518,7 +555,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
         if (event.key === 'Tab' && !this.mentionPopoverOpen()) {
             event.preventDefault();
-            this.document.execCommand('insertText', false, '\t');
+            this.insertText('\t');
         }
 
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -574,24 +611,36 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onBeforeInput(event: Event): void {
         const inputEvent = event as InputEvent;
-        if (!this.maxLength() || !inputEvent.data || inputEvent.inputType.startsWith('delete') || inputEvent.inputType.startsWith('format')) {
+        if (!this.maxLength() || inputEvent.inputType.startsWith('delete') || inputEvent.inputType.startsWith('format')) {
             return;
         }
 
         const max = this.maxLength()!;
         const currentText = this.editorDiv?.nativeElement.textContent || '';
+        const selection = this.document.getSelection();
+        const selectedLength = selection && !selection.isCollapsed
+            ? selection.toString().length
+            : 0;
+        const insertedLength = inputEvent.data?.length ?? 0;
+        const nextLength = currentText.length - selectedLength + insertedLength;
 
-        if (currentText.length >= max) {
-            const selection = this.document.getSelection();
-            if (selection && !selection.isCollapsed) {
-                return;
-            }
+        if (nextLength > max) {
             event.preventDefault();
         }
     }
 
-    onPaste(event: ClipboardEvent): void {
+    async onPaste(event: ClipboardEvent): Promise<void> {
         event.preventDefault();
+
+        if (this.disabled() || this.readonly()) {
+            return;
+        }
+
+        const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
+        if (imageFile && this.images() && this.canUseUploadSource()) {
+            await this.uploadImageFile(imageFile);
+            return;
+        }
 
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
@@ -599,7 +648,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.maxLength()) {
             const max = this.maxLength()!;
             const currentText = this.editorDiv?.nativeElement.textContent || '';
-            const remaining = max - currentText.length;
+            const selectedLength = this.getSelectedTextLength();
+            const remaining = max - (currentText.length - selectedLength);
 
             if (remaining <= 0) {
                 return;
@@ -612,6 +662,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             if (pasteText.length > remaining) {
                 const truncated = pasteText.substring(0, remaining);
                 this.insertText(truncated);
+                this.pushHistory();
                 return;
             }
         }
@@ -623,6 +674,45 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const sanitized = this.sanitizer.sanitize(html || text);
         this.insertHtml(sanitized);
         this.pushHistory();
+    }
+
+    onEditorDragOver(event: DragEvent): void {
+        if (!this.images() || !this.canUseUploadSource() || this.disabled() || this.readonly()) {
+            return;
+        }
+        const hasImage = Array.from(event.dataTransfer?.files ?? []).some(file => file.type.startsWith('image/'));
+        if (!hasImage) {
+            return;
+        }
+        event.preventDefault();
+        this.dragOver.set(true);
+    }
+
+    onEditorDragLeave(event: DragEvent): void {
+        if (!event.currentTarget) {
+            this.dragOver.set(false);
+            return;
+        }
+        const current = event.currentTarget as HTMLElement;
+        const related = event.relatedTarget as Node | null;
+        if (!related || !current.contains(related)) {
+            this.dragOver.set(false);
+        }
+    }
+
+    async onEditorDrop(event: DragEvent): Promise<void> {
+        this.dragOver.set(false);
+        if (!this.images() || !this.canUseUploadSource() || this.disabled() || this.readonly()) {
+            return;
+        }
+
+        const imageFile = Array.from(event.dataTransfer?.files ?? []).find(file => file.type.startsWith('image/'));
+        if (!imageFile) {
+            return;
+        }
+
+        event.preventDefault();
+        await this.uploadImageFile(imageFile);
     }
 
     onFocus(): void {
@@ -889,12 +979,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onImageInsert(data: { alt: string; src: string }): void {
+        if (this.imageSources() === 'upload') {
+            this.imageUploadError.emit('Image URL insertion is disabled. Use upload source.');
+            return;
+        }
         this.restoreSelection();
         const safeSrc = this.sanitizer.sanitizeImageSrc(data.src);
         if (safeSrc) {
             this.insertHtml(`<img src="${safeSrc}" alt="${data.alt}">`);
             this.pushHistory();
             this.syncContentFromEditor();
+        } else {
+            this.imageUploadError.emit('Invalid image URL.');
         }
     }
 
@@ -999,19 +1095,39 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onMentionSelect(item: MentionItem | TagItem): void {
         const trigger = this.mentionType() === 'mention' ? '@' : '#';
-        const dataAttr = this.mentionType() === 'mention'
-            ? `data-mention="${item.value}" data-mention-id="${item.id ?? item.value}"`
-            : `data-tag="${item.value}" data-tag-id="${item.id ?? item.value}"`;
 
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const query = this.mentionQuery();
-            for (let i = 0; i <= query.length; i++) {
-                this.document.execCommand('delete', false);
-            }
+            const triggerLength = query.length + 1;
 
-            this.insertHtml(`<span ${dataAttr} class="bg-accent text-accent-foreground rounded px-1">${trigger}${item.label}</span>&nbsp;`);
+            if (range.startContainer.nodeType === Node.TEXT_NODE) {
+                const textNode = range.startContainer as Text;
+                const deleteStart = Math.max(0, range.startOffset - triggerLength);
+                range.setStart(textNode, deleteStart);
+            }
+            range.deleteContents();
+
+            const wrapper = this.document.createElement('span');
+            wrapper.className = 'bg-accent text-accent-foreground rounded px-1';
+            if (this.mentionType() === 'mention') {
+                wrapper.setAttribute('data-mention', item.value);
+                wrapper.setAttribute('data-mention-id', item.id ?? item.value);
+            } else {
+                wrapper.setAttribute('data-tag', item.value);
+                wrapper.setAttribute('data-tag-id', item.id ?? item.value);
+            }
+            wrapper.textContent = `${trigger}${item.label}`;
+
+            range.insertNode(this.document.createTextNode('\u00A0'));
+            range.insertNode(wrapper);
+
+            const newRange = this.document.createRange();
+            newRange.setStartAfter(wrapper.nextSibling ?? wrapper);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
         }
 
         this.syncContentFromEditor();
@@ -1030,7 +1146,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const element = this.document.createElement(tagName);
-            range.surroundContents(element);
+            const fragment = range.extractContents();
+            element.appendChild(fragment);
+            range.insertNode(element);
+
+            const newRange = this.document.createRange();
+            newRange.setStartAfter(element);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
         }
     }
 
@@ -1066,9 +1190,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
+            const viewportWidth = this.document.defaultView?.innerWidth ?? 1024;
+            const viewportHeight = this.document.defaultView?.innerHeight ?? 768;
+            const width = 320;
+            const height = 180;
+            const x = Math.max(8, Math.min(rect.left, viewportWidth - width - 8));
+            const y = Math.max(8, Math.min(rect.bottom + 8, viewportHeight - height - 8));
             this.linkPopoverPosition.set({
-                x: rect.left,
-                y: rect.bottom + 8,
+                x,
+                y,
             });
         }
 
@@ -1088,14 +1218,91 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.focusEditor();
     }
 
+    private getSelectedTextLength(): number {
+        const selection = this.document.getSelection();
+        if (selection && !selection.isCollapsed) {
+            return selection.toString().length;
+        }
+        return 0;
+    }
+
+    private canUseUploadSource(): boolean {
+        return this.imageSources() === 'all' || this.imageSources() === 'upload';
+    }
+
+    private async uploadImageFile(file: File): Promise<void> {
+        const uploader = this.imageUploader();
+        if (!uploader) {
+            this.imageUploadError.emit('No imageUploader configured.');
+            return;
+        }
+
+        this.imageUploading.set(true);
+        this.imageUploadStart.emit(file);
+
+        try {
+            const uploadedUrl = await firstValueFrom(uploader(file));
+            const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
+            if (!safeSrc) {
+                this.imageUploadError.emit('Uploaded image URL is not allowed by sanitizer policy.');
+                return;
+            }
+            this.insertHtml(`<img src="${safeSrc}" alt="${file.name}">`);
+            this.pushHistory();
+            this.imageUploadComplete.emit(safeSrc);
+        } catch (error: any) {
+            this.imageUploadError.emit(error?.message || 'Image upload failed.');
+        } finally {
+            this.imageUploading.set(false);
+        }
+    }
+
     private insertText(text: string): void {
-        this.document.execCommand('insertText', false, text);
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0 || !this.editorDiv?.nativeElement) {
+            this.editorDiv?.nativeElement?.appendChild(this.document.createTextNode(text));
+            this.syncContentFromEditor();
+            return;
+        }
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        const textNode = this.document.createTextNode(text);
+        range.insertNode(textNode);
+
+        const newRange = this.document.createRange();
+        newRange.setStartAfter(textNode);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
         this.syncContentFromEditor();
     }
 
     private insertHtml(html: string): void {
         const sanitized = this.sanitizer.sanitize(html);
-        this.document.execCommand('insertHTML', false, sanitized);
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0 || !this.editorDiv?.nativeElement) {
+            this.editorDiv?.nativeElement?.insertAdjacentHTML('beforeend', sanitized);
+            this.syncContentFromEditor();
+            return;
+        }
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+
+        const template = this.document.createElement('template');
+        template.innerHTML = sanitized;
+        const fragment = template.content.cloneNode(true) as DocumentFragment;
+        const lastInserted = fragment.lastChild;
+        range.insertNode(fragment);
+
+        const newRange = this.document.createRange();
+        if (lastInserted) {
+            newRange.setStartAfter(lastInserted);
+        } else {
+            newRange.setStart(range.endContainer, range.endOffset);
+        }
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
         this.syncContentFromEditor();
     }
 
@@ -1144,10 +1351,14 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
+            const width = 220;
+            const viewportWidth = this.document.defaultView?.innerWidth ?? 1024;
+            const x = Math.max(8, Math.min(rect.left + rect.width / 2 - 100, viewportWidth - width - 8));
+            const y = Math.max(8, rect.top - 45);
 
             this.floatingToolbarPosition.set({
-                x: rect.left + rect.width / 2 - 100,
-                y: rect.top - 45,
+                x,
+                y,
             });
         }
     }
@@ -1158,17 +1369,27 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
             const editorRect = this.el.nativeElement.getBoundingClientRect();
+            const maxX = Math.max(0, editorRect.width - 280);
+            const maxY = Math.max(0, editorRect.height - 200);
+            const x = Math.max(0, Math.min(rect.left - editorRect.left, maxX));
+            const y = Math.max(0, Math.min(rect.bottom - editorRect.top + 5, maxY));
 
             this.mentionPopoverPosition.set({
-                x: rect.left - editorRect.left,
-                y: rect.bottom - editorRect.top + 5,
+                x,
+                y,
             });
         }
     }
 
     private pushHistory(): void {
+        const currentHtml = this.htmlContent();
+        const lastEntry = this.history[this.history.length - 1];
+        if (lastEntry && lastEntry.html === currentHtml) {
+            return;
+        }
+
         const entry: HistoryEntry = {
-            html: this.htmlContent(),
+            html: currentHtml,
             selectionStart: 0,
             selectionEnd: 0,
         };
@@ -1180,7 +1401,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.history.push(entry);
         this.historyIndex = this.history.length - 1;
 
-        if (this.history.length > 100) {
+        const maxEntries = Math.max(10, this.historyLimit());
+        if (this.history.length > maxEntries) {
             this.history.shift();
             this.historyIndex--;
         }

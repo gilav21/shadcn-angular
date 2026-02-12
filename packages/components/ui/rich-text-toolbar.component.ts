@@ -154,6 +154,7 @@ const ICONS: Record<string, string> = {
                 type="button"
                 [class]="buttonClasses(item)"
                 [title]="getTooltip(item)"
+                [disabled]="interactionDisabled()"
               >
                 <span [innerHTML]="getIcon('link')"></span>
               </button>
@@ -182,6 +183,7 @@ const ICONS: Record<string, string> = {
                 <ui-button 
                   size="sm" 
                   class="w-full"
+                  [disabled]="interactionDisabled()"
                   (click)="onInsertLink(linkText.value, linkUrl.value)"
                 >
                   Insert Link
@@ -196,6 +198,7 @@ const ICONS: Record<string, string> = {
                 type="button"
                 [class]="buttonClasses(item)"
                 [title]="getTooltip(item)"
+                [disabled]="interactionDisabled()"
               >
                 <span [innerHTML]="getIcon('image')"></span>
               </button>
@@ -223,6 +226,7 @@ const ICONS: Record<string, string> = {
                 <ui-button 
                   size="sm" 
                   class="w-full"
+                  [disabled]="interactionDisabled()"
                   (click)="onInsertImage(imageSrc.value, imageAlt.value)"
                 >
                   Insert Image
@@ -237,6 +241,7 @@ const ICONS: Record<string, string> = {
                 type="button"
                 [class]="buttonClasses(item)"
                 [title]="getTooltip(item)"
+                [disabled]="interactionDisabled()"
               >
                 <span [innerHTML]="getIcon('emoji')"></span>
               </button>
@@ -250,6 +255,7 @@ const ICONS: Record<string, string> = {
                 type="button"
                 [class]="buttonClasses(item)"
                 [title]="getTooltip(item)"
+                [disabled]="interactionDisabled()"
               >
                 <span [innerHTML]="getIcon('fontColor')"></span>
               </button>
@@ -264,6 +270,7 @@ const ICONS: Record<string, string> = {
                       class="w-5 h-5 rounded border border-border hover:scale-110 transition-transform"
                       [style.background-color]="color"
                       [title]="color"
+                      [disabled]="interactionDisabled()"
                       (click)="onColorSelect('fontColor', color)"
                     ></button>
                   }
@@ -278,6 +285,7 @@ const ICONS: Record<string, string> = {
                 type="button"
                 [class]="buttonClasses(item)"
                 [title]="getTooltip(item)"
+                [disabled]="interactionDisabled()"
               >
                 <span [innerHTML]="getIcon('fontSize')"></span>
               </button>
@@ -288,6 +296,7 @@ const ICONS: Record<string, string> = {
                   <label class="text-sm font-medium block mb-1">Select Size</label>
                   <ui-select 
                     [ngModel]="'3'" 
+                    [disabled]="interactionDisabled()"
                     (ngModelChange)="onFontSizeSelect($event)" 
                     class="w-full"
                   >
@@ -315,6 +324,7 @@ const ICONS: Record<string, string> = {
                     <button
                       type="button"
                       class="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90"
+                      [disabled]="interactionDisabled()"
                       (click)="onFontSizeSelect(customSize.value)"
                     >
                       Apply
@@ -331,6 +341,7 @@ const ICONS: Record<string, string> = {
                 type="button"
                 [class]="buttonClasses(item)"
                 [title]="getTooltip(item)"
+                [disabled]="interactionDisabled()"
               >
                 <span [innerHTML]="getIcon('backgroundColor')"></span>
               </button>
@@ -345,6 +356,7 @@ const ICONS: Record<string, string> = {
                       class="w-5 h-5 rounded border border-border hover:scale-110 transition-transform"
                       [style.background-color]="color"
                       [title]="color"
+                      [disabled]="interactionDisabled()"
                       (click)="onColorSelect('backgroundColor', color)"
                     ></button>
                   }
@@ -359,6 +371,7 @@ const ICONS: Record<string, string> = {
             [title]="getTooltip(item)"
             [attr.aria-pressed]="isActive(item)"
             [attr.data-state]="isActive(item) ? 'on' : 'off'"
+            [disabled]="interactionDisabled()"
             (click)="onFormatClick(item)"
           >
             <span [innerHTML]="getIcon(item)"></span>
@@ -388,6 +401,8 @@ export class RichTextToolbarComponent {
   selectedText = input<string>('');
   compact = input<boolean>(false);
   class = input<string>('');
+  disabled = input<boolean>(false);
+  readonly = input<boolean>(false);
 
   formatCommand = output<string>();
   linkInsert = output<{ text: string; url: string }>();
@@ -412,6 +427,8 @@ export class RichTextToolbarComponent {
   fontSizeOptions = Array.from({ length: 33 }, (_, i) => 8 + i * 2);
 
   fontSizeSelect = output<string>();
+
+  interactionDisabled = computed(() => this.disabled() || this.readonly());
 
   containerClasses = computed(() =>
     cn(
@@ -457,30 +474,36 @@ export class RichTextToolbarComponent {
   }
 
   onFormatClick(item: ToolbarItem): void {
+    if (this.interactionDisabled()) return;
     this.formatCommand.emit(item);
   }
 
   onInsertLink(text: string, url: string): void {
+    if (this.interactionDisabled()) return;
     if (url) {
       this.linkInsert.emit({ text: text || 'Link', url });
     }
   }
 
   onInsertImage(src: string, alt: string): void {
+    if (this.interactionDisabled()) return;
     if (src) {
       this.imageInsert.emit({ alt: alt || 'Image', src });
     }
   }
 
   onEmojiSelect(emoji: string): void {
+    if (this.interactionDisabled()) return;
     this.emojiInsert.emit(emoji);
   }
 
   onColorSelect(type: 'fontColor' | 'backgroundColor', color: string): void {
+    if (this.interactionDisabled()) return;
     this.colorSelect.emit({ type, color });
   }
 
   onFontSizeSelect(size: string): void {
+    if (this.interactionDisabled()) return;
     this.fontSizeSelect.emit(size);
   }
 }

@@ -1,5 +1,6 @@
-import { Component, computed, signal, input, effect, ElementRef, OnDestroy, ChangeDetectionStrategy, inject, output } from '@angular/core';
+import { Component, signal, input, effect, OnDestroy, ChangeDetectionStrategy, output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { DOCUMENT } from '@angular/common';
 
 @Component({
     selector: 'ui-rich-text-image-resizer',
@@ -32,6 +33,7 @@ import { CommonModule } from '@angular/common';
     `
 })
 export class RichTextImageResizerComponent implements OnDestroy {
+    private readonly document = inject(DOCUMENT);
     target = input<HTMLImageElement | null>(null);
     container = input<HTMLElement | null>(null);
     resizeEnd = output<void>();
@@ -40,6 +42,9 @@ export class RichTextImageResizerComponent implements OnDestroy {
     visible = signal(false);
 
     private rafId: number | null = null;
+    private resizeObserver: ResizeObserver | null = null;
+    private readonly onContainerScrollBound = () => this.scheduleUpdate();
+    private readonly onWindowResizeBound = () => this.scheduleUpdate();
     private resizeState: {
         startX: number;
         startY: number;
@@ -65,11 +70,19 @@ export class RichTextImageResizerComponent implements OnDestroy {
 
     private startTracking() {
         this.stopTracking();
-        const loop = () => {
-            this.updateRect();
-            this.rafId = requestAnimationFrame(loop);
-        };
-        loop();
+        const target = this.target();
+        const container = this.container();
+
+        this.resizeObserver = new ResizeObserver(() => this.scheduleUpdate());
+        if (target) {
+            this.resizeObserver.observe(target);
+        }
+        if (container) {
+            this.resizeObserver.observe(container);
+            container.addEventListener('scroll', this.onContainerScrollBound, { passive: true });
+        }
+        this.document.defaultView?.addEventListener('resize', this.onWindowResizeBound);
+        this.scheduleUpdate();
     }
 
     private stopTracking() {
@@ -77,6 +90,22 @@ export class RichTextImageResizerComponent implements OnDestroy {
             cancelAnimationFrame(this.rafId);
             this.rafId = null;
         }
+        if (this.resizeObserver) {
+            this.resizeObserver.disconnect();
+            this.resizeObserver = null;
+        }
+        this.container()?.removeEventListener('scroll', this.onContainerScrollBound);
+        this.document.defaultView?.removeEventListener('resize', this.onWindowResizeBound);
+    }
+
+    private scheduleUpdate() {
+        if (this.rafId !== null) {
+            return;
+        }
+        this.rafId = requestAnimationFrame(() => {
+            this.rafId = null;
+            this.updateRect();
+        });
     }
 
     private updateRect() {
