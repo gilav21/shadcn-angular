@@ -5,6 +5,7 @@ import {
   output,
   computed,
   signal,
+  effect,
   inject,
   ElementRef,
   OnDestroy,
@@ -149,6 +150,22 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
     );
   }
 
+  constructor() {
+    effect(() => {
+      const length = this.items().length;
+      const currentIndex = this.selectedIndex();
+      if (length === 0) {
+        if (currentIndex !== 0) {
+          this.selectedIndex.set(0);
+        }
+        return;
+      }
+      if (currentIndex >= length) {
+        this.selectedIndex.set(length - 1);
+      }
+    });
+  }
+
   ngAfterViewInit(): void {
     this.document.addEventListener('click', this.clickListener);
   }
@@ -159,6 +176,13 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
 
   onKeydown(event: KeyboardEvent): void {
     const items = this.items();
+    if (items.length === 0) {
+      if (event.key === 'Escape' || event.key === 'Tab') {
+        event.preventDefault();
+        this.close.emit();
+      }
+      return;
+    }
     const currentIndex = this.selectedIndex();
 
     switch (event.key) {

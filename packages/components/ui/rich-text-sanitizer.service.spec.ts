@@ -184,9 +184,9 @@ describe('RichTextSanitizerService', () => {
             expect(service.sanitizeImageSrc(src)).toBe(src);
         });
 
-        it('should allow data:image/svg+xml', () => {
+        it('should block data:image/svg+xml', () => {
             const src = 'data:image/svg+xml;base64,abc123';
-            expect(service.sanitizeImageSrc(src)).toBe(src);
+            expect(service.sanitizeImageSrc(src)).toBeNull();
         });
 
         it('should block non-image data URLs', () => {

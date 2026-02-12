@@ -337,7 +337,6 @@ export class RichTextSanitizerService {
             'data:image/jpg',
             'data:image/gif',
             'data:image/webp',
-            'data:image/svg+xml',
         ];
 
         const lowerUrl = url.toLowerCase();

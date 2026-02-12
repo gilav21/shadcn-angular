@@ -76,6 +76,12 @@ describe('RichTextSanitizerService Security Audit', () => {
             const output = sanitize(input);
             expect(output).not.toContain('vbscript:');
         });
+
+        it('should block data:image/svg+xml URLs', () => {
+            const input = '<img src="data:image/svg+xml;base64,PHN2Zy8+">';
+            const output = sanitize(input);
+            expect(output).not.toContain('data:image/svg+xml');
+        });
     });
 
     describe('XSS via CSS (Style Attribute)', () => {
