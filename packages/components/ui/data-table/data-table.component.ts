@@ -572,6 +572,8 @@ export class DataTableComponent<T> {
   onSortChange(columnKey: string | keyof T, direction: SortDirection, multi = false) {
     this.loadingTrigger.set('sorting');
     const key = String(columnKey);
+    const currentPagination = this.paginationState();
+    const shouldResetPage = currentPagination.pageIndex !== 0;
 
     if (this.enableMultiSort() && multi) {
       const existing = this.multiSortState().filter(sort => sort.column !== key);
@@ -584,6 +586,11 @@ export class DataTableComponent<T> {
       this.sortState.set(primary);
       this.multiSortChange.emit(trimmed);
       this.sortChange.emit(primary);
+      if (shouldResetPage) {
+        const nextPage = { ...currentPagination, pageIndex: 0 };
+        this.paginationState.set(nextPage);
+        this.pageChange.emit(nextPage);
+      }
       return;
     }
 
@@ -595,6 +602,12 @@ export class DataTableComponent<T> {
       const next = direction ? [newState] : [];
       this.multiSortState.set(next);
       this.multiSortChange.emit(next);
+    }
+
+    if (shouldResetPage) {
+      const nextPage = { ...currentPagination, pageIndex: 0 };
+      this.paginationState.set(nextPage);
+      this.pageChange.emit(nextPage);
     }
   }
 

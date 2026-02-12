@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, it, expect } from 'vitest';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef } from './data-table.types';
+import { ColumnDef, PaginationState } from './data-table.types';
 import { By } from '@angular/platform-browser';
 
 interface TestData {
@@ -107,6 +107,31 @@ describe('DataTableComponent', () => {
         const dataDesc = component.processedData();
         expect(dataDesc[0].name).toBe('Eve');
         expect(dataDesc[4].name).toBe('Alice');
+    });
+
+    it('should reset to first page when sorting changes', () => {
+        component.paginationState.set({ pageIndex: 2, pageSize: 2 });
+        fixture.detectChanges();
+
+        component.onSortChange('name', 'asc');
+        fixture.detectChanges();
+
+        expect(component.paginationState().pageIndex).toBe(0);
+    });
+
+    it('should emit pageChange when sorting resets page index', () => {
+        component.paginationState.set({ pageIndex: 1, pageSize: 2 });
+        fixture.detectChanges();
+
+        let emitted: PaginationState | null = null;
+        component.pageChange.subscribe((state) => {
+            emitted = state;
+        });
+
+        component.onSortChange('name', 'desc');
+        fixture.detectChanges();
+
+        expect(emitted).toEqual({ pageIndex: 0, pageSize: 2 });
     });
 
     it('should show loader on initial load by default', () => {
