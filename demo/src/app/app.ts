@@ -146,6 +146,7 @@ import {
   CommandSeparatorComponent,
   CommandShortcutComponent,
   CommandDialogComponent,
+  COMMAND_DIALOG_SHORTCUT_DEFINITIONS,
   MenubarComponent,
   MenubarMenuComponent,
   MenubarTriggerComponent,
@@ -216,6 +217,7 @@ import {
   EmojiPickerContentComponent,
   EmojiPickerTriggerComponent,
   RichTextEditorComponent,
+  RICH_TEXT_SHORTCUT_DEFINITIONS,
   AutocompleteComponent,
   MentionItem,
   TagItem,
@@ -276,7 +278,9 @@ import {
   DockIconComponent,
   DockLabelComponent,
   PageBuilderComponent,
-  ComponentMeta
+  ComponentMeta,
+  ShortcutBindingService,
+  ShortcutBindingsDialogComponent
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -620,6 +624,7 @@ class OpsTicketDetailComponent {
     CommandSeparatorComponent,
     CommandShortcutComponent,
     CommandDialogComponent,
+    ShortcutBindingsDialogComponent,
     MenubarComponent,
     MenubarMenuComponent,
     MenubarTriggerComponent,
@@ -771,6 +776,7 @@ export class AppComponent {
   radioOptions = ['Default', 'Comfortable', 'Compact'];
 
   private toastService = inject(ToastService);
+  private shortcutBindings = inject(ShortcutBindingService);
   isDark = signal(false);
 
   verticalTopSize = signal(40);
@@ -888,6 +894,9 @@ export class AppComponent {
   }
 
   constructor() {
+    this.shortcutBindings.defineShortcuts('command-dialog', COMMAND_DIALOG_SHORTCUT_DEFINITIONS);
+    this.shortcutBindings.defineShortcuts('rich-text-editor', RICH_TEXT_SHORTCUT_DEFINITIONS);
+
     // Generate 100 mock payments
     const clientNames = ['Acme Corp', 'TechStart Inc', 'Global Solutions', 'Innovation Labs', 'Digital Ventures'];
     const roles = ['Admin', 'User', 'Manager', 'Developer', 'Designer'];
@@ -911,6 +920,7 @@ export class AppComponent {
     setInterval(() => {
       this.subscribersValue.update(v => v + Math.floor(Math.random() * 3) + 1);
     }, 5000);
+
   }
 
   // Custom cells demo columns using components
@@ -1320,6 +1330,7 @@ export class AppComponent {
   }
 
   showCommandDialog = signal(false);
+  showShortcutBindingsDialog = signal(false);
   sidebarCollapseMode = signal<'icon' | 'hidden'>('icon');
 
   // Chat Demo
@@ -1474,10 +1485,7 @@ WHERE status = 'active'
 ORDER BY created_at DESC;`;
 
   onKeydown(e: KeyboardEvent) {
-    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      this.showCommandDialog.update((v) => !v);
-    }
+    this.shortcutBindings.dispatch(e);
   }
 
   activeComponent = signal('introduction');

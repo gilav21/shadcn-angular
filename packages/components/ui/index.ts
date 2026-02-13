@@ -40,6 +40,7 @@ export * from './pagination.component';
 export * from './input-otp.component';
 export * from './calendar.component';
 export * from './command.component';
+export * from './shortcut-bindings-dialog.component';
 export * from './menubar.component';
 export * from './carousel.component';
 export * from './navigation-menu.component';
@@ -64,6 +65,7 @@ export * from './tree.component';
 export * from './tree-select.component';
 export * from './virtual-scroll.component';
 export * from './context-menu-integrations';
+export * from './shortcut-binding.service';
 
 export * from './rating.component';
 export * from './stepper.component';

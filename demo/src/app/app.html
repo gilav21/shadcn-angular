@@ -38,6 +38,17 @@
         {{ activeComponent() | titlecase }}
       </span>
       <div class="ml-auto flex items-center gap-2">
+        <ui-button variant="ghost" size="icon" (click)="showShortcutBindingsDialog.set(true)">
+          <span class="sr-only">Keyboard Shortcuts</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+            <path d="M7 10h.01"></path>
+            <path d="M11 10h.01"></path>
+            <path d="M15 10h.01"></path>
+            <path d="M7 14h10"></path>
+          </svg>
+        </ui-button>
         <ui-button variant="ghost" size="icon" (click)="showCommandDialog.set(true)">
           <span class="sr-only">Search</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -4226,3 +4237,5 @@
     }
   </ui-command-list>
 </ui-command-dialog>
+
+<ui-shortcut-bindings-dialog [(open)]="showShortcutBindingsDialog" />

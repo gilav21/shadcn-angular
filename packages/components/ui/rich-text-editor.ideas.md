@@ -44,6 +44,7 @@ This file captures the improvement ideas discussed during the history/UX work so
 
 7. Enterprise compliance pack
 - Audit log of editing actions.
+
 - Policy enforcement and optional PII scanning hooks.
 
 ## Cross-Component Shortcut System (platform-level idea)

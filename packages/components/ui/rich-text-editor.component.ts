@@ -38,6 +38,7 @@ import {
     DialogFooterComponent,
 } from './dialog.component';
 import { ScrollAreaComponent } from './scroll-area.component';
+import { ShortcutBindingService, ShortcutComponentHandle } from '../lib/shortcut-binding.service';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -97,6 +98,17 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'code', 'codeBlock',
     'separator',
     'clear',
+];
+
+export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
+    { actionId: 'rich-text.bold', description: 'Toggle bold', defaultShortcut: 'Mod+B', category: 'Formatting' },
+    { actionId: 'rich-text.italic', description: 'Toggle italic', defaultShortcut: 'Mod+I', category: 'Formatting' },
+    { actionId: 'rich-text.underline', description: 'Toggle underline', defaultShortcut: 'Mod+U', category: 'Formatting' },
+    { actionId: 'rich-text.link', description: 'Insert link', defaultShortcut: 'Mod+K', category: 'Insert' },
+    { actionId: 'rich-text.undo', description: 'Undo', defaultShortcut: 'Mod+Z', category: 'History' },
+    { actionId: 'rich-text.redo', description: 'Redo', defaultShortcut: 'Mod+Shift+Z', category: 'History' },
+    { actionId: 'rich-text.redo.alt', description: 'Redo (alternate)', defaultShortcut: 'Mod+Y', category: 'History' },
+    { actionId: 'rich-text.history', description: 'Open revision history', defaultShortcut: 'Mod+Shift+H', category: 'History' },
 ];
 
 @Component({
@@ -461,6 +473,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private readonly markdownService = inject(RichTextMarkdownService);
     private readonly document = inject(DOCUMENT);
     private readonly el = inject(ElementRef);
+    private readonly shortcutBindings = inject(ShortcutBindingService);
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
@@ -532,6 +545,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private historyIndex = -1;
     private isUndoRedo = false;
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private shortcutHandle: ShortcutComponentHandle | null = null;
     private savedRange: Range | null = null;
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
@@ -708,6 +722,72 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     ngOnInit() {
+        this.shortcutHandle = this.shortcutBindings.registerComponent('rich-text-editor', [
+            {
+                actionId: 'rich-text.bold',
+                description: 'Toggle bold',
+                defaultShortcut: 'Mod+B',
+                category: 'Formatting',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.onFormatCommand('bold'),
+            },
+            {
+                actionId: 'rich-text.italic',
+                description: 'Toggle italic',
+                defaultShortcut: 'Mod+I',
+                category: 'Formatting',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.onFormatCommand('italic'),
+            },
+            {
+                actionId: 'rich-text.underline',
+                description: 'Toggle underline',
+                defaultShortcut: 'Mod+U',
+                category: 'Formatting',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.onFormatCommand('underline'),
+            },
+            {
+                actionId: 'rich-text.link',
+                description: 'Insert link',
+                defaultShortcut: 'Mod+K',
+                category: 'Insert',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.showLinkDialog(),
+            },
+            {
+                actionId: 'rich-text.undo',
+                description: 'Undo',
+                defaultShortcut: 'Mod+Z',
+                category: 'History',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.undo(),
+            },
+            {
+                actionId: 'rich-text.redo',
+                description: 'Redo',
+                defaultShortcut: 'Mod+Shift+Z',
+                category: 'History',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.redo(),
+            },
+            {
+                actionId: 'rich-text.redo.alt',
+                description: 'Redo (alternate)',
+                defaultShortcut: 'Mod+Y',
+                category: 'History',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.redo(),
+            },
+            {
+                actionId: 'rich-text.history',
+                description: 'Open revision history',
+                defaultShortcut: 'Mod+Shift+H',
+                category: 'History',
+                when: () => !this.disabled() && !this.readonly() && this.showHistoryPanel(),
+                handler: () => this.openHistoryFromShortcut(),
+            },
+        ]);
         this.pushHistory();
     }
 
@@ -773,46 +853,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 return;
             }
         }
-
-
-
-        if (event.ctrlKey || event.metaKey) {
-            switch (event.key.toLowerCase()) {
-                case 'b':
-                    event.preventDefault();
-                    this.onFormatCommand('bold');
-                    break;
-                case 'i':
-                    event.preventDefault();
-                    this.onFormatCommand('italic');
-                    break;
-                case 'u':
-                    event.preventDefault();
-                    this.onFormatCommand('underline');
-                    break;
-                case 'k':
-                    event.preventDefault();
-                    this.showLinkDialog();
-                    break;
-                case 'z':
-                    event.preventDefault();
-                    if (event.shiftKey) {
-                        this.redo();
-                    } else {
-                        this.undo();
-                    }
-                    break;
-                case 'y':
-                    event.preventDefault();
-                    this.redo();
-                    break;
-                case 'h':
-                    if (event.shiftKey && this.showHistoryPanel() && !this.disabled() && !this.readonly()) {
-                        event.preventDefault();
-                        this.openHistoryFromShortcut();
-                    }
-                    break;
-            }
+        if (this.shortcutHandle?.dispatch(event)) {
+            return;
         }
 
         if (event.key === 'Escape') {
@@ -2098,6 +2140,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     ngOnDestroy(): void {
+        this.shortcutHandle?.unregister();
+        this.shortcutHandle = null;
         if (this.historyDebounceTimer) {
             clearTimeout(this.historyDebounceTimer);
             this.historyDebounceTimer = null;

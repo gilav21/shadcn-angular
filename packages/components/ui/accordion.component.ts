@@ -4,6 +4,7 @@ import {
   input,
   computed,
   signal,
+  effect,
   inject,
   InjectionToken,
   forwardRef,
@@ -28,11 +29,28 @@ let accordionIdCounter = 0;
 export class AccordionComponent {
   type = input<'single' | 'multiple'>('single');
   class = input('');
+  openValues = input<string[] | null>(null);
 
   readonly accordionId = `accordion-${++accordionIdCounter}`;
   openItems = signal<Set<string>>(new Set());
 
   classes = computed(() => cn('w-full', this.class()));
+
+  constructor() {
+    effect(() => {
+      const values = this.openValues();
+      if (values === null) {
+        return;
+      }
+
+      if (this.type() === 'single') {
+        this.openItems.set(values.length > 0 ? new Set([values[0]]) : new Set());
+        return;
+      }
+
+      this.openItems.set(new Set(values));
+    }, { allowSignalWrites: true });
+  }
 
   toggle(value: string) {
     const current = this.openItems();

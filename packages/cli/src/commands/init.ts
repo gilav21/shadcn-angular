@@ -1,5 +1,6 @@
 import fs from 'fs-extra';
 import path from 'path';
+import { fileURLToPath } from 'url';
 import prompts from 'prompts';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -7,6 +8,36 @@ import { getDefaultConfig, type Config } from '../utils/config.js';
 import { getStylesTemplate } from '../templates/styles.js';
 import { getUtilsTemplate } from '../templates/utils.js';
 import { installPackages } from '../utils/package-manager.js';
+import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
+
+const LIB_REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/master/packages/components/lib';
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+function getLocalLibDir(): string | null {
+    const fromDist = path.resolve(__dirname, '../../../components/lib');
+    if (fs.existsSync(fromDist)) {
+        return fromDist;
+    }
+    return null;
+}
+
+async function fetchLibFileContent(file: string): Promise<string> {
+    const localLibDir = getLocalLibDir();
+    if (localLibDir) {
+        const localPath = path.join(localLibDir, file);
+        if (await fs.pathExists(localPath)) {
+            return fs.readFile(localPath, 'utf-8');
+        }
+    }
+
+    const url = `${LIB_REGISTRY_BASE_URL}/${file}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
+    }
+    return response.text();
+}
 
 interface InitOptions {
     yes?: boolean;
@@ -60,9 +91,11 @@ export async function init(options: InitOptions) {
     }
 
     let config: Config;
+    let createShortcutRegistry = true;
 
     if (options.defaults || options.yes) {
         config = getDefaultConfig();
+        createShortcutRegistry = true;
     } else {
         const THEME_COLORS: Record<string, string> = {
             zinc: '#71717a',
@@ -147,6 +180,12 @@ export async function init(options: InitOptions) {
                 message: 'Where is your global styles file?',
                 initial: 'src/styles.scss',
             },
+            {
+                type: 'confirm',
+                name: 'createShortcutRegistry',
+                message: 'Would you like to create a shortcut registry scaffold?',
+                initial: true,
+            },
         ]);
 
         config = {
@@ -164,6 +203,7 @@ export async function init(options: InitOptions) {
                 ui: responses.componentsPath.replace('src/', '@/'),
             },
         };
+        createShortcutRegistry = responses.createShortcutRegistry ?? true;
     }
 
     const spinner = ora('Initializing project...').start();
@@ -186,6 +226,16 @@ export async function init(options: InitOptions) {
         await fs.ensureDir(utilsDir);
         await fs.writeFile(utilsPathResolved, getUtilsTemplate());
         spinner.text = 'Created utils.ts';
+
+        const shortcutServicePath = path.join(utilsDir, 'shortcut-binding.service.ts');
+        const shortcutServiceContent = await fetchLibFileContent('shortcut-binding.service.ts');
+        await fs.writeFile(shortcutServicePath, shortcutServiceContent);
+        spinner.text = 'Created shortcut-binding.service.ts';
+
+        if (createShortcutRegistry) {
+            await writeShortcutRegistryIndex(cwd, config, []);
+            spinner.text = 'Created shortcut-registry.index.ts';
+        }
 
         // Create tailwind.css file in the same directory as the global styles
         const userStylesPath = resolveProjectPath(cwd, config.tailwind.css);

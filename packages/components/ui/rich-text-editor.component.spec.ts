@@ -2,11 +2,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
+import { ShortcutBindingService } from '../lib/shortcut-binding.service';
 
 describe('RichTextEditorComponent', () => {
     let fixture: ComponentFixture<RichTextEditorComponent>;
     let component: RichTextEditorComponent;
     let editor: HTMLDivElement;
+    let shortcutBindings: ShortcutBindingService;
 
     const setCaret = (node: Text, offset: number) => {
         const selection = document.getSelection();
@@ -24,8 +26,10 @@ describe('RichTextEditorComponent', () => {
 
         fixture = TestBed.createComponent(RichTextEditorComponent);
         component = fixture.componentInstance;
+        shortcutBindings = TestBed.inject(ShortcutBindingService);
         fixture.detectChanges();
         editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        shortcutBindings.clearShortcutOverride('rich-text.history');
     });
 
     it('prevents replacements that would exceed maxLength', () => {
@@ -396,6 +400,69 @@ describe('RichTextEditorComponent', () => {
 
         expect(component.historyPanelOpen()).toBe(true);
         expect(component.historyBrowserOpen()).toBe(false);
+    });
+
+    it('uses shortcut binding overrides for history shortcut', () => {
+        fixture.componentRef.setInput('showHistoryPanel', true);
+        fixture.componentRef.setInput('showHistoryButton', true);
+        fixture.detectChanges();
+
+        shortcutBindings.setShortcutOverride('rich-text.history', 'Ctrl+Shift+J');
+
+        component.onKeydown(new KeyboardEvent('keydown', {
+            key: 'h',
+            ctrlKey: true,
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        }));
+        expect(component.historyPanelOpen()).toBe(false);
+
+        component.onKeydown(new KeyboardEvent('keydown', {
+            key: 'j',
+            ctrlKey: true,
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        }));
+        expect(component.historyPanelOpen()).toBe(true);
+    });
+
+    it('prefers local component shortcut over later global dispatch for same event', () => {
+        const globalHandler = vi.fn();
+        const cleanup = shortcutBindings.registerShortcut('test-global', {
+            actionId: 'test.global.command',
+            description: 'Global command palette toggle',
+            defaultShortcut: 'Mod+K',
+            scope: 'global',
+            handler: globalHandler,
+        });
+
+        const event = new KeyboardEvent('keydown', {
+            key: 'k',
+            ctrlKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        component.onKeydown(event);
+        const handledGloballyAfterLocal = shortcutBindings.dispatch(event);
+
+        expect(handledGloballyAfterLocal).toBe(false);
+        expect(globalHandler).not.toHaveBeenCalled();
+        cleanup();
+    });
+
+    it('registers shortcut bindings on init and unregisters them on destroy', () => {
+        const viewsBeforeDestroy = shortcutBindings.getShortcutBindingViews()
+            .filter(view => view.componentId.startsWith('rich-text-editor-'));
+        expect(viewsBeforeDestroy.length).toBeGreaterThan(0);
+
+        fixture.destroy();
+
+        const viewsAfterDestroy = shortcutBindings.getShortcutBindingViews()
+            .filter(view => view.componentId.startsWith('rich-text-editor-'));
+        expect(viewsAfterDestroy.length).toBe(0);
     });
 
     it('applies revision on Enter key from history entry', () => {
