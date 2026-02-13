@@ -12,9 +12,11 @@ import {
     forwardRef,
     effect,
     AfterViewInit,
+    OnDestroy,
+    model,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, DatePipe } from '@angular/common';
 import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
@@ -26,6 +28,16 @@ import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.compo
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
 import { ButtonComponent } from './button.component';
+import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
+import {
+    DialogComponent,
+    DialogContentComponent,
+    DialogHeaderComponent,
+    DialogTitleComponent,
+    DialogDescriptionComponent,
+    DialogFooterComponent,
+} from './dialog.component';
+import { ScrollAreaComponent } from './scroll-area.component';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -55,8 +67,18 @@ export type ToolbarPosition = 'top' | 'floating' | 'none';
 
 interface HistoryEntry {
     html: string;
-    selectionStart: number;
-    selectionEnd: number;
+    selection: SerializedSelection | null;
+    timestamp: number;
+    preview: string;
+    previewLines: string[];
+    lineCount: number;
+}
+
+interface SerializedSelection {
+    startPath: number[];
+    startOffset: number;
+    endPath: number[];
+    endOffset: number;
 }
 
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
@@ -81,10 +103,21 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        DatePipe,
         RichTextToolbarComponent,
         RichTextMentionPopoverComponent,
         RichTextImageResizerComponent,
         ButtonComponent,
+        PopoverComponent,
+        PopoverTriggerComponent,
+        PopoverContentComponent,
+        DialogComponent,
+        DialogContentComponent,
+        DialogHeaderComponent,
+        DialogTitleComponent,
+        DialogDescriptionComponent,
+        DialogFooterComponent,
+        ScrollAreaComponent,
     ],
     providers: [
         {
@@ -111,6 +144,183 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     }
 
     <div [class]="editorContainerClasses()">
+      @if (showHistoryPanel() && !readonly() && showHistoryButton()) {
+        <div #historyShortcutAnchor class="absolute top-2 z-30 ltr:right-2 rtl:left-2">
+          <ui-popover
+            [open]="historyPanelOpen()"
+            (openChange)="onHistoryPanelOpenChange($event)"
+          >
+            <ui-popover-trigger>
+              <ui-button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="h-8 px-2.5 text-xs"
+                [disabled]="disabled()"
+                [attr.title]="'Ctrl/Cmd + Shift + H'"
+                aria-label="Open revision history (Ctrl or Command + Shift + H)"
+              >
+                History ({{ historyCount() }})
+              </ui-button>
+            </ui-popover-trigger>
+            <ui-popover-content class="w-80 p-0" align="end" side="bottom" [restoreFocus]="false">
+              <div class="flex items-center justify-between border-b px-3 py-2">
+                <div class="text-sm font-medium">Revision History</div>
+                <ui-button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="h-7 w-7 p-0"
+                  (click)="historyPanelOpen.set(false)"
+                  aria-label="Close revision history"
+                >
+                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span class="sr-only">Close</span>
+                </ui-button>
+              </div>
+              <ui-scroll-area [class]="'h-72 p-2'">
+                <div class="space-y-1 pr-2" data-history-list="popover">
+                  @for (entry of historyTimelineEntries(); track entry.index) {
+                    <div
+                      role="button"
+                      tabindex="0"
+                      class="w-full rounded-md border px-2 py-2 text-left transition-colors hover:bg-accent/60"
+                      [class.bg-accent]="entry.active"
+                      [class.border-primary/40]="entry.active"
+                      [class.border-border]="!entry.active"
+                      [attr.data-history-entry-action]="'true'"
+                      [attr.data-history-entry-index]="entry.index"
+                      [attr.aria-label]="'Apply revision ' + (entry.index + 1)"
+                      (click)="onQuickApplyFromHistory(entry.index, $event)"
+                      (keydown)="onHistoryEntryKeydown($event, entry.index)"
+                    >
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-medium">Revision {{ entry.index + 1 }}</span>
+                        <div class="flex items-center gap-2">
+                          @if (lastAppliedHistoryIndex() === entry.index) {
+                            <span class="text-[11px] text-primary/90 font-medium">Applied</span>
+                          }
+                          <span class="text-[11px] text-muted-foreground">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
+                          <ui-button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            class="h-6 px-2 text-[11px]"
+                            (click)="openHistoryPreview(entry.index, $event)"
+                          >
+                            Preview
+                          </ui-button>
+                        </div>
+                      </div>
+                      <div class="mt-1 space-y-0.5">
+                        @for (line of entry.previewLines; track $index) {
+                          <p class="text-xs text-muted-foreground leading-4 truncate">{{ line }}</p>
+                        }
+                        @if (entry.lineCount > entry.previewLines.length) {
+                          <p class="text-[11px] text-muted-foreground/80">+{{ entry.lineCount - entry.previewLines.length }} more lines</p>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </ui-scroll-area>
+            </ui-popover-content>
+          </ui-popover>
+        </div>
+      }
+
+      <ui-dialog [(open)]="historyPreviewOpen">
+        <ui-dialog-content class="max-w-3xl p-0 overflow-hidden">
+          @if (selectedHistoryEntry(); as selected) {
+            <ui-dialog-header class="px-5 pt-5 pb-3 border-b">
+              <ui-dialog-title>Revision {{ selected.index + 1 }}</ui-dialog-title>
+              <ui-dialog-description>
+                Captured at {{ selected.timestamp | date:'MMM d, y, HH:mm:ss' }}
+              </ui-dialog-description>
+            </ui-dialog-header>
+
+            <ui-scroll-area [class]="'h-[70vh] px-5 py-4'">
+              <div class="space-y-4 pr-3">
+                <div class="rounded-md border bg-muted/20">
+                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">Rendered Preview</div>
+                  <div class="p-3 prose prose-sm dark:prose-invert max-w-none [&_*]:break-words" [innerHTML]="selected.html"></div>
+                </div>
+
+                <div class="rounded-md border">
+                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">Markdown Snapshot</div>
+                  <pre class="p-3 text-xs whitespace-pre-wrap break-words">{{ selectedHistoryEntryMarkdown() }}</pre>
+                </div>
+              </div>
+            </ui-scroll-area>
+
+            <ui-dialog-footer class="px-5 py-4 border-t">
+              <ui-button variant="outline" (click)="historyPreviewOpen.set(false)">Cancel</ui-button>
+              <ui-button (click)="restoreFromHistoryPreview()">Restore This Revision</ui-button>
+            </ui-dialog-footer>
+          }
+        </ui-dialog-content>
+      </ui-dialog>
+
+      <ui-dialog [(open)]="historyBrowserOpen">
+        <ui-dialog-content class="max-w-xl p-0 overflow-hidden">
+          <ui-dialog-header class="px-5 pt-5 pb-3 border-b">
+            <ui-dialog-title>Revision History</ui-dialog-title>
+            <ui-dialog-description>Use this browser when the history button is hidden.</ui-dialog-description>
+          </ui-dialog-header>
+          <ui-scroll-area [class]="'h-[60vh] px-4 py-3'">
+            <div class="space-y-2 pr-2" data-history-list="dialog">
+              @for (entry of historyTimelineEntries(); track entry.index) {
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-accent/60"
+                  [class.bg-accent]="entry.active"
+                  [class.border-primary/40]="entry.active"
+                  [class.border-border]="!entry.active"
+                  [attr.data-history-entry-action]="'true'"
+                  [attr.data-history-entry-index]="entry.index"
+                  [attr.aria-label]="'Apply revision ' + (entry.index + 1)"
+                  (click)="onQuickApplyFromHistory(entry.index, $event)"
+                  (keydown)="onHistoryEntryKeydown($event, entry.index)"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs font-medium">Revision {{ entry.index + 1 }}</span>
+                    <div class="flex items-center gap-2">
+                      @if (lastAppliedHistoryIndex() === entry.index) {
+                        <span class="text-[11px] text-primary/90 font-medium">Applied</span>
+                      }
+                      <span class="text-[11px] text-muted-foreground">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
+                      <ui-button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        class="h-6 px-2 text-[11px]"
+                        (click)="openHistoryPreview(entry.index, $event)"
+                      >
+                        Preview
+                      </ui-button>
+                    </div>
+                  </div>
+                  <div class="mt-1 space-y-0.5">
+                    @for (line of entry.previewLines; track $index) {
+                      <p class="text-xs text-muted-foreground leading-4 truncate">{{ line }}</p>
+                    }
+                    @if (entry.lineCount > entry.previewLines.length) {
+                      <p class="text-[11px] text-muted-foreground/80">+{{ entry.lineCount - entry.previewLines.length }} more lines</p>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </ui-scroll-area>
+          <ui-dialog-footer class="px-5 py-4 border-t">
+            <ui-button variant="outline" (click)="historyBrowserOpen.set(false)">Close</ui-button>
+          </ui-dialog-footer>
+        </ui-dialog-content>
+      </ui-dialog>
+
       <div
         #editorDiv
         [attr.contenteditable]="!disabled() && !readonly()"
@@ -156,7 +366,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
 
       @if (toolbar() === 'floating' && !readonly() && showFloatingToolbar()) {
         <div 
-          class="fixed z-9999 bg-popover border rounded-lg shadow-lg p-1"
+          class="fixed z-[9999] bg-popover border rounded-lg shadow-lg p-1"
           [style.left.px]="floatingToolbarPosition().x"
           [style.top.px]="floatingToolbarPosition().y"
         >
@@ -246,7 +456,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         class: 'block',
     },
 })
-export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit {
+export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
     private readonly document = inject(DOCUMENT);
@@ -277,6 +487,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     showWordCount = input<boolean>(false);
     maxLength = input<number | undefined>(undefined);
     historyLimit = input<number>(100);
+    historyDebounceMs = input<number>(450);
+    showHistoryPanel = input<boolean>(false);
+    showHistoryButton = input<boolean>(true);
     class = input<string>('');
     ariaLabel = input<string | undefined>(undefined);
     ariaDescribedBy = input<string | undefined>(undefined);
@@ -308,10 +521,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
     imageUploading = signal<boolean>(false);
+    historyPanelOpen = signal<boolean>(false);
+    historyPreviewOpen = model<boolean>(false);
+    historyBrowserOpen = model<boolean>(false);
+    selectedHistoryIndex = signal<number | null>(null);
+    lastAppliedHistoryIndex = signal<number | null>(null);
+    private readonly historyVersion = signal<number>(0);
 
     private history: HistoryEntry[] = [];
     private historyIndex = -1;
     private isUndoRedo = false;
+    private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private savedRange: Range | null = null;
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
@@ -388,6 +608,46 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             .slice(0, 10);
     });
 
+    historyTimelineEntries = computed(() => {
+        this.historyVersion();
+        return this.history.map((entry, index) => ({
+            index,
+            timestamp: entry.timestamp,
+            preview: entry.preview,
+            previewLines: entry.previewLines,
+            lineCount: entry.lineCount,
+            active: index === this.historyIndex,
+        })).reverse();
+    });
+
+    historyCount = computed(() => {
+        this.historyVersion();
+        return this.history.length;
+    });
+
+    selectedHistoryEntry = computed(() => {
+        this.historyVersion();
+        const index = this.selectedHistoryIndex();
+        if (index === null || index < 0 || index >= this.history.length) {
+            return null;
+        }
+        const entry = this.history[index];
+        return {
+            index,
+            html: entry.html,
+            timestamp: entry.timestamp,
+            preview: entry.preview,
+        };
+    });
+
+    selectedHistoryEntryMarkdown = computed(() => {
+        const selected = this.selectedHistoryEntry();
+        if (!selected) {
+            return '';
+        }
+        return this.markdownService.toMarkdown(selected.html);
+    });
+
 
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
@@ -399,6 +659,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onImageResizeEnd(): void {
+        this.flushPendingHistoryPush();
         this.syncContentFromEditor();
         this.pushHistory();
     }
@@ -487,7 +748,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const textContent = div.textContent ?? '';
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
             this.checkMentionTrigger(textContent, this.getCaretOffset(div));
         }
 
@@ -499,7 +759,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.onChange(outputValue);
 
         if (!this.isUndoRedo) {
-            this.pushHistory();
+            this.scheduleDebouncedHistoryPush();
         }
         this.isUndoRedo = false;
     }
@@ -545,6 +805,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 case 'y':
                     event.preventDefault();
                     this.redo();
+                    break;
+                case 'h':
+                    if (event.shiftKey && this.showHistoryPanel() && !this.disabled() && !this.readonly()) {
+                        event.preventDefault();
+                        this.openHistoryFromShortcut();
+                    }
                     break;
             }
         }
@@ -631,6 +897,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     async onPaste(event: ClipboardEvent): Promise<void> {
         event.preventDefault();
+        this.flushPendingHistoryPush();
 
         if (this.disabled() || this.readonly()) {
             return;
@@ -724,6 +991,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
         }
+        this.flushPendingHistoryPush();
 
         this.onTouched();
         this.blur.emit();
@@ -768,8 +1036,146 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    onHistoryPanelOpenChange(nextOpen: boolean): void {
+        // Keep the panel visible while the revision dialog is open.
+        if (!nextOpen && this.historyPreviewOpen()) {
+            this.historyPanelOpen.set(true);
+            return;
+        }
+        if (nextOpen && (this.disabled() || this.readonly() || !this.showHistoryPanel())) {
+            this.historyPanelOpen.set(false);
+            return;
+        }
+        if (nextOpen) {
+            this.flushPendingHistoryPush();
+            this.focusFirstHistoryActionSoon('popover');
+        }
+        this.historyPanelOpen.set(nextOpen);
+    }
+
+    private openHistoryFromShortcut(): void {
+        if (!this.showHistoryPanel() || this.disabled() || this.readonly()) {
+            return;
+        }
+        this.flushPendingHistoryPush();
+        if (this.showHistoryButton()) {
+            this.onHistoryPanelOpenChange(true);
+            return;
+        }
+        this.historyBrowserOpen.set(true);
+        this.focusFirstHistoryActionSoon('dialog');
+    }
+
+    openHistoryPreview(entryIndex: number, event?: Event): void {
+        event?.stopPropagation();
+        if (entryIndex < 0 || entryIndex >= this.history.length) {
+            return;
+        }
+        this.selectedHistoryIndex.set(entryIndex);
+        this.historyBrowserOpen.set(false);
+        this.historyPreviewOpen.set(true);
+    }
+
+    onQuickApplyFromHistory(entryIndex: number, event: Event): void {
+        const target = event.currentTarget as HTMLElement | null;
+        const listType = target ? this.getHistoryListType(target) : null;
+        this.selectHistoryEntry(entryIndex);
+        if (listType) {
+            this.focusHistoryEntrySoon(listType, entryIndex);
+        }
+    }
+
+    onHistoryEntryKeydown(event: KeyboardEvent, entryIndex: number): void {
+        const current = event.currentTarget as HTMLElement | null;
+        if (!current) {
+            return;
+        }
+        const listType = this.getHistoryListType(current);
+
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+            event.preventDefault();
+            this.selectHistoryEntry(entryIndex);
+            if (listType) {
+                this.focusHistoryEntrySoon(listType, entryIndex);
+            }
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            if (listType === 'popover') {
+                this.historyPanelOpen.set(false);
+            } else if (listType === 'dialog') {
+                this.historyBrowserOpen.set(false);
+            }
+            return;
+        }
+
+        const entries = this.getHistoryEntryElements(current);
+        const currentIndex = entries.indexOf(current);
+        if (currentIndex < 0) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            entries[Math.min(entries.length - 1, currentIndex + 1)]?.focus();
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            entries[Math.max(0, currentIndex - 1)]?.focus();
+            return;
+        }
+
+        if (event.key === 'Home') {
+            event.preventDefault();
+            entries[0]?.focus();
+            return;
+        }
+
+        if (event.key === 'End') {
+            event.preventDefault();
+            entries[entries.length - 1]?.focus();
+        }
+    }
+
+    restoreFromHistoryPreview(): void {
+        const index = this.selectedHistoryIndex();
+        if (index === null) {
+            return;
+        }
+        this.selectHistoryEntry(index);
+        this.historyPreviewOpen.set(false);
+    }
+
+    selectHistoryEntry(entryIndex: number): void {
+        if (entryIndex < 0 || entryIndex >= this.history.length) {
+            return;
+        }
+
+        this.flushPendingHistoryPush();
+        this.historyIndex = entryIndex;
+        const entry = this.history[this.historyIndex];
+
+        this.htmlContent.set(entry.html);
+        if (this.editorDiv?.nativeElement) {
+            this.editorDiv.nativeElement.innerHTML = entry.html;
+        }
+        this.restoreSerializedSelection(entry.selection);
+
+        const outputValue = this.mode() === 'markdown'
+            ? this.markdownService.toMarkdown(entry.html)
+            : entry.html;
+        this.onChange(outputValue);
+        this.lastAppliedHistoryIndex.set(entryIndex);
+        this.bumpHistoryVersion();
+    }
+
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
+        this.flushPendingHistoryPush();
 
         switch (command) {
             case 'bold':
@@ -831,19 +1237,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 break;
         }
 
-        if (this.editorDiv?.nativeElement) {
-            const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
-            this.htmlContent.set(html);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-        }
-
-        this.focusEditor();
-        this.updateActiveFormats();
-        this.pushHistory();
+        this.applyMutation({ focus: true, updateActiveFormats: true });
 
         if (this.toolbar() === 'floating') {
             const selection = this.document.getSelection();
@@ -874,6 +1268,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onFloatingFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
+        this.flushPendingHistoryPush();
 
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return;
@@ -903,15 +1298,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             cursorRange.setStart(spaceNode, 1);
             cursorRange.setEnd(spaceNode, 1);
 
-            if (this.editorDiv?.nativeElement) {
-                const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
-                this.htmlContent.set(html);
-
-                const outputValue = this.mode() === 'markdown'
-                    ? this.markdownService.toMarkdown(html)
-                    : html;
-                this.onChange(outputValue);
-            }
+            this.syncContentFromEditor();
 
             this.showFloatingToolbar.set(false);
 
@@ -938,22 +1325,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             selection.collapseToEnd();
         }
 
-        if (this.editorDiv?.nativeElement) {
-            const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
-            this.htmlContent.set(html);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-        }
-
         this.showFloatingToolbar.set(false);
-        this.focusEditor();
-        this.pushHistory();
+        this.applyMutation({ focus: true });
     }
 
     onLinkInsert(data: { text: string; url: string }): void {
+        this.flushPendingHistoryPush();
         this.restoreSelection();
         const safeUrl = this.sanitizer.sanitizeUrl(data.url);
         if (safeUrl) {
@@ -979,6 +1356,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onImageInsert(data: { alt: string; src: string }): void {
+        this.flushPendingHistoryPush();
         if (this.imageSources() === 'upload') {
             this.imageUploadError.emit('Image URL insertion is disabled. Use upload source.');
             return;
@@ -995,6 +1373,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onEmojiInsert(emoji: string): void {
+        this.flushPendingHistoryPush();
         this.restoreSelection();
         this.insertText(emoji);
         const selection = this.document.getSelection();
@@ -1004,6 +1383,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
+        this.flushPendingHistoryPush();
         this.restoreSelection();
 
         if (event.type === 'fontColor') {
@@ -1014,21 +1394,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             }
         }
 
-        if (this.editorDiv?.nativeElement) {
-            const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
-            this.htmlContent.set(html);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-        }
-
-        this.focusEditor();
-        this.pushHistory();
+        this.applyMutation({ focus: true });
     }
 
     onFontSizeSelect(size: string): void {
+        this.flushPendingHistoryPush();
         this.restoreSelection();
 
         this.document.execCommand('fontSize', false, '7');
@@ -1065,9 +1435,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private checkMentionTrigger(text: string, cursorPosition: number): void {
         const beforeCursor = text.substring(0, cursorPosition);
+        const mentionTriggerPattern = /(?:^|[\s([{])@([-\p{L}\p{N}_.]*)$/u;
+        const tagTriggerPattern = /(?:^|[\s([{])#([-\p{L}\p{N}_.]*)$/u;
 
         if (this.mentions()) {
-            const mentionMatch = beforeCursor.match(/@(\w*)$/);
+            const mentionMatch = beforeCursor.match(mentionTriggerPattern);
             if (mentionMatch) {
                 this.mentionType.set('mention');
                 this.mentionQuery.set(mentionMatch[1]);
@@ -1079,7 +1451,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         if (this.tags()) {
-            const tagMatch = beforeCursor.match(/#(\w*)$/);
+            const tagMatch = beforeCursor.match(tagTriggerPattern);
             if (tagMatch) {
                 this.mentionType.set('tag');
                 this.mentionQuery.set(tagMatch[1]);
@@ -1094,6 +1466,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onMentionSelect(item: MentionItem | TagItem): void {
+        this.flushPendingHistoryPush();
         const trigger = this.mentionType() === 'mention' ? '@' : '#';
 
         const selection = this.document.getSelection();
@@ -1111,6 +1484,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
             const wrapper = this.document.createElement('span');
             wrapper.className = 'bg-accent text-accent-foreground rounded px-1';
+            wrapper.setAttribute('contenteditable', 'false');
             if (this.mentionType() === 'mention') {
                 wrapper.setAttribute('data-mention', item.value);
                 wrapper.setAttribute('data-mention-id', item.id ?? item.value);
@@ -1120,11 +1494,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             }
             wrapper.textContent = `${trigger}${item.label}`;
 
-            range.insertNode(this.document.createTextNode('\u00A0'));
+            const trailingSpace = this.document.createTextNode('\u00A0');
+            range.insertNode(trailingSpace);
             range.insertNode(wrapper);
 
             const newRange = this.document.createRange();
-            newRange.setStartAfter(wrapper.nextSibling ?? wrapper);
+            newRange.setStart(trailingSpace, trailingSpace.length);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
@@ -1405,6 +1780,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    private applyMutation(options?: { focus?: boolean; updateActiveFormats?: boolean; pushHistory?: boolean }): void {
+        this.flushPendingHistoryPush();
+        this.syncContentFromEditor();
+        if (options?.updateActiveFormats) {
+            this.updateActiveFormats();
+        }
+        if (options?.focus) {
+            this.focusEditor();
+        }
+        if (options?.pushHistory !== false) {
+            this.pushHistory();
+        }
+    }
+
     private focusEditor(): void {
         this.editorDiv?.nativeElement?.focus();
     }
@@ -1474,11 +1863,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (lastEntry && lastEntry.html === currentHtml) {
             return;
         }
+        const previewData = this.buildHistoryPreview(currentHtml);
 
         const entry: HistoryEntry = {
             html: currentHtml,
-            selectionStart: 0,
-            selectionEnd: 0,
+            selection: this.captureSelection(),
+            timestamp: Date.now(),
+            preview: previewData.preview,
+            previewLines: previewData.previewLines,
+            lineCount: previewData.lineCount,
         };
 
         if (this.historyIndex < this.history.length - 1) {
@@ -1493,9 +1886,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.history.shift();
             this.historyIndex--;
         }
+        this.bumpHistoryVersion();
     }
 
     private undo(): void {
+        this.flushPendingHistoryPush();
         if (this.historyIndex > 0) {
             this.isUndoRedo = true;
             this.historyIndex--;
@@ -1505,15 +1900,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             if (this.editorDiv?.nativeElement) {
                 this.editorDiv.nativeElement.innerHTML = entry.html;
             }
+            this.restoreSerializedSelection(entry.selection);
 
             const outputValue = this.mode() === 'markdown'
                 ? this.markdownService.toMarkdown(entry.html)
                 : entry.html;
             this.onChange(outputValue);
+            this.bumpHistoryVersion();
         }
     }
 
     private redo(): void {
+        this.flushPendingHistoryPush();
         if (this.historyIndex < this.history.length - 1) {
             this.isUndoRedo = true;
             this.historyIndex++;
@@ -1523,11 +1921,186 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             if (this.editorDiv?.nativeElement) {
                 this.editorDiv.nativeElement.innerHTML = entry.html;
             }
+            this.restoreSerializedSelection(entry.selection);
 
             const outputValue = this.mode() === 'markdown'
                 ? this.markdownService.toMarkdown(entry.html)
                 : entry.html;
             this.onChange(outputValue);
+            this.bumpHistoryVersion();
+        }
+    }
+
+    private scheduleDebouncedHistoryPush(): void {
+        const delay = Math.max(0, this.historyDebounceMs());
+        if (this.historyDebounceTimer) {
+            clearTimeout(this.historyDebounceTimer);
+        }
+        this.historyDebounceTimer = setTimeout(() => {
+            this.historyDebounceTimer = null;
+            this.pushHistory();
+        }, delay);
+    }
+
+    private flushPendingHistoryPush(): void {
+        if (!this.historyDebounceTimer) {
+            return;
+        }
+        clearTimeout(this.historyDebounceTimer);
+        this.historyDebounceTimer = null;
+        this.pushHistory();
+    }
+
+    private bumpHistoryVersion(): void {
+        this.historyVersion.update(v => v + 1);
+    }
+
+    private buildHistoryPreview(html: string): { preview: string; previewLines: string[]; lineCount: number } {
+        const blockAware = html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n')
+            .replace(/<li[^>]*>/gi, '• ');
+        const plain = this.sanitizer.stripTags(blockAware);
+        const lines = plain
+            .split('\n')
+            .map(line => line.replace(/<\/?[^>]+>/g, '').replace(/\s+/g, ' ').trim())
+            .filter(Boolean);
+        const safeLines = lines.length ? lines : ['(empty)'];
+        return {
+            preview: safeLines.join(' ').slice(0, 120),
+            previewLines: safeLines.slice(0, 3),
+            lineCount: safeLines.length,
+        };
+    }
+
+    private focusFirstHistoryActionSoon(preferredList: 'popover' | 'dialog'): void {
+        const tryFocus = (attempt: number) => {
+            const root = this.el.nativeElement as HTMLElement;
+            const selector = `[data-history-list="${preferredList}"] [data-history-entry-action="true"]`;
+            const firstAction = root.querySelector(selector) as HTMLElement | null;
+            if (firstAction) {
+                firstAction.focus();
+                return;
+            }
+            if (attempt < 4) {
+                setTimeout(() => tryFocus(attempt + 1), 16);
+            }
+        };
+
+        // Delay slightly so dialog/popover internals finish initial focus handling first.
+        setTimeout(() => tryFocus(0), 24);
+    }
+
+    private getHistoryEntryElements(from: HTMLElement): HTMLElement[] {
+        const listContainer = from.closest('[data-history-list]');
+        if (!listContainer) {
+            return [];
+        }
+        return Array.from(
+            listContainer.querySelectorAll('[data-history-entry-action="true"]')
+        ) as HTMLElement[];
+    }
+
+    private getHistoryListType(from: HTMLElement): 'popover' | 'dialog' | null {
+        const listContainer = from.closest('[data-history-list]');
+        const type = listContainer?.getAttribute('data-history-list');
+        if (type === 'popover' || type === 'dialog') {
+            return type;
+        }
+        return null;
+    }
+
+    private focusHistoryEntrySoon(listType: 'popover' | 'dialog', entryIndex: number): void {
+        setTimeout(() => {
+            const root = this.el.nativeElement as HTMLElement;
+            const selector = `[data-history-list="${listType}"] [data-history-entry-index="${entryIndex}"]`;
+            const target = root.querySelector(selector) as HTMLElement | null;
+            target?.focus();
+        }, 0);
+    }
+
+    private captureSelection(): SerializedSelection | null {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
+            return null;
+        }
+
+        return {
+            startPath: this.getNodePath(editor, range.startContainer),
+            startOffset: range.startOffset,
+            endPath: this.getNodePath(editor, range.endContainer),
+            endOffset: range.endOffset,
+        };
+    }
+
+    private restoreSerializedSelection(serialized: SerializedSelection | null): void {
+        if (!serialized) {
+            return;
+        }
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection) {
+            return;
+        }
+
+        const startNode = this.resolveNodePath(editor, serialized.startPath);
+        const endNode = this.resolveNodePath(editor, serialized.endPath);
+        if (!startNode || !endNode) {
+            return;
+        }
+
+        const startOffset = this.clampNodeOffset(startNode, serialized.startOffset);
+        const endOffset = this.clampNodeOffset(endNode, serialized.endOffset);
+        const range = this.document.createRange();
+        range.setStart(startNode, startOffset);
+        range.setEnd(endNode, endOffset);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    private getNodePath(root: Node, node: Node): number[] {
+        const path: number[] = [];
+        let current: Node | null = node;
+        while (current && current !== root) {
+            const parentNode: Node | null = current.parentNode;
+            if (!parentNode) {
+                return [];
+            }
+            path.unshift(Array.prototype.indexOf.call(parentNode.childNodes, current));
+            current = parentNode;
+        }
+        return path;
+    }
+
+    private resolveNodePath(root: Node, path: number[]): Node | null {
+        let current: Node = root;
+        for (const index of path) {
+            const next = current.childNodes.item(index);
+            if (!next) {
+                return null;
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    private clampNodeOffset(node: Node, desiredOffset: number): number {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return Math.max(0, Math.min(desiredOffset, node.textContent?.length ?? 0));
+        }
+        return Math.max(0, Math.min(desiredOffset, node.childNodes.length));
+    }
+
+    ngOnDestroy(): void {
+        if (this.historyDebounceTimer) {
+            clearTimeout(this.historyDebounceTimer);
+            this.historyDebounceTimer = null;
         }
     }
 }

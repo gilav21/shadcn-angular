@@ -9,15 +9,15 @@ import { Component, signal } from '@angular/core';
 import { JsonPipe } from '@angular/common';
 
 const sampleMentions: MentionItem[] = [
-    { id: '1', value: 'john', label: 'John Doe', description: 'john@example.com' },
-    { id: '2', value: 'jane', label: 'Jane Smith', description: 'jane@example.com' },
-    { id: '3', value: 'bob', label: 'Bob Wilson', description: 'bob@example.com' },
+    { id: '1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
+    { id: '2', value: 'jane.smith', label: 'Jane Smith', description: 'jane.smith@example.com' },
+    { id: '3', value: 'team_ops', label: 'Team Ops', description: 'ops@example.com' },
 ];
 
 const sampleTags: TagItem[] = [
-    { id: '1', value: 'angular', label: 'Angular', color: '#dd0031' },
-    { id: '2', value: 'typescript', label: 'TypeScript', color: '#3178c6' },
-    { id: '3', value: 'tailwind', label: 'TailwindCSS', color: '#06b6d4' },
+    { id: '1', value: 'angular.ui', label: 'Angular UI', color: '#dd0031' },
+    { id: '2', value: 'typescript-5', label: 'TypeScript 5', color: '#3178c6' },
+    { id: '3', value: 'release_2026', label: 'Release 2026', color: '#06b6d4' },
 ];
 
 const meta: Meta<RichTextEditorComponent> = {
@@ -59,6 +59,18 @@ const meta: Meta<RichTextEditorComponent> = {
         },
         maxHeight: {
             control: 'text',
+        },
+        showHistoryPanel: {
+            control: 'boolean',
+            description: 'Show revision history panel for jumping to a previous snapshot',
+        },
+        showHistoryButton: {
+            control: 'boolean',
+            description: 'Show/hide the History button (Ctrl/Cmd+Shift+H shortcut still works)',
+        },
+        historyDebounceMs: {
+            control: { type: 'number', min: 0, max: 2000, step: 50 },
+            description: 'Debounce duration (ms) before a typing snapshot is persisted',
         },
     },
 };
@@ -151,7 +163,7 @@ export const WithMentionsAndTags: Story = {
         mentionSource: sampleMentions,
         tags: true,
         tagSource: sampleTags,
-        placeholder: 'Type @ to mention someone or # to add a tag...',
+        placeholder: 'Type @john-doe or #angular.ui to trigger suggestions...',
         minHeight: '150px',
     },
     parameters: {
@@ -168,8 +180,36 @@ export const WithCharacterCount: Story = {
         mode: 'markdown',
         toolbar: 'top',
         showCount: true,
+        showWordCount: true,
         placeholder: 'Type something to see character count...',
         minHeight: '150px',
+    },
+};
+
+export const AdvancedEditorConfig: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        mentions: true,
+        mentionSource: sampleMentions,
+        tags: true,
+        tagSource: sampleTags,
+        showCount: true,
+        showWordCount: true,
+        showHistoryPanel: true,
+        showHistoryButton: true,
+        maxLength: 240,
+        historyLimit: 150,
+        historyDebounceMs: 500,
+        placeholder: 'Try @john-doe, #angular.ui, paste content, then undo/redo.',
+        minHeight: '180px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Production-style setup with mention/tag autocomplete, char+word count, max length, and deeper history.',
+            },
+        },
     },
 };
 
@@ -267,6 +307,42 @@ class RichTextDemoComponent {
     mentions = sampleMentions;
 }
 
+@Component({
+    selector: 'rich-text-advanced-demo',
+    standalone: true,
+    imports: [RichTextEditorComponent, FormsModule],
+    template: `
+    <div class="space-y-4">
+      <p class="text-sm text-muted-foreground">
+        Exercise mentions/tags with realistic handles: <code>@john-doe</code>, <code>@jane.smith</code>, <code>#angular.ui</code>.
+      </p>
+      <ui-rich-text-editor
+        mode="markdown"
+        toolbar="top"
+        [mentions]="true"
+        [mentionSource]="mentions"
+        [tags]="true"
+        [tagSource]="tags"
+        [showCount]="true"
+        [showWordCount]="true"
+        [showHistoryPanel]="true"
+        [maxLength]="220"
+        [historyLimit]="200"
+        [historyDebounceMs]="500"
+        placeholder="Type content, paste text, and use undo/redo to validate history behavior..."
+        minHeight="180px"
+        [(ngModel)]="content"
+      />
+      <pre class="p-4 bg-muted rounded-md text-xs overflow-auto max-h-56">{{ content }}</pre>
+    </div>
+  `,
+})
+class RichTextAdvancedDemoComponent {
+    content = '';
+    mentions = sampleMentions;
+    tags = sampleTags;
+}
+
 export const InteractiveDemo: Story = {
     render: () => ({
         moduleMetadata: {
@@ -278,6 +354,22 @@ export const InteractiveDemo: Story = {
         docs: {
             description: {
                 story: 'Full interactive demo showing both Markdown and HTML output.',
+            },
+        },
+    },
+};
+
+export const AdvancedBehaviorDemo: Story = {
+    render: () => ({
+        moduleMetadata: {
+            imports: [RichTextAdvancedDemoComponent],
+        },
+        template: '<rich-text-advanced-demo />',
+    }),
+    parameters: {
+        docs: {
+            description: {
+                story: 'Focused demo for maxLength handling, richer mention/tag triggers, and larger undo/redo history.',
             },
         },
     },

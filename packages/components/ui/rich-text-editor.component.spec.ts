@@ -8,6 +8,15 @@ describe('RichTextEditorComponent', () => {
     let component: RichTextEditorComponent;
     let editor: HTMLDivElement;
 
+    const setCaret = (node: Text, offset: number) => {
+        const selection = document.getSelection();
+        const range = document.createRange();
+        range.setStart(node, offset);
+        range.collapse(true);
+        selection?.removeAllRanges();
+        selection?.addRange(range);
+    };
+
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [RichTextEditorComponent],
@@ -76,6 +85,36 @@ describe('RichTextEditorComponent', () => {
         component.onKeydown(undoEvent);
 
         expect(editor.textContent).toBe('abc');
+    });
+
+    it('restores caret position on undo/redo from editor history', async () => {
+        component.writeValue('abc');
+        fixture.detectChanges();
+
+        const initialTextNode = editor.firstChild as Text;
+        setCaret(initialTextNode, 1);
+        (component as any).pushHistory();
+
+        setCaret(initialTextNode, initialTextNode.length);
+        await component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: {
+                getData: (type: string) => (type === 'text/plain' ? 'XYZ' : ''),
+            } as DataTransfer,
+        } as unknown as ClipboardEvent);
+
+        const pastedSnapshot = editor.textContent ?? '';
+        expect(pastedSnapshot).toContain('abc');
+        expect(pastedSnapshot).toContain('XYZ');
+        const pastedCaretOffset = document.getSelection()?.anchorOffset ?? -1;
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'z', ctrlKey: true, bubbles: true, cancelable: true }));
+        expect(editor.textContent).toBe('abc');
+        expect(document.getSelection()?.anchorOffset).toBe(1);
+
+        component.onKeydown(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true, cancelable: true }));
+        expect(editor.textContent).toBe(pastedSnapshot);
+        expect(document.getSelection()?.anchorOffset).toBe(pastedCaretOffset);
     });
 
     it('does not throw when formatting a partial multi-node selection', () => {
@@ -148,6 +187,417 @@ describe('RichTextEditorComponent', () => {
         expect(img?.getAttribute('src')).toBe('https://example.com/safe.png');
         expect(img?.getAttribute('onerror')).toBeNull();
         expect(img?.attributes.getNamedItem('onerror')).toBeNull();
-        expect(img?.getAttribute('alt')).toContain('onerror=');
+        expect(img?.getAttribute('alt')).toBe('x" onerror="alert(1)" data-x="1');
+        expect(img?.attributes.length).toBe(2);
+    });
+
+    it('opens mention popover for mention handles with dots, underscores, and hyphens', () => {
+        fixture.componentRef.setInput('mentions', true);
+        fixture.detectChanges();
+
+        editor.textContent = 'Assign to @john.doe_2-team';
+        setCaret(editor.firstChild as Text, (editor.textContent ?? '').length);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(component.mentionPopoverOpen()).toBe(true);
+        expect(component.mentionType()).toBe('mention');
+        expect(component.mentionQuery()).toBe('john.doe_2-team');
+    });
+
+    it('opens tag popover for unicode and symbol-friendly tags', () => {
+        fixture.componentRef.setInput('tags', true);
+        fixture.detectChanges();
+
+        editor.textContent = 'Discuss #привет.мир-2';
+        setCaret(editor.firstChild as Text, (editor.textContent ?? '').length);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(component.mentionPopoverOpen()).toBe(true);
+        expect(component.mentionType()).toBe('tag');
+        expect(component.mentionQuery()).toBe('привет.мир-2');
+    });
+
+    it('does not treat email addresses as mention triggers', () => {
+        fixture.componentRef.setInput('mentions', true);
+        fixture.detectChanges();
+
+        editor.textContent = 'Reach me at test@example.com';
+        setCaret(editor.firstChild as Text, (editor.textContent ?? '').length);
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect(component.mentionPopoverOpen()).toBe(false);
+        expect(component.mentionQuery()).toBe('');
+    });
+
+    it('places caret outside mention/tag chip after selection', () => {
+        fixture.componentRef.setInput('mentions', true);
+        fixture.detectChanges();
+
+        editor.textContent = '@jo';
+        const textNode = editor.firstChild as Text;
+        setCaret(textNode, textNode.length);
+        component.mentionType.set('mention');
+        component.mentionQuery.set('jo');
+
+        component.onMentionSelect({ id: 'u1', value: 'john-doe', label: 'John Doe' });
+
+        const chip = editor.querySelector('[data-mention="john-doe"]') as HTMLElement | null;
+        expect(chip).toBeTruthy();
+
+        const selection = document.getSelection();
+        expect(selection?.rangeCount).toBeGreaterThan(0);
+        const anchorParent = selection?.anchorNode?.parentElement;
+        expect(anchorParent?.hasAttribute('data-mention')).toBe(false);
+    });
+
+    it('debounces history snapshots for rapid typing', () => {
+        vi.useFakeTimers();
+        fixture.componentRef.setInput('historyDebounceMs', 200);
+        fixture.detectChanges();
+
+        editor.textContent = 'a';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        editor.textContent = 'ab';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        editor.textContent = 'abc';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+
+        expect((component as any).history.length).toBe(1);
+
+        vi.advanceTimersByTime(199);
+        expect((component as any).history.length).toBe(1);
+
+        vi.advanceTimersByTime(1);
+        expect((component as any).history.length).toBe(2);
+        expect((component as any).history[(component as any).history.length - 1].preview).toContain('abc');
+
+        vi.useRealTimers();
+    });
+
+    it('selecting a history entry restores content and keeps forward history for redo', () => {
+        component.writeValue('one');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        component.writeValue('two');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        component.writeValue('three');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        const baselineLength = (component as any).history.length;
+        expect(baselineLength).toBeGreaterThanOrEqual(4);
+
+        component.selectHistoryEntry(1);
+
+        expect(editor.textContent).toContain('one');
+        expect((component as any).historyIndex).toBe(1);
+        expect((component as any).history.length).toBe(baselineLength);
+    });
+
+    it('stores multiline-friendly preview lines in history entries', () => {
+        component.writeValue('<p>Line one</p><p>Line two</p><p>Line three</p><p>Line four</p>');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        const latest = (component as any).history[(component as any).history.length - 1];
+        expect(latest.lineCount).toBe(4);
+        expect(latest.previewLines).toEqual(['Line one', 'Line two', 'Line three']);
+    });
+
+    it('opening history panel flushes pending debounced snapshot to match undo timeline', () => {
+        vi.useFakeTimers();
+        fixture.componentRef.setInput('showHistoryPanel', true);
+        fixture.componentRef.setInput('historyDebounceMs', 300);
+        fixture.detectChanges();
+
+        editor.textContent = 'draft';
+        editor.dispatchEvent(new Event('input', { bubbles: true }));
+        expect((component as any).history.length).toBe(1);
+
+        component.onHistoryPanelOpenChange(true);
+        expect((component as any).history.length).toBe(2);
+        expect(component.historyPanelOpen()).toBe(true);
+
+        vi.useRealTimers();
+    });
+
+    it('syncs history panel state from popover openChange', () => {
+        fixture.componentRef.setInput('showHistoryPanel', true);
+        fixture.detectChanges();
+
+        component.onHistoryPanelOpenChange(true);
+        expect(component.historyPanelOpen()).toBe(true);
+
+        component.onHistoryPanelOpenChange(false);
+        expect(component.historyPanelOpen()).toBe(false);
+    });
+
+    it('keeps history popover open when dialog is open and popover emits close', () => {
+        fixture.componentRef.setInput('showHistoryPanel', true);
+        fixture.detectChanges();
+
+        component.onHistoryPanelOpenChange(true);
+        component.historyPreviewOpen.set(true);
+        component.onHistoryPanelOpenChange(false);
+
+        expect(component.historyPanelOpen()).toBe(true);
+    });
+
+    it('quick apply does not close history popover', () => {
+        fixture.componentRef.setInput('showHistoryPanel', true);
+        fixture.detectChanges();
+
+        component.writeValue('one');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+        component.writeValue('two');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        component.onHistoryPanelOpenChange(true);
+        component.selectHistoryEntry(1);
+
+        expect(component.historyPanelOpen()).toBe(true);
+        expect(editor.textContent).toContain('one');
+    });
+
+    it('opens history browser dialog via ctrl/cmd+shift+h when history button is hidden', () => {
+        fixture.componentRef.setInput('showHistoryPanel', true);
+        fixture.componentRef.setInput('showHistoryButton', false);
+        fixture.detectChanges();
+
+        component.onKeydown(new KeyboardEvent('keydown', {
+            key: 'h',
+            ctrlKey: true,
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        expect(component.historyBrowserOpen()).toBe(true);
+        expect(component.historyPanelOpen()).toBe(false);
+    });
+
+    it('opens history popover via ctrl/cmd+shift+h when history button is visible', () => {
+        fixture.componentRef.setInput('showHistoryPanel', true);
+        fixture.componentRef.setInput('showHistoryButton', true);
+        fixture.detectChanges();
+
+        component.onKeydown(new KeyboardEvent('keydown', {
+            key: 'h',
+            ctrlKey: true,
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        }));
+
+        expect(component.historyPanelOpen()).toBe(true);
+        expect(component.historyBrowserOpen()).toBe(false);
+    });
+
+    it('applies revision on Enter key from history entry', () => {
+        component.writeValue('one');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+        component.writeValue('two');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        const row = document.createElement('div');
+        component.onHistoryEntryKeydown({
+            key: 'Enter',
+            currentTarget: row,
+            preventDefault: vi.fn(),
+        } as unknown as KeyboardEvent, 1);
+
+        expect(editor.textContent).toContain('one');
+    });
+
+    it('applies revision on Space key from history entry', () => {
+        component.writeValue('one');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+        component.writeValue('two');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        const row = document.createElement('div');
+        component.onHistoryEntryKeydown({
+            key: ' ',
+            currentTarget: row,
+            preventDefault: vi.fn(),
+        } as unknown as KeyboardEvent, 1);
+
+        expect(editor.textContent).toContain('one');
+    });
+
+    it('moves focus with arrow keys within same history list', () => {
+        const list = document.createElement('div');
+        list.setAttribute('data-history-list', 'test');
+        const first = document.createElement('div');
+        const second = document.createElement('div');
+        first.setAttribute('data-history-entry-action', 'true');
+        second.setAttribute('data-history-entry-action', 'true');
+        first.tabIndex = 0;
+        second.tabIndex = 0;
+        list.appendChild(first);
+        list.appendChild(second);
+        document.body.appendChild(list);
+
+        first.focus();
+        component.onHistoryEntryKeydown({
+            key: 'ArrowDown',
+            currentTarget: first,
+            preventDefault: vi.fn(),
+        } as unknown as KeyboardEvent, 0);
+
+        expect(document.activeElement).toBe(second);
+        list.remove();
+    });
+
+    it('supports Home/End keyboard navigation in history list', () => {
+        const list = document.createElement('div');
+        list.setAttribute('data-history-list', 'test');
+        const first = document.createElement('div');
+        const second = document.createElement('div');
+        const third = document.createElement('div');
+        first.setAttribute('data-history-entry-action', 'true');
+        second.setAttribute('data-history-entry-action', 'true');
+        third.setAttribute('data-history-entry-action', 'true');
+        first.tabIndex = 0;
+        second.tabIndex = 0;
+        third.tabIndex = 0;
+        list.appendChild(first);
+        list.appendChild(second);
+        list.appendChild(third);
+        document.body.appendChild(list);
+
+        second.focus();
+        component.onHistoryEntryKeydown({
+            key: 'Home',
+            currentTarget: second,
+            preventDefault: vi.fn(),
+        } as unknown as KeyboardEvent, 0);
+        expect(document.activeElement).toBe(first);
+
+        first.focus();
+        component.onHistoryEntryKeydown({
+            key: 'End',
+            currentTarget: first,
+            preventDefault: vi.fn(),
+        } as unknown as KeyboardEvent, 0);
+        expect(document.activeElement).toBe(third);
+        list.remove();
+    });
+
+    it('closes history popover on Escape from history row', () => {
+        const list = document.createElement('div');
+        list.setAttribute('data-history-list', 'popover');
+        const row = document.createElement('div');
+        row.setAttribute('data-history-entry-action', 'true');
+        row.tabIndex = 0;
+        list.appendChild(row);
+        fixture.nativeElement.appendChild(list);
+
+        component.historyPanelOpen.set(true);
+        component.onHistoryEntryKeydown({
+            key: 'Escape',
+            currentTarget: row,
+            preventDefault: vi.fn(),
+        } as unknown as KeyboardEvent, 0);
+
+        expect(component.historyPanelOpen()).toBe(false);
+        list.remove();
+    });
+
+    it('closes history browser dialog on Escape from history row', () => {
+        const list = document.createElement('div');
+        list.setAttribute('data-history-list', 'dialog');
+        const row = document.createElement('div');
+        row.setAttribute('data-history-entry-action', 'true');
+        row.tabIndex = 0;
+        list.appendChild(row);
+        fixture.nativeElement.appendChild(list);
+
+        component.historyBrowserOpen.set(true);
+        component.onHistoryEntryKeydown({
+            key: 'Escape',
+            currentTarget: row,
+            preventDefault: vi.fn(),
+        } as unknown as KeyboardEvent, 0);
+
+        expect(component.historyBrowserOpen()).toBe(false);
+        list.remove();
+    });
+
+    it('keeps focus on history entry after quick apply', () => {
+        vi.useFakeTimers();
+        component.writeValue('one');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+        component.writeValue('two');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        const list = document.createElement('div');
+        list.setAttribute('data-history-list', 'popover');
+        fixture.nativeElement.appendChild(list);
+
+        const entry = document.createElement('div');
+        entry.setAttribute('data-history-entry-action', 'true');
+        entry.setAttribute('data-history-entry-index', '1');
+        entry.tabIndex = 0;
+        list.appendChild(entry);
+        entry.focus();
+
+        component.onQuickApplyFromHistory(1, { currentTarget: entry } as unknown as Event);
+        vi.runAllTimers();
+
+        expect(document.activeElement).toBe(entry);
+        list.remove();
+        vi.useRealTimers();
+    });
+
+    it('shortcut-opened history browser focuses list immediately and supports arrows without extra Tab', () => {
+        vi.useFakeTimers();
+        fixture.componentRef.setInput('showHistoryPanel', true);
+        fixture.componentRef.setInput('showHistoryButton', false);
+        fixture.detectChanges();
+
+        component.writeValue('one');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+        component.writeValue('two');
+        fixture.detectChanges();
+        (component as any).pushHistory();
+
+        component.onKeydown(new KeyboardEvent('keydown', {
+            key: 'h',
+            ctrlKey: true,
+            shiftKey: true,
+            bubbles: true,
+            cancelable: true,
+        }));
+        fixture.detectChanges();
+        vi.runAllTimers();
+        fixture.detectChanges();
+
+        const actions = Array.from(
+            fixture.nativeElement.querySelectorAll('[data-history-list="dialog"] [data-history-entry-action="true"]')
+        ) as HTMLElement[];
+        expect(actions.length).toBeGreaterThanOrEqual(2);
+        expect(document.activeElement).toBe(actions[0]);
+
+        component.onHistoryEntryKeydown({
+            key: 'ArrowDown',
+            currentTarget: actions[0],
+            preventDefault: vi.fn(),
+        } as unknown as KeyboardEvent, Number(actions[0].getAttribute('data-history-entry-index') ?? 0));
+
+        expect(document.activeElement).toBe(actions[1]);
+        vi.useRealTimers();
     });
 });

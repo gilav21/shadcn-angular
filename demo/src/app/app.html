@@ -161,17 +161,41 @@
           <!-- With Mentions & Tags -->
           <div class="space-y-2">
             <h3 class="text-lg font-medium">With Mentions & Tags</h3>
-            <p class="text-sm text-muted-foreground">Type @ to mention someone or # to add a tag</p>
+            <p class="text-sm text-muted-foreground">Type @john-doe or #angular.ui to trigger autocomplete</p>
             <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
-              [tags]="true" [tagSource]="sampleTags" placeholder="Type @john or #angular to see autocomplete..."
+              [tags]="true" [tagSource]="sampleTags"
+              placeholder="Type @john-doe, @jane.smith, #angular.ui..."
               minHeight="120px" />
           </div>
 
-          <!-- Character Count -->
+          <!-- Character + Word Count -->
           <div class="space-y-2">
-            <h3 class="text-lg font-medium">With Character Count</h3>
-            <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true" [maxLength]="20"
-              placeholder="Type to see the character count below... (Max 20 chars)" minHeight="100px" />
+            <h3 class="text-lg font-medium">With Character and Word Count</h3>
+            <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true" [showWordCount]="true"
+              [maxLength]="120" placeholder="Type to see char + word counts below... (Max 120 chars)"
+              minHeight="100px" />
+          </div>
+
+          <!-- Advanced Config -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Advanced Config (History + Limits)</h3>
+            <p class="text-sm text-muted-foreground">Click a revision to quick-apply, or use Preview for full-screen view. Shortcut: Ctrl/Cmd + Shift + H</p>
+            <div class="flex items-center gap-2">
+              <ui-switch
+                id="richTextShowHistoryButton"
+                [checked]="richTextShowHistoryButton()"
+                (checkedChange)="richTextShowHistoryButton.set($event)"
+              />
+              <label for="richTextShowHistoryButton" class="text-sm font-medium">Show History Button</label>
+            </div>
+            @if (!richTextShowHistoryButton()) {
+              <p class="text-xs text-muted-foreground">History button hidden. Use Ctrl/Cmd + Shift + H to open history browser.</p>
+            }
+            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
+              [tags]="true" [tagSource]="sampleTags" [showCount]="true" [showWordCount]="true" [maxLength]="220"
+              [historyLimit]="180" [showHistoryPanel]="true" [showHistoryButton]="richTextShowHistoryButton()"
+              [historyDebounceMs]="500"
+              placeholder="Compose a longer note and test undo/redo behavior..." minHeight="160px" />
           </div>
 
           <!-- HTML Mode -->

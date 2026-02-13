@@ -1371,15 +1371,16 @@ export class AppComponent {
   // Rich Text Editor demo data
   richTextContent = '';
   richTextHtml = '';
+  richTextShowHistoryButton = signal(true);
   sampleMentions: MentionItem[] = [
-    { id: '1', value: 'john', label: 'John Doe', description: 'john@example.com' },
-    { id: '2', value: 'jane', label: 'Jane Smith', description: 'jane@example.com' },
-    { id: '3', value: 'bob', label: 'Bob Wilson', description: 'bob@example.com' },
+    { id: '1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
+    { id: '2', value: 'jane.smith', label: 'Jane Smith', description: 'jane.smith@example.com' },
+    { id: '3', value: 'team_ops', label: 'Team Ops', description: 'ops@example.com' },
   ];
   sampleTags: TagItem[] = [
-    { id: '1', value: 'angular', label: 'Angular', color: '#dd0031' },
-    { id: '2', value: 'typescript', label: 'TypeScript', color: '#3178c6' },
-    { id: '3', value: 'tailwind', label: 'TailwindCSS', color: '#06b6d4' },
+    { id: '1', value: 'angular.ui', label: 'Angular UI', color: '#dd0031' },
+    { id: '2', value: 'typescript-5', label: 'TypeScript 5', color: '#3178c6' },
+    { id: '3', value: 'release_2026', label: 'Release 2026', color: '#06b6d4' },
   ];
 
   codeBlockCSharp = `using System;
