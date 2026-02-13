@@ -3636,6 +3636,9 @@
             Realistic incident operations grid using server-mode pagination/filter/sort, multi-sort (Shift+Click),
             right/left pinning, row expansion, layout persistence, and trigger-aware custom loaders.
           </p>
+          <p class="text-xs text-muted-foreground">
+            Drag column headers to reorder them. The Ticket column remains fixed.
+          </p>
 
           <div class="flex flex-wrap items-center gap-3 rounded-md border p-3">
             <ui-button size="sm" variant="outline" (click)="refreshOpsData()">Refresh</ui-button>
@@ -3692,6 +3695,7 @@
               [loaderComponent]="opsLoaderComponent"
               [loaderComponentInputs]="{ total: opsTotal() }"
               [enableColumnResize]="true"
+              [enableColumnReorder]="true"
               [enableRowExpansion]="true"
               [rowDetailComponent]="opsDetailComponent"
               [rowDetailComponentInputs]="opsDetailInputs"

@@ -617,6 +617,40 @@ export const ResizableColumns: Story = {
     },
 };
 
+export const ColumnReordering: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="mb-4 text-sm text-muted-foreground">
+                    Drag headers to reorder columns. ID stays fixed.
+                </p>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [enableColumnReorder]="enableColumnReorder"
+                    [enableColumnResize]="enableColumnResize"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: [
+            { accessorKey: 'id', header: 'ID', width: '80px', sticky: true, enableReordering: false, enableHiding: false },
+            { accessorKey: 'name', header: 'Name', enableSorting: true, width: '180px' },
+            { accessorKey: 'email', header: 'Email', enableSorting: true, width: '260px' },
+            { accessorKey: 'role', header: 'Role', enableSorting: true, width: '140px' },
+        ],
+        showToolbar: true,
+        showPagination: true,
+        enableColumnReorder: true,
+        enableColumnResize: true,
+    },
+};
+
 export const WithContextMenu: Story = {
     render: (args) => ({
         props: {

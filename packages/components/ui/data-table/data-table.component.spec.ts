@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { beforeEach, describe, it, expect } from 'vitest';
+import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState } from './data-table.types';
 import { By } from '@angular/platform-browser';
@@ -367,6 +367,217 @@ describe('DataTableComponent', () => {
         const keys = component.enhancedColumns().map(col => String(col.accessorKey));
         expect(keys[0]).toBe('role');
         expect(keys[1]).toBe('name');
+    });
+
+    it('should reorder columns via drag and drop when enabled', () => {
+        fixture.componentRef.setInput('enableColumnReorder', true);
+        fixture.detectChanges();
+
+        const dataTransfer = {
+            effectAllowed: '',
+            dropEffect: '',
+            setData: vi.fn(),
+            getData: vi.fn(() => 'role'),
+        } as unknown as DataTransfer;
+
+        const startEvent = { dataTransfer } as DragEvent;
+        const dragOverEvent = {
+            dataTransfer,
+            clientX: 0,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+            currentTarget: {
+                getBoundingClientRect: () => ({ left: 100, width: 80 }),
+            },
+        } as unknown as DragEvent;
+        const dropEvent = {
+            dataTransfer,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.onColumnDragStart(startEvent, TEST_COLUMNS[2]);
+        component.onColumnDragOver(dragOverEvent, TEST_COLUMNS[0]);
+        component.onColumnDrop(dropEvent, TEST_COLUMNS[0]);
+        fixture.detectChanges();
+
+        const keys = component.enhancedColumns().map(col => String(col.accessorKey));
+        expect(keys[0]).toBe('role');
+        expect(component.draggedColumnKey()).toBeNull();
+    });
+
+    it('should place dragged column at drop target index regardless of cursor position', () => {
+        fixture.componentRef.setInput('enableColumnReorder', true);
+        fixture.detectChanges();
+
+        const dataTransfer = {
+            effectAllowed: '',
+            dropEffect: '',
+            setData: vi.fn(),
+            getData: vi.fn(() => 'name'),
+        } as unknown as DataTransfer;
+
+        const startEvent = { dataTransfer } as DragEvent;
+        const dropEventNearLeft = {
+            dataTransfer,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+        component.onColumnDragStart(startEvent, TEST_COLUMNS[1]);
+        component.onColumnDrop(dropEventNearLeft, TEST_COLUMNS[2]);
+        fixture.detectChanges();
+
+        const keysAfterFirstDrop = component.enhancedColumns().map(col => String(col.accessorKey));
+        expect(keysAfterFirstDrop).toEqual(['id', 'role', 'name']);
+
+        const dropEventNearRight = {
+            dataTransfer,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.columnOrder.set([]);
+        fixture.detectChanges();
+        component.onColumnDragStart(startEvent, TEST_COLUMNS[1]);
+        component.onColumnDrop(dropEventNearRight, TEST_COLUMNS[2]);
+        fixture.detectChanges();
+
+        const keys = component.enhancedColumns().map(col => String(col.accessorKey));
+        expect(keys).toEqual(['id', 'role', 'name']);
+    });
+
+    it('should not shift one slot right when dragging a column left with near-center drop', () => {
+        fixture.componentRef.setInput('enableColumnReorder', true);
+        fixture.detectChanges();
+
+        const dataTransfer = {
+            effectAllowed: '',
+            dropEffect: '',
+            setData: vi.fn(),
+            getData: vi.fn(() => 'role'),
+        } as unknown as DataTransfer;
+
+        const startEvent = { dataTransfer } as DragEvent;
+        const dropEvent = {
+            dataTransfer,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.onColumnDragStart(startEvent, TEST_COLUMNS[2]);
+        component.onColumnDrop(dropEvent, TEST_COLUMNS[1]);
+        fixture.detectChanges();
+
+        const keys = component.enhancedColumns().map(col => String(col.accessorKey));
+        expect(keys).toEqual(['id', 'role', 'name']);
+    });
+
+    it('should move adjacent column from left to right when dropped on next column', () => {
+        fixture.componentRef.setInput('enableColumnReorder', true);
+        fixture.detectChanges();
+
+        const dataTransfer = {
+            effectAllowed: '',
+            dropEffect: '',
+            setData: vi.fn(),
+            getData: vi.fn(() => 'name'),
+        } as unknown as DataTransfer;
+
+        const startEvent = { dataTransfer } as DragEvent;
+        const dropEvent = {
+            dataTransfer,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.onColumnDragStart(startEvent, TEST_COLUMNS[1]);
+        component.onColumnDrop(dropEvent, TEST_COLUMNS[2]);
+        fixture.detectChanges();
+
+        const keys = component.enhancedColumns().map(col => String(col.accessorKey));
+        expect(keys).toEqual(['id', 'role', 'name']);
+    });
+
+    it('should move adjacent column from right to left when dropped on previous column', () => {
+        fixture.componentRef.setInput('enableColumnReorder', true);
+        fixture.detectChanges();
+
+        const dataTransfer = {
+            effectAllowed: '',
+            dropEffect: '',
+            setData: vi.fn(),
+            getData: vi.fn(() => 'role'),
+        } as unknown as DataTransfer;
+
+        const startEvent = { dataTransfer } as DragEvent;
+        const dropEvent = {
+            dataTransfer,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.onColumnDragStart(startEvent, TEST_COLUMNS[2]);
+        component.onColumnDrop(dropEvent, TEST_COLUMNS[1]);
+        fixture.detectChanges();
+
+        const keys = component.enhancedColumns().map(col => String(col.accessorKey));
+        expect(keys).toEqual(['id', 'role', 'name']);
+    });
+
+    it('should reorder visible columns without hidden columns skewing drop target', () => {
+        fixture.componentRef.setInput('enableColumnReorder', true);
+        fixture.detectChanges();
+
+        component.columnVisibility.set({ name: false });
+        fixture.detectChanges();
+
+        const dataTransfer = {
+            effectAllowed: '',
+            dropEffect: '',
+            setData: vi.fn(),
+            getData: vi.fn(() => 'role'),
+        } as unknown as DataTransfer;
+
+        const startEvent = { dataTransfer } as DragEvent;
+        const dropEvent = {
+            dataTransfer,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.onColumnDragStart(startEvent, TEST_COLUMNS[2]);
+        component.onColumnDrop(dropEvent, TEST_COLUMNS[0]);
+        fixture.detectChanges();
+
+        const visibleKeys = component.enhancedColumns().map(col => String(col.accessorKey));
+        expect(visibleKeys).toEqual(['role', 'id']);
+    });
+
+    it('should not reorder columns via drag and drop when disabled', () => {
+        fixture.componentRef.setInput('enableColumnReorder', false);
+        fixture.detectChanges();
+
+        const dataTransfer = {
+            effectAllowed: '',
+            dropEffect: '',
+            setData: vi.fn(),
+            getData: vi.fn(() => 'role'),
+        } as unknown as DataTransfer;
+
+        const startEvent = { dataTransfer } as DragEvent;
+        const dropEvent = {
+            dataTransfer,
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+
+        component.onColumnDragStart(startEvent, TEST_COLUMNS[2]);
+        component.onColumnDrop(dropEvent, TEST_COLUMNS[0]);
+        fixture.detectChanges();
+
+        const keys = component.enhancedColumns().map(col => String(col.accessorKey));
+        expect(keys[0]).toBe('id');
+        expect(component.columnOrder()).toEqual([]);
     });
 
     it('should export and apply column state', () => {

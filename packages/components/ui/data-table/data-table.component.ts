@@ -134,9 +134,21 @@ import { cn } from '../../lib/utils';
                 <ui-table-head 
                   [class]="getHeaderClass(col)"
                   [class.overflow-visible]="col.enableFiltering && col.filterComponent"
+                  [class.cursor-grab]="isColumnDraggable(col)"
+                  [class.cursor-grabbing]="isDraggingColumn(col)"
+                  [class.opacity-70]="isDraggingColumn(col)"
+                  [class.relative]="isDropTargetColumn(col)"
                   [attr.data-column-id]="toString(col.accessorKey)"
+                  [attr.draggable]="isColumnDraggable(col) ? 'true' : null"
                   [style]="getCellStyle(col, true)"
+                  (dragstart)="onColumnDragStart($event, col)"
+                  (dragover)="onColumnDragOver($event, col)"
+                  (drop)="onColumnDrop($event, col)"
+                  (dragend)="onColumnDragEnd()"
                 >
+                  @if (isDropTargetColumn(col)) {
+                    <div class="pointer-events-none absolute inset-0 z-30 border-2 border-primary/70 bg-primary/10"></div>
+                  }
                   <div class="flex items-center w-full h-full">
                     <div class="flex-1 min-w-0">
                       @if (col.accessorKey === '_selection') {
@@ -401,6 +413,7 @@ export class DataTableComponent<T> {
   rowDetailComponentInputs = input<((row: T) => Record<string, unknown>) | undefined>(undefined);
 
   enableColumnResize = input(false);
+  enableColumnReorder = input(false);
   columnResize = output<ColumnResizeEvent>();
 
   emptyStateComponent = input<Type<unknown>>();
@@ -415,6 +428,8 @@ export class DataTableComponent<T> {
   columnVisibility = model<Record<string, boolean>>({});
   columnOrder = model<string[]>([]);
   loadingTrigger = signal<DataTableLoadingTrigger>('initial');
+  draggedColumnKey = signal<string | null>(null);
+  dropTargetColumnKey = signal<string | null>(null);
   isLoaderVisible = computed(() => this.loading() && this.shouldShowLoaderFor(this.loadingTrigger()));
   resolvedLoaderComponentInputs = computed(() => ({
     ...this.loaderComponentInputs(),
@@ -871,6 +886,77 @@ export class DataTableComponent<T> {
     this.columnOrder.set(nextOrder);
   }
 
+  isColumnDraggable(col: ColumnDef<T>): boolean {
+    return this.enableColumnReorder() && this.isColumnReorderable(col);
+  }
+
+  isDraggingColumn(col: ColumnDef<T>): boolean {
+    return this.draggedColumnKey() === String(col.accessorKey);
+  }
+
+  isDropTargetColumn(col: ColumnDef<T>): boolean {
+    return this.dropTargetColumnKey() === String(col.accessorKey);
+  }
+
+  onColumnDragStart(event: DragEvent, col: ColumnDef<T>) {
+    if (!this.isColumnDraggable(col)) {
+      return;
+    }
+
+    const key = String(col.accessorKey);
+    this.draggedColumnKey.set(key);
+    this.dropTargetColumnKey.set(null);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', key);
+    }
+  }
+
+  onColumnDragOver(event: DragEvent, col: ColumnDef<T>) {
+    if (!this.isColumnDraggable(col)) {
+      return;
+    }
+
+    const targetKey = String(col.accessorKey);
+    const sourceKey = this.draggedColumnKey() ?? event.dataTransfer?.getData('text/plain') ?? '';
+    if (!sourceKey || sourceKey === targetKey) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    this.dropTargetColumnKey.set(targetKey);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+  }
+
+  onColumnDrop(event: DragEvent, col: ColumnDef<T>) {
+    if (!this.isColumnDraggable(col)) {
+      this.clearColumnDragState();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const targetKey = String(col.accessorKey);
+    const sourceKey = this.draggedColumnKey() ?? event.dataTransfer?.getData('text/plain') ?? '';
+    if (!sourceKey || sourceKey === targetKey) {
+      this.clearColumnDragState();
+      return;
+    }
+
+    this.reorderColumnsByKeys(sourceKey, targetKey);
+    this.clearColumnDragState();
+  }
+
+  onColumnDragEnd() {
+    this.clearColumnDragState();
+  }
+
   getColumnState(): DataTableColumnState[] {
     const widths = this.columnWidths();
     const visibility = this.columnVisibility();
@@ -990,6 +1076,58 @@ export class DataTableComponent<T> {
       if (bIndex === undefined) return -1;
       return aIndex - bIndex;
     });
+  }
+
+  private reorderColumnsByKeys(sourceKey: string, targetKey: string) {
+    const columnsByKey = new Map(this.columns().map(col => [String(col.accessorKey), col]));
+    const baseOrder = this.applyKeyOrder(this.columns().map(col => String(col.accessorKey)));
+    const visibleReorderable = baseOrder.filter((key) => {
+      const col = columnsByKey.get(key);
+      return !!col && this.isColumnReorderable(col) && this.isColumnVisible(key);
+    });
+
+    const sourceIndex = visibleReorderable.indexOf(sourceKey);
+    const targetIndex = visibleReorderable.indexOf(targetKey);
+    if (sourceIndex === -1 || targetIndex === -1) {
+      return;
+    }
+
+    if (sourceIndex === targetIndex) {
+      return;
+    }
+
+    const nextVisibleReorderable = visibleReorderable.filter(key => key !== sourceKey);
+    const reducedTargetIndex = nextVisibleReorderable.indexOf(targetKey);
+    const insertIndex = sourceIndex < targetIndex ? reducedTargetIndex + 1 : reducedTargetIndex;
+
+    nextVisibleReorderable.splice(insertIndex, 0, sourceKey);
+
+    const visibleReorderableSet = new Set(visibleReorderable);
+    let cursor = 0;
+    const mergedOrder = baseOrder.map((key) => {
+      if (!visibleReorderableSet.has(key)) {
+        return key;
+      }
+
+      const nextKey = nextVisibleReorderable[cursor];
+      cursor += 1;
+      return nextKey;
+    });
+
+    this.columnOrder.set(mergedOrder);
+  }
+
+  private isColumnReorderable(col: ColumnDef<T>): boolean {
+    const key = String(col.accessorKey);
+    if (key === '_selection' || key === '_expander') {
+      return false;
+    }
+    return col.enableReordering !== false;
+  }
+
+  private clearColumnDragState() {
+    this.draggedColumnKey.set(null);
+    this.dropTargetColumnKey.set(null);
   }
 
   private shouldShowLoaderFor(trigger: DataTableLoadingTrigger): boolean {

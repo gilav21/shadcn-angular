@@ -41,6 +41,7 @@ export interface ColumnDef<T> {
     width?: string;
     minWidth?: string;
     enableHiding?: boolean;
+    enableReordering?: boolean;
 }
 
 export interface DataTableRowEvent<T> {

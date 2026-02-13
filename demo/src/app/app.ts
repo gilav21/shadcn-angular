@@ -1062,7 +1062,15 @@ export class AppComponent {
   opsDetailInputs = (ticket: OpsTicket) => ({ ticket });
 
   opsColumns: ColumnDef<OpsTicket>[] = [
-    { accessorKey: 'id', header: 'Ticket', pin: 'left', width: '130px', enableSorting: true, enableHiding: false },
+    {
+      accessorKey: 'id',
+      header: 'Ticket',
+      pin: 'left',
+      width: '130px',
+      enableSorting: true,
+      enableHiding: false,
+      enableReordering: false,
+    },
     { accessorKey: 'account', header: 'Account', width: '180px', enableSorting: true },
     { accessorKey: 'service', header: 'Service', width: '160px', enableSorting: true },
     { accessorKey: 'region', header: 'Region', width: '110px', enableSorting: true },
