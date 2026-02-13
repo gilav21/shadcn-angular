@@ -637,8 +637,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
-        if (imageFile && this.images() && this.canUseUploadSource()) {
-            await this.uploadImageFile(imageFile);
+        if (imageFile && this.images()) {
+            await this.insertImageFile(imageFile);
             return;
         }
 
@@ -677,7 +677,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onEditorDragOver(event: DragEvent): void {
-        if (!this.images() || !this.canUseUploadSource() || this.disabled() || this.readonly()) {
+        if (!this.images() || (!this.canUseUploadSource() && !this.canUseUrlSource()) || this.disabled() || this.readonly()) {
             return;
         }
         const hasImage = Array.from(event.dataTransfer?.files ?? []).some(file => file.type.startsWith('image/'));
@@ -702,7 +702,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     async onEditorDrop(event: DragEvent): Promise<void> {
         this.dragOver.set(false);
-        if (!this.images() || !this.canUseUploadSource() || this.disabled() || this.readonly()) {
+        if (!this.images() || (!this.canUseUploadSource() && !this.canUseUrlSource()) || this.disabled() || this.readonly()) {
             return;
         }
 
@@ -712,7 +712,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         event.preventDefault();
-        await this.uploadImageFile(imageFile);
+        await this.insertImageFile(imageFile);
     }
 
     onFocus(): void {
@@ -986,7 +986,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.restoreSelection();
         const safeSrc = this.sanitizer.sanitizeImageSrc(data.src);
         if (safeSrc) {
-            this.insertHtml(`<img src="${safeSrc}" alt="${data.alt}">`);
+            this.insertImageAtSelection(safeSrc, data.alt);
             this.pushHistory();
             this.syncContentFromEditor();
         } else {
@@ -1230,6 +1230,39 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return this.imageSources() === 'all' || this.imageSources() === 'upload';
     }
 
+    private canUseUrlSource(): boolean {
+        return this.imageSources() === 'all' || this.imageSources() === 'url';
+    }
+
+    private async insertImageFile(file: File): Promise<void> {
+        const uploader = this.imageUploader();
+        if (this.canUseUploadSource() && uploader) {
+            await this.uploadImageFile(file);
+            return;
+        }
+
+        if (this.canUseUrlSource()) {
+            try {
+                const fileDataUrl = await this.readFileAsDataUrl(file);
+                const safeSrc = this.sanitizer.sanitizeImageSrc(fileDataUrl);
+                if (!safeSrc) {
+                    this.imageUploadError.emit('Pasted image is not allowed by sanitizer policy.');
+                    return;
+                }
+                this.insertImageAtSelection(safeSrc, file.name);
+                this.pushHistory();
+                this.imageUploadComplete.emit(safeSrc);
+                return;
+            } catch {
+                this.imageUploadError.emit('Could not read image file.');
+            }
+        }
+
+        if (this.canUseUploadSource() && !uploader) {
+            this.imageUploadError.emit('No imageUploader configured.');
+        }
+    }
+
     private async uploadImageFile(file: File): Promise<void> {
         const uploader = this.imageUploader();
         if (!uploader) {
@@ -1247,7 +1280,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 this.imageUploadError.emit('Uploaded image URL is not allowed by sanitizer policy.');
                 return;
             }
-            this.insertHtml(`<img src="${safeSrc}" alt="${file.name}">`);
+            this.insertImageAtSelection(safeSrc, file.name);
             this.pushHistory();
             this.imageUploadComplete.emit(safeSrc);
         } catch (error: any) {
@@ -1255,6 +1288,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         } finally {
             this.imageUploading.set(false);
         }
+    }
+
+    private readFileAsDataUrl(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+            reader.onerror = () => reject(new Error('Could not read image file.'));
+            reader.readAsDataURL(file);
+        });
     }
 
     private insertText(text: string): void {
@@ -1306,9 +1348,54 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.syncContentFromEditor();
     }
 
-    private syncContentFromEditor(): void {
+    private insertImageAtSelection(src: string, alt: string): void {
+        const img = this.document.createElement('img');
+        img.setAttribute('src', src);
+        img.setAttribute('alt', alt || 'Image');
+
+        const selection = this.document.getSelection();
+        const editorElement = this.getEditorElement();
+        if (!selection || selection.rangeCount === 0 || !editorElement) {
+            editorElement?.appendChild(img);
+            this.syncContentFromEditor();
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const anchorNode = range.commonAncestorContainer;
+        if (!editorElement.contains(anchorNode)) {
+            editorElement.appendChild(img);
+            const newRange = this.document.createRange();
+            newRange.setStartAfter(img);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            this.syncContentFromEditor();
+            return;
+        }
+
+        range.deleteContents();
+        range.insertNode(img);
+
+        const newRange = this.document.createRange();
+        newRange.setStartAfter(img);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        this.syncContentFromEditor();
+    }
+
+    private getEditorElement(): HTMLDivElement | null {
         if (this.editorDiv?.nativeElement) {
-            const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
+            return this.editorDiv.nativeElement;
+        }
+        return this.el.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement | null;
+    }
+
+    private syncContentFromEditor(): void {
+        const editorElement = this.getEditorElement();
+        if (editorElement) {
+            const html = this.sanitizer.sanitize(editorElement.innerHTML);
             this.htmlContent.set(html);
 
             const outputValue = this.mode() === 'markdown'

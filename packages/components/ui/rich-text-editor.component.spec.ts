@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { of } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
 
 describe('RichTextEditorComponent', () => {
@@ -93,5 +94,60 @@ describe('RichTextEditorComponent', () => {
         selection?.addRange(range);
 
         expect(() => component.onFormatCommand('code')).not.toThrow();
+    });
+
+    it('pastes clipboard image as data URL when uploader is not configured', async () => {
+        const imageFile = new File(['paste-image'], 'clip.png', { type: 'image/png' });
+        const uploadCompleteSpy = vi.spyOn(component.imageUploadComplete, 'emit');
+        const uploadErrorSpy = vi.spyOn(component.imageUploadError, 'emit');
+
+        await component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: {
+                files: [imageFile],
+                getData: () => '',
+            } as unknown as DataTransfer,
+        } as unknown as ClipboardEvent);
+
+        expect(editor.innerHTML).toContain('<img');
+        expect(editor.innerHTML).toContain('data:image/png;base64');
+        expect(uploadCompleteSpy).toHaveBeenCalled();
+        expect(uploadErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('pastes clipboard image via uploader when configured', async () => {
+        fixture.componentRef.setInput('imageSources', 'upload');
+        fixture.componentRef.setInput('imageUploader', () => of('https://cdn.example.com/clip.png'));
+        fixture.detectChanges();
+
+        const imageFile = new File(['paste-image'], 'clip.png', { type: 'image/png' });
+        const uploadCompleteSpy = vi.spyOn(component.imageUploadComplete, 'emit');
+        const uploadErrorSpy = vi.spyOn(component.imageUploadError, 'emit');
+
+        await component.onPaste({
+            preventDefault: vi.fn(),
+            clipboardData: {
+                files: [imageFile],
+                getData: () => '',
+            } as unknown as DataTransfer,
+        } as unknown as ClipboardEvent);
+
+        expect(editor.innerHTML).toContain('https://cdn.example.com/clip.png');
+        expect(uploadCompleteSpy).toHaveBeenCalledWith('https://cdn.example.com/clip.png');
+        expect(uploadErrorSpy).not.toHaveBeenCalled();
+    });
+
+    it('does not allow attribute injection through image alt text', () => {
+        component.onImageInsert({
+            src: 'https://example.com/safe.png',
+            alt: 'x" onerror="alert(1)" data-x="1',
+        });
+
+        const img = editor.querySelector('img') as HTMLImageElement | null;
+        expect(img).toBeTruthy();
+        expect(img?.getAttribute('src')).toBe('https://example.com/safe.png');
+        expect(img?.getAttribute('onerror')).toBeNull();
+        expect(img?.attributes.getNamedItem('onerror')).toBeNull();
+        expect(img?.getAttribute('alt')).toContain('onerror=');
     });
 });
