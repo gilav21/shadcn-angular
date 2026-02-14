@@ -1,5 +1,5 @@
 import { Meta, StoryObj } from '@storybook/angular';
-import { ToggleGroupComponent, ToggleGroupItemComponent } from './toggle-group.component';
+import { ToggleGroupComponent, ToggleGroupItemComponent, ToggleGroupItem } from './toggle-group.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<ToggleGroupComponent & { rtl: boolean }> = {
@@ -67,5 +67,67 @@ export const Outline: Story = {
             <ui-toggle-group-item value="c">C</ui-toggle-group-item>
           </ui-toggle-group>
         `,
+  }),
+};
+
+const dataDrivenItems: ToggleGroupItem[] = [
+  { value: 'bold', label: 'Bold' },
+  { value: 'italic', label: 'Italic' },
+  { value: 'underline', label: 'Underline' },
+];
+
+export const DataDriven: Story = {
+  render: (args) => ({
+    props: { ...args, items: dataDrivenItems },
+    template: `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
+        <ui-toggle-group
+          [type]="type"
+          [variant]="variant"
+          [size]="size"
+          [disabled]="disabled"
+          [items]="items"
+          defaultValue="bold"
+        />
+      </div>
+    `,
+  }),
+};
+
+export const DataDrivenOutline: Story = {
+  args: {
+    variant: 'outline',
+  },
+  render: (args) => ({
+    props: { ...args, items: dataDrivenItems },
+    template: `
+      <ui-toggle-group
+        [type]="type"
+        [variant]="variant"
+        [size]="size"
+        [disabled]="disabled"
+        [items]="items"
+      />
+    `,
+  }),
+};
+
+const dataDrivenWithDisabled: ToggleGroupItem[] = [
+  { value: 'bold', label: 'Bold' },
+  { value: 'italic', label: 'Italic', disabled: true },
+  { value: 'underline', label: 'Underline' },
+];
+
+export const DataDrivenWithDisabledItem: Story = {
+  render: (args) => ({
+    props: { ...args, items: dataDrivenWithDisabled },
+    template: `
+      <ui-toggle-group
+        [type]="type"
+        [variant]="variant"
+        [size]="size"
+        [items]="items"
+      />
+    `,
   }),
 };

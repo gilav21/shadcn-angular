@@ -15,16 +15,73 @@ import {
     TemplateRef,
     ViewContainerRef,
     EmbeddedViewRef,
+    booleanAttribute,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
-import { cn } from '../lib/utils';
+import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
+import { cn, isRtl } from '../lib/utils';
+
+export interface ContextMenuItem {
+    label?: string;
+    value?: string;
+    icon?: string;
+    shortcut?: string;
+    disabled?: boolean;
+    type?: 'item' | 'separator' | 'label' | 'sub';
+    children?: ContextMenuItem[];
+    inset?: boolean;
+    click?: (item: ContextMenuItem) => void;
+}
 
 export const CONTEXT_MENU = new InjectionToken<ContextMenuComponent>('CONTEXT_MENU');
 
 @Component({
     selector: 'ui-context-menu',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    imports: [
+        NgTemplateOutlet,
+        forwardRef(() => ContextMenuContentComponent),
+        forwardRef(() => ContextMenuItemComponent),
+        forwardRef(() => ContextMenuLabelComponent),
+        forwardRef(() => ContextMenuSeparatorComponent),
+        forwardRef(() => ContextMenuSubComponent),
+        forwardRef(() => ContextMenuSubTriggerComponent),
+        forwardRef(() => ContextMenuSubContentComponent),
+    ],
+    template: `
+      <ng-content />
+      @if (items().length > 0) {
+        <ui-context-menu-content>
+          <ng-container *ngTemplateOutlet="menuItemsTpl; context: { $implicit: items() }"></ng-container>
+        </ui-context-menu-content>
+      }
+
+      <ng-template #menuItemsTpl let-items>
+        @for (item of items; track $index) {
+          @if (item.type === 'separator') {
+              <ui-context-menu-separator />
+          } @else if (item.type === 'label') {
+              <ui-context-menu-label [inset]="item.inset">{{ item.label }}</ui-context-menu-label>
+          } @else if (item.type === 'sub') {
+               <ui-context-menu-sub>
+                  <ui-context-menu-sub-trigger [inset]="item.inset" [disabled]="item.disabled">
+                      {{ item.label }}
+                  </ui-context-menu-sub-trigger>
+                  <ui-context-menu-sub-content>
+                      <ng-container *ngTemplateOutlet="menuItemsTpl; context: { $implicit: item.children }"></ng-container>
+                  </ui-context-menu-sub-content>
+               </ui-context-menu-sub>
+          } @else {
+               <ui-context-menu-item
+                  [disabled]="item.disabled"
+                  [inset]="item.inset"
+                  [shortcut]="item.shortcut"
+                  (click)="item.click ? item.click(item) : null">
+                  {{ item.label }}
+               </ui-context-menu-item>
+          }
+        }
+      </ng-template>
+    `,
     host: {
         class: 'contents',
         '[attr.data-slot]': '"context-menu"',
@@ -33,7 +90,9 @@ export const CONTEXT_MENU = new InjectionToken<ContextMenuComponent>('CONTEXT_ME
 })
 export class ContextMenuComponent implements OnDestroy {
     private document = inject(DOCUMENT);
+    private el = inject(ElementRef);
 
+    items = input<ContextMenuItem[]>([]);
     open = signal(false);
     position = signal({ x: 0, y: 0 });
     data = signal<any>(undefined);
@@ -72,6 +131,10 @@ export class ContextMenuComponent implements OnDestroy {
 
     close() {
         this.open.set(false);
+    }
+
+    isRtl(): boolean {
+        return isRtl(this.el.nativeElement);
     }
 }
 
@@ -306,6 +369,212 @@ export class ContextMenuLabelComponent {
     },
 })
 export class ContextMenuShortcutComponent { }
+
+@Component({
+    selector: 'ui-context-menu-sub',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `<ng-content />`,
+    host: {
+        class: 'relative block w-full',
+        '[attr.data-slot]': '"context-menu-sub"',
+    },
+})
+export class ContextMenuSubComponent {
+    isOpen = signal(false);
+    private timeoutId: ReturnType<typeof setTimeout> | undefined;
+
+    private trigger: ContextMenuSubTriggerComponent | null = null;
+    private content: ContextMenuSubContentComponent | null = null;
+
+    registerTrigger(t: ContextMenuSubTriggerComponent) { this.trigger = t; }
+    registerContent(c: ContextMenuSubContentComponent) { this.content = c; }
+
+    enter() {
+        clearTimeout(this.timeoutId);
+        this.isOpen.set(true);
+    }
+
+    leave() {
+        this.timeoutId = setTimeout(() => {
+            this.isOpen.set(false);
+        }, 100);
+    }
+
+    focusTrigger() {
+        setTimeout(() => {
+            this.trigger?.focus();
+        }, 0);
+    }
+
+    focusContent() {
+        setTimeout(() => {
+            this.content?.focusFirst();
+        }, 0);
+    }
+}
+
+@Component({
+    selector: 'ui-context-menu-sub-trigger',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
+    <div
+      #trigger
+      [class]="classes()"
+      role="menuitem"
+      tabindex="0"
+      [attr.aria-haspopup]="true"
+      [attr.aria-expanded]="sub.isOpen()"
+      [attr.data-slot]="'context-menu-sub-trigger'"
+      (mouseenter)="sub.enter()"
+      (mouseleave)="sub.leave()"
+      (keydown)="onKeydown($event)"
+      (click)="$event.stopPropagation()"
+    >
+      <ng-content />
+      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" class="h-4 w-4 ltr:ml-auto rtl:mr-auto rtl:rotate-180" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
+  `,
+    host: { class: 'contents' },
+})
+export class ContextMenuSubTriggerComponent {
+    class = input('');
+    disabled = input(false, { transform: booleanAttribute });
+    inset = input(false, { transform: booleanAttribute });
+
+    sub = inject(ContextMenuSubComponent);
+    private contextMenu = inject(CONTEXT_MENU, { optional: true });
+    el = inject(ElementRef);
+
+    @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
+
+    constructor() {
+        this.sub.registerTrigger(this);
+    }
+
+    classes = computed(() => cn(
+        'relative flex cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground',
+        'data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        this.sub.isOpen() && 'bg-accent text-accent-foreground',
+        this.inset() && 'ltr:pl-8 rtl:pr-8',
+        this.class()
+    ));
+
+    focus() {
+        this.triggerEl?.nativeElement.focus();
+    }
+
+    onKeydown(event: KeyboardEvent) {
+        const rtl = this.contextMenu?.isRtl() ?? false;
+        if (event.key === 'ArrowRight') {
+            if (rtl) return;
+            event.preventDefault();
+            event.stopPropagation();
+            this.sub.enter();
+            this.sub.focusContent();
+        }
+        if (event.key === 'ArrowLeft') {
+            if (rtl) {
+                event.preventDefault();
+                event.stopPropagation();
+                this.sub.enter();
+                this.sub.focusContent();
+            }
+        }
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            this.sub.enter();
+            this.sub.focusContent();
+        }
+    }
+}
+
+@Component({
+    selector: 'ui-context-menu-sub-content',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
+    @if (sub.isOpen()) {
+      <div
+        [class]="classes()"
+        role="menu"
+        [attr.data-slot]="'context-menu-sub-content'"
+        (mouseenter)="sub.enter()"
+        (mouseleave)="sub.leave()"
+        (keydown)="onKeydown($event)"
+        (click)="$event.stopPropagation()"
+      >
+        <ng-content />
+      </div>
+    }
+  `,
+    host: { class: 'contents' },
+})
+export class ContextMenuSubContentComponent {
+    class = input('');
+    sub = inject(ContextMenuSubComponent);
+    private contextMenu = inject(CONTEXT_MENU, { optional: true });
+    el = inject(ElementRef);
+
+    constructor() {
+        this.sub.registerContent(this);
+    }
+
+    classes = computed(() => cn(
+        'absolute top-0 z-50 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+        'ltr:left-full ltr:ml-1 ltr:animate-in ltr:slide-in-from-left-1 ltr:fade-in-0 ltr:zoom-in-95',
+        'rtl:right-full rtl:mr-1 rtl:animate-in rtl:slide-in-from-right-1 rtl:fade-in-0 rtl:zoom-in-95',
+        this.class()
+    ));
+
+    focusFirst() {
+        const items = Array.from(this.el.nativeElement.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        items[0]?.focus();
+    }
+
+    onKeydown(event: KeyboardEvent) {
+        event.stopPropagation();
+        const rtl = this.contextMenu?.isRtl() ?? false;
+
+        if (event.key === 'ArrowLeft') {
+            if (!rtl) {
+                event.preventDefault();
+                this.sub.leave();
+                this.sub.focusTrigger();
+            }
+        } else if (event.key === 'ArrowRight') {
+            if (rtl) {
+                event.preventDefault();
+                this.sub.leave();
+                this.sub.focusTrigger();
+            }
+        } else if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            this.focusNextItem(event.target as HTMLElement);
+        } else if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            this.focusPrevItem(event.target as HTMLElement);
+        } else if (event.key === 'Escape') {
+            event.preventDefault();
+            this.sub.leave();
+            this.sub.focusTrigger();
+        }
+    }
+
+    focusNextItem(currentItem: HTMLElement) {
+        const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
+        const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        const index = items.indexOf(currentItem);
+        const nextIndex = (index + 1) % items.length;
+        items[nextIndex]?.focus();
+    }
+
+    focusPrevItem(currentItem: HTMLElement) {
+        const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
+        const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        const index = items.indexOf(currentItem);
+        const prevIndex = (index - 1 + items.length) % items.length;
+        items[prevIndex]?.focus();
+    }
+}
 
 /**
  * ContextMenuTriggerDirective - Directive version for use on any element

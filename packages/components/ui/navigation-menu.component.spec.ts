@@ -6,7 +6,7 @@ import {
     NavigationMenuTriggerComponent,
     NavigationMenuContentComponent,
     NavigationMenuLinkComponent,
-    NavigationMenuIndicatorComponent
+    NavigationMenuItem,
 } from './navigation-menu.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
@@ -367,5 +367,141 @@ describe('NavigationMenu RTL Support', () => {
 
         expect(items[1].componentInstance.isOpen()).toBe(true);
         expect(items[0].componentInstance.isOpen()).toBe(false);
+    });
+});
+
+@Component({
+    template: `<ui-navigation-menu [items]="items()" />`,
+    imports: [NavigationMenuComponent],
+})
+class SimpleTestHostComponent {
+    items = signal<NavigationMenuItem[]>([
+        {
+            label: 'Getting Started',
+            children: [
+                { title: 'Documentation', description: 'Learn the basics', href: '/docs' },
+                { title: 'Components', description: 'Explore components', href: '/docs/components' },
+            ],
+        },
+        {
+            label: 'Resources',
+            children: [
+                { title: 'Blog', href: '/blog' },
+            ],
+        },
+        { label: 'About', href: '/about' },
+    ]);
+}
+
+describe('NavigationMenu Simple Mode', () => {
+    let fixture: ComponentFixture<SimpleTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleTestHostComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should render menu list from items', () => {
+        const list = fixture.debugElement.query(By.css('[data-slot="navigation-menu-list"]'));
+        expect(list).toBeTruthy();
+    });
+
+    it('should render menu items from items array', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-item"]'));
+        expect(items.length).toBe(3);
+    });
+
+    it('should render triggers for items with children', () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-trigger"]'));
+        expect(triggers.length).toBe(2);
+    });
+
+    it('should render trigger labels from item data', () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-trigger"]'));
+        expect(triggers[0].nativeElement.textContent).toContain('Getting Started');
+        expect(triggers[1].nativeElement.textContent).toContain('Resources');
+    });
+
+    it('should render a plain link for items without children', () => {
+        const links = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-link"]'));
+        const aboutLink = links.find(
+            (l) => l.nativeElement.textContent.includes('About')
+        );
+        expect(aboutLink).toBeTruthy();
+        expect(aboutLink!.nativeElement.getAttribute('href')).toBe('/about');
+    });
+
+    it('should open dropdown on trigger click and show child links', async () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="navigation-menu-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="navigation-menu-content"]'));
+        expect(content).toBeTruthy();
+
+        const links = content.queryAll(By.css('[data-slot="navigation-menu-link"]'));
+        expect(links.length).toBe(2);
+        expect(links[0].nativeElement.getAttribute('href')).toBe('/docs');
+        expect(links[1].nativeElement.getAttribute('href')).toBe('/docs/components');
+    });
+
+    it('should render child titles and descriptions', async () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="navigation-menu-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="navigation-menu-content"]'));
+        expect(content.nativeElement.textContent).toContain('Documentation');
+        expect(content.nativeElement.textContent).toContain('Learn the basics');
+        expect(content.nativeElement.textContent).toContain('Components');
+        expect(content.nativeElement.textContent).toContain('Explore components');
+    });
+
+    it('should render child without description when not provided', async () => {
+        const triggers = fixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-trigger"]'));
+        triggers[1].nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="navigation-menu-content"]'));
+        expect(content.nativeElement.textContent).toContain('Blog');
+        const paragraphs = content.queryAll(By.css('p'));
+        expect(paragraphs.length).toBe(0);
+    });
+
+    it('should fall back to custom mode when content is projected', async () => {
+        @Component({
+            template: `
+                <ui-navigation-menu [items]="items()">
+                    <ui-navigation-menu-list>
+                        <ui-navigation-menu-item>
+                            <ui-navigation-menu-link href="/custom">
+                                <span>Custom Link</span>
+                            </ui-navigation-menu-link>
+                        </ui-navigation-menu-item>
+                    </ui-navigation-menu-list>
+                </ui-navigation-menu>
+            `,
+            imports: [NavigationMenuComponent, NavigationMenuListComponent, NavigationMenuItemComponent, NavigationMenuLinkComponent],
+        })
+        class MixedTestHostComponent {
+            items = signal<NavigationMenuItem[]>([
+                { label: 'Ignored', href: '/ignored' },
+            ]);
+        }
+
+        const mixedFixture = TestBed.createComponent(MixedTestHostComponent);
+        mixedFixture.detectChanges();
+
+        const links = mixedFixture.debugElement.queryAll(By.css('[data-slot="navigation-menu-link"]'));
+        expect(links.length).toBe(1);
+        expect(links[0].nativeElement.getAttribute('href')).toBe('/custom');
+        expect(links[0].nativeElement.textContent).toContain('Custom Link');
     });
 });

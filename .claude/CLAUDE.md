@@ -259,7 +259,7 @@ classes = computed(() => cn(
 
 ### 2. Code Hygiene
 - **No Non-JSDoc Comments**: Avoid implementation comments inside methods. Code should be self-documenting. Use JSDoc `/** ... */` only for public APIs (inputs, outputs, exported methods).
-- **Clean Imports**: Remove all unused imports in TypeScript files and the `@Component({ imports: [...] })` array.
+- **No Unused Declarations**: Remove all unused imports, variables, parameters, and types in TypeScript files and the `@Component({ imports: [...] })` array. The compiler enforces `noUnusedLocals` and `noUnusedParameters` — check for `ts(6133)` ("declared but its value is never read") errors before finishing any file.
 
 ### 3. Testing & Documentation
 - **Meaningful Unit Tests**: Tests must verify actual functionality (interactions, state changes), not just component creation.
@@ -283,7 +283,7 @@ Before submitting a component, verify:
 - [ ] Tests cover both usage modes and verify functionality
 - [ ] Storybook covers all options/variants
 - [ ] Demo page includes copy-paste examples
-- [ ] No unused imports or commercial comments
+- [ ] No unused declarations (imports, variables, parameters, types) — no `ts(6133)` errors
 - [ ] Strict typing (no `any`, handles `undefined`)
 
 ---
@@ -300,6 +300,7 @@ When generating or modifying components:
 6. **Test both modes** in the spec file
 7. **Follow naming conventions** exactly
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
+9. **Clean up unused declarations** — after writing or modifying code, verify every import, variable, and parameter is actually used. Remove any that aren't. Watch for `ts(6133)` errors.
 
 ### Template for New Compound Components
 
