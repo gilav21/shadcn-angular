@@ -691,17 +691,13 @@ describe('RichTextEditorComponent', () => {
         expect(component.slashQuery()).toBe('hea');
     });
 
-    it('opens slash command menu at start of a new paragraph after existing text', () => {
-        component.writeValue('<p>First paragraph</p><p>/hea</p>');
-        fixture.detectChanges();
-
-        const paragraphs = editor.querySelectorAll('p');
-        const secondTextNode = paragraphs[1].firstChild as Text;
-        setCaret(secondTextNode, secondTextNode.length);
+    it('does not open slash command menu when trigger is typed immediately after a letter', () => {
+        editor.textContent = 'abcd/hea';
+        setCaret(editor.firstChild as Text, (editor.textContent ?? '').length);
         editor.dispatchEvent(new Event('input', { bubbles: true }));
 
-        expect(component.slashCommandOpen()).toBe(true);
-        expect(component.slashQuery()).toBe('hea');
+        expect(component.slashCommandOpen()).toBe(false);
+        expect(component.slashQuery()).toBe('');
     });
 
     it('executes selected slash command on Enter and removes trigger text', () => {
