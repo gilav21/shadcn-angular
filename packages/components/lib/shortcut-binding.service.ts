@@ -49,6 +49,8 @@ export interface ShortcutConflict {
     actionIds: string[];
 }
 
+export type ShortcutOverrideSchema = Record<string, string>;
+
 export interface ShortcutCatalogItem {
     actionId: string;
     description: string;
@@ -87,6 +89,7 @@ export class ShortcutBindingService {
     private readonly definitions = new Map<string, ShortcutCatalogItem>();
     private readonly handledEvents = new WeakSet<KeyboardEvent>();
     private readonly componentInstanceCounters = new Map<string, number>();
+    private readonly componentReusableInstanceNumbers = new Map<string, number[]>();
     private version = signal(0);
     private nextOrder = 0;
 
@@ -108,6 +111,9 @@ export class ShortcutBindingService {
 
         return () => {
             if (this.registrations.delete(key)) {
+                if (!this.hasRegistrationsForComponent(componentId)) {
+                    this.releaseComponentId(componentId);
+                }
                 this.bumpVersion();
             }
         };
@@ -157,6 +163,7 @@ export class ShortcutBindingService {
             }
         }
         if (removed) {
+            this.releaseComponentId(componentId);
             this.bumpVersion();
         }
     }
@@ -302,12 +309,74 @@ export class ShortcutBindingService {
         this.bumpVersion();
     }
 
+    clearAllShortcutOverrides(): void {
+        if (this.overrides.size === 0) {
+            return;
+        }
+        this.overrides.clear();
+        this.persistOverridesToStorage();
+        this.bumpVersion();
+    }
+
     getShortcutOverride(actionId: string): string | null {
         return this.getShortcutOverrideForComponent(actionId);
     }
 
     hasShortcutOverride(actionId: string): boolean {
         return this.overrides.has(actionId);
+    }
+
+    exportOverrideSchema(): ShortcutOverrideSchema {
+        const schema: ShortcutOverrideSchema = {};
+        const keys = Array.from(this.overrides.keys()).sort();
+        for (const key of keys) {
+            const value = this.overrides.get(key);
+            if (value) {
+                schema[key] = value;
+            }
+        }
+        return schema;
+    }
+
+    importOverrideSchema(schema: ShortcutOverrideSchema, replace = true): void {
+        if (!schema || typeof schema !== 'object') {
+            return;
+        }
+
+        const next = new Map<string, string>();
+        if (!replace) {
+            for (const [key, value] of this.overrides.entries()) {
+                next.set(key, value);
+            }
+        }
+
+        for (const [key, value] of Object.entries(schema)) {
+            const normalized = this.normalizeShortcut(value);
+            if (!normalized) {
+                continue;
+            }
+            next.set(key, normalized);
+        }
+
+        if (replace && next.size === this.overrides.size) {
+            let unchanged = true;
+            for (const [key, value] of next.entries()) {
+                if (this.overrides.get(key) !== value) {
+                    unchanged = false;
+                    break;
+                }
+            }
+            if (unchanged) {
+                return;
+            }
+        }
+
+        this.overrides.clear();
+        for (const [key, value] of next.entries()) {
+            this.overrides.set(key, value);
+        }
+        this.persistOverridesToStorage();
+        this.bumpVersion();
     }
 
     hasShortcutOverrideForComponent(actionId: string, componentName?: string): boolean {
@@ -693,6 +762,13 @@ export class ShortcutBindingService {
 
     private createComponentId(componentName: string): string {
         const normalizedName = componentName.trim().toLowerCase().replace(/\s+/g, '-');
+        const reusable = this.componentReusableInstanceNumbers.get(normalizedName);
+        if (reusable && reusable.length > 0) {
+            const reused = reusable.shift();
+            if (typeof reused === 'number') {
+                return `${normalizedName}-${reused}`;
+            }
+        }
         const current = this.componentInstanceCounters.get(normalizedName) ?? 0;
         const next = current + 1;
         this.componentInstanceCounters.set(normalizedName, next);
@@ -720,6 +796,35 @@ export class ShortcutBindingService {
         }
         const componentId = key.slice(0, key.length - (`::${actionId}`).length);
         return this.deriveComponentName(componentId) === componentName;
+    }
+
+    private hasRegistrationsForComponent(componentId: string): boolean {
+        for (const registration of this.registrations.values()) {
+            if (registration.componentId === componentId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private releaseComponentId(componentId: string): void {
+        const normalizedName = this.deriveComponentName(componentId);
+        const match = componentId.match(/-(\d+)$/);
+        if (!match) {
+            return;
+        }
+
+        const number = Number(match[1]);
+        if (!Number.isInteger(number) || number <= 0) {
+            return;
+        }
+
+        const reusable = this.componentReusableInstanceNumbers.get(normalizedName) ?? [];
+        if (!reusable.includes(number)) {
+            reusable.push(number);
+            reusable.sort((a, b) => a - b);
+            this.componentReusableInstanceNumbers.set(normalizedName, reusable);
+        }
     }
 
     private restoreOverridesFromStorage(): void {

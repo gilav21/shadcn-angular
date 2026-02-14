@@ -2,6 +2,7 @@ import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { RichTextEditorComponent, DEFAULT_TOOLBAR_ITEMS } from './rich-text-editor.component';
 import { RichTextToolbarComponent } from './rich-text-toolbar.component';
 import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './rich-text-mention.component';
+import { RichTextSlashCommand } from './rich-text-command-registry.service';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
@@ -18,6 +19,25 @@ const sampleTags: TagItem[] = [
     { id: '1', value: 'angular.ui', label: 'Angular UI', color: '#dd0031' },
     { id: '2', value: 'typescript-5', label: 'TypeScript 5', color: '#3178c6' },
     { id: '3', value: 'release_2026', label: 'Release 2026', color: '#06b6d4' },
+];
+
+const customSlashCommands: RichTextSlashCommand[] = [
+    {
+        id: 'custom.insert-callout',
+        label: 'Insert Callout',
+        description: 'Adds a callout block template',
+        keywords: ['callout', 'tip'],
+        order: 1,
+        run: (context) => context.insertHtml('<blockquote><strong>Callout:</strong> Add details here.</blockquote>'),
+    },
+    {
+        id: 'custom.insert-divider',
+        label: 'Insert Divider',
+        description: 'Adds a horizontal divider',
+        keywords: ['divider', 'hr'],
+        order: 2,
+        run: (context) => context.insertHtml('<hr />'),
+    },
 ];
 
 const meta: Meta<RichTextEditorComponent> = {
@@ -67,6 +87,10 @@ const meta: Meta<RichTextEditorComponent> = {
         showHistoryButton: {
             control: 'boolean',
             description: 'Show/hide the History button (Ctrl/Cmd+Shift+H shortcut still works)',
+        },
+        enableSlashCommands: {
+            control: 'boolean',
+            description: 'Enable slash command palette (type / in editor)',
         },
         historyDebounceMs: {
             control: { type: 'number', min: 0, max: 2000, step: 50 },
@@ -186,6 +210,24 @@ export const WithCharacterCount: Story = {
     },
 };
 
+export const WithCustomSlashCommands: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        enableSlashCommands: true,
+        slashCommands: customSlashCommands,
+        placeholder: 'Type / to open commands. Try /callout or /divider.',
+        minHeight: '160px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Slash commands include built-ins and app-provided commands via `slashCommands` input.',
+            },
+        },
+    },
+};
+
 export const AdvancedEditorConfig: Story = {
     args: {
         mode: 'markdown',
@@ -257,7 +299,6 @@ export const GhostVariant: Story = {
     },
 };
 
-// Interactive example with output preview
 @Component({
     selector: 'rich-text-demo',
     standalone: true,
@@ -375,7 +416,6 @@ export const AdvancedBehaviorDemo: Story = {
     },
 };
 
-// Reactive forms example
 @Component({
     selector: 'rich-text-form-demo',
     standalone: true,

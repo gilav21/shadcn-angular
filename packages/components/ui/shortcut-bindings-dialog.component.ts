@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, computed, model, signal, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
 import {
     DialogComponent,
     DialogContentComponent,
@@ -9,7 +9,7 @@ import {
 import { ScrollAreaComponent } from './scroll-area.component';
 import { ButtonComponent } from './button.component';
 import { BadgeComponent } from './badge.component';
-import { ShortcutBindingService, ShortcutBindingView, ShortcutCatalogItem } from '../lib/shortcut-binding.service';
+import { ShortcutBindingService, ShortcutBindingView, ShortcutCatalogItem, ShortcutOverrideSchema } from '../lib/shortcut-binding.service';
 import { AccordionComponent, AccordionContentComponent, AccordionItemComponent, AccordionTriggerComponent } from './accordion.component';
 
 interface ShortcutDialogInstance {
@@ -63,6 +63,13 @@ interface ShortcutDialogGroup {
               (input)="onSearchInput($event)"
             />
           </div>
+          @if (allowSaveMapping()) {
+            <div class="pt-3 flex justify-end">
+              <ui-button type="button" size="sm" variant="secondary" (click)="saveMappingSchema()">
+                Save Changes
+              </ui-button>
+            </div>
+          }
         </ui-dialog-header>
 
         <ui-scroll-area [class]="'h-[70vh] px-5 py-4'">
@@ -203,9 +210,14 @@ interface ShortcutDialogGroup {
 })
 export class ShortcutBindingsDialogComponent {
     open = model(false);
+    allowSaveMapping = input(false);
+    mappingSchema = input<ShortcutOverrideSchema | null>(null);
+    replaceOnSchemaLoad = input(true);
+    mappingSave = output<ShortcutOverrideSchema>();
 
     private readonly shortcutBindings = inject(ShortcutBindingService);
     private readonly overrideVersion = signal(0);
+    private lastAppliedMappingSchema = signal<string | null>(null);
 
     search = signal('');
     capturingActionKey = signal<string | null>(null);
@@ -223,6 +235,24 @@ export class ShortcutBindingsDialogComponent {
         }
         return map;
     });
+
+    constructor() {
+        effect(() => {
+            const schema = this.mappingSchema();
+            if (!schema) {
+                return;
+            }
+
+            const serialized = JSON.stringify(schema);
+            if (serialized === this.lastAppliedMappingSchema()) {
+                return;
+            }
+
+            this.shortcutBindings.importOverrideSchema(schema, this.replaceOnSchemaLoad());
+            this.lastAppliedMappingSchema.set(serialized);
+            this.bumpVersion();
+        }, { allowSignalWrites: true });
+    }
 
     bindings = computed(() => {
         this.overrideVersion();
@@ -314,6 +344,10 @@ export class ShortcutBindingsDialogComponent {
 
     onSearchInput(event: Event): void {
         this.search.set((event.target as HTMLInputElement).value ?? '');
+    }
+
+    saveMappingSchema(): void {
+        this.mappingSave.emit(this.shortcutBindings.exportOverrideSchema());
     }
 
     startCaptureForComponent(actionId: string, componentName: string, button: HTMLButtonElement): void {

@@ -59,6 +59,7 @@ export * from './speed-dial.component';
 export * from './autocomplete.component';
 export * from './highlight.pipe';
 export * from './rich-text-editor.component';
+export * from './rich-text-command-registry.service';
 export * from './rich-text-mention.component';
 export * from './timeline.component';
 export * from './tree.component';
@@ -88,5 +89,4 @@ export * from './page-builder/page-builder.types';
 export * from './component-outlet.directive';
 export * from './icon.component';
 
-// Charts
 export * from './charts';

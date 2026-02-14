@@ -39,6 +39,12 @@ import {
 } from './dialog.component';
 import { ScrollAreaComponent } from './scroll-area.component';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../lib/shortcut-binding.service';
+import {
+    RichTextCommandRegistry,
+    RichTextSlashCommand,
+    RichTextSlashCommandAvailabilityContext,
+    RichTextSlashCommandContext,
+} from './rich-text-command-registry.service';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -98,6 +104,105 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'code', 'codeBlock',
     'separator',
     'clear',
+];
+
+export const DEFAULT_SLASH_COMMANDS: RichTextSlashCommand[] = [
+    {
+        id: 'format.paragraph',
+        label: 'Paragraph',
+        description: 'Switch to paragraph text',
+        keywords: ['text', 'normal'],
+        order: 10,
+        run: context => context.executeToolbarCommand('paragraph'),
+    },
+    {
+        id: 'format.heading-1',
+        label: 'Heading 1',
+        description: 'Large section heading',
+        keywords: ['h1', 'title'],
+        order: 20,
+        run: context => context.executeToolbarCommand('heading1'),
+    },
+    {
+        id: 'format.heading-2',
+        label: 'Heading 2',
+        description: 'Medium section heading',
+        keywords: ['h2', 'subtitle'],
+        order: 30,
+        run: context => context.executeToolbarCommand('heading2'),
+    },
+    {
+        id: 'format.heading-3',
+        label: 'Heading 3',
+        description: 'Small section heading',
+        keywords: ['h3'],
+        order: 40,
+        run: context => context.executeToolbarCommand('heading3'),
+    },
+    {
+        id: 'format.bullet-list',
+        label: 'Bullet List',
+        description: 'Create a bulleted list',
+        keywords: ['list', 'ul'],
+        order: 50,
+        run: context => context.executeToolbarCommand('bulletList'),
+    },
+    {
+        id: 'format.numbered-list',
+        label: 'Numbered List',
+        description: 'Create an ordered list',
+        keywords: ['list', 'ol'],
+        order: 60,
+        run: context => context.executeToolbarCommand('orderedList'),
+    },
+    {
+        id: 'format.quote',
+        label: 'Block Quote',
+        description: 'Insert a block quote',
+        keywords: ['blockquote', 'quote'],
+        order: 70,
+        run: context => context.executeToolbarCommand('blockquote'),
+    },
+    {
+        id: 'format.inline-code',
+        label: 'Inline Code',
+        description: 'Wrap selection in inline code',
+        keywords: ['code'],
+        order: 80,
+        run: context => context.executeToolbarCommand('code'),
+    },
+    {
+        id: 'format.code-block',
+        label: 'Code Block',
+        description: 'Insert a code block',
+        keywords: ['pre', 'snippet'],
+        order: 90,
+        run: context => context.executeToolbarCommand('codeBlock'),
+    },
+    {
+        id: 'insert.link',
+        label: 'Link',
+        description: 'Insert or edit a link',
+        keywords: ['url', 'anchor'],
+        order: 100,
+        run: context => context.showLinkDialog(),
+    },
+    {
+        id: 'history.undo',
+        label: 'Undo',
+        description: 'Undo last change',
+        keywords: ['ctrl+z', 'revert'],
+        order: 110,
+        run: context => context.executeToolbarCommand('undo'),
+    },
+    {
+        id: 'history.redo',
+        label: 'Redo',
+        description: 'Redo last undone change',
+        keywords: ['ctrl+y', 'ctrl+shift+z'],
+        order: 120,
+        run: context => context.executeToolbarCommand('redo'),
+    },
 ];
 
 export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
@@ -406,6 +511,41 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         />
       }
 
+      @if (slashCommandOpen()) {
+        <div
+          class="absolute z-50 w-72 rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          [style.left.px]="slashCommandPosition().x"
+          [style.top.px]="slashCommandPosition().y"
+          role="listbox"
+          aria-label="Slash command menu"
+        >
+          @if (filteredSlashCommands().length === 0) {
+            <div class="px-3 py-2 text-sm text-muted-foreground">No commands found</div>
+          } @else {
+            <div class="max-h-56 overflow-y-auto p-1">
+              @for (command of filteredSlashCommands(); track command.id; let i = $index) {
+                <button
+                  type="button"
+                  class="w-full rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
+                  [class.bg-accent]="i === slashCommandSelectedIndex()"
+                  [class.text-accent-foreground]="i === slashCommandSelectedIndex()"
+                  [attr.aria-selected]="i === slashCommandSelectedIndex()"
+                  role="option"
+                  (mousedown)="$event.preventDefault()"
+                  (mouseenter)="slashCommandSelectedIndex.set(i)"
+                  (click)="onSlashCommandSelect(command)"
+                >
+                  <div class="text-sm font-medium">{{ command.label }}</div>
+                  @if (command.description) {
+                    <div class="text-xs text-muted-foreground">{{ command.description }}</div>
+                  }
+                </button>
+              }
+            </div>
+          }
+        </div>
+      }
+
       @if (showLinkPopover()) {
         <div 
           class="fixed z-50 bg-popover border rounded-lg shadow-lg p-4 w-80"
@@ -474,6 +614,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private readonly document = inject(DOCUMENT);
     private readonly el = inject(ElementRef);
     private readonly shortcutBindings = inject(ShortcutBindingService);
+    private readonly commandRegistry = inject(RichTextCommandRegistry);
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
@@ -503,6 +644,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     historyDebounceMs = input<number>(450);
     showHistoryPanel = input<boolean>(false);
     showHistoryButton = input<boolean>(true);
+    enableSlashCommands = input<boolean>(true);
+    slashCommands = input<RichTextSlashCommand[]>([]);
     class = input<string>('');
     ariaLabel = input<string | undefined>(undefined);
     ariaDescribedBy = input<string | undefined>(undefined);
@@ -525,6 +668,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     mentionType = signal<'mention' | 'tag'>('mention');
     mentionQuery = signal<string>('');
     mentionPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    slashCommandOpen = signal<boolean>(false);
+    slashQuery = signal<string>('');
+    slashCommandPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    slashCommandSelectedIndex = signal<number>(0);
     private readonly mentionSearchQuery$ = new Subject<{ type: 'mention' | 'tag'; query: string }>();
     loadedMentionItems = signal<(MentionItem | TagItem)[]>([]);
     mentionLoading = signal<boolean>(false);
@@ -546,6 +693,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private isUndoRedo = false;
     private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
     private shortcutHandle: ShortcutComponentHandle | null = null;
+    private slashAnchorBlock: HTMLElement | null = null;
+    private slashTriggerRange: Range | null = null;
     private savedRange: Range | null = null;
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
@@ -565,17 +714,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&:empty]:before:content-[attr(placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none',
             'prose prose-sm dark:prose-invert max-w-none',
             '[&_*]:outline-none',
-            // Heading styling - explicit to ensure visibility
             '[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2',
             '[&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2',
             '[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
-            // List styling - explicit to ensure visibility
             '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-2',
             '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-2',
             '[&_li]:my-1',
-            // Link styling
             '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:cursor-pointer [&_a]:font-medium hover:[&_a]:text-primary/80',
-            // Code styling
             '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono',
             '[&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto',
             '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
@@ -619,6 +764,51 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 item.label.toLowerCase().includes(query) ||
                 item.value.toLowerCase().includes(query)
             )
+            .slice(0, 10);
+    });
+
+    filteredSlashCommands = computed(() => {
+        const query = this.slashQuery().trim().toLowerCase();
+        const availability: RichTextSlashCommandAvailabilityContext = {
+            query: this.slashQuery(),
+            disabled: this.disabled(),
+            readonly: this.readonly(),
+            hasSelection: !!this.selectedText(),
+        };
+        const merged = new Map<string, RichTextSlashCommand>();
+        for (const command of DEFAULT_SLASH_COMMANDS) {
+            merged.set(command.id, command);
+        }
+        for (const command of this.commandRegistry.listCommands()) {
+            merged.set(command.id, command);
+        }
+        for (const command of this.slashCommands()) {
+            merged.set(command.id, command);
+        }
+
+        const matchesQuery = (command: RichTextSlashCommand): boolean => {
+            if (!query) {
+                return true;
+            }
+            const haystack = [
+                command.label,
+                command.description ?? '',
+                ...(command.keywords ?? []),
+                ...(command.aliases ?? []),
+            ].join(' ').toLowerCase();
+            return haystack.includes(query);
+        };
+
+        return Array.from(merged.values())
+            .filter(command => !command.when || command.when(availability))
+            .filter(matchesQuery)
+            .sort((a, b) => {
+                const byOrder = (a.order ?? 9999) - (b.order ?? 9999);
+                if (byOrder !== 0) {
+                    return byOrder;
+                }
+                return a.label.localeCompare(b.label);
+            })
             .slice(0, 10);
     });
 
@@ -718,6 +908,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         ).subscribe(items => {
             this.loadedMentionItems.set(items);
             this.mentionLoading.set(false);
+        });
+
+        effect(() => {
+            const commands = this.filteredSlashCommands();
+            const currentIndex = this.slashCommandSelectedIndex();
+            if (commands.length === 0) {
+                if (currentIndex !== 0) {
+                    this.slashCommandSelectedIndex.set(0);
+                }
+                return;
+            }
+            if (currentIndex >= commands.length) {
+                this.slashCommandSelectedIndex.set(commands.length - 1);
+            }
         });
     }
 
@@ -826,9 +1030,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const html = this.sanitizer.sanitize(div.innerHTML);
 
         const textContent = div.textContent ?? '';
+        const triggerTextContent = this.buildTriggerAwareText(div.innerHTML);
         const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            this.checkMentionTrigger(textContent, this.getCaretOffset(div));
+        const hasSelection = !!selection && selection.rangeCount > 0;
+        const caretOffset = hasSelection
+            ? this.getCaretOffset(div)
+            : triggerTextContent.length;
+
+        const textForSlash = hasSelection ? textContent : triggerTextContent;
+        if (!this.checkSlashCommandTrigger(textForSlash, caretOffset)) {
+            this.checkMentionTrigger(textContent, caretOffset);
+        } else {
+            this.closeMentionPopover();
         }
 
         this.htmlContent.set(html);
@@ -845,6 +1058,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onKeydown(event: KeyboardEvent): void {
+        if (this.slashCommandOpen()) {
+            const slashKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'];
+            if (slashKeys.includes(event.key)) {
+                event.preventDefault();
+                this.onSlashCommandKeydown(event);
+                return;
+            }
+        }
+
         if (this.mentionPopoverOpen() && this.mentionPopover) {
             const popoverKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'];
             if (popoverKeys.includes(event.key)) {
@@ -859,6 +1081,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         if (event.key === 'Escape') {
             this.closeMentionPopover();
+            this.closeSlashCommandPopover();
             this.showFloatingToolbar.set(false);
         }
         if (event.key === 'Tab' && !this.mentionPopoverOpen()) {
@@ -1037,20 +1260,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         this.onTouched();
         this.blur.emit();
+        this.closeSlashCommandPopover();
 
-        // Don't close floating toolbar if link popover is open
         if (this.showLinkPopover()) {
             return;
         }
 
-        // Check regarding target to avoid timeouts
         const relatedTarget = event?.relatedTarget as Node | null;
         if (relatedTarget && this.el.nativeElement.contains(relatedTarget)) {
             return;
         }
 
         setTimeout(() => {
-            // Only hide if link popover is still not open AND focus is outside the component
             if (!this.showLinkPopover()) {
                 const activeElement = this.document.activeElement;
                 const isInsideComponent = this.el.nativeElement.contains(activeElement);
@@ -1079,7 +1300,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onHistoryPanelOpenChange(nextOpen: boolean): void {
-        // Keep the panel visible while the revision dialog is open.
         if (!nextOpen && this.historyPreviewOpen()) {
             this.historyPanelOpen.set(true);
             return;
@@ -1507,6 +1727,72 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.closeMentionPopover();
     }
 
+    private checkSlashCommandTrigger(text: string, cursorPosition: number): boolean {
+        if (!this.enableSlashCommands() || this.disabled() || this.readonly()) {
+            this.closeSlashCommandPopover();
+            return false;
+        }
+
+        const beforeCursor = text.substring(0, cursorPosition);
+        const slashTriggerPattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
+        const slashMatch = beforeCursor.match(slashTriggerPattern)
+            ?? this.matchSlashTriggerAtCaret()
+            ?? this.matchSlashTriggerWithinCurrentBlock();
+        if (!slashMatch) {
+            this.closeSlashCommandPopover();
+            return false;
+        }
+
+        this.captureSlashTriggerRange();
+        this.slashAnchorBlock = this.getClosestEditableBlockFromSelection();
+        this.slashQuery.set(slashMatch[1]);
+        this.slashCommandSelectedIndex.set(0);
+        this.updateSlashCommandPopoverPosition();
+        this.slashCommandOpen.set(true);
+        return true;
+    }
+
+    private matchSlashTriggerAtCaret(): RegExpMatchArray | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return null;
+        }
+        const range = selection.getRangeAt(0);
+        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
+            return null;
+        }
+
+        const nodeText = (range.startContainer as Text).data.slice(0, range.startOffset);
+        const nodePattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
+        return nodeText.match(nodePattern);
+    }
+
+    private matchSlashTriggerWithinCurrentBlock(): RegExpMatchArray | null {
+        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!selection || selection.rangeCount === 0 || !editor) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) {
+            return null;
+        }
+
+
+        const block = this.findClosestEditableBlock(range.startContainer);
+        if (!block) {
+            return null;
+        }
+
+        const blockRange = this.document.createRange();
+        blockRange.setStart(block, 0);
+        blockRange.setEnd(range.startContainer, range.startOffset);
+        const blockText = blockRange.toString();
+        const blockPattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
+        return blockText.match(blockPattern);
+    }
+
     onMentionSelect(item: MentionItem | TagItem): void {
         this.flushPendingHistoryPush();
         const trigger = this.mentionType() === 'mention' ? '@' : '#';
@@ -1549,6 +1835,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         this.syncContentFromEditor();
         this.closeMentionPopover();
+        this.closeSlashCommandPopover();
         this.pushHistory();
         this.focusEditor();
     }
@@ -1556,6 +1843,41 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     closeMentionPopover(): void {
         this.mentionPopoverOpen.set(false);
         this.mentionQuery.set('');
+    }
+
+    async onSlashCommandSelect(command: RichTextSlashCommand): Promise<void> {
+        if (this.disabled() || this.readonly()) {
+            return;
+        }
+        this.flushPendingHistoryPush();
+        const query = this.slashQuery();
+        this.removeSlashTriggerText(query);
+        const slashBlock = this.getClosestEditableBlockForSlashCommand();
+        if (slashBlock) {
+            this.placeCaretAtEndOfBlock(slashBlock);
+        }
+        this.closeSlashCommandPopover();
+
+        const context: RichTextSlashCommandContext = {
+            query,
+            selectedText: this.selectedText(),
+            executeToolbarCommand: (toolbarCommand: string) => this.executeToolbarCommandFromSlash(toolbarCommand, slashBlock),
+            insertText: (text: string) => {
+                this.insertText(text);
+                this.pushHistory();
+            },
+            insertHtml: (html: string) => {
+                this.insertHtml(html);
+                this.pushHistory();
+            },
+            showLinkDialog: () => this.showLinkDialog(),
+            focusEditor: () => this.focusEditor(),
+        };
+
+        await Promise.resolve(command.run(context));
+        if (!this.isSelectionInsideEditor()) {
+            this.focusEditor();
+        }
     }
 
     private wrapSelectionWithTag(tagName: string): void {
@@ -1598,12 +1920,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() || '');
 
-        // Explicitly save the range for later restoration
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
         }
 
-        // Position popover near cursor
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
@@ -1899,6 +2219,433 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    private updateSlashCommandPopoverPosition(): void {
+        const selection = this.document.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            const editorRect = this.el.nativeElement.getBoundingClientRect();
+            const maxX = Math.max(0, editorRect.width - 320);
+            const maxY = Math.max(0, editorRect.height - 260);
+            const x = Math.max(0, Math.min(rect.left - editorRect.left, maxX));
+            const y = Math.max(0, Math.min(rect.bottom - editorRect.top + 8, maxY));
+
+            this.slashCommandPosition.set({
+                x,
+                y,
+            });
+        }
+    }
+
+    private onSlashCommandKeydown(event: KeyboardEvent): void {
+        const commands = this.filteredSlashCommands();
+        if (commands.length === 0) {
+            if (event.key === 'Escape' || event.key === 'Tab') {
+                this.closeSlashCommandPopover();
+            }
+            return;
+        }
+
+        const currentIndex = this.slashCommandSelectedIndex();
+        if (event.key === 'ArrowDown') {
+            this.slashCommandSelectedIndex.set(Math.min(currentIndex + 1, commands.length - 1));
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            this.slashCommandSelectedIndex.set(Math.max(currentIndex - 1, 0));
+            return;
+        }
+        if (event.key === 'Escape' || event.key === 'Tab') {
+            this.closeSlashCommandPopover();
+            return;
+        }
+        if (event.key === 'Enter') {
+            const selected = commands[currentIndex];
+            if (selected) {
+                void this.onSlashCommandSelect(selected);
+            }
+        }
+    }
+
+    private closeSlashCommandPopover(): void {
+        this.slashCommandOpen.set(false);
+        this.slashQuery.set('');
+        this.slashCommandSelectedIndex.set(0);
+        this.slashAnchorBlock = null;
+        this.slashTriggerRange = null;
+    }
+
+    private removeSlashTriggerText(query: string): void {
+        if (this.removeSlashTriggerTextFromRange(query, this.slashTriggerRange)) {
+            this.slashTriggerRange = null;
+            return;
+        }
+
+        if (this.removeSlashTriggerTextFromAnchorBlock(query, this.getClosestEditableBlockForSlashCommand())) {
+            return;
+        }
+
+        if (this.removeSlashTriggerTextFromAnchorBlock(query, this.slashAnchorBlock)) {
+            return;
+        }
+
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
+            return;
+        }
+
+        const triggerLength = query.length + 1;
+        const textNode = range.startContainer as Text;
+        const deleteStart = Math.max(0, range.startOffset - triggerLength);
+        const triggerText = textNode.data.slice(deleteStart, range.startOffset);
+        if (triggerText !== `/${query}`) {
+            return;
+        }
+
+        range.setStart(textNode, deleteStart);
+        range.deleteContents();
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        this.syncContentFromEditor();
+    }
+
+
+    private removeSlashTriggerTextFromRange(query: string, range: Range | null): boolean {
+        if (!range || range.startContainer.nodeType !== Node.TEXT_NODE) {
+            return false;
+        }
+        const selection = this.document.getSelection();
+        if (!selection) {
+            return false;
+        }
+
+        const workRange = range.cloneRange();
+        const triggerLength = query.length + 1;
+        const textNode = workRange.startContainer as Text;
+        const deleteStart = Math.max(0, workRange.startOffset - triggerLength);
+        const triggerText = textNode.data.slice(deleteStart, workRange.startOffset);
+        if (triggerText !== `/${query}`) {
+            return false;
+        }
+
+        workRange.setStart(textNode, deleteStart);
+        workRange.deleteContents();
+        workRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(workRange);
+        this.syncContentFromEditor();
+        return true;
+    }
+
+    private removeSlashTriggerTextFromAnchorBlock(query: string, anchorBlock: HTMLElement | null): boolean {
+        if (!anchorBlock) {
+            return false;
+        }
+        const editor = this.getEditorElement();
+        if (!editor || !editor.contains(anchorBlock)) {
+            return false;
+        }
+
+        const walker = this.document.createTreeWalker(anchorBlock, NodeFilter.SHOW_TEXT);
+        let candidateNode: Text | null = null;
+        let candidateIndex = -1;
+        const needle = `/${query}`;
+
+        while (walker.nextNode()) {
+            const textNode = walker.currentNode as Text;
+            const index = textNode.data.lastIndexOf(needle);
+            if (index >= 0) {
+                candidateNode = textNode;
+                candidateIndex = index;
+            }
+        }
+
+        if (!candidateNode || candidateIndex < 0) {
+            return false;
+        }
+
+        candidateNode.deleteData(candidateIndex, needle.length);
+        const selection = this.document.getSelection();
+        if (selection) {
+            const range = this.document.createRange();
+            range.setStart(candidateNode, candidateIndex);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        this.syncContentFromEditor();
+        return true;
+    }
+
+    private getClosestEditableBlockForSlashCommand(): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (editor && this.slashAnchorBlock && editor.contains(this.slashAnchorBlock)) {
+            return this.slashAnchorBlock;
+        }
+        const selection = this.document.getSelection();
+        if (selection && selection.rangeCount > 0 && editor) {
+            const range = selection.getRangeAt(0);
+            if (editor.contains(range.startContainer)) {
+                return this.findClosestEditableBlock(range.startContainer);
+            }
+        }
+        if (this.slashTriggerRange) {
+            return this.findClosestEditableBlock(this.slashTriggerRange.startContainer);
+        }
+        return null;
+    }
+
+    private getClosestEditableBlockFromSelection(): HTMLElement | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return null;
+        }
+        return this.findClosestEditableBlock(selection.getRangeAt(0).startContainer);
+    }
+
+    private findClosestEditableBlock(node: Node): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (!editor) {
+            return null;
+        }
+
+        let current: Node | null = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+        while (current && current !== editor) {
+            if (current.nodeType === Node.ELEMENT_NODE) {
+                const element = current as HTMLElement;
+                const tagName = element.tagName;
+                if (['P', 'DIV', 'H1', 'H2', 'H3', 'LI', 'BLOCKQUOTE', 'PRE'].includes(tagName)) {
+                    return element;
+                }
+            }
+            current = current.parentNode;
+        }
+        return this.resolveTopLevelEditorBlock(node, editor);
+    }
+
+    private resolveTopLevelEditorBlock(node: Node, editor: HTMLElement): HTMLElement | null {
+        if (node.nodeType === Node.TEXT_NODE && node.parentNode === editor) {
+            const wrapper = this.document.createElement('p');
+            editor.insertBefore(wrapper, node);
+            wrapper.appendChild(node);
+            return wrapper;
+        }
+
+        let current: Node | null = node;
+        while (current && current.parentNode && current.parentNode !== editor) {
+            current = current.parentNode;
+        }
+
+        if (current && current !== editor && current.nodeType === Node.ELEMENT_NODE) {
+            return current as HTMLElement;
+        }
+
+        if (editor.childNodes.length === 0) {
+            const paragraph = this.document.createElement('p');
+            paragraph.appendChild(this.document.createElement('br'));
+            editor.appendChild(paragraph);
+            return paragraph;
+        }
+
+        const firstElementChild = Array.from(editor.childNodes).find(child => child.nodeType === Node.ELEMENT_NODE);
+        if (firstElementChild) {
+            return firstElementChild as HTMLElement;
+        }
+        return null;
+    }
+
+    private placeCaretAtEndOfBlock(block: HTMLElement): void {
+        const selection = this.document.getSelection();
+        if (!selection) {
+            return;
+        }
+
+        if (this.isEmptyBlock(block)) {
+            while (block.firstChild) {
+                block.removeChild(block.firstChild);
+            }
+            block.appendChild(this.document.createTextNode('\u200B'));
+        }
+
+        let target: Node = block;
+        while (target.lastChild) {
+            target = target.lastChild;
+        }
+
+        const range = this.document.createRange();
+        if (target.nodeType === Node.TEXT_NODE) {
+            const text = target as Text;
+            range.setStart(text, text.length);
+        } else {
+            range.setStartAfter(target);
+        }
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    private executeToolbarCommandFromSlash(command: string, anchorBlock: HTMLElement | null): void {
+        if (command === 'code') {
+            this.insertInlineCodeFromSlash(anchorBlock);
+            return;
+        }
+
+        const transformed = anchorBlock ? this.transformBlockForSlashCommand(anchorBlock, command) : null;
+        if (transformed) {
+            this.placeCaretAtEndOfBlock(transformed);
+            this.applyMutation({ updateActiveFormats: true });
+            return;
+        }
+
+        if (anchorBlock) {
+            this.placeCaretAtEndOfBlock(anchorBlock);
+        }
+        this.onFormatCommand(command);
+    }
+
+    private transformBlockForSlashCommand(anchorBlock: HTMLElement, command: string): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (!editor || !editor.contains(anchorBlock) || anchorBlock === editor) {
+            return null;
+        }
+
+        if (command === 'bulletList') {
+            return this.wrapBlockInList(anchorBlock, 'ul');
+        }
+        if (command === 'orderedList') {
+            return this.wrapBlockInList(anchorBlock, 'ol');
+        }
+
+        const tagMap: Record<string, string> = {
+            paragraph: 'p',
+            heading1: 'h1',
+            heading2: 'h2',
+            heading3: 'h3',
+            blockquote: 'blockquote',
+        };
+        const nextTag = tagMap[command];
+        if (!nextTag) {
+            return null;
+        }
+        return this.replaceBlockTag(anchorBlock, nextTag);
+    }
+
+    private insertInlineCodeFromSlash(anchorBlock: HTMLElement | null): void {
+        if (anchorBlock) {
+            this.placeCaretAtEndOfBlock(anchorBlock);
+        }
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const code = this.document.createElement('code');
+        const textNode = this.document.createTextNode('\u200B');
+        const trailingNode = this.document.createTextNode('\u200B');
+        code.appendChild(textNode);
+        range.deleteContents();
+        range.insertNode(trailingNode);
+        range.insertNode(code);
+
+        const newRange = this.document.createRange();
+        newRange.setStart(textNode, 1);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        this.syncContentFromEditor();
+        this.updateActiveFormats();
+        this.pushHistory();
+    }
+
+    private replaceBlockTag(block: HTMLElement, targetTagName: string): HTMLElement {
+        const normalized = targetTagName.toUpperCase();
+        if (block.tagName === normalized) {
+            return block;
+        }
+
+        const replacement = this.document.createElement(targetTagName);
+        while (block.firstChild) {
+            replacement.appendChild(block.firstChild);
+        }
+        block.parentNode?.replaceChild(replacement, block);
+        return replacement;
+    }
+
+    private wrapBlockInList(block: HTMLElement, listTagName: 'ul' | 'ol'): HTMLElement {
+        if (block.tagName === 'LI') {
+            const parentList = block.parentElement;
+            if (parentList && (parentList.tagName === 'UL' || parentList.tagName === 'OL') && parentList.tagName.toLowerCase() !== listTagName) {
+                const replacementList = this.document.createElement(listTagName);
+                while (parentList.firstChild) {
+                    replacementList.appendChild(parentList.firstChild);
+                }
+                parentList.parentNode?.replaceChild(replacementList, parentList);
+            }
+            return block;
+        }
+
+        const list = this.document.createElement(listTagName);
+        const item = this.document.createElement('li');
+        while (block.firstChild) {
+            item.appendChild(block.firstChild);
+        }
+        if (this.isEmptyBlock(item)) {
+            item.innerHTML = '<br>';
+        }
+        list.appendChild(item);
+        block.parentNode?.replaceChild(list, block);
+        return item;
+    }
+
+    private isEmptyBlock(block: HTMLElement): boolean {
+        const text = (block.textContent ?? '').replace(/\u200B/g, '').trim();
+        if (text.length > 0) {
+            return false;
+        }
+        const nonEmptyElement = Array.from(block.children).find(child => child.tagName !== 'BR');
+        return !nonEmptyElement;
+    }
+
+    private captureSlashTriggerRange(): void {
+        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!selection || selection.rangeCount === 0 || !editor) {
+            this.slashTriggerRange = null;
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) {
+            this.slashTriggerRange = null;
+            return;
+        }
+        this.slashTriggerRange = range.cloneRange();
+    }
+
+    private buildTriggerAwareText(html: string): string {
+        const blockAware = html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n');
+        return this.sanitizer.stripTags(blockAware);
+    }
+
+    private isSelectionInsideEditor(): boolean {
+        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!selection || selection.rangeCount === 0 || !editor) {
+            return false;
+        }
+        const range = selection.getRangeAt(0);
+        return editor.contains(range.startContainer) && editor.contains(range.endContainer);
+    }
+
     private pushHistory(): void {
         const currentHtml = this.htmlContent();
         const lastEntry = this.history[this.history.length - 1];
@@ -2029,7 +2776,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             }
         };
 
-        // Delay slightly so dialog/popover internals finish initial focus handling first.
         setTimeout(() => tryFocus(0), 24);
     }
 
