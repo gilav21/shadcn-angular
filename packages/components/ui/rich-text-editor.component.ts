@@ -143,7 +143,7 @@ export const DEFAULT_SLASH_COMMANDS: RichTextSlashCommand[] = [
         id: 'format.bullet-list',
         label: 'Bullet List',
         description: 'Create a bulleted list',
-        keywords: ['list', 'ul'],
+        keywords: ['list', 'ul', 'bl'],
         order: 50,
         run: context => context.executeToolbarCommand('bulletList'),
     },
@@ -151,7 +151,7 @@ export const DEFAULT_SLASH_COMMANDS: RichTextSlashCommand[] = [
         id: 'format.numbered-list',
         label: 'Numbered List',
         description: 'Create an ordered list',
-        keywords: ['list', 'ol'],
+        keywords: ['list', 'ol', 'nl'],
         order: 60,
         run: context => context.executeToolbarCommand('orderedList'),
     },
@@ -522,7 +522,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           @if (filteredSlashCommands().length === 0) {
             <div class="px-3 py-2 text-sm text-muted-foreground">No commands found</div>
           } @else {
-            <div class="max-h-56 overflow-y-auto p-1">
+            <div #slashCommandList class="max-h-56 overflow-y-auto p-1">
               @for (command of filteredSlashCommands(); track command.id; let i = $index) {
                 <button
                   type="button"
@@ -530,6 +530,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                   [class.bg-accent]="i === slashCommandSelectedIndex()"
                   [class.text-accent-foreground]="i === slashCommandSelectedIndex()"
                   [attr.aria-selected]="i === slashCommandSelectedIndex()"
+                  [attr.data-slash-index]="i"
                   role="option"
                   (mousedown)="$event.preventDefault()"
                   (mouseenter)="slashCommandSelectedIndex.set(i)"
@@ -617,6 +618,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private readonly commandRegistry = inject(RichTextCommandRegistry);
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
+    @ViewChild('slashCommandList') slashCommandList?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
     mode = input<EditorMode>('markdown');
@@ -922,6 +924,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             if (currentIndex >= commands.length) {
                 this.slashCommandSelectedIndex.set(commands.length - 1);
             }
+        });
+
+        effect(() => {
+            if (!this.slashCommandOpen()) {
+                return;
+            }
+            const commands = this.filteredSlashCommands();
+            const currentIndex = this.slashCommandSelectedIndex();
+            if (commands.length === 0 || currentIndex < 0 || currentIndex >= commands.length) {
+                return;
+            }
+            queueMicrotask(() => this.scrollSelectedSlashCommandIntoView());
         });
     }
 
@@ -2331,6 +2345,28 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             if (selected) {
                 void this.onSlashCommandSelect(selected);
             }
+        }
+    }
+
+    private scrollSelectedSlashCommandIntoView(): void {
+        const list = this.slashCommandList?.nativeElement;
+        if (!list) {
+            return;
+        }
+
+        const selectedIndex = this.slashCommandSelectedIndex();
+        const selected = list.querySelector(`[data-slash-index="${selectedIndex}"]`) as HTMLElement | null;
+        if (!selected) {
+            return;
+        }
+
+        const listTop = list.scrollTop;
+        const listBottom = listTop + list.clientHeight;
+        const itemTop = selected.offsetTop;
+        const itemBottom = itemTop + selected.offsetHeight;
+
+        if (itemTop < listTop || itemBottom > listBottom) {
+            selected.scrollIntoView({ block: 'nearest' });
         }
     }
 
