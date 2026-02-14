@@ -1393,15 +1393,34 @@ export class AppComponent {
   richTextHtml = '';
   richTextShowHistoryButton = signal(true);
   sampleMentions: MentionItem[] = [
-    { id: '1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
-    { id: '2', value: 'jane.smith', label: 'Jane Smith', description: 'jane.smith@example.com' },
-    { id: '3', value: 'team_ops', label: 'Team Ops', description: 'ops@example.com' },
+    { id: 'button', value: 'button', label: 'Button', description: 'Inputs' },
+    { id: 'card', value: 'card', label: 'Card', description: 'Data Display' },
+    { id: 'dialog', value: 'dialog', label: 'Dialog', description: 'Overlay' },
+    { id: 'tabs', value: 'tabs', label: 'Tabs', description: 'Navigation' },
+    { id: 'timeline', value: 'timeline', label: 'Timeline', description: 'Data Display' },
+    { id: 'badge', value: 'badge', label: 'Badge', description: 'Data Display' },
   ];
   sampleTags: TagItem[] = [
-    { id: '1', value: 'angular.ui', label: 'Angular UI', color: '#dd0031' },
-    { id: '2', value: 'typescript-5', label: 'TypeScript 5', color: '#3178c6' },
-    { id: '3', value: 'release_2026', label: 'Release 2026', color: '#06b6d4' },
+    { id: '1', value: 'angular', label: 'Angular', color: '#dd0031' },
+    { id: '2', value: 'typescript', label: 'TypeScript', color: '#3178c6' },
+    { id: '3', value: 'tailwind', label: 'Tailwind', color: '#06b6d4' },
   ];
+
+  mentionRenderer = (item: MentionItem): HTMLElement => {
+    const link = document.createElement('a');
+    link.href = `/${item.value}`;
+    link.className = 'text-accent-foreground rounded px-1 no-underline hover:underline cursor-pointer';
+    link.textContent = `@${item.label}`;
+    return link;
+  };
+
+  tagRenderer = (item: TagItem): HTMLElement => {
+    const link = document.createElement('a');
+    link.href = '#';
+    link.className = 'text-accent-foreground rounded px-1 no-underline hover:underline cursor-pointer';
+    link.textContent = `#${item.label}`;
+    return link;
+  };
 
   codeBlockCSharp = `using System;
 

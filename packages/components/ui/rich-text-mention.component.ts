@@ -64,6 +64,7 @@ export interface TagItem {
                 [attr.data-index]="i"
                 [attr.aria-selected]="i === selectedIndex()"
                 role="option"
+                (mousedown)="$event.preventDefault()"
                 (click)="onItemClick(item)"
                 (mouseenter)="selectedIndex.set(i)"
               >

@@ -633,8 +633,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     readonly = input<boolean>(false);
     mentions = input<boolean>(false);
     mentionSource = input<Observable<MentionItem[]> | MentionItem[]>([]);
+    mentionRenderer = input<((item: MentionItem) => HTMLElement) | undefined>(undefined);
     tags = input<boolean>(false);
     tagSource = input<Observable<TagItem[]> | TagItem[]>([]);
+    tagRenderer = input<((item: TagItem) => HTMLElement) | undefined>(undefined);
     emojiPicker = input<boolean>(true);
     images = input<boolean>(true);
     imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
@@ -1453,18 +1455,24 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.readonly() || this.disabled()) return;
         this.flushPendingHistoryPush();
 
+        const mentionTargets = this.getMentionElementsInSelection();
+
         switch (command) {
             case 'bold':
                 this.document.execCommand('bold', false);
+                this.toggleMentionStyle(mentionTargets, 'fontWeight', 'bold', 'normal');
                 break;
             case 'italic':
                 this.document.execCommand('italic', false);
+                this.toggleMentionStyle(mentionTargets, 'fontStyle', 'italic', 'normal');
                 break;
             case 'underline':
                 this.document.execCommand('underline', false);
+                this.toggleMentionTextDecoration(mentionTargets, 'underline');
                 break;
             case 'strikethrough':
                 this.document.execCommand('strikeThrough', false);
+                this.toggleMentionTextDecoration(mentionTargets, 'line-through');
                 break;
             case 'heading1':
                 this.document.execCommand('formatBlock', false, '<h1>');
@@ -1498,6 +1506,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 break;
             case 'clear':
                 this.document.execCommand('removeFormat', false);
+                this.clearMentionStyles(mentionTargets);
                 break;
             case 'paragraph':
                 this.document.execCommand('formatBlock', false, '<p>');
@@ -1662,12 +1671,16 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.flushPendingHistoryPush();
         this.restoreSelection();
 
+        const mentionTargets = this.getMentionElementsInSelection();
+
         if (event.type === 'fontColor') {
             this.document.execCommand('foreColor', false, event.color);
+            this.setMentionStyle(mentionTargets, 'color', event.color);
         } else {
             if (!this.document.execCommand('hiliteColor', false, event.color)) {
                 this.document.execCommand('backColor', false, event.color);
             }
+            this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
         }
 
         this.applyMutation({ focus: true });
@@ -1676,6 +1689,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     onFontSizeSelect(size: string): void {
         this.flushPendingHistoryPush();
         this.restoreSelection();
+
+        const mentionTargets = this.getMentionElementsInSelection();
 
         this.document.execCommand('fontSize', false, '7');
         if (this.editorDiv?.nativeElement) {
@@ -1693,6 +1708,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 el.parentNode?.replaceChild(span, el);
             });
         }
+
+        const sizeVal = size.endsWith('px') ? size : `${size}px`;
+        this.setMentionStyle(mentionTargets, 'fontSize', sizeVal);
 
         this.syncContentFromEditor();
         this.focusEditor();
@@ -1839,30 +1857,95 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.flushPendingHistoryPush();
         const trigger = this.mentionType() === 'mention' ? '@' : '#';
 
-        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!editor) return;
+
+        this.focusEditor();
+        let selection = this.document.getSelection();
+
+        if (!selection || selection.rangeCount === 0 || !editor.contains(selection.getRangeAt(0).startContainer)) {
+            if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
+                selection = this.document.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                    selection.addRange(this.savedRange);
+                }
+            }
+        }
+
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const query = this.mentionQuery();
             const triggerLength = query.length + 1;
+            const triggerStr = trigger + query;
 
             if (range.startContainer.nodeType === Node.TEXT_NODE) {
                 const textNode = range.startContainer as Text;
                 const deleteStart = Math.max(0, range.startOffset - triggerLength);
                 range.setStart(textNode, deleteStart);
+            } else {
+                const container = range.startContainer;
+                const offset = range.startOffset;
+                let resolved = false;
+
+                if (offset > 0 && container.childNodes.length >= offset) {
+                    let node: Node | null = container.childNodes[offset - 1];
+                    while (node && !resolved) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            const text = node as Text;
+                            if (text.data.endsWith(triggerStr)) {
+                                range.setStart(text, text.length - triggerLength);
+                                range.setEnd(text, text.length);
+                                resolved = true;
+                            }
+                            break;
+                        }
+                        node = node.lastChild;
+                    }
+                }
+
+                if (!resolved) {
+                    const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+                    while (walker.nextNode()) {
+                        const text = walker.currentNode as Text;
+                        const idx = text.data.lastIndexOf(triggerStr);
+                        if (idx !== -1) {
+                            range.setStart(text, idx);
+                            range.setEnd(text, idx + triggerStr.length);
+                            break;
+                        }
+                    }
+                }
             }
             range.deleteContents();
 
-            const wrapper = this.document.createElement('span');
-            wrapper.className = 'bg-accent text-accent-foreground rounded px-1';
-            wrapper.setAttribute('contenteditable', 'false');
-            if (this.mentionType() === 'mention') {
-                wrapper.setAttribute('data-mention', item.value);
-                wrapper.setAttribute('data-mention-id', item.id ?? item.value);
+            let wrapper: HTMLElement;
+            const isMention = this.mentionType() === 'mention';
+            const customRenderer = isMention ? this.mentionRenderer() : this.tagRenderer();
+
+            if (customRenderer) {
+                wrapper = customRenderer(item as MentionItem & TagItem);
+                wrapper.setAttribute('contenteditable', 'false');
+                if (isMention) {
+                    wrapper.setAttribute('data-mention', item.value);
+                    wrapper.setAttribute('data-mention-id', item.id ?? item.value);
+                } else {
+                    wrapper.setAttribute('data-tag', item.value);
+                    wrapper.setAttribute('data-tag-id', item.id ?? item.value);
+                }
             } else {
-                wrapper.setAttribute('data-tag', item.value);
-                wrapper.setAttribute('data-tag-id', item.id ?? item.value);
+                wrapper = this.document.createElement('span');
+                wrapper.className = 'bg-accent text-accent-foreground rounded px-1';
+                wrapper.setAttribute('contenteditable', 'false');
+                if (isMention) {
+                    wrapper.setAttribute('data-mention', item.value);
+                    wrapper.setAttribute('data-mention-id', item.id ?? item.value);
+                } else {
+                    wrapper.setAttribute('data-tag', item.value);
+                    wrapper.setAttribute('data-tag-id', item.id ?? item.value);
+                }
+                wrapper.textContent = `${trigger}${item.label}`;
             }
-            wrapper.textContent = `${trigger}${item.label}`;
 
             const trailingSpace = this.document.createTextNode('\u00A0');
             range.insertNode(trailingSpace);
@@ -2213,6 +2296,60 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 ? this.markdownService.toMarkdown(html)
                 : html;
             this.onChange(outputValue);
+        }
+    }
+
+    private getMentionElementsInSelection(): HTMLElement[] {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return [];
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return [];
+
+        const mentionElements = editor.querySelectorAll<HTMLElement>('[data-mention], [data-tag]');
+        const result: HTMLElement[] = [];
+
+        mentionElements.forEach(el => {
+            if (selection.containsNode(el, true)) {
+                result.push(el);
+            }
+        });
+
+        return result;
+    }
+
+    private toggleMentionStyle(elements: HTMLElement[], prop: 'fontWeight' | 'fontStyle', onValue: string, offValue: string): void {
+        for (const el of elements) {
+            el.style[prop] = el.style[prop] === onValue ? offValue : onValue;
+        }
+    }
+
+    private toggleMentionTextDecoration(elements: HTMLElement[], decoration: string): void {
+        for (const el of elements) {
+            const current = el.style.textDecoration || '';
+            if (current.includes(decoration)) {
+                el.style.textDecoration = current.replace(decoration, '').trim() || '';
+            } else {
+                el.style.textDecoration = (current + ' ' + decoration).trim();
+            }
+        }
+    }
+
+    private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize', value: string): void {
+        for (const el of elements) {
+            el.style[prop] = value;
+        }
+    }
+
+    private clearMentionStyles(elements: HTMLElement[]): void {
+        for (const el of elements) {
+            el.style.fontWeight = '';
+            el.style.fontStyle = '';
+            el.style.textDecoration = '';
+            el.style.color = '';
+            el.style.backgroundColor = '';
+            el.style.fontSize = '';
         }
     }
 
