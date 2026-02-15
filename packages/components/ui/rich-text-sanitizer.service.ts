@@ -36,7 +36,7 @@ export class RichTextSanitizerService {
     // Allowlisted attributes per element
     private readonly ALLOWED_ATTRS: Record<string, Set<string>> = {
         'a': new Set(['href', 'title', 'target', 'rel']),
-        'img': new Set(['src', 'alt', 'width', 'height', 'title']),
+        'img': new Set(['src', 'alt', 'width', 'height', 'title', 'data-align']),
         'td': new Set(['colspan', 'rowspan']),
         'th': new Set(['colspan', 'rowspan', 'scope']),
         'pre': new Set(['data-language']),
@@ -54,6 +54,21 @@ export class RichTextSanitizerService {
         'width', 'height',
         'min-width', 'max-width',
         'min-height', 'max-height',
+        // Paste fidelity
+        'font-weight',
+        'font-style',
+        'text-decoration',
+        'vertical-align',
+        'padding-left',
+        'margin-left',
+        'list-style-type',
+        // Image alignment
+        'display',
+        'float',
+        'margin',
+        'margin-right',
+        'margin-top',
+        'margin-bottom',
     ]);
 
     // Allowed class patterns (for syntax highlighting)

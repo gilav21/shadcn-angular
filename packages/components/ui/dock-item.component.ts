@@ -1,22 +1,20 @@
 import {
     Component,
+    ChangeDetectionStrategy,
     computed,
     ElementRef,
     inject,
     input,
     signal,
-    ViewChild,
     Renderer2
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
 import { cn } from '../lib/utils';
 
 @Component({
     selector: 'ui-dock-item',
-    standalone: true,
-    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <div #ref class="aspect-square w-full h-full flex items-center justify-center relative">
+    <div [attr.data-slot]="'dock-item'" class="aspect-square w-full h-full flex items-center justify-center relative">
       <ng-content />
       @if (active()) {
         <div class="absolute -bottom-1 w-1 h-1 rounded-full bg-foreground/50"></div>
@@ -30,13 +28,11 @@ import { cn } from '../lib/utils';
 })
 export class DockItemComponent {
     private el = inject(ElementRef);
-
-    class = input<string>('');
-    active = input<boolean>(false);
-
     private _renderer = inject(Renderer2);
 
-    // Bounce animation state
+    class = input('');
+    active = input<boolean>(false);
+
     isBouncing = signal(false);
 
     classes = computed(() => cn(
@@ -48,14 +44,14 @@ export class DockItemComponent {
     startBounce() {
         if (this.isBouncing()) return;
         this.isBouncing.set(true);
-        setTimeout(() => this.isBouncing.set(false), 750); // Duration of roughly one bounce cycle
+        setTimeout(() => this.isBouncing.set(false), 750);
     }
 
-    public updateWidth(width: number) {
+    updateWidth(width: number) {
         this._renderer.setStyle(this.el.nativeElement, 'width', `${width}px`);
     }
 
-    public getCenter(): number {
+    getCenter(): number {
         const bounds = this.el.nativeElement.getBoundingClientRect();
         return bounds.x + bounds.width / 2;
     }

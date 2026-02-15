@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ToggleGroupComponent, ToggleGroupItemComponent } from './toggle-group.component';
+import { ToggleGroupComponent, ToggleGroupItemComponent, ToggleGroupItem } from './toggle-group.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -103,6 +103,141 @@ describe('ToggleGroupComponent', () => {
         const item = fixture.debugElement.query(By.css('[data-slot="toggle-group-item"]'));
         expect(item.nativeElement.className).toContain('border'); // outline
         expect(item.nativeElement.className).toContain('h-8'); // sm
+    });
+});
+
+@Component({
+    template: `
+      <ui-toggle-group
+        [type]="type()"
+        [items]="items()"
+        [variant]="variant()"
+        [size]="size()"
+        [defaultValue]="defaultValue()"
+        [disabled]="disabled()"
+      />
+    `,
+    imports: [ToggleGroupComponent]
+})
+class DataDrivenTestHost {
+    type = signal<'single' | 'multiple'>('single');
+    variant = signal<'default' | 'outline'>('default');
+    size = signal<'default' | 'sm' | 'lg'>('default');
+    defaultValue = signal<string | string[] | undefined>(undefined);
+    disabled = signal(false);
+    items = signal<ToggleGroupItem[]>([
+        { value: 'bold', label: 'B' },
+        { value: 'italic', label: 'I' },
+        { value: 'underline', label: 'U' },
+    ]);
+}
+
+describe('ToggleGroup Data-Driven Mode', () => {
+    let fixture: ComponentFixture<DataDrivenTestHost>;
+    let component: DataDrivenTestHost;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataDrivenTestHost]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataDrivenTestHost);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should render items from the items input', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
+        expect(items.length).toBe(3);
+        expect(items[0].nativeElement.textContent.trim()).toBe('B');
+        expect(items[1].nativeElement.textContent.trim()).toBe('I');
+        expect(items[2].nativeElement.textContent.trim()).toBe('U');
+    });
+
+    it('should handle single selection in data-driven mode', () => {
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
+
+        items[0].nativeElement.click();
+        fixture.detectChanges();
+        expect(items[0].nativeElement.getAttribute('aria-pressed')).toBe('true');
+
+        items[1].nativeElement.click();
+        fixture.detectChanges();
+        expect(items[0].nativeElement.getAttribute('aria-pressed')).toBe('false');
+        expect(items[1].nativeElement.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('should handle multiple selection in data-driven mode', () => {
+        component.type.set('multiple');
+        fixture.detectChanges();
+
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
+
+        items[0].nativeElement.click();
+        items[1].nativeElement.click();
+        fixture.detectChanges();
+
+        expect(items[0].nativeElement.getAttribute('aria-pressed')).toBe('true');
+        expect(items[1].nativeElement.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('should apply variant and size in data-driven mode', () => {
+        component.variant.set('outline');
+        component.size.set('sm');
+        fixture.detectChanges();
+
+        const item = fixture.debugElement.query(By.css('[data-slot="toggle-group-item"]'));
+        expect(item.nativeElement.className).toContain('border');
+        expect(item.nativeElement.className).toContain('h-8');
+    });
+
+    it('should respect defaultValue in data-driven mode', () => {
+        component.defaultValue.set('italic');
+        fixture.destroy();
+
+        fixture = TestBed.createComponent(DataDrivenTestHost);
+        fixture.componentInstance.defaultValue.set('italic');
+        fixture.componentInstance.items.set([
+            { value: 'bold', label: 'B' },
+            { value: 'italic', label: 'I' },
+        ]);
+        fixture.detectChanges();
+
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
+        expect(items[1].nativeElement.getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('should respect disabled on individual items', () => {
+        component.items.set([
+            { value: 'bold', label: 'B' },
+            { value: 'italic', label: 'I', disabled: true },
+        ]);
+        fixture.detectChanges();
+
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
+        expect(items[1].nativeElement.disabled).toBe(true);
+    });
+
+    it('should use value as label when label is not provided', () => {
+        component.items.set([
+            { value: 'bold' },
+            { value: 'italic' },
+        ]);
+        fixture.detectChanges();
+
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
+        expect(items[0].nativeElement.textContent.trim()).toBe('bold');
+        expect(items[1].nativeElement.textContent.trim()).toBe('italic');
+    });
+
+    it('should disable all items when group is disabled', () => {
+        component.disabled.set(true);
+        fixture.detectChanges();
+
+        const items = fixture.debugElement.queryAll(By.css('[data-slot="toggle-group-item"]'));
+        items.forEach(item => {
+            expect(item.nativeElement.disabled).toBe(true);
+        });
     });
 });
 

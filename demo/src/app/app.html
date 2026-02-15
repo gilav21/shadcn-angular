@@ -38,6 +38,17 @@
         {{ activeComponent() | titlecase }}
       </span>
       <div class="ml-auto flex items-center gap-2">
+        <ui-button variant="ghost" size="icon" (click)="showShortcutBindingsDialog.set(true)">
+          <span class="sr-only">Keyboard Shortcuts</span>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
+            stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="5" width="18" height="14" rx="2"></rect>
+            <path d="M7 10h.01"></path>
+            <path d="M11 10h.01"></path>
+            <path d="M15 10h.01"></path>
+            <path d="M7 14h10"></path>
+          </svg>
+        </ui-button>
         <ui-button variant="ghost" size="icon" (click)="showCommandDialog.set(true)">
           <span class="sr-only">Search</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
@@ -161,17 +172,45 @@
           <!-- With Mentions & Tags -->
           <div class="space-y-2">
             <h3 class="text-lg font-medium">With Mentions & Tags</h3>
-            <p class="text-sm text-muted-foreground">Type @ to mention someone or # to add a tag</p>
+            <p class="text-sm text-muted-foreground">Type @button or #angular to trigger autocomplete — mentions link to components, tags link to #</p>
             <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
-              [tags]="true" [tagSource]="sampleTags" placeholder="Type @john or #angular to see autocomplete..."
+              [mentionRenderer]="mentionRenderer"
+              [tags]="true" [tagSource]="sampleTags"
+              [tagRenderer]="tagRenderer"
+              placeholder="Type @button, @card, #angular, #typescript..."
               minHeight="120px" />
           </div>
 
-          <!-- Character Count -->
+          <!-- Character + Word Count -->
           <div class="space-y-2">
-            <h3 class="text-lg font-medium">With Character Count</h3>
-            <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true" [maxLength]="20"
-              placeholder="Type to see the character count below... (Max 20 chars)" minHeight="100px" />
+            <h3 class="text-lg font-medium">With Character and Word Count</h3>
+            <ui-rich-text-editor mode="markdown" toolbar="top" [showCount]="true" [showWordCount]="true"
+              [maxLength]="120" placeholder="Type to see char + word counts below... (Max 120 chars)"
+              minHeight="100px" />
+          </div>
+
+          <!-- Advanced Config -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Advanced Config (History + Limits)</h3>
+            <p class="text-sm text-muted-foreground">Click a revision to quick-apply, or use Preview for full-screen view. Shortcut: Ctrl/Cmd + Shift + H</p>
+            <div class="flex items-center gap-2">
+              <ui-switch
+                id="richTextShowHistoryButton"
+                [checked]="richTextShowHistoryButton()"
+                (checkedChange)="richTextShowHistoryButton.set($event)"
+              />
+              <label for="richTextShowHistoryButton" class="text-sm font-medium">Show History Button</label>
+            </div>
+            @if (!richTextShowHistoryButton()) {
+              <p class="text-xs text-muted-foreground">History button hidden. Use Ctrl/Cmd + Shift + H to open history browser.</p>
+            }
+            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
+              [mentionRenderer]="mentionRenderer"
+              [tags]="true" [tagSource]="sampleTags" [tagRenderer]="tagRenderer"
+              [showCount]="true" [showWordCount]="true" [maxLength]="220"
+              [historyLimit]="180" [showHistoryPanel]="true" [showHistoryButton]="richTextShowHistoryButton()"
+              [historyDebounceMs]="500"
+              placeholder="Compose a longer note and test undo/redo behavior..." minHeight="160px" />
           </div>
 
           <!-- HTML Mode -->
@@ -4202,3 +4241,5 @@
     }
   </ui-command-list>
 </ui-command-dialog>
+
+<ui-shortcut-bindings-dialog [(open)]="showShortcutBindingsDialog" />

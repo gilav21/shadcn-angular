@@ -6,6 +6,11 @@ export interface ComponentDefinition {
   files: string[]; // Relative paths to component files
   dependencies?: string[]; // Other components this depends on
   npmDependencies?: string[]; // NPM packages this depends on
+  shortcutDefinitions?: {
+    exportName: string;
+    componentName: string;
+    sourceFile: string;
+  }[];
 }
 
 export type ComponentName = keyof typeof registry;
@@ -89,6 +94,13 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'command',
     files: ['command.component.ts'],
     dependencies: ['dialog'],
+    shortcutDefinitions: [
+      {
+        exportName: 'COMMAND_DIALOG_SHORTCUT_DEFINITIONS',
+        componentName: 'command-dialog',
+        sourceFile: 'command.component.ts',
+      },
+    ],
   },
   'context-menu': {
     name: 'context-menu',
@@ -373,6 +385,13 @@ export const registry: Record<string, ComponentDefinition> = {
       'select',
       'input',
       'scroll-area',
+    ],
+    shortcutDefinitions: [
+      {
+        exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
+        componentName: 'rich-text-editor',
+        sourceFile: 'rich-text-editor.component.ts',
+      },
     ],
   },
   // Chart Components

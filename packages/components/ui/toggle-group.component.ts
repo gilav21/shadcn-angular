@@ -12,6 +12,13 @@ import {
 import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
+export interface ToggleGroupItem {
+    value: string;
+    label?: string;
+    icon?: string;
+    disabled?: boolean;
+}
+
 const toggleVariants = cva(
     'inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium hover:bg-muted hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] whitespace-nowrap',
     {
@@ -43,15 +50,28 @@ export const TOGGLE_GROUP = new InjectionToken<ToggleGroupComponent>('TOGGLE_GRO
 @Component({
     selector: 'ui-toggle-group',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [forwardRef(() => ToggleGroupItemComponent)],
     template: `
-    <div 
-      [class]="classes()" 
+    <div
+      [class]="classes()"
       [attr.data-slot]="'toggle-group'"
       [attr.data-variant]="variant()"
       [attr.data-size]="size()"
       role="group"
     >
-      <ng-content />
+      @if (isDataDriven()) {
+        @for (item of items(); track item.value) {
+          <ui-toggle-group-item
+            [value]="item.value"
+            [disabled]="item.disabled ?? false"
+            [ariaLabel]="item.label"
+          >
+            {{ item.label ?? item.value }}
+          </ui-toggle-group-item>
+        }
+      } @else {
+        <ng-content />
+      }
     </div>
   `,
     host: { class: 'contents' },
@@ -64,7 +84,10 @@ export class ToggleGroupComponent {
     disabled = input(false);
     defaultValue = input<string | string[] | undefined>(undefined);
     class = input('');
+    items = input<ToggleGroupItem[]>([]);
     valueChange = output<string | string[]>();
+
+    readonly isDataDriven = computed(() => this.items().length > 0);
 
     value = signal<string[]>([]);
 

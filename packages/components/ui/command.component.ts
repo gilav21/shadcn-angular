@@ -17,6 +17,17 @@ import {
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { DialogComponent, DialogContentComponent } from './dialog.component';
+import { ShortcutBindingService, ShortcutComponentHandle } from '../lib/shortcut-binding.service';
+
+export const COMMAND_DIALOG_SHORTCUT_DEFINITIONS = [
+  {
+    actionId: 'command-dialog.toggle',
+    description: 'Toggle command dialog',
+    defaultShortcut: 'Mod+K',
+    category: 'Navigation',
+    scope: 'global' as const,
+  },
+];
 
 @Injectable({
   providedIn: 'root'
@@ -431,8 +442,14 @@ export class CommandShortcutComponent { }
 })
 export class CommandDialogComponent {
   open = model(false);
+  shortcutEnabled = input(true);
+  shortcut = input('Mod+K');
+  shortcutActionId = input('command-dialog.toggle');
+  shortcutCategory = input('Navigation');
 
   commandInput = contentChild(CommandInputComponent);
+  private readonly shortcutBindings = inject(ShortcutBindingService);
+  private shortcutHandle: ShortcutComponentHandle | null = null;
 
   constructor() {
     effect(() => {
@@ -442,5 +459,40 @@ export class CommandDialogComponent {
         });
       }
     });
+
+    effect(() => {
+      const enabled = this.shortcutEnabled();
+      const shortcut = this.shortcut();
+      const actionId = this.shortcutActionId();
+      const category = this.shortcutCategory();
+      this.shortcutHandle?.unregister();
+      this.shortcutHandle = null;
+
+      if (!enabled || !shortcut.trim() || !actionId.trim()) {
+        return;
+      }
+
+      this.shortcutBindings.defineShortcuts('command-dialog', [{
+        actionId,
+        description: 'Toggle command dialog',
+        defaultShortcut: shortcut,
+        category,
+        scope: 'global',
+      }]);
+
+      this.shortcutHandle = this.shortcutBindings.registerComponent('command-dialog', [{
+        actionId,
+        description: 'Toggle command dialog',
+        defaultShortcut: shortcut,
+        category,
+        scope: 'global',
+        handler: () => this.open.update(v => !v),
+      }]);
+    }, { allowSignalWrites: true });
+  }
+
+  ngOnDestroy(): void {
+    this.shortcutHandle?.unregister();
+    this.shortcutHandle = null;
   }
 }

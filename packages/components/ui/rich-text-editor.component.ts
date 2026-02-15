@@ -12,13 +12,16 @@ import {
     forwardRef,
     effect,
     AfterViewInit,
+    OnDestroy,
+    model,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { DOCUMENT } from '@angular/common';
+import { DOCUMENT, DatePipe } from '@angular/common';
 import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
+import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { Observable, isObservable, of, Subject, firstValueFrom } from 'rxjs';
 import { debounceTime, switchMap, catchError, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -26,6 +29,23 @@ import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.compo
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
 import { ButtonComponent } from './button.component';
+import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
+import {
+    DialogComponent,
+    DialogContentComponent,
+    DialogHeaderComponent,
+    DialogTitleComponent,
+    DialogDescriptionComponent,
+    DialogFooterComponent,
+} from './dialog.component';
+import { ScrollAreaComponent } from './scroll-area.component';
+import { ShortcutBindingService, ShortcutComponentHandle } from '../lib/shortcut-binding.service';
+import {
+    RichTextCommandRegistry,
+    RichTextSlashCommand,
+    RichTextSlashCommandAvailabilityContext,
+    RichTextSlashCommandContext,
+} from './rich-text-command-registry.service';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -55,8 +75,18 @@ export type ToolbarPosition = 'top' | 'floating' | 'none';
 
 interface HistoryEntry {
     html: string;
-    selectionStart: number;
-    selectionEnd: number;
+    selection: SerializedSelection | null;
+    timestamp: number;
+    preview: string;
+    previewLines: string[];
+    lineCount: number;
+}
+
+interface SerializedSelection {
+    startPath: number[];
+    startOffset: number;
+    endPath: number[];
+    endOffset: number;
 }
 
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
@@ -77,14 +107,135 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'clear',
 ];
 
+export const DEFAULT_SLASH_COMMANDS: RichTextSlashCommand[] = [
+    {
+        id: 'format.paragraph',
+        label: 'Paragraph',
+        description: 'Switch to paragraph text',
+        keywords: ['text', 'normal'],
+        order: 10,
+        run: context => context.executeToolbarCommand('paragraph'),
+    },
+    {
+        id: 'format.heading-1',
+        label: 'Heading 1',
+        description: 'Large section heading',
+        keywords: ['h1', 'title'],
+        order: 20,
+        run: context => context.executeToolbarCommand('heading1'),
+    },
+    {
+        id: 'format.heading-2',
+        label: 'Heading 2',
+        description: 'Medium section heading',
+        keywords: ['h2', 'subtitle'],
+        order: 30,
+        run: context => context.executeToolbarCommand('heading2'),
+    },
+    {
+        id: 'format.heading-3',
+        label: 'Heading 3',
+        description: 'Small section heading',
+        keywords: ['h3'],
+        order: 40,
+        run: context => context.executeToolbarCommand('heading3'),
+    },
+    {
+        id: 'format.bullet-list',
+        label: 'Bullet List',
+        description: 'Create a bulleted list',
+        keywords: ['list', 'ul', 'bl'],
+        order: 50,
+        run: context => context.executeToolbarCommand('bulletList'),
+    },
+    {
+        id: 'format.numbered-list',
+        label: 'Numbered List',
+        description: 'Create an ordered list',
+        keywords: ['list', 'ol', 'nl'],
+        order: 60,
+        run: context => context.executeToolbarCommand('orderedList'),
+    },
+    {
+        id: 'format.quote',
+        label: 'Block Quote',
+        description: 'Insert a block quote',
+        keywords: ['blockquote', 'quote'],
+        order: 70,
+        run: context => context.executeToolbarCommand('blockquote'),
+    },
+    {
+        id: 'format.inline-code',
+        label: 'Inline Code',
+        description: 'Wrap selection in inline code',
+        keywords: ['code'],
+        order: 80,
+        run: context => context.executeToolbarCommand('code'),
+    },
+    {
+        id: 'format.code-block',
+        label: 'Code Block',
+        description: 'Insert a code block',
+        keywords: ['pre', 'snippet'],
+        order: 90,
+        run: context => context.executeToolbarCommand('codeBlock'),
+    },
+    {
+        id: 'insert.link',
+        label: 'Link',
+        description: 'Insert or edit a link',
+        keywords: ['url', 'anchor'],
+        order: 100,
+        run: context => context.showLinkDialog(),
+    },
+    {
+        id: 'history.undo',
+        label: 'Undo',
+        description: 'Undo last change',
+        keywords: ['ctrl+z', 'revert'],
+        order: 110,
+        run: context => context.executeToolbarCommand('undo'),
+    },
+    {
+        id: 'history.redo',
+        label: 'Redo',
+        description: 'Redo last undone change',
+        keywords: ['ctrl+y', 'ctrl+shift+z'],
+        order: 120,
+        run: context => context.executeToolbarCommand('redo'),
+    },
+];
+
+export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
+    { actionId: 'rich-text.bold', description: 'Toggle bold', defaultShortcut: 'Mod+B', category: 'Formatting' },
+    { actionId: 'rich-text.italic', description: 'Toggle italic', defaultShortcut: 'Mod+I', category: 'Formatting' },
+    { actionId: 'rich-text.underline', description: 'Toggle underline', defaultShortcut: 'Mod+U', category: 'Formatting' },
+    { actionId: 'rich-text.link', description: 'Insert link', defaultShortcut: 'Mod+K', category: 'Insert' },
+    { actionId: 'rich-text.undo', description: 'Undo', defaultShortcut: 'Mod+Z', category: 'History' },
+    { actionId: 'rich-text.redo', description: 'Redo', defaultShortcut: 'Mod+Shift+Z', category: 'History' },
+    { actionId: 'rich-text.redo.alt', description: 'Redo (alternate)', defaultShortcut: 'Mod+Y', category: 'History' },
+    { actionId: 'rich-text.history', description: 'Open revision history', defaultShortcut: 'Mod+Shift+H', category: 'History' },
+];
+
 @Component({
     selector: 'ui-rich-text-editor',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        DatePipe,
         RichTextToolbarComponent,
         RichTextMentionPopoverComponent,
         RichTextImageResizerComponent,
         ButtonComponent,
+        PopoverComponent,
+        PopoverTriggerComponent,
+        PopoverContentComponent,
+        DialogComponent,
+        DialogContentComponent,
+        DialogHeaderComponent,
+        DialogTitleComponent,
+        DialogDescriptionComponent,
+        DialogFooterComponent,
+        ScrollAreaComponent,
     ],
     providers: [
         {
@@ -111,6 +262,183 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     }
 
     <div [class]="editorContainerClasses()">
+      @if (showHistoryPanel() && !readonly() && showHistoryButton()) {
+        <div #historyShortcutAnchor class="absolute top-2 z-30 ltr:right-2 rtl:left-2">
+          <ui-popover
+            [open]="historyPanelOpen()"
+            (openChange)="onHistoryPanelOpenChange($event)"
+          >
+            <ui-popover-trigger>
+              <ui-button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="h-8 px-2.5 text-xs"
+                [disabled]="disabled()"
+                [attr.title]="'Ctrl/Cmd + Shift + H'"
+                aria-label="Open revision history (Ctrl or Command + Shift + H)"
+              >
+                History ({{ historyCount() }})
+              </ui-button>
+            </ui-popover-trigger>
+            <ui-popover-content class="w-80 p-0" align="end" side="bottom" [restoreFocus]="false">
+              <div class="flex items-center justify-between border-b px-3 py-2">
+                <div class="text-sm font-medium">Revision History</div>
+                <ui-button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  class="h-7 w-7 p-0"
+                  (click)="historyPanelOpen.set(false)"
+                  aria-label="Close revision history"
+                >
+                  <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                  <span class="sr-only">Close</span>
+                </ui-button>
+              </div>
+              <ui-scroll-area [class]="'h-72 p-2'">
+                <div class="space-y-1 pr-2" data-history-list="popover">
+                  @for (entry of historyTimelineEntries(); track entry.index) {
+                    <div
+                      role="button"
+                      tabindex="0"
+                      class="w-full rounded-md border px-2 py-2 text-left transition-colors hover:bg-accent/60"
+                      [class.bg-accent]="entry.active"
+                      [class.border-primary/40]="entry.active"
+                      [class.border-border]="!entry.active"
+                      [attr.data-history-entry-action]="'true'"
+                      [attr.data-history-entry-index]="entry.index"
+                      [attr.aria-label]="'Apply revision ' + (entry.index + 1)"
+                      (click)="onQuickApplyFromHistory(entry.index, $event)"
+                      (keydown)="onHistoryEntryKeydown($event, entry.index)"
+                    >
+                      <div class="flex items-center justify-between gap-2">
+                        <span class="text-xs font-medium">Revision {{ entry.index + 1 }}</span>
+                        <div class="flex items-center gap-2">
+                          @if (lastAppliedHistoryIndex() === entry.index) {
+                            <span class="text-[11px] text-primary/90 font-medium">Applied</span>
+                          }
+                          <span class="text-[11px] text-muted-foreground">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
+                          <ui-button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            class="h-6 px-2 text-[11px]"
+                            (click)="openHistoryPreview(entry.index, $event)"
+                          >
+                            Preview
+                          </ui-button>
+                        </div>
+                      </div>
+                      <div class="mt-1 space-y-0.5">
+                        @for (line of entry.previewLines; track $index) {
+                          <p class="text-xs text-muted-foreground leading-4 truncate">{{ line }}</p>
+                        }
+                        @if (entry.lineCount > entry.previewLines.length) {
+                          <p class="text-[11px] text-muted-foreground/80">+{{ entry.lineCount - entry.previewLines.length }} more lines</p>
+                        }
+                      </div>
+                    </div>
+                  }
+                </div>
+              </ui-scroll-area>
+            </ui-popover-content>
+          </ui-popover>
+        </div>
+      }
+
+      <ui-dialog [(open)]="historyPreviewOpen">
+        <ui-dialog-content class="max-w-3xl p-0 overflow-hidden">
+          @if (selectedHistoryEntry(); as selected) {
+            <ui-dialog-header class="px-5 pt-5 pb-3 border-b">
+              <ui-dialog-title>Revision {{ selected.index + 1 }}</ui-dialog-title>
+              <ui-dialog-description>
+                Captured at {{ selected.timestamp | date:'MMM d, y, HH:mm:ss' }}
+              </ui-dialog-description>
+            </ui-dialog-header>
+
+            <ui-scroll-area [class]="'h-[70vh] px-5 py-4'">
+              <div class="space-y-4 pr-3">
+                <div class="rounded-md border bg-muted/20">
+                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">Rendered Preview</div>
+                  <div class="p-3 prose prose-sm dark:prose-invert max-w-none [&_*]:break-words" [innerHTML]="selected.html"></div>
+                </div>
+
+                <div class="rounded-md border">
+                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">Markdown Snapshot</div>
+                  <pre class="p-3 text-xs whitespace-pre-wrap break-words">{{ selectedHistoryEntryMarkdown() }}</pre>
+                </div>
+              </div>
+            </ui-scroll-area>
+
+            <ui-dialog-footer class="px-5 py-4 border-t">
+              <ui-button variant="outline" (click)="historyPreviewOpen.set(false)">Cancel</ui-button>
+              <ui-button (click)="restoreFromHistoryPreview()">Restore This Revision</ui-button>
+            </ui-dialog-footer>
+          }
+        </ui-dialog-content>
+      </ui-dialog>
+
+      <ui-dialog [(open)]="historyBrowserOpen">
+        <ui-dialog-content class="max-w-xl p-0 overflow-hidden">
+          <ui-dialog-header class="px-5 pt-5 pb-3 border-b">
+            <ui-dialog-title>Revision History</ui-dialog-title>
+            <ui-dialog-description>Use this browser when the history button is hidden.</ui-dialog-description>
+          </ui-dialog-header>
+          <ui-scroll-area [class]="'h-[60vh] px-4 py-3'">
+            <div class="space-y-2 pr-2" data-history-list="dialog">
+              @for (entry of historyTimelineEntries(); track entry.index) {
+                <div
+                  role="button"
+                  tabindex="0"
+                  class="w-full rounded-md border px-3 py-2 text-left transition-colors hover:bg-accent/60"
+                  [class.bg-accent]="entry.active"
+                  [class.border-primary/40]="entry.active"
+                  [class.border-border]="!entry.active"
+                  [attr.data-history-entry-action]="'true'"
+                  [attr.data-history-entry-index]="entry.index"
+                  [attr.aria-label]="'Apply revision ' + (entry.index + 1)"
+                  (click)="onQuickApplyFromHistory(entry.index, $event)"
+                  (keydown)="onHistoryEntryKeydown($event, entry.index)"
+                >
+                  <div class="flex items-center justify-between gap-2">
+                    <span class="text-xs font-medium">Revision {{ entry.index + 1 }}</span>
+                    <div class="flex items-center gap-2">
+                      @if (lastAppliedHistoryIndex() === entry.index) {
+                        <span class="text-[11px] text-primary/90 font-medium">Applied</span>
+                      }
+                      <span class="text-[11px] text-muted-foreground">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
+                      <ui-button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        class="h-6 px-2 text-[11px]"
+                        (click)="openHistoryPreview(entry.index, $event)"
+                      >
+                        Preview
+                      </ui-button>
+                    </div>
+                  </div>
+                  <div class="mt-1 space-y-0.5">
+                    @for (line of entry.previewLines; track $index) {
+                      <p class="text-xs text-muted-foreground leading-4 truncate">{{ line }}</p>
+                    }
+                    @if (entry.lineCount > entry.previewLines.length) {
+                      <p class="text-[11px] text-muted-foreground/80">+{{ entry.lineCount - entry.previewLines.length }} more lines</p>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </ui-scroll-area>
+          <ui-dialog-footer class="px-5 py-4 border-t">
+            <ui-button variant="outline" (click)="historyBrowserOpen.set(false)">Close</ui-button>
+          </ui-dialog-footer>
+        </ui-dialog-content>
+      </ui-dialog>
+
       <div
         #editorDiv
         [attr.contenteditable]="!disabled() && !readonly()"
@@ -147,16 +475,18 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         </div>
       }
 
-      <ui-rich-text-image-resizer 
-          [target]="selectedImage()" 
+      <ui-rich-text-image-resizer
+          [target]="selectedImage()"
           [container]="editorDiv"
-          (resizeEnd)="onImageResizeEnd()" 
+          (resizeEnd)="onImageResizeEnd()"
+          (alignmentChange)="onImageAlignmentChange()"
+          (imageRemove)="onImageRemove($event)"
       />
 
 
       @if (toolbar() === 'floating' && !readonly() && showFloatingToolbar()) {
         <div 
-          class="fixed z-9999 bg-popover border rounded-lg shadow-lg p-1"
+          class="fixed z-[9999] bg-popover border rounded-lg shadow-lg p-1"
           [style.left.px]="floatingToolbarPosition().x"
           [style.top.px]="floatingToolbarPosition().y"
         >
@@ -182,6 +512,42 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
           (itemSelect)="onMentionSelect($event)"
           (close)="closeMentionPopover()"
         />
+      }
+
+      @if (slashCommandOpen()) {
+        <div
+          class="absolute z-50 w-72 rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          [style.left.px]="slashCommandPosition().x"
+          [style.top.px]="slashCommandPosition().y"
+          role="listbox"
+          aria-label="Slash command menu"
+        >
+          @if (filteredSlashCommands().length === 0) {
+            <div class="px-3 py-2 text-sm text-muted-foreground">No commands found</div>
+          } @else {
+            <div #slashCommandList class="max-h-56 overflow-y-auto p-1">
+              @for (command of filteredSlashCommands(); track command.id; let i = $index) {
+                <button
+                  type="button"
+                  class="w-full rounded-sm px-2 py-1.5 text-left transition-colors hover:bg-accent hover:text-accent-foreground"
+                  [class.bg-accent]="i === slashCommandSelectedIndex()"
+                  [class.text-accent-foreground]="i === slashCommandSelectedIndex()"
+                  [attr.aria-selected]="i === slashCommandSelectedIndex()"
+                  [attr.data-slash-index]="i"
+                  role="option"
+                  (mousedown)="$event.preventDefault()"
+                  (mouseenter)="slashCommandSelectedIndex.set(i)"
+                  (click)="onSlashCommandSelect(command)"
+                >
+                  <div class="text-sm font-medium">{{ command.label }}</div>
+                  @if (command.description) {
+                    <div class="text-xs text-muted-foreground">{{ command.description }}</div>
+                  }
+                </button>
+              }
+            </div>
+          }
+        </div>
       }
 
       @if (showLinkPopover()) {
@@ -246,13 +612,17 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
         class: 'block',
     },
 })
-export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit {
+export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
+    private readonly pasteNormalizer = inject(RichTextPasteNormalizerService);
     private readonly document = inject(DOCUMENT);
     private readonly el = inject(ElementRef);
+    private readonly shortcutBindings = inject(ShortcutBindingService);
+    private readonly commandRegistry = inject(RichTextCommandRegistry);
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
+    @ViewChild('slashCommandList') slashCommandList?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
     mode = input<EditorMode>('markdown');
@@ -267,8 +637,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     readonly = input<boolean>(false);
     mentions = input<boolean>(false);
     mentionSource = input<Observable<MentionItem[]> | MentionItem[]>([]);
+    mentionRenderer = input<((item: MentionItem) => HTMLElement) | undefined>(undefined);
     tags = input<boolean>(false);
     tagSource = input<Observable<TagItem[]> | TagItem[]>([]);
+    tagRenderer = input<((item: TagItem) => HTMLElement) | undefined>(undefined);
     emojiPicker = input<boolean>(true);
     images = input<boolean>(true);
     imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
@@ -277,6 +649,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     showWordCount = input<boolean>(false);
     maxLength = input<number | undefined>(undefined);
     historyLimit = input<number>(100);
+    historyDebounceMs = input<number>(450);
+    showHistoryPanel = input<boolean>(false);
+    showHistoryButton = input<boolean>(true);
+    enableSlashCommands = input<boolean>(true);
+    slashCommands = input<RichTextSlashCommand[]>([]);
     class = input<string>('');
     ariaLabel = input<string | undefined>(undefined);
     ariaDescribedBy = input<string | undefined>(undefined);
@@ -299,6 +676,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     mentionType = signal<'mention' | 'tag'>('mention');
     mentionQuery = signal<string>('');
     mentionPopoverPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    slashCommandOpen = signal<boolean>(false);
+    slashQuery = signal<string>('');
+    slashCommandPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    slashCommandSelectedIndex = signal<number>(0);
     private readonly mentionSearchQuery$ = new Subject<{ type: 'mention' | 'tag'; query: string }>();
     loadedMentionItems = signal<(MentionItem | TagItem)[]>([]);
     mentionLoading = signal<boolean>(false);
@@ -308,10 +689,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
     imageUploading = signal<boolean>(false);
+    historyPanelOpen = signal<boolean>(false);
+    historyPreviewOpen = model<boolean>(false);
+    historyBrowserOpen = model<boolean>(false);
+    selectedHistoryIndex = signal<number | null>(null);
+    lastAppliedHistoryIndex = signal<number | null>(null);
+    private readonly historyVersion = signal<number>(0);
 
     private history: HistoryEntry[] = [];
     private historyIndex = -1;
     private isUndoRedo = false;
+    private historyDebounceTimer: ReturnType<typeof setTimeout> | null = null;
+    private shortcutHandle: ShortcutComponentHandle | null = null;
+    private slashAnchorBlock: HTMLElement | null = null;
+    private slashTriggerRange: Range | null = null;
     private savedRange: Range | null = null;
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
@@ -331,20 +722,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&:empty]:before:content-[attr(placeholder)] [&:empty]:before:text-muted-foreground [&:empty]:before:pointer-events-none',
             'prose prose-sm dark:prose-invert max-w-none',
             '[&_*]:outline-none',
-            // Heading styling - explicit to ensure visibility
             '[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2',
             '[&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2',
             '[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
-            // List styling - explicit to ensure visibility
             '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-2',
             '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-2',
             '[&_li]:my-1',
-            // Link styling
             '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:cursor-pointer [&_a]:font-medium hover:[&_a]:text-primary/80',
-            // Code styling
             '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono',
             '[&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto',
             '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
+            '[&_img]:inline [&_img]:max-w-full [&_img]:h-auto [&_img]:my-0 [&_img]:mx-0 [&_img]:cursor-pointer',
             'disabled:cursor-not-allowed'
         )
     );
@@ -388,6 +776,91 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             .slice(0, 10);
     });
 
+    filteredSlashCommands = computed(() => {
+        const query = this.slashQuery().trim().toLowerCase();
+        const availability: RichTextSlashCommandAvailabilityContext = {
+            query: this.slashQuery(),
+            disabled: this.disabled(),
+            readonly: this.readonly(),
+            hasSelection: !!this.selectedText(),
+        };
+        const merged = new Map<string, RichTextSlashCommand>();
+        for (const command of DEFAULT_SLASH_COMMANDS) {
+            merged.set(command.id, command);
+        }
+        for (const command of this.commandRegistry.listCommands()) {
+            merged.set(command.id, command);
+        }
+        for (const command of this.slashCommands()) {
+            merged.set(command.id, command);
+        }
+
+        const matchesQuery = (command: RichTextSlashCommand): boolean => {
+            if (!query) {
+                return true;
+            }
+            const haystack = [
+                command.label,
+                command.description ?? '',
+                ...(command.keywords ?? []),
+                ...(command.aliases ?? []),
+            ].join(' ').toLowerCase();
+            return haystack.includes(query);
+        };
+
+        return Array.from(merged.values())
+            .filter(command => !command.when || command.when(availability))
+            .filter(matchesQuery)
+            .sort((a, b) => {
+                const byOrder = (a.order ?? 9999) - (b.order ?? 9999);
+                if (byOrder !== 0) {
+                    return byOrder;
+                }
+                return a.label.localeCompare(b.label);
+            })
+            .slice(0, 10);
+    });
+
+    historyTimelineEntries = computed(() => {
+        this.historyVersion();
+        return this.history.map((entry, index) => ({
+            index,
+            timestamp: entry.timestamp,
+            preview: entry.preview,
+            previewLines: entry.previewLines,
+            lineCount: entry.lineCount,
+            active: index === this.historyIndex,
+        })).reverse();
+    });
+
+    historyCount = computed(() => {
+        this.historyVersion();
+        return this.history.length;
+    });
+
+    selectedHistoryEntry = computed(() => {
+        this.historyVersion();
+        const index = this.selectedHistoryIndex();
+        if (index === null || index < 0 || index >= this.history.length) {
+            return null;
+        }
+        const entry = this.history[index];
+        return {
+            index,
+            html: entry.html,
+            timestamp: entry.timestamp,
+            preview: entry.preview,
+        };
+    });
+
+    selectedHistoryEntryMarkdown = computed(() => {
+        const selected = this.selectedHistoryEntry();
+        if (!selected) {
+            return '';
+        }
+        return this.markdownService.toMarkdown(selected.html);
+    });
+
 
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
@@ -399,6 +872,19 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onImageResizeEnd(): void {
+        this.flushPendingHistoryPush();
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    onImageAlignmentChange(): void {
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    onImageRemove(img: HTMLImageElement): void {
+        img.remove();
+        this.selectedImage.set(null);
         this.syncContentFromEditor();
         this.pushHistory();
     }
@@ -444,9 +930,101 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.loadedMentionItems.set(items);
             this.mentionLoading.set(false);
         });
+
+        effect(() => {
+            const commands = this.filteredSlashCommands();
+            const currentIndex = this.slashCommandSelectedIndex();
+            if (commands.length === 0) {
+                if (currentIndex !== 0) {
+                    this.slashCommandSelectedIndex.set(0);
+                }
+                return;
+            }
+            if (currentIndex >= commands.length) {
+                this.slashCommandSelectedIndex.set(commands.length - 1);
+            }
+        });
+
+        effect(() => {
+            if (!this.slashCommandOpen()) {
+                return;
+            }
+            const commands = this.filteredSlashCommands();
+            const currentIndex = this.slashCommandSelectedIndex();
+            if (commands.length === 0 || currentIndex < 0 || currentIndex >= commands.length) {
+                return;
+            }
+            queueMicrotask(() => this.scrollSelectedSlashCommandIntoView());
+        });
     }
 
     ngOnInit() {
+        this.shortcutHandle = this.shortcutBindings.registerComponent('rich-text-editor', [
+            {
+                actionId: 'rich-text.bold',
+                description: 'Toggle bold',
+                defaultShortcut: 'Mod+B',
+                category: 'Formatting',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.onFormatCommand('bold'),
+            },
+            {
+                actionId: 'rich-text.italic',
+                description: 'Toggle italic',
+                defaultShortcut: 'Mod+I',
+                category: 'Formatting',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.onFormatCommand('italic'),
+            },
+            {
+                actionId: 'rich-text.underline',
+                description: 'Toggle underline',
+                defaultShortcut: 'Mod+U',
+                category: 'Formatting',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.onFormatCommand('underline'),
+            },
+            {
+                actionId: 'rich-text.link',
+                description: 'Insert link',
+                defaultShortcut: 'Mod+K',
+                category: 'Insert',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.showLinkDialog(),
+            },
+            {
+                actionId: 'rich-text.undo',
+                description: 'Undo',
+                defaultShortcut: 'Mod+Z',
+                category: 'History',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.undo(),
+            },
+            {
+                actionId: 'rich-text.redo',
+                description: 'Redo',
+                defaultShortcut: 'Mod+Shift+Z',
+                category: 'History',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.redo(),
+            },
+            {
+                actionId: 'rich-text.redo.alt',
+                description: 'Redo (alternate)',
+                defaultShortcut: 'Mod+Y',
+                category: 'History',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.redo(),
+            },
+            {
+                actionId: 'rich-text.history',
+                description: 'Open revision history',
+                defaultShortcut: 'Mod+Shift+H',
+                category: 'History',
+                when: () => !this.disabled() && !this.readonly() && this.showHistoryPanel(),
+                handler: () => this.openHistoryFromShortcut(),
+            },
+        ]);
         this.pushHistory();
     }
 
@@ -482,13 +1060,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onInput(event: Event): void {
         const div = event.target as HTMLDivElement;
-        const html = this.sanitizer.sanitize(div.innerHTML);
+        const html = this.sanitizer.sanitize(div.innerHTML).replace(/\u200B/g, '');
 
         const textContent = div.textContent ?? '';
+        const triggerTextContent = this.buildTriggerAwareText(div.innerHTML);
         const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            this.checkMentionTrigger(textContent, this.getCaretOffset(div));
+        const hasSelection = !!selection && selection.rangeCount > 0;
+        const caretOffset = hasSelection
+            ? this.getCaretOffset(div)
+            : triggerTextContent.length;
+
+        const textForSlash = triggerTextContent;
+        if (!this.checkSlashCommandTrigger(textForSlash, caretOffset)) {
+            this.checkMentionTrigger(textContent, caretOffset);
+        } else {
+            this.closeMentionPopover();
         }
 
         this.htmlContent.set(html);
@@ -499,12 +1085,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.onChange(outputValue);
 
         if (!this.isUndoRedo) {
-            this.pushHistory();
+            this.scheduleDebouncedHistoryPush();
         }
         this.isUndoRedo = false;
     }
 
     onKeydown(event: KeyboardEvent): void {
+        if (this.slashCommandOpen()) {
+            const slashKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab', ' ', 'Spacebar'];
+            if (slashKeys.includes(event.key)) {
+                event.preventDefault();
+                this.onSlashCommandKeydown(event);
+                return;
+            }
+        }
+
         if (this.mentionPopoverOpen() && this.mentionPopover) {
             const popoverKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'];
             if (popoverKeys.includes(event.key)) {
@@ -513,44 +1108,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 return;
             }
         }
-
-
-
-        if (event.ctrlKey || event.metaKey) {
-            switch (event.key.toLowerCase()) {
-                case 'b':
-                    event.preventDefault();
-                    this.onFormatCommand('bold');
-                    break;
-                case 'i':
-                    event.preventDefault();
-                    this.onFormatCommand('italic');
-                    break;
-                case 'u':
-                    event.preventDefault();
-                    this.onFormatCommand('underline');
-                    break;
-                case 'k':
-                    event.preventDefault();
-                    this.showLinkDialog();
-                    break;
-                case 'z':
-                    event.preventDefault();
-                    if (event.shiftKey) {
-                        this.redo();
-                    } else {
-                        this.undo();
-                    }
-                    break;
-                case 'y':
-                    event.preventDefault();
-                    this.redo();
-                    break;
-            }
+        if (this.shortcutHandle?.dispatch(event)) {
+            return;
         }
 
         if (event.key === 'Escape') {
             this.closeMentionPopover();
+            this.closeSlashCommandPopover();
             this.showFloatingToolbar.set(false);
         }
         if (event.key === 'Tab' && !this.mentionPopoverOpen()) {
@@ -631,14 +1195,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     async onPaste(event: ClipboardEvent): Promise<void> {
         event.preventDefault();
+        this.flushPendingHistoryPush();
 
         if (this.disabled() || this.readonly()) {
             return;
         }
 
         const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
-        if (imageFile && this.images() && this.canUseUploadSource()) {
-            await this.uploadImageFile(imageFile);
+        if (imageFile && this.images()) {
+            await this.insertImageFile(imageFile);
             return;
         }
 
@@ -671,13 +1236,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
 
 
-        const sanitized = this.sanitizer.sanitize(html || text);
-        this.insertHtml(sanitized);
+        const normalized = this.pasteNormalizer.normalize(html || null, text);
+        this.insertHtml(normalized);
         this.pushHistory();
     }
 
     onEditorDragOver(event: DragEvent): void {
-        if (!this.images() || !this.canUseUploadSource() || this.disabled() || this.readonly()) {
+        if (!this.images() || (!this.canUseUploadSource() && !this.canUseUrlSource()) || this.disabled() || this.readonly()) {
             return;
         }
         const hasImage = Array.from(event.dataTransfer?.files ?? []).some(file => file.type.startsWith('image/'));
@@ -702,7 +1267,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     async onEditorDrop(event: DragEvent): Promise<void> {
         this.dragOver.set(false);
-        if (!this.images() || !this.canUseUploadSource() || this.disabled() || this.readonly()) {
+        if (!this.images() || (!this.canUseUploadSource() && !this.canUseUrlSource()) || this.disabled() || this.readonly()) {
             return;
         }
 
@@ -712,7 +1277,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         event.preventDefault();
-        await this.uploadImageFile(imageFile);
+        await this.insertImageFile(imageFile);
     }
 
     onFocus(): void {
@@ -724,23 +1289,22 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
         }
+        this.flushPendingHistoryPush();
 
         this.onTouched();
         this.blur.emit();
+        this.closeSlashCommandPopover();
 
-        // Don't close floating toolbar if link popover is open
         if (this.showLinkPopover()) {
             return;
         }
 
-        // Check regarding target to avoid timeouts
         const relatedTarget = event?.relatedTarget as Node | null;
         if (relatedTarget && this.el.nativeElement.contains(relatedTarget)) {
             return;
         }
 
         setTimeout(() => {
-            // Only hide if link popover is still not open AND focus is outside the component
             if (!this.showLinkPopover()) {
                 const activeElement = this.document.activeElement;
                 const isInsideComponent = this.el.nativeElement.contains(activeElement);
@@ -768,21 +1332,164 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    onHistoryPanelOpenChange(nextOpen: boolean): void {
+        if (!nextOpen && this.historyPreviewOpen()) {
+            this.historyPanelOpen.set(true);
+            return;
+        }
+        if (nextOpen && (this.disabled() || this.readonly() || !this.showHistoryPanel())) {
+            this.historyPanelOpen.set(false);
+            return;
+        }
+        if (nextOpen) {
+            this.flushPendingHistoryPush();
+            this.focusFirstHistoryActionSoon('popover');
+        }
+        this.historyPanelOpen.set(nextOpen);
+    }
+
+    private openHistoryFromShortcut(): void {
+        if (!this.showHistoryPanel() || this.disabled() || this.readonly()) {
+            return;
+        }
+        this.flushPendingHistoryPush();
+        if (this.showHistoryButton()) {
+            this.onHistoryPanelOpenChange(true);
+            return;
+        }
+        this.historyBrowserOpen.set(true);
+        this.focusFirstHistoryActionSoon('dialog');
+    }
+
+    openHistoryPreview(entryIndex: number, event?: Event): void {
+        event?.stopPropagation();
+        if (entryIndex < 0 || entryIndex >= this.history.length) {
+            return;
+        }
+        this.selectedHistoryIndex.set(entryIndex);
+        this.historyBrowserOpen.set(false);
+        this.historyPreviewOpen.set(true);
+    }
+
+    onQuickApplyFromHistory(entryIndex: number, event: Event): void {
+        const target = event.currentTarget as HTMLElement | null;
+        const listType = target ? this.getHistoryListType(target) : null;
+        this.selectHistoryEntry(entryIndex);
+        if (listType) {
+            this.focusHistoryEntrySoon(listType, entryIndex);
+        }
+    }
+
+    onHistoryEntryKeydown(event: KeyboardEvent, entryIndex: number): void {
+        const current = event.currentTarget as HTMLElement | null;
+        if (!current) {
+            return;
+        }
+        const listType = this.getHistoryListType(current);
+
+        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+            event.preventDefault();
+            this.selectHistoryEntry(entryIndex);
+            if (listType) {
+                this.focusHistoryEntrySoon(listType, entryIndex);
+            }
+            return;
+        }
+
+        if (event.key === 'Escape') {
+            event.preventDefault();
+            if (listType === 'popover') {
+                this.historyPanelOpen.set(false);
+            } else if (listType === 'dialog') {
+                this.historyBrowserOpen.set(false);
+            }
+            return;
+        }
+
+        const entries = this.getHistoryEntryElements(current);
+        const currentIndex = entries.indexOf(current);
+        if (currentIndex < 0) {
+            return;
+        }
+
+        if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            entries[Math.min(entries.length - 1, currentIndex + 1)]?.focus();
+            return;
+        }
+
+        if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            entries[Math.max(0, currentIndex - 1)]?.focus();
+            return;
+        }
+
+        if (event.key === 'Home') {
+            event.preventDefault();
+            entries[0]?.focus();
+            return;
+        }
+
+        if (event.key === 'End') {
+            event.preventDefault();
+            entries[entries.length - 1]?.focus();
+        }
+    }
+
+    restoreFromHistoryPreview(): void {
+        const index = this.selectedHistoryIndex();
+        if (index === null) {
+            return;
+        }
+        this.selectHistoryEntry(index);
+        this.historyPreviewOpen.set(false);
+    }
+
+    selectHistoryEntry(entryIndex: number): void {
+        if (entryIndex < 0 || entryIndex >= this.history.length) {
+            return;
+        }
+
+        this.flushPendingHistoryPush();
+        this.historyIndex = entryIndex;
+        const entry = this.history[this.historyIndex];
+
+        this.htmlContent.set(entry.html);
+        if (this.editorDiv?.nativeElement) {
+            this.editorDiv.nativeElement.innerHTML = entry.html;
+        }
+        this.restoreSerializedSelection(entry.selection);
+
+        const outputValue = this.mode() === 'markdown'
+            ? this.markdownService.toMarkdown(entry.html)
+            : entry.html;
+        this.onChange(outputValue);
+        this.lastAppliedHistoryIndex.set(entryIndex);
+        this.bumpHistoryVersion();
+    }
+
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
+        this.flushPendingHistoryPush();
+
+        const mentionTargets = this.getMentionElementsInSelection();
 
         switch (command) {
             case 'bold':
                 this.document.execCommand('bold', false);
+                this.toggleMentionStyle(mentionTargets, 'fontWeight', 'bold', 'normal');
                 break;
             case 'italic':
                 this.document.execCommand('italic', false);
+                this.toggleMentionStyle(mentionTargets, 'fontStyle', 'italic', 'normal');
                 break;
             case 'underline':
                 this.document.execCommand('underline', false);
+                this.toggleMentionTextDecoration(mentionTargets, 'underline');
                 break;
             case 'strikethrough':
                 this.document.execCommand('strikeThrough', false);
+                this.toggleMentionTextDecoration(mentionTargets, 'line-through');
                 break;
             case 'heading1':
                 this.document.execCommand('formatBlock', false, '<h1>');
@@ -816,6 +1523,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 break;
             case 'clear':
                 this.document.execCommand('removeFormat', false);
+                this.clearMentionStyles(mentionTargets);
                 break;
             case 'paragraph':
                 this.document.execCommand('formatBlock', false, '<p>');
@@ -831,19 +1539,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 break;
         }
 
-        if (this.editorDiv?.nativeElement) {
-            const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
-            this.htmlContent.set(html);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-        }
-
-        this.focusEditor();
-        this.updateActiveFormats();
-        this.pushHistory();
+        this.applyMutation({ focus: true, updateActiveFormats: true });
 
         if (this.toolbar() === 'floating') {
             const selection = this.document.getSelection();
@@ -874,6 +1570,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onFloatingFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
+        this.flushPendingHistoryPush();
 
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return;
@@ -903,15 +1600,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             cursorRange.setStart(spaceNode, 1);
             cursorRange.setEnd(spaceNode, 1);
 
-            if (this.editorDiv?.nativeElement) {
-                const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
-                this.htmlContent.set(html);
-
-                const outputValue = this.mode() === 'markdown'
-                    ? this.markdownService.toMarkdown(html)
-                    : html;
-                this.onChange(outputValue);
-            }
+            this.syncContentFromEditor();
 
             this.showFloatingToolbar.set(false);
 
@@ -938,22 +1627,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             selection.collapseToEnd();
         }
 
-        if (this.editorDiv?.nativeElement) {
-            const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
-            this.htmlContent.set(html);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-        }
-
         this.showFloatingToolbar.set(false);
-        this.focusEditor();
-        this.pushHistory();
+        this.applyMutation({ focus: true });
     }
 
     onLinkInsert(data: { text: string; url: string }): void {
+        this.flushPendingHistoryPush();
         this.restoreSelection();
         const safeUrl = this.sanitizer.sanitizeUrl(data.url);
         if (safeUrl) {
@@ -979,6 +1658,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onImageInsert(data: { alt: string; src: string }): void {
+        this.flushPendingHistoryPush();
         if (this.imageSources() === 'upload') {
             this.imageUploadError.emit('Image URL insertion is disabled. Use upload source.');
             return;
@@ -986,7 +1666,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.restoreSelection();
         const safeSrc = this.sanitizer.sanitizeImageSrc(data.src);
         if (safeSrc) {
-            this.insertHtml(`<img src="${safeSrc}" alt="${data.alt}">`);
+            this.insertImageAtSelection(safeSrc, data.alt);
             this.pushHistory();
             this.syncContentFromEditor();
         } else {
@@ -995,6 +1675,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onEmojiInsert(emoji: string): void {
+        this.flushPendingHistoryPush();
         this.restoreSelection();
         this.insertText(emoji);
         const selection = this.document.getSelection();
@@ -1004,32 +1685,29 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onColorSelect(event: { type: 'fontColor' | 'backgroundColor'; color: string }): void {
+        this.flushPendingHistoryPush();
         this.restoreSelection();
+
+        const mentionTargets = this.getMentionElementsInSelection();
 
         if (event.type === 'fontColor') {
             this.document.execCommand('foreColor', false, event.color);
+            this.setMentionStyle(mentionTargets, 'color', event.color);
         } else {
             if (!this.document.execCommand('hiliteColor', false, event.color)) {
                 this.document.execCommand('backColor', false, event.color);
             }
+            this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
         }
 
-        if (this.editorDiv?.nativeElement) {
-            const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
-            this.htmlContent.set(html);
-
-            const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(html)
-                : html;
-            this.onChange(outputValue);
-        }
-
-        this.focusEditor();
-        this.pushHistory();
+        this.applyMutation({ focus: true });
     }
 
     onFontSizeSelect(size: string): void {
+        this.flushPendingHistoryPush();
         this.restoreSelection();
+
+        const mentionTargets = this.getMentionElementsInSelection();
 
         this.document.execCommand('fontSize', false, '7');
         if (this.editorDiv?.nativeElement) {
@@ -1048,6 +1726,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             });
         }
 
+        const sizeVal = size.endsWith('px') ? size : `${size}px`;
+        this.setMentionStyle(mentionTargets, 'fontSize', sizeVal);
+
         this.syncContentFromEditor();
         this.focusEditor();
         this.pushHistory();
@@ -1065,9 +1746,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private checkMentionTrigger(text: string, cursorPosition: number): void {
         const beforeCursor = text.substring(0, cursorPosition);
+        const mentionTriggerPattern = /(?:^|[\s([{])@([-\p{L}\p{N}_.]*)$/u;
+        const tagTriggerPattern = /(?:^|[\s([{])#([-\p{L}\p{N}_.]*)$/u;
 
         if (this.mentions()) {
-            const mentionMatch = beforeCursor.match(/@(\w*)$/);
+            const mentionMatch = beforeCursor.match(mentionTriggerPattern);
             if (mentionMatch) {
                 this.mentionType.set('mention');
                 this.mentionQuery.set(mentionMatch[1]);
@@ -1079,7 +1762,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         if (this.tags()) {
-            const tagMatch = beforeCursor.match(/#(\w*)$/);
+            const tagMatch = beforeCursor.match(tagTriggerPattern);
             if (tagMatch) {
                 this.mentionType.set('tag');
                 this.mentionQuery.set(tagMatch[1]);
@@ -1093,38 +1776,200 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.closeMentionPopover();
     }
 
+    private checkSlashCommandTrigger(text: string, cursorPosition: number): boolean {
+        if (!this.enableSlashCommands() || this.disabled() || this.readonly()) {
+            this.closeSlashCommandPopover();
+            return false;
+        }
+
+        const beforeCursor = text.substring(0, cursorPosition);
+        const slashTriggerPattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
+        const slashMatch = beforeCursor.match(slashTriggerPattern)
+            ?? this.matchSlashTriggerAtCaret()
+            ?? this.matchSlashTriggerWithinCurrentBlock();
+        if (!slashMatch) {
+            this.closeSlashCommandPopover();
+            return false;
+        }
+
+        this.captureSlashTriggerRange();
+        this.slashAnchorBlock = this.getClosestEditableBlockFromSelection();
+        this.slashQuery.set(slashMatch[1]);
+        this.slashCommandSelectedIndex.set(0);
+        this.updateSlashCommandPopoverPosition();
+        this.slashCommandOpen.set(true);
+        return true;
+    }
+
+    private matchSlashTriggerAtCaret(): RegExpMatchArray | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return null;
+        }
+        const range = selection.getRangeAt(0);
+        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
+            return null;
+        }
+
+        const nodeText = (range.startContainer as Text).data.slice(0, range.startOffset);
+        const nodePattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
+        return nodeText.match(nodePattern);
+    }
+
+    private matchSlashTriggerWithinCurrentBlock(): RegExpMatchArray | null {
+        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!selection || selection.rangeCount === 0 || !editor) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) {
+            return null;
+        }
+
+        const block = this.findClosestEditableBlockFromRange(range);
+        if (!block) {
+            return null;
+        }
+
+        const blockPattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
+
+        // Chromium may report the caret container as the contenteditable root.
+        // In that case, try nearby child blocks because startOffset can be unstable.
+        if (range.startContainer === editor) {
+            const candidateBlocks: HTMLElement[] = [];
+            const pushCandidate = (node: Node | null | undefined) => {
+                if (!node) {
+                    return;
+                }
+                const candidate = this.findClosestEditableBlock(node);
+                if (candidate && !candidateBlocks.includes(candidate)) {
+                    candidateBlocks.push(candidate);
+                }
+            };
+
+            pushCandidate(block);
+            pushCandidate(editor.childNodes[range.startOffset] ?? null);
+            pushCandidate(editor.childNodes[range.startOffset - 1] ?? null);
+            pushCandidate(editor.lastChild);
+
+            for (const candidate of candidateBlocks) {
+                const match = (candidate.textContent ?? '').match(blockPattern);
+                if (match) {
+                    return match;
+                }
+            }
+            return null;
+        }
+
+        const blockRange = this.document.createRange();
+        blockRange.setStart(block, 0);
+        blockRange.setEnd(range.startContainer, range.startOffset);
+        const blockText = blockRange.toString();
+        return blockText.match(blockPattern);
+    }
+
     onMentionSelect(item: MentionItem | TagItem): void {
+        this.flushPendingHistoryPush();
         const trigger = this.mentionType() === 'mention' ? '@' : '#';
 
-        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!editor) return;
+
+        this.focusEditor();
+        let selection = this.document.getSelection();
+
+        if (!selection || selection.rangeCount === 0 || !editor.contains(selection.getRangeAt(0).startContainer)) {
+            if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
+                selection = this.document.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                    selection.addRange(this.savedRange);
+                }
+            }
+        }
+
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const query = this.mentionQuery();
             const triggerLength = query.length + 1;
+            const triggerStr = trigger + query;
 
             if (range.startContainer.nodeType === Node.TEXT_NODE) {
                 const textNode = range.startContainer as Text;
                 const deleteStart = Math.max(0, range.startOffset - triggerLength);
                 range.setStart(textNode, deleteStart);
+            } else {
+                const container = range.startContainer;
+                const offset = range.startOffset;
+                let resolved = false;
+
+                if (offset > 0 && container.childNodes.length >= offset) {
+                    let node: Node | null = container.childNodes[offset - 1];
+                    while (node && !resolved) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            const text = node as Text;
+                            if (text.data.endsWith(triggerStr)) {
+                                range.setStart(text, text.length - triggerLength);
+                                range.setEnd(text, text.length);
+                                resolved = true;
+                            }
+                            break;
+                        }
+                        node = node.lastChild;
+                    }
+                }
+
+                if (!resolved) {
+                    const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+                    while (walker.nextNode()) {
+                        const text = walker.currentNode as Text;
+                        const idx = text.data.lastIndexOf(triggerStr);
+                        if (idx !== -1) {
+                            range.setStart(text, idx);
+                            range.setEnd(text, idx + triggerStr.length);
+                            break;
+                        }
+                    }
+                }
             }
             range.deleteContents();
 
-            const wrapper = this.document.createElement('span');
-            wrapper.className = 'bg-accent text-accent-foreground rounded px-1';
-            if (this.mentionType() === 'mention') {
-                wrapper.setAttribute('data-mention', item.value);
-                wrapper.setAttribute('data-mention-id', item.id ?? item.value);
-            } else {
-                wrapper.setAttribute('data-tag', item.value);
-                wrapper.setAttribute('data-tag-id', item.id ?? item.value);
-            }
-            wrapper.textContent = `${trigger}${item.label}`;
+            let wrapper: HTMLElement;
+            const isMention = this.mentionType() === 'mention';
+            const customRenderer = isMention ? this.mentionRenderer() : this.tagRenderer();
 
-            range.insertNode(this.document.createTextNode('\u00A0'));
+            if (customRenderer) {
+                wrapper = customRenderer(item as MentionItem & TagItem);
+                wrapper.setAttribute('contenteditable', 'false');
+                if (isMention) {
+                    wrapper.setAttribute('data-mention', item.value);
+                    wrapper.setAttribute('data-mention-id', item.id ?? item.value);
+                } else {
+                    wrapper.setAttribute('data-tag', item.value);
+                    wrapper.setAttribute('data-tag-id', item.id ?? item.value);
+                }
+            } else {
+                wrapper = this.document.createElement('span');
+                wrapper.className = 'bg-accent text-accent-foreground rounded px-1';
+                wrapper.setAttribute('contenteditable', 'false');
+                if (isMention) {
+                    wrapper.setAttribute('data-mention', item.value);
+                    wrapper.setAttribute('data-mention-id', item.id ?? item.value);
+                } else {
+                    wrapper.setAttribute('data-tag', item.value);
+                    wrapper.setAttribute('data-tag-id', item.id ?? item.value);
+                }
+                wrapper.textContent = `${trigger}${item.label}`;
+            }
+
+            const trailingSpace = this.document.createTextNode('\u00A0');
+            range.insertNode(trailingSpace);
             range.insertNode(wrapper);
 
             const newRange = this.document.createRange();
-            newRange.setStartAfter(wrapper.nextSibling ?? wrapper);
+            newRange.setStart(trailingSpace, trailingSpace.length);
             newRange.collapse(true);
             selection.removeAllRanges();
             selection.addRange(newRange);
@@ -1132,6 +1977,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         this.syncContentFromEditor();
         this.closeMentionPopover();
+        this.closeSlashCommandPopover();
         this.pushHistory();
         this.focusEditor();
     }
@@ -1139,6 +1985,73 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     closeMentionPopover(): void {
         this.mentionPopoverOpen.set(false);
         this.mentionQuery.set('');
+    }
+
+    async onSlashCommandSelect(command: RichTextSlashCommand): Promise<void> {
+        if (this.disabled() || this.readonly()) {
+            return;
+        }
+        this.flushPendingHistoryPush();
+        const query = this.slashQuery();
+        const resolvedSlashBlock = this.removeSlashTriggerText(query);
+        const slashBlock = resolvedSlashBlock ?? this.getClosestEditableBlockForSlashCommand();
+        if (resolvedSlashBlock) {
+            this.slashAnchorBlock = resolvedSlashBlock;
+        }
+        if (slashBlock) {
+            this.placeCaretAtEndOfBlock(slashBlock);
+            this.removeCaretSentinelAtSelection();
+        }
+        this.closeSlashCommandPopover();
+
+        const context: RichTextSlashCommandContext = {
+            query,
+            selectedText: this.selectedText(),
+            executeToolbarCommand: (toolbarCommand: string) => this.executeToolbarCommandFromSlash(toolbarCommand, slashBlock),
+            insertText: (text: string) => {
+                this.insertText(text);
+                this.pushHistory();
+            },
+            insertHtml: (html: string) => {
+                this.insertHtml(html);
+                this.pushHistory();
+            },
+            showLinkDialog: () => this.showLinkDialog(),
+            focusEditor: () => this.focusEditor(),
+        };
+
+        await Promise.resolve(command.run(context));
+        if (!this.isSelectionInsideEditor()) {
+            this.focusEditor();
+        }
+    }
+
+    private removeCaretSentinelAtSelection(): void {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
+            return;
+        }
+
+        const textNode = range.startContainer as Text;
+        if (!textNode.data.includes('\u200B')) {
+            return;
+        }
+
+        const originalOffset = range.startOffset;
+        const before = textNode.data.slice(0, originalOffset).replace(/\u200B/g, '').length;
+        textNode.data = textNode.data.replace(/\u200B/g, '');
+
+        const newOffset = Math.min(before, textNode.data.length);
+        const newRange = this.document.createRange();
+        newRange.setStart(textNode, newOffset);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
     }
 
     private wrapSelectionWithTag(tagName: string): void {
@@ -1181,12 +2094,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() || '');
 
-        // Explicitly save the range for later restoration
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
         }
 
-        // Position popover near cursor
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const rect = range.getBoundingClientRect();
@@ -1230,6 +2141,39 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return this.imageSources() === 'all' || this.imageSources() === 'upload';
     }
 
+    private canUseUrlSource(): boolean {
+        return this.imageSources() === 'all' || this.imageSources() === 'url';
+    }
+
+    private async insertImageFile(file: File): Promise<void> {
+        const uploader = this.imageUploader();
+        if (this.canUseUploadSource() && uploader) {
+            await this.uploadImageFile(file);
+            return;
+        }
+
+        if (this.canUseUrlSource()) {
+            try {
+                const fileDataUrl = await this.readFileAsDataUrl(file);
+                const safeSrc = this.sanitizer.sanitizeImageSrc(fileDataUrl);
+                if (!safeSrc) {
+                    this.imageUploadError.emit('Pasted image is not allowed by sanitizer policy.');
+                    return;
+                }
+                this.insertImageAtSelection(safeSrc, file.name);
+                this.pushHistory();
+                this.imageUploadComplete.emit(safeSrc);
+                return;
+            } catch {
+                this.imageUploadError.emit('Could not read image file.');
+            }
+        }
+
+        if (this.canUseUploadSource() && !uploader) {
+            this.imageUploadError.emit('No imageUploader configured.');
+        }
+    }
+
     private async uploadImageFile(file: File): Promise<void> {
         const uploader = this.imageUploader();
         if (!uploader) {
@@ -1247,7 +2191,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 this.imageUploadError.emit('Uploaded image URL is not allowed by sanitizer policy.');
                 return;
             }
-            this.insertHtml(`<img src="${safeSrc}" alt="${file.name}">`);
+            this.insertImageAtSelection(safeSrc, file.name);
             this.pushHistory();
             this.imageUploadComplete.emit(safeSrc);
         } catch (error: any) {
@@ -1255,6 +2199,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         } finally {
             this.imageUploading.set(false);
         }
+    }
+
+    private readFileAsDataUrl(file: File): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
+            reader.onerror = () => reject(new Error('Could not read image file.'));
+            reader.readAsDataURL(file);
+        });
     }
 
     private insertText(text: string): void {
@@ -1306,15 +2259,128 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.syncContentFromEditor();
     }
 
-    private syncContentFromEditor(): void {
+    private insertImageAtSelection(src: string, alt: string): void {
+        const img = this.document.createElement('img');
+        img.setAttribute('src', src);
+        img.setAttribute('alt', alt || 'Image');
+
+        const selection = this.document.getSelection();
+        const editorElement = this.getEditorElement();
+        if (!selection || selection.rangeCount === 0 || !editorElement) {
+            editorElement?.appendChild(img);
+            this.syncContentFromEditor();
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const anchorNode = range.commonAncestorContainer;
+        if (!editorElement.contains(anchorNode)) {
+            editorElement.appendChild(img);
+            const newRange = this.document.createRange();
+            newRange.setStartAfter(img);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            this.syncContentFromEditor();
+            return;
+        }
+
+        range.deleteContents();
+        range.insertNode(img);
+
+        const newRange = this.document.createRange();
+        newRange.setStartAfter(img);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        this.syncContentFromEditor();
+    }
+
+    private getEditorElement(): HTMLDivElement | null {
         if (this.editorDiv?.nativeElement) {
-            const html = this.sanitizer.sanitize(this.editorDiv.nativeElement.innerHTML);
+            return this.editorDiv.nativeElement;
+        }
+        return this.el.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement | null;
+    }
+
+    private syncContentFromEditor(): void {
+        const editorElement = this.getEditorElement();
+        if (editorElement) {
+            const html = this.sanitizer.sanitize(editorElement.innerHTML).replace(/\u200B/g, '');
             this.htmlContent.set(html);
 
             const outputValue = this.mode() === 'markdown'
                 ? this.markdownService.toMarkdown(html)
                 : html;
             this.onChange(outputValue);
+        }
+    }
+
+    private getMentionElementsInSelection(): HTMLElement[] {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return [];
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return [];
+
+        const mentionElements = editor.querySelectorAll<HTMLElement>('[data-mention], [data-tag]');
+        const result: HTMLElement[] = [];
+
+        mentionElements.forEach(el => {
+            if (selection.containsNode(el, true)) {
+                result.push(el);
+            }
+        });
+
+        return result;
+    }
+
+    private toggleMentionStyle(elements: HTMLElement[], prop: 'fontWeight' | 'fontStyle', onValue: string, offValue: string): void {
+        for (const el of elements) {
+            el.style[prop] = el.style[prop] === onValue ? offValue : onValue;
+        }
+    }
+
+    private toggleMentionTextDecoration(elements: HTMLElement[], decoration: string): void {
+        for (const el of elements) {
+            const current = el.style.textDecoration || '';
+            if (current.includes(decoration)) {
+                el.style.textDecoration = current.replace(decoration, '').trim() || '';
+            } else {
+                el.style.textDecoration = (current + ' ' + decoration).trim();
+            }
+        }
+    }
+
+    private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize', value: string): void {
+        for (const el of elements) {
+            el.style[prop] = value;
+        }
+    }
+
+    private clearMentionStyles(elements: HTMLElement[]): void {
+        for (const el of elements) {
+            el.style.fontWeight = '';
+            el.style.fontStyle = '';
+            el.style.textDecoration = '';
+            el.style.color = '';
+            el.style.backgroundColor = '';
+            el.style.fontSize = '';
+        }
+    }
+
+    private applyMutation(options?: { focus?: boolean; updateActiveFormats?: boolean; pushHistory?: boolean }): void {
+        this.flushPendingHistoryPush();
+        this.syncContentFromEditor();
+        if (options?.updateActiveFormats) {
+            this.updateActiveFormats();
+        }
+        if (options?.focus) {
+            this.focusEditor();
+        }
+        if (options?.pushHistory !== false) {
+            this.pushHistory();
         }
     }
 
@@ -1381,17 +2447,560 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    private updateSlashCommandPopoverPosition(): void {
+        const selection = this.document.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            const rect = range.getBoundingClientRect();
+            const editorRect = this.el.nativeElement.getBoundingClientRect();
+            const maxX = Math.max(0, editorRect.width - 320);
+            const maxY = Math.max(0, editorRect.height - 260);
+            const x = Math.max(0, Math.min(rect.left - editorRect.left, maxX));
+            const y = Math.max(0, Math.min(rect.bottom - editorRect.top + 8, maxY));
+
+            this.slashCommandPosition.set({
+                x,
+                y,
+            });
+        }
+    }
+
+    private onSlashCommandKeydown(event: KeyboardEvent): void {
+        const commands = this.filteredSlashCommands();
+        if (commands.length === 0) {
+            if (event.key === 'Escape' || event.key === 'Tab') {
+                this.closeSlashCommandPopover();
+            }
+            return;
+        }
+
+        const currentIndex = this.slashCommandSelectedIndex();
+        if (event.key === 'ArrowDown') {
+            this.slashCommandSelectedIndex.set(Math.min(currentIndex + 1, commands.length - 1));
+            return;
+        }
+        if (event.key === 'ArrowUp') {
+            this.slashCommandSelectedIndex.set(Math.max(currentIndex - 1, 0));
+            return;
+        }
+        if (event.key === 'Escape' || event.key === 'Tab') {
+            this.closeSlashCommandPopover();
+            return;
+        }
+        if (event.key === ' ' || event.key === 'Spacebar') {
+            const selected = commands[currentIndex];
+            if (selected) {
+                void this.onSlashCommandSelect(selected);
+            }
+            return;
+        }
+        if (event.key === 'Enter') {
+            const selected = commands[currentIndex];
+            if (selected) {
+                void this.onSlashCommandSelect(selected);
+            }
+        }
+    }
+
+    private scrollSelectedSlashCommandIntoView(): void {
+        const list = this.slashCommandList?.nativeElement;
+        if (!list) {
+            return;
+        }
+
+        const selectedIndex = this.slashCommandSelectedIndex();
+        const selected = list.querySelector(`[data-slash-index="${selectedIndex}"]`) as HTMLElement | null;
+        if (!selected) {
+            return;
+        }
+
+        const listTop = list.scrollTop;
+        const listBottom = listTop + list.clientHeight;
+        const itemTop = selected.offsetTop;
+        const itemBottom = itemTop + selected.offsetHeight;
+
+        if (itemTop < listTop || itemBottom > listBottom) {
+            selected.scrollIntoView({ block: 'nearest' });
+        }
+    }
+
+    private closeSlashCommandPopover(): void {
+        this.slashCommandOpen.set(false);
+        this.slashQuery.set('');
+        this.slashCommandSelectedIndex.set(0);
+        this.slashAnchorBlock = null;
+        this.slashTriggerRange = null;
+    }
+
+    private removeSlashTriggerText(query: string): HTMLElement | null {
+        const removedFromRange = this.removeSlashTriggerTextFromRange(query, this.slashTriggerRange);
+        if (removedFromRange) {
+            this.slashTriggerRange = null;
+            return removedFromRange;
+        }
+
+        const removedFromCurrentAnchor = this.removeSlashTriggerTextFromAnchorBlock(query, this.getClosestEditableBlockForSlashCommand());
+        if (removedFromCurrentAnchor) {
+            return removedFromCurrentAnchor;
+        }
+
+        const removedFromStoredAnchor = this.removeSlashTriggerTextFromAnchorBlock(query, this.slashAnchorBlock);
+        if (removedFromStoredAnchor) {
+            return removedFromStoredAnchor;
+        }
+
+        const removedFromEditor = this.removeSlashTriggerTextFromEditor(query);
+        if (removedFromEditor) {
+            return removedFromEditor;
+        }
+
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (range.startContainer.nodeType !== Node.TEXT_NODE) {
+            return null;
+        }
+
+        const triggerLength = query.length + 1;
+        const textNode = range.startContainer as Text;
+        const deleteStart = Math.max(0, range.startOffset - triggerLength);
+        const triggerText = textNode.data.slice(deleteStart, range.startOffset);
+        if (triggerText !== `/${query}`) {
+            return null;
+        }
+
+        range.setStart(textNode, deleteStart);
+        range.deleteContents();
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+        this.syncContentFromEditor();
+        return this.findClosestEditableBlock(textNode);
+    }
+
+
+    private removeSlashTriggerTextFromRange(query: string, range: Range | null): HTMLElement | null {
+        if (!range || range.startContainer.nodeType !== Node.TEXT_NODE) {
+            return null;
+        }
+        const selection = this.document.getSelection();
+        if (!selection) {
+            return null;
+        }
+
+        const workRange = range.cloneRange();
+        const triggerLength = query.length + 1;
+        const textNode = workRange.startContainer as Text;
+        const deleteStart = Math.max(0, workRange.startOffset - triggerLength);
+        const triggerText = textNode.data.slice(deleteStart, workRange.startOffset);
+        if (triggerText !== `/${query}`) {
+            return null;
+        }
+
+        workRange.setStart(textNode, deleteStart);
+        workRange.deleteContents();
+        workRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(workRange);
+        this.syncContentFromEditor();
+        return this.findClosestEditableBlock(textNode);
+    }
+
+    private removeSlashTriggerTextFromAnchorBlock(query: string, anchorBlock: HTMLElement | null): HTMLElement | null {
+        if (!anchorBlock) {
+            return null;
+        }
+        const editor = this.getEditorElement();
+        if (!editor || !editor.contains(anchorBlock)) {
+            return null;
+        }
+
+        const walker = this.document.createTreeWalker(anchorBlock, NodeFilter.SHOW_TEXT);
+        let candidateNode: Text | null = null;
+        let candidateIndex = -1;
+        const needle = `/${query}`;
+
+        while (walker.nextNode()) {
+            const textNode = walker.currentNode as Text;
+            const index = textNode.data.lastIndexOf(needle);
+            if (index >= 0) {
+                candidateNode = textNode;
+                candidateIndex = index;
+            }
+        }
+
+        if (!candidateNode || candidateIndex < 0) {
+            return null;
+        }
+
+        candidateNode.deleteData(candidateIndex, needle.length);
+        const selection = this.document.getSelection();
+        if (selection) {
+            const range = this.document.createRange();
+            range.setStart(candidateNode, candidateIndex);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        this.syncContentFromEditor();
+        return anchorBlock;
+    }
+
+    private removeSlashTriggerTextFromEditor(query: string): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (!editor) {
+            return null;
+        }
+
+        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        let candidateNode: Text | null = null;
+        let candidateIndex = -1;
+        const needle = `/${query}`;
+
+        while (walker.nextNode()) {
+            const textNode = walker.currentNode as Text;
+            const index = textNode.data.lastIndexOf(needle);
+            if (index >= 0) {
+                candidateNode = textNode;
+                candidateIndex = index;
+            }
+        }
+
+        if (!candidateNode || candidateIndex < 0) {
+            return null;
+        }
+
+        candidateNode.deleteData(candidateIndex, needle.length);
+        const selection = this.document.getSelection();
+        if (selection) {
+            const range = this.document.createRange();
+            range.setStart(candidateNode, candidateIndex);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+        }
+        this.syncContentFromEditor();
+        return this.findClosestEditableBlock(candidateNode);
+    }
+
+    private getClosestEditableBlockForSlashCommand(): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (editor && this.slashAnchorBlock && editor.contains(this.slashAnchorBlock)) {
+            return this.slashAnchorBlock;
+        }
+        const selection = this.document.getSelection();
+        if (selection && selection.rangeCount > 0 && editor) {
+            const range = selection.getRangeAt(0);
+            if (editor.contains(range.startContainer)) {
+                return this.findClosestEditableBlockFromRange(range);
+            }
+        }
+        if (this.slashTriggerRange) {
+            return this.findClosestEditableBlockFromRange(this.slashTriggerRange);
+        }
+        return null;
+    }
+
+    private getClosestEditableBlockFromSelection(): HTMLElement | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return null;
+        }
+        return this.findClosestEditableBlockFromRange(selection.getRangeAt(0));
+    }
+
+    private findClosestEditableBlockFromRange(range: Range): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (!editor) {
+            return null;
+        }
+
+        let node: Node = range.startContainer;
+        if (node === editor) {
+            const childCount = editor.childNodes.length;
+            if (childCount > 0) {
+                const index = Math.min(Math.max(range.startOffset - 1, 0), childCount - 1);
+                node = editor.childNodes[index] ?? editor;
+            }
+        }
+
+        return this.findClosestEditableBlock(node);
+    }
+
+    private findClosestEditableBlock(node: Node): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (!editor) {
+            return null;
+        }
+
+        let current: Node | null = node.nodeType === Node.TEXT_NODE ? node.parentNode : node;
+        while (current && current !== editor) {
+            if (current.nodeType === Node.ELEMENT_NODE) {
+                const element = current as HTMLElement;
+                const tagName = element.tagName;
+                if (['P', 'DIV', 'H1', 'H2', 'H3', 'LI', 'BLOCKQUOTE', 'PRE'].includes(tagName)) {
+                    return element;
+                }
+            }
+            current = current.parentNode;
+        }
+        return this.resolveTopLevelEditorBlock(node, editor);
+    }
+
+    private resolveTopLevelEditorBlock(node: Node, editor: HTMLElement): HTMLElement | null {
+        if (node.nodeType === Node.TEXT_NODE && node.parentNode === editor) {
+            const wrapper = this.document.createElement('p');
+            editor.insertBefore(wrapper, node);
+            wrapper.appendChild(node);
+            return wrapper;
+        }
+
+        let current: Node | null = node;
+        while (current && current.parentNode && current.parentNode !== editor) {
+            current = current.parentNode;
+        }
+
+        if (current && current !== editor && current.nodeType === Node.ELEMENT_NODE) {
+            return current as HTMLElement;
+        }
+
+        if (editor.childNodes.length === 0) {
+            const paragraph = this.document.createElement('p');
+            paragraph.appendChild(this.document.createElement('br'));
+            editor.appendChild(paragraph);
+            return paragraph;
+        }
+
+        const firstElementChild = Array.from(editor.childNodes).find(child => child.nodeType === Node.ELEMENT_NODE);
+        if (firstElementChild) {
+            return firstElementChild as HTMLElement;
+        }
+        return null;
+    }
+
+    private placeCaretAtEndOfBlock(block: HTMLElement): void {
+        const selection = this.document.getSelection();
+        if (!selection) {
+            return;
+        }
+
+        if (this.isEmptyBlock(block)) {
+            let target: Text | null = null;
+            const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+            while (walker.nextNode()) {
+                const textNode = walker.currentNode as Text;
+                if (textNode.data.includes('\u200B')) {
+                    target = textNode;
+                }
+            }
+            if (!target) {
+                target = this.document.createTextNode('\u200B');
+                if (block.firstChild) {
+                    block.insertBefore(target, block.firstChild);
+                } else {
+                    block.appendChild(target);
+                }
+            }
+
+            const range = this.document.createRange();
+            range.setStart(target, target.length);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+            return;
+        }
+
+        let target: Node = block;
+        while (target.lastChild) {
+            target = target.lastChild;
+        }
+
+        const range = this.document.createRange();
+        if (target.nodeType === Node.TEXT_NODE) {
+            const text = target as Text;
+            range.setStart(text, text.length);
+        } else {
+            range.setStartAfter(target);
+        }
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    private executeToolbarCommandFromSlash(command: string, anchorBlock: HTMLElement | null): void {
+        if (command === 'code') {
+            this.insertInlineCodeFromSlash(anchorBlock);
+            return;
+        }
+
+        const transformed = anchorBlock ? this.transformBlockForSlashCommand(anchorBlock, command) : null;
+        if (transformed) {
+            this.placeCaretAtEndOfBlock(transformed);
+            this.applyMutation({ updateActiveFormats: true });
+            return;
+        }
+
+        if (anchorBlock) {
+            this.placeCaretAtEndOfBlock(anchorBlock);
+        }
+        this.onFormatCommand(command);
+    }
+
+    private transformBlockForSlashCommand(anchorBlock: HTMLElement, command: string): HTMLElement | null {
+        const editor = this.getEditorElement();
+        if (!editor || !editor.contains(anchorBlock) || anchorBlock === editor) {
+            return null;
+        }
+
+        if (command === 'bulletList') {
+            return this.wrapBlockInList(anchorBlock, 'ul');
+        }
+        if (command === 'orderedList') {
+            return this.wrapBlockInList(anchorBlock, 'ol');
+        }
+
+        const tagMap: Record<string, string> = {
+            paragraph: 'p',
+            heading1: 'h1',
+            heading2: 'h2',
+            heading3: 'h3',
+            blockquote: 'blockquote',
+        };
+        const nextTag = tagMap[command];
+        if (!nextTag) {
+            return null;
+        }
+        return this.replaceBlockTag(anchorBlock, nextTag);
+    }
+
+    private insertInlineCodeFromSlash(anchorBlock: HTMLElement | null): void {
+        if (anchorBlock) {
+            this.placeCaretAtEndOfBlock(anchorBlock);
+        }
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) {
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        const code = this.document.createElement('code');
+        const textNode = this.document.createTextNode('\u200B');
+        const trailingNode = this.document.createTextNode('\u200B');
+        code.appendChild(textNode);
+        range.deleteContents();
+        range.insertNode(trailingNode);
+        range.insertNode(code);
+
+        const newRange = this.document.createRange();
+        newRange.setStart(textNode, 1);
+        newRange.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        this.syncContentFromEditor();
+        this.updateActiveFormats();
+        this.pushHistory();
+    }
+
+    private replaceBlockTag(block: HTMLElement, targetTagName: string): HTMLElement {
+        const normalized = targetTagName.toUpperCase();
+        if (block.tagName === normalized) {
+            return block;
+        }
+
+        const replacement = this.document.createElement(targetTagName);
+        while (block.firstChild) {
+            replacement.appendChild(block.firstChild);
+        }
+        block.parentNode?.replaceChild(replacement, block);
+        return replacement;
+    }
+
+    private wrapBlockInList(block: HTMLElement, listTagName: 'ul' | 'ol'): HTMLElement {
+        if (block.tagName === 'LI') {
+            const parentList = block.parentElement;
+            if (parentList && (parentList.tagName === 'UL' || parentList.tagName === 'OL') && parentList.tagName.toLowerCase() !== listTagName) {
+                const replacementList = this.document.createElement(listTagName);
+                while (parentList.firstChild) {
+                    replacementList.appendChild(parentList.firstChild);
+                }
+                parentList.parentNode?.replaceChild(replacementList, parentList);
+            }
+            return block;
+        }
+
+        const list = this.document.createElement(listTagName);
+        const item = this.document.createElement('li');
+        while (block.firstChild) {
+            item.appendChild(block.firstChild);
+        }
+        if (this.isEmptyBlock(item)) {
+            item.innerHTML = '<br>';
+        }
+        list.appendChild(item);
+        block.parentNode?.replaceChild(list, block);
+        return item;
+    }
+
+    private isEmptyBlock(block: HTMLElement): boolean {
+        const text = (block.textContent ?? '').replace(/\u200B/g, '').trim();
+        if (text.length > 0) {
+            return false;
+        }
+        const nonEmptyElement = Array.from(block.children).find(child => child.tagName !== 'BR');
+        return !nonEmptyElement;
+    }
+
+    private captureSlashTriggerRange(): void {
+        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!selection || selection.rangeCount === 0 || !editor) {
+            this.slashTriggerRange = null;
+            return;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) {
+            this.slashTriggerRange = null;
+            return;
+        }
+        this.slashTriggerRange = range.cloneRange();
+    }
+
+    private buildTriggerAwareText(html: string): string {
+        const blockAware = html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n');
+        return this.sanitizer.stripTags(blockAware);
+    }
+
+    private isSelectionInsideEditor(): boolean {
+        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!selection || selection.rangeCount === 0 || !editor) {
+            return false;
+        }
+        const range = selection.getRangeAt(0);
+        return editor.contains(range.startContainer) && editor.contains(range.endContainer);
+    }
+
     private pushHistory(): void {
         const currentHtml = this.htmlContent();
         const lastEntry = this.history[this.history.length - 1];
         if (lastEntry && lastEntry.html === currentHtml) {
             return;
         }
+        const previewData = this.buildHistoryPreview(currentHtml);
 
         const entry: HistoryEntry = {
             html: currentHtml,
-            selectionStart: 0,
-            selectionEnd: 0,
+            selection: this.captureSelection(),
+            timestamp: Date.now(),
+            preview: previewData.preview,
+            previewLines: previewData.previewLines,
+            lineCount: previewData.lineCount,
         };
 
         if (this.historyIndex < this.history.length - 1) {
@@ -1406,9 +3015,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.history.shift();
             this.historyIndex--;
         }
+        this.bumpHistoryVersion();
     }
 
     private undo(): void {
+        this.flushPendingHistoryPush();
         if (this.historyIndex > 0) {
             this.isUndoRedo = true;
             this.historyIndex--;
@@ -1418,15 +3029,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             if (this.editorDiv?.nativeElement) {
                 this.editorDiv.nativeElement.innerHTML = entry.html;
             }
+            this.restoreSerializedSelection(entry.selection);
 
             const outputValue = this.mode() === 'markdown'
                 ? this.markdownService.toMarkdown(entry.html)
                 : entry.html;
             this.onChange(outputValue);
+            this.bumpHistoryVersion();
         }
     }
 
     private redo(): void {
+        this.flushPendingHistoryPush();
         if (this.historyIndex < this.history.length - 1) {
             this.isUndoRedo = true;
             this.historyIndex++;
@@ -1436,11 +3050,187 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             if (this.editorDiv?.nativeElement) {
                 this.editorDiv.nativeElement.innerHTML = entry.html;
             }
+            this.restoreSerializedSelection(entry.selection);
 
             const outputValue = this.mode() === 'markdown'
                 ? this.markdownService.toMarkdown(entry.html)
                 : entry.html;
             this.onChange(outputValue);
+            this.bumpHistoryVersion();
+        }
+    }
+
+    private scheduleDebouncedHistoryPush(): void {
+        const delay = Math.max(0, this.historyDebounceMs());
+        if (this.historyDebounceTimer) {
+            clearTimeout(this.historyDebounceTimer);
+        }
+        this.historyDebounceTimer = setTimeout(() => {
+            this.historyDebounceTimer = null;
+            this.pushHistory();
+        }, delay);
+    }
+
+    private flushPendingHistoryPush(): void {
+        if (!this.historyDebounceTimer) {
+            return;
+        }
+        clearTimeout(this.historyDebounceTimer);
+        this.historyDebounceTimer = null;
+        this.pushHistory();
+    }
+
+    private bumpHistoryVersion(): void {
+        this.historyVersion.update(v => v + 1);
+    }
+
+    private buildHistoryPreview(html: string): { preview: string; previewLines: string[]; lineCount: number } {
+        const blockAware = html
+            .replace(/<br\s*\/?>/gi, '\n')
+            .replace(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n')
+            .replace(/<li[^>]*>/gi, '• ');
+        const plain = this.sanitizer.stripTags(blockAware);
+        const lines = plain
+            .split('\n')
+            .map(line => line.replace(/<\/?[^>]+>/g, '').replace(/\s+/g, ' ').trim())
+            .filter(Boolean);
+        const safeLines = lines.length ? lines : ['(empty)'];
+        return {
+            preview: safeLines.join(' ').slice(0, 120),
+            previewLines: safeLines.slice(0, 3),
+            lineCount: safeLines.length,
+        };
+    }
+
+    private focusFirstHistoryActionSoon(preferredList: 'popover' | 'dialog'): void {
+        const tryFocus = (attempt: number) => {
+            const root = this.el.nativeElement as HTMLElement;
+            const selector = `[data-history-list="${preferredList}"] [data-history-entry-action="true"]`;
+            const firstAction = root.querySelector(selector) as HTMLElement | null;
+            if (firstAction) {
+                firstAction.focus();
+                return;
+            }
+            if (attempt < 4) {
+                setTimeout(() => tryFocus(attempt + 1), 16);
+            }
+        };
+
+        setTimeout(() => tryFocus(0), 24);
+    }
+
+    private getHistoryEntryElements(from: HTMLElement): HTMLElement[] {
+        const listContainer = from.closest('[data-history-list]');
+        if (!listContainer) {
+            return [];
+        }
+        return Array.from(
+            listContainer.querySelectorAll('[data-history-entry-action="true"]')
+        ) as HTMLElement[];
+    }
+
+    private getHistoryListType(from: HTMLElement): 'popover' | 'dialog' | null {
+        const listContainer = from.closest('[data-history-list]');
+        const type = listContainer?.getAttribute('data-history-list');
+        if (type === 'popover' || type === 'dialog') {
+            return type;
+        }
+        return null;
+    }
+
+    private focusHistoryEntrySoon(listType: 'popover' | 'dialog', entryIndex: number): void {
+        setTimeout(() => {
+            const root = this.el.nativeElement as HTMLElement;
+            const selector = `[data-history-list="${listType}"] [data-history-entry-index="${entryIndex}"]`;
+            const target = root.querySelector(selector) as HTMLElement | null;
+            target?.focus();
+        }, 0);
+    }
+
+    private captureSelection(): SerializedSelection | null {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) {
+            return null;
+        }
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer) || !editor.contains(range.endContainer)) {
+            return null;
+        }
+
+        return {
+            startPath: this.getNodePath(editor, range.startContainer),
+            startOffset: range.startOffset,
+            endPath: this.getNodePath(editor, range.endContainer),
+            endOffset: range.endOffset,
+        };
+    }
+
+    private restoreSerializedSelection(serialized: SerializedSelection | null): void {
+        if (!serialized) {
+            return;
+        }
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection) {
+            return;
+        }
+
+        const startNode = this.resolveNodePath(editor, serialized.startPath);
+        const endNode = this.resolveNodePath(editor, serialized.endPath);
+        if (!startNode || !endNode) {
+            return;
+        }
+
+        const startOffset = this.clampNodeOffset(startNode, serialized.startOffset);
+        const endOffset = this.clampNodeOffset(endNode, serialized.endOffset);
+        const range = this.document.createRange();
+        range.setStart(startNode, startOffset);
+        range.setEnd(endNode, endOffset);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    private getNodePath(root: Node, node: Node): number[] {
+        const path: number[] = [];
+        let current: Node | null = node;
+        while (current && current !== root) {
+            const parentNode: Node | null = current.parentNode;
+            if (!parentNode) {
+                return [];
+            }
+            path.unshift(Array.prototype.indexOf.call(parentNode.childNodes, current));
+            current = parentNode;
+        }
+        return path;
+    }
+
+    private resolveNodePath(root: Node, path: number[]): Node | null {
+        let current: Node = root;
+        for (const index of path) {
+            const next = current.childNodes.item(index);
+            if (!next) {
+                return null;
+            }
+            current = next;
+        }
+        return current;
+    }
+
+    private clampNodeOffset(node: Node, desiredOffset: number): number {
+        if (node.nodeType === Node.TEXT_NODE) {
+            return Math.max(0, Math.min(desiredOffset, node.textContent?.length ?? 0));
+        }
+        return Math.max(0, Math.min(desiredOffset, node.childNodes.length));
+    }
+
+    ngOnDestroy(): void {
+        this.shortcutHandle?.unregister();
+        this.shortcutHandle = null;
+        if (this.historyDebounceTimer) {
+            clearTimeout(this.historyDebounceTimer);
+            this.historyDebounceTimer = null;
         }
     }
 }

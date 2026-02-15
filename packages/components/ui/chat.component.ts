@@ -8,6 +8,7 @@ import {
   ElementRef,
   signal,
   effect,
+  AfterContentInit,
   AfterViewInit,
   OnDestroy,
 } from '@angular/core';
@@ -23,27 +24,50 @@ import { FormsModule } from '@angular/forms';
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [AvatarComponent, AvatarFallbackComponent, AvatarImageComponent],
   template: `
-    <div [class]="rootClasses()">
+    <div [class]="rootClasses()" [attr.data-slot]="'chat-message'">
       @if (showAvatar()) {
         <ui-avatar class="h-8 w-8 shrink-0">
           @if (avatarSrc(); as src) { <ui-avatar-image [src]="src" /> }
           <ui-avatar-fallback>{{ avatarFallback() }}</ui-avatar-fallback>
         </ui-avatar>
       }
-      
-      <div [class]="bubbleClasses()">
-        <ng-content />
+
+      <div [class]="bubbleClasses()" [attr.data-slot]="'chat-bubble'">
+        <span #projected [class]="hasProjectedContent() ? '' : 'hidden'">
+          <ng-content />
+        </span>
+        @if (!hasProjectedContent() && content()) {
+          <span>{{ content() }}</span>
+        }
       </div>
     </div>
   `,
+  host: { class: 'contents' },
 })
-export class ChatMessageComponent {
+export class ChatMessageComponent implements AfterContentInit {
   role = input<'user' | 'assistant' | 'system'>('user');
+  content = input<string>();
   avatarSrc = input<string | undefined>(undefined);
   avatarFallback = input('?');
   class = input('');
 
+  @ViewChild('projected', { static: true }) projectedRef?: ElementRef<HTMLElement>;
+
+  private _hasProjectedContent = signal(false);
+  hasProjectedContent = this._hasProjectedContent.asReadonly();
+
   showAvatar = computed(() => this.role() !== 'system');
+
+  ngAfterContentInit() {
+    const el = this.projectedRef?.nativeElement;
+    if (el) {
+      const hasContent = Array.from(el.childNodes).some(
+        node => node.nodeType === Node.ELEMENT_NODE ||
+          (node.nodeType === Node.TEXT_NODE && !!node.textContent?.trim())
+      );
+      this._hasProjectedContent.set(hasContent);
+    }
+  }
 
   rootClasses = computed(() => cn(
     'flex w-full gap-3 mb-4',
@@ -69,7 +93,7 @@ export class ChatMessageComponent {
     'class': 'flex flex-col flex-1 overflow-hidden'
   },
   template: `
-    <ui-scroll-area [class]="classes()">
+    <ui-scroll-area [class]="classes()" [attr.data-slot]="'chat-list'">
       <div #content class="p-4 flex flex-col">
         <ng-content />
       </div>
@@ -127,18 +151,19 @@ export class ChatListComponent implements AfterViewInit, OnDestroy {
   selector: 'ui-chat-input',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ButtonComponent, TextareaComponent, FormsModule],
+  host: { class: 'contents' },
   template: `
-    <div [class]="classes()">
-      <ui-textarea 
+    <div [class]="classes()" [attr.data-slot]="'chat-input'">
+      <ui-textarea
         [class]="textareaClasses()"
         [placeholder]="placeholder()"
         [(ngModel)]="inputValue"
         (keydown.enter)="onEnter($event)"
         [rows]="1"
       />
-      <ui-button 
-        size="icon" 
-        [disabled]="!inputValue() || disabled()" 
+      <ui-button
+        size="icon"
+        [disabled]="!inputValue() || disabled()"
         (click)="onSubmit()"
         class="absolute right-2 bottom-2 h-8 w-8"
       >

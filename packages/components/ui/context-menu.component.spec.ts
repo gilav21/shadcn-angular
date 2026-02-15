@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSeparatorComponent, ContextMenuLabelComponent, ContextMenuShortcutComponent } from './context-menu.component';
+import { ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSeparatorComponent, ContextMenuLabelComponent, ContextMenuShortcutComponent, ContextMenuItem, ContextMenuSubComponent, ContextMenuSubTriggerComponent, ContextMenuSubContentComponent } from './context-menu.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -266,5 +266,196 @@ describe('ContextMenu RTL Support', () => {
         // Verify shortcut text
         expect(shortcuts[0]?.textContent).toContain('⌘C');
         expect(shortcuts[1]?.textContent).toContain('⌘V');
+    });
+});
+
+@Component({
+    template: `
+        <ui-context-menu [items]="items()">
+            <ui-context-menu-trigger>
+                <div style="width: 200px; height: 100px; background: #eee;">Right-click here</div>
+            </ui-context-menu-trigger>
+        </ui-context-menu>
+    `,
+    imports: [ContextMenuComponent, ContextMenuTriggerComponent]
+})
+class ItemsDrivenTestHostComponent {
+    items = signal<ContextMenuItem[]>([
+        { label: 'Copy', shortcut: '⌘C' },
+        { label: 'Paste', shortcut: '⌘V' },
+        { type: 'separator' },
+        { type: 'label', label: 'Actions' },
+        { label: 'Delete', disabled: true },
+        { type: 'sub', label: 'More', children: [
+            { label: 'Sub Item 1' },
+            { label: 'Sub Item 2' },
+        ]},
+    ]);
+}
+
+describe('ContextMenu Items-Driven Mode', () => {
+    let fixture: ComponentFixture<ItemsDrivenTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [ItemsDrivenTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(ItemsDrivenTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
+    });
+
+    it('should render auto-generated menu items from items input', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const items = document.querySelectorAll('[data-slot="context-menu-item"]');
+        expect(items.length).toBe(3);
+        expect(items[0]?.textContent?.trim()).toContain('Copy');
+        expect(items[1]?.textContent?.trim()).toContain('Paste');
+        expect(items[2]?.textContent?.trim()).toContain('Delete');
+    });
+
+    it('should render separator from items input', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const separators = document.querySelectorAll('[data-slot="context-menu-separator"]');
+        expect(separators.length).toBe(1);
+    });
+
+    it('should render label from items input', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const labels = document.querySelectorAll('[data-slot="context-menu-label"]');
+        expect(labels.length).toBe(1);
+        expect(labels[0]?.textContent?.trim()).toBe('Actions');
+    });
+
+    it('should render disabled item from items input', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const items = document.querySelectorAll('[data-slot="context-menu-item"]');
+        const deleteItem = items[2];
+        expect(deleteItem?.className).toContain('pointer-events-none');
+        expect(deleteItem?.className).toContain('opacity-50');
+    });
+
+    it('should render sub-menu trigger from items input', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const subTriggers = document.querySelectorAll('[data-slot="context-menu-sub-trigger"]');
+        expect(subTriggers.length).toBe(1);
+        expect(subTriggers[0]?.textContent?.trim()).toContain('More');
+    });
+
+    it('should render shortcuts from items input', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const items = document.querySelectorAll('[data-slot="context-menu-item"]');
+        expect(items[0]?.textContent).toContain('⌘C');
+        expect(items[1]?.textContent).toContain('⌘V');
+    });
+
+    it('should not render auto-generated content when items is empty', async () => {
+        fixture.componentInstance.items.set([]);
+        fixture.detectChanges();
+
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const content = document.querySelector('[data-slot="context-menu-content"]');
+        expect(content).toBeNull();
+    });
+});
+
+@Component({
+    template: `
+        <ui-context-menu>
+            <ui-context-menu-trigger>
+                <div style="width: 200px; height: 100px; background: #eee;">Right-click here</div>
+            </ui-context-menu-trigger>
+            <ui-context-menu-content>
+                <ui-context-menu-item>Custom Item</ui-context-menu-item>
+                <ui-context-menu-sub>
+                    <ui-context-menu-sub-trigger>More Options</ui-context-menu-sub-trigger>
+                    <ui-context-menu-sub-content>
+                        <ui-context-menu-item>Sub Action 1</ui-context-menu-item>
+                        <ui-context-menu-item>Sub Action 2</ui-context-menu-item>
+                    </ui-context-menu-sub-content>
+                </ui-context-menu-sub>
+            </ui-context-menu-content>
+        </ui-context-menu>
+    `,
+    imports: [ContextMenuComponent, ContextMenuTriggerComponent, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuSubComponent, ContextMenuSubTriggerComponent, ContextMenuSubContentComponent]
+})
+class SubMenuTestHostComponent { }
+
+describe('ContextMenu Sub-Menu (Template-Driven)', () => {
+    let fixture: ComponentFixture<SubMenuTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SubMenuTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SubMenuTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
+    });
+
+    it('should render sub-menu trigger', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const subTrigger = document.querySelector('[data-slot="context-menu-sub-trigger"]');
+        expect(subTrigger).toBeTruthy();
+        expect(subTrigger?.textContent?.trim()).toContain('More Options');
+    });
+
+    it('should not show sub-content initially', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        const subContent = document.querySelector('[data-slot="context-menu-sub-content"]');
+        expect(subContent).toBeNull();
     });
 });

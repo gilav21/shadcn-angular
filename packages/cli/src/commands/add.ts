@@ -7,12 +7,14 @@ import ora from 'ora';
 import { getConfig } from '../utils/config.js';
 import { registry, type ComponentName } from '../registry/index.js';
 import { installPackages } from '../utils/package-manager.js';
+import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Base URL for the component registry (GitHub raw content)
 const REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/master/packages/components/ui';
+const LIB_REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/master/packages/components/lib';
 
 // Components source directory (relative to CLI dist folder) for local dev
 function getLocalComponentsDir(): string | null {
@@ -35,6 +37,14 @@ interface AddOptions {
     all?: boolean;
     path?: string;
     remote?: boolean; // Force remote fetch
+}
+
+function getLocalLibDir(): string | null {
+    const fromDist = path.resolve(__dirname, '../../../components/lib');
+    if (fs.existsSync(fromDist)) {
+        return fromDist;
+    }
+    return null;
 }
 
 function resolveProjectPath(cwd: string, inputPath: string): string {
@@ -77,6 +87,40 @@ async function fetchComponentContent(file: string, options: AddOptions): Promise
         }
         throw error;
     }
+}
+
+async function fetchLibContent(file: string, options: AddOptions): Promise<string> {
+    const localDir = getLocalLibDir();
+
+    if (localDir && !options.remote) {
+        const localPath = path.join(localDir, file);
+        if (await fs.pathExists(localPath)) {
+            return fs.readFile(localPath, 'utf-8');
+        }
+    }
+
+    const url = `${LIB_REGISTRY_BASE_URL}/${file}`;
+    const response = await fetch(url);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
+    }
+    return response.text();
+}
+
+function collectInstalledShortcutEntries(targetDir: string): ShortcutRegistryEntry[] {
+    const entries: ShortcutRegistryEntry[] = [];
+    for (const definition of Object.values(registry)) {
+        if (!definition.shortcutDefinitions?.length) {
+            continue;
+        }
+        for (const shortcutDefinition of definition.shortcutDefinitions) {
+            const sourcePath = path.join(targetDir, shortcutDefinition.sourceFile);
+            if (fs.existsSync(sourcePath)) {
+                entries.push(shortcutDefinition);
+            }
+        }
+    }
+    return entries;
 }
 
 export async function add(components: string[], options: AddOptions) {
@@ -299,6 +343,21 @@ export async function add(components: string[], options: AddOptions) {
                 }
             }
         }
+
+        const shortcutEntries = collectInstalledShortcutEntries(targetDir);
+        if (shortcutEntries.length > 0) {
+            const utilsPathResolved = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils) + '.ts');
+            const utilsDir = path.dirname(utilsPathResolved);
+            const shortcutServicePath = path.join(utilsDir, 'shortcut-binding.service.ts');
+
+            if (!await fs.pathExists(shortcutServicePath)) {
+                const shortcutServiceContent = await fetchLibContent('shortcut-binding.service.ts', options);
+                await fs.ensureDir(utilsDir);
+                await fs.writeFile(shortcutServicePath, shortcutServiceContent);
+            }
+        }
+
+        await writeShortcutRegistryIndex(cwd, config, shortcutEntries);
 
         if (componentsToSkip.length > 0) {
             console.log('\n' + chalk.dim('Components skipped (up to date):'));

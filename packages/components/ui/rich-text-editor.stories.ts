@@ -2,6 +2,7 @@ import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { RichTextEditorComponent, DEFAULT_TOOLBAR_ITEMS } from './rich-text-editor.component';
 import { RichTextToolbarComponent } from './rich-text-toolbar.component';
 import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './rich-text-mention.component';
+import { RichTextSlashCommand } from './rich-text-command-registry.service';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
@@ -9,15 +10,34 @@ import { Component, signal } from '@angular/core';
 import { JsonPipe } from '@angular/common';
 
 const sampleMentions: MentionItem[] = [
-    { id: '1', value: 'john', label: 'John Doe', description: 'john@example.com' },
-    { id: '2', value: 'jane', label: 'Jane Smith', description: 'jane@example.com' },
-    { id: '3', value: 'bob', label: 'Bob Wilson', description: 'bob@example.com' },
+    { id: '1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
+    { id: '2', value: 'jane.smith', label: 'Jane Smith', description: 'jane.smith@example.com' },
+    { id: '3', value: 'team_ops', label: 'Team Ops', description: 'ops@example.com' },
 ];
 
 const sampleTags: TagItem[] = [
-    { id: '1', value: 'angular', label: 'Angular', color: '#dd0031' },
-    { id: '2', value: 'typescript', label: 'TypeScript', color: '#3178c6' },
-    { id: '3', value: 'tailwind', label: 'TailwindCSS', color: '#06b6d4' },
+    { id: '1', value: 'angular.ui', label: 'Angular UI', color: '#dd0031' },
+    { id: '2', value: 'typescript-5', label: 'TypeScript 5', color: '#3178c6' },
+    { id: '3', value: 'release_2026', label: 'Release 2026', color: '#06b6d4' },
+];
+
+const customSlashCommands: RichTextSlashCommand[] = [
+    {
+        id: 'custom.insert-callout',
+        label: 'Insert Callout',
+        description: 'Adds a callout block template',
+        keywords: ['callout', 'tip'],
+        order: 1,
+        run: (context) => context.insertHtml('<blockquote><strong>Callout:</strong> Add details here.</blockquote>'),
+    },
+    {
+        id: 'custom.insert-divider',
+        label: 'Insert Divider',
+        description: 'Adds a horizontal divider',
+        keywords: ['divider', 'hr'],
+        order: 2,
+        run: (context) => context.insertHtml('<hr />'),
+    },
 ];
 
 const meta: Meta<RichTextEditorComponent> = {
@@ -59,6 +79,22 @@ const meta: Meta<RichTextEditorComponent> = {
         },
         maxHeight: {
             control: 'text',
+        },
+        showHistoryPanel: {
+            control: 'boolean',
+            description: 'Show revision history panel for jumping to a previous snapshot',
+        },
+        showHistoryButton: {
+            control: 'boolean',
+            description: 'Show/hide the History button (Ctrl/Cmd+Shift+H shortcut still works)',
+        },
+        enableSlashCommands: {
+            control: 'boolean',
+            description: 'Enable slash command palette (type / in editor)',
+        },
+        historyDebounceMs: {
+            control: { type: 'number', min: 0, max: 2000, step: 50 },
+            description: 'Debounce duration (ms) before a typing snapshot is persisted',
         },
     },
 };
@@ -151,7 +187,7 @@ export const WithMentionsAndTags: Story = {
         mentionSource: sampleMentions,
         tags: true,
         tagSource: sampleTags,
-        placeholder: 'Type @ to mention someone or # to add a tag...',
+        placeholder: 'Type @john-doe or #angular.ui to trigger suggestions...',
         minHeight: '150px',
     },
     parameters: {
@@ -168,8 +204,54 @@ export const WithCharacterCount: Story = {
         mode: 'markdown',
         toolbar: 'top',
         showCount: true,
+        showWordCount: true,
         placeholder: 'Type something to see character count...',
         minHeight: '150px',
+    },
+};
+
+export const WithCustomSlashCommands: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        enableSlashCommands: true,
+        slashCommands: customSlashCommands,
+        placeholder: 'Type / to open commands. Try /callout or /divider.',
+        minHeight: '160px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Slash commands include built-ins and app-provided commands via `slashCommands` input.',
+            },
+        },
+    },
+};
+
+export const AdvancedEditorConfig: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        mentions: true,
+        mentionSource: sampleMentions,
+        tags: true,
+        tagSource: sampleTags,
+        showCount: true,
+        showWordCount: true,
+        showHistoryPanel: true,
+        showHistoryButton: true,
+        maxLength: 240,
+        historyLimit: 150,
+        historyDebounceMs: 500,
+        placeholder: 'Try @john-doe, #angular.ui, paste content, then undo/redo.',
+        minHeight: '180px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Production-style setup with mention/tag autocomplete, char+word count, max length, and deeper history.',
+            },
+        },
     },
 };
 
@@ -217,7 +299,6 @@ export const GhostVariant: Story = {
     },
 };
 
-// Interactive example with output preview
 @Component({
     selector: 'rich-text-demo',
     standalone: true,
@@ -267,6 +348,42 @@ class RichTextDemoComponent {
     mentions = sampleMentions;
 }
 
+@Component({
+    selector: 'rich-text-advanced-demo',
+    standalone: true,
+    imports: [RichTextEditorComponent, FormsModule],
+    template: `
+    <div class="space-y-4">
+      <p class="text-sm text-muted-foreground">
+        Exercise mentions/tags with realistic handles: <code>@john-doe</code>, <code>@jane.smith</code>, <code>#angular.ui</code>.
+      </p>
+      <ui-rich-text-editor
+        mode="markdown"
+        toolbar="top"
+        [mentions]="true"
+        [mentionSource]="mentions"
+        [tags]="true"
+        [tagSource]="tags"
+        [showCount]="true"
+        [showWordCount]="true"
+        [showHistoryPanel]="true"
+        [maxLength]="220"
+        [historyLimit]="200"
+        [historyDebounceMs]="500"
+        placeholder="Type content, paste text, and use undo/redo to validate history behavior..."
+        minHeight="180px"
+        [(ngModel)]="content"
+      />
+      <pre class="p-4 bg-muted rounded-md text-xs overflow-auto max-h-56">{{ content }}</pre>
+    </div>
+  `,
+})
+class RichTextAdvancedDemoComponent {
+    content = '';
+    mentions = sampleMentions;
+    tags = sampleTags;
+}
+
 export const InteractiveDemo: Story = {
     render: () => ({
         moduleMetadata: {
@@ -283,7 +400,22 @@ export const InteractiveDemo: Story = {
     },
 };
 
-// Reactive forms example
+export const AdvancedBehaviorDemo: Story = {
+    render: () => ({
+        moduleMetadata: {
+            imports: [RichTextAdvancedDemoComponent],
+        },
+        template: '<rich-text-advanced-demo />',
+    }),
+    parameters: {
+        docs: {
+            description: {
+                story: 'Focused demo for maxLength handling, richer mention/tag triggers, and larger undo/redo history.',
+            },
+        },
+    },
+};
+
 @Component({
     selector: 'rich-text-form-demo',
     standalone: true,

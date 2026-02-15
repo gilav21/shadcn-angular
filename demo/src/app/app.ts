@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input, viewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input, viewChild, DestroyRef } from '@angular/core';
 import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { delay, of } from 'rxjs';
@@ -146,6 +146,7 @@ import {
   CommandSeparatorComponent,
   CommandShortcutComponent,
   CommandDialogComponent,
+  COMMAND_DIALOG_SHORTCUT_DEFINITIONS,
   MenubarComponent,
   MenubarMenuComponent,
   MenubarTriggerComponent,
@@ -216,6 +217,7 @@ import {
   EmojiPickerContentComponent,
   EmojiPickerTriggerComponent,
   RichTextEditorComponent,
+  RICH_TEXT_SHORTCUT_DEFINITIONS,
   AutocompleteComponent,
   MentionItem,
   TagItem,
@@ -276,7 +278,9 @@ import {
   DockIconComponent,
   DockLabelComponent,
   PageBuilderComponent,
-  ComponentMeta
+  ComponentMeta,
+  ShortcutBindingService,
+  ShortcutBindingsDialogComponent
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -620,6 +624,7 @@ class OpsTicketDetailComponent {
     CommandSeparatorComponent,
     CommandShortcutComponent,
     CommandDialogComponent,
+    ShortcutBindingsDialogComponent,
     MenubarComponent,
     MenubarMenuComponent,
     MenubarTriggerComponent,
@@ -771,6 +776,7 @@ export class AppComponent {
   radioOptions = ['Default', 'Comfortable', 'Compact'];
 
   private toastService = inject(ToastService);
+  private shortcutBindings = inject(ShortcutBindingService);
   isDark = signal(false);
 
   verticalTopSize = signal(40);
@@ -888,6 +894,9 @@ export class AppComponent {
   }
 
   constructor() {
+    this.shortcutBindings.defineShortcuts('command-dialog', COMMAND_DIALOG_SHORTCUT_DEFINITIONS);
+    this.shortcutBindings.defineShortcuts('rich-text-editor', RICH_TEXT_SHORTCUT_DEFINITIONS);
+
     // Generate 100 mock payments
     const clientNames = ['Acme Corp', 'TechStart Inc', 'Global Solutions', 'Innovation Labs', 'Digital Ventures'];
     const roles = ['Admin', 'User', 'Manager', 'Developer', 'Designer'];
@@ -911,6 +920,16 @@ export class AppComponent {
     setInterval(() => {
       this.subscribersValue.update(v => v + Math.floor(Math.random() * 3) + 1);
     }, 5000);
+
+    this.updateDocumentTitle(this.activeComponent());
+    const destroyRef = inject(DestroyRef);
+    const onPopState = () => {
+      const id = this.getComponentIdFromUrl();
+      this.activeComponent.set(id);
+      this.updateDocumentTitle(id);
+    };
+    window.addEventListener('popstate', onPopState);
+    destroyRef.onDestroy(() => window.removeEventListener('popstate', onPopState));
   }
 
   // Custom cells demo columns using components
@@ -1320,6 +1339,7 @@ export class AppComponent {
   }
 
   showCommandDialog = signal(false);
+  showShortcutBindingsDialog = signal(false);
   sidebarCollapseMode = signal<'icon' | 'hidden'>('icon');
 
   // Chat Demo
@@ -1371,16 +1391,36 @@ export class AppComponent {
   // Rich Text Editor demo data
   richTextContent = '';
   richTextHtml = '';
+  richTextShowHistoryButton = signal(true);
   sampleMentions: MentionItem[] = [
-    { id: '1', value: 'john', label: 'John Doe', description: 'john@example.com' },
-    { id: '2', value: 'jane', label: 'Jane Smith', description: 'jane@example.com' },
-    { id: '3', value: 'bob', label: 'Bob Wilson', description: 'bob@example.com' },
+    { id: 'button', value: 'button', label: 'Button', description: 'Inputs' },
+    { id: 'card', value: 'card', label: 'Card', description: 'Data Display' },
+    { id: 'dialog', value: 'dialog', label: 'Dialog', description: 'Overlay' },
+    { id: 'tabs', value: 'tabs', label: 'Tabs', description: 'Navigation' },
+    { id: 'timeline', value: 'timeline', label: 'Timeline', description: 'Data Display' },
+    { id: 'badge', value: 'badge', label: 'Badge', description: 'Data Display' },
   ];
   sampleTags: TagItem[] = [
     { id: '1', value: 'angular', label: 'Angular', color: '#dd0031' },
     { id: '2', value: 'typescript', label: 'TypeScript', color: '#3178c6' },
-    { id: '3', value: 'tailwind', label: 'TailwindCSS', color: '#06b6d4' },
+    { id: '3', value: 'tailwind', label: 'Tailwind', color: '#06b6d4' },
   ];
+
+  mentionRenderer = (item: MentionItem): HTMLElement => {
+    const link = document.createElement('a');
+    link.href = `/${item.value}`;
+    link.className = 'text-accent-foreground rounded px-1 no-underline hover:underline cursor-pointer';
+    link.textContent = `@${item.label}`;
+    return link;
+  };
+
+  tagRenderer = (item: TagItem): HTMLElement => {
+    const link = document.createElement('a');
+    link.href = '#';
+    link.className = 'text-accent-foreground rounded px-1 no-underline hover:underline cursor-pointer';
+    link.textContent = `#${item.label}`;
+    return link;
+  };
 
   codeBlockCSharp = `using System;
 
@@ -1473,13 +1513,10 @@ WHERE status = 'active'
 ORDER BY created_at DESC;`;
 
   onKeydown(e: KeyboardEvent) {
-    if (e.key === 'k' && (e.metaKey || e.ctrlKey)) {
-      e.preventDefault();
-      this.showCommandDialog.update((v) => !v);
-    }
+    this.shortcutBindings.dispatch(e);
   }
 
-  activeComponent = signal('introduction');
+  activeComponent = signal(this.getComponentIdFromUrl());
 
   componentLinks = [
     { id: 'emoji-picker', name: 'Emoji Picker', category: 'Advanced', icon: '😀' },
@@ -1595,6 +1632,18 @@ ORDER BY created_at DESC;`;
   navTo(id: string) {
     this.activeComponent.set(id);
     this.showCommandDialog.set(false);
+    history.pushState(null, '', id === 'introduction' ? '/' : `/${id}`);
+    this.updateDocumentTitle(id);
+  }
+
+  private getComponentIdFromUrl(): string {
+    const path = window.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+    return path || 'introduction';
+  }
+
+  private updateDocumentTitle(id: string) {
+    const link = this.componentLinks.find(l => l.id === id);
+    document.title = link ? `${link.name} - shadcn-angular` : 'shadcn-angular';
   }
 
   getLinksByCategory(category: string) {

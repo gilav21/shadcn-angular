@@ -1,19 +1,18 @@
-import { Component, input, computed } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, ChangeDetectionStrategy, input, computed } from '@angular/core';
 import { cn } from '../lib/utils';
 
 @Component({
     selector: 'ui-dock-label',
-    standalone: true,
-    imports: [CommonModule],
+    changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <div [class]="classes()">
+    <div [class]="classes()" [attr.data-slot]="'dock-label'">
       <ng-content />
     </div>
-  `
+  `,
+    host: { class: 'contents' },
 })
 export class DockLabelComponent {
-    class = input<string>('');
+    class = input('');
     classes = computed(() => cn(
         'absolute -top-10 left-1/2 -translate-x-1/2 hidden px-2 py-0.5 rounded-md border bg-popover text-popover-foreground text-xs shadow-md',
         'group-hover:block',

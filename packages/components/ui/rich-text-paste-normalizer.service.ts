@@ -1,0 +1,1152 @@
+import { Injectable, inject } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { RichTextMarkdownService } from './rich-text-markdown.service';
+
+export type PasteSource =
+    | 'msword'
+    | 'outlook'
+    | 'google-docs'
+    | 'apple-pages'
+    | 'libreoffice'
+    | 'markdown'
+    | 'html'
+    | 'plain-text';
+
+/**
+ * Normalizes pasted content from various sources (Word, Outlook, Google Docs, etc.)
+ * into clean, semantic HTML before it reaches the sanitizer.
+ *
+ * Pipeline: ClipboardEvent → PasteNormalizer.normalize() → Sanitizer.sanitize() → insertHtml()
+ *
+ * This service handles structural/cosmetic cleanup only — the sanitizer remains the security gate.
+ */
+@Injectable({ providedIn: 'root' })
+export class RichTextPasteNormalizerService {
+    private readonly document = inject(DOCUMENT);
+    private readonly markdownService = inject(RichTextMarkdownService);
+
+    /**
+     * Normalize pasted content for high-fidelity insertion.
+     * Returns cleaned HTML ready for the sanitizer.
+     */
+    normalize(html: string | null, text: string): string {
+        const source = this.detectSource(html, text);
+
+        switch (source) {
+            case 'msword':
+            case 'outlook':
+                return this.normalizeOffice(html!, source);
+            case 'google-docs':
+                return this.normalizeGoogleDocs(html!);
+            case 'apple-pages':
+            case 'libreoffice':
+                return this.normalizeGenericOffice(html!);
+            case 'markdown':
+                return this.markdownService.toHtml(text);
+            case 'html':
+                return this.normalizeGenericHtml(html!);
+            case 'plain-text':
+                return this.normalizePlainText(text);
+        }
+    }
+
+    /**
+     * Detect the source application of pasted content.
+     */
+    detectSource(html: string | null, text: string): PasteSource {
+        if (html && html.trim().length > 0) {
+            if (this.isOutlookHtml(html)) return 'outlook';
+            if (this.isMsWordHtml(html)) return 'msword';
+            if (this.isGoogleDocsHtml(html)) return 'google-docs';
+            if (this.isApplePagesHtml(html)) return 'apple-pages';
+            if (this.isLibreOfficeHtml(html)) return 'libreoffice';
+            return 'html';
+        }
+
+        if (text && text.trim().length > 0) {
+            if (this.looksLikeMarkdown(text)) return 'markdown';
+            return 'plain-text';
+        }
+
+        return 'plain-text';
+    }
+
+    // =========================================================================
+    // SOURCE DETECTION
+    // =========================================================================
+
+    private isMsWordHtml(html: string): boolean {
+        return /class="?Mso/i.test(html) ||
+            /urn:schemas-microsoft-com:office/i.test(html) ||
+            /<o:p[\s>]/i.test(html) ||
+            /mso-/i.test(html) ||
+            /<!--\[if\s+(?:gte\s+)?mso/i.test(html);
+    }
+
+    private isOutlookHtml(html: string): boolean {
+        if (!this.isMsWordHtml(html)) return false;
+        return /class="?WordSection1"?/i.test(html) ||
+            /<v:shapetype/i.test(html) ||
+            /<v:shape/i.test(html) ||
+            /<o:OfficeDocumentSettings/i.test(html);
+    }
+
+    private isGoogleDocsHtml(html: string): boolean {
+        return /docs-internal-guid-/i.test(html) ||
+            /data-sheets-/i.test(html);
+    }
+
+    private isApplePagesHtml(html: string): boolean {
+        return /Cocoa HTML Writer/i.test(html) ||
+            /content="Apple"/i.test(html);
+    }
+
+    private isLibreOfficeHtml(html: string): boolean {
+        return /content="LibreOffice/i.test(html) ||
+            /content="OpenOffice/i.test(html);
+    }
+
+    private looksLikeMarkdown(text: string): boolean {
+        if (!text || text.length < 3) return false;
+
+        let score = 0;
+
+        if (/^#{1,6}\s+\S/m.test(text)) score += 2;
+        if (/```[\s\S]*?```/.test(text)) score += 2;
+        if (/\[.+\]\(https?:\/\/.+\)/.test(text)) score += 2;
+
+        if (/\*\*[^*]+\*\*/.test(text)) score += 1;
+        if (/^[-*+]\s+/m.test(text)) score += 1;
+        if (/^\d+\.\s+/m.test(text)) score += 1;
+        if (/^>\s/m.test(text)) score += 1;
+        if (/`[^`]+`/.test(text)) score += 1;
+
+        return score >= 2;
+    }
+
+    // =========================================================================
+    // OFFICE NORMALIZER (Word & Outlook)
+    // =========================================================================
+
+    private normalizeOffice(html: string, source: 'msword' | 'outlook'): string {
+        let cleaned = html;
+
+        cleaned = this.stripConditionalComments(cleaned);
+        cleaned = this.stripXmlBlocks(cleaned);
+        cleaned = this.stripXmlProcessingInstructions(cleaned);
+
+        const cssRules = this.extractCssRules(cleaned);
+        cleaned = this.stripStyleBlocks(cleaned);
+
+        const container = this.parseToContainer(cleaned);
+
+        this.inlineCssRules(cssRules, container);
+        this.removeNamespacedElements(container);
+        this.convertFontElements(container);
+        this.convertWordHeadings(container);
+        this.convertWordLists(container);
+        this.unwrapGhostTables(container);
+        this.mapOfficeStyles(container);
+        this.convertStylesToSemanticElements(container);
+        this.removeEmptyElements(container);
+        this.normalizeWhitespace(container);
+
+        if (source === 'outlook') {
+            this.normalizeOutlookSpecific(container);
+        }
+
+        this.stripClassAndIdAttributes(container);
+
+        return container.innerHTML;
+    }
+
+    private stripConditionalComments(html: string): string {
+        return html.replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, '');
+    }
+
+    private stripXmlBlocks(html: string): string {
+        return html.replace(/<xml[\s\S]*?<\/xml>/gi, '');
+    }
+
+    private stripStyleBlocks(html: string): string {
+        return html.replace(/<style[\s\S]*?<\/style>/gi, '');
+    }
+
+    private stripXmlProcessingInstructions(html: string): string {
+        return html.replace(/<\?xml[\s\S]*?\?>/gi, '');
+    }
+
+    private extractCssRules(html: string): Map<string, Map<string, string>> {
+        const rules = new Map<string, Map<string, string>>();
+        const styleBlockRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
+        let blockMatch;
+
+        const relevantProperties = new Set([
+            'color', 'background-color', 'background',
+            'font-size', 'font-weight', 'font-style',
+            'text-decoration', 'text-align',
+        ]);
+
+        while ((blockMatch = styleBlockRegex.exec(html)) !== null) {
+            const cssText = blockMatch[1]
+                .replace(/\/\*[\s\S]*?\*\//g, '')
+                .replace(/<!--/g, '')
+                .replace(/-->/g, '');
+            const ruleRegex = /([^{}]+)\{([^}]+)\}/g;
+            let ruleMatch;
+
+            while ((ruleMatch = ruleRegex.exec(cssText)) !== null) {
+                const selectorGroup = ruleMatch[1].trim();
+                const declarations = ruleMatch[2].trim();
+
+                if (selectorGroup.includes('@')) continue;
+
+                const props = this.parseStyles(declarations);
+                const relevantProps = new Map<string, string>();
+
+                for (const [prop, value] of props) {
+                    if (relevantProperties.has(prop) || prop.startsWith('mso-')) {
+                        relevantProps.set(prop, value);
+                    }
+                }
+
+                if (relevantProps.size === 0) continue;
+
+                const selectors = selectorGroup.split(',').map(s => s.trim());
+                for (const sel of selectors) {
+                    if (!sel) continue;
+                    const existing = rules.get(sel);
+                    if (existing) {
+                        for (const [p, v] of relevantProps) {
+                            existing.set(p, v);
+                        }
+                    } else {
+                        rules.set(sel, new Map(relevantProps));
+                    }
+                }
+            }
+        }
+
+        return rules;
+    }
+
+    private inlineCssRules(rules: Map<string, Map<string, string>>, container: HTMLElement): void {
+        for (const [selector, props] of rules) {
+            try {
+                const elements = container.querySelectorAll(selector);
+                for (const el of Array.from(elements)) {
+                    const htmlEl = el as HTMLElement;
+                    const existingStyle = htmlEl.getAttribute('style') || '';
+                    const existingProps = this.parseStyles(existingStyle);
+
+                    for (const [prop, value] of props) {
+                        if (!existingProps.has(prop)) {
+                            existingProps.set(prop, value);
+                        }
+                    }
+
+                    const serialized = this.serializeStyles(existingProps);
+                    if (serialized) {
+                        htmlEl.setAttribute('style', serialized);
+                    }
+                }
+            } catch {
+                // Invalid CSS selector — skip
+            }
+        }
+    }
+
+    private removeNamespacedElements(container: HTMLElement): void {
+        const namespaced = container.querySelectorAll(
+            'o\\:p, w\\:sdtContent, w\\:sdt, w\\:sdtPr, w\\:sdtEndPr, o\\:OLEObject'
+        );
+        namespaced.forEach(el => {
+            const parent = el.parentNode;
+            if (parent) {
+                while (el.firstChild) {
+                    parent.insertBefore(el.firstChild, el);
+                }
+                parent.removeChild(el);
+            }
+        });
+
+        this.walkElements(container, el => {
+            if (el.tagName && el.tagName.includes(':')) {
+                el.remove();
+            }
+        });
+    }
+
+    private convertWordHeadings(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            if (el.tagName !== 'P') return;
+
+            let headingLevel = 0;
+
+            const className = el.getAttribute('class') || '';
+            const headingMatch = className.match(/MsoHeading(\d)/i);
+            if (headingMatch) {
+                headingLevel = parseInt(headingMatch[1], 10);
+            }
+
+            if (!headingLevel) {
+                const style = el.getAttribute('style') || '';
+                const outlineMatch = style.match(/mso-outline-level\s*:\s*(\d)/i);
+                if (outlineMatch) {
+                    headingLevel = parseInt(outlineMatch[1], 10);
+                }
+            }
+
+            if (!headingLevel) {
+                const styleName = el.getAttribute('style') || '';
+                const styleNameMatch = styleName.match(/mso-style-name\s*:\s*["']?Heading\s*(\d)["']?/i);
+                if (styleNameMatch) {
+                    headingLevel = parseInt(styleNameMatch[1], 10);
+                }
+            }
+
+            if (headingLevel >= 1 && headingLevel <= 6) {
+                const heading = this.document.createElement(`h${headingLevel}`);
+                while (el.firstChild) {
+                    heading.appendChild(el.firstChild);
+                }
+                const style = el.getAttribute('style');
+                if (style) {
+                    const cleaned = this.stripMsoProperties(style);
+                    if (cleaned) heading.setAttribute('style', cleaned);
+                }
+                el.parentNode?.replaceChild(heading, el);
+            }
+        });
+    }
+
+    private convertWordLists(container: HTMLElement): void {
+        type ListItem = { el: HTMLElement; level: number; listId: string; isOrdered: boolean };
+        const runs: ListItem[][] = [];
+        let currentRun: ListItem[] = [];
+
+        const children = Array.from(container.children) as HTMLElement[];
+        for (const el of children) {
+            if (el.tagName !== 'P') {
+                if (currentRun.length > 0) {
+                    runs.push(currentRun);
+                    currentRun = [];
+                }
+                continue;
+            }
+
+            const className = el.getAttribute('class') || '';
+            const style = el.getAttribute('style') || '';
+
+            const isListItem = /MsoListParagraph/i.test(className) || /mso-list\s*:/i.test(style);
+            if (!isListItem) {
+                if (currentRun.length > 0) {
+                    runs.push(currentRun);
+                    currentRun = [];
+                }
+                continue;
+            }
+
+            let level = 1;
+            const levelMatch = style.match(/mso-list\s*:[^;]*level(\d)/i);
+            if (levelMatch) {
+                level = parseInt(levelMatch[1], 10);
+            }
+
+            let listId = 'default';
+            const listIdMatch = style.match(/mso-list\s*:\s*(\w+)/i);
+            if (listIdMatch) {
+                listId = listIdMatch[1];
+            }
+
+            const textContent = el.textContent || '';
+            const isOrdered = /^\s*\d+[.)]\s/.test(textContent) ||
+                /^\s*[a-z][.)]\s/i.test(textContent) ||
+                /^\s*[ivxlcdm]+[.)]\s/i.test(textContent);
+
+            this.stripListBulletSpan(el);
+
+            currentRun.push({ el, level, listId, isOrdered });
+        }
+        if (currentRun.length > 0) {
+            runs.push(currentRun);
+        }
+
+        for (const items of runs) {
+            const isOrdered = items[0].isOrdered;
+            const list = this.buildNestedList(items, isOrdered);
+
+            items[0].el.parentNode?.insertBefore(list, items[0].el);
+            for (const item of items) {
+                item.el.remove();
+            }
+        }
+    }
+
+    private stripListBulletSpan(el: HTMLElement): void {
+        const spans = el.querySelectorAll('span');
+        for (const span of Array.from(spans)) {
+            const style = span.getAttribute('style') || '';
+            if (/mso-list\s*:\s*Ignore/i.test(style)) {
+                span.remove();
+            }
+        }
+
+        const firstChild = el.firstChild;
+        if (firstChild && firstChild.nodeType === Node.TEXT_NODE) {
+            const text = firstChild.textContent || '';
+            firstChild.textContent = text.replace(/^[\s\u00A0]*[\u00B7o\u00A7\u2022\u2023\u25E6\u2043\u2219]\s*/, '')
+                .replace(/^[\s\u00A0]*\d+[.)]\s*/, '')
+                .replace(/^[\s\u00A0]*[a-z][.)]\s*/i, '')
+                .replace(/^[\s\u00A0]*[ivxlcdm]+[.)]\s*/i, '');
+        }
+    }
+
+    private buildNestedList(
+        items: { el: HTMLElement; level: number; isOrdered: boolean }[],
+        isOrdered: boolean
+    ): HTMLElement {
+        const root = this.document.createElement(isOrdered ? 'ol' : 'ul');
+        const stack: { list: HTMLElement; level: number }[] = [{ list: root, level: 1 }];
+
+        for (const item of items) {
+            while (stack.length > 1 && stack[stack.length - 1].level >= item.level) {
+                stack.pop();
+            }
+
+            if (item.level > stack[stack.length - 1].level) {
+                const currentList = stack[stack.length - 1].list;
+                let lastLi = currentList.lastElementChild as HTMLElement | null;
+                if (!lastLi || lastLi.tagName !== 'LI') {
+                    lastLi = this.document.createElement('li');
+                    currentList.appendChild(lastLi);
+                }
+
+                const nestedList = this.document.createElement(item.isOrdered ? 'ol' : 'ul');
+                lastLi.appendChild(nestedList);
+                stack.push({ list: nestedList, level: item.level });
+            }
+
+            const li = this.document.createElement('li');
+            while (item.el.firstChild) {
+                li.appendChild(item.el.firstChild);
+            }
+            stack[stack.length - 1].list.appendChild(li);
+        }
+
+        return root;
+    }
+
+    private unwrapGhostTables(container: HTMLElement): void {
+        const tables = Array.from(container.querySelectorAll('table'));
+        for (const table of tables) {
+            const rows = table.querySelectorAll('tr');
+            const isGhostTable = Array.from(rows).every(row => {
+                const cells = row.querySelectorAll('td, th');
+                return cells.length === 1;
+            });
+
+            if (isGhostTable && rows.length > 0) {
+                const fragment = this.document.createDocumentFragment();
+                for (const row of Array.from(rows)) {
+                    const cell = row.querySelector('td, th');
+                    if (cell) {
+                        while (cell.firstChild) {
+                            fragment.appendChild(cell.firstChild);
+                        }
+                    }
+                }
+                table.parentNode?.replaceChild(fragment, table);
+            }
+        }
+    }
+
+    private mapOfficeStyles(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            const style = el.getAttribute('style');
+            if (!style) return;
+
+            const styles = this.parseStyles(style);
+            const mapped = new Map<string, string>();
+
+            for (const [prop, value] of styles) {
+                if (prop.startsWith('mso-')) {
+                    this.mapMsoProperty(prop, value, mapped, el);
+                } else if (!prop.startsWith('-')) {
+                    if ((prop === 'color' || prop === 'background-color') &&
+                        /^(windowtext|auto|activecaption|appworkspace|background|buttonface|buttonhighlight|buttonshadow|buttontext|captiontext|graytext|highlight|highlighttext|inactiveborder|inactivecaption|inactivecaptiontext|infobackground|infotext|menu|menutext|scrollbar|threeddarkshadow|threedface|threedhighlight|threedlightshadow|threedshadow|window|windowframe|windowtext)$/i.test(value)) {
+                        continue;
+                    }
+                    mapped.set(prop, value);
+                }
+            }
+
+            const serialized = this.serializeStyles(mapped);
+            if (serialized) {
+                el.setAttribute('style', serialized);
+            } else {
+                el.removeAttribute('style');
+            }
+        });
+    }
+
+    private mapMsoProperty(
+        prop: string,
+        value: string,
+        mapped: Map<string, string>,
+        _el: HTMLElement
+    ): void {
+        switch (prop) {
+            case 'mso-highlight':
+                if (value && value !== 'auto') {
+                    mapped.set('background-color', value);
+                }
+                break;
+            case 'mso-ansi-font-size':
+            case 'mso-bidi-font-size':
+                if (!mapped.has('font-size')) {
+                    mapped.set('font-size', value);
+                }
+                break;
+            case 'mso-bidi-font-weight':
+                if (value === 'bold') {
+                    mapped.set('font-weight', 'bold');
+                }
+                break;
+            case 'mso-bidi-font-style':
+                if (value === 'italic') {
+                    mapped.set('font-style', 'italic');
+                }
+                break;
+            case 'mso-text-underline':
+                if (value && value !== 'none') {
+                    mapped.set('text-decoration', 'underline');
+                }
+                break;
+            case 'mso-style-textfill-fill-color':
+                if (value && !mapped.has('color')) {
+                    mapped.set('color', value);
+                }
+                break;
+            case 'mso-color-alt':
+                if (value && !mapped.has('color')) {
+                    mapped.set('color', value);
+                }
+                break;
+        }
+    }
+
+    private normalizeOutlookSpecific(container: HTMLElement): void {
+        const wordSections = container.querySelectorAll('.WordSection1, [class*="WordSection"]');
+        for (const section of Array.from(wordSections)) {
+            this.unwrapElement(section as HTMLElement);
+        }
+
+        this.walkElements(container, el => {
+            if (el.tagName && (el.tagName.startsWith('V:') || el.tagName.toLowerCase().startsWith('v:'))) {
+                el.remove();
+            }
+        });
+    }
+
+    // =========================================================================
+    // GOOGLE DOCS NORMALIZER
+    // =========================================================================
+
+    private normalizeGoogleDocs(html: string): string {
+        const container = this.parseToContainer(html);
+
+        this.removeGoogleDocsWrapper(container);
+        this.simplifyGoogleDocsSpans(container);
+        this.cleanGoogleDocsLists(container);
+        this.cleanGoogleSheetsData(container);
+        this.cleanGoogleDocsBrTags(container);
+        this.convertStylesToSemanticElements(container);
+        this.removeEmptyElements(container);
+        this.stripClassAndIdAttributes(container);
+
+        return container.innerHTML;
+    }
+
+    private removeGoogleDocsWrapper(container: HTMLElement): void {
+        const wrappers = container.querySelectorAll('[id^="docs-internal-guid-"]');
+        for (const wrapper of Array.from(wrappers)) {
+            this.unwrapElement(wrapper as HTMLElement);
+        }
+
+        this.walkElements(container, el => {
+            if (el.tagName === 'B') {
+                const style = el.getAttribute('style') || '';
+                const id = el.getAttribute('id') || '';
+                if (id.startsWith('docs-internal-guid-') ||
+                    /font-weight\s*:\s*normal/i.test(style)) {
+                    this.unwrapElement(el);
+                }
+            }
+        });
+    }
+
+    private simplifyGoogleDocsSpans(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            if (el.tagName !== 'SPAN') return;
+
+            const style = el.getAttribute('style');
+            if (!style) return;
+
+            const styles = this.parseStyles(style);
+
+            const defaultValues: Record<string, RegExp> = {
+                'color': /^(#000000|#000|rgb\(0,\s*0,\s*0\)|black)$/i,
+                'background-color': /^(transparent|rgba\(0,\s*0,\s*0,\s*0\)|initial)$/i,
+                'font-weight': /^(400|normal)$/i,
+                'font-style': /^normal$/i,
+                'font-variant': /^normal$/i,
+                'text-decoration': /^none$/i,
+                'vertical-align': /^baseline$/i,
+                'white-space': /^pre-?wrap$/i,
+            };
+
+            for (const [prop, pattern] of Object.entries(defaultValues)) {
+                const val = styles.get(prop);
+                if (val && pattern.test(val.trim())) {
+                    styles.delete(prop);
+                }
+            }
+
+            const stripProps = ['font-family', 'font-variant', 'white-space',
+                'letter-spacing', 'orphans', 'widows', 'text-transform'];
+            for (const prop of stripProps) {
+                styles.delete(prop);
+            }
+
+            const serialized = this.serializeStyles(styles);
+            if (serialized) {
+                el.setAttribute('style', serialized);
+            } else {
+                el.removeAttribute('style');
+                if (!el.hasAttributes()) {
+                    this.unwrapElement(el);
+                }
+            }
+        });
+    }
+
+    private cleanGoogleDocsLists(container: HTMLElement): void {
+        const lists = container.querySelectorAll('ul, ol');
+        for (const list of Array.from(lists)) {
+            list.removeAttribute('style');
+            const items = list.querySelectorAll('li');
+            for (const item of Array.from(items)) {
+                const style = item.getAttribute('style') || '';
+                const cleaned = this.parseStyles(style);
+                cleaned.delete('margin-left');
+                cleaned.delete('padding-left');
+                const listStyleType = cleaned.get('list-style-type');
+                const serialized = listStyleType ? `list-style-type: ${listStyleType}` : '';
+                if (serialized) {
+                    item.setAttribute('style', serialized);
+                } else {
+                    item.removeAttribute('style');
+                }
+            }
+        }
+    }
+
+    private cleanGoogleSheetsData(container: HTMLElement): void {
+        const sheetsEls = container.querySelectorAll('[data-sheets-value], [data-sheets-userformat]');
+        for (const el of Array.from(sheetsEls)) {
+            const attrs = Array.from(el.attributes);
+            for (const attr of attrs) {
+                if (attr.name.startsWith('data-sheets-')) {
+                    el.removeAttribute(attr.name);
+                }
+            }
+        }
+    }
+
+    private cleanGoogleDocsBrTags(container: HTMLElement): void {
+        const brs = container.querySelectorAll('br[class]');
+        for (const br of Array.from(brs)) {
+            br.removeAttribute('class');
+        }
+    }
+
+    // =========================================================================
+    // GENERIC OFFICE NORMALIZER (Apple Pages & LibreOffice)
+    // =========================================================================
+
+    private normalizeGenericOffice(html: string): string {
+        const container = this.parseToContainer(html);
+
+        this.removeMetaTags(container);
+        this.stripVendorPrefixedStyles(container);
+        this.convertFontElements(container);
+        this.convertStylesToSemanticElements(container);
+        this.removeEmptyElements(container);
+        this.stripClassAndIdAttributes(container);
+
+        return container.innerHTML;
+    }
+
+    private stripVendorPrefixedStyles(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            const style = el.getAttribute('style');
+            if (!style) return;
+
+            const styles = this.parseStyles(style);
+            for (const prop of styles.keys()) {
+                if (prop.startsWith('-apple-') || prop.startsWith('-webkit-') ||
+                    prop.startsWith('-moz-') || prop.startsWith('-ms-')) {
+                    styles.delete(prop);
+                }
+            }
+
+            const serialized = this.serializeStyles(styles);
+            if (serialized) {
+                el.setAttribute('style', serialized);
+            } else {
+                el.removeAttribute('style');
+            }
+        });
+    }
+
+    private convertFontElements(container: HTMLElement): void {
+        const fonts = Array.from(container.querySelectorAll('font'));
+        for (const font of fonts) {
+            const span = this.document.createElement('span');
+            const styles: string[] = [];
+
+            const color = font.getAttribute('color');
+            if (color) styles.push(`color: ${color}`);
+
+            const size = font.getAttribute('size');
+            if (size) {
+                const sizeMap: Record<string, string> = {
+                    '1': '10px', '2': '13px', '3': '16px', '4': '18px',
+                    '5': '24px', '6': '32px', '7': '48px',
+                };
+                const mapped = sizeMap[size];
+                if (mapped) styles.push(`font-size: ${mapped}`);
+            }
+
+            if (styles.length > 0) {
+                span.setAttribute('style', styles.join('; '));
+            }
+
+            while (font.firstChild) {
+                span.appendChild(font.firstChild);
+            }
+            font.parentNode?.replaceChild(span, font);
+        }
+    }
+
+    // =========================================================================
+    // GENERIC HTML NORMALIZER
+    // =========================================================================
+
+    private normalizeGenericHtml(html: string): string {
+        const container = this.parseToContainer(html);
+
+        this.removeMetaTags(container);
+        this.convertSemanticElements(container);
+        this.normalizeDivsToP(container);
+        this.convertStylesToSemanticElements(container);
+        this.removeEmptyElements(container);
+        this.stripClassAndIdAttributes(container);
+
+        return container.innerHTML;
+    }
+
+    private convertSemanticElements(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            if (el.tagName === 'B' && !el.getAttribute('id')?.startsWith('docs-internal-guid-')) {
+                this.replaceTag(el, 'strong');
+            } else if (el.tagName === 'I') {
+                this.replaceTag(el, 'em');
+            }
+        });
+    }
+
+    private normalizeDivsToP(container: HTMLElement): void {
+        const BLOCK_TAGS = new Set([
+            'P', 'DIV', 'H1', 'H2', 'H3', 'H4', 'H5', 'H6',
+            'UL', 'OL', 'LI', 'BLOCKQUOTE', 'PRE', 'TABLE',
+            'THEAD', 'TBODY', 'TFOOT', 'TR', 'TD', 'TH', 'HR',
+        ]);
+
+        this.walkElements(container, el => {
+            if (el.tagName !== 'DIV') return;
+
+            const hasBlockChild = Array.from(el.children).some(
+                child => BLOCK_TAGS.has(child.tagName)
+            );
+
+            if (!hasBlockChild) {
+                this.replaceTag(el, 'p');
+            }
+        });
+    }
+
+    // =========================================================================
+    // PLAIN TEXT NORMALIZER
+    // =========================================================================
+
+    private normalizePlainText(text: string): string {
+        if (!text) return '';
+
+        let processed = text;
+        const hadNewlines = text.includes('\n');
+
+        if (this.looksLikePdfText(processed)) {
+            processed = this.structurePdfText(processed);
+        }
+
+        let escaped = this.escapeHtml(processed);
+
+        escaped = escaped.replace(
+            /(https?:\/\/[^\s<&]+)/g,
+            '<a href="$1">$1</a>'
+        );
+
+        if (!hadNewlines && !escaped.includes('\n')) {
+            return escaped;
+        }
+
+        if (!escaped.includes('\n')) {
+            return `<p>${escaped}</p>`;
+        }
+
+        const paragraphs = escaped.split(/\n{2,}/);
+        const htmlParagraphs = paragraphs.map(p => {
+            const withBreaks = p.replace(/\n/g, '<br>');
+            return `<p>${withBreaks}</p>`;
+        });
+
+        return htmlParagraphs.join('');
+    }
+
+    private looksLikePdfText(text: string): boolean {
+        const lines = text.split('\n').filter(l => l.trim().length > 0);
+        if (lines.length < 3) return false;
+
+        const lengths = lines.map(l => l.trim().length);
+        const avgLength = lengths.reduce((a, b) => a + b, 0) / lengths.length;
+        if (avgLength < 10) return false;
+
+        const consistent = lengths.filter(l => Math.abs(l - avgLength) / avgLength < 0.4);
+        if (consistent.length / lines.length > 0.3) return true;
+
+        const hasDoubleNewlines = /\n\s*\n/.test(text);
+        if (!hasDoubleNewlines && lines.length >= 5) return true;
+
+        return false;
+    }
+
+    private structurePdfText(text: string): string {
+        const lines = text.split('\n');
+        const result: string[] = [];
+
+        const nonEmptyLengths = lines
+            .map(l => l.trim().length)
+            .filter(len => len > 0)
+            .sort((a, b) => a - b);
+        const columnWidth = nonEmptyLengths.length > 3
+            ? nonEmptyLengths[Math.floor(nonEmptyLengths.length * 0.75)]
+            : 80;
+
+        let i = 0;
+        while (i < lines.length) {
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            if (trimmed === '') {
+                result.push('');
+                i++;
+                continue;
+            }
+
+            if (this.isPdfHeading(trimmed, lines, i)) {
+                if (result.length > 0 && result[result.length - 1] !== '') {
+                    result.push('');
+                }
+                result.push(trimmed);
+                result.push('');
+                i++;
+                continue;
+            }
+
+            if (this.isPdfListItem(trimmed)) {
+                if (result.length > 0 && result[result.length - 1] !== '' && !this.isPdfListItem(result[result.length - 1])) {
+                    result.push('');
+                }
+                result.push(trimmed);
+                i++;
+                continue;
+            }
+
+            let paragraph = trimmed;
+            let lastLineLen = trimmed.length;
+            i++;
+            while (i < lines.length) {
+                const nextLine = lines[i].trim();
+                if (nextLine === '') break;
+                if (this.isPdfHeading(nextLine, lines, i)) break;
+                if (this.isPdfListItem(nextLine)) break;
+                if (this.isPdfLineBreak(paragraph, nextLine, lastLineLen, columnWidth)) break;
+                paragraph += ' ' + nextLine;
+                lastLineLen = nextLine.length;
+                i++;
+            }
+            result.push(paragraph);
+            if (i < lines.length && lines[i].trim() !== '') {
+                result.push('');
+            }
+        }
+
+        return result.join('\n');
+    }
+
+    private isPdfHeading(line: string, allLines: string[], index: number): boolean {
+        if (line.length > 80) return false;
+        if (line.length < 2) return false;
+
+        const nextLine = index + 1 < allLines.length ? allLines[index + 1].trim() : '';
+        const prevLine = index > 0 ? allLines[index - 1].trim() : '';
+
+        if (nextLine === '' && prevLine === '' && line.length < 60) return true;
+
+        if (/^[A-Z][A-Z\s\d:.\-]{2,}$/.test(line) && line.length < 60) return true;
+
+        if (/^\d+(\.\d+)*\s+\S/.test(line) && line.length < 80 && nextLine !== '' && !line.endsWith('.')) return true;
+
+        return false;
+    }
+
+    private isPdfListItem(line: string): boolean {
+        return /^\s*[-•●○◦▪▸►–—]\s+/.test(line) ||
+            /^\s*\d+[.)]\s+/.test(line) ||
+            /^\s*[a-z][.)]\s+/i.test(line) ||
+            /^\s*[ivxlcdm]+[.)]\s+/i.test(line);
+    }
+
+    private isPdfLineBreak(currentParagraph: string, nextLine: string, lastLineLength: number, columnWidth: number): boolean {
+        const isShortLine = lastLineLength < columnWidth * 0.85;
+
+        if (isShortLine && /[.!?]\s*$/.test(currentParagraph) && /^[A-Z]/.test(nextLine)) return true;
+
+        if (lastLineLength < columnWidth * 0.5 && currentParagraph.length > 30) return true;
+
+        if (nextLine.length < 20 && currentParagraph.length > 60) return true;
+
+        return false;
+    }
+
+    // =========================================================================
+    // SHARED UTILITIES
+    // =========================================================================
+
+    private parseToContainer(html: string): HTMLElement {
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(html, 'text/html');
+        return doc.body;
+    }
+
+    private walkElements(container: HTMLElement, fn: (el: HTMLElement) => void): void {
+        const elements = Array.from(container.querySelectorAll('*')) as HTMLElement[];
+        for (let i = elements.length - 1; i >= 0; i--) {
+            fn(elements[i]);
+        }
+    }
+
+    private parseStyles(styleAttr: string): Map<string, string> {
+        const styles = new Map<string, string>();
+        if (!styleAttr) return styles;
+
+        const parts = styleAttr.split(';');
+        for (const part of parts) {
+            const colonIndex = part.indexOf(':');
+            if (colonIndex === -1) continue;
+            const prop = part.substring(0, colonIndex).trim().toLowerCase();
+            const value = part.substring(colonIndex + 1).trim();
+            if (prop && value) {
+                styles.set(prop, value);
+            }
+        }
+        return styles;
+    }
+
+    private serializeStyles(styles: Map<string, string>): string {
+        if (styles.size === 0) return '';
+        const parts: string[] = [];
+        for (const [prop, value] of styles) {
+            parts.push(`${prop}: ${value}`);
+        }
+        return parts.join('; ');
+    }
+
+    private stripMsoProperties(style: string): string {
+        const styles = this.parseStyles(style);
+        for (const prop of styles.keys()) {
+            if (prop.startsWith('mso-') || prop.startsWith('-')) {
+                styles.delete(prop);
+            }
+        }
+        return this.serializeStyles(styles);
+    }
+
+    private unwrapElement(el: Element): void {
+        const parent = el.parentNode;
+        if (!parent) return;
+        while (el.firstChild) {
+            parent.insertBefore(el.firstChild, el);
+        }
+        parent.removeChild(el);
+    }
+
+    private replaceTag(el: HTMLElement, newTag: string): void {
+        const newEl = this.document.createElement(newTag);
+        for (const attr of Array.from(el.attributes)) {
+            newEl.setAttribute(attr.name, attr.value);
+        }
+        while (el.firstChild) {
+            newEl.appendChild(el.firstChild);
+        }
+        el.parentNode?.replaceChild(newEl, el);
+    }
+
+    private removeMetaTags(container: HTMLElement): void {
+        const metaTags = container.querySelectorAll('meta, link, title, style, base');
+        for (const tag of Array.from(metaTags)) {
+            tag.remove();
+        }
+    }
+
+    private stripClassAndIdAttributes(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            el.removeAttribute('class');
+            el.removeAttribute('id');
+        });
+    }
+
+    private isEffectivelyEmpty(el: HTMLElement): boolean {
+        if (el.tagName === 'BR' || el.tagName === 'HR' || el.tagName === 'IMG') return false;
+
+        const text = el.textContent || '';
+        const trimmed = text.replace(/[\s\u00A0]/g, '');
+        if (trimmed.length > 0) return false;
+
+        if (el.querySelector('img, br, hr, table')) return false;
+
+        return true;
+    }
+
+    private removeEmptyElements(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            if (el.tagName === 'SPAN' && this.isEffectivelyEmpty(el) && !el.hasAttributes()) {
+                el.remove();
+            }
+        });
+
+        this.walkElements(container, el => {
+            if (el.tagName === 'P' && this.isEffectivelyEmpty(el)) {
+                const isOnlyChild = el.parentNode?.childNodes.length === 1;
+                if (!isOnlyChild) {
+                    el.remove();
+                }
+            }
+        });
+    }
+
+    private normalizeWhitespace(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            if (el.tagName === 'PRE' || el.tagName === 'CODE') return;
+
+            const style = el.getAttribute('style') || '';
+            if (/mso-spacerun\s*:\s*yes/i.test(style)) {
+                const styles = this.parseStyles(style);
+                styles.delete('mso-spacerun');
+                const serialized = this.serializeStyles(styles);
+                if (serialized) {
+                    el.setAttribute('style', serialized);
+                } else {
+                    el.removeAttribute('style');
+                }
+            }
+        });
+
+        const walker = this.document.createTreeWalker(container, NodeFilter.SHOW_TEXT);
+        let node: Text | null;
+        while ((node = walker.nextNode() as Text | null)) {
+            const parent = node.parentElement;
+            if (parent && (parent.tagName === 'PRE' || parent.tagName === 'CODE')) continue;
+
+            const text = node.textContent || '';
+            if (/\u00A0{2,}/.test(text)) {
+                node.textContent = text.replace(/\u00A0{2,}/g, ' ');
+            }
+        }
+    }
+
+    private convertStylesToSemanticElements(container: HTMLElement): void {
+        this.walkElements(container, el => {
+            if (el.tagName === 'STRONG' || el.tagName === 'EM' ||
+                el.tagName === 'U' || el.tagName === 'DEL' ||
+                el.tagName === 'S' || el.tagName === 'B' || el.tagName === 'I') return;
+
+            const style = el.getAttribute('style');
+            if (!style) return;
+
+            const styles = this.parseStyles(style);
+            let current: HTMLElement = el;
+
+            const fontWeight = styles.get('font-weight');
+            if (fontWeight === 'bold' || (fontWeight && parseInt(fontWeight, 10) >= 700)) {
+                styles.delete('font-weight');
+                current = this.wrapChildrenIn(current, 'strong');
+            }
+
+            const fontStyle = styles.get('font-style');
+            if (fontStyle === 'italic') {
+                styles.delete('font-style');
+                current = this.wrapChildrenIn(current, 'em');
+            }
+
+            const textDecoration = styles.get('text-decoration');
+            if (textDecoration) {
+                if (textDecoration.includes('underline')) {
+                    styles.delete('text-decoration');
+                    current = this.wrapChildrenIn(current, 'u');
+                } else if (textDecoration.includes('line-through')) {
+                    styles.delete('text-decoration');
+                    current = this.wrapChildrenIn(current, 'del');
+                }
+            }
+
+            const serialized = this.serializeStyles(styles);
+            if (serialized) {
+                el.setAttribute('style', serialized);
+            } else {
+                el.removeAttribute('style');
+            }
+        });
+    }
+
+    private wrapChildrenIn(parent: HTMLElement, tag: string): HTMLElement {
+        if (!parent.firstChild) return parent;
+        const wrapper = this.document.createElement(tag);
+        while (parent.firstChild) {
+            wrapper.appendChild(parent.firstChild);
+        }
+        parent.appendChild(wrapper);
+        return wrapper;
+    }
+
+    private escapeHtml(text: string): string {
+        return text
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#x27;');
+    }
+}
