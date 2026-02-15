@@ -9,6 +9,7 @@
     ],
     "scripts": {
         "build:cli": "cd packages/cli && npm run build",
+        "build:mcp": "cd packages/mcp-server && npm run build",
         "publish:cli": "cd packages/cli && npm version patch && npm publish",
         "build:demo": "cd demo && npm run build",
         "dev": "cd demo && npm run start",
