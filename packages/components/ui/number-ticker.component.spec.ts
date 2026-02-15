@@ -1,0 +1,103 @@
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component, signal } from '@angular/core';
+import { By } from '@angular/platform-browser';
+import { describe, it, expect, beforeEach } from 'vitest';
+import { NumberTickerComponent, NumberTickerDigitComponent } from './number-ticker.component';
+
+@Component({
+    template: `<ui-number-ticker [value]="value()" [decimalPlaces]="decimalPlaces()" [delay]="delay()" [duration]="duration()" />`,
+    imports: [NumberTickerComponent]
+})
+class NumberTickerTestHostComponent {
+    value = signal(1234);
+    decimalPlaces = signal(0);
+    delay = signal(0);
+    duration = signal(0.01);
+}
+
+describe('NumberTickerComponent', () => {
+    let fixture: ComponentFixture<NumberTickerTestHostComponent>;
+    let component: NumberTickerTestHostComponent;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [NumberTickerTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(NumberTickerTestHostComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+    });
+
+    it('should create', () => {
+        const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent));
+        expect(ticker).toBeTruthy();
+    });
+
+    it('should accept value input', () => {
+        const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent));
+        expect(ticker.componentInstance.value()).toBe(1234);
+    });
+
+    it('should render digit components', () => {
+        const digits = fixture.debugElement.queryAll(By.directive(NumberTickerDigitComponent));
+        expect(digits.length).toBeGreaterThan(0);
+    });
+
+    it('should render a span element with tabular-nums class', () => {
+        const span = fixture.debugElement.query(By.css('.tabular-nums'));
+        expect(span).toBeTruthy();
+    });
+
+    it('should accept decimalPlaces input', () => {
+        const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent));
+        component.decimalPlaces.set(2);
+        fixture.detectChanges();
+
+        expect(ticker.componentInstance.decimalPlaces()).toBe(2);
+    });
+
+    it('should update when value changes', async () => {
+        component.value.set(5678);
+        fixture.detectChanges();
+
+        const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent));
+        expect(ticker.componentInstance.value()).toBe(5678);
+    });
+
+    it('should accept custom class input', () => {
+        const tickerComponent = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance;
+        expect(tickerComponent.class()).toBe('');
+    });
+});
+
+describe('NumberTickerDigitComponent', () => {
+    @Component({
+        template: `<ui-number-ticker-digit [digit]="digit()" />`,
+        imports: [NumberTickerDigitComponent]
+    })
+    class DigitTestHostComponent {
+        digit = signal('5');
+    }
+
+    let fixture: ComponentFixture<DigitTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DigitTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DigitTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should create', () => {
+        const digit = fixture.debugElement.query(By.directive(NumberTickerDigitComponent));
+        expect(digit).toBeTruthy();
+    });
+
+    it('should render the digit value', () => {
+        const element = fixture.debugElement.query(By.directive(NumberTickerDigitComponent));
+        expect(element.nativeElement.textContent).toContain('5');
+    });
+});
