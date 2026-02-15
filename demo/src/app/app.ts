@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input, viewChild } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input, viewChild, DestroyRef } from '@angular/core';
 import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { delay, of } from 'rxjs';
@@ -921,6 +921,15 @@ export class AppComponent {
       this.subscribersValue.update(v => v + Math.floor(Math.random() * 3) + 1);
     }, 5000);
 
+    this.updateDocumentTitle(this.activeComponent());
+    const destroyRef = inject(DestroyRef);
+    const onPopState = () => {
+      const id = this.getComponentIdFromUrl();
+      this.activeComponent.set(id);
+      this.updateDocumentTitle(id);
+    };
+    window.addEventListener('popstate', onPopState);
+    destroyRef.onDestroy(() => window.removeEventListener('popstate', onPopState));
   }
 
   // Custom cells demo columns using components
@@ -1379,6 +1388,7 @@ export class AppComponent {
     }
   }
 
+<<<<<<< HEAD
   // Rich Text Editor demo data
   richTextContent = '';
   richTextHtml = '';
@@ -1427,6 +1437,41 @@ export class AppComponent {
       item.value.toLowerCase().includes(normalized)
     );
   };
+=======
+  // Rich Text Editor demo data
+  richTextContent = '';
+  richTextHtml = '';
+  richTextShowHistoryButton = signal(true);
+  sampleMentions: MentionItem[] = [
+    { id: 'button', value: 'button', label: 'Button', description: 'Inputs' },
+    { id: 'card', value: 'card', label: 'Card', description: 'Data Display' },
+    { id: 'dialog', value: 'dialog', label: 'Dialog', description: 'Overlay' },
+    { id: 'tabs', value: 'tabs', label: 'Tabs', description: 'Navigation' },
+    { id: 'timeline', value: 'timeline', label: 'Timeline', description: 'Data Display' },
+    { id: 'badge', value: 'badge', label: 'Badge', description: 'Data Display' },
+  ];
+  sampleTags: TagItem[] = [
+    { id: '1', value: 'angular', label: 'Angular', color: '#dd0031' },
+    { id: '2', value: 'typescript', label: 'TypeScript', color: '#3178c6' },
+    { id: '3', value: 'tailwind', label: 'Tailwind', color: '#06b6d4' },
+  ];
+
+  mentionRenderer = (item: MentionItem): HTMLElement => {
+    const link = document.createElement('a');
+    link.href = `/${item.value}`;
+    link.className = 'text-accent-foreground rounded px-1 no-underline hover:underline cursor-pointer';
+    link.textContent = `@${item.label}`;
+    return link;
+  };
+
+  tagRenderer = (item: TagItem): HTMLElement => {
+    const link = document.createElement('a');
+    link.href = '#';
+    link.className = 'text-accent-foreground rounded px-1 no-underline hover:underline cursor-pointer';
+    link.textContent = `#${item.label}`;
+    return link;
+  };
+>>>>>>> origin/master
 
   codeBlockCSharp = `using System;
 
@@ -1522,7 +1567,7 @@ ORDER BY created_at DESC;`;
     this.shortcutBindings.dispatch(e);
   }
 
-  activeComponent = signal('introduction');
+  activeComponent = signal(this.getComponentIdFromUrl());
 
   componentLinks = [
     { id: 'emoji-picker', name: 'Emoji Picker', category: 'Advanced', icon: '😀' },
@@ -1638,6 +1683,18 @@ ORDER BY created_at DESC;`;
   navTo(id: string) {
     this.activeComponent.set(id);
     this.showCommandDialog.set(false);
+    history.pushState(null, '', id === 'introduction' ? '/' : `/${id}`);
+    this.updateDocumentTitle(id);
+  }
+
+  private getComponentIdFromUrl(): string {
+    const path = window.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+    return path || 'introduction';
+  }
+
+  private updateDocumentTitle(id: string) {
+    const link = this.componentLinks.find(l => l.id === id);
+    document.title = link ? `${link.name} - shadcn-angular` : 'shadcn-angular';
   }
 
   getLinksByCategory(category: string) {

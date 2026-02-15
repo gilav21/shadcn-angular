@@ -1,5 +1,6 @@
 import {
     Component,
+    ChangeDetectionStrategy,
     computed,
     signal,
     input,
@@ -10,11 +11,11 @@ import {
     OnDestroy,
     ContentChildren,
     QueryList,
+    AfterContentInit,
     AfterViewInit,
     ViewChildren
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
-import { cva, VariantProps } from 'class-variance-authority';
+import { cva } from 'class-variance-authority';
 import { cn } from '../lib/utils';
 import { DockItemComponent } from './dock-item.component';
 import { DockIconComponent } from './dock-icon.component';
@@ -42,46 +43,55 @@ export interface DockItemData {
     icon?: string;
     class?: string;
     active?: boolean;
+    href?: string;
+    onClick?: () => void;
 }
 
 @Component({
     selector: 'ui-dock',
-    standalone: true,
-    imports: [CommonModule, DockItemComponent, DockIconComponent, DockLabelComponent],
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [DockItemComponent, DockIconComponent, DockLabelComponent],
     template: `
     <div
       #dock
       [class]="classes()"
+      [attr.data-slot]="'dock'"
     >
-      <ng-content />
-      @for (item of items(); track $index) {
-        <ui-dock-item [class]="item.class || ''" [active]="item.active || false">
-           @if (item.label) { <ui-dock-label>{{ item.label }}</ui-dock-label> }
-           @if (item.icon) { <ui-dock-icon>{{ item.icon }}</ui-dock-icon> }
-        </ui-dock-item>
+      @if (hasCustomContent()) {
+        <ng-content />
+      } @else {
+        @for (item of items(); track $index) {
+          <ui-dock-item [class]="item.class || ''" [active]="item.active || false">
+            @if (item.label) { <ui-dock-label>{{ item.label }}</ui-dock-label> }
+            @if (item.icon) { <ui-dock-icon>{{ item.icon }}</ui-dock-icon> }
+          </ui-dock-item>
+        }
       }
     </div>
   `,
-    host: {
-        'class': 'block w-full'
-    }
+    host: { class: 'contents' },
 })
-export class DockComponent implements OnInit, OnDestroy, AfterViewInit {
-    class = input<string>('');
+export class DockComponent implements OnInit, OnDestroy, AfterContentInit, AfterViewInit {
+    class = input('');
     magnification = input<number>(60);
     distance = input<number>(100);
     position = input<'bottom' | 'top' | 'left' | 'right'>('bottom');
     items = input<DockItemData[]>([]);
 
+    @ContentChildren(DockItemComponent) private projectedItems!: QueryList<DockItemComponent>;
+    @ViewChildren(DockItemComponent) private viewItems!: QueryList<DockItemComponent>;
 
+    private _hasCustomContent = signal(false);
+    hasCustomContent = this._hasCustomContent.asReadonly();
+
+    ngAfterContentInit() {
+        this._hasCustomContent.set(this.projectedItems.length > 0);
+    }
 
     classes = computed(() => cn(dockVariants({ position: this.position() }), this.class()));
 
     private _el = inject(ElementRef);
     private _ngZone = inject(NgZone);
-
-    @ContentChildren(DockItemComponent) private projectedItems!: QueryList<DockItemComponent>;
-    @ViewChildren(DockItemComponent) private viewItems!: QueryList<DockItemComponent>;
 
     private _itemCenters: number[] = [];
     private readonly onMouseMoveBound = this.onMouseMove.bind(this);
@@ -93,7 +103,6 @@ export class DockComponent implements OnInit, OnDestroy, AfterViewInit {
     }
 
     ngAfterViewInit() {
-        // Initial setup
         this.recalculateItemCenters();
     }
 
@@ -143,7 +152,6 @@ export class DockComponent implements OnInit, OnDestroy, AfterViewInit {
             cancelAnimationFrame(this._rafId);
             this._rafId = null;
         }
-        // One last update to reset
         this.updateItems();
     }
 

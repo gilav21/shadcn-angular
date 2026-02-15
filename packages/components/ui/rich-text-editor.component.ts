@@ -21,8 +21,14 @@ import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
+<<<<<<< HEAD
 import { Observable, isObservable, of, Subject, firstValueFrom, from, catchError } from 'rxjs';
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
+=======
+import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
+import { Observable, isObservable, of, Subject, firstValueFrom } from 'rxjs';
+import { debounceTime, switchMap, catchError, tap } from 'rxjs/operators';
+>>>>>>> origin/master
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
@@ -45,6 +51,7 @@ import {
     RichTextSlashCommandAvailabilityContext,
     RichTextSlashCommandContext,
 } from './rich-text-command-registry.service';
+import { RichTextLocale, RICH_TEXT_LOCALES, interpolate } from './rich-text-locales';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -145,104 +152,106 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'clear',
 ];
 
-export const DEFAULT_SLASH_COMMANDS: RichTextSlashCommand[] = [
-    {
-        id: 'format.paragraph',
-        label: 'Paragraph',
-        description: 'Switch to paragraph text',
-        keywords: ['text', 'normal'],
-        order: 10,
-        run: context => context.executeToolbarCommand('paragraph'),
-    },
-    {
-        id: 'format.heading-1',
-        label: 'Heading 1',
-        description: 'Large section heading',
-        keywords: ['h1', 'title'],
-        order: 20,
-        run: context => context.executeToolbarCommand('heading1'),
-    },
-    {
-        id: 'format.heading-2',
-        label: 'Heading 2',
-        description: 'Medium section heading',
-        keywords: ['h2', 'subtitle'],
-        order: 30,
-        run: context => context.executeToolbarCommand('heading2'),
-    },
-    {
-        id: 'format.heading-3',
-        label: 'Heading 3',
-        description: 'Small section heading',
-        keywords: ['h3'],
-        order: 40,
-        run: context => context.executeToolbarCommand('heading3'),
-    },
-    {
-        id: 'format.bullet-list',
-        label: 'Bullet List',
-        description: 'Create a bulleted list',
-        keywords: ['list', 'ul', 'bl'],
-        order: 50,
-        run: context => context.executeToolbarCommand('bulletList'),
-    },
-    {
-        id: 'format.numbered-list',
-        label: 'Numbered List',
-        description: 'Create an ordered list',
-        keywords: ['list', 'ol', 'nl'],
-        order: 60,
-        run: context => context.executeToolbarCommand('orderedList'),
-    },
-    {
-        id: 'format.quote',
-        label: 'Block Quote',
-        description: 'Insert a block quote',
-        keywords: ['blockquote', 'quote'],
-        order: 70,
-        run: context => context.executeToolbarCommand('blockquote'),
-    },
-    {
-        id: 'format.inline-code',
-        label: 'Inline Code',
-        description: 'Wrap selection in inline code',
-        keywords: ['code'],
-        order: 80,
-        run: context => context.executeToolbarCommand('code'),
-    },
-    {
-        id: 'format.code-block',
-        label: 'Code Block',
-        description: 'Insert a code block',
-        keywords: ['pre', 'snippet'],
-        order: 90,
-        run: context => context.executeToolbarCommand('codeBlock'),
-    },
-    {
-        id: 'insert.link',
-        label: 'Link',
-        description: 'Insert or edit a link',
-        keywords: ['url', 'anchor'],
-        order: 100,
-        run: context => context.showLinkDialog(),
-    },
-    {
-        id: 'history.undo',
-        label: 'Undo',
-        description: 'Undo last change',
-        keywords: ['ctrl+z', 'revert'],
-        order: 110,
-        run: context => context.executeToolbarCommand('undo'),
-    },
-    {
-        id: 'history.redo',
-        label: 'Redo',
-        description: 'Redo last undone change',
-        keywords: ['ctrl+y', 'ctrl+shift+z'],
-        order: 120,
-        run: context => context.executeToolbarCommand('redo'),
-    },
-];
+export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
+    return [
+        {
+            id: 'format.paragraph',
+            label: l.paragraph,
+            description: l.paragraphDescription,
+            keywords: ['text', 'normal'],
+            order: 10,
+            run: context => context.executeToolbarCommand('paragraph'),
+        },
+        {
+            id: 'format.heading-1',
+            label: l.heading1,
+            description: l.heading1Description,
+            keywords: ['h1', 'title'],
+            order: 20,
+            run: context => context.executeToolbarCommand('heading1'),
+        },
+        {
+            id: 'format.heading-2',
+            label: l.heading2,
+            description: l.heading2Description,
+            keywords: ['h2', 'subtitle'],
+            order: 30,
+            run: context => context.executeToolbarCommand('heading2'),
+        },
+        {
+            id: 'format.heading-3',
+            label: l.heading3,
+            description: l.heading3Description,
+            keywords: ['h3'],
+            order: 40,
+            run: context => context.executeToolbarCommand('heading3'),
+        },
+        {
+            id: 'format.bullet-list',
+            label: l.bulletList,
+            description: l.bulletListDescription,
+            keywords: ['list', 'ul', 'bl'],
+            order: 50,
+            run: context => context.executeToolbarCommand('bulletList'),
+        },
+        {
+            id: 'format.numbered-list',
+            label: l.numberedList,
+            description: l.numberedListDescription,
+            keywords: ['list', 'ol', 'nl'],
+            order: 60,
+            run: context => context.executeToolbarCommand('orderedList'),
+        },
+        {
+            id: 'format.quote',
+            label: l.blockQuote,
+            description: l.blockQuoteDescription,
+            keywords: ['blockquote', 'quote'],
+            order: 70,
+            run: context => context.executeToolbarCommand('blockquote'),
+        },
+        {
+            id: 'format.inline-code',
+            label: l.inlineCode,
+            description: l.inlineCodeDescription,
+            keywords: ['code'],
+            order: 80,
+            run: context => context.executeToolbarCommand('code'),
+        },
+        {
+            id: 'format.code-block',
+            label: l.codeBlock,
+            description: l.codeBlockDescription,
+            keywords: ['pre', 'snippet'],
+            order: 90,
+            run: context => context.executeToolbarCommand('codeBlock'),
+        },
+        {
+            id: 'insert.link',
+            label: l.link,
+            description: l.linkDescription,
+            keywords: ['url', 'anchor'],
+            order: 100,
+            run: context => context.showLinkDialog(),
+        },
+        {
+            id: 'history.undo',
+            label: l.undo,
+            description: l.undoDescription,
+            keywords: ['ctrl+z', 'revert'],
+            order: 110,
+            run: context => context.executeToolbarCommand('undo'),
+        },
+        {
+            id: 'history.redo',
+            label: l.redo,
+            description: l.redoDescription,
+            keywords: ['ctrl+y', 'ctrl+shift+z'],
+            order: 120,
+            run: context => context.executeToolbarCommand('redo'),
+        },
+    ];
+}
 
 export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.bold', description: 'Toggle bold', defaultShortcut: 'Mod+B', category: 'Formatting' },
@@ -290,6 +299,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         [selectedText]="selectedText()"
         [disabled]="disabled()"
         [readonly]="readonly()"
+        [locale]="resolvedLocale()"
         (formatCommand)="onFormatCommand($event)"
         (linkInsert)="onLinkInsert($event)"
         (imageInsert)="onImageInsert($event)"
@@ -299,7 +309,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
       />
     }
 
-    <div [class]="editorContainerClasses()">
+    <div [class]="editorContainerClasses()" [dir]="isRtl() ? 'rtl' : 'ltr'">
       @if (showHistoryPanel() && !readonly() && showHistoryButton()) {
         <div #historyShortcutAnchor class="absolute top-2 z-30 ltr:right-2 rtl:left-2">
           <ui-popover
@@ -314,26 +324,26 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                 class="h-8 px-2.5 text-xs"
                 [disabled]="disabled()"
                 [attr.title]="'Ctrl/Cmd + Shift + H'"
-                aria-label="Open revision history (Ctrl or Command + Shift + H)"
+                [attr.aria-label]="resolvedLocale().history.ariaOpen"
               >
-                History ({{ historyCount() }})
+                {{ interpolateLocale(resolvedLocale().history.button, { count: historyCount() }) }}
               </ui-button>
             </ui-popover-trigger>
             <ui-popover-content class="w-80 p-0" align="end" side="bottom" [restoreFocus]="false">
               <div class="flex items-center justify-between border-b px-3 py-2">
-                <div class="text-sm font-medium">Revision History</div>
+                <div class="text-sm font-medium">{{ resolvedLocale().history.title }}</div>
                 <ui-button
                   type="button"
                   variant="ghost"
                   size="sm"
                   class="h-7 w-7 p-0"
                   (click)="historyPanelOpen.set(false)"
-                  aria-label="Close revision history"
+                  [attr.aria-label]="resolvedLocale().history.ariaClose"
                 >
                   <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                  <span class="sr-only">Close</span>
+                  <span class="sr-only">{{ resolvedLocale().history.close }}</span>
                 </ui-button>
               </div>
               <ui-scroll-area [class]="'h-72 p-2'">
@@ -348,15 +358,15 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                       [class.border-border]="!entry.active"
                       [attr.data-history-entry-action]="'true'"
                       [attr.data-history-entry-index]="entry.index"
-                      [attr.aria-label]="'Apply revision ' + (entry.index + 1)"
+                      [attr.aria-label]="interpolateLocale(resolvedLocale().history.ariaApply, { index: entry.index + 1 })"
                       (click)="onQuickApplyFromHistory(entry.index, $event)"
                       (keydown)="onHistoryEntryKeydown($event, entry.index)"
                     >
                       <div class="flex items-center justify-between gap-2">
-                        <span class="text-xs font-medium">Revision {{ entry.index + 1 }}</span>
+                        <span class="text-xs font-medium">{{ interpolateLocale(resolvedLocale().history.revision, { index: entry.index + 1 }) }}</span>
                         <div class="flex items-center gap-2">
                           @if (lastAppliedHistoryIndex() === entry.index) {
-                            <span class="text-[11px] text-primary/90 font-medium">Applied</span>
+                            <span class="text-[11px] text-primary/90 font-medium">{{ resolvedLocale().history.applied }}</span>
                           }
                           <span class="text-[11px] text-muted-foreground">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
                           <ui-button
@@ -366,7 +376,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                             class="h-6 px-2 text-[11px]"
                             (click)="openHistoryPreview(entry.index, $event)"
                           >
-                            Preview
+                            {{ resolvedLocale().history.preview }}
                           </ui-button>
                         </div>
                       </div>
@@ -375,7 +385,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                           <p class="text-xs text-muted-foreground leading-4 truncate">{{ line }}</p>
                         }
                         @if (entry.lineCount > entry.previewLines.length) {
-                          <p class="text-[11px] text-muted-foreground/80">+{{ entry.lineCount - entry.previewLines.length }} more lines</p>
+                          <p class="text-[11px] text-muted-foreground/80">{{ interpolateLocale(resolvedLocale().history.moreLines, { count: entry.lineCount - entry.previewLines.length }) }}</p>
                         }
                       </div>
                     </div>
@@ -391,29 +401,29 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         <ui-dialog-content class="max-w-3xl p-0 overflow-hidden">
           @if (selectedHistoryEntry(); as selected) {
             <ui-dialog-header class="px-5 pt-5 pb-3 border-b">
-              <ui-dialog-title>Revision {{ selected.index + 1 }}</ui-dialog-title>
+              <ui-dialog-title>{{ interpolateLocale(resolvedLocale().history.revision, { index: selected.index + 1 }) }}</ui-dialog-title>
               <ui-dialog-description>
-                Captured at {{ selected.timestamp | date:'MMM d, y, HH:mm:ss' }}
+                {{ interpolateLocale(resolvedLocale().history.capturedAt, { time: (selected.timestamp | date:'MMM d, y, HH:mm:ss') ?? '' }) }}
               </ui-dialog-description>
             </ui-dialog-header>
 
             <ui-scroll-area [class]="'h-[70vh] px-5 py-4'">
               <div class="space-y-4 pr-3">
                 <div class="rounded-md border bg-muted/20">
-                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">Rendered Preview</div>
+                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">{{ resolvedLocale().history.renderedPreview }}</div>
                   <div class="p-3 prose prose-sm dark:prose-invert max-w-none [&_*]:break-words" [innerHTML]="selected.html"></div>
                 </div>
 
                 <div class="rounded-md border">
-                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">Markdown Snapshot</div>
+                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">{{ resolvedLocale().history.markdownSnapshot }}</div>
                   <pre class="p-3 text-xs whitespace-pre-wrap break-words">{{ selectedHistoryEntryMarkdown() }}</pre>
                 </div>
               </div>
             </ui-scroll-area>
 
             <ui-dialog-footer class="px-5 py-4 border-t">
-              <ui-button variant="outline" (click)="historyPreviewOpen.set(false)">Cancel</ui-button>
-              <ui-button (click)="restoreFromHistoryPreview()">Restore This Revision</ui-button>
+              <ui-button variant="outline" (click)="historyPreviewOpen.set(false)">{{ resolvedLocale().history.cancel }}</ui-button>
+              <ui-button (click)="restoreFromHistoryPreview()">{{ resolvedLocale().history.restore }}</ui-button>
             </ui-dialog-footer>
           }
         </ui-dialog-content>
@@ -422,8 +432,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
       <ui-dialog [(open)]="historyBrowserOpen">
         <ui-dialog-content class="max-w-xl p-0 overflow-hidden">
           <ui-dialog-header class="px-5 pt-5 pb-3 border-b">
-            <ui-dialog-title>Revision History</ui-dialog-title>
-            <ui-dialog-description>Use this browser when the history button is hidden.</ui-dialog-description>
+            <ui-dialog-title>{{ resolvedLocale().history.title }}</ui-dialog-title>
+            <ui-dialog-description>{{ resolvedLocale().history.browserDescription }}</ui-dialog-description>
           </ui-dialog-header>
           <ui-scroll-area [class]="'h-[60vh] px-4 py-3'">
             <div class="space-y-2 pr-2" data-history-list="dialog">
@@ -437,15 +447,15 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                   [class.border-border]="!entry.active"
                   [attr.data-history-entry-action]="'true'"
                   [attr.data-history-entry-index]="entry.index"
-                  [attr.aria-label]="'Apply revision ' + (entry.index + 1)"
+                  [attr.aria-label]="interpolateLocale(resolvedLocale().history.ariaApply, { index: entry.index + 1 })"
                   (click)="onQuickApplyFromHistory(entry.index, $event)"
                   (keydown)="onHistoryEntryKeydown($event, entry.index)"
                 >
                   <div class="flex items-center justify-between gap-2">
-                    <span class="text-xs font-medium">Revision {{ entry.index + 1 }}</span>
+                    <span class="text-xs font-medium">{{ interpolateLocale(resolvedLocale().history.revision, { index: entry.index + 1 }) }}</span>
                     <div class="flex items-center gap-2">
                       @if (lastAppliedHistoryIndex() === entry.index) {
-                        <span class="text-[11px] text-primary/90 font-medium">Applied</span>
+                        <span class="text-[11px] text-primary/90 font-medium">{{ resolvedLocale().history.applied }}</span>
                       }
                       <span class="text-[11px] text-muted-foreground">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
                       <ui-button
@@ -464,7 +474,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                       <p class="text-xs text-muted-foreground leading-4 truncate">{{ line }}</p>
                     }
                     @if (entry.lineCount > entry.previewLines.length) {
-                      <p class="text-[11px] text-muted-foreground/80">+{{ entry.lineCount - entry.previewLines.length }} more lines</p>
+                      <p class="text-[11px] text-muted-foreground/80">{{ interpolateLocale(resolvedLocale().history.moreLines, { count: entry.lineCount - entry.previewLines.length }) }}</p>
                     }
                   </div>
                 </div>
@@ -472,7 +482,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             </div>
           </ui-scroll-area>
           <ui-dialog-footer class="px-5 py-4 border-t">
-            <ui-button variant="outline" (click)="historyBrowserOpen.set(false)">Close</ui-button>
+            <ui-button variant="outline" (click)="historyBrowserOpen.set(false)">{{ resolvedLocale().history.close }}</ui-button>
           </ui-dialog-footer>
         </ui-dialog-content>
       </ui-dialog>
@@ -481,8 +491,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         #editorDiv
         [attr.contenteditable]="!disabled() && !readonly()"
         [class]="editableClasses()"
-        [attr.placeholder]="placeholder()"
-        [attr.aria-label]="ariaLabel() || 'Rich text editor'"
+        [attr.placeholder]="placeholder() || resolvedLocale().editor.placeholder"
+        [attr.aria-label]="ariaLabel() || resolvedLocale().editor.ariaLabel"
         [attr.aria-describedby]="ariaDescribedBy()"
         [attr.data-slot]="'rich-text-editor'"
         [style.min-height]="minHeight()"
@@ -509,14 +519,17 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (imageUploading()) {
         <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
-          <div class="text-sm text-muted-foreground">Uploading image...</div>
+          <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.uploadingImage }}</div>
         </div>
       }
 
-      <ui-rich-text-image-resizer 
-          [target]="selectedImage()" 
+      <ui-rich-text-image-resizer
+          [target]="selectedImage()"
           [container]="editorDiv"
-          (resizeEnd)="onImageResizeEnd()" 
+          [locale]="resolvedLocale()"
+          (resizeEnd)="onImageResizeEnd()"
+          (alignmentChange)="onImageAlignmentChange()"
+          (imageRemove)="onImageRemove($event)"
       />
 
 
@@ -533,6 +546,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             [compact]="true"
             [disabled]="disabled()"
             [readonly]="readonly()"
+            [locale]="resolvedLocale()"
             (formatCommand)="onFloatingFormatCommand($event)"
             (linkInsert)="onLinkInsert($event)"
           />
@@ -545,6 +559,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           [query]="mentionQuery()"
           [items]="filteredMentionItems()"
           [position]="mentionPopoverPosition()"
+          [locale]="resolvedLocale()"
           (itemSelect)="onMentionSelect($event)"
           (close)="closeMentionPopover()"
         />
@@ -556,10 +571,10 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           [style.left.px]="slashCommandPosition().x"
           [style.top.px]="slashCommandPosition().y"
           role="listbox"
-          aria-label="Slash command menu"
+          [attr.aria-label]="resolvedLocale().editor.slashCommandMenu"
         >
           @if (filteredSlashCommands().length === 0) {
-            <div class="px-3 py-2 text-sm text-muted-foreground">No commands found</div>
+            <div class="px-3 py-2 text-sm text-muted-foreground">{{ resolvedLocale().slashCommands.noResults }}</div>
           } @else {
             <div #slashCommandList class="max-h-56 overflow-y-auto p-1">
               @for (command of filteredSlashCommands(); track command.id; let i = $index) {
@@ -594,21 +609,21 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         >
           <div class="space-y-3">
             <div>
-              <label class="text-sm font-medium mb-1 block">Link Text</label>
+              <label class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.text }}</label>
               <input
                 #linkText
                 type="text"
                 [value]="selectedText()"
-                placeholder="Display text"
+                [placeholder]="resolvedLocale().link.textPlaceholder"
                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
             <div>
-              <label class="text-sm font-medium mb-1 block">URL</label>
+              <label class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.url }}</label>
               <input
                 #linkUrl
                 type="url"
-                placeholder="https://example.com"
+                [placeholder]="resolvedLocale().link.urlPlaceholder"
                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
@@ -618,14 +633,14 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                 class="flex-1"
                 (click)="insertLinkFromPopover(linkText.value, linkUrl.value)"
               >
-                Insert Link
+                {{ resolvedLocale().link.insert }}
               </ui-button>
-              <ui-button 
+              <ui-button
                 variant="outline"
-                size="sm" 
+                size="sm"
                 (click)="closeLinkPopover()"
               >
-                Cancel
+                {{ resolvedLocale().link.cancel }}
               </ui-button>
             </div>
           </div>
@@ -636,10 +651,10 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     @if (showCount() || showWordCount()) {
       <div class="flex justify-end text-xs text-muted-foreground mt-1 px-1">
         @if (showCount()) {
-          <span>{{ characterCount() }} characters</span>
+          <span>{{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() }) }}</span>
         }
         @if (showWordCount()) {
-          <span [class.ml-3]="showCount()">{{ wordCount() }} words</span>
+          <span [class.ml-3]="showCount()">{{ interpolateLocale(resolvedLocale().editor.words, { count: wordCount() }) }}</span>
         }
       </div>
     }
@@ -651,6 +666,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
+    private readonly pasteNormalizer = inject(RichTextPasteNormalizerService);
     private readonly document = inject(DOCUMENT);
     private readonly el = inject(ElementRef);
     private readonly shortcutBindings = inject(ShortcutBindingService);
@@ -665,17 +681,25 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     size = input<EditorSize>('default');
     toolbar = input<ToolbarPosition>('top');
     toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
-    placeholder = input<string>('Write something...');
+    placeholder = input<string>('');
     minHeight = input<string>('120px');
     maxHeight = input<string>('400px');
     disabled = input<boolean>(false);
     readonly = input<boolean>(false);
     mentions = input<boolean>(false);
+<<<<<<< HEAD
     mentionSearch = input<RichTextEntitySearchFn<MentionItem>>(() => []);
     mentionRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
     tags = input<boolean>(false);
     tagSearch = input<RichTextEntitySearchFn<TagItem>>(() => []);
     tagRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
+=======
+    mentionSource = input<Observable<MentionItem[]> | MentionItem[]>([]);
+    mentionRenderer = input<((item: MentionItem) => HTMLElement) | undefined>(undefined);
+    tags = input<boolean>(false);
+    tagSource = input<Observable<TagItem[]> | TagItem[]>([]);
+    tagRenderer = input<((item: TagItem) => HTMLElement) | undefined>(undefined);
+>>>>>>> origin/master
     emojiPicker = input<boolean>(true);
     images = input<boolean>(true);
     imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
@@ -689,9 +713,24 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     showHistoryButton = input<boolean>(true);
     enableSlashCommands = input<boolean>(true);
     slashCommands = input<RichTextSlashCommand[]>([]);
+    locale = input<string | RichTextLocale>('en');
     class = input<string>('');
     ariaLabel = input<string | undefined>(undefined);
     ariaDescribedBy = input<string | undefined>(undefined);
+
+    resolvedLocale = computed<RichTextLocale>(() => {
+        const loc = this.locale();
+        if (typeof loc === 'string') {
+            return RICH_TEXT_LOCALES[loc] ?? RICH_TEXT_LOCALES['en'];
+        }
+        return loc;
+    });
+
+    isRtl = computed(() => !!this.resolvedLocale().rtl);
+
+    localizedSlashCommands = computed(() =>
+        buildDefaultSlashCommands(this.resolvedLocale().slashCommands)
+    );
 
     htmlChange = output<string>();
     markdownChange = output<string>();
@@ -769,6 +808,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono',
             '[&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto',
             '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
+            '[&_img]:inline [&_img]:max-w-full [&_img]:h-auto [&_img]:my-0 [&_img]:mx-0 [&_img]:cursor-pointer',
             'disabled:cursor-not-allowed'
         )
     );
@@ -791,6 +831,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return text.split(/\s+/).length;
     });
 
+    interpolateLocale(template: string, values: Record<string, string | number>): string {
+        return interpolate(template, values);
+    }
+
     filteredMentionItems = computed(() => {
         return this.loadedMentionItems().slice(0, 10);
     });
@@ -804,7 +848,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             hasSelection: !!this.selectedText(),
         };
         const merged = new Map<string, RichTextSlashCommand>();
-        for (const command of DEFAULT_SLASH_COMMANDS) {
+        for (const command of this.localizedSlashCommands()) {
             merged.set(command.id, command);
         }
         for (const command of this.commandRegistry.listCommands()) {
@@ -892,6 +936,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onImageResizeEnd(): void {
         this.flushPendingHistoryPush();
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    onImageAlignmentChange(): void {
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    onImageRemove(img: HTMLImageElement): void {
+        img.remove();
+        this.selectedImage.set(null);
         this.syncContentFromEditor();
         this.pushHistory();
     }
@@ -1240,8 +1296,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
 
 
-        const sanitized = this.sanitizer.sanitize(html || text);
-        this.insertHtml(sanitized);
+        const normalized = this.pasteNormalizer.normalize(html || null, text);
+        this.insertHtml(normalized);
         this.pushHistory();
     }
 
@@ -1476,18 +1532,24 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.readonly() || this.disabled()) return;
         this.flushPendingHistoryPush();
 
+        const mentionTargets = this.getMentionElementsInSelection();
+
         switch (command) {
             case 'bold':
                 this.document.execCommand('bold', false);
+                this.toggleMentionStyle(mentionTargets, 'fontWeight', 'bold', 'normal');
                 break;
             case 'italic':
                 this.document.execCommand('italic', false);
+                this.toggleMentionStyle(mentionTargets, 'fontStyle', 'italic', 'normal');
                 break;
             case 'underline':
                 this.document.execCommand('underline', false);
+                this.toggleMentionTextDecoration(mentionTargets, 'underline');
                 break;
             case 'strikethrough':
                 this.document.execCommand('strikeThrough', false);
+                this.toggleMentionTextDecoration(mentionTargets, 'line-through');
                 break;
             case 'heading1':
                 this.document.execCommand('formatBlock', false, '<h1>');
@@ -1521,6 +1583,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 break;
             case 'clear':
                 this.document.execCommand('removeFormat', false);
+                this.clearMentionStyles(mentionTargets);
                 break;
             case 'paragraph':
                 this.document.execCommand('formatBlock', false, '<p>');
@@ -1685,12 +1748,16 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.flushPendingHistoryPush();
         this.restoreSelection();
 
+        const mentionTargets = this.getMentionElementsInSelection();
+
         if (event.type === 'fontColor') {
             this.document.execCommand('foreColor', false, event.color);
+            this.setMentionStyle(mentionTargets, 'color', event.color);
         } else {
             if (!this.document.execCommand('hiliteColor', false, event.color)) {
                 this.document.execCommand('backColor', false, event.color);
             }
+            this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
         }
 
         this.applyMutation({ focus: true });
@@ -1699,6 +1766,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     onFontSizeSelect(size: string): void {
         this.flushPendingHistoryPush();
         this.restoreSelection();
+
+        const mentionTargets = this.getMentionElementsInSelection();
 
         this.document.execCommand('fontSize', false, '7');
         if (this.editorDiv?.nativeElement) {
@@ -1716,6 +1785,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 el.parentNode?.replaceChild(span, el);
             });
         }
+
+        const sizeVal = size.endsWith('px') ? size : `${size}px`;
+        this.setMentionStyle(mentionTargets, 'fontSize', sizeVal);
 
         this.syncContentFromEditor();
         this.focusEditor();
@@ -1866,18 +1938,98 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const renderContext = this.buildEntityRenderContext(item, type, trigger, query);
         const renderResult = this.buildEntityInsertNode(renderContext);
 
-        const selection = this.document.getSelection();
+        const editor = this.getEditorElement();
+        if (!editor) return;
+
+        this.focusEditor();
+        let selection = this.document.getSelection();
+
+        if (!selection || selection.rangeCount === 0 || !editor.contains(selection.getRangeAt(0).startContainer)) {
+            if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
+                selection = this.document.getSelection();
+                if (selection) {
+                    selection.removeAllRanges();
+                    selection.addRange(this.savedRange);
+                }
+            }
+        }
+
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const triggerLength = query.length + 1;
+            const triggerStr = trigger + query;
 
             if (range.startContainer.nodeType === Node.TEXT_NODE) {
                 const textNode = range.startContainer as Text;
                 const deleteStart = Math.max(0, range.startOffset - triggerLength);
                 range.setStart(textNode, deleteStart);
+            } else {
+                const container = range.startContainer;
+                const offset = range.startOffset;
+                let resolved = false;
+
+                if (offset > 0 && container.childNodes.length >= offset) {
+                    let node: Node | null = container.childNodes[offset - 1];
+                    while (node && !resolved) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            const text = node as Text;
+                            if (text.data.endsWith(triggerStr)) {
+                                range.setStart(text, text.length - triggerLength);
+                                range.setEnd(text, text.length);
+                                resolved = true;
+                            }
+                            break;
+                        }
+                        node = node.lastChild;
+                    }
+                }
+
+                if (!resolved) {
+                    const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+                    while (walker.nextNode()) {
+                        const text = walker.currentNode as Text;
+                        const idx = text.data.lastIndexOf(triggerStr);
+                        if (idx !== -1) {
+                            range.setStart(text, idx);
+                            range.setEnd(text, idx + triggerStr.length);
+                            break;
+                        }
+                    }
+                }
             }
             range.deleteContents();
 
+<<<<<<< HEAD
+=======
+            let wrapper: HTMLElement;
+            const isMention = this.mentionType() === 'mention';
+            const customRenderer = isMention ? this.mentionRenderer() : this.tagRenderer();
+
+            if (customRenderer) {
+                wrapper = customRenderer(item as MentionItem & TagItem);
+                wrapper.setAttribute('contenteditable', 'false');
+                if (isMention) {
+                    wrapper.setAttribute('data-mention', item.value);
+                    wrapper.setAttribute('data-mention-id', item.id ?? item.value);
+                } else {
+                    wrapper.setAttribute('data-tag', item.value);
+                    wrapper.setAttribute('data-tag-id', item.id ?? item.value);
+                }
+            } else {
+                wrapper = this.document.createElement('span');
+                wrapper.className = 'bg-accent text-accent-foreground rounded px-1';
+                wrapper.setAttribute('contenteditable', 'false');
+                if (isMention) {
+                    wrapper.setAttribute('data-mention', item.value);
+                    wrapper.setAttribute('data-mention-id', item.id ?? item.value);
+                } else {
+                    wrapper.setAttribute('data-tag', item.value);
+                    wrapper.setAttribute('data-tag-id', item.id ?? item.value);
+                }
+                wrapper.textContent = `${trigger}${item.label}`;
+            }
+
+>>>>>>> origin/master
             const trailingSpace = this.document.createTextNode('\u00A0');
             range.insertNode(trailingSpace);
             range.insertNode(renderResult.element);
@@ -2360,6 +2512,60 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 ? this.markdownService.toMarkdown(html)
                 : html;
             this.onChange(outputValue);
+        }
+    }
+
+    private getMentionElementsInSelection(): HTMLElement[] {
+        const editor = this.getEditorElement();
+        const selection = this.document.getSelection();
+        if (!editor || !selection || selection.rangeCount === 0) return [];
+
+        const range = selection.getRangeAt(0);
+        if (!editor.contains(range.startContainer)) return [];
+
+        const mentionElements = editor.querySelectorAll<HTMLElement>('[data-mention], [data-tag]');
+        const result: HTMLElement[] = [];
+
+        mentionElements.forEach(el => {
+            if (selection.containsNode(el, true)) {
+                result.push(el);
+            }
+        });
+
+        return result;
+    }
+
+    private toggleMentionStyle(elements: HTMLElement[], prop: 'fontWeight' | 'fontStyle', onValue: string, offValue: string): void {
+        for (const el of elements) {
+            el.style[prop] = el.style[prop] === onValue ? offValue : onValue;
+        }
+    }
+
+    private toggleMentionTextDecoration(elements: HTMLElement[], decoration: string): void {
+        for (const el of elements) {
+            const current = el.style.textDecoration || '';
+            if (current.includes(decoration)) {
+                el.style.textDecoration = current.replace(decoration, '').trim() || '';
+            } else {
+                el.style.textDecoration = (current + ' ' + decoration).trim();
+            }
+        }
+    }
+
+    private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize', value: string): void {
+        for (const el of elements) {
+            el.style[prop] = value;
+        }
+    }
+
+    private clearMentionStyles(elements: HTMLElement[]): void {
+        for (const el of elements) {
+            el.style.fontWeight = '';
+            el.style.fontStyle = '';
+            el.style.textDecoration = '';
+            el.style.color = '';
+            el.style.backgroundColor = '';
+            el.style.fontSize = '';
         }
     }
 

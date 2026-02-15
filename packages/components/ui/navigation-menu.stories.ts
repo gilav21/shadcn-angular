@@ -7,6 +7,7 @@ import {
     NavigationMenuContentComponent,
     NavigationMenuLinkComponent,
     NavigationMenuIndicatorComponent,
+    NavigationMenuItem,
 } from './navigation-menu.component';
 import { moduleMetadata } from '@storybook/angular';
 
@@ -107,5 +108,32 @@ export const Default: Story = {
         </ui-navigation-menu-list>
       </ui-navigation-menu>
     `,
+    }),
+};
+
+const simpleItems: NavigationMenuItem[] = [
+    {
+        label: 'Getting Started',
+        children: [
+            { title: 'Introduction', description: 'Re-usable components built using Angular and Tailwind CSS.', href: '/docs' },
+            { title: 'Installation', description: 'How to install dependencies and structure your app.', href: '/docs/installation' },
+            { title: 'Typography', description: 'Styles for headings, paragraphs, lists, and more.', href: '/docs/typography' },
+        ],
+    },
+    {
+        label: 'Components',
+        children: [
+            { title: 'Alert Dialog', description: 'A modal dialog that interrupts the user with important content.', href: '/docs/components/alert-dialog' },
+            { title: 'Hover Card', description: 'For sighted users to preview content available behind a link.', href: '/docs/components/hover-card' },
+            { title: 'Progress', description: 'Displays an indicator showing the completion progress of a task.', href: '/docs/components/progress' },
+        ],
+    },
+    { label: 'Documentation', href: '/docs' },
+];
+
+export const SimpleMode: Story = {
+    render: () => ({
+        props: { items: simpleItems },
+        template: `<ui-navigation-menu [items]="items" />`,
     }),
 };

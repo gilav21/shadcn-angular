@@ -7,13 +7,29 @@ import {
   inject,
   ElementRef,
   Injectable,
+  ContentChild,
+  AfterContentInit,
 } from '@angular/core';
 import { cn } from '../lib/utils';
+
+/** A child link within a navigation menu dropdown */
+export interface NavigationMenuChild {
+  title: string;
+  description?: string;
+  href: string;
+}
+
+/** A top-level navigation menu item */
+export interface NavigationMenuItem {
+  label: string;
+  href?: string;
+  children?: NavigationMenuChild[];
+}
 
 @Injectable()
 export class NavigationMenuService {
   activeItem = signal<string | null>(null);
-  private timeoutId: any;
+  private timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   setActive(id: string | null) {
     clearTimeout(this.timeoutId);
@@ -38,41 +54,6 @@ export class NavigationMenuService {
 let nextId = 0;
 
 @Component({
-  selector: 'ui-navigation-menu',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [NavigationMenuService],
-  template: `
-    <nav 
-      [class]="classes()"
-      [attr.data-slot]="'navigation-menu'"
-      role="navigation"
-    >
-      <ng-content />
-    </nav>
-  `,
-  host: {
-    class: 'contents',
-    '(document:click)': 'onClick($event)',
-  },
-})
-export class NavigationMenuComponent {
-  class = input('');
-  service = inject(NavigationMenuService);
-  el = inject(ElementRef);
-
-  classes = computed(() => cn(
-    'relative z-10 flex max-w-max flex-1 items-center justify-center',
-    this.class()
-  ));
-
-  onClick(event: MouseEvent) {
-    if (this.service.activeItem() && !this.el.nativeElement.contains(event.target)) {
-      this.service.setActive(null);
-    }
-  }
-}
-
-@Component({
   selector: 'ui-navigation-menu-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
@@ -95,8 +76,8 @@ export class NavigationMenuListComponent {
   selector: 'ui-navigation-menu-item',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <li 
-      [class]="classes()" 
+    <li
+      [class]="classes()"
       [attr.data-slot]="'navigation-menu-item'"
       role="none"
       (mouseenter)="onMouseEnter()"
@@ -152,16 +133,16 @@ export class NavigationMenuItemComponent {
       (click)="onClick()"
     >
       <ng-content />
-      <svg 
-        xmlns="http://www.w3.org/2000/svg" 
-        width="24" 
-        height="24" 
-        viewBox="0 0 24 24" 
-        fill="none" 
-        stroke="currentColor" 
-        stroke-width="2" 
-        stroke-linecap="round" 
-        stroke-linejoin="round" 
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        width="24"
+        height="24"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
         class="relative top-px ml-1 h-3 w-3 transition duration-200"
         [class.rotate-180]="item.isOpen()"
         aria-hidden="true"
@@ -200,8 +181,8 @@ export class NavigationMenuTriggerComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     @if (item.isOpen()) {
-      <div 
-        [class]="classes()" 
+      <div
+        [class]="classes()"
         [attr.data-slot]="'navigation-menu-content'"
         [attr.data-state]="item.isOpen() ? 'open' : 'closed'"
         role="menu"
@@ -230,8 +211,8 @@ export class NavigationMenuContentComponent {
   selector: 'ui-navigation-menu-link',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <a 
-      [class]="classes()" 
+    <a
+      [class]="classes()"
       [attr.data-slot]="'navigation-menu-link'"
       [href]="href()"
       role="menuitem"
@@ -259,8 +240,8 @@ export class NavigationMenuLinkComponent {
   selector: 'ui-navigation-menu-indicator',
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div 
-      [class]="classes()" 
+    <div
+      [class]="classes()"
       [attr.data-slot]="'navigation-menu-indicator'"
     >
       <div class="relative top-[60%] h-2 w-2 rotate-45 rounded-tl-sm bg-border shadow-md"></div>
@@ -277,4 +258,92 @@ export class NavigationMenuIndicatorComponent {
     'data-[state=visible]:animate-in data-[state=hidden]:animate-out data-[state=hidden]:fade-out data-[state=visible]:fade-in',
     this.class()
   ));
+}
+
+@Component({
+  selector: 'ui-navigation-menu',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [NavigationMenuService],
+  imports: [
+    NavigationMenuListComponent,
+    NavigationMenuItemComponent,
+    NavigationMenuTriggerComponent,
+    NavigationMenuContentComponent,
+    NavigationMenuLinkComponent,
+  ],
+  template: `
+    <nav
+      [class]="classes()"
+      [attr.data-slot]="'navigation-menu'"
+      role="navigation"
+    >
+      @if (hasCustomContent()) {
+        <ng-content />
+      } @else {
+        <ui-navigation-menu-list>
+          @for (item of items(); track item.label) {
+            @if (item.children && item.children.length > 0) {
+              <ui-navigation-menu-item>
+                <ui-navigation-menu-trigger>{{ item.label }}</ui-navigation-menu-trigger>
+                <ui-navigation-menu-content>
+                  <ul class="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2">
+                    @for (child of item.children; track child.href) {
+                      <li>
+                        <ui-navigation-menu-link [href]="child.href">
+                          <div class="text-sm font-medium leading-none">{{ child.title }}</div>
+                          @if (child.description) {
+                            <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                              {{ child.description }}
+                            </p>
+                          }
+                        </ui-navigation-menu-link>
+                      </li>
+                    }
+                  </ul>
+                </ui-navigation-menu-content>
+              </ui-navigation-menu-item>
+            } @else {
+              <ui-navigation-menu-item>
+                <ui-navigation-menu-link [href]="item.href || '#'">
+                  <span class="text-sm font-medium">{{ item.label }}</span>
+                </ui-navigation-menu-link>
+              </ui-navigation-menu-item>
+            }
+          }
+        </ui-navigation-menu-list>
+      }
+    </nav>
+  `,
+  host: {
+    class: 'contents',
+    '(document:click)': 'onClick($event)',
+  },
+})
+export class NavigationMenuComponent implements AfterContentInit {
+  class = input('');
+  /** Data-driven items for simple mode. When provided (and no content is projected), renders the menu automatically. */
+  items = input<NavigationMenuItem[]>([]);
+
+  service = inject(NavigationMenuService);
+  el = inject(ElementRef);
+
+  @ContentChild(NavigationMenuListComponent) customList?: NavigationMenuListComponent;
+
+  private _hasCustomContent = signal(true);
+  hasCustomContent = this._hasCustomContent.asReadonly();
+
+  ngAfterContentInit() {
+    this._hasCustomContent.set(!!this.customList || this.items().length === 0);
+  }
+
+  classes = computed(() => cn(
+    'relative z-10 flex max-w-max flex-1 items-center justify-center',
+    this.class()
+  ));
+
+  onClick(event: MouseEvent) {
+    if (this.service.activeItem() && !this.el.nativeElement.contains(event.target)) {
+      this.service.setActive(null);
+    }
+  }
 }

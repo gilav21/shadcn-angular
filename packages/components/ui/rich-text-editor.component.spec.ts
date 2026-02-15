@@ -4,6 +4,7 @@ import { of } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
 import { ShortcutBindingService } from '../lib/shortcut-binding.service';
 import { RichTextCommandRegistry, RichTextSlashCommandContext } from './rich-text-command-registry.service';
+import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
 
 describe('RichTextEditorComponent', () => {
     let fixture: ComponentFixture<RichTextEditorComponent>;
@@ -956,5 +957,147 @@ describe('RichTextEditorComponent', () => {
         expect(anchorNode).toBeTruthy();
         expect(code?.contains(anchorNode as Node)).toBe(true);
         expect(selection?.anchorOffset).toBe(1);
+    });
+
+    describe('Locale and RTL', () => {
+        it('resolves English locale by default', () => {
+            expect(component.resolvedLocale()).toBe(RICH_TEXT_LOCALES['en']);
+            expect(component.resolvedLocale().toolbar.bold).toBe('Bold');
+        });
+
+        it('resolves locale from string key', () => {
+            fixture.componentRef.setInput('locale', 'he');
+            fixture.detectChanges();
+            expect(component.resolvedLocale()).toBe(RICH_TEXT_LOCALES['he']);
+            expect(component.resolvedLocale().toolbar.bold).toBe('מודגש');
+        });
+
+        it('resolves locale from full object', () => {
+            const custom: RichTextLocale = {
+                ...RICH_TEXT_LOCALES['en'],
+                toolbar: { ...RICH_TEXT_LOCALES['en'].toolbar, bold: 'Custom Bold' },
+            };
+            fixture.componentRef.setInput('locale', custom);
+            fixture.detectChanges();
+            expect(component.resolvedLocale().toolbar.bold).toBe('Custom Bold');
+        });
+
+        it('falls back to English for unknown locale key', () => {
+            fixture.componentRef.setInput('locale', 'xx');
+            fixture.detectChanges();
+            expect(component.resolvedLocale()).toBe(RICH_TEXT_LOCALES['en']);
+        });
+
+        it('sets dir=rtl for Hebrew locale', () => {
+            fixture.componentRef.setInput('locale', 'he');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(true);
+            const container = fixture.nativeElement.querySelector('[dir="rtl"]');
+            expect(container).toBeTruthy();
+        });
+
+        it('sets dir=rtl for Arabic locale', () => {
+            fixture.componentRef.setInput('locale', 'ar');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(true);
+            const container = fixture.nativeElement.querySelector('[dir="rtl"]');
+            expect(container).toBeTruthy();
+        });
+
+        it('sets dir=ltr for English locale', () => {
+            fixture.componentRef.setInput('locale', 'en');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(false);
+            const container = fixture.nativeElement.querySelector('[dir="ltr"]');
+            expect(container).toBeTruthy();
+        });
+
+        it('sets dir=ltr for French locale', () => {
+            fixture.componentRef.setInput('locale', 'fr');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(false);
+            const container = fixture.nativeElement.querySelector('[dir="ltr"]');
+            expect(container).toBeTruthy();
+        });
+
+        it('sets dir=ltr for German locale', () => {
+            fixture.componentRef.setInput('locale', 'de');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(false);
+            const container = fixture.nativeElement.querySelector('[dir="ltr"]');
+            expect(container).toBeTruthy();
+        });
+
+        it('uses localized placeholder from Hebrew locale', () => {
+            fixture.componentRef.setInput('locale', 'he');
+            fixture.detectChanges();
+            const editorEl = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]');
+            expect(editorEl.getAttribute('placeholder')).toBe(RICH_TEXT_LOCALES['he'].editor.placeholder);
+        });
+
+        it('uses localized placeholder from Arabic locale', () => {
+            fixture.componentRef.setInput('locale', 'ar');
+            fixture.detectChanges();
+            const editorEl = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]');
+            expect(editorEl.getAttribute('placeholder')).toBe(RICH_TEXT_LOCALES['ar'].editor.placeholder);
+        });
+
+        it('prefers explicit placeholder over locale default', () => {
+            fixture.componentRef.setInput('locale', 'he');
+            fixture.componentRef.setInput('placeholder', 'Custom placeholder');
+            fixture.detectChanges();
+            const editorEl = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]');
+            expect(editorEl.getAttribute('placeholder')).toBe('Custom placeholder');
+        });
+
+        it('builds localized slash commands for Hebrew locale', () => {
+            fixture.componentRef.setInput('locale', 'he');
+            fixture.detectChanges();
+            const commands = component.localizedSlashCommands();
+            const heading1 = commands.find(c => c.id === 'format.heading-1');
+            expect(heading1).toBeTruthy();
+            expect(heading1!.label).toBe(RICH_TEXT_LOCALES['he'].slashCommands.heading1);
+            expect(heading1!.description).toBe(RICH_TEXT_LOCALES['he'].slashCommands.heading1Description);
+        });
+
+        it('switches RTL when locale changes from LTR to RTL', () => {
+            fixture.componentRef.setInput('locale', 'en');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(false);
+
+            fixture.componentRef.setInput('locale', 'he');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(true);
+            expect(fixture.nativeElement.querySelector('[dir="rtl"]')).toBeTruthy();
+        });
+
+        it('switches RTL when locale changes from RTL to LTR', () => {
+            fixture.componentRef.setInput('locale', 'ar');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(true);
+
+            fixture.componentRef.setInput('locale', 'de');
+            fixture.detectChanges();
+            expect(component.isRtl()).toBe(false);
+            expect(fixture.nativeElement.querySelector('[dir="ltr"]')).toBeTruthy();
+        });
+
+        it('sets correct aria-label from locale', () => {
+            fixture.componentRef.setInput('locale', 'he');
+            fixture.detectChanges();
+            const editorEl = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]');
+            expect(editorEl.getAttribute('aria-label')).toBe(RICH_TEXT_LOCALES['he'].editor.ariaLabel);
+        });
+
+        it('resolves all 10 preset locales without error', () => {
+            const keys = ['en', 'he', 'ar', 'de', 'fr', 'es', 'ja', 'zh', 'ru', 'pt'];
+            for (const key of keys) {
+                fixture.componentRef.setInput('locale', key);
+                fixture.detectChanges();
+                expect(component.resolvedLocale()).toBe(RICH_TEXT_LOCALES[key]);
+                expect(component.resolvedLocale().toolbar.bold).toBeTruthy();
+                expect(component.resolvedLocale().editor.placeholder).toBeTruthy();
+            }
+        });
     });
 });

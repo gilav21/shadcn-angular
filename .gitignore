@@ -2,3 +2,9 @@ node_modules
 .angular/cache
 storybook-static
 dist
+
+# Debug logs
+*storybook.log
+
+# Claude Code local settings
+.claude/settings.local.json

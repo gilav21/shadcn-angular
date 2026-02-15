@@ -8,6 +8,10 @@ import {
   ContextMenuLabelComponent,
   ContextMenuShortcutComponent,
   ContextMenuTriggerDirective,
+  ContextMenuSubComponent,
+  ContextMenuSubTriggerComponent,
+  ContextMenuSubContentComponent,
+  ContextMenuItem,
 } from './context-menu.component';
 import { moduleMetadata } from '@storybook/angular';
 
@@ -26,6 +30,9 @@ const meta: Meta<ContextMenuComponent> = {
         ContextMenuLabelComponent,
         ContextMenuShortcutComponent,
         ContextMenuTriggerDirective,
+        ContextMenuSubComponent,
+        ContextMenuSubTriggerComponent,
+        ContextMenuSubContentComponent,
       ],
     }),
   ],
@@ -132,6 +139,114 @@ export const TriggerDirective: Story = {
         class="h-[300px] w-full flex items-center justify-center border-2 border-dashed rounded-lg bg-muted/50 text-muted-foreground"
       >
         Right-click anywhere in this area to open the context menu
+      </div>
+    `,
+  }),
+};
+
+const itemsDrivenMenuItems: ContextMenuItem[] = [
+  { label: 'Back', shortcut: '⌘[', inset: true },
+  { label: 'Forward', shortcut: '⌘]', disabled: true, inset: true },
+  { label: 'Reload', shortcut: '⌘R', inset: true },
+  { type: 'separator' },
+  { label: 'Save Page As...', shortcut: '⇧⌘S', inset: true },
+  { label: 'Printing', inset: true },
+  { label: 'Cast...', inset: true },
+  { type: 'separator' },
+  {
+    label: 'More Tools',
+    type: 'sub',
+    inset: true,
+    children: [
+      { label: 'Save Page As...', shortcut: '⇧⌘S' },
+      { label: 'Create Shortcut...' },
+      { label: 'Name Window...' },
+      { type: 'separator' },
+      { label: 'Developer Tools' },
+    ],
+  },
+  { type: 'separator' },
+  { type: 'label', label: 'People', inset: true },
+  { type: 'separator' },
+  { label: 'Pedro Duarte', inset: true },
+  { label: 'Colm Tuite', inset: true },
+];
+
+export const ItemsDriven: Story = {
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story: 'Use the `[items]` input for a simple data-driven mode. Pass an array of `ContextMenuItem` objects to auto-render the menu content, including sub-menus, separators, labels, and shortcuts.',
+      },
+    },
+  },
+  render: () => ({
+    props: {
+      menuItems: itemsDrivenMenuItems,
+    },
+    template: `
+      <div class="flex w-[1000px] items-center justify-center">
+        <ui-context-menu [items]="menuItems">
+          <ui-context-menu-trigger>
+            <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+              Right click here (items-driven)
+            </div>
+          </ui-context-menu-trigger>
+        </ui-context-menu>
+      </div>
+    `,
+  }),
+};
+
+export const WithSubMenus: Story = {
+  parameters: {
+    layout: 'fullscreen',
+    docs: {
+      description: {
+        story: 'Template-driven context menu with sub-menus using content projection.',
+      },
+    },
+  },
+  render: () => ({
+    template: `
+      <div class="flex w-[1000px] items-center justify-center">
+        <ui-context-menu>
+          <ui-context-menu-trigger>
+            <div class="flex h-[150px] w-[300px] items-center justify-center rounded-md border border-dashed text-sm">
+              Right click here (with sub-menus)
+            </div>
+          </ui-context-menu-trigger>
+          <ui-context-menu-content class="w-64">
+            <ui-context-menu-item inset>
+              Back
+              <ui-context-menu-shortcut>⌘[</ui-context-menu-shortcut>
+            </ui-context-menu-item>
+            <ui-context-menu-item inset>
+              Reload
+              <ui-context-menu-shortcut>⌘R</ui-context-menu-shortcut>
+            </ui-context-menu-item>
+            <ui-context-menu-separator></ui-context-menu-separator>
+            <ui-context-menu-sub>
+              <ui-context-menu-sub-trigger inset>More Tools</ui-context-menu-sub-trigger>
+              <ui-context-menu-sub-content>
+                <ui-context-menu-item>
+                  Save Page As...
+                  <ui-context-menu-shortcut>⇧⌘S</ui-context-menu-shortcut>
+                </ui-context-menu-item>
+                <ui-context-menu-item>Create Shortcut...</ui-context-menu-item>
+                <ui-context-menu-item>Name Window...</ui-context-menu-item>
+                <ui-context-menu-separator></ui-context-menu-separator>
+                <ui-context-menu-item>Developer Tools</ui-context-menu-item>
+              </ui-context-menu-sub-content>
+            </ui-context-menu-sub>
+            <ui-context-menu-separator></ui-context-menu-separator>
+            <ui-context-menu-label inset>People</ui-context-menu-label>
+            <ui-context-menu-separator></ui-context-menu-separator>
+            <ui-context-menu-item inset>Pedro Duarte</ui-context-menu-item>
+            <ui-context-menu-item inset>Colm Tuite</ui-context-menu-item>
+          </ui-context-menu-content>
+        </ui-context-menu>
       </div>
     `,
   }),
