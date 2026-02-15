@@ -21,6 +21,7 @@ import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
+import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { Observable, isObservable, of, Subject, firstValueFrom } from 'rxjs';
 import { debounceTime, switchMap, catchError, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -474,10 +475,12 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         </div>
       }
 
-      <ui-rich-text-image-resizer 
-          [target]="selectedImage()" 
+      <ui-rich-text-image-resizer
+          [target]="selectedImage()"
           [container]="editorDiv"
-          (resizeEnd)="onImageResizeEnd()" 
+          (resizeEnd)="onImageResizeEnd()"
+          (alignmentChange)="onImageAlignmentChange()"
+          (imageRemove)="onImageRemove($event)"
       />
 
 
@@ -612,6 +615,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 export class RichTextEditorComponent implements ControlValueAccessor, OnInit, AfterViewInit, OnDestroy {
     private readonly sanitizer = inject(RichTextSanitizerService);
     private readonly markdownService = inject(RichTextMarkdownService);
+    private readonly pasteNormalizer = inject(RichTextPasteNormalizerService);
     private readonly document = inject(DOCUMENT);
     private readonly el = inject(ElementRef);
     private readonly shortcutBindings = inject(ShortcutBindingService);
@@ -728,6 +732,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono',
             '[&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto',
             '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
+            '[&_img]:inline [&_img]:max-w-full [&_img]:h-auto [&_img]:my-0 [&_img]:mx-0 [&_img]:cursor-pointer',
             'disabled:cursor-not-allowed'
         )
     );
@@ -868,6 +873,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onImageResizeEnd(): void {
         this.flushPendingHistoryPush();
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    onImageAlignmentChange(): void {
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    onImageRemove(img: HTMLImageElement): void {
+        img.remove();
+        this.selectedImage.set(null);
         this.syncContentFromEditor();
         this.pushHistory();
     }
@@ -1219,8 +1236,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
 
 
-        const sanitized = this.sanitizer.sanitize(html || text);
-        this.insertHtml(sanitized);
+        const normalized = this.pasteNormalizer.normalize(html || null, text);
+        this.insertHtml(normalized);
         this.pushHistory();
     }
 
