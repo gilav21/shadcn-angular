@@ -1,5 +1,5 @@
 {
-  "name": "@anthropic/shadcn-angular-mcp-server",
+  "name": "@gilav21/shadcn-angular-mcp-server",
   "version": "0.0.1",
   "description": "MCP server for shadcn-angular — exposes component registry, source code, and CLI actions",
   "bin": {

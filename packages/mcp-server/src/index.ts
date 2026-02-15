@@ -15,12 +15,8 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 function getComponentsUiDir(): string {
-  // From dist/index.js -> ../../components/ui
-  const fromDist = path.resolve(__dirname, '../../components/ui');
-  if (fs.existsSync(fromDist)) return fromDist;
-  // From src/index.ts -> ../../components/ui
-  const fromSrc = path.resolve(__dirname, '../../components/ui');
-  if (fs.existsSync(fromSrc)) return fromSrc;
+  const resolved = path.resolve(__dirname, '../../components/ui');
+  if (fs.existsSync(resolved)) return resolved;
   throw new Error('Could not locate packages/components/ui directory');
 }
 
@@ -123,7 +119,7 @@ server.registerTool(
         .string()
         .optional()
         .describe(
-          'Filter by category. Available: forms, layout, overlay, feedback, data-display, actions, ai, editors, charts, data-table, page-builder, directives, general',
+          'Filter by category (e.g. forms, layout, overlay, feedback, data-display, actions, ai, editors, charts, directives). Use get_categories to see all available categories.',
         ),
       name_contains: z
         .string()
@@ -467,7 +463,7 @@ server.registerTool(
   },
   async ({ project_dir, use_defaults }) => {
     const flags = use_defaults ? ' --defaults' : ' --yes';
-    const cdPrefix = project_dir ? `cd ${project_dir} && ` : '';
+    const cdPrefix = project_dir ? `cd "${project_dir}" && ` : '';
     const command = `${cdPrefix}npx @gilav21/shadcn-angular init${flags}`;
 
     const explanation = [
@@ -570,10 +566,10 @@ server.registerTool(
 
     const flags: string[] = [];
     if (overwrite) flags.push('--overwrite');
-    if (target_path) flags.push(`--path ${target_path}`);
+    if (target_path) flags.push(`--path "${target_path}"`);
     flags.push('--yes');
 
-    const cdPrefix = project_dir ? `cd ${project_dir} && ` : '';
+    const cdPrefix = project_dir ? `cd "${project_dir}" && ` : '';
     const command = `${cdPrefix}npx @gilav21/shadcn-angular add ${components.join(' ')}${flags.length > 0 ? ' ' + flags.join(' ') : ''}`;
 
     const depsOnly = Array.from(allDeps).filter((d) => !components.includes(d));

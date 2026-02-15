@@ -1,6 +1,7 @@
 export interface ComponentDefinition {
   name: string;
   files: string[];
+  category?: string;
   dependencies?: string[];
   npmDependencies?: string[];
   shortcutDefinitions?: {
@@ -26,62 +27,6 @@ function classifyFile(file: string): ItemType {
   return 'utility';
 }
 
-function classifyCategory(name: string, files: string[]): string {
-  if (files.some(f => f.startsWith('charts/'))) return 'charts';
-  if (files.some(f => f.startsWith('data-table/'))) return 'data-table';
-  if (files.some(f => f.startsWith('page-builder/'))) return 'page-builder';
-
-  const directives = ['confetti', 'component-outlet', 'input-mask'];
-  if (directives.includes(name)) return 'directives';
-
-  const formComponents = [
-    'input', 'input-group', 'input-otp', 'textarea', 'checkbox', 'radio-group',
-    'select', 'native-select', 'switch', 'slider', 'date-picker', 'calendar',
-    'color-picker', 'file-upload', 'autocomplete', 'chip-list', 'rating',
-    'tree-select', 'field', 'label',
-  ];
-  if (formComponents.includes(name)) return 'forms';
-
-  const layoutComponents = [
-    'card', 'separator', 'aspect-ratio', 'resizable', 'scroll-area',
-    'sidebar', 'navigation-menu', 'breadcrumb', 'tabs', 'collapsible',
-    'accordion', 'bento-grid', 'virtual-scroll',
-  ];
-  if (layoutComponents.includes(name)) return 'layout';
-
-  const overlayComponents = [
-    'dialog', 'alert-dialog', 'sheet', 'drawer', 'popover', 'tooltip',
-    'hover-card', 'dropdown-menu', 'context-menu', 'menubar', 'command',
-    'toast',
-  ];
-  if (overlayComponents.includes(name)) return 'overlay';
-
-  const feedbackComponents = [
-    'alert', 'progress', 'skeleton', 'spinner', 'empty',
-  ];
-  if (feedbackComponents.includes(name)) return 'feedback';
-
-  const dataDisplayComponents = [
-    'table', 'avatar', 'badge', 'icon', 'kbd', 'timeline',
-    'stepper', 'tree', 'carousel', 'number-ticker', 'pagination',
-  ];
-  if (dataDisplayComponents.includes(name)) return 'data-display';
-
-  const actionComponents = [
-    'button', 'button-group', 'split-button', 'toggle', 'toggle-group',
-    'speed-dial', 'dock',
-  ];
-  if (actionComponents.includes(name)) return 'actions';
-
-  const aiComponents = ['chat', 'streaming-text', 'sparkles'];
-  if (aiComponents.includes(name)) return 'ai';
-
-  const editorComponents = ['rich-text-editor', 'code-block', 'text-reveal'];
-  if (editorComponents.includes(name)) return 'editors';
-
-  return 'general';
-}
-
 function detectPrimaryType(files: string[]): ItemType {
   const types = files.map(classifyFile);
   if (types.includes('component')) return 'component';
@@ -97,7 +42,7 @@ export function buildRegistry(rawRegistry: Record<string, ComponentDefinition>):
     items.set(key, {
       ...def,
       type: detectPrimaryType(def.files),
-      category: classifyCategory(key, def.files),
+      category: def.category ?? 'general',
     });
   }
   return items;
