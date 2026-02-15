@@ -69,47 +69,330 @@ const editorVariants = cva(
     }
 );
 
+/**
+ * Visual style variant for the editor border and focus treatment.
+ *
+ * - `'default'` — Standard bordered input with focus ring.
+ * - `'ghost'` — No visible border until focused, useful for inline editing.
+ */
 export type EditorVariant = VariantProps<typeof editorVariants>['variant'];
+
+/**
+ * Text size preset for the editor content area.
+ *
+ * - `'default'` — Base text size (`text-base`).
+ * - `'sm'` — Compact text (`text-sm`), good for comment boxes.
+ * - `'lg'` — Larger text (`text-lg`), good for article editing.
+ */
 export type EditorSize = VariantProps<typeof editorVariants>['size'];
+
+/**
+ * Determines the output format and internal handling of content.
+ *
+ * - `'markdown'` — Editor accepts and emits Markdown. HTML is converted
+ *   to/from Markdown transparently using the built-in converter.
+ * - `'html'` — Editor works directly with raw HTML. No Markdown conversion.
+ *
+ * @default 'markdown'
+ */
 export type EditorMode = 'markdown' | 'html';
+
+/**
+ * Controls where (or whether) the formatting toolbar appears.
+ *
+ * - `'top'` — Fixed toolbar above the editor area.
+ * - `'floating'` — Appears near the text selection, like Medium/Notion.
+ * - `'none'` — No toolbar rendered. Use keyboard shortcuts or slash commands instead.
+ *
+ * @default 'top'
+ */
 export type ToolbarPosition = 'top' | 'floating' | 'none';
+
+/** Discriminator for entity types the editor can insert inline. */
 export type RichTextEntityType = 'mention' | 'tag';
+
+/**
+ * How an inserted entity (mention or tag) is rendered in the editor.
+ *
+ * - `'chip'` — Styled inline `<span>` with a background color (default).
+ *   Looks like a pill/badge. Not clickable.
+ * - `'link'` — Rendered as an `<a>` element. Requires a URL via
+ *   `urlTemplate` or `buildUrl` in {@link RichTextEntityRenderOptions}.
+ *   Falls back to `'chip'` if no URL can be resolved.
+ * - `'text'` — Plain inline `<span>` with no default styling.
+ *   Use `className` in render options to add custom styles.
+ */
 export type RichTextEntityRenderMode = 'chip' | 'link' | 'text';
+
+/**
+ * Return type for entity search functions. The editor accepts any of:
+ * - A synchronous array of results.
+ * - A `Promise` that resolves to results.
+ * - An RxJS `Observable` that emits results.
+ *
+ * @typeParam T - The item type ({@link MentionItem} or {@link TagItem}).
+ */
 export type RichTextEntitySearchResult<T> = Observable<T[]> | Promise<T[]> | T[];
+
+/**
+ * A function that searches for entity candidates based on the user's query text.
+ * Called every time the user types after the trigger character (`@` or `#`).
+ *
+ * @typeParam T - The item type ({@link MentionItem} or {@link TagItem}).
+ * @param query - The text the user has typed after the trigger character.
+ *   For example, if the user types `@jane`, query will be `"jane"`.
+ * @returns A synchronous array, Promise, or Observable of matching items.
+ *
+ * @example
+ * ```ts
+ * // Synchronous (for small static lists)
+ * const search: RichTextEntitySearchFn<MentionItem> = (query) =>
+ *   allUsers.filter(u => u.label.toLowerCase().includes(query.toLowerCase()));
+ *
+ * // Async with Observable (for API calls)
+ * const search: RichTextEntitySearchFn<MentionItem> = (query) =>
+ *   this.http.get<MentionItem[]>(`/api/users?q=${query}`);
+ * ```
+ */
 export type RichTextEntitySearchFn<T> = (query: string) => RichTextEntitySearchResult<T>;
 
+/**
+ * Context object passed to `buildUrl` and `buildText` callbacks in
+ * {@link RichTextEntityRenderOptions}, and used internally when resolving
+ * URL/text templates. Contains everything known about the entity at the
+ * moment it is inserted into the editor.
+ *
+ * All properties are also available as template tokens (see
+ * {@link RichTextEntityRenderOptions.urlTemplate}).
+ */
 export interface RichTextEntityRenderContext {
+    /** Whether this is a `'mention'` (`@`) or `'tag'` (`#`). */
     type: RichTextEntityType;
+
+    /** The trigger character that opened the popover: `'@'` or `'#'`. */
     trigger: '@' | '#';
+
+    /**
+     * Unique identifier for the entity. Resolved as `item.id` if provided,
+     * otherwise falls back to `item.value`.
+     */
     id: string;
+
+    /** The raw `value` field from the selected {@link MentionItem} or {@link TagItem}. */
     value: string;
+
+    /** The human-readable `label` from the selected item (e.g. `"Jane Doe"`). */
     label: string;
+
+    /** The text the user had typed after the trigger when they selected the item. */
     query: string;
+
+    /** The full selected item object. Useful in `buildUrl`/`buildText` for accessing custom fields. */
     item: MentionItem | TagItem;
+
+    /**
+     * Alias for `id` — always populated regardless of entity type.
+     * Convenient in URL templates for mentions: `/users/@@userId@@`.
+     */
     userId: string;
+
+    /**
+     * Alias for `id` — always populated regardless of entity type.
+     * Convenient in URL templates for tags: `/tags/@@tagId@@`.
+     */
     tagId: string;
 }
 
+/**
+ * Controls how an inserted mention or tag is rendered inside the editor.
+ *
+ * Supply this via the `[mentionRender]` or `[tagRender]` inputs on
+ * `<ui-rich-text-editor>`.
+ *
+ * @example
+ * ```html
+ * <!-- Render mentions as clickable profile links -->
+ * <ui-rich-text-editor
+ *   [mentions]="true"
+ *   [mentionSearch]="searchUsers"
+ *   [mentionRender]="{
+ *     mode: 'link',
+ *     urlTemplate: '/users/:id',
+ *     textTemplate: '@@label@@',
+ *     target: '_blank'
+ *   }"
+ * />
+ *
+ * <!-- Render tags as plain colored text -->
+ * <ui-rich-text-editor
+ *   [tags]="true"
+ *   [tagSearch]="searchTags"
+ *   [tagRender]="{
+ *     mode: 'text',
+ *     className: 'text-blue-500 font-semibold'
+ *   }"
+ * />
+ * ```
+ */
 export interface RichTextEntityRenderOptions {
+    /**
+     * The rendering strategy for inserted entities.
+     *
+     * - `'chip'` — Inline `<span>` styled as a pill/badge (default).
+     * - `'link'` — Clickable `<a>` element. Requires `urlTemplate` or `buildUrl`.
+     * - `'text'` — Plain `<span>` with no default styling.
+     *
+     * @default 'chip'
+     */
     mode?: RichTextEntityRenderMode;
+
+    /**
+     * A URL pattern with placeholder tokens that are replaced at insert time.
+     * Only used when `mode` is `'link'`.
+     *
+     * **Two token syntaxes are supported:**
+     *
+     * | Syntax | Example | Notes |
+     * |--------|---------|-------|
+     * | `@@token@@` | `@@id@@`, `@@label@@` | Double-at delimiters. Recommended for URLs to avoid confusion with path segments. |
+     * | `:token` | `:id`, `:value` | Colon prefix (like Express routes). Unrecognised tokens are left as-is. |
+     *
+     * **Available tokens:** `id`, `value`, `label`, `query`, `type`, `userId`, `tagId`
+     * (matching the fields on {@link RichTextEntityRenderContext}).
+     *
+     * @example
+     * ```ts
+     * // Mention profile link
+     * urlTemplate: '/users/@@userId@@'
+     *
+     * // Tag page using colon syntax
+     * urlTemplate: '/tags/:value'
+     *
+     * // External URL with label
+     * urlTemplate: 'https://example.com/profiles/@@id@@'
+     * ```
+     */
     urlTemplate?: string;
+
+    /**
+     * A text pattern with placeholder tokens for the display text of the entity.
+     * Uses the same token syntax as {@link urlTemplate} (`@@token@@` or `:token`).
+     *
+     * If omitted, the default display text is `trigger + label` (e.g. `"@Jane Doe"`).
+     *
+     * @example
+     * ```ts
+     * // Show just the label without the trigger
+     * textTemplate: '@@label@@'
+     *
+     * // Custom format
+     * textTemplate: '[@@label@@]'
+     * ```
+     */
     textTemplate?: string;
+
+    /**
+     * CSS class(es) applied to the rendered element.
+     *
+     * - For `'chip'` mode, overrides the default `bg-accent text-accent-foreground rounded px-1`.
+     * - For `'link'` mode, overrides the default `bg-accent/20 text-primary rounded px-1 underline underline-offset-2`.
+     * - For `'text'` mode, no default classes — only your custom classes are applied.
+     */
     className?: string;
+
+    /**
+     * The `target` attribute for the `<a>` element. Only applies when `mode` is `'link'`.
+     *
+     * @default '_blank'
+     */
     target?: string;
+
+    /**
+     * The `rel` attribute for the `<a>` element. Only applies when `mode` is `'link'`.
+     *
+     * @default 'noopener noreferrer'
+     */
     rel?: string;
+
+    /**
+     * A callback that builds the URL dynamically. Takes priority over `urlTemplate`.
+     * Only used when `mode` is `'link'`. If this returns an empty string, the entity
+     * falls back to `'chip'` rendering.
+     *
+     * @param context - Full entity context with id, value, label, and the original item.
+     * @returns The URL string. Will be sanitised before being set as `href`.
+     *
+     * @example
+     * ```ts
+     * buildUrl: (ctx) => ctx.item.id
+     *   ? `/api/users/${ctx.item.id}`
+     *   : `/search?q=${encodeURIComponent(ctx.value)}`
+     * ```
+     */
     buildUrl?: (context: RichTextEntityRenderContext) => string;
+
+    /**
+     * A callback that builds the display text dynamically. Takes priority over `textTemplate`.
+     *
+     * @param context - Full entity context.
+     * @returns The text to display inside the rendered element.
+     *
+     * @example
+     * ```ts
+     * buildText: (ctx) => `${ctx.trigger}${ctx.label} (${ctx.item.description ?? ''})`
+     * ```
+     */
     buildText?: (context: RichTextEntityRenderContext) => string;
 }
 
+/**
+ * Event payload emitted via `(mentionInsert)` or `(tagInsert)` when the user
+ * selects an entity from the popover and it is inserted into the editor.
+ *
+ * Use this to react to insertions — for example, to notify a backend that a
+ * user was mentioned, or to track which tags are referenced.
+ *
+ * @example
+ * ```html
+ * <ui-rich-text-editor
+ *   [mentions]="true"
+ *   [mentionSearch]="searchUsers"
+ *   (mentionInsert)="onMention($event)"
+ * />
+ * ```
+ * ```ts
+ * onMention(event: RichTextEntityInsertEvent) {
+ *   console.log(`Mentioned ${event.label} (id: ${event.id})`);
+ *   this.notificationService.notifyUser(event.id);
+ * }
+ * ```
+ */
 export interface RichTextEntityInsertEvent {
+    /** Whether this is a `'mention'` or `'tag'`. */
     type: RichTextEntityType;
+
+    /** The trigger character: `'@'` for mentions, `'#'` for tags. */
     trigger: '@' | '#';
+
+    /** Unique identifier (from `item.id ?? item.value`). */
     id: string;
+
+    /** The raw `value` field from the selected item. */
     value: string;
+
+    /** The human-readable display name from the selected item. */
     label: string;
+
+    /** The search text the user had typed when they made the selection. */
     query: string;
+
+    /** The resolved URL if `mode` was `'link'` and a URL could be built, otherwise `undefined`. */
     url?: string;
+
+    /** The raw HTML that was inserted into the editor's content. */
     html: string;
+
+    /** The full selected item, giving access to all original fields (avatar, color, etc.). */
     item: MentionItem | TagItem;
 }
 
@@ -129,6 +412,10 @@ interface SerializedSelection {
     endOffset: number;
 }
 
+/**
+ * The default toolbar layout used when `[toolbarItems]` is not provided.
+ * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
+ */
 export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'bold', 'italic', 'underline',
     'separator',
@@ -147,6 +434,10 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'clear',
 ];
 
+/**
+ * Creates the built-in slash commands (paragraph, headings, lists, quote, code, link, undo, redo)
+ * using the provided locale strings. Called internally — you normally don't need this directly.
+ */
 export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
     return [
         {
@@ -671,38 +962,176 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     @ViewChild('slashCommandList') slashCommandList?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
+    // ── Content & mode ────────────────────────────────────────────
+
+    /** Output format: `'markdown'` converts to/from Markdown; `'html'` works with raw HTML. */
     mode = input<EditorMode>('markdown');
+
+    // ── Appearance ──────────────────────────────────────────────
+
+    /** Visual border/focus style. See {@link EditorVariant}. */
     variant = input<EditorVariant>('default');
+
+    /** Text size preset for the editor content. See {@link EditorSize}. */
     size = input<EditorSize>('default');
+
+    // ── Toolbar ─────────────────────────────────────────────────
+
+    /** Where to render the formatting toolbar. See {@link ToolbarPosition}. */
     toolbar = input<ToolbarPosition>('top');
+
+    /**
+     * Which toolbar buttons to show and in what order.
+     * Use `'separator'` to insert visual dividers between groups.
+     * @see {@link ToolbarItem} for the full list of available items.
+     * @see {@link DEFAULT_TOOLBAR_ITEMS} for the default set.
+     */
     toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
+
+    // ── Editor content area ─────────────────────────────────────
+
+    /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
     placeholder = input<string>('');
+
+    /** CSS `min-height` for the editable area. Accepts any CSS length value. */
     minHeight = input<string>('120px');
+
+    /** CSS `max-height` for the editable area (scrolls beyond this). Accepts any CSS length value. */
     maxHeight = input<string>('400px');
+
+    /** Disables the editor entirely — no input, no toolbar, no interactions. */
     disabled = input<boolean>(false);
+
+    /** Makes the editor non-editable but still selectable/copyable. Hides the toolbar. */
     readonly = input<boolean>(false);
+
+    // ── Mentions (@) ────────────────────────────────────────────
+
+    /** Enable the `@mention` feature. When `true`, typing `@` opens a search popover. */
     mentions = input<boolean>(false);
+
+    /**
+     * Search function called when the user types after `@`. Must return matching
+     * {@link MentionItem}s as an array, Promise, or Observable.
+     * @see {@link RichTextEntitySearchFn} for the full type and examples.
+     */
     mentionSearch = input<RichTextEntitySearchFn<MentionItem>>(() => []);
+
+    /**
+     * Controls how selected mentions are rendered in the editor content.
+     * @see {@link RichTextEntityRenderOptions} for all options, token syntax, and examples.
+     */
     mentionRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
+
+    // ── Tags (#) ────────────────────────────────────────────────
+
+    /** Enable the `#tag` feature. When `true`, typing `#` opens a search popover. */
     tags = input<boolean>(false);
+
+    /**
+     * Search function called when the user types after `#`. Must return matching
+     * {@link TagItem}s as an array, Promise, or Observable.
+     * @see {@link RichTextEntitySearchFn} for the full type and examples.
+     */
     tagSearch = input<RichTextEntitySearchFn<TagItem>>(() => []);
+
+    /**
+     * Controls how selected tags are rendered in the editor content.
+     * @see {@link RichTextEntityRenderOptions} for all options, token syntax, and examples.
+     */
     tagRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
+
+    // ── Media & emoji ───────────────────────────────────────────
+
+    /** Show the emoji picker button in the toolbar. */
     emojiPicker = input<boolean>(true);
+
+    /** Enable image insertion (toolbar button, paste, drag-and-drop). */
     images = input<boolean>(true);
+
+    /**
+     * Custom upload handler for images. Receives the `File` and must return an
+     * `Observable<string>` that emits the final image URL. If `undefined`, images
+     * are inserted as base64 data URIs.
+     *
+     * @example
+     * ```ts
+     * imageUploader = (file: File) =>
+     *   this.http.post<{ url: string }>('/api/upload', formData)
+     *     .pipe(map(res => res.url));
+     * ```
+     */
     imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
+
+    /**
+     * Which image source options to show in the image insertion dialog.
+     * - `'all'` — Both file upload and URL input.
+     * - `'upload'` — File upload only.
+     * - `'url'` — URL input only.
+     */
     imageSources = input<'all' | 'upload' | 'url'>('all');
+
+    // ── Character & word count ──────────────────────────────────
+
+    /** Show a character count below the editor. */
     showCount = input<boolean>(false);
+
+    /** Show a word count below the editor. */
     showWordCount = input<boolean>(false);
+
+    /**
+     * Maximum character limit. When set, the character counter turns red
+     * and the editor emits warnings when approaching/exceeding the limit.
+     * Does **not** prevent typing — it's advisory only.
+     */
     maxLength = input<number | undefined>(undefined);
+
+    // ── Revision history ────────────────────────────────────────
+
+    /** Maximum number of history snapshots to retain. Oldest entries are dropped when exceeded. */
     historyLimit = input<number>(100);
+
+    /**
+     * Debounce interval in milliseconds for capturing history snapshots.
+     * A snapshot is saved after the user stops typing for this duration.
+     */
     historyDebounceMs = input<number>(450);
+
+    /** Enable the revision history feature (popover + preview dialog). */
     showHistoryPanel = input<boolean>(false);
+
+    /** Show the "Revisions" button in the top-right corner. Only visible when `showHistoryPanel` is `true`. */
     showHistoryButton = input<boolean>(true);
+
+    // ── Slash commands ──────────────────────────────────────────
+
+    /** Enable the `/slash` command feature. When `true`, typing `/` opens a command menu. */
     enableSlashCommands = input<boolean>(true);
+
+    /**
+     * Additional custom slash commands to register alongside the built-in ones.
+     * @see {@link RichTextSlashCommand} for the full interface and examples.
+     */
     slashCommands = input<RichTextSlashCommand[]>([]);
+
+    // ── Localisation ────────────────────────────────────────────
+
+    /**
+     * Language/locale for all editor UI strings. Pass a locale key (e.g. `'en'`)
+     * to use a built-in locale, or pass a full {@link RichTextLocale} object for
+     * custom translations.
+     */
     locale = input<string | RichTextLocale>('en');
+
+    // ── Styling & accessibility ─────────────────────────────────
+
+    /** Additional CSS classes merged onto the editor's root container. */
     class = input<string>('');
+
+    /** Custom `aria-label` for the editable content area. Falls back to the locale default. */
     ariaLabel = input<string | undefined>(undefined);
+
+    /** ID of an element that describes the editor, set as `aria-describedby`. */
     ariaDescribedBy = input<string | undefined>(undefined);
 
     resolvedLocale = computed<RichTextLocale>(() => {
@@ -719,15 +1148,46 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         buildDefaultSlashCommands(this.resolvedLocale().slashCommands)
     );
 
+    // ── Outputs ──────────────────────────────────────────────────
+
+    /** Emits the current content as an HTML string after every change. */
     htmlChange = output<string>();
+
+    /**
+     * Emits the current content as a Markdown string after every change.
+     * Only meaningful when `mode` is `'markdown'` — in `'html'` mode,
+     * the Markdown is reverse-converted from HTML and may not round-trip perfectly.
+     */
     markdownChange = output<string>();
+
+    /** Emits the current word count after every content change. Pair with `[showWordCount]`. */
     wordCountChange = output<number>();
+
+    /** Emits when the editor gains focus. */
     focus = output<void>();
+
+    /** Emits when the editor loses focus. */
     blur = output<void>();
+
+    /** Emits the `File` object when an image upload begins. */
     imageUploadStart = output<File>();
+
+    /** Emits the final image URL string when an image upload completes successfully. */
     imageUploadComplete = output<string>();
+
+    /** Emits an error message string when an image upload fails. */
     imageUploadError = output<string>();
+
+    /**
+     * Emits when a mention is inserted into the editor.
+     * @see {@link RichTextEntityInsertEvent} for the payload shape.
+     */
     mentionInsert = output<RichTextEntityInsertEvent>();
+
+    /**
+     * Emits when a tag is inserted into the editor.
+     * @see {@link RichTextEntityInsertEvent} for the payload shape.
+     */
     tagInsert = output<RichTextEntityInsertEvent>();
 
     private htmlContent = signal<string>('');

@@ -3,6 +3,14 @@ import { DOCUMENT } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 
+/**
+ * Horizontal alignment mode for images inside the editor.
+ *
+ * - `'inline'` — Image flows inline with surrounding text (default).
+ * - `'left'` — Image floats to the left, text wraps around it.
+ * - `'center'` — Image is centered as a block element.
+ * - `'right'` — Image floats to the right, text wraps around it.
+ */
 export type ImageAlignment = 'inline' | 'left' | 'center' | 'right';
 
 const ALIGNMENT_ICONS: Record<ImageAlignment, string> = {

@@ -30,6 +30,49 @@ import {
 } from './select.component';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 
+/**
+ * Identifier for a toolbar button or visual separator. Pass an array of these
+ * to the `[toolbarItems]` input to customise which buttons appear and in what order.
+ *
+ * **Formatting:**
+ * - `'bold'` / `'italic'` / `'underline'` / `'strikethrough'` — Inline formatting toggles.
+ *
+ * **Block type:**
+ * - `'paragraph'` — Reset to normal paragraph.
+ * - `'heading1'` / `'heading2'` / `'heading3'` — Heading levels.
+ * - `'bulletList'` / `'orderedList'` — List toggles.
+ * - `'blockquote'` — Block quote toggle.
+ *
+ * **Code:**
+ * - `'code'` — Inline code.
+ * - `'codeBlock'` — Fenced code block.
+ *
+ * **Insert:**
+ * - `'link'` — Opens a link insertion dialog.
+ * - `'image'` — Opens an image insertion dialog.
+ * - `'emoji'` — Opens the emoji picker.
+ *
+ * **Styling:**
+ * - `'fontColor'` — Text color picker.
+ * - `'backgroundColor'` — Background highlight color picker.
+ * - `'fontSize'` — Font size selector dropdown.
+ * - `'alignLeft'` / `'alignCenter'` / `'alignRight'` — Text alignment.
+ *
+ * **History:**
+ * - `'undo'` / `'redo'` — Undo/redo actions.
+ *
+ * **Utility:**
+ * - `'clear'` — Remove all formatting from selected text.
+ * - `'separator'` — Visual divider between button groups (renders as a line, not a button).
+ *
+ * @example
+ * ```html
+ * <!-- Minimal toolbar with just basic formatting -->
+ * <ui-rich-text-editor
+ *   [toolbarItems]="['bold', 'italic', 'separator', 'link']"
+ * />
+ * ```
+ */
 export type ToolbarItem =
   | 'bold'
   | 'italic'
