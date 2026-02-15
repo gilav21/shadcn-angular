@@ -16,6 +16,7 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
 import { ScrollAreaComponent } from './scroll-area.component';
+import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 
 export interface MentionItem {
   id?: string;
@@ -42,15 +43,15 @@ export interface TagItem {
       [style.left.px]="position().x"
       [style.top.px]="position().y"
       role="listbox"
-      [attr.aria-label]="type() === 'mention' ? 'Select a user' : 'Select a tag'"
+      [attr.aria-label]="type() === 'mention' ? locale().mentions.selectUser : locale().mentions.selectTag"
       (keydown)="onKeydown($event)"
     >
       @if (items().length === 0) {
         <div class="p-3 text-sm text-muted-foreground text-center">
           @if (type() === 'mention') {
-            No users found
+            {{ locale().mentions.noUsersFound }}
           } @else {
-            No tags found
+            {{ locale().mentions.noTagsFound }}
           }
         </div>
       } @else {
@@ -116,6 +117,7 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
   @ViewChildren('itemButton') itemButtons!: QueryList<ElementRef<HTMLButtonElement>>;
 
   type = input<'mention' | 'tag'>('mention');
+  locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
 
   query = input<string>('');
 

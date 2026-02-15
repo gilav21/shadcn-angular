@@ -1,6 +1,7 @@
 import { Component, signal, input, effect, OnDestroy, ChangeDetectionStrategy, output, inject, computed } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 
 export type ImageAlignment = 'inline' | 'left' | 'center' | 'right';
 
@@ -41,7 +42,7 @@ const DELETE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="
                             class="p-1.5 rounded-sm hover:bg-accent transition-colors"
                             [class.bg-accent]="currentAlignment() === align"
                             [class.text-accent-foreground]="currentAlignment() === align"
-                            [title]="alignmentLabels[align]"
+                            [title]="resolvedAlignmentLabels()[align]"
                             (mousedown)="onAlignClick($event, align)">
                             <span [innerHTML]="getAlignIcon(align)"></span>
                         </button>
@@ -50,7 +51,7 @@ const DELETE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="
                     <button
                         type="button"
                         class="p-1.5 rounded-sm hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        title="Delete image"
+                        [title]="locale().imageResizer.deleteImage"
                         (mousedown)="onDeleteClick($event)">
                         <span [innerHTML]="deleteIconHtml"></span>
                     </button>
@@ -64,17 +65,22 @@ export class RichTextImageResizerComponent implements OnDestroy {
     private readonly sanitizer = inject(DomSanitizer);
     target = input<HTMLImageElement | null>(null);
     container = input<HTMLElement | null>(null);
+    locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
     resizeEnd = output<void>();
     alignmentChange = output<ImageAlignment>();
     imageRemove = output<HTMLImageElement>();
 
     readonly alignments: ImageAlignment[] = ['inline', 'left', 'center', 'right'];
-    readonly alignmentLabels: Record<ImageAlignment, string> = {
-        inline: 'Inline with text',
-        left: 'Float left',
-        center: 'Center',
-        right: 'Float right',
-    };
+
+    resolvedAlignmentLabels = computed<Record<ImageAlignment, string>>(() => {
+        const l = this.locale().imageResizer;
+        return {
+            inline: l.inline,
+            left: l.floatLeft,
+            center: l.center,
+            right: l.floatRight,
+        };
+    });
 
     rect = signal({ top: 0, left: 0, width: 0, height: 0 });
     visible = signal(false);

@@ -28,6 +28,7 @@ import {
   SelectContentComponent,
   SelectItemComponent,
 } from './select.component';
+import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 
 export type ToolbarItem =
   | 'bold'
@@ -60,35 +61,36 @@ export type ToolbarItem =
 interface ToolbarButton {
   id: ToolbarItem;
   label: string;
+  localeKey: keyof RichTextLocale['toolbar'];
   shortcut?: string;
 }
 
 const TOOLBAR_BUTTONS: ToolbarButton[] = [
-  { id: 'bold', label: 'Bold', shortcut: 'Ctrl+B' },
-  { id: 'italic', label: 'Italic', shortcut: 'Ctrl+I' },
-  { id: 'underline', label: 'Underline', shortcut: 'Ctrl+U' },
-  { id: 'strikethrough', label: 'Strikethrough' },
-  { id: 'paragraph', label: 'Normal Text' },
-  { id: 'heading1', label: 'Heading 1' },
-  { id: 'heading2', label: 'Heading 2' },
-  { id: 'heading3', label: 'Heading 3' },
-  { id: 'bulletList', label: 'Bullet List' },
-  { id: 'orderedList', label: 'Numbered List' },
-  { id: 'blockquote', label: 'Blockquote' },
-  { id: 'code', label: 'Inline Code' },
-  { id: 'codeBlock', label: 'Code Block' },
-  { id: 'link', label: 'Insert Link', shortcut: 'Ctrl+K' },
-  { id: 'image', label: 'Insert Image' },
-  { id: 'emoji', label: 'Insert Emoji' },
-  { id: 'undo', label: 'Undo', shortcut: 'Ctrl+Z' },
-  { id: 'redo', label: 'Redo', shortcut: 'Ctrl+Shift+Z' },
-  { id: 'clear', label: 'Clear Formatting' },
-  { id: 'fontColor', label: 'Text Color' },
-  { id: 'backgroundColor', label: 'Background Color' },
-  { id: 'fontSize', label: 'Font Size' },
-  { id: 'alignLeft', label: 'Align Left' },
-  { id: 'alignCenter', label: 'Align Center' },
-  { id: 'alignRight', label: 'Align Right' },
+  { id: 'bold', label: 'Bold', localeKey: 'bold', shortcut: 'Ctrl+B' },
+  { id: 'italic', label: 'Italic', localeKey: 'italic', shortcut: 'Ctrl+I' },
+  { id: 'underline', label: 'Underline', localeKey: 'underline', shortcut: 'Ctrl+U' },
+  { id: 'strikethrough', label: 'Strikethrough', localeKey: 'strikethrough' },
+  { id: 'paragraph', label: 'Normal Text', localeKey: 'paragraph' },
+  { id: 'heading1', label: 'Heading 1', localeKey: 'heading1' },
+  { id: 'heading2', label: 'Heading 2', localeKey: 'heading2' },
+  { id: 'heading3', label: 'Heading 3', localeKey: 'heading3' },
+  { id: 'bulletList', label: 'Bullet List', localeKey: 'bulletList' },
+  { id: 'orderedList', label: 'Numbered List', localeKey: 'orderedList' },
+  { id: 'blockquote', label: 'Blockquote', localeKey: 'blockquote' },
+  { id: 'code', label: 'Inline Code', localeKey: 'inlineCode' },
+  { id: 'codeBlock', label: 'Code Block', localeKey: 'codeBlock' },
+  { id: 'link', label: 'Insert Link', localeKey: 'insertLink', shortcut: 'Ctrl+K' },
+  { id: 'image', label: 'Insert Image', localeKey: 'insertImage' },
+  { id: 'emoji', label: 'Insert Emoji', localeKey: 'insertEmoji' },
+  { id: 'undo', label: 'Undo', localeKey: 'undo', shortcut: 'Ctrl+Z' },
+  { id: 'redo', label: 'Redo', localeKey: 'redo', shortcut: 'Ctrl+Shift+Z' },
+  { id: 'clear', label: 'Clear Formatting', localeKey: 'clearFormatting' },
+  { id: 'fontColor', label: 'Text Color', localeKey: 'textColor' },
+  { id: 'backgroundColor', label: 'Background Color', localeKey: 'backgroundColor' },
+  { id: 'fontSize', label: 'Font Size', localeKey: 'fontSize' },
+  { id: 'alignLeft', label: 'Align Left', localeKey: 'alignLeft' },
+  { id: 'alignCenter', label: 'Align Center', localeKey: 'alignCenter' },
+  { id: 'alignRight', label: 'Align Right', localeKey: 'alignRight' },
 ];
 
 const ICONS: Record<string, string> = {
@@ -139,10 +141,10 @@ const ICONS: Record<string, string> = {
     FormsModule,
   ],
   template: `
-    <div 
+    <div
       [class]="containerClasses()"
       role="toolbar"
-      aria-label="Formatting options"
+      [attr.aria-label]="locale().editor.formattingOptions"
     >
       @for (item of items(); track $index) {
         @if (item === 'separator') {
@@ -162,31 +164,31 @@ const ICONS: Record<string, string> = {
             <ui-popover-content class="w-80 p-4" align="start">
               <div class="space-y-3">
                 <div>
-                  <label class="text-sm font-medium mb-1 block">Link Text</label>
+                  <label class="text-sm font-medium mb-1 block">{{ locale().link.text }}</label>
                   <input
                     #linkText
                     type="text"
                     [value]="selectedText()"
-                    placeholder="Display text"
+                    [placeholder]="locale().link.textPlaceholder"
                     class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
                 <div>
-                  <label class="text-sm font-medium mb-1 block">URL</label>
+                  <label class="text-sm font-medium mb-1 block">{{ locale().link.url }}</label>
                   <input
                     #linkUrl
                     type="url"
-                    placeholder="https://example.com"
+                    [placeholder]="locale().link.urlPlaceholder"
                     class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
-                <ui-button 
-                  size="sm" 
+                <ui-button
+                  size="sm"
                   class="w-full"
                   [disabled]="interactionDisabled()"
                   (click)="onInsertLink(linkText.value, linkUrl.value)"
                 >
-                  Insert Link
+                  {{ locale().link.insert }}
                 </ui-button>
               </div>
             </ui-popover-content>
@@ -206,30 +208,30 @@ const ICONS: Record<string, string> = {
             <ui-popover-content class="w-80 p-4" align="start">
               <div class="space-y-3">
                 <div>
-                  <label class="text-sm font-medium mb-1 block">Image URL</label>
+                  <label class="text-sm font-medium mb-1 block">{{ locale().image.url }}</label>
                   <input
                     #imageSrc
                     type="url"
-                    placeholder="https://example.com/image.jpg"
+                    [placeholder]="locale().image.urlPlaceholder"
                     class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
                 <div>
-                  <label class="text-sm font-medium mb-1 block">Alt Text</label>
+                  <label class="text-sm font-medium mb-1 block">{{ locale().image.altText }}</label>
                   <input
                     #imageAlt
                     type="text"
-                    placeholder="Description of image"
+                    [placeholder]="locale().image.altTextPlaceholder"
                     class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                   />
                 </div>
-                <ui-button 
-                  size="sm" 
+                <ui-button
+                  size="sm"
                   class="w-full"
                   [disabled]="interactionDisabled()"
                   (click)="onInsertImage(imageSrc.value, imageAlt.value)"
                 >
-                  Insert Image
+                  {{ locale().image.insert }}
                 </ui-button>
               </div>
             </ui-popover-content>
@@ -262,7 +264,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-trigger>
             <ui-popover-content class="w-48 p-3" align="start">
               <div class="space-y-2">
-                <label class="text-sm font-medium block">Text Color</label>
+                <label class="text-sm font-medium block">{{ locale().color.textColor }}</label>
                 <div class="grid grid-cols-8 gap-1">
                   @for (color of colorPalette; track color) {
                     <button
@@ -293,15 +295,15 @@ const ICONS: Record<string, string> = {
             <ui-popover-content class="w-40 p-3" align="start">
               <div class="space-y-3">
                 <div>
-                  <label class="text-sm font-medium block mb-1">Select Size</label>
-                  <ui-select 
-                    [ngModel]="'3'" 
+                  <label class="text-sm font-medium block mb-1">{{ locale().fontSize.selectSize }}</label>
+                  <ui-select
+                    [ngModel]="'3'"
                     [disabled]="interactionDisabled()"
-                    (ngModelChange)="onFontSizeSelect($event)" 
+                    (ngModelChange)="onFontSizeSelect($event)"
                     class="w-full"
                   >
                     <ui-select-trigger class="h-9">
-                      <ui-select-value placeholder="Select size" />
+                      <ui-select-value [placeholder]="locale().fontSize.selectSizePlaceholder" />
                     </ui-select-trigger>
                     <ui-select-content>
                       @for (size of fontSizeOptions; track size) {
@@ -311,7 +313,7 @@ const ICONS: Record<string, string> = {
                   </ui-select>
                 </div>
                 <div class="border-t pt-3">
-                  <label class="text-sm font-medium block mb-1">Custom Size</label>
+                  <label class="text-sm font-medium block mb-1">{{ locale().fontSize.customSize }}</label>
                   <div class="flex gap-2">
                     <input
                       #customSize
@@ -327,7 +329,7 @@ const ICONS: Record<string, string> = {
                       [disabled]="interactionDisabled()"
                       (click)="onFontSizeSelect(customSize.value)"
                     >
-                      Apply
+                      {{ locale().fontSize.apply }}
                     </button>
                   </div>
                 </div>
@@ -348,7 +350,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-trigger>
             <ui-popover-content class="w-48 p-3" align="start">
               <div class="space-y-2">
-                <label class="text-sm font-medium block">Highlight Color</label>
+                <label class="text-sm font-medium block">{{ locale().color.highlightColor }}</label>
                 <div class="grid grid-cols-8 gap-1">
                   @for (color of highlightPalette; track color) {
                     <button
@@ -403,6 +405,7 @@ export class RichTextToolbarComponent {
   class = input<string>('');
   disabled = input<boolean>(false);
   readonly = input<boolean>(false);
+  locale = input<RichTextLocale>(RICH_TEXT_LOCALES['en']);
 
   formatCommand = output<string>();
   linkInsert = output<{ text: string; url: string }>();
@@ -470,7 +473,9 @@ export class RichTextToolbarComponent {
   getTooltip(item: ToolbarItem): string {
     const button = TOOLBAR_BUTTONS.find(b => b.id === item);
     if (!button) return item;
-    return button.shortcut ? `${button.label} (${button.shortcut})` : button.label;
+    const l = this.locale();
+    const label = l ? l.toolbar[button.localeKey] : button.label;
+    return button.shortcut ? `${label} (${button.shortcut})` : label;
   }
 
   onFormatClick(item: ToolbarItem): void {

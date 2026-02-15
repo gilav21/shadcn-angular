@@ -5,6 +5,7 @@ import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './rich-te
 import { RichTextSlashCommand } from './rich-text-command-registry.service';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
+import { RICH_TEXT_LOCALES } from './rich-text-locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 import { Component, signal } from '@angular/core';
 import { JsonPipe } from '@angular/common';
@@ -91,6 +92,11 @@ const meta: Meta<RichTextEditorComponent> = {
         enableSlashCommands: {
             control: 'boolean',
             description: 'Enable slash command palette (type / in editor)',
+        },
+        locale: {
+            control: 'select',
+            options: Object.keys(RICH_TEXT_LOCALES),
+            description: 'Locale for UI strings and automatic RTL',
         },
         historyDebounceMs: {
             control: { type: 'number', min: 0, max: 2000, step: 50 },
@@ -250,6 +256,83 @@ export const AdvancedEditorConfig: Story = {
         docs: {
             description: {
                 story: 'Production-style setup with mention/tag autocomplete, char+word count, max length, and deeper history.',
+            },
+        },
+    },
+};
+
+export const HebrewRTL: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        locale: 'he',
+        showCount: true,
+        showWordCount: true,
+        showHistoryPanel: true,
+        enableSlashCommands: true,
+        minHeight: '180px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Hebrew locale with automatic RTL layout. All toolbar tooltips, slash commands, dialogs, and labels are translated.',
+            },
+        },
+    },
+};
+
+export const ArabicRTL: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        locale: 'ar',
+        showCount: true,
+        showWordCount: true,
+        enableSlashCommands: true,
+        minHeight: '180px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Arabic locale with automatic RTL layout.',
+            },
+        },
+    },
+};
+
+export const FrenchLocale: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        locale: 'fr',
+        showCount: true,
+        showWordCount: true,
+        enableSlashCommands: true,
+        minHeight: '180px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'French locale with translated UI strings.',
+            },
+        },
+    },
+};
+
+export const JapaneseLocale: Story = {
+    args: {
+        mode: 'markdown',
+        toolbar: 'top',
+        locale: 'ja',
+        showCount: true,
+        showWordCount: true,
+        enableSlashCommands: true,
+        minHeight: '180px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Japanese locale with translated UI strings.',
             },
         },
     },
