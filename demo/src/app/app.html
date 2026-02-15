@@ -227,6 +227,15 @@
             <ui-rich-text-editor mode="markdown" toolbar="none" variant="ghost"
               placeholder="Clean writing experience - use keyboard shortcuts..." minHeight="100px" />
           </div>
+
+          <!-- Hebrew RTL Locale -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Hebrew RTL Locale</h3>
+            <p class="text-sm text-muted-foreground">Hebrew locale with automatic RTL layout. Toolbar tooltips, slash commands, and all UI strings are translated.</p>
+            <ui-rich-text-editor mode="markdown" toolbar="top" locale="he"
+              [showCount]="true" [showWordCount]="true" [enableSlashCommands]="true"
+              minHeight="150px" />
+          </div>
         </section>
 
         }

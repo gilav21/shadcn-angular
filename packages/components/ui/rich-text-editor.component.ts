@@ -46,6 +46,7 @@ import {
     RichTextSlashCommandAvailabilityContext,
     RichTextSlashCommandContext,
 } from './rich-text-command-registry.service';
+import { RichTextLocale, RICH_TEXT_LOCALES, interpolate } from './rich-text-locales';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -107,104 +108,106 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'clear',
 ];
 
-export const DEFAULT_SLASH_COMMANDS: RichTextSlashCommand[] = [
-    {
-        id: 'format.paragraph',
-        label: 'Paragraph',
-        description: 'Switch to paragraph text',
-        keywords: ['text', 'normal'],
-        order: 10,
-        run: context => context.executeToolbarCommand('paragraph'),
-    },
-    {
-        id: 'format.heading-1',
-        label: 'Heading 1',
-        description: 'Large section heading',
-        keywords: ['h1', 'title'],
-        order: 20,
-        run: context => context.executeToolbarCommand('heading1'),
-    },
-    {
-        id: 'format.heading-2',
-        label: 'Heading 2',
-        description: 'Medium section heading',
-        keywords: ['h2', 'subtitle'],
-        order: 30,
-        run: context => context.executeToolbarCommand('heading2'),
-    },
-    {
-        id: 'format.heading-3',
-        label: 'Heading 3',
-        description: 'Small section heading',
-        keywords: ['h3'],
-        order: 40,
-        run: context => context.executeToolbarCommand('heading3'),
-    },
-    {
-        id: 'format.bullet-list',
-        label: 'Bullet List',
-        description: 'Create a bulleted list',
-        keywords: ['list', 'ul', 'bl'],
-        order: 50,
-        run: context => context.executeToolbarCommand('bulletList'),
-    },
-    {
-        id: 'format.numbered-list',
-        label: 'Numbered List',
-        description: 'Create an ordered list',
-        keywords: ['list', 'ol', 'nl'],
-        order: 60,
-        run: context => context.executeToolbarCommand('orderedList'),
-    },
-    {
-        id: 'format.quote',
-        label: 'Block Quote',
-        description: 'Insert a block quote',
-        keywords: ['blockquote', 'quote'],
-        order: 70,
-        run: context => context.executeToolbarCommand('blockquote'),
-    },
-    {
-        id: 'format.inline-code',
-        label: 'Inline Code',
-        description: 'Wrap selection in inline code',
-        keywords: ['code'],
-        order: 80,
-        run: context => context.executeToolbarCommand('code'),
-    },
-    {
-        id: 'format.code-block',
-        label: 'Code Block',
-        description: 'Insert a code block',
-        keywords: ['pre', 'snippet'],
-        order: 90,
-        run: context => context.executeToolbarCommand('codeBlock'),
-    },
-    {
-        id: 'insert.link',
-        label: 'Link',
-        description: 'Insert or edit a link',
-        keywords: ['url', 'anchor'],
-        order: 100,
-        run: context => context.showLinkDialog(),
-    },
-    {
-        id: 'history.undo',
-        label: 'Undo',
-        description: 'Undo last change',
-        keywords: ['ctrl+z', 'revert'],
-        order: 110,
-        run: context => context.executeToolbarCommand('undo'),
-    },
-    {
-        id: 'history.redo',
-        label: 'Redo',
-        description: 'Redo last undone change',
-        keywords: ['ctrl+y', 'ctrl+shift+z'],
-        order: 120,
-        run: context => context.executeToolbarCommand('redo'),
-    },
-];
+export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): RichTextSlashCommand[] {
+    return [
+        {
+            id: 'format.paragraph',
+            label: l.paragraph,
+            description: l.paragraphDescription,
+            keywords: ['text', 'normal'],
+            order: 10,
+            run: context => context.executeToolbarCommand('paragraph'),
+        },
+        {
+            id: 'format.heading-1',
+            label: l.heading1,
+            description: l.heading1Description,
+            keywords: ['h1', 'title'],
+            order: 20,
+            run: context => context.executeToolbarCommand('heading1'),
+        },
+        {
+            id: 'format.heading-2',
+            label: l.heading2,
+            description: l.heading2Description,
+            keywords: ['h2', 'subtitle'],
+            order: 30,
+            run: context => context.executeToolbarCommand('heading2'),
+        },
+        {
+            id: 'format.heading-3',
+            label: l.heading3,
+            description: l.heading3Description,
+            keywords: ['h3'],
+            order: 40,
+            run: context => context.executeToolbarCommand('heading3'),
+        },
+        {
+            id: 'format.bullet-list',
+            label: l.bulletList,
+            description: l.bulletListDescription,
+            keywords: ['list', 'ul', 'bl'],
+            order: 50,
+            run: context => context.executeToolbarCommand('bulletList'),
+        },
+        {
+            id: 'format.numbered-list',
+            label: l.numberedList,
+            description: l.numberedListDescription,
+            keywords: ['list', 'ol', 'nl'],
+            order: 60,
+            run: context => context.executeToolbarCommand('orderedList'),
+        },
+        {
+            id: 'format.quote',
+            label: l.blockQuote,
+            description: l.blockQuoteDescription,
+            keywords: ['blockquote', 'quote'],
+            order: 70,
+            run: context => context.executeToolbarCommand('blockquote'),
+        },
+        {
+            id: 'format.inline-code',
+            label: l.inlineCode,
+            description: l.inlineCodeDescription,
+            keywords: ['code'],
+            order: 80,
+            run: context => context.executeToolbarCommand('code'),
+        },
+        {
+            id: 'format.code-block',
+            label: l.codeBlock,
+            description: l.codeBlockDescription,
+            keywords: ['pre', 'snippet'],
+            order: 90,
+            run: context => context.executeToolbarCommand('codeBlock'),
+        },
+        {
+            id: 'insert.link',
+            label: l.link,
+            description: l.linkDescription,
+            keywords: ['url', 'anchor'],
+            order: 100,
+            run: context => context.showLinkDialog(),
+        },
+        {
+            id: 'history.undo',
+            label: l.undo,
+            description: l.undoDescription,
+            keywords: ['ctrl+z', 'revert'],
+            order: 110,
+            run: context => context.executeToolbarCommand('undo'),
+        },
+        {
+            id: 'history.redo',
+            label: l.redo,
+            description: l.redoDescription,
+            keywords: ['ctrl+y', 'ctrl+shift+z'],
+            order: 120,
+            run: context => context.executeToolbarCommand('redo'),
+        },
+    ];
+}
 
 export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.bold', description: 'Toggle bold', defaultShortcut: 'Mod+B', category: 'Formatting' },
@@ -252,6 +255,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         [selectedText]="selectedText()"
         [disabled]="disabled()"
         [readonly]="readonly()"
+        [locale]="resolvedLocale()"
         (formatCommand)="onFormatCommand($event)"
         (linkInsert)="onLinkInsert($event)"
         (imageInsert)="onImageInsert($event)"
@@ -261,7 +265,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
       />
     }
 
-    <div [class]="editorContainerClasses()">
+    <div [class]="editorContainerClasses()" [dir]="isRtl() ? 'rtl' : 'ltr'">
       @if (showHistoryPanel() && !readonly() && showHistoryButton()) {
         <div #historyShortcutAnchor class="absolute top-2 z-30 ltr:right-2 rtl:left-2">
           <ui-popover
@@ -276,26 +280,26 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                 class="h-8 px-2.5 text-xs"
                 [disabled]="disabled()"
                 [attr.title]="'Ctrl/Cmd + Shift + H'"
-                aria-label="Open revision history (Ctrl or Command + Shift + H)"
+                [attr.aria-label]="resolvedLocale().history.ariaOpen"
               >
-                History ({{ historyCount() }})
+                {{ interpolateLocale(resolvedLocale().history.button, { count: historyCount() }) }}
               </ui-button>
             </ui-popover-trigger>
             <ui-popover-content class="w-80 p-0" align="end" side="bottom" [restoreFocus]="false">
               <div class="flex items-center justify-between border-b px-3 py-2">
-                <div class="text-sm font-medium">Revision History</div>
+                <div class="text-sm font-medium">{{ resolvedLocale().history.title }}</div>
                 <ui-button
                   type="button"
                   variant="ghost"
                   size="sm"
                   class="h-7 w-7 p-0"
                   (click)="historyPanelOpen.set(false)"
-                  aria-label="Close revision history"
+                  [attr.aria-label]="resolvedLocale().history.ariaClose"
                 >
                   <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
                   </svg>
-                  <span class="sr-only">Close</span>
+                  <span class="sr-only">{{ resolvedLocale().history.close }}</span>
                 </ui-button>
               </div>
               <ui-scroll-area [class]="'h-72 p-2'">
@@ -310,15 +314,15 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                       [class.border-border]="!entry.active"
                       [attr.data-history-entry-action]="'true'"
                       [attr.data-history-entry-index]="entry.index"
-                      [attr.aria-label]="'Apply revision ' + (entry.index + 1)"
+                      [attr.aria-label]="interpolateLocale(resolvedLocale().history.ariaApply, { index: entry.index + 1 })"
                       (click)="onQuickApplyFromHistory(entry.index, $event)"
                       (keydown)="onHistoryEntryKeydown($event, entry.index)"
                     >
                       <div class="flex items-center justify-between gap-2">
-                        <span class="text-xs font-medium">Revision {{ entry.index + 1 }}</span>
+                        <span class="text-xs font-medium">{{ interpolateLocale(resolvedLocale().history.revision, { index: entry.index + 1 }) }}</span>
                         <div class="flex items-center gap-2">
                           @if (lastAppliedHistoryIndex() === entry.index) {
-                            <span class="text-[11px] text-primary/90 font-medium">Applied</span>
+                            <span class="text-[11px] text-primary/90 font-medium">{{ resolvedLocale().history.applied }}</span>
                           }
                           <span class="text-[11px] text-muted-foreground">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
                           <ui-button
@@ -328,7 +332,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                             class="h-6 px-2 text-[11px]"
                             (click)="openHistoryPreview(entry.index, $event)"
                           >
-                            Preview
+                            {{ resolvedLocale().history.preview }}
                           </ui-button>
                         </div>
                       </div>
@@ -337,7 +341,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                           <p class="text-xs text-muted-foreground leading-4 truncate">{{ line }}</p>
                         }
                         @if (entry.lineCount > entry.previewLines.length) {
-                          <p class="text-[11px] text-muted-foreground/80">+{{ entry.lineCount - entry.previewLines.length }} more lines</p>
+                          <p class="text-[11px] text-muted-foreground/80">{{ interpolateLocale(resolvedLocale().history.moreLines, { count: entry.lineCount - entry.previewLines.length }) }}</p>
                         }
                       </div>
                     </div>
@@ -353,29 +357,29 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         <ui-dialog-content class="max-w-3xl p-0 overflow-hidden">
           @if (selectedHistoryEntry(); as selected) {
             <ui-dialog-header class="px-5 pt-5 pb-3 border-b">
-              <ui-dialog-title>Revision {{ selected.index + 1 }}</ui-dialog-title>
+              <ui-dialog-title>{{ interpolateLocale(resolvedLocale().history.revision, { index: selected.index + 1 }) }}</ui-dialog-title>
               <ui-dialog-description>
-                Captured at {{ selected.timestamp | date:'MMM d, y, HH:mm:ss' }}
+                {{ interpolateLocale(resolvedLocale().history.capturedAt, { time: (selected.timestamp | date:'MMM d, y, HH:mm:ss') ?? '' }) }}
               </ui-dialog-description>
             </ui-dialog-header>
 
             <ui-scroll-area [class]="'h-[70vh] px-5 py-4'">
               <div class="space-y-4 pr-3">
                 <div class="rounded-md border bg-muted/20">
-                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">Rendered Preview</div>
+                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">{{ resolvedLocale().history.renderedPreview }}</div>
                   <div class="p-3 prose prose-sm dark:prose-invert max-w-none [&_*]:break-words" [innerHTML]="selected.html"></div>
                 </div>
 
                 <div class="rounded-md border">
-                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">Markdown Snapshot</div>
+                  <div class="px-3 py-2 border-b text-xs font-medium text-muted-foreground">{{ resolvedLocale().history.markdownSnapshot }}</div>
                   <pre class="p-3 text-xs whitespace-pre-wrap break-words">{{ selectedHistoryEntryMarkdown() }}</pre>
                 </div>
               </div>
             </ui-scroll-area>
 
             <ui-dialog-footer class="px-5 py-4 border-t">
-              <ui-button variant="outline" (click)="historyPreviewOpen.set(false)">Cancel</ui-button>
-              <ui-button (click)="restoreFromHistoryPreview()">Restore This Revision</ui-button>
+              <ui-button variant="outline" (click)="historyPreviewOpen.set(false)">{{ resolvedLocale().history.cancel }}</ui-button>
+              <ui-button (click)="restoreFromHistoryPreview()">{{ resolvedLocale().history.restore }}</ui-button>
             </ui-dialog-footer>
           }
         </ui-dialog-content>
@@ -384,8 +388,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
       <ui-dialog [(open)]="historyBrowserOpen">
         <ui-dialog-content class="max-w-xl p-0 overflow-hidden">
           <ui-dialog-header class="px-5 pt-5 pb-3 border-b">
-            <ui-dialog-title>Revision History</ui-dialog-title>
-            <ui-dialog-description>Use this browser when the history button is hidden.</ui-dialog-description>
+            <ui-dialog-title>{{ resolvedLocale().history.title }}</ui-dialog-title>
+            <ui-dialog-description>{{ resolvedLocale().history.browserDescription }}</ui-dialog-description>
           </ui-dialog-header>
           <ui-scroll-area [class]="'h-[60vh] px-4 py-3'">
             <div class="space-y-2 pr-2" data-history-list="dialog">
@@ -399,15 +403,15 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                   [class.border-border]="!entry.active"
                   [attr.data-history-entry-action]="'true'"
                   [attr.data-history-entry-index]="entry.index"
-                  [attr.aria-label]="'Apply revision ' + (entry.index + 1)"
+                  [attr.aria-label]="interpolateLocale(resolvedLocale().history.ariaApply, { index: entry.index + 1 })"
                   (click)="onQuickApplyFromHistory(entry.index, $event)"
                   (keydown)="onHistoryEntryKeydown($event, entry.index)"
                 >
                   <div class="flex items-center justify-between gap-2">
-                    <span class="text-xs font-medium">Revision {{ entry.index + 1 }}</span>
+                    <span class="text-xs font-medium">{{ interpolateLocale(resolvedLocale().history.revision, { index: entry.index + 1 }) }}</span>
                     <div class="flex items-center gap-2">
                       @if (lastAppliedHistoryIndex() === entry.index) {
-                        <span class="text-[11px] text-primary/90 font-medium">Applied</span>
+                        <span class="text-[11px] text-primary/90 font-medium">{{ resolvedLocale().history.applied }}</span>
                       }
                       <span class="text-[11px] text-muted-foreground">{{ entry.timestamp | date:'HH:mm:ss' }}</span>
                       <ui-button
@@ -426,7 +430,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                       <p class="text-xs text-muted-foreground leading-4 truncate">{{ line }}</p>
                     }
                     @if (entry.lineCount > entry.previewLines.length) {
-                      <p class="text-[11px] text-muted-foreground/80">+{{ entry.lineCount - entry.previewLines.length }} more lines</p>
+                      <p class="text-[11px] text-muted-foreground/80">{{ interpolateLocale(resolvedLocale().history.moreLines, { count: entry.lineCount - entry.previewLines.length }) }}</p>
                     }
                   </div>
                 </div>
@@ -434,7 +438,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             </div>
           </ui-scroll-area>
           <ui-dialog-footer class="px-5 py-4 border-t">
-            <ui-button variant="outline" (click)="historyBrowserOpen.set(false)">Close</ui-button>
+            <ui-button variant="outline" (click)="historyBrowserOpen.set(false)">{{ resolvedLocale().history.close }}</ui-button>
           </ui-dialog-footer>
         </ui-dialog-content>
       </ui-dialog>
@@ -443,8 +447,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         #editorDiv
         [attr.contenteditable]="!disabled() && !readonly()"
         [class]="editableClasses()"
-        [attr.placeholder]="placeholder()"
-        [attr.aria-label]="ariaLabel() || 'Rich text editor'"
+        [attr.placeholder]="placeholder() || resolvedLocale().editor.placeholder"
+        [attr.aria-label]="ariaLabel() || resolvedLocale().editor.ariaLabel"
         [attr.aria-describedby]="ariaDescribedBy()"
         [attr.data-slot]="'rich-text-editor'"
         [style.min-height]="minHeight()"
@@ -471,13 +475,14 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (imageUploading()) {
         <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
-          <div class="text-sm text-muted-foreground">Uploading image...</div>
+          <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.uploadingImage }}</div>
         </div>
       }
 
       <ui-rich-text-image-resizer
           [target]="selectedImage()"
           [container]="editorDiv"
+          [locale]="resolvedLocale()"
           (resizeEnd)="onImageResizeEnd()"
           (alignmentChange)="onImageAlignmentChange()"
           (imageRemove)="onImageRemove($event)"
@@ -497,6 +502,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             [compact]="true"
             [disabled]="disabled()"
             [readonly]="readonly()"
+            [locale]="resolvedLocale()"
             (formatCommand)="onFloatingFormatCommand($event)"
             (linkInsert)="onLinkInsert($event)"
           />
@@ -509,6 +515,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           [query]="mentionQuery()"
           [items]="filteredMentionItems()"
           [position]="mentionPopoverPosition()"
+          [locale]="resolvedLocale()"
           (itemSelect)="onMentionSelect($event)"
           (close)="closeMentionPopover()"
         />
@@ -520,10 +527,10 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           [style.left.px]="slashCommandPosition().x"
           [style.top.px]="slashCommandPosition().y"
           role="listbox"
-          aria-label="Slash command menu"
+          [attr.aria-label]="resolvedLocale().editor.slashCommandMenu"
         >
           @if (filteredSlashCommands().length === 0) {
-            <div class="px-3 py-2 text-sm text-muted-foreground">No commands found</div>
+            <div class="px-3 py-2 text-sm text-muted-foreground">{{ resolvedLocale().slashCommands.noResults }}</div>
           } @else {
             <div #slashCommandList class="max-h-56 overflow-y-auto p-1">
               @for (command of filteredSlashCommands(); track command.id; let i = $index) {
@@ -558,21 +565,21 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         >
           <div class="space-y-3">
             <div>
-              <label class="text-sm font-medium mb-1 block">Link Text</label>
+              <label class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.text }}</label>
               <input
                 #linkText
                 type="text"
                 [value]="selectedText()"
-                placeholder="Display text"
+                [placeholder]="resolvedLocale().link.textPlaceholder"
                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
             <div>
-              <label class="text-sm font-medium mb-1 block">URL</label>
+              <label class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.url }}</label>
               <input
                 #linkUrl
                 type="url"
-                placeholder="https://example.com"
+                [placeholder]="resolvedLocale().link.urlPlaceholder"
                 class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               />
             </div>
@@ -582,14 +589,14 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                 class="flex-1"
                 (click)="insertLinkFromPopover(linkText.value, linkUrl.value)"
               >
-                Insert Link
+                {{ resolvedLocale().link.insert }}
               </ui-button>
-              <ui-button 
+              <ui-button
                 variant="outline"
-                size="sm" 
+                size="sm"
                 (click)="closeLinkPopover()"
               >
-                Cancel
+                {{ resolvedLocale().link.cancel }}
               </ui-button>
             </div>
           </div>
@@ -600,10 +607,10 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     @if (showCount() || showWordCount()) {
       <div class="flex justify-end text-xs text-muted-foreground mt-1 px-1">
         @if (showCount()) {
-          <span>{{ characterCount() }} characters</span>
+          <span>{{ interpolateLocale(resolvedLocale().editor.characters, { count: characterCount() }) }}</span>
         }
         @if (showWordCount()) {
-          <span [class.ml-3]="showCount()">{{ wordCount() }} words</span>
+          <span [class.ml-3]="showCount()">{{ interpolateLocale(resolvedLocale().editor.words, { count: wordCount() }) }}</span>
         }
       </div>
     }
@@ -630,7 +637,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     size = input<EditorSize>('default');
     toolbar = input<ToolbarPosition>('top');
     toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
-    placeholder = input<string>('Write something...');
+    placeholder = input<string>('');
     minHeight = input<string>('120px');
     maxHeight = input<string>('400px');
     disabled = input<boolean>(false);
@@ -654,9 +661,24 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     showHistoryButton = input<boolean>(true);
     enableSlashCommands = input<boolean>(true);
     slashCommands = input<RichTextSlashCommand[]>([]);
+    locale = input<string | RichTextLocale>('en');
     class = input<string>('');
     ariaLabel = input<string | undefined>(undefined);
     ariaDescribedBy = input<string | undefined>(undefined);
+
+    resolvedLocale = computed<RichTextLocale>(() => {
+        const loc = this.locale();
+        if (typeof loc === 'string') {
+            return RICH_TEXT_LOCALES[loc] ?? RICH_TEXT_LOCALES['en'];
+        }
+        return loc;
+    });
+
+    isRtl = computed(() => !!this.resolvedLocale().rtl);
+
+    localizedSlashCommands = computed(() =>
+        buildDefaultSlashCommands(this.resolvedLocale().slashCommands)
+    );
 
     htmlChange = output<string>();
     markdownChange = output<string>();
@@ -755,6 +777,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return text.split(/\s+/).length;
     });
 
+    interpolateLocale(template: string, values: Record<string, string | number>): string {
+        return interpolate(template, values);
+    }
+
     filteredMentionItems = computed(() => {
         const query = this.mentionQuery().toLowerCase();
         const source = this.mentionType() === 'mention'
@@ -785,7 +811,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             hasSelection: !!this.selectedText(),
         };
         const merged = new Map<string, RichTextSlashCommand>();
-        for (const command of DEFAULT_SLASH_COMMANDS) {
+        for (const command of this.localizedSlashCommands()) {
             merged.set(command.id, command);
         }
         for (const command of this.commandRegistry.listCommands()) {

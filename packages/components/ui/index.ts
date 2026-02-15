@@ -61,6 +61,7 @@ export * from './highlight.pipe';
 export * from './rich-text-editor.component';
 export * from './rich-text-command-registry.service';
 export * from './rich-text-mention.component';
+export * from './rich-text-locales';
 export * from './timeline.component';
 export * from './tree.component';
 export * from './tree-select.component';
