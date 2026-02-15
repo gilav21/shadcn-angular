@@ -294,3 +294,83 @@ describe('AlertDialog RTL Support', () => {
         expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeNull();
     });
 });
+
+// Simple mode test host
+@Component({
+    template: `
+        <ui-alert-dialog>
+            <ui-alert-dialog-trigger>Delete</ui-alert-dialog-trigger>
+            <ui-alert-dialog-content
+                title="Are you sure?"
+                description="This cannot be undone."
+                actionText="Delete"
+                cancelText="Keep"
+            />
+        </ui-alert-dialog>
+    `,
+    imports: [AlertDialogComponent, AlertDialogTriggerComponent, AlertDialogContentComponent]
+})
+class SimpleModeTestHostComponent { }
+
+describe('AlertDialog Simple Mode', () => {
+    let fixture: ComponentFixture<SimpleModeTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleModeTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should auto-render title from input', async () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const title = document.querySelector('[data-slot="alert-dialog-title"]');
+        expect(title).toBeTruthy();
+        expect(title?.textContent).toContain('Are you sure?');
+    });
+
+    it('should auto-render description from input', async () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const desc = document.querySelector('[data-slot="alert-dialog-description"]');
+        expect(desc).toBeTruthy();
+        expect(desc?.textContent).toContain('This cannot be undone.');
+    });
+
+    it('should auto-render action and cancel buttons', async () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const action = document.querySelector('[data-slot="alert-dialog-action"]');
+        const cancel = document.querySelector('[data-slot="alert-dialog-cancel"]');
+        expect(action).toBeTruthy();
+        expect(cancel).toBeTruthy();
+        expect(action?.textContent).toContain('Delete');
+        expect(cancel?.textContent).toContain('Keep');
+    });
+
+    it('should close on auto-rendered cancel click', async () => {
+        const trigger = fixture.debugElement.query(By.css('[data-slot="alert-dialog-trigger"]'));
+        trigger.nativeElement.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const cancel = document.querySelector('[data-slot="alert-dialog-cancel"]') as HTMLElement;
+        cancel.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeNull();
+    });
+});

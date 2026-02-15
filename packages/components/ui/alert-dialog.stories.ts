@@ -61,3 +61,21 @@ export const Default: Story = {
     `,
   }),
 };
+
+export const SimpleMode: Story = {
+  render: () => ({
+    template: `
+      <ui-alert-dialog>
+        <ui-alert-dialog-trigger>
+          <ui-button variant="destructive">Delete Account (Simple)</ui-button>
+        </ui-alert-dialog-trigger>
+        <ui-alert-dialog-content
+          title="Are you absolutely sure?"
+          description="This action cannot be undone. This will permanently delete your account and remove your data from our servers."
+          actionText="Delete"
+          cancelText="Cancel"
+        />
+      </ui-alert-dialog>
+    `,
+  }),
+};

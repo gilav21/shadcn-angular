@@ -82,3 +82,37 @@ export const Default: Story = {
     `,
   }),
 };
+
+export const SimpleMode: Story = {
+  render: (args) => ({
+    props: args,
+    template: `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
+      <ui-dialog>
+        <ui-dialog-trigger>
+          <ui-button variant="outline">Edit Profile (Simple)</ui-button>
+        </ui-dialog-trigger>
+        <ui-dialog-content
+          title="Edit profile"
+          description="Make changes to your profile here. Click save when you're done."
+          class="sm:max-w-[425px]"
+        >
+          <div class="grid gap-4 py-4">
+            <div class="grid grid-cols-4 items-center gap-4">
+              <ui-label for="name-s" class="text-right">Name</ui-label>
+              <ui-input id="name-s" value="Pedro Duarte" class="col-span-3" />
+            </div>
+            <div class="grid grid-cols-4 items-center gap-4">
+              <ui-label for="username-s" class="text-right">Username</ui-label>
+              <ui-input id="username-s" value="@peduarte" class="col-span-3" />
+            </div>
+          </div>
+          <ui-dialog-footer>
+            <ui-button type="submit" variant="outline">Save changes</ui-button>
+          </ui-dialog-footer>
+        </ui-dialog-content>
+      </ui-dialog>
+      </div>
+    `,
+  }),
+};

@@ -184,3 +184,40 @@ describe('Tooltip RTL Support', () => {
         expect(content).toBeTruthy();
     });
 });
+
+// Simple content mode test host
+@Component({
+    template: `
+        <ui-tooltip content="Simple tooltip text">
+            <ui-tooltip-trigger>
+                <button>Hover me</button>
+            </ui-tooltip-trigger>
+        </ui-tooltip>
+    `,
+    imports: [TooltipComponent, TooltipTriggerComponent]
+})
+class SimpleContentTestHostComponent { }
+
+describe('Tooltip Simple Content Mode', () => {
+    let fixture: ComponentFixture<SimpleContentTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleContentTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleContentTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should auto-render tooltip content from content input', async () => {
+        const tooltipComp = fixture.debugElement.query(By.directive(TooltipComponent));
+        tooltipComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const tooltipContent = fixture.debugElement.query(By.css('[data-slot="tooltip-content"]'));
+        expect(tooltipContent).toBeTruthy();
+        expect(tooltipContent.nativeElement.textContent).toContain('Simple tooltip text');
+    });
+});

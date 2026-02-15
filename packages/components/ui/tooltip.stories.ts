@@ -56,6 +56,19 @@ export const Default: Story = {
   }),
 };
 
+export const SimpleContentMode: Story = {
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-tooltip content="Add to library" [side]="side" [delayDuration]="delayDuration">
+        <ui-tooltip-trigger>
+          <ui-button variant="outline">Hover me (Simple)</ui-button>
+        </ui-tooltip-trigger>
+      </ui-tooltip>
+    `,
+  }),
+};
+
 export const DirectiveUsage: Story = {
   render: () => ({
     template: `

@@ -276,3 +276,62 @@ describe('Drawer RTL Support', () => {
         expect(content).toBeTruthy();
     });
 });
+
+// Simple mode test host
+@Component({
+    template: `
+        <ui-drawer>
+            <ui-drawer-trigger>Open</ui-drawer-trigger>
+            <ui-drawer-content title="Edit Profile" description="Make changes here.">
+                <div class="p-4">Body content</div>
+            </ui-drawer-content>
+        </ui-drawer>
+    `,
+    imports: [DrawerComponent, DrawerTriggerComponent, DrawerContentComponent]
+})
+class SimpleModeTestHostComponent { }
+
+describe('Drawer Simple Mode', () => {
+    let fixture: ComponentFixture<SimpleModeTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleModeTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should auto-render header with title input', async () => {
+        const drawerComp = fixture.debugElement.query(By.directive(DrawerComponent));
+        drawerComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const title = fixture.debugElement.query(By.css('[data-slot="drawer-title"]'));
+        expect(title).toBeTruthy();
+        expect(title.nativeElement.textContent).toContain('Edit Profile');
+    });
+
+    it('should auto-render description input', async () => {
+        const drawerComp = fixture.debugElement.query(By.directive(DrawerComponent));
+        drawerComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const desc = fixture.debugElement.query(By.css('[data-slot="drawer-description"]'));
+        expect(desc).toBeTruthy();
+        expect(desc.nativeElement.textContent).toContain('Make changes here.');
+    });
+
+    it('should still render projected body content', async () => {
+        const drawerComp = fixture.debugElement.query(By.directive(DrawerComponent));
+        drawerComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="drawer-content"]'));
+        expect(content.nativeElement.textContent).toContain('Body content');
+    });
+});

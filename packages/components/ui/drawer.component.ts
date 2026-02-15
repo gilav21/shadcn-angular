@@ -10,6 +10,7 @@ import {
     ElementRef,
     AfterViewInit,
     model,
+    forwardRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -118,11 +119,16 @@ export class DrawerTriggerComponent {
 @Component({
     selector: 'ui-drawer-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [
+        forwardRef(() => DrawerHeaderComponent),
+        forwardRef(() => DrawerTitleComponent),
+        forwardRef(() => DrawerDescriptionComponent),
+    ],
     template: `
     @if (drawer?.open()) {
-      <div 
-        class="fixed inset-0 z-50" 
-        role="dialog" 
+      <div
+        class="fixed inset-0 z-50"
+        role="dialog"
         aria-modal="true"
         (keydown)="onKeydown($event)"
       >
@@ -146,6 +152,14 @@ export class DrawerTriggerComponent {
           @if (direction() === 'bottom' || direction() === 'top') {
             <div class="mx-auto mt-4 h-2 w-[100px] shrink-0 rounded-full bg-muted"></div>
           }
+          @if (title()) {
+            <ui-drawer-header>
+              <ui-drawer-title>{{ title() }}</ui-drawer-title>
+              @if (description()) {
+                <ui-drawer-description>{{ description() }}</ui-drawer-description>
+              }
+            </ui-drawer-header>
+          }
           <ng-content />
         </div>
       </div>
@@ -157,6 +171,8 @@ export class DrawerContentComponent implements AfterViewInit {
     drawer = inject(DrawerComponent, { optional: true });
     private el = inject(ElementRef);
     class = input('');
+    title = input<string>();
+    description = input<string>();
 
     private contentEl?: HTMLElement;
     private previousActiveElement?: Element | null;

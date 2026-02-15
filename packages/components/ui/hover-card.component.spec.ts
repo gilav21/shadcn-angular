@@ -168,3 +168,50 @@ describe('HoverCard Integration', () => {
         expect(document.querySelector('[data-slot="hover-card-content"]')).toBeTruthy();
     });
 });
+
+// Simple mode test host
+@Component({
+    template: `
+        <ui-hover-card>
+            <ui-hover-card-trigger>
+                <button>Hover me</button>
+            </ui-hover-card-trigger>
+            <ui-hover-card-content title="Card Title" description="Card description text." />
+        </ui-hover-card>
+    `,
+    imports: [HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent]
+})
+class SimpleModeTestHostComponent { }
+
+describe('HoverCard Simple Mode', () => {
+    let fixture: ComponentFixture<SimpleModeTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleModeTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should auto-render title from input', () => {
+        const hoverCardComp = fixture.debugElement.query(By.directive(HoverCardComponent));
+        hoverCardComp.componentInstance.open.set(true);
+        fixture.detectChanges();
+
+        const title = fixture.debugElement.query(By.css('[data-slot="hover-card-simple-content"] h4'));
+        expect(title).toBeTruthy();
+        expect(title.nativeElement.textContent).toContain('Card Title');
+    });
+
+    it('should auto-render description from input', () => {
+        const hoverCardComp = fixture.debugElement.query(By.directive(HoverCardComponent));
+        hoverCardComp.componentInstance.open.set(true);
+        fixture.detectChanges();
+
+        const desc = fixture.debugElement.query(By.css('[data-slot="hover-card-simple-content"] p'));
+        expect(desc).toBeTruthy();
+        expect(desc.nativeElement.textContent).toContain('Card description text.');
+    });
+});

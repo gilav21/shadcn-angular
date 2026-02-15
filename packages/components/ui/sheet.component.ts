@@ -10,6 +10,7 @@ import {
     ElementRef,
     AfterViewInit,
     OnDestroy,
+    forwardRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -115,11 +116,16 @@ export class SheetTriggerComponent {
 @Component({
     selector: 'ui-sheet-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [
+        forwardRef(() => SheetHeaderComponent),
+        forwardRef(() => SheetTitleComponent),
+        forwardRef(() => SheetDescriptionComponent),
+    ],
     template: `
     @if (sheet?.open()) {
-      <div 
-        class="fixed inset-0 z-50" 
-        role="dialog" 
+      <div
+        class="fixed inset-0 z-50"
+        role="dialog"
         aria-modal="true"
         (keydown)="onKeydown($event)"
       >
@@ -136,6 +142,14 @@ export class SheetTriggerComponent {
           [attr.data-state]="'open'"
           tabindex="-1"
         >
+          @if (title()) {
+            <ui-sheet-header>
+              <ui-sheet-title>{{ title() }}</ui-sheet-title>
+              @if (description()) {
+                <ui-sheet-description>{{ description() }}</ui-sheet-description>
+              }
+            </ui-sheet-header>
+          }
           <ng-content />
           <button
             type="button"
@@ -160,6 +174,8 @@ export class SheetContentComponent implements AfterViewInit {
 
     side = input<SheetSide>('right');
     class = input('');
+    title = input<string>();
+    description = input<string>();
 
     private contentEl?: HTMLElement;
     private previousActiveElement?: Element | null;

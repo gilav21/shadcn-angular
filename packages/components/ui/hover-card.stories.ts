@@ -63,3 +63,19 @@ export const Default: Story = {
     `,
     }),
 };
+
+export const SimpleMode: Story = {
+    render: () => ({
+        template: `
+      <ui-hover-card>
+        <ui-hover-card-trigger>
+          <ui-button variant="link">@angular</ui-button>
+        </ui-hover-card-trigger>
+        <ui-hover-card-content
+          title="@angular"
+          description="The modern web developer's platform."
+        />
+      </ui-hover-card>
+    `,
+    }),
+};
