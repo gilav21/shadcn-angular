@@ -173,10 +173,10 @@
           <div class="space-y-2">
             <h3 class="text-lg font-medium">With Mentions & Tags</h3>
             <p class="text-sm text-muted-foreground">Type @button or #angular to trigger autocomplete — mentions link to components, tags link to #</p>
-            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
-              [mentionRenderer]="mentionRenderer"
-              [tags]="true" [tagSource]="sampleTags"
-              [tagRenderer]="tagRenderer"
+            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
+              [mentionRender]="mentionLinkRender"
+              [tags]="true" [tagSearch]="searchTags"
+              [tagRender]="tagLinkRender"
               placeholder="Type @button, @card, #angular, #typescript..."
               minHeight="120px" />
           </div>
@@ -204,9 +204,9 @@
             @if (!richTextShowHistoryButton()) {
               <p class="text-xs text-muted-foreground">History button hidden. Use Ctrl/Cmd + Shift + H to open history browser.</p>
             }
-            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
-              [mentionRenderer]="mentionRenderer"
-              [tags]="true" [tagSource]="sampleTags" [tagRenderer]="tagRenderer"
+            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
+              [mentionRender]="mentionLinkRender"
+              [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
               [showCount]="true" [showWordCount]="true" [maxLength]="220"
               [historyLimit]="180" [showHistoryPanel]="true" [showHistoryButton]="richTextShowHistoryButton()"
               [historyDebounceMs]="500"

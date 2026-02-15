@@ -22,8 +22,8 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
-import { Observable, isObservable, of, Subject, firstValueFrom } from 'rxjs';
-import { debounceTime, switchMap, catchError, tap } from 'rxjs/operators';
+import { Observable, isObservable, of, Subject, firstValueFrom, from, catchError } from 'rxjs';
+import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
@@ -73,6 +73,45 @@ export type EditorVariant = VariantProps<typeof editorVariants>['variant'];
 export type EditorSize = VariantProps<typeof editorVariants>['size'];
 export type EditorMode = 'markdown' | 'html';
 export type ToolbarPosition = 'top' | 'floating' | 'none';
+export type RichTextEntityType = 'mention' | 'tag';
+export type RichTextEntityRenderMode = 'chip' | 'link' | 'text';
+export type RichTextEntitySearchResult<T> = Observable<T[]> | Promise<T[]> | T[];
+export type RichTextEntitySearchFn<T> = (query: string) => RichTextEntitySearchResult<T>;
+
+export interface RichTextEntityRenderContext {
+    type: RichTextEntityType;
+    trigger: '@' | '#';
+    id: string;
+    value: string;
+    label: string;
+    query: string;
+    item: MentionItem | TagItem;
+    userId: string;
+    tagId: string;
+}
+
+export interface RichTextEntityRenderOptions {
+    mode?: RichTextEntityRenderMode;
+    urlTemplate?: string;
+    textTemplate?: string;
+    className?: string;
+    target?: string;
+    rel?: string;
+    buildUrl?: (context: RichTextEntityRenderContext) => string;
+    buildText?: (context: RichTextEntityRenderContext) => string;
+}
+
+export interface RichTextEntityInsertEvent {
+    type: RichTextEntityType;
+    trigger: '@' | '#';
+    id: string;
+    value: string;
+    label: string;
+    query: string;
+    url?: string;
+    html: string;
+    item: MentionItem | TagItem;
+}
 
 interface HistoryEntry {
     html: string;
@@ -643,11 +682,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     disabled = input<boolean>(false);
     readonly = input<boolean>(false);
     mentions = input<boolean>(false);
-    mentionSource = input<Observable<MentionItem[]> | MentionItem[]>([]);
-    mentionRenderer = input<((item: MentionItem) => HTMLElement) | undefined>(undefined);
+    mentionSearch = input<RichTextEntitySearchFn<MentionItem>>(() => []);
+    mentionRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
     tags = input<boolean>(false);
-    tagSource = input<Observable<TagItem[]> | TagItem[]>([]);
-    tagRenderer = input<((item: TagItem) => HTMLElement) | undefined>(undefined);
+    tagSearch = input<RichTextEntitySearchFn<TagItem>>(() => []);
+    tagRender = input<RichTextEntityRenderOptions>({ mode: 'chip' });
     emojiPicker = input<boolean>(true);
     images = input<boolean>(true);
     imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
@@ -688,6 +727,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     imageUploadStart = output<File>();
     imageUploadComplete = output<string>();
     imageUploadError = output<string>();
+    mentionInsert = output<RichTextEntityInsertEvent>();
+    tagInsert = output<RichTextEntityInsertEvent>();
 
     private htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
@@ -782,24 +823,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     filteredMentionItems = computed(() => {
-        const query = this.mentionQuery().toLowerCase();
-        const source = this.mentionType() === 'mention'
-            ? this.mentionSource()
-            : this.tagSource();
-
-        if (isObservable(source)) {
-            return this.loadedMentionItems();
-        }
-
-        const items = source as (MentionItem | TagItem)[];
-        if (!query) return items.slice(0, 10);
-
-        return items
-            .filter(item =>
-                item.label.toLowerCase().includes(query) ||
-                item.value.toLowerCase().includes(query)
-            )
-            .slice(0, 10);
+        return this.loadedMentionItems().slice(0, 10);
     });
 
     filteredSlashCommands = computed(() => {
@@ -932,25 +956,22 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             debounceTime(200),
             tap(() => this.mentionLoading.set(true)),
             switchMap(({ type, query }) => {
-                const source = type === 'mention'
-                    ? this.mentionSource()
-                    : this.tagSource();
+                const searchFn = type === 'mention'
+                    ? this.mentionSearch()
+                    : this.tagSearch();
+                const result = searchFn(query);
 
-                if (!isObservable(source)) {
-                    const items = source as (MentionItem | TagItem)[];
-                    const filtered = query
-                        ? items.filter(item =>
-                            item.label.toLowerCase().includes(query.toLowerCase()) ||
-                            item.value.toLowerCase().includes(query.toLowerCase())
-                        )
-                        : items;
-                    return of(filtered.slice(0, 10));
+                if (isObservable(result)) {
+                    return result;
                 }
 
-                return (source as Observable<(MentionItem | TagItem)[]>).pipe(
-                    catchError(() => of([] as (MentionItem | TagItem)[])),
-                );
+                if (result instanceof Promise) {
+                    return from(result);
+                }
+
+                return of((result ?? []) as (MentionItem | TagItem)[]);
             }),
+            catchError(() => of([] as (MentionItem | TagItem)[])),
             takeUntilDestroyed(),
         ).subscribe(items => {
             this.loadedMentionItems.set(items);
@@ -1898,7 +1919,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onMentionSelect(item: MentionItem | TagItem): void {
         this.flushPendingHistoryPush();
-        const trigger = this.mentionType() === 'mention' ? '@' : '#';
+        const type = this.mentionType();
+        const trigger = type === 'mention' ? '@' : '#';
+        const query = this.mentionQuery();
+        const renderContext = this.buildEntityRenderContext(item, type, trigger, query);
+        const renderResult = this.buildEntityInsertNode(renderContext);
 
         const editor = this.getEditorElement();
         if (!editor) return;
@@ -1918,7 +1943,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
-            const query = this.mentionQuery();
             const triggerLength = query.length + 1;
             const triggerStr = trigger + query;
 
@@ -1962,37 +1986,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             }
             range.deleteContents();
 
-            let wrapper: HTMLElement;
-            const isMention = this.mentionType() === 'mention';
-            const customRenderer = isMention ? this.mentionRenderer() : this.tagRenderer();
-
-            if (customRenderer) {
-                wrapper = customRenderer(item as MentionItem & TagItem);
-                wrapper.setAttribute('contenteditable', 'false');
-                if (isMention) {
-                    wrapper.setAttribute('data-mention', item.value);
-                    wrapper.setAttribute('data-mention-id', item.id ?? item.value);
-                } else {
-                    wrapper.setAttribute('data-tag', item.value);
-                    wrapper.setAttribute('data-tag-id', item.id ?? item.value);
-                }
-            } else {
-                wrapper = this.document.createElement('span');
-                wrapper.className = 'bg-accent text-accent-foreground rounded px-1';
-                wrapper.setAttribute('contenteditable', 'false');
-                if (isMention) {
-                    wrapper.setAttribute('data-mention', item.value);
-                    wrapper.setAttribute('data-mention-id', item.id ?? item.value);
-                } else {
-                    wrapper.setAttribute('data-tag', item.value);
-                    wrapper.setAttribute('data-tag-id', item.id ?? item.value);
-                }
-                wrapper.textContent = `${trigger}${item.label}`;
-            }
-
             const trailingSpace = this.document.createTextNode('\u00A0');
             range.insertNode(trailingSpace);
-            range.insertNode(wrapper);
+            range.insertNode(renderResult.element);
 
             const newRange = this.document.createRange();
             newRange.setStart(trailingSpace, trailingSpace.length);
@@ -2002,10 +1998,143 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         this.syncContentFromEditor();
+        const payload: RichTextEntityInsertEvent = {
+            type,
+            trigger,
+            id: renderContext.id,
+            value: renderContext.value,
+            label: renderContext.label,
+            query,
+            url: renderResult.url,
+            html: renderResult.element.outerHTML,
+            item,
+        };
+        if (type === 'mention') {
+            this.mentionInsert.emit(payload);
+        } else {
+            this.tagInsert.emit(payload);
+        }
         this.closeMentionPopover();
         this.closeSlashCommandPopover();
         this.pushHistory();
         this.focusEditor();
+    }
+
+    private buildEntityRenderContext(
+        item: MentionItem | TagItem,
+        type: RichTextEntityType,
+        trigger: '@' | '#',
+        query: string
+    ): RichTextEntityRenderContext {
+        const id = item.id ?? item.value;
+        return {
+            type,
+            trigger,
+            id,
+            value: item.value,
+            label: item.label,
+            query,
+            item,
+            userId: id,
+            tagId: id,
+        };
+    }
+
+    private buildEntityInsertNode(context: RichTextEntityRenderContext): { element: HTMLElement; url?: string } {
+        const options = context.type === 'mention' ? this.mentionRender() : this.tagRender();
+        const mode = options.mode ?? 'chip';
+        const text = this.resolveEntityText(context, options);
+        const element = mode === 'link'
+            ? this.createEntityLinkElement(context, text, options)
+            : this.createEntitySpanElement(context, text, mode, options.className);
+        const url = element.tagName === 'A' ? (element.getAttribute('href') ?? undefined) : undefined;
+        return { element, url };
+    }
+
+    private resolveEntityText(context: RichTextEntityRenderContext, options: RichTextEntityRenderOptions): string {
+        if (options.buildText) {
+            return options.buildText(context);
+        }
+        if (options.textTemplate) {
+            return this.resolveEntityTemplate(options.textTemplate, context);
+        }
+        return `${context.trigger}${context.label}`;
+    }
+
+    private resolveEntityUrl(context: RichTextEntityRenderContext, options: RichTextEntityRenderOptions): string | null {
+        const raw = options.buildUrl
+            ? options.buildUrl(context)
+            : options.urlTemplate
+                ? this.resolveEntityTemplate(options.urlTemplate, context)
+                : '';
+        if (!raw) {
+            return null;
+        }
+        const safeUrl = this.sanitizer.sanitizeUrl(raw);
+        return safeUrl || null;
+    }
+
+    private createEntityLinkElement(
+        context: RichTextEntityRenderContext,
+        text: string,
+        options: RichTextEntityRenderOptions
+    ): HTMLElement {
+        const safeUrl = this.resolveEntityUrl(context, options);
+        if (!safeUrl) {
+            return this.createEntitySpanElement(context, text, 'chip', options.className);
+        }
+        const link = this.document.createElement('a');
+        this.applyEntityBaseAttributes(link, context);
+        link.href = safeUrl;
+        link.target = options.target ?? '_blank';
+        link.rel = options.rel ?? 'noopener noreferrer';
+        link.className = options.className ?? 'bg-accent/20 text-primary rounded px-1 underline underline-offset-2';
+        link.textContent = text;
+        return link;
+    }
+
+    private createEntitySpanElement(
+        context: RichTextEntityRenderContext,
+        text: string,
+        mode: RichTextEntityRenderMode,
+        customClassName?: string
+    ): HTMLElement {
+        const span = this.document.createElement('span');
+        this.applyEntityBaseAttributes(span, context);
+        if (mode === 'text') {
+            span.className = customClassName ?? '';
+        } else {
+            span.className = customClassName ?? 'bg-accent text-accent-foreground rounded px-1';
+        }
+        span.textContent = text;
+        return span;
+    }
+
+    private applyEntityBaseAttributes(element: HTMLElement, context: RichTextEntityRenderContext): void {
+        element.setAttribute('contenteditable', 'false');
+        if (context.type === 'mention') {
+            element.setAttribute('data-mention', context.value);
+            element.setAttribute('data-mention-id', context.id);
+        } else {
+            element.setAttribute('data-tag', context.value);
+            element.setAttribute('data-tag-id', context.id);
+        }
+    }
+
+    private resolveEntityTemplate(template: string, context: RichTextEntityRenderContext): string {
+        const values: Record<string, string> = {
+            id: context.id,
+            value: context.value,
+            label: context.label,
+            query: context.query,
+            type: context.type,
+            userId: context.userId,
+            tagId: context.tagId,
+        };
+
+        return template
+            .replace(/@@([a-zA-Z0-9_-]+)@@/g, (_match, token: string) => values[token] ?? '')
+            .replace(/:([a-zA-Z][a-zA-Z0-9_-]*)/g, (_match, token: string) => values[token] ?? _match);
     }
 
     closeMentionPopover(): void {
