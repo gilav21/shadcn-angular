@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(wc:*)",
+      "Bash(ls:*)",
+      "Bash(git -C \"D:/Development/shadcd/shadcn-angular\" log --oneline -10)"
+    ]
+  }
+}

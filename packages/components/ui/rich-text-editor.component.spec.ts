@@ -258,6 +258,63 @@ describe('RichTextEditorComponent', () => {
         expect(anchorParent?.hasAttribute('data-mention')).toBe(false);
     });
 
+    it('renders mention as link when mentionRender mode is link and emits mentionInsert', () => {
+        fixture.componentRef.setInput('mentions', true);
+        fixture.componentRef.setInput('mentionRender', {
+            mode: 'link',
+            urlTemplate: 'https://users.example.com/:userId?label=@@label@@',
+        });
+        fixture.detectChanges();
+
+        editor.textContent = '@jo';
+        const textNode = editor.firstChild as Text;
+        setCaret(textNode, textNode.length);
+        component.mentionType.set('mention');
+        component.mentionQuery.set('jo');
+        const mentionInsertSpy = vi.spyOn(component.mentionInsert, 'emit');
+
+        component.onMentionSelect({ id: 'u1', value: 'john-doe', label: 'John Doe' });
+
+        const link = editor.querySelector('[data-mention="john-doe"]') as HTMLAnchorElement | null;
+        expect(link).toBeTruthy();
+        expect(link?.tagName).toBe('A');
+        expect(link?.href).toContain('https://users.example.com/u1?label=');
+        expect(link?.href).toContain('John');
+        expect(link?.textContent).toBe('@John Doe');
+        expect(mentionInsertSpy).toHaveBeenCalledTimes(1);
+        expect(mentionInsertSpy.mock.calls[0]?.[0]).toMatchObject({
+            type: 'mention',
+            id: 'u1',
+            value: 'john-doe',
+            label: 'John Doe',
+            query: 'jo',
+            url: expect.stringContaining('https://users.example.com/u1?label='),
+        });
+    });
+
+    it('emits tagInsert payload when selecting a tag', () => {
+        fixture.componentRef.setInput('tags', true);
+        fixture.detectChanges();
+
+        editor.textContent = '#ux';
+        const textNode = editor.firstChild as Text;
+        setCaret(textNode, textNode.length);
+        component.mentionType.set('tag');
+        component.mentionQuery.set('ux');
+        const tagInsertSpy = vi.spyOn(component.tagInsert, 'emit');
+
+        component.onMentionSelect({ id: 't-9', value: 'ux', label: 'UX' });
+
+        expect(tagInsertSpy).toHaveBeenCalledTimes(1);
+        expect(tagInsertSpy.mock.calls[0]?.[0]).toMatchObject({
+            type: 'tag',
+            id: 't-9',
+            value: 'ux',
+            label: 'UX',
+            query: 'ux',
+        });
+    });
+
     it('debounces history snapshots for rapid typing', () => {
         vi.useFakeTimers();
         fixture.componentRef.setInput('historyDebounceMs', 200);

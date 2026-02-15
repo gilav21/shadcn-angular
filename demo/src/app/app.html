@@ -173,8 +173,9 @@
           <div class="space-y-2">
             <h3 class="text-lg font-medium">With Mentions & Tags</h3>
             <p class="text-sm text-muted-foreground">Type @john-doe or #angular.ui to trigger autocomplete</p>
-            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
-              [tags]="true" [tagSource]="sampleTags"
+            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
+              [tags]="true" [tagSearch]="searchTags"
+              [mentionRender]="mentionLinkRender" [tagRender]="tagLinkRender"
               placeholder="Type @john-doe, @jane.smith, #angular.ui..."
               minHeight="120px" />
           </div>
@@ -202,8 +203,8 @@
             @if (!richTextShowHistoryButton()) {
               <p class="text-xs text-muted-foreground">History button hidden. Use Ctrl/Cmd + Shift + H to open history browser.</p>
             }
-            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSource]="sampleMentions"
-              [tags]="true" [tagSource]="sampleTags" [showCount]="true" [showWordCount]="true" [maxLength]="220"
+            <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
+              [tags]="true" [tagSearch]="searchTags" [showCount]="true" [showWordCount]="true" [maxLength]="220"
               [historyLimit]="180" [showHistoryPanel]="true" [showHistoryButton]="richTextShowHistoryButton()"
               [historyDebounceMs]="500"
               placeholder="Compose a longer note and test undo/redo behavior..." minHeight="160px" />

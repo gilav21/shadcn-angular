@@ -16,6 +16,24 @@ This file captures the improvement ideas discussed during the history/UX work so
 - Show an inline hint for history shortcut (`Ctrl/Cmd+Shift+H`) when history button is hidden.
 - Consider a short onboarding tooltip the first time shortcut mode is used.
 
+4. Word/Docx paste fidelity mode (major org need)
+- Add dedicated Word-paste detection path (`Mso` markers / Word HTML signatures).
+- Build a Word-specific normalization layer before sanitize so pasted content stays visually close to source.
+- Preserve meaningful structure: headings, lists, nested lists, tables, links, images, alignment, spacing.
+- Keep strict sanitizer allowlist but make it Word-aware (drop unsafe/irrelevant styles and `mso-*` noise).
+- Add an opt-in “fidelity mode” input (keep current strict mode as default or configurable).
+- Add regression fixtures from real org docx examples and verify normalized output snapshots.
+
+5. Mention/tag output contract + host notifications
+- Mentions and tags should support configurable output rendering on insert, including link output.
+- Add API to define how mention/tag HTML is generated (e.g., plain chip, `<a>` link, custom template).
+- Add URL template support for links with token replacement, e.g.:
+  - `http://example.local/:userId`
+  - `http://example.local?userId=@@userId@@&sort=asc`
+- Sanitize final resolved URL before injecting into editor HTML.
+- Emit host-facing events for mention/tag insertion so parent app can react (analytics, notifications, side effects).
+- Consider per-type config (mentions vs tags) and fallback behavior when template tokens are missing.
+
 ## Bigger Product Differentiators
 
 1. Comments and suggestions mode

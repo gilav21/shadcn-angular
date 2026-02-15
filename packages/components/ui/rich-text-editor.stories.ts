@@ -21,6 +21,20 @@ const sampleTags: TagItem[] = [
     { id: '3', value: 'release_2026', label: 'Release 2026', color: '#06b6d4' },
 ];
 
+const filterByQuery = <T extends { label: string; value: string }>(items: T[], query: string): T[] => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+        return items;
+    }
+    return items.filter(item =>
+        item.label.toLowerCase().includes(normalized) ||
+        item.value.toLowerCase().includes(normalized)
+    );
+};
+
+const mentionSearch = (query: string): MentionItem[] => filterByQuery(sampleMentions, query);
+const tagSearch = (query: string): TagItem[] => filterByQuery(sampleTags, query);
+
 const customSlashCommands: RichTextSlashCommand[] = [
     {
         id: 'custom.insert-callout',
@@ -184,9 +198,9 @@ export const WithMentionsAndTags: Story = {
         mode: 'markdown',
         toolbar: 'top',
         mentions: true,
-        mentionSource: sampleMentions,
+        mentionSearch,
         tags: true,
-        tagSource: sampleTags,
+        tagSearch,
         placeholder: 'Type @john-doe or #angular.ui to trigger suggestions...',
         minHeight: '150px',
     },
@@ -233,9 +247,9 @@ export const AdvancedEditorConfig: Story = {
         mode: 'markdown',
         toolbar: 'top',
         mentions: true,
-        mentionSource: sampleMentions,
+        mentionSearch,
         tags: true,
-        tagSource: sampleTags,
+        tagSearch,
         showCount: true,
         showWordCount: true,
         showHistoryPanel: true,
@@ -311,7 +325,7 @@ export const GhostVariant: Story = {
           mode="markdown"
           toolbar="top"
           [mentions]="true"
-          [mentionSource]="mentions"
+          [mentionSearch]="mentionSearch"
           [(ngModel)]="content"
           (htmlChange)="html = $event"
           (markdownChange)="markdown = $event"
@@ -345,7 +359,7 @@ class RichTextDemoComponent {
     content = '';
     html = '';
     markdown = '';
-    mentions = sampleMentions;
+    mentionSearch = mentionSearch;
 }
 
 @Component({
@@ -361,9 +375,9 @@ class RichTextDemoComponent {
         mode="markdown"
         toolbar="top"
         [mentions]="true"
-        [mentionSource]="mentions"
+        [mentionSearch]="mentionSearch"
         [tags]="true"
-        [tagSource]="tags"
+        [tagSearch]="tagSearch"
         [showCount]="true"
         [showWordCount]="true"
         [showHistoryPanel]="true"
@@ -380,8 +394,8 @@ class RichTextDemoComponent {
 })
 class RichTextAdvancedDemoComponent {
     content = '';
-    mentions = sampleMentions;
-    tags = sampleTags;
+    mentionSearch = mentionSearch;
+    tagSearch = tagSearch;
 }
 
 export const InteractiveDemo: Story = {

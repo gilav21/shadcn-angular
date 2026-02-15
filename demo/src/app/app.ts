@@ -1393,6 +1393,40 @@ export class AppComponent {
     { id: '2', value: 'typescript-5', label: 'TypeScript 5', color: '#3178c6' },
     { id: '3', value: 'release_2026', label: 'Release 2026', color: '#06b6d4' },
   ];
+  mentionLinkRender = {
+    mode: 'link' as const,
+    urlTemplate: 'https://intranet.example.com/users/:userId',
+    className: 'bg-accent/20 text-primary rounded px-1 underline underline-offset-2',
+    target: '_blank',
+    rel: 'noopener noreferrer',
+  };
+  tagLinkRender = {
+    mode: 'link' as const,
+    urlTemplate: 'https://intranet.example.com/tags/@@tagId@@?sort=asc',
+    className: 'bg-accent/20 text-primary rounded px-1 underline underline-offset-2',
+    target: '_blank',
+    rel: 'noopener noreferrer',
+  };
+  searchMentions = (query: string): MentionItem[] => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return this.sampleMentions;
+    }
+    return this.sampleMentions.filter(item =>
+      item.label.toLowerCase().includes(normalized) ||
+      item.value.toLowerCase().includes(normalized)
+    );
+  };
+  searchTags = (query: string): TagItem[] => {
+    const normalized = query.trim().toLowerCase();
+    if (!normalized) {
+      return this.sampleTags;
+    }
+    return this.sampleTags.filter(item =>
+      item.label.toLowerCase().includes(normalized) ||
+      item.value.toLowerCase().includes(normalized)
+    );
+  };
 
   codeBlockCSharp = `using System;
 
