@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { VirtualScrollComponent, VirtualItemDirective, VirtualItem } from './virtual-scroll.component';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -19,11 +19,11 @@ function createItems(count: number): TestItem[] {
     template: `
         <div style="height: 300px; width: 400px;">
             <ui-virtual-scroll
-                [items]="items"
+                [items]="items()"
                 [minItemHeight]="50"
                 [buffer]="5"
-                [loading]="loading"
-                [hasMore]="hasMore"
+                [loading]="loading()"
+                [hasMore]="hasMore()"
             >
                 <ng-template virtualItem let-item let-index="index">
                     <div class="test-item" style="height: 50px;">{{ item.name }}</div>
@@ -34,9 +34,9 @@ function createItems(count: number): TestItem[] {
     imports: [VirtualScrollComponent, VirtualItemDirective]
 })
 class TestHostComponent {
-    items: TestItem[] = createItems(100);
-    loading = false;
-    hasMore = true;
+    items = signal<TestItem[]>(createItems(100));
+    loading = signal(false);
+    hasMore = signal(true);
 }
 
 describe('VirtualScrollComponent', () => {
@@ -58,7 +58,7 @@ describe('VirtualScrollComponent', () => {
     });
 
     it('should accept items input', () => {
-        expect(host.items.length).toBe(100);
+        expect(host.items().length).toBe(100);
     });
 
     it('should render the virtual scroll container', () => {
@@ -72,25 +72,27 @@ describe('VirtualScrollComponent', () => {
         expect(renderedItems.length).toBeGreaterThan(0);
     });
 
-    it('should update when items change', () => {
-        host.items = createItems(50);
+    it('should update when items change', async () => {
+        host.items.set(createItems(50));
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const renderedItems = fixture.nativeElement.querySelectorAll('.test-item');
         expect(renderedItems.length).toBeGreaterThan(0);
         expect(renderedItems.length).toBeLessThanOrEqual(50);
     });
 
-    it('should show loading indicator when loading is true', () => {
-        host.loading = true;
+    it('should show loading indicator when loading is true', async () => {
+        host.loading.set(true);
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const loadingEl = fixture.nativeElement.querySelector('.animate-spin');
         expect(loadingEl).toBeTruthy();
     });
 
     it('should not show loading indicator when loading is false', () => {
-        host.loading = false;
+        host.loading.set(false);
         fixture.detectChanges();
 
         const loadingEl = fixture.nativeElement.querySelector('.animate-spin');

@@ -1,19 +1,19 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { DockIconComponent } from './dock-icon.component';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { By } from '@angular/platform-browser';
 
 @Component({
     template: `
-        <ui-dock-icon [class]="iconClass">
+        <ui-dock-icon [class]="iconClass()">
             <span class="test-icon-content">Icon</span>
         </ui-dock-icon>
     `,
     imports: [DockIconComponent]
 })
 class TestHostComponent {
-    iconClass = '';
+    iconClass = signal('');
 }
 
 describe('DockIconComponent', () => {
@@ -45,9 +45,10 @@ describe('DockIconComponent', () => {
         expect(content.nativeElement.textContent).toBe('Icon');
     });
 
-    it('should apply custom class', () => {
-        host.iconClass = 'bg-blue-500 rounded-xl';
+    it('should apply custom class', async () => {
+        host.iconClass.set('bg-blue-500 rounded-xl');
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const el = fixture.debugElement.query(By.css('[data-slot="dock-icon"]'));
         expect(el.nativeElement.className).toContain('bg-blue-500');

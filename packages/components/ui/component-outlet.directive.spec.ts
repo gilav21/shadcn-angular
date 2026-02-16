@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, input } from '@angular/core';
+import { Component, input, signal } from '@angular/core';
 import { UiComponentOutletDirective } from './component-outlet.directive';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -13,12 +13,12 @@ class MockDynamicComponent {
 }
 
 @Component({
-    template: `<ng-container [uiComponentOutlet]="component" [inputs]="inputs" />`,
+    template: `<ng-container [uiComponentOutlet]="component" [inputs]="inputs()" />`,
     imports: [UiComponentOutletDirective]
 })
 class TestHostComponent {
     component = MockDynamicComponent;
-    inputs: Record<string, unknown> = {};
+    inputs = signal<Record<string, unknown>>({});
 }
 
 describe('UiComponentOutletDirective', () => {
@@ -47,9 +47,10 @@ describe('UiComponentOutletDirective', () => {
         expect(span.textContent).toBe('default');
     });
 
-    it('should pass inputs to the dynamic component', () => {
-        fixture.componentInstance.inputs = { label: 'Hello World' };
+    it('should pass inputs to the dynamic component', async () => {
+        fixture.componentInstance.inputs.set({ label: 'Hello World' });
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const span = fixture.nativeElement.querySelector('mock-dynamic span');
         expect(span.textContent).toBe('Hello World');

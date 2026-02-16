@@ -1,20 +1,20 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, ViewChild } from '@angular/core';
+import { Component, signal, ViewChild } from '@angular/core';
 import { DockItemComponent } from './dock-item.component';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { By } from '@angular/platform-browser';
 
 @Component({
     template: `
-        <ui-dock-item [class]="itemClass" [active]="active">
+        <ui-dock-item [class]="itemClass()" [active]="active()">
             <span class="test-item-content">Content</span>
         </ui-dock-item>
     `,
     imports: [DockItemComponent]
 })
 class TestHostComponent {
-    itemClass = '';
-    active = false;
+    itemClass = signal('');
+    active = signal(false);
     @ViewChild(DockItemComponent) dockItem!: DockItemComponent;
 }
 
@@ -48,24 +48,26 @@ describe('DockItemComponent', () => {
     });
 
     it('should not show active indicator when active is false', () => {
-        host.active = false;
+        host.active.set(false);
         fixture.detectChanges();
 
         const indicator = fixture.debugElement.query(By.css('.bg-foreground\\/50'));
         expect(indicator).toBeFalsy();
     });
 
-    it('should show active indicator when active is true', () => {
-        host.active = true;
+    it('should show active indicator when active is true', async () => {
+        host.active.set(true);
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const indicator = fixture.debugElement.query(By.css('.bg-foreground\\/50'));
         expect(indicator).toBeTruthy();
     });
 
-    it('should apply custom class', () => {
-        host.itemClass = 'custom-dock-item';
+    it('should apply custom class', async () => {
+        host.itemClass.set('custom-dock-item');
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const el = fixture.debugElement.query(By.directive(DockItemComponent));
         expect(el.nativeElement.className).toContain('custom-dock-item');
@@ -76,9 +78,10 @@ describe('DockItemComponent', () => {
         expect(el.nativeElement.className).toContain('cursor-pointer');
     });
 
-    it('should start bounce animation', () => {
+    it('should start bounce animation', async () => {
         host.dockItem.startBounce();
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const el = fixture.debugElement.query(By.directive(DockItemComponent));
         expect(el.nativeElement.className).toContain('animate-bounce');

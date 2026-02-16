@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { AutocompleteComponent } from './autocomplete.component';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -23,9 +23,9 @@ const fruits: Fruit[] = [
         <ui-autocomplete
             [options]="options"
             [displayWith]="displayWith"
-            [placeholder]="placeholder"
-            [multiple]="multiple"
-            [disabled]="disabled"
+            [placeholder]="placeholder()"
+            [multiple]="multiple()"
+            [disabled]="disabled()"
         />
     `,
     imports: [AutocompleteComponent]
@@ -33,9 +33,9 @@ const fruits: Fruit[] = [
 class TestHostComponent {
     options: Fruit[] = fruits;
     displayWith = (opt: Fruit) => opt?.name ?? '';
-    placeholder = 'Select a fruit...';
-    multiple = false;
-    disabled = false;
+    placeholder = signal('Select a fruit...');
+    multiple = signal(false);
+    disabled = signal(false);
 }
 
 describe('AutocompleteComponent', () => {
@@ -67,16 +67,17 @@ describe('AutocompleteComponent', () => {
         expect(input.nativeElement.placeholder).toBe('Select a fruit...');
     });
 
-    it('should apply disabled state', () => {
-        host.disabled = true;
+    it('should apply disabled state', async () => {
+        host.disabled.set(true);
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const container = fixture.debugElement.query(By.css('[data-disabled]'));
         expect(container).toBeTruthy();
     });
 
     it('should not show disabled attribute when not disabled', () => {
-        host.disabled = false;
+        host.disabled.set(false);
         fixture.detectChanges();
 
         const container = fixture.debugElement.query(By.css('[data-state]'));

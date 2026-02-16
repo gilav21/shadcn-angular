@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ShortcutBindingsDialogComponent } from './shortcut-bindings-dialog.component';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { describe, it, expect, beforeEach } from 'vitest';
@@ -8,14 +8,14 @@ import { describe, it, expect, beforeEach } from 'vitest';
     template: `
         <ui-shortcut-bindings-dialog
             [(open)]="open"
-            [allowSaveMapping]="allowSaveMapping"
+            [allowSaveMapping]="allowSaveMapping()"
         />
     `,
     imports: [ShortcutBindingsDialogComponent]
 })
 class TestHostComponent {
     open = false;
-    allowSaveMapping = false;
+    allowSaveMapping = signal(false);
 }
 
 describe('ShortcutBindingsDialogComponent', () => {
@@ -41,9 +41,10 @@ describe('ShortcutBindingsDialogComponent', () => {
         expect(host.open).toBe(false);
     });
 
-    it('should accept allowSaveMapping input', () => {
-        host.allowSaveMapping = true;
+    it('should accept allowSaveMapping input', async () => {
+        host.allowSaveMapping.set(true);
         fixture.detectChanges();
-        expect(host.allowSaveMapping).toBe(true);
+        await fixture.whenStable();
+        expect(host.allowSaveMapping()).toBe(true);
     });
 });

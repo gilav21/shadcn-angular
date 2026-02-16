@@ -1,20 +1,20 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { DockLabelComponent } from './dock-label.component';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { By } from '@angular/platform-browser';
 
 @Component({
     template: `
-        <ui-dock-label [class]="labelClass">
-            {{ labelText }}
+        <ui-dock-label [class]="labelClass()">
+            {{ labelText() }}
         </ui-dock-label>
     `,
     imports: [DockLabelComponent]
 })
 class TestHostComponent {
-    labelClass = '';
-    labelText = 'Home';
+    labelClass = signal('');
+    labelText = signal('Home');
 }
 
 describe('DockLabelComponent', () => {
@@ -45,17 +45,19 @@ describe('DockLabelComponent', () => {
         expect(el.nativeElement.textContent.trim()).toBe('Home');
     });
 
-    it('should update projected text content', () => {
-        host.labelText = 'Settings';
+    it('should update projected text content', async () => {
+        host.labelText.set('Settings');
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const el = fixture.debugElement.query(By.css('[data-slot="dock-label"]'));
         expect(el.nativeElement.textContent.trim()).toBe('Settings');
     });
 
-    it('should apply custom class', () => {
-        host.labelClass = 'text-red-500';
+    it('should apply custom class', async () => {
+        host.labelClass.set('text-red-500');
         fixture.detectChanges();
+        await fixture.whenStable();
 
         const el = fixture.debugElement.query(By.css('[data-slot="dock-label"]'));
         expect(el.nativeElement.className).toContain('text-red-500');
