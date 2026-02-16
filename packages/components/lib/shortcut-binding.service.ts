@@ -795,6 +795,9 @@ export class ShortcutBindingService {
             return false;
         }
         const componentId = key.slice(0, key.length - (`::${actionId}`).length);
+        if (!/-\d+$/.test(componentId)) {
+            return false;
+        }
         return this.deriveComponentName(componentId) === componentName;
     }
 
