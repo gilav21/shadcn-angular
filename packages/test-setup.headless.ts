@@ -58,9 +58,29 @@ if (typeof Element.prototype.scrollTo === 'undefined') {
 	Element.prototype.scrollTo = function () {};
 }
 
+if (typeof Element.prototype.scrollIntoView === 'undefined') {
+	Element.prototype.scrollIntoView = function () {};
+}
+
 if (typeof Element.prototype.getAnimations === 'undefined') {
 	Element.prototype.getAnimations = function () {
 		return [];
+	};
+}
+
+if (typeof Element.prototype.animate !== 'function') {
+	Element.prototype.animate = function () {
+		const animation = {
+			onfinish: null as (() => void) | null,
+			cancel() {},
+			finish() {
+				if (this.onfinish) this.onfinish();
+			},
+		};
+		Promise.resolve().then(() => {
+			if (animation.onfinish) animation.onfinish();
+		});
+		return animation as unknown as Animation;
 	};
 }
 

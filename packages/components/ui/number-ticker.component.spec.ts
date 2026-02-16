@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { NumberTickerComponent, NumberTickerDigitComponent } from './number-ticker.component';
 
 @Component({
@@ -68,6 +68,93 @@ describe('NumberTickerComponent', () => {
     it('should accept custom class input', () => {
         const tickerComponent = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance;
         expect(tickerComponent.class()).toBe('');
+    });
+
+    describe('display digits formatting', () => {
+        it('should display formatted value with commas after animation completes', async () => {
+            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
+
+            await vi.waitFor(() => {
+                const display = ticker.displayValue();
+                expect(display).toBe('1,234');
+            }, { timeout: 2000 });
+        });
+
+        it('should render one digit component per character including commas', async () => {
+            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
+
+            await vi.waitFor(() => {
+                expect(ticker.displayValue()).toBe('1,234');
+            }, { timeout: 2000 });
+
+            fixture.detectChanges();
+
+            const digits = fixture.debugElement.queryAll(By.directive(NumberTickerDigitComponent));
+            expect(digits.length).toBe(5);
+        });
+    });
+
+    describe('decimal places', () => {
+        it('should include decimal point in display when decimalPlaces is set', async () => {
+            component.value.set(12.5);
+            component.decimalPlaces.set(2);
+            component.duration.set(0.01);
+            fixture.detectChanges();
+
+            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
+
+            await vi.waitFor(() => {
+                expect(ticker.displayValue()).toBe('12.50');
+            }, { timeout: 2000 });
+        });
+
+        it('should format value with specified number of decimal places', async () => {
+            component.value.set(99.1);
+            component.decimalPlaces.set(3);
+            component.duration.set(0.01);
+            fixture.detectChanges();
+
+            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
+
+            await vi.waitFor(() => {
+                expect(ticker.displayValue()).toBe('99.100');
+            }, { timeout: 2000 });
+        });
+    });
+
+    describe('value change triggers update', () => {
+        it('should update displayValue when value changes from 1234 to 5678', async () => {
+            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
+
+            await vi.waitFor(() => {
+                expect(ticker.displayValue()).toBe('1,234');
+            }, { timeout: 2000 });
+
+            component.value.set(5678);
+            fixture.detectChanges();
+
+            await vi.waitFor(() => {
+                expect(ticker.displayValue()).toBe('5,678');
+            }, { timeout: 2000 });
+        });
+
+        it('should update displayDigits computed when value changes', async () => {
+            const ticker = fixture.debugElement.query(By.directive(NumberTickerComponent)).componentInstance as NumberTickerComponent;
+
+            await vi.waitFor(() => {
+                expect(ticker.displayValue()).toBe('1,234');
+            }, { timeout: 2000 });
+
+            const initialDigits = ticker.displayDigits();
+            expect(initialDigits).toEqual(['1', ',', '2', '3', '4']);
+
+            component.value.set(5678);
+            fixture.detectChanges();
+
+            await vi.waitFor(() => {
+                expect(ticker.displayDigits()).toEqual(['5', ',', '6', '7', '8']);
+            }, { timeout: 2000 });
+        });
     });
 });
 

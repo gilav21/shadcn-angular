@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal, ViewChild } from '@angular/core';
 import { DockItemComponent } from './dock-item.component';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { By } from '@angular/platform-browser';
 
 @Component({
@@ -30,6 +30,10 @@ describe('DockItemComponent', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         host = fixture.componentInstance;
         fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        vi.useRealTimers();
     });
 
     it('should create', () => {
@@ -85,5 +89,78 @@ describe('DockItemComponent', () => {
 
         const el = fixture.debugElement.query(By.directive(DockItemComponent));
         expect(el.nativeElement.className).toContain('animate-bounce');
+    });
+
+    describe('bounce animation ends', () => {
+        it('should remove animate-bounce class after 750ms', () => {
+            vi.useFakeTimers();
+
+            host.dockItem.startBounce();
+            fixture.detectChanges();
+
+            const el = fixture.debugElement.query(By.directive(DockItemComponent));
+            expect(el.nativeElement.className).toContain('animate-bounce');
+
+            vi.advanceTimersByTime(750);
+            fixture.detectChanges();
+
+            expect(el.nativeElement.className).not.toContain('animate-bounce');
+        });
+
+        it('should still have animate-bounce before 750ms elapses', () => {
+            vi.useFakeTimers();
+
+            host.dockItem.startBounce();
+            fixture.detectChanges();
+
+            vi.advanceTimersByTime(500);
+            fixture.detectChanges();
+
+            const el = fixture.debugElement.query(By.directive(DockItemComponent));
+            expect(el.nativeElement.className).toContain('animate-bounce');
+        });
+
+        it('should set isBouncing back to false after 750ms', () => {
+            vi.useFakeTimers();
+
+            host.dockItem.startBounce();
+            expect(host.dockItem.isBouncing()).toBe(true);
+
+            vi.advanceTimersByTime(750);
+            expect(host.dockItem.isBouncing()).toBe(false);
+        });
+    });
+
+    describe('multiple bounces', () => {
+        it('should not restart bounce if already bouncing', () => {
+            vi.useFakeTimers();
+
+            host.dockItem.startBounce();
+            expect(host.dockItem.isBouncing()).toBe(true);
+
+            vi.advanceTimersByTime(300);
+
+            host.dockItem.startBounce();
+            expect(host.dockItem.isBouncing()).toBe(true);
+
+            vi.advanceTimersByTime(450);
+            expect(host.dockItem.isBouncing()).toBe(false);
+        });
+
+        it('should allow a new bounce after the previous one completes', () => {
+            vi.useFakeTimers();
+
+            host.dockItem.startBounce();
+            expect(host.dockItem.isBouncing()).toBe(true);
+
+            vi.advanceTimersByTime(750);
+            expect(host.dockItem.isBouncing()).toBe(false);
+
+            host.dockItem.startBounce();
+            expect(host.dockItem.isBouncing()).toBe(true);
+
+            vi.advanceTimersByTime(750);
+            expect(host.dockItem.isBouncing()).toBe(false);
+        });
     });
 });

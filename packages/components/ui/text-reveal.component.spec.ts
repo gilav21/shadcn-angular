@@ -102,4 +102,39 @@ describe('TextRevealComponent', () => {
 
         expect(component.words()).toEqual(['one', 'two', 'three']);
     });
+
+    it('should stagger animation delays incrementally for many words', () => {
+        fixture.componentRef.setInput('text', 'a b c d e');
+        fixture.componentRef.setInput('delay', 100);
+        fixture.detectChanges();
+
+        const spans = fixture.debugElement.queryAll(By.css('span'));
+        expect(spans.length).toBe(5);
+        expect(spans[0].nativeElement.style.animationDelay).toBe('0ms');
+        expect(spans[1].nativeElement.style.animationDelay).toBe('100ms');
+        expect(spans[2].nativeElement.style.animationDelay).toBe('200ms');
+        expect(spans[3].nativeElement.style.animationDelay).toBe('300ms');
+        expect(spans[4].nativeElement.style.animationDelay).toBe('400ms');
+    });
+
+    it('should include non-breaking space after each word', () => {
+        fixture.componentRef.setInput('text', 'Hello World');
+        fixture.detectChanges();
+
+        const spans = fixture.debugElement.queryAll(By.css('span'));
+        expect(spans[0].nativeElement.textContent).toContain('\u00a0');
+    });
+
+    it('should reactively update when text changes', () => {
+        fixture.componentRef.setInput('text', 'Hello');
+        fixture.detectChanges();
+        expect(component.words()).toEqual(['Hello']);
+
+        fixture.componentRef.setInput('text', 'Hello World Again');
+        fixture.detectChanges();
+        expect(component.words()).toEqual(['Hello', 'World', 'Again']);
+
+        const spans = fixture.debugElement.queryAll(By.css('span'));
+        expect(spans.length).toBe(3);
+    });
 });

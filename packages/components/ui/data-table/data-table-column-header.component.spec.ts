@@ -127,4 +127,136 @@ describe('DataTableColumnHeaderComponent', () => {
         const el = fixture.debugElement.query(By.css('span'));
         expect(el.nativeElement.textContent.trim()).toBe('Email');
     });
+
+    describe('full sort cycle', () => {
+        it('should cycle through null -> asc -> desc -> null on repeated clicks', async () => {
+            const button = fixture.debugElement.query(By.css('ui-button'));
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+            expect(host.onSort).toHaveBeenLastCalledWith('asc');
+
+            host.direction.set('asc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+            expect(host.onSort).toHaveBeenLastCalledWith('desc');
+
+            host.direction.set('desc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+            expect(host.onSort).toHaveBeenLastCalledWith(null);
+        });
+
+        it('should emit sortMeta with correct direction at each step of the cycle', async () => {
+            const button = fixture.debugElement.query(By.css('ui-button'));
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+            expect(host.onSortMeta).toHaveBeenLastCalledWith({ direction: 'asc', multi: false });
+
+            host.direction.set('asc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+            expect(host.onSortMeta).toHaveBeenLastCalledWith({ direction: 'desc', multi: false });
+
+            host.direction.set('desc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+            expect(host.onSortMeta).toHaveBeenLastCalledWith({ direction: null, multi: false });
+        });
+
+        it('should have been called exactly 3 times after full cycle', async () => {
+            host.onSort.mockClear();
+            const button = fixture.debugElement.query(By.css('ui-button'));
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+
+            host.direction.set('asc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+
+            host.direction.set('desc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+
+            expect(host.onSort).toHaveBeenCalledTimes(3);
+        });
+    });
+
+    describe('shift-click for multi-sort', () => {
+        it('should emit sortMeta with multi=true when shift key is held', () => {
+            const headerComponent = fixture.debugElement.query(By.directive(DataTableColumnHeaderComponent));
+            const buttonEl = headerComponent.query(By.css('ui-button'));
+
+            const shiftClickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                shiftKey: true,
+            });
+            buttonEl.nativeElement.dispatchEvent(shiftClickEvent);
+            fixture.detectChanges();
+
+            expect(host.onSortMeta).toHaveBeenCalledWith({ direction: 'asc', multi: true });
+        });
+
+        it('should emit sortMeta with multi=false when shift key is not held', () => {
+            const button = fixture.debugElement.query(By.css('ui-button'));
+
+            button.nativeElement.click();
+            fixture.detectChanges();
+
+            expect(host.onSortMeta).toHaveBeenCalledWith({ direction: 'asc', multi: false });
+        });
+
+        it('should emit multi=true through the full sort cycle with shift held', async () => {
+            const headerComponent = fixture.debugElement.query(By.directive(DataTableColumnHeaderComponent));
+            const buttonEl = headerComponent.query(By.css('ui-button'));
+
+            const shiftClick = () => {
+                const event = new MouseEvent('click', {
+                    bubbles: true,
+                    cancelable: true,
+                    shiftKey: true,
+                });
+                buttonEl.nativeElement.dispatchEvent(event);
+                fixture.detectChanges();
+            };
+
+            shiftClick();
+            expect(host.onSortMeta).toHaveBeenLastCalledWith({ direction: 'asc', multi: true });
+
+            host.direction.set('asc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            shiftClick();
+            expect(host.onSortMeta).toHaveBeenLastCalledWith({ direction: 'desc', multi: true });
+
+            host.direction.set('desc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            shiftClick();
+            expect(host.onSortMeta).toHaveBeenLastCalledWith({ direction: null, multi: true });
+        });
+    });
 });

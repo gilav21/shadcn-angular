@@ -10,7 +10,7 @@ import {
     CommandSeparatorComponent,
     CommandShortcutComponent,
 } from './command.component';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 
 @Component({
@@ -20,15 +20,15 @@ import { By } from '@angular/platform-browser';
             <ui-command-list>
                 <ui-command-empty>No results found.</ui-command-empty>
                 <ui-command-group heading="Suggestions">
-                    <ui-command-item value="calendar">
+                    <ui-command-item value="calendar" (select)="onCalendarSelect($event)">
                         Calendar
                         <ui-command-shortcut>Ctrl+C</ui-command-shortcut>
                     </ui-command-item>
-                    <ui-command-item value="search">Search</ui-command-item>
+                    <ui-command-item value="search" (select)="onSearchSelect($event)">Search</ui-command-item>
                 </ui-command-group>
                 <ui-command-separator />
                 <ui-command-group heading="Settings">
-                    <ui-command-item value="profile">Profile</ui-command-item>
+                    <ui-command-item value="profile" (select)="onProfileSelect($event)">Profile</ui-command-item>
                 </ui-command-group>
             </ui-command-list>
         </ui-command>
@@ -44,7 +44,11 @@ import { By } from '@angular/platform-browser';
         CommandShortcutComponent,
     ]
 })
-class TestHostComponent {}
+class TestHostComponent {
+    onCalendarSelect = vi.fn();
+    onSearchSelect = vi.fn();
+    onProfileSelect = vi.fn();
+}
 
 describe('CommandComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
@@ -57,6 +61,8 @@ describe('CommandComponent', () => {
         fixture = TestBed.createComponent(TestHostComponent);
         fixture.detectChanges();
     });
+
+    // --- Existing creation/structure tests ---
 
     it('should create CommandComponent', () => {
         const command = fixture.debugElement.query(By.directive(CommandComponent));
@@ -102,5 +108,345 @@ describe('CommandComponent', () => {
     it('should have input with correct placeholder', () => {
         const input = fixture.debugElement.query(By.css('input'));
         expect(input.nativeElement.placeholder).toBe('Type a command...');
+    });
+
+    // --- Filtering tests ---
+
+    describe('filtering', () => {
+        it('should show all items when search is empty', () => {
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            const hiddenItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('hidden'));
+            expect(hiddenItems.length).toBe(0);
+        });
+
+        it('should filter items based on search input', () => {
+            const input = fixture.nativeElement.querySelector('input');
+            input.value = 'cal';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            const visibleItems = Array.from(itemDivs).filter((el: any) => !el.classList.contains('hidden'));
+            const hiddenItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('hidden'));
+
+            expect(visibleItems.length).toBe(1);
+            expect(hiddenItems.length).toBe(2);
+            expect((visibleItems[0] as HTMLElement).textContent).toContain('Calendar');
+        });
+
+        it('should filter items case-insensitively', () => {
+            const input = fixture.nativeElement.querySelector('input');
+            input.value = 'CAL';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            const visibleItems = Array.from(itemDivs).filter((el: any) => !el.classList.contains('hidden'));
+
+            expect(visibleItems.length).toBe(1);
+            expect((visibleItems[0] as HTMLElement).textContent).toContain('Calendar');
+        });
+
+        it('should show all items again when search is cleared', () => {
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.value = 'cal';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            input.value = '';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            const hiddenItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('hidden'));
+            expect(hiddenItems.length).toBe(0);
+        });
+
+        it('should match partial text in item value', () => {
+            const input = fixture.nativeElement.querySelector('input');
+            input.value = 'pro';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            const visibleItems = Array.from(itemDivs).filter((el: any) => !el.classList.contains('hidden'));
+
+            expect(visibleItems.length).toBe(1);
+            expect((visibleItems[0] as HTMLElement).textContent).toContain('Profile');
+        });
+    });
+
+    // --- Keyboard navigation tests ---
+
+    describe('keyboard navigation', () => {
+        it('should activate the first item on ArrowDown', () => {
+            const input = fixture.nativeElement.querySelector('input');
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            const activeItems = Array.from(itemDivs).filter((el: any) => el.classList.contains('bg-accent'));
+
+            expect(activeItems.length).toBe(1);
+        });
+
+        it('should move to the next item on repeated ArrowDown', () => {
+            const input = fixture.nativeElement.querySelector('input');
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+            const activeIndex = itemDivs.findIndex(el => el.classList.contains('bg-accent'));
+
+            expect(activeIndex).toBe(1);
+        });
+
+        it('should move to the previous item on ArrowUp', () => {
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            fixture.detectChanges();
+
+            const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+            const activeIndex = itemDivs.findIndex(el => el.classList.contains('bg-accent'));
+
+            expect(activeIndex).toBe(0);
+        });
+
+        it('should wrap around from last to first on ArrowDown', () => {
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+            const activeIndex = itemDivs.findIndex(el => el.classList.contains('bg-accent'));
+
+            expect(activeIndex).toBe(0);
+        });
+
+        it('should wrap around from first to last on ArrowUp', () => {
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            fixture.detectChanges();
+
+            const itemDivs = Array.from(fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')) as HTMLElement[];
+            const activeIndex = itemDivs.findIndex(el => el.classList.contains('bg-accent'));
+
+            expect(activeIndex).toBe(2);
+        });
+    });
+
+    // --- Enter selects active item ---
+
+    describe('enter selects active item', () => {
+        it('should emit select on the active item when Enter is pressed', () => {
+            const host = fixture.componentInstance;
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+            fixture.detectChanges();
+
+            expect(host.onCalendarSelect).toHaveBeenCalledWith('calendar');
+        });
+
+        it('should emit select for the second item after navigating to it', () => {
+            const host = fixture.componentInstance;
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+            fixture.detectChanges();
+
+            expect(host.onSearchSelect).toHaveBeenCalledWith('search');
+        });
+
+        it('should not emit select when no active item', () => {
+            const host = fixture.componentInstance;
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+            fixture.detectChanges();
+
+            expect(host.onCalendarSelect).not.toHaveBeenCalled();
+            expect(host.onSearchSelect).not.toHaveBeenCalled();
+            expect(host.onProfileSelect).not.toHaveBeenCalled();
+        });
+    });
+
+    // --- Empty state ---
+
+    describe('empty state', () => {
+        it('should not show empty state when items are visible', () => {
+            const emptyEl = fixture.nativeElement.querySelector('[data-slot="command-empty"]');
+            expect(emptyEl).toBeFalsy();
+        });
+
+        it('should show empty state when search matches nothing', () => {
+            const input = fixture.nativeElement.querySelector('input');
+            input.value = 'zzzzzzz';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const emptyEl = fixture.nativeElement.querySelector('[data-slot="command-empty"]');
+            expect(emptyEl).toBeTruthy();
+            expect(emptyEl.textContent.trim()).toBe('No results found.');
+        });
+
+        it('should hide empty state again when search is cleared', () => {
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.value = 'zzzzzzz';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            input.value = '';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const emptyEl = fixture.nativeElement.querySelector('[data-slot="command-empty"]');
+            expect(emptyEl).toBeFalsy();
+        });
+    });
+
+    // --- Group visibility ---
+
+    describe('group visibility', () => {
+        it('should hide a group when all its items are filtered out', () => {
+            const input = fixture.nativeElement.querySelector('input');
+            input.value = 'profile';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const groupDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-group"]');
+            const groupsArray = Array.from(groupDivs) as HTMLElement[];
+
+            const suggestionsGroup = groupsArray.find(g => g.textContent?.includes('Suggestions'));
+            const settingsGroup = groupsArray.find(g => g.textContent?.includes('Settings'));
+
+            expect(suggestionsGroup?.classList.contains('hidden')).toBe(true);
+            expect(settingsGroup?.classList.contains('hidden')).toBe(false);
+        });
+
+        it('should show all groups when search is empty', () => {
+            const groupDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-group"]');
+            const hiddenGroups = Array.from(groupDivs).filter((el: any) => el.classList.contains('hidden'));
+            expect(hiddenGroups.length).toBe(0);
+        });
+
+        it('should hide Settings group when searching for an item only in Suggestions', () => {
+            const input = fixture.nativeElement.querySelector('input');
+            input.value = 'calendar';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const groupDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-group"]');
+            const groupsArray = Array.from(groupDivs) as HTMLElement[];
+
+            const suggestionsGroup = groupsArray.find(g => g.textContent?.includes('Suggestions'));
+            const settingsGroup = groupsArray.find(g => g.textContent?.includes('Settings'));
+
+            expect(suggestionsGroup?.classList.contains('hidden')).toBe(false);
+            expect(settingsGroup?.classList.contains('hidden')).toBe(true);
+        });
+    });
+
+    // --- Item click emits select ---
+
+    describe('item click', () => {
+        it('should emit select when a command-item is clicked', () => {
+            const host = fixture.componentInstance;
+
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            (itemDivs[0] as HTMLElement).click();
+            fixture.detectChanges();
+
+            expect(host.onCalendarSelect).toHaveBeenCalledWith('calendar');
+        });
+
+        it('should emit select for the correct item when clicking the third item', () => {
+            const host = fixture.componentInstance;
+
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            (itemDivs[2] as HTMLElement).click();
+            fixture.detectChanges();
+
+            expect(host.onProfileSelect).toHaveBeenCalledWith('profile');
+        });
+
+        it('should emit select with correct value for the search item', () => {
+            const host = fixture.componentInstance;
+
+            const itemDivs = fixture.nativeElement.querySelectorAll('[data-slot="command-item"]');
+            (itemDivs[1] as HTMLElement).click();
+            fixture.detectChanges();
+
+            expect(host.onSearchSelect).toHaveBeenCalledWith('search');
+        });
+    });
+
+    // --- Filtering + navigation interaction ---
+
+    describe('filtering and navigation interaction', () => {
+        it('should navigate only through filtered items after searching', () => {
+            const host = fixture.componentInstance;
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.value = 'se';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const visibleItems = Array.from(
+                fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')
+            ).filter((el: any) => !el.classList.contains('hidden')) as HTMLElement[];
+            expect(visibleItems.length).toBe(1);
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            fixture.detectChanges();
+
+            input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
+            fixture.detectChanges();
+
+            expect(host.onSearchSelect).toHaveBeenCalledWith('search');
+        });
+
+        it('should auto-set active item to the first filtered result on input', () => {
+            const input = fixture.nativeElement.querySelector('input');
+
+            input.value = 'profile';
+            input.dispatchEvent(new Event('input'));
+            fixture.detectChanges();
+
+            const itemDivs = Array.from(
+                fixture.nativeElement.querySelectorAll('[data-slot="command-item"]')
+            ).filter((el: any) => !el.classList.contains('hidden')) as HTMLElement[];
+
+            expect(itemDivs.length).toBe(1);
+            expect(itemDivs[0].classList.contains('bg-accent')).toBe(true);
+        });
     });
 });
