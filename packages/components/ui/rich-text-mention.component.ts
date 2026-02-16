@@ -18,18 +18,83 @@ import { cn } from '../lib/utils';
 import { ScrollAreaComponent } from './scroll-area.component';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 
+/**
+ * A user/entity candidate for the `@mention` popover.
+ *
+ * Return an array of these from your `[mentionSearch]` function.
+ * The popover displays `label` as the primary text and `description`
+ * as secondary text beneath it. If `avatar` is provided, it renders
+ * as a circular thumbnail; otherwise the first letter of `label` is shown.
+ *
+ * @example
+ * ```ts
+ * const users: MentionItem[] = [
+ *   { id: 'u-1', value: 'jane', label: 'Jane Doe', avatar: '/avatars/jane.png', description: 'Engineering' },
+ *   { id: 'u-2', value: 'bob',  label: 'Bob Smith' },
+ * ];
+ * ```
+ */
 export interface MentionItem {
+  /**
+   * Unique identifier for this user/entity. Used as the entity `id` in
+   * {@link RichTextEntityRenderContext} and emitted in {@link RichTextEntityInsertEvent}.
+   * If omitted, `value` is used as the identifier.
+   */
   id?: string;
+
+  /**
+   * Machine-friendly value (e.g. username, slug). Used as a fallback `id`
+   * and stored in the `data-mention` attribute on the rendered DOM element.
+   */
   value: string;
+
+  /**
+   * Human-readable display name shown in the popover list and as the
+   * default inserted text (e.g. `"@Jane Doe"`).
+   */
   label: string;
+
+  /** URL of an avatar image. Rendered as a 24×24 circular thumbnail in the popover. */
   avatar?: string;
+
+  /** Secondary text shown below the label in the popover (e.g. job title, team name). */
   description?: string;
 }
 
+/**
+ * A tag candidate for the `#tag` popover.
+ *
+ * Return an array of these from your `[tagSearch]` function.
+ * The popover displays a small colored dot (from `color`) next to the `label`.
+ *
+ * @example
+ * ```ts
+ * const tags: TagItem[] = [
+ *   { id: 't-1', value: 'bug',     label: 'Bug',     color: '#ef4444' },
+ *   { id: 't-2', value: 'feature', label: 'Feature',  color: '#3b82f6' },
+ * ];
+ * ```
+ */
 export interface TagItem {
+  /**
+   * Unique identifier for this tag. Used as the entity `id` in
+   * {@link RichTextEntityRenderContext}. If omitted, `value` is used.
+   */
   id?: string;
+
+  /**
+   * Machine-friendly value (e.g. slug). Used as a fallback `id`
+   * and stored in the `data-tag` attribute on the rendered DOM element.
+   */
   value: string;
+
+  /** Human-readable tag name shown in the popover and as the default inserted text. */
   label: string;
+
+  /**
+   * CSS color for the dot indicator in the popover. Accepts any valid CSS
+   * color value (hex, rgb, hsl, named colors). Defaults to the theme's accent color.
+   */
   color?: string;
 }
 
