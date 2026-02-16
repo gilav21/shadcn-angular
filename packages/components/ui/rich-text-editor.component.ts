@@ -583,6 +583,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         [items]="toolbarItems()"
         [activeFormats]="activeFormats()"
         [selectedText]="selectedText()"
+        [currentFontSize]="currentFontSize()"
         [disabled]="disabled()"
         [readonly]="readonly()"
         [locale]="resolvedLocale()"
@@ -1192,6 +1193,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
+    currentFontSize = signal<string>('');
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
@@ -3025,6 +3027,27 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.document.queryCommandState('insertOrderedList')) formats.add('orderedList');
 
         this.activeFormats.set(formats);
+
+        const selection = this.document.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement || element;
+            }
+
+            if (element instanceof HTMLElement) {
+                const computedStyle = this.document.defaultView?.getComputedStyle(element);
+                if (computedStyle) {
+                    const fontSize = computedStyle.fontSize;
+                    const numericSize = parseInt(fontSize, 10);
+                    if (!isNaN(numericSize)) {
+                        this.currentFontSize.set(numericSize.toString());
+                    }
+                }
+            }
+        }
     }
 
     private updateFloatingToolbarPosition(): void {

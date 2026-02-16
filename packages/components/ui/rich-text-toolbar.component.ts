@@ -407,6 +407,7 @@ export class RichTextToolbarComponent {
 
   activeFormats = input<Set<string>>(new Set());
   selectedText = input<string>('');
+  currentFontSize = input<string>('');
   compact = input<boolean>(false);
   class = input<string>('');
   disabled = input<boolean>(false);
@@ -528,6 +529,12 @@ export class RichTextToolbarComponent {
   onPopoverOpenChange(popoverId: string, isOpen: boolean): void {
     if (isOpen) {
       this.openPopover.set(popoverId);
+      if (popoverId === 'fontSize') {
+        const currentSize = this.currentFontSize();
+        if (currentSize) {
+          this.selectedFontSize.set(`${currentSize}px`);
+        }
+      }
     } else if (this.openPopover() === popoverId) {
       this.openPopover.set(null);
     }
