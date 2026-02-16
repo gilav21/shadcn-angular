@@ -583,6 +583,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         [items]="toolbarItems()"
         [activeFormats]="activeFormats()"
         [selectedText]="selectedText()"
+        [currentFontSize]="currentFontSize()"
         [disabled]="disabled()"
         [readonly]="readonly()"
         [locale]="resolvedLocale()"
@@ -1192,6 +1193,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
+    currentFontSize = signal<string>('');
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
@@ -1248,8 +1250,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_h1]:text-3xl [&_h1]:font-bold [&_h1]:mt-4 [&_h1]:mb-2',
             '[&_h2]:text-2xl [&_h2]:font-semibold [&_h2]:mt-3 [&_h2]:mb-2',
             '[&_h3]:text-xl [&_h3]:font-semibold [&_h3]:mt-2 [&_h3]:mb-1',
-            '[&_ul]:list-disc [&_ul]:pl-6 [&_ul]:my-2',
-            '[&_ol]:list-decimal [&_ol]:pl-6 [&_ol]:my-2',
+            '[&_ul]:list-disc [&_ul]:ps-6 [&_ul]:my-2',
+            '[&_ol]:list-decimal [&_ol]:ps-6 [&_ol]:my-2',
             '[&_li]:my-1',
             '[&_a]:text-primary [&_a]:underline [&_a]:underline-offset-4 [&_a]:cursor-pointer [&_a]:font-medium hover:[&_a]:text-primary/80',
             '[&_code]:bg-muted [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono',
@@ -3025,6 +3027,27 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.document.queryCommandState('insertOrderedList')) formats.add('orderedList');
 
         this.activeFormats.set(formats);
+
+        const selection = this.document.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            let element = range.commonAncestorContainer;
+
+            if (element.nodeType === Node.TEXT_NODE) {
+                element = element.parentElement || element;
+            }
+
+            if (element instanceof HTMLElement) {
+                const computedStyle = this.document.defaultView?.getComputedStyle(element);
+                if (computedStyle) {
+                    const fontSize = computedStyle.fontSize;
+                    const numericSize = parseInt(fontSize, 10);
+                    if (!isNaN(numericSize)) {
+                        this.currentFontSize.set(numericSize.toString());
+                    }
+                }
+            }
+        }
     }
 
     private updateFloatingToolbarPosition(): void {

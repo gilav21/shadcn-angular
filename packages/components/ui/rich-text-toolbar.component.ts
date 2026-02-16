@@ -5,6 +5,7 @@ import {
   output,
   computed,
   inject,
+  signal,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
@@ -21,13 +22,7 @@ import {
   EmojiPickerTriggerComponent,
   EmojiPickerContentComponent,
 } from './emoji-picker.component';
-import {
-  SelectComponent,
-  SelectTriggerComponent,
-  SelectValueComponent,
-  SelectContentComponent,
-  SelectItemComponent,
-} from './select.component';
+import { AutocompleteComponent } from './autocomplete.component';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 
 /**
@@ -176,11 +171,7 @@ const ICONS: Record<string, string> = {
     EmojiPickerComponent,
     EmojiPickerTriggerComponent,
     EmojiPickerContentComponent,
-    SelectComponent,
-    SelectTriggerComponent,
-    SelectValueComponent,
-    SelectContentComponent,
-    SelectItemComponent,
+    AutocompleteComponent,
     FormsModule,
   ],
   template: `
@@ -188,12 +179,13 @@ const ICONS: Record<string, string> = {
       [class]="containerClasses()"
       role="toolbar"
       [attr.aria-label]="locale().editor.formattingOptions"
+      [dir]="locale().rtl ? 'rtl' : 'ltr'"
     >
       @for (item of items(); track $index) {
         @if (item === 'separator') {
           <ui-separator orientation="vertical" class="mx-1 h-6" />
         } @else if (item === 'link') {
-          <ui-popover>
+          <ui-popover [open]="openPopover() === 'link'" (openChange)="onPopoverOpenChange('link', $event)">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -237,7 +229,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'image') {
-          <ui-popover>
+          <ui-popover [open]="openPopover() === 'image'" (openChange)="onPopoverOpenChange('image', $event)">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -294,7 +286,7 @@ const ICONS: Record<string, string> = {
             <ui-emoji-picker-content />
           </ui-emoji-picker>
         } @else if (item === 'fontColor') {
-          <ui-popover>
+          <ui-popover [open]="openPopover() === 'fontColor'" (openChange)="onPopoverOpenChange('fontColor', $event)">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -324,7 +316,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'fontSize') {
-          <ui-popover>
+          <ui-popover [open]="openPopover() === 'fontSize'" (openChange)="onPopoverOpenChange('fontSize', $event)">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -335,52 +327,23 @@ const ICONS: Record<string, string> = {
                 <span [innerHTML]="getIcon('fontSize')"></span>
               </button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-40 p-3" align="start">
-              <div class="space-y-3">
-                <div>
-                  <label class="text-sm font-medium block mb-1">{{ locale().fontSize.selectSize }}</label>
-                  <ui-select
-                    [ngModel]="'3'"
-                    [disabled]="interactionDisabled()"
-                    (ngModelChange)="onFontSizeSelect($event)"
-                    class="w-full"
-                  >
-                    <ui-select-trigger class="h-9">
-                      <ui-select-value [placeholder]="locale().fontSize.selectSizePlaceholder" />
-                    </ui-select-trigger>
-                    <ui-select-content>
-                      @for (size of fontSizeOptions; track size) {
-                        <ui-select-item [value]="size.toString()">{{ size }}px</ui-select-item>
-                      }
-                    </ui-select-content>
-                  </ui-select>
-                </div>
-                <div class="border-t pt-3">
-                  <label class="text-sm font-medium block mb-1">{{ locale().fontSize.customSize }}</label>
-                  <div class="flex gap-2">
-                    <input
-                      #customSize
-                      type="number"
-                      min="6"
-                      max="200"
-                      placeholder="px"
-                      class="w-full h-9 rounded-md border border-input bg-background px-2 text-sm"
-                    />
-                    <button
-                      type="button"
-                      class="h-9 px-3 rounded-md bg-primary text-primary-foreground text-sm hover:bg-primary/90"
-                      [disabled]="interactionDisabled()"
-                      (click)="onFontSizeSelect(customSize.value)"
-                    >
-                      {{ locale().fontSize.apply }}
-                    </button>
-                  </div>
-                </div>
+            <ui-popover-content class="w-48 p-3" align="start">
+              <div class="space-y-2">
+                <label class="text-sm font-medium block">{{ locale().fontSize.selectSize }}</label>
+                <ui-autocomplete
+                  [(ngModel)]="selectedFontSize"
+                  [options]="fontSizeOptionsWithPx()"
+                  [placeholder]="locale().fontSize.selectSizePlaceholder"
+                  [disabled]="interactionDisabled()"
+                  [filter]="false"
+                  (ngModelChange)="onFontSizeAutocompleteChange($event)"
+                  class="w-full"
+                />
               </div>
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'backgroundColor') {
-          <ui-popover>
+          <ui-popover [open]="openPopover() === 'backgroundColor'" (openChange)="onPopoverOpenChange('backgroundColor', $event)">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -444,6 +407,7 @@ export class RichTextToolbarComponent {
 
   activeFormats = input<Set<string>>(new Set());
   selectedText = input<string>('');
+  currentFontSize = input<string>('');
   compact = input<boolean>(false);
   class = input<string>('');
   disabled = input<boolean>(false);
@@ -473,6 +437,13 @@ export class RichTextToolbarComponent {
   fontSizeOptions = Array.from({ length: 33 }, (_, i) => 8 + i * 2);
 
   fontSizeSelect = output<string>();
+
+  openPopover = signal<string | null>(null);
+  selectedFontSize = signal<string>('');
+
+  fontSizeOptionsWithPx = computed(() =>
+    this.fontSizeOptions.map(size => `${size}px`)
+  );
 
   interactionDisabled = computed(() => this.disabled() || this.readonly());
 
@@ -553,5 +524,28 @@ export class RichTextToolbarComponent {
   onFontSizeSelect(size: string): void {
     if (this.interactionDisabled()) return;
     this.fontSizeSelect.emit(size);
+  }
+
+  onPopoverOpenChange(popoverId: string, isOpen: boolean): void {
+    if (isOpen) {
+      this.openPopover.set(popoverId);
+      if (popoverId === 'fontSize') {
+        const currentSize = this.currentFontSize();
+        if (currentSize) {
+          this.selectedFontSize.set(`${currentSize}px`);
+        }
+      }
+    } else if (this.openPopover() === popoverId) {
+      this.openPopover.set(null);
+    }
+  }
+
+  onFontSizeAutocompleteChange(value: string): void {
+    if (this.interactionDisabled()) return;
+    const numericValue = value.replace(/[^\d]/g, '');
+    if (numericValue && !isNaN(Number(numericValue))) {
+      this.fontSizeSelect.emit(numericValue);
+      this.openPopover.set(null);
+    }
   }
 }
