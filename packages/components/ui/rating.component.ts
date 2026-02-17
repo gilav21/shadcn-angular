@@ -274,4 +274,8 @@ export class RatingComponent implements ControlValueAccessor {
   setDisabledState(isDisabled: boolean): void {
     this.formDisabled.set(isDisabled);
   }
+
+  toString(): string {
+    return String(this.value());
+  }
 }

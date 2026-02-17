@@ -94,7 +94,8 @@ export type ToolbarItem =
   | 'fontSize'
   | 'alignLeft'
   | 'alignCenter'
-  | 'alignRight';
+  | 'alignRight'
+  | 'table';
 
 interface ToolbarButton {
   id: ToolbarItem;
@@ -129,6 +130,7 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'alignLeft', label: 'Align Left', localeKey: 'alignLeft' },
   { id: 'alignCenter', label: 'Align Center', localeKey: 'alignCenter' },
   { id: 'alignRight', label: 'Align Right', localeKey: 'alignRight' },
+  { id: 'table', label: 'Insert Table', localeKey: 'insertTable' },
 ];
 
 const ICONS: Record<string, string> = {
@@ -157,6 +159,7 @@ const ICONS: Record<string, string> = {
   alignLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>`,
   alignCenter: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>`,
   alignRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>`,
+  table: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><rect width="18" height="18" x="3" y="3" rx="2"/></svg>`,
 };
 
 @Component({
@@ -372,6 +375,41 @@ const ICONS: Record<string, string> = {
               </div>
             </ui-popover-content>
           </ui-popover>
+        } @else if (item === 'table') {
+          <ui-popover [open]="openPopover() === 'table'" (openChange)="onPopoverOpenChange('table', $event)">
+            <ui-popover-trigger>
+              <button type="button" [class]="buttonClasses(item)" [title]="getTooltip(item)" [disabled]="interactionDisabled()">
+                <span [innerHTML]="getIcon('table')"></span>
+              </button>
+            </ui-popover-trigger>
+            <ui-popover-content class="p-3" align="start">
+              <div class="space-y-2">
+                <div class="grid gap-0.5" style="grid-template-columns: repeat(8, 1fr)">
+                  @for (row of [1,2,3,4,5,6,7,8]; track row) {
+                    @for (col of [1,2,3,4,5,6,7,8]; track col) {
+                      <button
+                        type="button"
+                        class="w-5 h-5 border rounded-sm transition-colors"
+                        [class.bg-primary]="row <= tableGridHoverRows() && col <= tableGridHoverCols()"
+                        [class.border-primary]="row <= tableGridHoverRows() && col <= tableGridHoverCols()"
+                        [class.border-border]="row > tableGridHoverRows() || col > tableGridHoverCols()"
+                        [class.bg-background]="row > tableGridHoverRows() || col > tableGridHoverCols()"
+                        (mouseenter)="tableGridHoverRows.set(row); tableGridHoverCols.set(col)"
+                        (click)="onTableGridSelect(row, col)"
+                      ></button>
+                    }
+                  }
+                </div>
+                <div class="text-xs text-center text-muted-foreground">
+                  @if (tableGridHoverRows() > 0 && tableGridHoverCols() > 0) {
+                    {{ tableGridHoverRows() }} x {{ tableGridHoverCols() }}
+                  } @else {
+                    {{ locale().table.insertTable }}
+                  }
+                </div>
+              </div>
+            </ui-popover-content>
+          </ui-popover>
         } @else {
           <button
             type="button"
@@ -419,6 +457,10 @@ export class RichTextToolbarComponent {
   imageInsert = output<{ alt: string; src: string }>();
   emojiInsert = output<string>();
   colorSelect = output<{ type: 'fontColor' | 'backgroundColor'; color: string }>();
+  tableInsert = output<{ rows: number; cols: number }>();
+
+  tableGridHoverRows = signal(0);
+  tableGridHoverCols = signal(0);
 
   colorPalette = [
     '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#ffffff',
@@ -538,6 +580,14 @@ export class RichTextToolbarComponent {
     } else if (this.openPopover() === popoverId) {
       this.openPopover.set(null);
     }
+  }
+
+  onTableGridSelect(rows: number, cols: number): void {
+    if (this.interactionDisabled()) return;
+    this.tableInsert.emit({ rows, cols });
+    this.openPopover.set(null);
+    this.tableGridHoverRows.set(0);
+    this.tableGridHoverCols.set(0);
   }
 
   onFontSizeAutocompleteChange(value: string): void {

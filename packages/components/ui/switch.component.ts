@@ -125,5 +125,9 @@ export class SwitchComponent implements ControlValueAccessor {
     setDisabledState(isDisabled: boolean): void {
         this._disabled.set(isDisabled);
     }
+
+    toString(): string {
+        return String(this.checked());
+    }
 }
 

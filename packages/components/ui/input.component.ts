@@ -116,4 +116,8 @@ export class InputComponent implements ControlValueAccessor {
     focus() {
         this.inputRef().nativeElement.focus();
     }
+
+    toString(): string {
+        return this.value();
+    }
 }

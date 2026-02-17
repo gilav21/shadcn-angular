@@ -12,7 +12,7 @@ import {
   ElementRef,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { isRtl } from '../../lib/utils';
 import {
@@ -38,6 +38,7 @@ import {
   DataTableColumnState,
   DataTableLoadingTrigger,
   DataTableLoadingVisibility,
+  DataTableExportOptions,
 } from './data-table.types';
 import { cn } from '../../lib/utils';
 
@@ -107,7 +108,7 @@ import { cn } from '../../lib/utils';
         </div>
       }
 
-      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full">
+      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" (keydown)="onTableKeydown($event)" tabindex="0">
         @if (isLoaderVisible()) {
           <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
             @if (loaderTemplate()) {
@@ -365,6 +366,7 @@ import { cn } from '../../lib/utils';
   `,
 })
 export class DataTableComponent<T> {
+  private _document = inject(DOCUMENT);
   private _el = inject(ElementRef);
   isRtl() {
     return isRtl(this._el.nativeElement);
@@ -406,6 +408,7 @@ export class DataTableComponent<T> {
   enableRowSelection = input(false);
   rowSelection = model<Record<string, boolean>>({});
   getRowId = input<(row: T) => string>((row: any) => row.id ?? String(JSON.stringify(row)));
+  enableCopy = input(true);
   enableRowExpansion = input(false);
   expandedRows = model<Record<string, boolean>>({});
   rowDetailTemplate = input<TemplateRef<unknown>>();
@@ -1042,6 +1045,127 @@ export class DataTableComponent<T> {
     }
 
     return (row as any)[key];
+  }
+
+  getCellStringValue(row: T, column: ColumnDef<T>): string {
+    if (column.cell) {
+      return column.cell(row);
+    }
+    const value = this.getCellValue(row, column.accessorKey, column);
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object' && typeof value.toString === 'function' && value.toString !== Object.prototype.toString) {
+      return value.toString();
+    }
+    return String(value);
+  }
+
+  getExportData(options?: DataTableExportOptions): string[][] {
+    const includeHeaders = options?.includeHeaders !== false;
+    const onlyVisible = options?.onlyVisible !== false;
+    const onlyFiltered = options?.onlyFiltered !== false;
+
+    const columns = onlyVisible
+      ? this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander')
+      : this.columns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+
+    const rows = onlyFiltered ? this.filteredData() : this.data();
+    const result: string[][] = [];
+
+    if (includeHeaders) {
+      result.push(columns.map(col => col.header));
+    }
+
+    for (const row of rows) {
+      result.push(columns.map(col => this.getCellStringValue(row, col)));
+    }
+
+    return result;
+  }
+
+  exportToCsv(filename?: string): void {
+    const data = this.getExportData();
+    const csvContent = data.map(row =>
+      row.map(cell => {
+        if (cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
+          return '"' + cell.replace(/"/g, '""') + '"';
+        }
+        return cell;
+      }).join(',')
+    ).join('\r\n');
+
+    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+    this.downloadBlob(blob, (filename || 'export') + '.csv');
+  }
+
+  exportToExcel(filename?: string): void {
+    const data = this.getExportData();
+    const headerRow = data.length > 0 ? data[0] : [];
+    const bodyRows = data.slice(1);
+
+    const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+
+    const headerCells = headerRow.map(cell => `<th style="background-color:#f3f4f6;font-weight:bold;border:1px solid #d1d5db;padding:8px">${escapeHtml(cell)}</th>`).join('');
+    const bodyRowsHtml = bodyRows.map(row =>
+      '<tr>' + row.map(cell => `<td style="border:1px solid #d1d5db;padding:8px">${escapeHtml(cell)}</td>`).join('') + '</tr>'
+    ).join('');
+
+    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
+<body><table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRowsHtml}</tbody></table></body></html>`;
+
+    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+    this.downloadBlob(blob, (filename || 'export') + '.xls');
+  }
+
+  async copyRowToClipboard(row: T): Promise<void> {
+    if (!this.enableCopy()) return;
+    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+    const values = columns.map(col => this.getCellStringValue(row, col));
+    await navigator.clipboard.writeText(values.join('\t'));
+  }
+
+  async copySelectedToClipboard(): Promise<void> {
+    if (!this.enableCopy()) return;
+    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+    const selectedIds = this.rowSelection();
+    const rows = this.filteredData().filter(row => selectedIds[this.getRowId()(row)]);
+    if (rows.length === 0) return;
+
+    const headerLine = columns.map(col => col.header).join('\t');
+    const dataLines = rows.map(row => columns.map(col => this.getCellStringValue(row, col)).join('\t'));
+    await navigator.clipboard.writeText([headerLine, ...dataLines].join('\n'));
+  }
+
+  async copyAllToClipboard(): Promise<void> {
+    if (!this.enableCopy()) return;
+    const data = this.getExportData();
+    const text = data.map(row => row.join('\t')).join('\n');
+    await navigator.clipboard.writeText(text);
+  }
+
+  onTableKeydown(event: KeyboardEvent): void {
+    if (!this.enableCopy()) return;
+    const isCopy = (event.ctrlKey || event.metaKey) && event.key === 'c';
+    if (!isCopy) return;
+
+    const selectedIds = this.rowSelection();
+    const hasSelection = Object.keys(selectedIds).some(id => selectedIds[id]);
+    if (hasSelection) {
+      event.preventDefault();
+      this.copySelectedToClipboard();
+    }
+  }
+
+  private downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = this._document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    this._document.body.appendChild(a);
+    a.click();
+    this._document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   private applyColumnOrder<U extends { accessorKey: string | keyof T }>(columns: U[]): U[] {

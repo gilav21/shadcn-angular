@@ -429,6 +429,8 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'link', 'image', 'emoji',
     'separator',
+    'table',
+    'separator',
     'code', 'codeBlock',
     'separator',
     'clear',
@@ -593,6 +595,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (emojiInsert)="onEmojiInsert($event)"
         (colorSelect)="onColorSelect($event)"
         (fontSizeSelect)="onFontSizeSelect($event)"
+        (tableInsert)="onTableInsert($event)"
       />
     }
 
@@ -795,6 +798,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (mouseup)="onSelectionChange()"
         (keyup)="onSelectionChange()"
         (click)="onEditorClick($event)"
+        (contextmenu)="onEditorContextMenu($event)"
         (dragover)="onEditorDragOver($event)"
         (dragleave)="onEditorDragLeave($event)"
         (drop)="onEditorDrop($event)"
@@ -931,6 +935,43 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
               </ui-button>
             </div>
           </div>
+        </div>
+      }
+
+      @if (tableContextMenuOpen()) {
+        <div
+          class="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          [style.left.px]="tableContextMenuPosition().x"
+          [style.top.px]="tableContextMenuPosition().y"
+          (mousedown)="$event.preventDefault()"
+        >
+          <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="addTableRowAbove()">
+            {{ resolvedLocale().table.addRowAbove }}
+          </button>
+          <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="addTableRowBelow()">
+            {{ resolvedLocale().table.addRowBelow }}
+          </button>
+          <div class="my-1 h-px bg-border"></div>
+          <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="addTableColumnLeft()">
+            {{ resolvedLocale().table.addColumnLeft }}
+          </button>
+          <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="addTableColumnRight()">
+            {{ resolvedLocale().table.addColumnRight }}
+          </button>
+          <div class="my-1 h-px bg-border"></div>
+          <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="toggleTableHeaderRow()">
+            {{ resolvedLocale().table.toggleHeaderRow }}
+          </button>
+          <div class="my-1 h-px bg-border"></div>
+          <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground text-destructive" (click)="deleteTableRow()">
+            {{ resolvedLocale().table.deleteRow }}
+          </button>
+          <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground text-destructive" (click)="deleteTableColumn()">
+            {{ resolvedLocale().table.deleteColumn }}
+          </button>
+          <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground text-destructive" (click)="deleteTable()">
+            {{ resolvedLocale().table.deleteTable }}
+          </button>
         </div>
       }
     </div>
@@ -1214,6 +1255,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
     imageUploading = signal<boolean>(false);
+    tableContextMenuOpen = signal(false);
+    tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
+    private tableContextMenuTarget: HTMLTableCellElement | null = null;
     historyPanelOpen = signal<boolean>(false);
     historyPreviewOpen = model<boolean>(false);
     historyBrowserOpen = model<boolean>(false);
@@ -1258,6 +1302,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_pre]:bg-muted [&_pre]:p-3 [&_pre]:rounded-lg [&_pre]:overflow-x-auto',
             '[&_pre_code]:bg-transparent [&_pre_code]:p-0',
             '[&_img]:inline [&_img]:max-w-full [&_img]:h-auto [&_img]:my-0 [&_img]:mx-0 [&_img]:cursor-pointer',
+            '[&_table]:border-collapse [&_table]:w-full [&_table]:my-2',
+            '[&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:min-w-[60px]',
+            '[&_th]:border [&_th]:border-border [&_th]:p-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-left',
             'disabled:cursor-not-allowed'
         )
     );
@@ -2825,6 +2872,189 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             reader.onerror = () => reject(new Error('Could not read image file.'));
             reader.readAsDataURL(file);
         });
+    }
+
+    onTableInsert(event: { rows: number; cols: number }): void {
+        this.restoreSelection();
+        this.insertTable(event.rows, event.cols);
+    }
+
+    onEditorContextMenu(event: MouseEvent): void {
+        const target = event.target as HTMLElement;
+        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        if (!cell || !this.editorDiv?.nativeElement.contains(cell)) {
+            this.tableContextMenuOpen.set(false);
+            return;
+        }
+        event.preventDefault();
+        this.tableContextMenuTarget = cell;
+        this.tableContextMenuPosition.set({ x: event.clientX, y: event.clientY });
+        this.tableContextMenuOpen.set(true);
+
+        const closeHandler = () => {
+            this.tableContextMenuOpen.set(false);
+            this.document.removeEventListener('click', closeHandler);
+            this.document.removeEventListener('contextmenu', closeHandler);
+        };
+        setTimeout(() => {
+            this.document.addEventListener('click', closeHandler);
+            this.document.addEventListener('contextmenu', closeHandler);
+        });
+    }
+
+    private insertTable(rows: number, cols: number): void {
+        const headerCells = Array.from({ length: cols }, () => '<th><br></th>').join('');
+        const bodyRow = '<tr>' + Array.from({ length: cols }, () => '<td><br></td>').join('') + '</tr>';
+        const bodyRows = Array.from({ length: rows - 1 }, () => bodyRow).join('');
+        const html = `<table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRows}</tbody></table><p><br></p>`;
+        this.insertHtml(html);
+        this.pushHistory();
+    }
+
+    private getTableCellInfo(target: HTMLTableCellElement | null): { cell: HTMLTableCellElement; row: HTMLTableRowElement; table: HTMLTableElement; colIndex: number; rowIndex: number } | null {
+        const cell = target;
+        if (!cell) return null;
+        const row = cell.closest('tr') as HTMLTableRowElement | null;
+        const table = cell.closest('table') as HTMLTableElement | null;
+        if (!row || !table) return null;
+        const colIndex = Array.from(row.cells).indexOf(cell);
+        const allRows = Array.from(table.querySelectorAll('tr'));
+        const rowIndex = allRows.indexOf(row);
+        return { cell, row, table, colIndex, rowIndex };
+    }
+
+    addTableRowAbove(): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+        const newRow = info.row.cloneNode(true) as HTMLTableRowElement;
+        Array.from(newRow.cells).forEach(cell => { cell.innerHTML = '<br>'; });
+        info.row.parentNode?.insertBefore(newRow, info.row);
+        this.applyMutation({ focus: true });
+    }
+
+    addTableRowBelow(): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+        const newRow = info.row.cloneNode(true) as HTMLTableRowElement;
+        Array.from(newRow.cells).forEach(cell => { cell.innerHTML = '<br>'; });
+        info.row.parentNode?.insertBefore(newRow, info.row.nextSibling);
+        this.applyMutation({ focus: true });
+    }
+
+    addTableColumnLeft(): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+        const rows = Array.from(info.table.querySelectorAll('tr'));
+        for (const row of rows) {
+            const isHeader = row.closest('thead') !== null;
+            const newCell = this.document.createElement(isHeader ? 'th' : 'td');
+            newCell.innerHTML = '<br>';
+            const refCell = row.cells[info.colIndex];
+            if (refCell) {
+                row.insertBefore(newCell, refCell);
+            } else {
+                row.appendChild(newCell);
+            }
+        }
+        this.applyMutation({ focus: true });
+    }
+
+    addTableColumnRight(): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+        const rows = Array.from(info.table.querySelectorAll('tr'));
+        for (const row of rows) {
+            const isHeader = row.closest('thead') !== null;
+            const newCell = this.document.createElement(isHeader ? 'th' : 'td');
+            newCell.innerHTML = '<br>';
+            const refCell = row.cells[info.colIndex];
+            if (refCell && refCell.nextSibling) {
+                row.insertBefore(newCell, refCell.nextSibling);
+            } else {
+                row.appendChild(newCell);
+            }
+        }
+        this.applyMutation({ focus: true });
+    }
+
+    deleteTableRow(): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+        const allRows = info.table.querySelectorAll('tr');
+        if (allRows.length <= 1) {
+            info.table.remove();
+        } else {
+            info.row.remove();
+        }
+        this.tableContextMenuTarget = null;
+        this.applyMutation({ focus: true });
+    }
+
+    deleteTableColumn(): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+        const rows = Array.from(info.table.querySelectorAll('tr'));
+        const colCount = rows[0]?.cells.length ?? 0;
+        if (colCount <= 1) {
+            info.table.remove();
+        } else {
+            for (const row of rows) {
+                const cell = row.cells[info.colIndex];
+                if (cell) cell.remove();
+            }
+        }
+        this.tableContextMenuTarget = null;
+        this.applyMutation({ focus: true });
+    }
+
+    deleteTable(): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+        info.table.remove();
+        this.tableContextMenuTarget = null;
+        this.applyMutation({ focus: true });
+    }
+
+    toggleTableHeaderRow(): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+        const firstRow = info.table.querySelector('tr');
+        if (!firstRow) return;
+        const thead = info.table.querySelector('thead');
+        if (thead) {
+            const existingTbody = info.table.querySelector('tbody');
+            const tbody = existingTbody ?? this.document.createElement('tbody');
+            if (!existingTbody) {
+                info.table.appendChild(tbody);
+            }
+            const cells = Array.from(firstRow.cells);
+            for (const cell of cells) {
+                const td = this.document.createElement('td');
+                td.innerHTML = cell.innerHTML;
+                cell.replaceWith(td);
+            }
+            tbody.insertBefore(firstRow, tbody.firstChild);
+            if (thead.children.length === 0) thead.remove();
+        } else {
+            const newThead = this.document.createElement('thead');
+            const cells = Array.from(firstRow.cells);
+            for (const cell of cells) {
+                const th = this.document.createElement('th');
+                th.innerHTML = cell.innerHTML;
+                cell.replaceWith(th);
+            }
+            newThead.appendChild(firstRow);
+            info.table.insertBefore(newThead, info.table.firstChild);
+        }
+        this.applyMutation({ focus: true });
     }
 
     private insertText(text: string): void {

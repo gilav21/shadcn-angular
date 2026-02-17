@@ -101,4 +101,8 @@ export class TextareaComponent implements ControlValueAccessor {
     }
 
     setDisabledState(isDisabled: boolean): void { }
+
+    toString(): string {
+        return this.value();
+    }
 }

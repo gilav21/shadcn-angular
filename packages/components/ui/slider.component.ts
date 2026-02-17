@@ -233,4 +233,8 @@ export class SliderComponent {
         this.value.set(newValue);
         this.valueChange.emit(newValue);
     }
+
+    toString(): string {
+        return String(this.value());
+    }
 }
