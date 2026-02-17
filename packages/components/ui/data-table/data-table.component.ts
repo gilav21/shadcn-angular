@@ -15,6 +15,7 @@ import {
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { isRtl } from '../../lib/utils';
+import { generateXlsx } from '../../lib/xlsx';
 import {
   TableComponent,
   TableHeaderComponent,
@@ -728,7 +729,7 @@ export class DataTableComponent<T> {
       'bg-background whitespace-nowrap overflow-hidden text-ellipsis',
       this.showRowBorders() && 'border-b',
       this.showColumnBorders() && 'border-r',
-      isFocused && 'ring-2 ring-primary ring-inset'
+      isFocused && 'ring-1 ring-ring/40 ring-inset'
     );
   }
 
@@ -1105,22 +1106,11 @@ export class DataTableComponent<T> {
 
   exportToExcel(filename?: string): void {
     const data = this.getExportData();
-    const headerRow = data.length > 0 ? data[0] : [];
-    const bodyRows = data.slice(1);
-
-    const escapeHtml = (str: string) => str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-
-    const headerCells = headerRow.map(cell => `<th style="background-color:#f3f4f6;font-weight:bold;border:1px solid #d1d5db;padding:8px">${escapeHtml(cell)}</th>`).join('');
-    const bodyRowsHtml = bodyRows.map(row =>
-      '<tr>' + row.map(cell => `<td style="border:1px solid #d1d5db;padding:8px">${escapeHtml(cell)}</td>`).join('') + '</tr>'
-    ).join('');
-
-    const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-<head><meta charset="UTF-8"><!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet><x:Name>Sheet1</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions></x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]--></head>
-<body><table><thead><tr>${headerCells}</tr></thead><tbody>${bodyRowsHtml}</tbody></table></body></html>`;
-
-    const blob = new Blob([html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
-    this.downloadBlob(blob, (filename || 'export') + '.xls');
+    const xlsxBytes = generateXlsx(data, { boldFirstRow: true });
+    const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
+      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    });
+    this.downloadBlob(blob, (filename || 'export') + '.xlsx');
   }
 
   async copyCellToClipboard(): Promise<void> {
