@@ -14,7 +14,7 @@ import {
     model,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../lib/utils';
+import { cn, getClippingRect } from '../lib/utils';
 
 @Component({
     selector: 'ui-popover',
@@ -104,7 +104,6 @@ export class PopoverTriggerComponent {
 })
 export class PopoverContentComponent implements AfterViewInit {
     popover = inject(PopoverComponent, { optional: true });
-    private document = inject(DOCUMENT);
 
     class = input('');
     align = input<'start' | 'center' | 'end'>('center');
@@ -157,33 +156,32 @@ export class PopoverContentComponent implements AfterViewInit {
 
         const content = this.contentEl.nativeElement;
         const contentRect = content.getBoundingClientRect();
-        const viewportWidth = this.document.defaultView?.innerWidth ?? 0;
-        const viewportHeight = this.document.defaultView?.innerHeight ?? 0;
+        const boundary = getClippingRect(content);
 
         let adjustedSide = this.side();
         let adjustedAlign = this.align();
         let offsetX = 0;
         let offsetY = 0;
 
-        if (contentRect.right > viewportWidth) {
-            const overflow = contentRect.right - viewportWidth + 8;
+        if (contentRect.right > boundary.right) {
+            const overflow = contentRect.right - boundary.right + 8;
             offsetX = -overflow;
-        } else if (contentRect.left < 0) {
-            offsetX = -contentRect.left + 8;
+        } else if (contentRect.left < boundary.left) {
+            offsetX = boundary.left - contentRect.left + 8;
         }
 
-        if (contentRect.bottom > viewportHeight) {
+        if (contentRect.bottom > boundary.bottom) {
             if (adjustedSide === 'bottom') {
                 adjustedSide = 'top';
             } else {
-                const overflow = contentRect.bottom - viewportHeight + 8;
+                const overflow = contentRect.bottom - boundary.bottom + 8;
                 offsetY = -overflow;
             }
-        } else if (contentRect.top < 0) {
+        } else if (contentRect.top < boundary.top) {
             if (adjustedSide === 'top') {
                 adjustedSide = 'bottom';
             } else {
-                offsetY = -contentRect.top + 8;
+                offsetY = boundary.top - contentRect.top + 8;
             }
         }
 

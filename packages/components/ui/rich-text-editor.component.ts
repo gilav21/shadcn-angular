@@ -1229,6 +1229,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private slashAnchorBlock: HTMLElement | null = null;
     private slashTriggerRange: Range | null = null;
     private savedRange: Range | null = null;
+    private _pendingLinkPositionHint: { x: number; y: number } | null = null;
     private onChange: (value: string) => void = () => { };
     private onTouched: () => void = () => { };
 
@@ -2609,6 +2610,14 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
         this.flushPendingHistoryPush();
+        const selectionBeforeMutations = this.document.getSelection();
+        if (selectionBeforeMutations && selectionBeforeMutations.rangeCount > 0) {
+            const r = selectionBeforeMutations.getRangeAt(0);
+            const rc = r.getBoundingClientRect();
+            if (rc.width > 0 || rc.height > 0 || rc.top > 0 || rc.left > 0) {
+                this._pendingLinkPositionHint = { x: rc.left, y: rc.bottom };
+            }
+        }
         const query = this.slashQuery();
         const resolvedSlashBlock = this.removeSlashTriggerText(query);
         const slashBlock = resolvedSlashBlock ?? this.getClosestEditableBlockForSlashCommand();
@@ -2722,13 +2731,14 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const viewportHeight = this.document.defaultView?.innerHeight ?? 768;
             const width = 320;
             const height = 180;
-            const x = Math.max(8, Math.min(rect.left, viewportWidth - width - 8));
-            const y = Math.max(8, Math.min(rect.bottom + 8, viewportHeight - height - 8));
-            this.linkPopoverPosition.set({
-                x,
-                y,
-            });
+            const rectIsEmpty = rect.width === 0 && rect.height === 0 && rect.top === 0 && rect.left === 0;
+            const sourceX = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.x : rect.left;
+            const sourceY = rectIsEmpty && this._pendingLinkPositionHint ? this._pendingLinkPositionHint.y : rect.bottom;
+            const x = Math.max(8, Math.min(sourceX, viewportWidth - width - 8));
+            const y = Math.max(8, Math.min(sourceY + 8, viewportHeight - height - 8));
+            this.linkPopoverPosition.set({ x, y });
         }
+        this._pendingLinkPositionHint = null;
 
         this.showLinkPopover.set(true);
     }

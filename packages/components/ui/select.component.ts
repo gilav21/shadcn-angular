@@ -16,7 +16,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { cn, isRtl } from '../lib/utils';
+import { cn, isRtl, getClippingRect } from '../lib/utils';
 
 export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
 
@@ -531,11 +531,13 @@ export class SelectContentComponent implements AfterViewInit {
 
     class = input('');
     position = input<'popper' | 'item-aligned'>('item-aligned');
+    side = input<'top' | 'bottom'>('bottom');
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private offsetY = signal(0);
     private effectivePosition = signal<'popper' | 'item-aligned'>('item-aligned');
+    private effectiveSide = signal<'top' | 'bottom'>('bottom');
     private previousActiveElement: HTMLElement | null = null;
 
     constructor() {
@@ -552,8 +554,8 @@ export class SelectContentComponent implements AfterViewInit {
                     this.previousActiveElement.focus();
                 }
                 this.previousActiveElement = null;
-                // Reset effective position when closed
                 this.effectivePosition.set(this.select?.position() ?? this.position());
+                this.effectiveSide.set(this.side());
             }
         });
     }
@@ -567,43 +569,67 @@ export class SelectContentComponent implements AfterViewInit {
 
     private calculatePosition() {
         const requestedPos = this.select?.position() ?? this.position();
+        const contentEl = this.contentEl?.nativeElement;
 
-        if (requestedPos === 'item-aligned' && this.contentEl?.nativeElement) {
+        if (requestedPos === 'item-aligned' && contentEl) {
             const selectedOffset = this.select?.getSelectedItemOffset() ?? 0;
             const triggerEl = this.select?.getTriggerElement();
-            const contentEl = this.contentEl.nativeElement;
 
             if (triggerEl) {
                 const triggerRect = triggerEl.getBoundingClientRect();
                 const contentHeight = contentEl.scrollHeight;
+                const boundary = getClippingRect(contentEl);
+                const viewportPadding = 8;
 
-                // Calculate where the content top would be with item-aligned positioning
                 const proposedTop = triggerRect.top - selectedOffset - 4;
                 const proposedBottom = proposedTop + contentHeight;
 
-                const viewportHeight = window.innerHeight;
-                const viewportPadding = 8; // Minimum padding from viewport edges
-
-                // Check if content would overflow viewport
-                const wouldOverflowTop = proposedTop < viewportPadding;
-                const wouldOverflowBottom = proposedBottom > viewportHeight - viewportPadding;
+                const wouldOverflowTop = proposedTop < boundary.top + viewportPadding;
+                const wouldOverflowBottom = proposedBottom > boundary.bottom - viewportPadding;
 
                 if (wouldOverflowTop || wouldOverflowBottom) {
-                    // Fall back to popper mode
                     this.effectivePosition.set('popper');
                     this.offsetY.set(0);
+                    this.resolvePopperSide(triggerRect, contentHeight, boundary, viewportPadding);
                 } else {
-                    // Use item-aligned mode
                     this.effectivePosition.set('item-aligned');
                     this.offsetY.set(-(selectedOffset + 4));
+                    this.effectiveSide.set('bottom');
                 }
             } else {
                 this.effectivePosition.set('item-aligned');
                 this.offsetY.set(-(selectedOffset + 4));
+                this.effectiveSide.set('bottom');
             }
         } else {
             this.effectivePosition.set('popper');
             this.offsetY.set(0);
+            const triggerEl = this.select?.getTriggerElement();
+            if (contentEl && triggerEl) {
+                const triggerRect = triggerEl.getBoundingClientRect();
+                const contentHeight = contentEl.scrollHeight;
+                const boundary = getClippingRect(contentEl);
+                this.resolvePopperSide(triggerRect, contentHeight, boundary, 8);
+            } else {
+                this.effectiveSide.set(this.side());
+            }
+        }
+    }
+
+    private resolvePopperSide(
+        triggerRect: DOMRect,
+        contentHeight: number,
+        boundary: DOMRect,
+        padding: number,
+    ) {
+        const preferredSide = this.side();
+        const spaceBelow = boundary.bottom - triggerRect.bottom - padding;
+        const spaceAbove = triggerRect.top - boundary.top - padding;
+
+        if (preferredSide === 'top') {
+            this.effectiveSide.set(contentHeight <= spaceAbove || spaceAbove >= spaceBelow ? 'top' : 'bottom');
+        } else {
+            this.effectiveSide.set(contentHeight <= spaceBelow || spaceBelow >= spaceAbove ? 'bottom' : 'top');
         }
     }
 
@@ -658,11 +684,14 @@ export class SelectContentComponent implements AfterViewInit {
     classes = computed(() => {
         const pos = this.effectivePosition();
         const isItemAligned = pos === 'item-aligned';
+        const side = this.effectiveSide();
+
+        const popperSideClass = side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1';
 
         return cn(
             'absolute z-50 max-h-96 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
             'animate-in fade-in-0 zoom-in-95',
-            isItemAligned ? 'top-0' : 'top-full mt-1',
+            isItemAligned ? 'top-0' : popperSideClass,
             'ltr:left-0 rtl:right-0',
             this.class()
         );

@@ -10,8 +10,7 @@ import {
     ViewChild,
     AfterViewInit,
 } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
-import { cn } from '../lib/utils';
+import { cn, getClippingRect } from '../lib/utils';
 
 @Component({
     selector: 'ui-hover-card',
@@ -107,7 +106,6 @@ export class HoverCardTriggerComponent {
 })
 export class HoverCardContentComponent implements AfterViewInit {
     hoverCard = inject(HoverCardComponent, { optional: true });
-    private document = inject(DOCUMENT);
 
     class = input('');
     align = input<'start' | 'center' | 'end'>('center');
@@ -149,22 +147,21 @@ export class HoverCardContentComponent implements AfterViewInit {
 
         const content = this.contentEl.nativeElement;
         const rect = content.getBoundingClientRect();
-        const viewportWidth = this.document.defaultView?.innerWidth ?? 0;
-        const viewportHeight = this.document.defaultView?.innerHeight ?? 0;
+        const boundary = getClippingRect(content);
 
         let offsetX = 0;
         let offsetY = 0;
         let actualSide = this.side();
 
-        if (rect.right > viewportWidth) {
-            offsetX = viewportWidth - rect.right - 8;
-        } else if (rect.left < 0) {
-            offsetX = -rect.left + 8;
+        if (rect.right > boundary.right) {
+            offsetX = boundary.right - rect.right - 8;
+        } else if (rect.left < boundary.left) {
+            offsetX = boundary.left - rect.left + 8;
         }
 
-        if (actualSide === 'bottom' && rect.bottom > viewportHeight) {
+        if (actualSide === 'bottom' && rect.bottom > boundary.bottom) {
             actualSide = 'top';
-        } else if (actualSide === 'top' && rect.top < 0) {
+        } else if (actualSide === 'top' && rect.top < boundary.top) {
             actualSide = 'bottom';
         }
 
