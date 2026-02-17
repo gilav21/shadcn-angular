@@ -83,3 +83,37 @@ export const Default: Story = {
     `,
   }),
 };
+
+export const SimpleMode: Story = {
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-drawer [direction]="direction">
+        <ui-drawer-trigger>
+          <ui-button variant="outline">Open Drawer (Simple)</ui-button>
+        </ui-drawer-trigger>
+        <ui-drawer-content
+          title="Move Goal"
+          description="Set your daily activity goal."
+        >
+          <div class="mx-auto w-full max-w-sm">
+            <div class="p-4 pb-0">
+              <div class="flex items-center justify-center space-x-2">
+                <div class="flex-1 text-center">
+                  <div class="text-7xl font-bold tracking-tighter">350</div>
+                  <div class="text-[0.70rem] uppercase text-muted-foreground">Calories/day</div>
+                </div>
+              </div>
+            </div>
+            <ui-drawer-footer>
+              <ui-button variant="outline">Submit</ui-button>
+              <ui-drawer-close>
+                <ui-button variant="outline">Cancel</ui-button>
+              </ui-drawer-close>
+            </ui-drawer-footer>
+          </div>
+        </ui-drawer-content>
+      </ui-drawer>
+    `,
+  }),
+};

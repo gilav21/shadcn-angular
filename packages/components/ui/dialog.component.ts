@@ -8,6 +8,7 @@ import {
     model,
     AfterViewInit,
     ElementRef,
+    forwardRef,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -54,6 +55,11 @@ export class DialogTriggerComponent {
 @Component({
     selector: 'ui-dialog-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [
+        forwardRef(() => DialogHeaderComponent),
+        forwardRef(() => DialogTitleComponent),
+        forwardRef(() => DialogDescriptionComponent),
+    ],
     template: `
     @if (dialog?.open()) {
       <div class="fixed inset-0 z-50 flex items-center justify-center">
@@ -71,6 +77,14 @@ export class DialogTriggerComponent {
           (keydown)="onKeydown($event)"
           tabindex="-1"
         >
+          @if (title()) {
+            <ui-dialog-header>
+              <ui-dialog-title>{{ title() }}</ui-dialog-title>
+              @if (description()) {
+                <ui-dialog-description>{{ description() }}</ui-dialog-description>
+              }
+            </ui-dialog-header>
+          }
           <ng-content />
           <!-- Close button -->
           <button
@@ -93,6 +107,8 @@ export class DialogContentComponent implements AfterViewInit {
     dialog = inject(DialogComponent, { optional: true });
     private el = inject(ElementRef);
     class = input('');
+    title = input<string>();
+    description = input<string>();
 
     classes = computed(() =>
         cn(

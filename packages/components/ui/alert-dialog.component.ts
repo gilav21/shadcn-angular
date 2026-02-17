@@ -9,6 +9,7 @@ import {
     AfterViewInit,
     ElementRef,
     effect,
+    forwardRef,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -60,9 +61,17 @@ export class AlertDialogTriggerComponent {
 @Component({
     selector: 'ui-alert-dialog-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [
+        forwardRef(() => AlertDialogHeaderComponent),
+        forwardRef(() => AlertDialogTitleComponent),
+        forwardRef(() => AlertDialogDescriptionComponent),
+        forwardRef(() => AlertDialogFooterComponent),
+        forwardRef(() => AlertDialogActionComponent),
+        forwardRef(() => AlertDialogCancelComponent),
+    ],
     template: `
     @if (alertDialog?.open()) {
-      <div 
+      <div
         class="fixed inset-0 z-50 flex items-center justify-center"
         (keydown)="onKeydown($event)"
       >
@@ -76,7 +85,21 @@ export class AlertDialogTriggerComponent {
           [attr.data-slot]="'alert-dialog-content'"
           tabindex="-1"
         >
+          @if (title()) {
+            <ui-alert-dialog-header>
+              <ui-alert-dialog-title>{{ title() }}</ui-alert-dialog-title>
+              @if (description()) {
+                <ui-alert-dialog-description>{{ description() }}</ui-alert-dialog-description>
+              }
+            </ui-alert-dialog-header>
+          }
           <ng-content />
+          @if (title()) {
+            <ui-alert-dialog-footer>
+              <ui-alert-dialog-cancel (click)="cancelClick.emit()">{{ cancelText() }}</ui-alert-dialog-cancel>
+              <ui-alert-dialog-action (click)="actionClick.emit()">{{ actionText() }}</ui-alert-dialog-action>
+            </ui-alert-dialog-footer>
+          }
         </div>
       </div>
     }
@@ -87,6 +110,12 @@ export class AlertDialogContentComponent implements AfterViewInit {
     alertDialog = inject(AlertDialogComponent, { optional: true });
     private el = inject(ElementRef);
     class = input('');
+    title = input<string>();
+    description = input<string>();
+    actionText = input('Continue');
+    cancelText = input('Cancel');
+    actionClick = output<void>();
+    cancelClick = output<void>();
 
     classes = computed(() =>
         cn(

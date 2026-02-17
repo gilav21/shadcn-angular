@@ -84,6 +84,36 @@ export const Default: Story = {
   }),
 };
 
+export const SimpleMode: Story = {
+  render: (args) => ({
+    props: args,
+    template: `
+      <ui-sheet>
+        <ui-sheet-trigger>
+          <ui-button variant="outline">Open Sheet (Simple)</ui-button>
+        </ui-sheet-trigger>
+        <ui-sheet-content
+          side="right"
+          title="Edit profile"
+          description="Make changes to your profile here. Click save when you're done."
+        >
+          <div class="grid gap-4 py-4">
+            <div class="grid grid-cols-4 items-center gap-4">
+              <ui-label for="name-s" class="text-right">Name</ui-label>
+              <ui-input id="name-s" value="Pedro Duarte" class="col-span-3" />
+            </div>
+          </div>
+          <ui-sheet-footer>
+            <ui-sheet-close>
+              <ui-button type="submit">Save changes</ui-button>
+            </ui-sheet-close>
+          </ui-sheet-footer>
+        </ui-sheet-content>
+      </ui-sheet>
+    `,
+  }),
+};
+
 export const SideInteractions: Story = {
   render: () => ({
     template: `

@@ -13,6 +13,8 @@
         "build:demo": "cd demo && npm run build",
         "dev": "cd demo && npm run start",
         "test": "vitest",
+        "test:headless": "vitest --config vitest.config.headless.ts",
+        "test:ci": "HEADLESS=1 vitest --run",
         "storybook": "npm run docs:json && ng run demo:storybook",
         "build-storybook": "npm run docs:json && ng run demo:build-storybook",
         "test-visual": "vitest --browser=chromium",

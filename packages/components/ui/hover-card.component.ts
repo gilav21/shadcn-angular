@@ -98,6 +98,14 @@ export class HoverCardTriggerComponent {
         (mouseenter)="onMouseEnter()"
         (mouseleave)="onMouseLeave()"
       >
+        @if (title()) {
+          <div class="space-y-1" [attr.data-slot]="'hover-card-simple-content'">
+            <h4 class="text-sm font-semibold">{{ title() }}</h4>
+            @if (description()) {
+              <p class="text-sm text-muted-foreground">{{ description() }}</p>
+            }
+          </div>
+        }
         <ng-content />
       </div>
     }
@@ -110,6 +118,8 @@ export class HoverCardContentComponent implements AfterViewInit {
     class = input('');
     align = input<'start' | 'center' | 'end'>('center');
     side = input<'top' | 'bottom'>('bottom');
+    title = input<string>();
+    description = input<string>();
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 

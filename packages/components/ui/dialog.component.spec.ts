@@ -264,3 +264,62 @@ describe('Dialog RTL Support', () => {
         expect(content).toBeTruthy();
     });
 });
+
+// Simple mode test host
+@Component({
+    template: `
+        <ui-dialog>
+            <ui-dialog-trigger>Open</ui-dialog-trigger>
+            <ui-dialog-content title="Simple Title" description="Simple Description">
+                <p>Body content</p>
+            </ui-dialog-content>
+        </ui-dialog>
+    `,
+    imports: [DialogComponent, DialogTriggerComponent, DialogContentComponent]
+})
+class SimpleModeTestHostComponent { }
+
+describe('Dialog Simple Mode', () => {
+    let fixture: ComponentFixture<SimpleModeTestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SimpleModeTestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SimpleModeTestHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should auto-render header with title input', async () => {
+        const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
+        dialogComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const title = fixture.debugElement.query(By.css('[data-slot="dialog-title"]'));
+        expect(title).toBeTruthy();
+        expect(title.nativeElement.textContent).toContain('Simple Title');
+    });
+
+    it('should auto-render description input', async () => {
+        const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
+        dialogComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const desc = fixture.debugElement.query(By.css('[data-slot="dialog-description"]'));
+        expect(desc).toBeTruthy();
+        expect(desc.nativeElement.textContent).toContain('Simple Description');
+    });
+
+    it('should still render projected body content', async () => {
+        const dialogComp = fixture.debugElement.query(By.directive(DialogComponent));
+        dialogComp.componentInstance.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content = fixture.debugElement.query(By.css('[data-slot="dialog-content"]'));
+        expect(content.nativeElement.textContent).toContain('Body content');
+    });
+});

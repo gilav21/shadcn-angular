@@ -9,13 +9,20 @@ import {
     ElementRef,
     OnDestroy,
     Renderer2,
+    forwardRef,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
 @Component({
     selector: 'ui-tooltip',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    imports: [forwardRef(() => TooltipContentComponent)],
+    template: `
+    <ng-content />
+    @if (content()) {
+      <ui-tooltip-content>{{ content() }}</ui-tooltip-content>
+    }
+  `,
     host: { class: 'relative inline-block' },
 })
 export class TooltipComponent {
