@@ -108,7 +108,7 @@ import { cn } from '../../lib/utils';
         </div>
       }
 
-      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" (keydown)="onTableKeydown($event)" tabindex="0">
+      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" (keydown)="onTableKeydown($event)" (click)="onTableClick()" tabindex="0">
         @if (isLoaderVisible()) {
           <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
             @if (loaderTemplate()) {
@@ -256,9 +256,10 @@ import { cn } from '../../lib/utils';
                 >
                   @for (col of enhancedColumns(); track col.accessorKey) {
                     <ui-table-cell
-                      [class]="getCellClass(col)"
+                      [class]="getCellClass(col, i)"
                       [attr.data-column]="toString(col.accessorKey)"
                       [style]="getCellStyle(col)"
+                      (click)="onCellClick(i, col, $event)"
                     >
                       @if (col.accessorKey === '_selection') {
                         <ui-checkbox 
@@ -431,6 +432,7 @@ export class DataTableComponent<T> {
   columnVisibility = model<Record<string, boolean>>({});
   columnOrder = model<string[]>([]);
   loadingTrigger = signal<DataTableLoadingTrigger>('initial');
+  focusedCell = signal<{ rowIndex: number; columnKey: string } | null>(null);
   draggedColumnKey = signal<string | null>(null);
   dropTargetColumnKey = signal<string | null>(null);
   isLoaderVisible = computed(() => this.loading() && this.shouldShowLoaderFor(this.loadingTrigger()));
@@ -718,11 +720,15 @@ export class DataTableComponent<T> {
     );
   }
 
-  getCellClass(col: any) {
+  getCellClass(col: any, rowIndex?: number) {
+    const focused = this.focusedCell();
+    const isFocused = rowIndex !== undefined && focused !== null
+      && focused.rowIndex === rowIndex && focused.columnKey === String(col.accessorKey);
     return cn(
       'bg-background whitespace-nowrap overflow-hidden text-ellipsis',
       this.showRowBorders() && 'border-b',
-      this.showColumnBorders() && 'border-r'
+      this.showColumnBorders() && 'border-r',
+      isFocused && 'ring-2 ring-primary ring-inset'
     );
   }
 
@@ -1117,6 +1123,17 @@ export class DataTableComponent<T> {
     this.downloadBlob(blob, (filename || 'export') + '.xls');
   }
 
+  async copyCellToClipboard(): Promise<void> {
+    if (!this.enableCopy()) return;
+    const focused = this.focusedCell();
+    if (!focused) return;
+    const row = this.processedData()[focused.rowIndex];
+    const col = this.enhancedColumns().find(c => String(c.accessorKey) === focused.columnKey);
+    if (row && col) {
+      await navigator.clipboard.writeText(this.getCellStringValue(row, col));
+    }
+  }
+
   async copyRowToClipboard(row: T): Promise<void> {
     if (!this.enableCopy()) return;
     const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
@@ -1143,10 +1160,33 @@ export class DataTableComponent<T> {
     await navigator.clipboard.writeText(text);
   }
 
+  onTableClick(): void {
+    this.focusedCell.set(null);
+  }
+
+  onCellClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
+    const key = String(col.accessorKey);
+    if (key === '_selection' || key === '_expander') return;
+    event.stopPropagation();
+    this.focusedCell.set({ rowIndex, columnKey: key });
+  }
+
   onTableKeydown(event: KeyboardEvent): void {
     if (!this.enableCopy()) return;
     const isCopy = (event.ctrlKey || event.metaKey) && event.key === 'c';
     if (!isCopy) return;
+
+    const focused = this.focusedCell();
+    if (focused) {
+      const row = this.processedData()[focused.rowIndex];
+      const col = this.enhancedColumns().find(c => String(c.accessorKey) === focused.columnKey);
+      if (row && col) {
+        event.preventDefault();
+        const value = this.getCellStringValue(row, col);
+        navigator.clipboard.writeText(value);
+        return;
+      }
+    }
 
     const selectedIds = this.rowSelection();
     const hasSelection = Object.keys(selectedIds).some(id => selectedIds[id]);

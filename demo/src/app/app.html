@@ -3616,16 +3616,29 @@
             A powerful table component with sorting, filtering, and pagination.
           </p>
 
+          <div class="flex items-center gap-2 mb-2">
+            <ui-button variant="outline" size="sm" (click)="clientTable.exportToCsv('payments')">
+              Export CSV
+            </ui-button>
+            <ui-button variant="outline" size="sm" (click)="clientTable.exportToExcel('payments')">
+              Export Excel
+            </ui-button>
+          </div>
           <div class="rounded-md border h-[600px] overflow-auto relative">
-            <ui-data-table [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
+            <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
               [(rowSelection)]="selection" [uiDataTableContextMenu]="tableContextMenu" />
           </div>
           <div class="text-sm text-muted-foreground">
-            Selected {{ selectionCount() }} rows.
+            Selected {{ selectionCount() }} rows. Click a cell then press Ctrl+C to copy its value.
           </div>
 
           <ui-context-menu #tableContextMenu>
             <ui-context-menu-content class="w-64">
+              <ui-context-menu-item (click)="clientTable.copyCellToClipboard()">
+                Copy Cell
+                <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+              <ui-context-menu-separator />
               <ui-context-menu-item (click)="onContextMenuAction('view', tableContextMenu.data())">
                 View Details
                 <ui-context-menu-shortcut>⌘V</ui-context-menu-shortcut>
@@ -3694,6 +3707,8 @@
             <ui-button size="sm" variant="outline" (click)="moveOpsPriorityToFront()">Move Priority Next</ui-button>
             <ui-button size="sm" variant="outline" (click)="saveOpsLayout()">Save Layout</ui-button>
             <ui-button size="sm" variant="outline" (click)="restoreOpsLayout()">Restore Layout</ui-button>
+            <ui-button size="sm" variant="outline" (click)="opsGrid.exportToCsv('incidents')">Export CSV</ui-button>
+            <ui-button size="sm" variant="outline" (click)="opsGrid.exportToExcel('incidents')">Export Excel</ui-button>
 
             <div class="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span>Loader triggers:</span>
@@ -3758,11 +3773,28 @@
               [(columnOrder)]="opsColumnOrder"
               [(columnVisibility)]="opsColumnVisibility"
               [(expandedRows)]="opsExpandedRows"
+              [uiDataTableContextMenu]="opsContextMenu"
             />
           </div>
 
+          <ui-context-menu #opsContextMenu>
+            <ui-context-menu-content class="w-56">
+              <ui-context-menu-item (click)="opsGrid.copyCellToClipboard()">
+                Copy Cell
+                <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
+              </ui-context-menu-item>
+              <ui-context-menu-separator />
+              <ui-context-menu-item (click)="opsGrid.exportToCsv('incidents')">
+                Export CSV
+              </ui-context-menu-item>
+              <ui-context-menu-item (click)="opsGrid.exportToExcel('incidents')">
+                Export Excel
+              </ui-context-menu-item>
+            </ui-context-menu-content>
+          </ui-context-menu>
+
           <div class="text-xs text-muted-foreground">
-            Showing {{ opsData().length }} of {{ opsTotal() }} incidents. Shift+Click headers to multi-sort.
+            Showing {{ opsData().length }} of {{ opsTotal() }} incidents. Click a cell then Ctrl+C to copy. Right-click for more options. Shift+Click headers to multi-sort.
           </div>
         </section>
 

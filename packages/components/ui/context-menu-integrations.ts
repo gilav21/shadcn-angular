@@ -261,6 +261,12 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
 
       const rowData = this.extractDataTableRow(row as HTMLElement);
 
+      const cell = target.closest('[data-slot="table-cell"], td');
+      const columnKey = cell?.getAttribute('data-column') || '';
+      if (this.dataTable && columnKey && columnKey !== '_selection' && columnKey !== '_expander') {
+        this.dataTable.focusedCell.set({ rowIndex: rowData.index, columnKey });
+      }
+
       this.rowContextMenu.emit({
         row: rowData.data,
         index: rowData.index,

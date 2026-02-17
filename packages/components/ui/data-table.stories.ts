@@ -673,7 +673,13 @@ export const WithContextMenu: Story = {
         },
         template: `
             <div class="h-[600px] w-full p-4">
+                <div class="flex items-center gap-2 mb-2">
+                    <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 h-8 text-sm font-medium hover:bg-accent" (click)="grid.exportToCsv('users')">Export CSV</button>
+                    <button class="inline-flex items-center justify-center rounded-md border border-input bg-background px-3 h-8 text-sm font-medium hover:bg-accent" (click)="grid.exportToExcel('users')">Export Excel</button>
+                </div>
+                <p class="text-sm text-muted-foreground mb-2">Click a cell then Ctrl+C to copy. Right-click for context menu.</p>
                 <ui-data-table
+                    #grid
                     [data]="data"
                     [columns]="columns"
                     [showToolbar]="showToolbar"
@@ -683,6 +689,11 @@ export const WithContextMenu: Story = {
 
                 <ui-context-menu #tableContextMenu>
                     <ui-context-menu-content class="w-64">
+                        <ui-context-menu-item (click)="grid.copyCellToClipboard()">
+                            Copy Cell
+                            <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
+                        </ui-context-menu-item>
+                        <ui-context-menu-separator />
                         <ui-context-menu-item (click)="onContextMenuAction('view', tableContextMenu.data())">
                             View Details
                             <ui-context-menu-shortcut>⌘V</ui-context-menu-shortcut>
