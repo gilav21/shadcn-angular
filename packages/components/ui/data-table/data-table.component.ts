@@ -12,9 +12,10 @@ import {
   ElementRef,
   inject,
 } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { isRtl } from '../../lib/utils';
+import { generateXlsx } from '../../lib/xlsx';
 import {
   TableComponent,
   TableHeaderComponent,
@@ -38,6 +39,7 @@ import {
   DataTableColumnState,
   DataTableLoadingTrigger,
   DataTableLoadingVisibility,
+  DataTableExportOptions,
 } from './data-table.types';
 import { cn } from '../../lib/utils';
 
@@ -107,7 +109,7 @@ import { cn } from '../../lib/utils';
         </div>
       }
 
-      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full">
+      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" (keydown)="onTableKeydown($event)" (click)="onTableClick()" tabindex="0">
         @if (isLoaderVisible()) {
           <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
             @if (loaderTemplate()) {
@@ -125,6 +127,14 @@ import { cn } from '../../lib/utils';
                 <span>Loading...</span>
               </div>
             }
+          </div>
+        }
+        @if (exporting()) {
+          <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+            <div class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+              <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"></span>
+              <span>Exporting...</span>
+            </div>
           </div>
         }
         <ui-table>
@@ -255,9 +265,10 @@ import { cn } from '../../lib/utils';
                 >
                   @for (col of enhancedColumns(); track col.accessorKey) {
                     <ui-table-cell
-                      [class]="getCellClass(col)"
+                      [class]="getCellClass(col, i)"
                       [attr.data-column]="toString(col.accessorKey)"
                       [style]="getCellStyle(col)"
+                      (click)="onCellClick(i, col, $event)"
                     >
                       @if (col.accessorKey === '_selection') {
                         <ui-checkbox 
@@ -365,6 +376,7 @@ import { cn } from '../../lib/utils';
   `,
 })
 export class DataTableComponent<T> {
+  private _document = inject(DOCUMENT);
   private _el = inject(ElementRef);
   isRtl() {
     return isRtl(this._el.nativeElement);
@@ -406,6 +418,7 @@ export class DataTableComponent<T> {
   enableRowSelection = input(false);
   rowSelection = model<Record<string, boolean>>({});
   getRowId = input<(row: T) => string>((row: any) => row.id ?? String(JSON.stringify(row)));
+  enableCopy = input(true);
   enableRowExpansion = input(false);
   expandedRows = model<Record<string, boolean>>({});
   rowDetailTemplate = input<TemplateRef<unknown>>();
@@ -416,9 +429,12 @@ export class DataTableComponent<T> {
   enableColumnReorder = input(false);
   columnResize = output<ColumnResizeEvent>();
 
+  exportDataProvider = input<(() => Promise<T[]>) | undefined>(undefined);
+
   emptyStateComponent = input<Type<unknown>>();
   emptyStateComponentInputs = input<Record<string, unknown>>({});
 
+  exporting = signal(false);
   globalFilter = signal('');
   columnFilters = signal<Record<string, any>>({});
   sortState = signal<SortState>({ column: '', direction: null });
@@ -428,6 +444,7 @@ export class DataTableComponent<T> {
   columnVisibility = model<Record<string, boolean>>({});
   columnOrder = model<string[]>([]);
   loadingTrigger = signal<DataTableLoadingTrigger>('initial');
+  focusedCell = signal<{ rowIndex: number; columnKey: string } | null>(null);
   draggedColumnKey = signal<string | null>(null);
   dropTargetColumnKey = signal<string | null>(null);
   isLoaderVisible = computed(() => this.loading() && this.shouldShowLoaderFor(this.loadingTrigger()));
@@ -715,11 +732,15 @@ export class DataTableComponent<T> {
     );
   }
 
-  getCellClass(col: any) {
+  getCellClass(col: any, rowIndex?: number) {
+    const focused = this.focusedCell();
+    const isFocused = rowIndex !== undefined && focused !== null
+      && focused.rowIndex === rowIndex && focused.columnKey === String(col.accessorKey);
     return cn(
       'bg-background whitespace-nowrap overflow-hidden text-ellipsis',
       this.showRowBorders() && 'border-b',
-      this.showColumnBorders() && 'border-r'
+      this.showColumnBorders() && 'border-r',
+      isFocused && 'ring-1 ring-ring/40 ring-inset'
     );
   }
 
@@ -1042,6 +1063,169 @@ export class DataTableComponent<T> {
     }
 
     return (row as any)[key];
+  }
+
+  getCellStringValue(row: T, column: ColumnDef<T>): string {
+    if (column.cell) {
+      return column.cell(row);
+    }
+    const value = this.getCellValue(row, column.accessorKey, column);
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'object' && typeof value.toString === 'function' && value.toString !== Object.prototype.toString) {
+      return value.toString();
+    }
+    return String(value);
+  }
+
+  getExportData(options?: DataTableExportOptions, customRows?: T[]): string[][] {
+    const includeHeaders = options?.includeHeaders !== false;
+    const onlyVisible = options?.onlyVisible !== false;
+    const onlyFiltered = options?.onlyFiltered !== false;
+
+    const columns = onlyVisible
+      ? this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander')
+      : this.columns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+
+    const rows = customRows ?? (onlyFiltered ? this.filteredData() : this.data());
+    const result: string[][] = [];
+
+    if (includeHeaders) {
+      result.push(columns.map(col => col.header));
+    }
+
+    for (const row of rows) {
+      result.push(columns.map(col => this.getCellStringValue(row, col)));
+    }
+
+    return result;
+  }
+
+  private async resolveExportRows(customData?: T[]): Promise<T[]> {
+    if (customData) return customData;
+    const provider = this.exportDataProvider();
+    if (provider) return provider();
+    return this.filteredData();
+  }
+
+  async exportToCsv(filename?: string, customData?: T[]): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const rows = await this.resolveExportRows(customData);
+      const data = this.getExportData(undefined, rows);
+      const csvContent = data.map(row =>
+        row.map(cell => {
+          if (cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
+            return '"' + cell.replace(/"/g, '""') + '"';
+          }
+          return cell;
+        }).join(',')
+      ).join('\r\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      this.downloadBlob(blob, (filename || 'export') + '.csv');
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
+  async exportToExcel(filename?: string, customData?: T[]): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const rows = await this.resolveExportRows(customData);
+      const data = this.getExportData(undefined, rows);
+      const xlsxBytes = generateXlsx(data, { boldFirstRow: true });
+      const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      this.downloadBlob(blob, (filename || 'export') + '.xlsx');
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
+  async copyCellToClipboard(): Promise<void> {
+    if (!this.enableCopy()) return;
+    const focused = this.focusedCell();
+    if (!focused) return;
+    const row = this.processedData()[focused.rowIndex];
+    const col = this.enhancedColumns().find(c => String(c.accessorKey) === focused.columnKey);
+    if (row && col) {
+      await navigator.clipboard.writeText(this.getCellStringValue(row, col));
+    }
+  }
+
+  async copyRowToClipboard(row: T): Promise<void> {
+    if (!this.enableCopy()) return;
+    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+    const values = columns.map(col => this.getCellStringValue(row, col));
+    await navigator.clipboard.writeText(values.join('\t'));
+  }
+
+  async copySelectedToClipboard(): Promise<void> {
+    if (!this.enableCopy()) return;
+    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+    const selectedIds = this.rowSelection();
+    const rows = this.filteredData().filter(row => selectedIds[this.getRowId()(row)]);
+    if (rows.length === 0) return;
+
+    const headerLine = columns.map(col => col.header).join('\t');
+    const dataLines = rows.map(row => columns.map(col => this.getCellStringValue(row, col)).join('\t'));
+    await navigator.clipboard.writeText([headerLine, ...dataLines].join('\n'));
+  }
+
+  async copyAllToClipboard(): Promise<void> {
+    if (!this.enableCopy()) return;
+    const data = this.getExportData();
+    const text = data.map(row => row.join('\t')).join('\n');
+    await navigator.clipboard.writeText(text);
+  }
+
+  onTableClick(): void {
+    this.focusedCell.set(null);
+  }
+
+  onCellClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
+    const key = String(col.accessorKey);
+    if (key === '_selection' || key === '_expander') return;
+    event.stopPropagation();
+    this.focusedCell.set({ rowIndex, columnKey: key });
+  }
+
+  onTableKeydown(event: KeyboardEvent): void {
+    if (!this.enableCopy()) return;
+    const isCopy = (event.ctrlKey || event.metaKey) && event.key === 'c';
+    if (!isCopy) return;
+
+    const focused = this.focusedCell();
+    if (focused) {
+      const row = this.processedData()[focused.rowIndex];
+      const col = this.enhancedColumns().find(c => String(c.accessorKey) === focused.columnKey);
+      if (row && col) {
+        event.preventDefault();
+        const value = this.getCellStringValue(row, col);
+        navigator.clipboard.writeText(value);
+        return;
+      }
+    }
+
+    const selectedIds = this.rowSelection();
+    const hasSelection = Object.keys(selectedIds).some(id => selectedIds[id]);
+    if (hasSelection) {
+      event.preventDefault();
+      this.copySelectedToClipboard();
+    }
+  }
+
+  private downloadBlob(blob: Blob, filename: string): void {
+    const url = URL.createObjectURL(blob);
+    const a = this._document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.style.display = 'none';
+    this._document.body.appendChild(a);
+    a.click();
+    this._document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   }
 
   private applyColumnOrder<U extends { accessorKey: string | keyof T }>(columns: U[]): U[] {

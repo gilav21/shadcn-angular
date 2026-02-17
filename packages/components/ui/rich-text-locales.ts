@@ -27,6 +27,7 @@ export interface RichTextLocale {
         alignLeft: string;
         alignCenter: string;
         alignRight: string;
+        insertTable: string;
     };
 
     link: {
@@ -112,6 +113,24 @@ export interface RichTextLocale {
         selectTag: string;
     };
 
+    table: {
+        insertTable: string;
+        rows: string;
+        columns: string;
+        insert: string;
+        addRowAbove: string;
+        addRowBelow: string;
+        addColumnLeft: string;
+        addColumnRight: string;
+        deleteRow: string;
+        deleteColumn: string;
+        deleteTable: string;
+        mergeCells: string;
+        splitCell: string;
+        toggleHeaderRow: string;
+        gridLabel: string;
+    };
+
     imageResizer: {
         inline: string;
         floatLeft: string;
@@ -164,6 +183,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Align Left',
             alignCenter: 'Align Center',
             alignRight: 'Align Right',
+            insertTable: 'Insert Table',
         },
         link: {
             text: 'Link Text',
@@ -241,6 +261,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Select a user',
             selectTag: 'Select a tag',
         },
+        table: {
+            insertTable: 'Insert Table',
+            rows: 'Rows',
+            columns: 'Columns',
+            insert: 'Insert Table',
+            addRowAbove: 'Insert Row Above',
+            addRowBelow: 'Insert Row Below',
+            addColumnLeft: 'Insert Column Left',
+            addColumnRight: 'Insert Column Right',
+            deleteRow: 'Delete Row',
+            deleteColumn: 'Delete Column',
+            deleteTable: 'Delete Table',
+            mergeCells: 'Merge Cells',
+            splitCell: 'Split Cell',
+            toggleHeaderRow: 'Toggle Header Row',
+            gridLabel: '{rows} x {cols} table',
+        },
         imageResizer: {
             inline: 'Inline with text',
             floatLeft: 'Float left',
@@ -286,6 +323,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'יישור לשמאל',
             alignCenter: 'יישור למרכז',
             alignRight: 'יישור לימין',
+            insertTable: 'הוספת טבלה',
         },
         link: {
             text: 'טקסט הקישור',
@@ -363,6 +401,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'בחירת משתמש',
             selectTag: 'בחירת תגית',
         },
+        table: {
+            insertTable: 'הוספת טבלה',
+            rows: 'שורות',
+            columns: 'עמודות',
+            insert: 'הוספת טבלה',
+            addRowAbove: 'הוספת שורה מעל',
+            addRowBelow: 'הוספת שורה מתחת',
+            addColumnLeft: 'הוספת עמודה משמאל',
+            addColumnRight: 'הוספת עמודה מימין',
+            deleteRow: 'מחיקת שורה',
+            deleteColumn: 'מחיקת עמודה',
+            deleteTable: 'מחיקת טבלה',
+            mergeCells: 'מיזוג תאים',
+            splitCell: 'פיצול תא',
+            toggleHeaderRow: 'שינוי שורת כותרת',
+            gridLabel: 'טבלה {rows} x {cols}',
+        },
         imageResizer: {
             inline: 'בתוך הטקסט',
             floatLeft: 'הצמדה לשמאל',
@@ -408,6 +463,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'محاذاة لليسار',
             alignCenter: 'محاذاة للوسط',
             alignRight: 'محاذاة لليمين',
+            insertTable: 'إدراج جدول',
         },
         link: {
             text: 'نص الرابط',
@@ -485,6 +541,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'اختيار مستخدم',
             selectTag: 'اختيار وسم',
         },
+        table: {
+            insertTable: 'إدراج جدول',
+            rows: 'صفوف',
+            columns: 'أعمدة',
+            insert: 'إدراج جدول',
+            addRowAbove: 'إدراج صف أعلاه',
+            addRowBelow: 'إدراج صف أسفله',
+            addColumnLeft: 'إدراج عمود لليسار',
+            addColumnRight: 'إدراج عمود لليمين',
+            deleteRow: 'حذف الصف',
+            deleteColumn: 'حذف العمود',
+            deleteTable: 'حذف الجدول',
+            mergeCells: 'دمج الخلايا',
+            splitCell: 'تقسيم الخلية',
+            toggleHeaderRow: 'تبديل صف العنوان',
+            gridLabel: 'جدول {rows} × {cols}',
+        },
         imageResizer: {
             inline: 'داخل النص',
             floatLeft: 'تعويم لليسار',
@@ -530,6 +603,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Linksbündig',
             alignCenter: 'Zentriert',
             alignRight: 'Rechtsbündig',
+            insertTable: 'Tabelle einfügen',
         },
         link: {
             text: 'Linktext',
@@ -607,6 +681,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Benutzer auswählen',
             selectTag: 'Tag auswählen',
         },
+        table: {
+            insertTable: 'Tabelle einfügen',
+            rows: 'Zeilen',
+            columns: 'Spalten',
+            insert: 'Tabelle einfügen',
+            addRowAbove: 'Zeile darüber einfügen',
+            addRowBelow: 'Zeile darunter einfügen',
+            addColumnLeft: 'Spalte links einfügen',
+            addColumnRight: 'Spalte rechts einfügen',
+            deleteRow: 'Zeile löschen',
+            deleteColumn: 'Spalte löschen',
+            deleteTable: 'Tabelle löschen',
+            mergeCells: 'Zellen verbinden',
+            splitCell: 'Zelle teilen',
+            toggleHeaderRow: 'Kopfzeile umschalten',
+            gridLabel: 'Tabelle {rows} x {cols}',
+        },
         imageResizer: {
             inline: 'Im Text',
             floatLeft: 'Links umfließen',
@@ -652,6 +743,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Aligner à gauche',
             alignCenter: 'Centrer',
             alignRight: 'Aligner à droite',
+            insertTable: 'Insérer un tableau',
         },
         link: {
             text: 'Texte du lien',
@@ -729,6 +821,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Sélectionner un utilisateur',
             selectTag: 'Sélectionner un tag',
         },
+        table: {
+            insertTable: 'Insérer un tableau',
+            rows: 'Lignes',
+            columns: 'Colonnes',
+            insert: 'Insérer le tableau',
+            addRowAbove: 'Insérer une ligne au-dessus',
+            addRowBelow: 'Insérer une ligne en dessous',
+            addColumnLeft: 'Insérer une colonne à gauche',
+            addColumnRight: 'Insérer une colonne à droite',
+            deleteRow: 'Supprimer la ligne',
+            deleteColumn: 'Supprimer la colonne',
+            deleteTable: 'Supprimer le tableau',
+            mergeCells: 'Fusionner les cellules',
+            splitCell: 'Diviser la cellule',
+            toggleHeaderRow: 'Basculer la ligne d\'en-tête',
+            gridLabel: 'Tableau {rows} x {cols}',
+        },
         imageResizer: {
             inline: 'Dans le texte',
             floatLeft: 'Flottant à gauche',
@@ -774,6 +883,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Alinear a la izquierda',
             alignCenter: 'Centrar',
             alignRight: 'Alinear a la derecha',
+            insertTable: 'Insertar tabla',
         },
         link: {
             text: 'Texto del enlace',
@@ -851,6 +961,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Seleccionar un usuario',
             selectTag: 'Seleccionar una etiqueta',
         },
+        table: {
+            insertTable: 'Insertar tabla',
+            rows: 'Filas',
+            columns: 'Columnas',
+            insert: 'Insertar tabla',
+            addRowAbove: 'Insertar fila arriba',
+            addRowBelow: 'Insertar fila abajo',
+            addColumnLeft: 'Insertar columna a la izquierda',
+            addColumnRight: 'Insertar columna a la derecha',
+            deleteRow: 'Eliminar fila',
+            deleteColumn: 'Eliminar columna',
+            deleteTable: 'Eliminar tabla',
+            mergeCells: 'Combinar celdas',
+            splitCell: 'Dividir celda',
+            toggleHeaderRow: 'Alternar fila de encabezado',
+            gridLabel: 'Tabla de {rows} x {cols}',
+        },
         imageResizer: {
             inline: 'En línea con el texto',
             floatLeft: 'Flotar a la izquierda',
@@ -896,6 +1023,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: '左揃え',
             alignCenter: '中央揃え',
             alignRight: '右揃え',
+            insertTable: 'テーブルを挿入',
         },
         link: {
             text: 'リンクテキスト',
@@ -973,6 +1101,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'ユーザーを選択',
             selectTag: 'タグを選択',
         },
+        table: {
+            insertTable: 'テーブルを挿入',
+            rows: '行',
+            columns: '列',
+            insert: 'テーブルを挿入',
+            addRowAbove: '上に行を挿入',
+            addRowBelow: '下に行を挿入',
+            addColumnLeft: '左に列を挿入',
+            addColumnRight: '右に列を挿入',
+            deleteRow: '行を削除',
+            deleteColumn: '列を削除',
+            deleteTable: 'テーブルを削除',
+            mergeCells: 'セルを結合',
+            splitCell: 'セルを分割',
+            toggleHeaderRow: 'ヘッダー行を切り替え',
+            gridLabel: '{rows} x {cols} テーブル',
+        },
         imageResizer: {
             inline: 'テキストと同列',
             floatLeft: '左に回り込み',
@@ -1018,6 +1163,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: '左对齐',
             alignCenter: '居中对齐',
             alignRight: '右对齐',
+            insertTable: '插入表格',
         },
         link: {
             text: '链接文字',
@@ -1095,6 +1241,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: '选择用户',
             selectTag: '选择标签',
         },
+        table: {
+            insertTable: '插入表格',
+            rows: '行',
+            columns: '列',
+            insert: '插入表格',
+            addRowAbove: '在上方插入行',
+            addRowBelow: '在下方插入行',
+            addColumnLeft: '在左侧插入列',
+            addColumnRight: '在右侧插入列',
+            deleteRow: '删除行',
+            deleteColumn: '删除列',
+            deleteTable: '删除表格',
+            mergeCells: '合并单元格',
+            splitCell: '拆分单元格',
+            toggleHeaderRow: '切换表头行',
+            gridLabel: '{rows} x {cols} 表格',
+        },
         imageResizer: {
             inline: '与文字内联',
             floatLeft: '左浮动',
@@ -1140,6 +1303,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'По левому краю',
             alignCenter: 'По центру',
             alignRight: 'По правому краю',
+            insertTable: 'Вставить таблицу',
         },
         link: {
             text: 'Текст ссылки',
@@ -1217,6 +1381,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Выбрать пользователя',
             selectTag: 'Выбрать тег',
         },
+        table: {
+            insertTable: 'Вставить таблицу',
+            rows: 'Строки',
+            columns: 'Столбцы',
+            insert: 'Вставить таблицу',
+            addRowAbove: 'Вставить строку выше',
+            addRowBelow: 'Вставить строку ниже',
+            addColumnLeft: 'Вставить столбец слева',
+            addColumnRight: 'Вставить столбец справа',
+            deleteRow: 'Удалить строку',
+            deleteColumn: 'Удалить столбец',
+            deleteTable: 'Удалить таблицу',
+            mergeCells: 'Объединить ячейки',
+            splitCell: 'Разделить ячейку',
+            toggleHeaderRow: 'Переключить строку заголовка',
+            gridLabel: 'Таблица {rows} x {cols}',
+        },
         imageResizer: {
             inline: 'В тексте',
             floatLeft: 'Обтекание слева',
@@ -1262,6 +1443,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignLeft: 'Alinhar à esquerda',
             alignCenter: 'Centralizar',
             alignRight: 'Alinhar à direita',
+            insertTable: 'Inserir tabela',
         },
         link: {
             text: 'Texto do link',
@@ -1338,6 +1520,23 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'Nenhuma tag encontrada',
             selectUser: 'Selecionar um usuário',
             selectTag: 'Selecionar uma tag',
+        },
+        table: {
+            insertTable: 'Inserir tabela',
+            rows: 'Linhas',
+            columns: 'Colunas',
+            insert: 'Inserir tabela',
+            addRowAbove: 'Inserir linha acima',
+            addRowBelow: 'Inserir linha abaixo',
+            addColumnLeft: 'Inserir coluna à esquerda',
+            addColumnRight: 'Inserir coluna à direita',
+            deleteRow: 'Excluir linha',
+            deleteColumn: 'Excluir coluna',
+            deleteTable: 'Excluir tabela',
+            mergeCells: 'Mesclar células',
+            splitCell: 'Dividir célula',
+            toggleHeaderRow: 'Alternar linha de cabeçalho',
+            gridLabel: 'Tabela {rows} x {cols}',
         },
         imageResizer: {
             inline: 'Em linha com o texto',

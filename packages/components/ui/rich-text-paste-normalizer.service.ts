@@ -8,6 +8,7 @@ export type PasteSource =
     | 'google-docs'
     | 'apple-pages'
     | 'libreoffice'
+    | 'excel'
     | 'markdown'
     | 'html'
     | 'plain-text';
@@ -33,6 +34,8 @@ export class RichTextPasteNormalizerService {
         const source = this.detectSource(html, text);
 
         switch (source) {
+            case 'excel':
+                return this.normalizeExcel(html!);
             case 'msword':
             case 'outlook':
                 return this.normalizeOffice(html!, source);
@@ -55,6 +58,7 @@ export class RichTextPasteNormalizerService {
      */
     detectSource(html: string | null, text: string): PasteSource {
         if (html && html.trim().length > 0) {
+            if (this.isExcelHtml(html)) return 'excel';
             if (this.isOutlookHtml(html)) return 'outlook';
             if (this.isMsWordHtml(html)) return 'msword';
             if (this.isGoogleDocsHtml(html)) return 'google-docs';
@@ -104,6 +108,13 @@ export class RichTextPasteNormalizerService {
     private isLibreOfficeHtml(html: string): boolean {
         return /content="LibreOffice/i.test(html) ||
             /content="OpenOffice/i.test(html);
+    }
+
+    private isExcelHtml(html: string): boolean {
+        return /xmlns:x\s*=\s*["']urn:schemas-microsoft-com:office:excel["']/i.test(html) ||
+            /<meta\s[^>]*name\s*=\s*["']?Generator["']?\s[^>]*content\s*=\s*["']?Microsoft\s+Excel/i.test(html) ||
+            /<meta\s[^>]*content\s*=\s*["']?Microsoft\s+Excel["']?\s[^>]*name\s*=\s*["']?Generator/i.test(html) ||
+            (/<google-sheets-html-origin/i.test(html) && /<table/i.test(html));
     }
 
     private looksLikeMarkdown(text: string): boolean {
@@ -744,6 +755,90 @@ export class RichTextPasteNormalizerService {
     // GENERIC HTML NORMALIZER
     // =========================================================================
 
+    private normalizeExcel(html: string): string {
+        const container = this.parseToContainer(html);
+
+        const googleSheetsOrigin = container.querySelectorAll('google-sheets-html-origin');
+        googleSheetsOrigin.forEach(el => this.unwrapElement(el as HTMLElement));
+
+        this.walkElements(container, el => {
+            if (el.tagName && (el.tagName.startsWith('X:') || el.tagName.toLowerCase().startsWith('x:') ||
+                el.tagName.startsWith('V:') || el.tagName.toLowerCase().startsWith('v:') ||
+                el.tagName.startsWith('O:') || el.tagName.toLowerCase().startsWith('o:'))) {
+                el.remove();
+            }
+        });
+
+        const styleElements = container.querySelectorAll('style');
+        styleElements.forEach(el => el.remove());
+
+        const comments = this.getConditionalCommentNodes(container);
+        comments.forEach(node => node.parentNode?.removeChild(node));
+
+        const tables = container.querySelectorAll('table');
+        for (const table of Array.from(tables)) {
+            const cols = table.querySelectorAll('col');
+            const colWidths: string[] = [];
+            cols.forEach(col => {
+                const width = col.getAttribute('width') || col.style.width;
+                colWidths.push(width || '');
+            });
+
+            table.querySelectorAll('colgroup').forEach(cg => cg.remove());
+
+            if (colWidths.some(w => !!w)) {
+                const rows = table.querySelectorAll('tr');
+                for (const row of Array.from(rows)) {
+                    const cells = row.querySelectorAll('td, th');
+                    cells.forEach((cell, i) => {
+                        if (colWidths[i]) {
+                            const existingWidth = (cell as HTMLElement).style.width;
+                            if (!existingWidth) {
+                                (cell as HTMLElement).style.width = colWidths[i].includes('px') ? colWidths[i] : colWidths[i] + 'px';
+                            }
+                        }
+                    });
+                }
+            }
+        }
+
+        this.walkElements(container, el => {
+            const attrs = Array.from(el.attributes);
+            for (const attr of attrs) {
+                if (attr.name.startsWith('data-sheets-')) {
+                    el.removeAttribute(attr.name);
+                }
+            }
+        });
+
+        this.mapOfficeStyles(container);
+        this.convertStylesToSemanticElements(container);
+
+        this.walkElements(container, el => {
+            if ((el.tagName === 'TD' || el.tagName === 'TH') && !el.innerHTML.trim()) {
+                el.innerHTML = '<br>';
+            }
+        });
+
+        this.removeEmptyElements(container);
+        this.stripClassAndIdAttributes(container);
+
+        return container.innerHTML;
+    }
+
+    private getConditionalCommentNodes(container: HTMLElement): Node[] {
+        const result: Node[] = [];
+        const walker = this.document.createTreeWalker(container, NodeFilter.SHOW_COMMENT);
+        let node: Node | null;
+        while ((node = walker.nextNode())) {
+            const comment = node as Comment;
+            if (/^\[if\s/i.test(comment.data) || /^\[endif\]/i.test(comment.data)) {
+                result.push(node);
+            }
+        }
+        return result;
+    }
+
     private normalizeGenericHtml(html: string): string {
         const container = this.parseToContainer(html);
 
@@ -844,9 +939,14 @@ export class RichTextPasteNormalizerService {
 
     private structurePdfText(text: string): string {
         const lines = text.split('\n');
+        const filtered = lines.filter(line => {
+            const trimmed = line.trim();
+            if (/^\d+$/.test(trimmed) && trimmed.length <= 4) return false;
+            return true;
+        });
         const result: string[] = [];
 
-        const nonEmptyLengths = lines
+        const nonEmptyLengths = filtered
             .map(l => l.trim().length)
             .filter(len => len > 0)
             .sort((a, b) => a - b);
@@ -855,8 +955,8 @@ export class RichTextPasteNormalizerService {
             : 80;
 
         let i = 0;
-        while (i < lines.length) {
-            const line = lines[i];
+        while (i < filtered.length) {
+            const line = filtered[i];
             const trimmed = line.trim();
 
             if (trimmed === '') {
@@ -865,7 +965,7 @@ export class RichTextPasteNormalizerService {
                 continue;
             }
 
-            if (this.isPdfHeading(trimmed, lines, i)) {
+            if (this.isPdfHeading(trimmed, filtered, i)) {
                 if (result.length > 0 && result[result.length - 1] !== '') {
                     result.push('');
                 }
@@ -887,10 +987,10 @@ export class RichTextPasteNormalizerService {
             let paragraph = trimmed;
             let lastLineLen = trimmed.length;
             i++;
-            while (i < lines.length) {
-                const nextLine = lines[i].trim();
+            while (i < filtered.length) {
+                const nextLine = filtered[i].trim();
                 if (nextLine === '') break;
-                if (this.isPdfHeading(nextLine, lines, i)) break;
+                if (this.isPdfHeading(nextLine, filtered, i)) break;
                 if (this.isPdfListItem(nextLine)) break;
                 if (this.isPdfLineBreak(paragraph, nextLine, lastLineLen, columnWidth)) break;
                 paragraph += ' ' + nextLine;
@@ -898,7 +998,7 @@ export class RichTextPasteNormalizerService {
                 i++;
             }
             result.push(paragraph);
-            if (i < lines.length && lines[i].trim() !== '') {
+            if (i < filtered.length && filtered[i].trim() !== '') {
                 result.push('');
             }
         }

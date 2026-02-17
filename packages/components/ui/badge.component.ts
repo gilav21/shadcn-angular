@@ -49,6 +49,10 @@ export class BadgeComponent {
     classes = computed(() =>
         cn(badgeVariants({ variant: this.variant() }), this.class())
     );
+
+    toString(): string {
+        return this.label() ?? '';
+    }
 }
 
 export { badgeVariants };

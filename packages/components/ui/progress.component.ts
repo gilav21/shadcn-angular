@@ -47,4 +47,8 @@ export class ProgressComponent {
       this.class()
     )
   );
+
+  toString(): string {
+    return String(this.value());
+  }
 }

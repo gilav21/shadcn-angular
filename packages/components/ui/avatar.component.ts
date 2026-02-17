@@ -59,6 +59,10 @@ export class AvatarComponent {
     onError() {
         this.status.set('error');
     }
+
+    toString(): string {
+        return this.fallback() || this.alt() || '';
+    }
 }
 
 

@@ -73,3 +73,9 @@ export interface DataTableState<T> {
     pagination: PaginationState;
     globalFilter: string;
 }
+
+export interface DataTableExportOptions {
+    includeHeaders?: boolean;
+    onlyVisible?: boolean;
+    onlyFiltered?: boolean;
+}
