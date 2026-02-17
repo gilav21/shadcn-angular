@@ -15,3 +15,27 @@ export function cn(...inputs: ClassValue[]): string {
 export function isRtl(el: HTMLElement): boolean {
     return getComputedStyle(el).direction === 'rtl';
 }
+
+/**
+ * Returns the bounding rect of the nearest ancestor that clips overflow
+ * (overflow: hidden | auto | scroll | clip on either axis).
+ * Falls back to the full viewport rect when no such ancestor exists.
+ *
+ * Use this instead of `window.innerWidth/innerHeight` when calculating
+ * popup collision boundaries so that containers like sidebars or
+ * fixed-height scroll panes are respected.
+ */
+export function getClippingRect(element: HTMLElement): DOMRect {
+    let parent = element.parentElement;
+    while (parent && parent !== document.documentElement) {
+        const style = window.getComputedStyle(parent);
+        if (
+            /^(hidden|auto|scroll|clip)$/.test(style.overflowX) ||
+            /^(hidden|auto|scroll|clip)$/.test(style.overflowY)
+        ) {
+            return parent.getBoundingClientRect();
+        }
+        parent = parent.parentElement;
+    }
+    return new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+}
