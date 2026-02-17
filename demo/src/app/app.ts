@@ -1214,37 +1214,10 @@ export class AppComponent {
   private loadOpsData() {
     this.opsLoading.set(true);
 
-    const source = this.opsSource();
-    const filter = this.opsFilter().toLowerCase();
-    const sorts = this.opsMultiSort().length > 0 ? this.opsMultiSort() : (this.opsSort().direction ? [this.opsSort()] : []);
     const { pageIndex, pageSize } = this.opsPagination();
 
     of(null).pipe(delay(650)).subscribe(() => {
-      let rows = source;
-
-      if (filter) {
-        rows = rows.filter(row =>
-          [row.id, row.account, row.service, row.owner, row.status, row.summary, row.tags.join(' ')]
-            .join(' ')
-            .toLowerCase()
-            .includes(filter)
-        );
-      }
-
-      if (sorts.length > 0) {
-        rows = [...rows].sort((a, b) => {
-          for (const sort of sorts) {
-            const key = sort.column as keyof OpsTicket;
-            const direction = sort.direction === 'desc' ? -1 : 1;
-            const aVal = a[key];
-            const bVal = b[key];
-            if (aVal === bVal) continue;
-            return (aVal! > bVal! ? 1 : -1) * direction;
-          }
-          return 0;
-        });
-      }
-
+      const rows = this.getFilteredSortedOpsData();
       const total = rows.length;
       const start = pageIndex * pageSize;
       const paged = rows.slice(start, start + pageSize);
@@ -1254,6 +1227,44 @@ export class AppComponent {
       this.opsLoading.set(false);
     });
   }
+
+  private getFilteredSortedOpsData(): OpsTicket[] {
+    const source = this.opsSource();
+    const filter = this.opsFilter().toLowerCase();
+    const sorts = this.opsMultiSort().length > 0 ? this.opsMultiSort() : (this.opsSort().direction ? [this.opsSort()] : []);
+
+    let rows = source;
+
+    if (filter) {
+      rows = rows.filter(row =>
+        [row.id, row.account, row.service, row.owner, row.status, row.summary, row.tags.join(' ')]
+          .join(' ')
+          .toLowerCase()
+          .includes(filter)
+      );
+    }
+
+    if (sorts.length > 0) {
+      rows = [...rows].sort((a, b) => {
+        for (const sort of sorts) {
+          const key = sort.column as keyof OpsTicket;
+          const direction = sort.direction === 'desc' ? -1 : 1;
+          const aVal = a[key];
+          const bVal = b[key];
+          if (aVal === bVal) continue;
+          return (aVal! > bVal! ? 1 : -1) * direction;
+        }
+        return 0;
+      });
+    }
+
+    return rows;
+  }
+
+  opsExportProvider = async (): Promise<OpsTicket[]> => {
+    await new Promise(resolve => setTimeout(resolve, 400));
+    return this.getFilteredSortedOpsData();
+  };
 
   private createOpsDataset() {
     const accounts = ['Acme Retail', 'Nova Bank', 'Helios Health', 'Orbit Logistics', 'Sierra Energy'];

@@ -129,6 +129,14 @@ import { cn } from '../../lib/utils';
             }
           </div>
         }
+        @if (exporting()) {
+          <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+            <div class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
+              <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"></span>
+              <span>Exporting...</span>
+            </div>
+          </div>
+        }
         <ui-table>
           <ui-table-header class="bg-background">
             <ui-table-row>
@@ -421,9 +429,12 @@ export class DataTableComponent<T> {
   enableColumnReorder = input(false);
   columnResize = output<ColumnResizeEvent>();
 
+  exportDataProvider = input<(() => Promise<T[]>) | undefined>(undefined);
+
   emptyStateComponent = input<Type<unknown>>();
   emptyStateComponentInputs = input<Record<string, unknown>>({});
 
+  exporting = signal(false);
   globalFilter = signal('');
   columnFilters = signal<Record<string, any>>({});
   sortState = signal<SortState>({ column: '', direction: null });
@@ -1066,7 +1077,7 @@ export class DataTableComponent<T> {
     return String(value);
   }
 
-  getExportData(options?: DataTableExportOptions): string[][] {
+  getExportData(options?: DataTableExportOptions, customRows?: T[]): string[][] {
     const includeHeaders = options?.includeHeaders !== false;
     const onlyVisible = options?.onlyVisible !== false;
     const onlyFiltered = options?.onlyFiltered !== false;
@@ -1075,7 +1086,7 @@ export class DataTableComponent<T> {
       ? this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander')
       : this.columns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
 
-    const rows = onlyFiltered ? this.filteredData() : this.data();
+    const rows = customRows ?? (onlyFiltered ? this.filteredData() : this.data());
     const result: string[][] = [];
 
     if (includeHeaders) {
@@ -1089,28 +1100,47 @@ export class DataTableComponent<T> {
     return result;
   }
 
-  exportToCsv(filename?: string): void {
-    const data = this.getExportData();
-    const csvContent = data.map(row =>
-      row.map(cell => {
-        if (cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
-          return '"' + cell.replace(/"/g, '""') + '"';
-        }
-        return cell;
-      }).join(',')
-    ).join('\r\n');
-
-    const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-    this.downloadBlob(blob, (filename || 'export') + '.csv');
+  private async resolveExportRows(customData?: T[]): Promise<T[]> {
+    if (customData) return customData;
+    const provider = this.exportDataProvider();
+    if (provider) return provider();
+    return this.filteredData();
   }
 
-  exportToExcel(filename?: string): void {
-    const data = this.getExportData();
-    const xlsxBytes = generateXlsx(data, { boldFirstRow: true });
-    const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
-      type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-    });
-    this.downloadBlob(blob, (filename || 'export') + '.xlsx');
+  async exportToCsv(filename?: string, customData?: T[]): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const rows = await this.resolveExportRows(customData);
+      const data = this.getExportData(undefined, rows);
+      const csvContent = data.map(row =>
+        row.map(cell => {
+          if (cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
+            return '"' + cell.replace(/"/g, '""') + '"';
+          }
+          return cell;
+        }).join(',')
+      ).join('\r\n');
+
+      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
+      this.downloadBlob(blob, (filename || 'export') + '.csv');
+    } finally {
+      this.exporting.set(false);
+    }
+  }
+
+  async exportToExcel(filename?: string, customData?: T[]): Promise<void> {
+    this.exporting.set(true);
+    try {
+      const rows = await this.resolveExportRows(customData);
+      const data = this.getExportData(undefined, rows);
+      const xlsxBytes = generateXlsx(data, { boldFirstRow: true });
+      const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+      this.downloadBlob(blob, (filename || 'export') + '.xlsx');
+    } finally {
+      this.exporting.set(false);
+    }
   }
 
   async copyCellToClipboard(): Promise<void> {
