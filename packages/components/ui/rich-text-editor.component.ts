@@ -3167,10 +3167,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const cells = Array.from(table.querySelectorAll('td, th')) as HTMLElement[];
         const rows = Array.from(table.querySelectorAll('tr'));
 
+        const borderColor = cells.length > 0
+            ? getComputedStyle(cells[0]).borderTopColor
+            : 'currentColor';
+        const borderVal = `1px solid ${borderColor}`;
+
         table.style.border = '';
         for (const cell of cells) {
             cell.style.border = '';
+            cell.style.borderTop = '';
             cell.style.borderBottom = '';
+            cell.style.borderLeft = '';
+            cell.style.borderRight = '';
         }
 
         switch (style) {
@@ -3182,20 +3190,24 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 }
                 break;
             case 'outer':
-                for (const cell of cells) {
-                    cell.style.border = 'none';
+                for (let ri = 0; ri < rows.length; ri++) {
+                    const rowCells = Array.from(rows[ri].cells);
+                    for (let ci = 0; ci < rowCells.length; ci++) {
+                        const cell = rowCells[ci];
+                        cell.style.borderTop = ri === 0 ? borderVal : 'none';
+                        cell.style.borderBottom = ri === rows.length - 1 ? borderVal : 'none';
+                        cell.style.borderLeft = ci === 0 ? borderVal : 'none';
+                        cell.style.borderRight = ci === rowCells.length - 1 ? borderVal : 'none';
+                    }
                 }
-                table.style.border = '1px solid hsl(var(--border))';
                 break;
             case 'horizontal':
-                for (const cell of cells) {
-                    cell.style.border = 'none';
-                    cell.style.borderBottom = '1px solid hsl(var(--border))';
-                }
-                if (rows.length > 0) {
-                    const lastRow = rows[rows.length - 1];
-                    for (const cell of Array.from(lastRow.cells)) {
-                        cell.style.borderBottom = 'none';
+                for (let ri = 0; ri < rows.length; ri++) {
+                    for (const cell of Array.from(rows[ri].cells)) {
+                        cell.style.borderLeft = 'none';
+                        cell.style.borderRight = 'none';
+                        cell.style.borderTop = ri === 0 ? borderVal : 'none';
+                        cell.style.borderBottom = ri < rows.length - 1 ? borderVal : 'none';
                     }
                 }
                 break;
