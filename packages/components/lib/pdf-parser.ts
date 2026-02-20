@@ -1799,6 +1799,48 @@ function shouldInsertSpace(prev: TextItem, next: TextItem): boolean {
     return false;
 }
 
+function findLargeGapIndex(line: TextLine): number {
+    const sorted = [...line.items].sort((a, b) => a.x - b.x);
+    let maxGap = 0;
+    let splitIdx = -1;
+    for (let i = 1; i < sorted.length; i++) {
+        const gap = sorted[i].x - sorted[i - 1].endX;
+        if (gap > maxGap) {
+            maxGap = gap;
+            splitIdx = i;
+        }
+    }
+    const fontSize = sorted[0]?.fontSize ?? 12;
+    return maxGap > fontSize * 4 ? splitIdx : -1;
+}
+
+function lineToTableRowHtml(line: TextLine, splitIndex: number, bodySize: number): string {
+    const sorted = [...line.items].sort((a, b) => a.x - b.x);
+    const leftItems = sorted.slice(0, splitIndex);
+    const rightItems = sorted.slice(splitIndex);
+
+    const leftLine: TextLine = { items: leftItems, y: line.y, minX: leftItems[0]?.x ?? 0 };
+    const rightLine: TextLine = { items: rightItems, y: line.y, minX: rightItems[0]?.x ?? 0 };
+
+    const leftFontSize = leftItems.reduce((max, it) => Math.max(max, it.fontSize), 0);
+    const rightFontSize = rightItems.reduce((max, it) => Math.max(max, it.fontSize), 0);
+
+    const leftHeading = getHeadingLevel(leftFontSize, bodySize);
+    const rightHeading = getHeadingLevel(rightFontSize, bodySize);
+
+    let leftHtml = lineToHtmlContent(leftLine);
+    let rightHtml = lineToHtmlContent(rightLine);
+
+    if (leftHeading > 0) {
+        leftHtml = `<h${leftHeading} style="margin: 0;">${leftHtml}</h${leftHeading}>`;
+    }
+    if (rightHeading > 0) {
+        rightHtml = `<h${rightHeading} style="margin: 0;">${rightHtml}</h${rightHeading}>`;
+    }
+
+    return `<table style="width: 100%; border-collapse: collapse;"><tr><td style="padding: 0;">${leftHtml}</td><td style="padding: 0; text-align: right;">${rightHtml}</td></tr></table>`;
+}
+
 function lineToText(line: TextLine): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     let result = '';
@@ -1811,7 +1853,7 @@ function lineToText(line: TextLine): string {
     return result.trim();
 }
 
-function lineToHtmlContent(line: TextLine, bodySize: number): string {
+function lineToHtmlContent(line: TextLine): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     let result = '';
     for (let i = 0; i < sorted.length; i++) {
@@ -1819,8 +1861,7 @@ function lineToHtmlContent(line: TextLine, bodySize: number): string {
             result += ' ';
         }
         const text = escapeHtml(sorted[i].text);
-        const headingLevel = getHeadingLevel(sorted[i].fontSize, bodySize);
-        if (!isDefaultColor(sorted[i].color) && headingLevel === 0) {
+        if (!isDefaultColor(sorted[i].color)) {
             result += `<span style="color: ${sorted[i].color}">${text}</span>`;
         } else {
             result += text;
@@ -1863,6 +1904,7 @@ function detectColumns(lines: TextLine[]): TextLine[] {
             continue;
         }
 
+        const spanningLines: TextLine[] = [];
         const leftLines: TextLine[] = [];
         const rightLines: TextLine[] = [];
 
@@ -1871,16 +1913,7 @@ function detectColumns(lines: TextLine[]): TextLine[] {
             const rightItems = line.items.filter(it => it.x >= splitX);
 
             if (leftItems.length > 0 && rightItems.length > 0) {
-                leftLines.push({
-                    items: leftItems,
-                    y: line.y,
-                    minX: Math.min(...leftItems.map(it => it.x)),
-                });
-                rightLines.push({
-                    items: rightItems,
-                    y: line.y,
-                    minX: Math.min(...rightItems.map(it => it.x)),
-                });
+                spanningLines.push(line);
             } else if (rightItems.length > 0 && leftItems.length === 0) {
                 rightLines.push(line);
             } else {
@@ -1888,7 +1921,7 @@ function detectColumns(lines: TextLine[]): TextLine[] {
             }
         }
 
-        result.push(...leftLines, ...rightLines);
+        result.push(...spanningLines, ...leftLines, ...rightLines);
     }
 
     return result;
@@ -1971,10 +2004,16 @@ function textItemsToHtml(
         const bulletMatch = lineText.match(BULLET_PATTERN);
         const numberedMatch = lineText.match(NUMBERED_PATTERN);
 
-        if (headingLevel > 0) {
+        const largeGapIdx = findLargeGapIndex(line);
+
+        if (largeGapIdx > 0) {
             flushParagraph();
             closeList();
-            const content = lineToHtmlContent(line, bodySize);
+            html.push(lineToTableRowHtml(line, largeGapIdx, bodySize));
+        } else if (headingLevel > 0) {
+            flushParagraph();
+            closeList();
+            const content = lineToHtmlContent(line);
             html.push(`<h${headingLevel}>${content}</h${headingLevel}>`);
         } else if (bulletMatch) {
             flushParagraph();
@@ -1990,7 +2029,7 @@ function textItemsToHtml(
             html.push(`<li>${content}</li>`);
         } else {
             closeList();
-            const content = lineToHtmlContent(line, bodySize);
+            const content = lineToHtmlContent(line);
             if (isParagraphBreak || isPageBreak) {
                 flushParagraph();
             }
