@@ -1758,14 +1758,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
 
-        const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
-        if (imageFile && this.images()) {
-            await this.insertImageFile(imageFile);
-            return;
-        }
-
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
+
+        const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
+        if (imageFile && this.images()) {
+            const source = this.pasteNormalizer.detectSource(html || null, text);
+            if (source !== 'excel') {
+                await this.insertImageFile(imageFile);
+                return;
+            }
+        }
 
         if (this.maxLength()) {
             const max = this.maxLength()!;

@@ -155,6 +155,33 @@ describe('RichTextPasteNormalizerService', () => {
             const html = '<google-sheets-html-origin><table><tr><td>Cell</td></tr></table></google-sheets-html-origin>';
             expect(service.detectSource(html, '')).toBe('excel');
         });
+
+        it('should detect plain-text when HTML is minimal and text looks like PDF', () => {
+            const html = '<span style="white-space: pre-wrap; font-size: 10pt;">This is the first line of a paragraph that\ncontinues on the next line because the PDF\nviewer wraps text at the column boundary.\nThis keeps going for a while so we have a\ngood amount of consistent-length lines to\ntrigger the PDF detection heuristic here.</span>';
+            const text = [
+                'This is the first line of a paragraph that',
+                'continues on the next line because the PDF',
+                'viewer wraps text at the column boundary.',
+                'This keeps going for a while so we have a',
+                'good amount of consistent-length lines to',
+                'trigger the PDF detection heuristic here.',
+            ].join('\n');
+            expect(service.detectSource(html, text)).toBe('plain-text');
+        });
+
+        it('should detect html when HTML has semantic tags even if text looks like PDF', () => {
+            const html = '<h1>Title</h1><p>This is the first line of a paragraph that continues on the next line.</p>';
+            const text = [
+                'Title',
+                'This is the first line of a paragraph that',
+                'continues on the next line because the PDF',
+                'viewer wraps text at the column boundary.',
+                'This keeps going for a while so we have a',
+                'good amount of consistent-length lines to',
+                'trigger the PDF detection heuristic here.',
+            ].join('\n');
+            expect(service.detectSource(html, text)).toBe('html');
+        });
     });
 
     // =========================================================================
@@ -1027,6 +1054,28 @@ describe('RichTextPasteNormalizerService', () => {
             const result = service.normalize(null, pdfText);
             expect(result).not.toContain('<script>');
             expect(result).toContain('&lt;script&gt;');
+        });
+
+        it('should produce structured HTML from PDF text even when minimal HTML is on clipboard', () => {
+            const html = '<span style="white-space: pre-wrap;">INTRODUCTION\n\nThis is the first line of a paragraph that\ncontinues on the next line because the PDF\nviewer wraps text at the column boundary.\nThis keeps going for a while so we have a\ngood amount of consistent-length lines to\ntrigger the PDF detection heuristic here.\n\n- First item in the list\n- Second item in the list</span>';
+            const text = [
+                'INTRODUCTION',
+                '',
+                'This is the first line of a paragraph that',
+                'continues on the next line because the PDF',
+                'viewer wraps text at the column boundary.',
+                'This keeps going for a while so we have a',
+                'good amount of consistent-length lines to',
+                'trigger the PDF detection heuristic here.',
+                '',
+                '- First item in the list',
+                '- Second item in the list',
+            ].join('\n');
+            const result = service.normalize(html, text);
+            expect(result).toContain('<h2>INTRODUCTION</h2>');
+            expect(result).toContain('<p>');
+            expect(result).toContain('<ul>');
+            expect(result).toContain('<li>First item in the list</li>');
         });
 
         it('should switch list type when markers change from bullets to numbers', () => {

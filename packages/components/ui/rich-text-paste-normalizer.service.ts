@@ -64,6 +64,11 @@ export class RichTextPasteNormalizerService {
             if (this.isGoogleDocsHtml(html)) return 'google-docs';
             if (this.isApplePagesHtml(html)) return 'apple-pages';
             if (this.isLibreOfficeHtml(html)) return 'libreoffice';
+
+            if (text && this.looksLikePdfText(text) && this.isMinimalHtml(html)) {
+                return 'plain-text';
+            }
+
             return 'html';
         }
 
@@ -108,6 +113,11 @@ export class RichTextPasteNormalizerService {
     private isLibreOfficeHtml(html: string): boolean {
         return /content="LibreOffice/i.test(html) ||
             /content="OpenOffice/i.test(html);
+    }
+
+    private isMinimalHtml(html: string): boolean {
+        const semanticTagPattern = /<(?:h[1-6]|ul|ol|li|table|thead|tbody|tr|td|th|strong|em|blockquote|pre|code|a\s)[^>]*>/i;
+        return !semanticTagPattern.test(html);
     }
 
     private isExcelHtml(html: string): boolean {
