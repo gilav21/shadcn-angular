@@ -2,6 +2,7 @@ node_modules
 .angular/cache
 storybook-static
 dist
+__screenshots__
 
 # Debug logs
 *storybook.log
