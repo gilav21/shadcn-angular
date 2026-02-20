@@ -95,7 +95,8 @@ export type ToolbarItem =
   | 'alignLeft'
   | 'alignCenter'
   | 'alignRight'
-  | 'table';
+  | 'table'
+  | 'importFile';
 
 interface ToolbarButton {
   id: ToolbarItem;
@@ -131,6 +132,7 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'alignCenter', label: 'Align Center', localeKey: 'alignCenter' },
   { id: 'alignRight', label: 'Align Right', localeKey: 'alignRight' },
   { id: 'table', label: 'Insert Table', localeKey: 'insertTable' },
+  { id: 'importFile', label: 'Import File', localeKey: 'importFile' },
 ];
 
 const ICONS: Record<string, string> = {
@@ -160,6 +162,7 @@ const ICONS: Record<string, string> = {
   alignCenter: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>`,
   alignRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>`,
   table: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><rect width="18" height="18" x="3" y="3" rx="2"/></svg>`,
+  importFile: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>`,
 };
 
 @Component({
@@ -410,6 +413,23 @@ const ICONS: Record<string, string> = {
               </div>
             </ui-popover-content>
           </ui-popover>
+        } @else if (item === 'importFile') {
+          <button
+            type="button"
+            [class]="buttonClasses(item)"
+            [title]="getTooltip(item)"
+            [disabled]="interactionDisabled()"
+            (click)="fileInput.click()"
+          >
+            <span [innerHTML]="getIcon('importFile')"></span>
+          </button>
+          <input
+            #fileInput
+            type="file"
+            accept=".pdf"
+            class="hidden"
+            (change)="onFileSelect($event)"
+          />
         } @else {
           <button
             type="button"
@@ -458,6 +478,7 @@ export class RichTextToolbarComponent {
   emojiInsert = output<string>();
   colorSelect = output<{ type: 'fontColor' | 'backgroundColor'; color: string }>();
   tableInsert = output<{ rows: number; cols: number }>();
+  fileImport = output<File>();
 
   tableGridHoverRows = signal(0);
   tableGridHoverCols = signal(0);
@@ -596,6 +617,16 @@ export class RichTextToolbarComponent {
     if (numericValue && !isNaN(Number(numericValue))) {
       this.fontSizeSelect.emit(numericValue);
       this.openPopover.set(null);
+    }
+  }
+
+  onFileSelect(event: Event): void {
+    if (this.interactionDisabled()) return;
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) {
+      this.fileImport.emit(file);
+      input.value = '';
     }
   }
 }
