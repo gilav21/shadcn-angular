@@ -25,6 +25,7 @@ import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.ser
 import { Observable, isObservable, of, Subject, firstValueFrom, from, catchError } from 'rxjs';
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { parsePdf } from '../lib/pdf-parser';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
@@ -427,7 +428,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'fontColor', 'backgroundColor', 'fontSize',
     'separator',
-    'link', 'image', 'emoji',
+    'link', 'image', 'importFile', 'emoji',
     'separator',
     'table',
     'separator',
@@ -596,6 +597,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (colorSelect)="onColorSelect($event)"
         (fontSizeSelect)="onFontSizeSelect($event)"
         (tableInsert)="onTableInsert($event)"
+        (fileImport)="onFileImport($event)"
       />
     }
 
@@ -1232,6 +1234,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      */
     tagInsert = output<RichTextEntityInsertEvent>();
 
+    fileImportStart = output<File>();
+    fileImportComplete = output<string>();
+    fileImportError = output<string>();
+
     private htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
@@ -1255,6 +1261,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
     imageUploading = signal<boolean>(false);
+    fileImporting = signal<boolean>(false);
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
@@ -2231,6 +2238,34 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.syncContentFromEditor();
         } else {
             this.imageUploadError.emit('Invalid image URL.');
+        }
+    }
+
+    async onFileImport(file: File): Promise<void> {
+        if (this.readonly() || this.disabled()) return;
+        this.flushPendingHistoryPush();
+
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (ext !== 'pdf') {
+            this.fileImportError.emit('Unsupported file type. Currently only PDF is supported.');
+            return;
+        }
+
+        this.fileImporting.set(true);
+        this.fileImportStart.emit(file);
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const result = await parsePdf(buffer);
+            this.restoreSelection();
+            this.insertHtml(result.html);
+            this.pushHistory();
+            this.fileImportComplete.emit(result.html);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Failed to import PDF file.';
+            this.fileImportError.emit(message);
+        } finally {
+            this.fileImporting.set(false);
         }
     }
 

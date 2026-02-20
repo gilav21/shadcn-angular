@@ -28,6 +28,7 @@ export interface RichTextLocale {
         alignCenter: string;
         alignRight: string;
         insertTable: string;
+        importFile: string;
     };
 
     link: {
@@ -184,6 +185,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Align Center',
             alignRight: 'Align Right',
             insertTable: 'Insert Table',
+            importFile: 'Import File',
         },
         link: {
             text: 'Link Text',
@@ -324,6 +326,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'יישור למרכז',
             alignRight: 'יישור לימין',
             insertTable: 'הוספת טבלה',
+            importFile: 'ייבוא קובץ',
         },
         link: {
             text: 'טקסט הקישור',
@@ -464,6 +467,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'محاذاة للوسط',
             alignRight: 'محاذاة لليمين',
             insertTable: 'إدراج جدول',
+            importFile: 'استيراد ملف',
         },
         link: {
             text: 'نص الرابط',
@@ -604,6 +608,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Zentriert',
             alignRight: 'Rechtsbündig',
             insertTable: 'Tabelle einfügen',
+            importFile: 'Datei importieren',
         },
         link: {
             text: 'Linktext',
@@ -744,6 +749,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Centrer',
             alignRight: 'Aligner à droite',
             insertTable: 'Insérer un tableau',
+            importFile: 'Importer un fichier',
         },
         link: {
             text: 'Texte du lien',
@@ -884,6 +890,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Centrar',
             alignRight: 'Alinear a la derecha',
             insertTable: 'Insertar tabla',
+            importFile: 'Importar archivo',
         },
         link: {
             text: 'Texto del enlace',
@@ -1024,6 +1031,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: '中央揃え',
             alignRight: '右揃え',
             insertTable: 'テーブルを挿入',
+            importFile: 'ファイルをインポート',
         },
         link: {
             text: 'リンクテキスト',
@@ -1164,6 +1172,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: '居中对齐',
             alignRight: '右对齐',
             insertTable: '插入表格',
+            importFile: '导入文件',
         },
         link: {
             text: '链接文字',
@@ -1304,6 +1313,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'По центру',
             alignRight: 'По правому краю',
             insertTable: 'Вставить таблицу',
+            importFile: 'Импорт файла',
         },
         link: {
             text: 'Текст ссылки',
@@ -1444,6 +1454,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Centralizar',
             alignRight: 'Alinhar à direita',
             insertTable: 'Inserir tabela',
+            importFile: 'Importar arquivo',
         },
         link: {
             text: 'Texto do link',
