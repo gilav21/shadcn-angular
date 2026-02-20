@@ -9,8 +9,16 @@ interface TextItem {
     fontSize: number;
     x: number;
     y: number;
+    endX: number;
     page: number;
     color: string;
+}
+
+interface FontInfo {
+    isTwoByte: boolean;
+    widths: Map<number, number>;
+    defaultWidth: number;
+    toUnicode: Map<number, string>;
 }
 
 interface ImageItem {
@@ -743,19 +751,50 @@ const PDF_DOC_ENCODING: Record<number, string> = {
     0xAD: '\u02C7',
 };
 
-function pdfStringToUnicode(raw: string, toUnicode?: Map<number, string>): string {
+function pdfStringToUnicode(
+    raw: string,
+    fontInfo?: FontInfo,
+): { text: string; charCodes: number[] } {
     let result = '';
-    for (let i = 0; i < raw.length; i++) {
-        const code = raw.charCodeAt(i);
-        if (toUnicode && toUnicode.has(code)) {
-            result += toUnicode.get(code)!;
-        } else if (PDF_DOC_ENCODING[code]) {
-            result += PDF_DOC_ENCODING[code];
-        } else {
-            result += raw[i];
+    const charCodes: number[] = [];
+
+    if (fontInfo?.isTwoByte) {
+        for (let i = 0; i + 1 < raw.length; i += 2) {
+            const code = (raw.charCodeAt(i) << 8) | raw.charCodeAt(i + 1);
+            charCodes.push(code);
+            if (fontInfo.toUnicode.has(code)) {
+                result += fontInfo.toUnicode.get(code)!;
+            } else if (code >= 0x20 && code < 0xFFFE) {
+                result += String.fromCodePoint(code);
+            } else {
+                result += '\uFFFD';
+            }
+        }
+        if (raw.length % 2 === 1) {
+            const code = raw.charCodeAt(raw.length - 1);
+            charCodes.push(code);
+            if (fontInfo.toUnicode.has(code)) {
+                result += fontInfo.toUnicode.get(code)!;
+            } else {
+                result += String.fromCharCode(code);
+            }
+        }
+    } else {
+        const toUnicode = fontInfo?.toUnicode;
+        for (let i = 0; i < raw.length; i++) {
+            const code = raw.charCodeAt(i);
+            charCodes.push(code);
+            if (toUnicode && toUnicode.has(code)) {
+                result += toUnicode.get(code)!;
+            } else if (PDF_DOC_ENCODING[code]) {
+                result += PDF_DOC_ENCODING[code];
+            } else {
+                result += raw[i];
+            }
         }
     }
-    return result;
+
+    return { text: result, charCodes };
 }
 
 function parseToUnicodeMap(data: Uint8Array): Map<number, string> {
@@ -953,6 +992,97 @@ function tokenizeContentStream(data: Uint8Array): string[] {
     return tokens;
 }
 
+function parseCIDWidths(reader: PdfReader, wArray: PdfObject): Map<number, number> {
+    const widths = new Map<number, number>();
+    const arr = reader.getArray(wArray);
+    let i = 0;
+    while (i < arr.length) {
+        const first = reader.getNumber(arr[i]);
+        i++;
+        if (i >= arr.length) break;
+        const next = reader.resolveDeep(arr[i]);
+        if (next.type === 'array') {
+            const wList = next.value as PdfObject[];
+            for (let j = 0; j < wList.length; j++) {
+                widths.set(first + j, reader.getNumber(wList[j]));
+            }
+            i++;
+        } else if (next.type === 'number') {
+            const last = next.value as number;
+            i++;
+            if (i >= arr.length) break;
+            const w = reader.getNumber(arr[i]);
+            for (let cid = first; cid <= last; cid++) {
+                widths.set(cid, w);
+            }
+            i++;
+        } else {
+            i++;
+        }
+    }
+    return widths;
+}
+
+function buildFontInfo(reader: PdfReader, fontRef: PdfObject): FontInfo {
+    const fontObjDict = reader.getDict(fontRef);
+    const subtype = reader.getString(fontObjDict['Subtype']);
+    const encoding = reader.getString(fontObjDict['Encoding']);
+
+    let isTwoByte = false;
+    let widths = new Map<number, number>();
+    let defaultWidth = 600;
+    let toUnicode = new Map<number, string>();
+
+    const toUnicodeRef = fontObjDict['ToUnicode'];
+    if (toUnicodeRef) {
+        const cmapData = reader.getStreamData(toUnicodeRef);
+        if (cmapData.length > 0) {
+            toUnicode = parseToUnicodeMap(cmapData);
+        }
+    }
+
+    if (subtype === 'Type0') {
+        isTwoByte = true;
+        const descendantsRef = fontObjDict['DescendantFonts'];
+        if (descendantsRef) {
+            const descendants = reader.getArray(descendantsRef);
+            if (descendants.length > 0) {
+                const cidFontDict = reader.getDict(descendants[0]);
+                const dw = cidFontDict['DW'];
+                defaultWidth = dw ? reader.getNumber(dw) : 1000;
+                const wArray = cidFontDict['W'];
+                if (wArray) {
+                    widths = parseCIDWidths(reader, wArray);
+                }
+            }
+        }
+    } else if (encoding === 'Identity-H' || encoding === 'Identity-V') {
+        isTwoByte = true;
+        defaultWidth = 1000;
+    } else {
+        const firstChar = reader.getNumber(fontObjDict['FirstChar']);
+        const lastChar = reader.getNumber(fontObjDict['LastChar']);
+        const widthsArr = fontObjDict['Widths'] ? reader.getArray(fontObjDict['Widths']) : [];
+        for (let ci = 0; ci < widthsArr.length; ci++) {
+            const w = reader.getNumber(widthsArr[ci]);
+            widths.set(firstChar + ci, w);
+        }
+        if (widthsArr.length === 0) {
+            const fontDescRef = fontObjDict['FontDescriptor'];
+            if (fontDescRef) {
+                const fontDesc = reader.getDict(fontDescRef);
+                const mw = fontDesc['MissingWidth'];
+                if (mw) defaultWidth = reader.getNumber(mw);
+            }
+        }
+        if (lastChar > 0 && widthsArr.length === 0) {
+            defaultWidth = 600;
+        }
+    }
+
+    return { isTwoByte, widths, defaultWidth, toUnicode };
+}
+
 function extractPageContent(
     reader: PdfReader,
     pageObj: PdfObject,
@@ -986,16 +1116,9 @@ function extractPageContent(
     const fontDict = resources['Font'] ? reader.getDict(resources['Font']) : {};
     const xObjectDict = resources['XObject'] ? reader.getDict(resources['XObject']) : {};
 
-    const fontToUnicodeMaps = new Map<string, Map<number, string>>();
+    const fontInfoMap = new Map<string, FontInfo>();
     for (const [fontName, fontRef] of Object.entries(fontDict)) {
-        const fontObjDict = reader.getDict(fontRef);
-        const toUnicodeRef = fontObjDict['ToUnicode'];
-        if (toUnicodeRef) {
-            const cmapData = reader.getStreamData(toUnicodeRef);
-            if (cmapData.length > 0) {
-                fontToUnicodeMaps.set(fontName, parseToUnicodeMap(cmapData));
-            }
-        }
+        fontInfoMap.set(fontName, buildFontInfo(reader, fontRef));
     }
 
     const tokens = tokenizeContentStream(contentData);
@@ -1039,26 +1162,45 @@ function extractPageContent(
         return [effectiveFontSize, gs.fillColor];
     };
 
+    const calcAdvance = (charCodes: number[], fontInfo: FontInfo | undefined): number => {
+        let totalWidth = 0;
+        for (const code of charCodes) {
+            const w = fontInfo ? (fontInfo.widths.get(code) ?? fontInfo.defaultWidth) : 600;
+            totalWidth += w;
+        }
+        const advance = (totalWidth / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+        const spacing = charCodes.length * gs.charSpacing
+            + charCodes.filter(c => c === 32).length * gs.wordSpacing;
+        return advance + spacing;
+    };
+
     const addTextItem = (raw: string) => {
-        const toUnicode = fontToUnicodeMaps.get(gs.fontName);
-        const decoded = pdfStringToUnicode(raw, toUnicode);
-        if (!decoded.trim()) return;
+        const fontInfo = fontInfoMap.get(gs.fontName);
+        const { text: decoded, charCodes } = pdfStringToUnicode(raw, fontInfo);
+        if (!decoded.trim()) {
+            const advance = calcAdvance(charCodes, fontInfo);
+            gs.textMatrix[4] += advance;
+            return;
+        }
 
         const tm = gs.textMatrix;
         const ctm = gs.ctm;
         const combined = multiplyMatrix(tm, ctm);
         const [effectiveFontSize] = getCurrentXY();
 
+        const advance = calcAdvance(charCodes, fontInfo);
+        const startX = Math.round(combined[4] * 100) / 100;
+
         textItems.push({
             text: decoded,
             fontSize: Math.round(effectiveFontSize * 100) / 100,
-            x: Math.round(combined[4] * 100) / 100,
+            x: startX,
             y: Math.round(combined[5] * 100) / 100,
+            endX: Math.round((combined[4] + advance) * 100) / 100,
             page: pageIndex,
             color: gs.fillColor,
         });
 
-        const advance = decoded.length * gs.fontSize * (gs.horizontalScaling / 100) * 0.5;
         gs.textMatrix[4] += advance;
     };
 
@@ -1186,16 +1328,53 @@ function extractPageContent(
             while (operandStack.length > 0) {
                 arrTokens.unshift(operandStack.pop()!);
             }
+            const fontInfo = fontInfoMap.get(gs.fontName);
+            const dw = fontInfo ? fontInfo.defaultWidth : 600;
+
+            let combinedText = '';
+            let pendingDisplacement = 0;
+            const startTm = gs.textMatrix.slice();
+
             for (const t of arrTokens) {
                 if (t === '[' || t === ']') continue;
                 if (t.startsWith('(')) {
-                    addTextItem(t.slice(1, -1));
+                    const rawStr = t.slice(1, -1);
+                    if (pendingDisplacement !== 0) {
+                        gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+                        if (-pendingDisplacement > dw * 0.3 && combinedText.length > 0) {
+                            combinedText += ' ';
+                        }
+                        pendingDisplacement = 0;
+                    }
+                    const { text: decoded, charCodes: fragCodes } = pdfStringToUnicode(rawStr, fontInfo);
+                    combinedText += decoded;
+                    const fragAdvance = calcAdvance(fragCodes, fontInfo);
+                    gs.textMatrix[4] += fragAdvance;
                 } else {
                     const kern = parseFloat(t);
                     if (!isNaN(kern)) {
-                        gs.textMatrix[4] -= (kern / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+                        pendingDisplacement += kern;
                     }
                 }
+            }
+            if (pendingDisplacement !== 0) {
+                gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+            }
+
+            if (combinedText.trim()) {
+                const ctm = gs.ctm;
+                const combined = multiplyMatrix(startTm, ctm);
+                const endCombined = multiplyMatrix(gs.textMatrix, ctm);
+                const [effectiveFontSize] = getCurrentXY();
+                textItems.push({
+                    text: combinedText,
+                    fontSize: Math.round(effectiveFontSize * 100) / 100,
+                    x: Math.round(combined[4] * 100) / 100,
+                    y: Math.round(combined[5] * 100) / 100,
+                    endX: Math.round(endCombined[4] * 100) / 100,
+                    page: pageIndex,
+                    color: gs.fillColor,
+                });
             }
             continue;
         }
@@ -1613,15 +1792,19 @@ function getHeadingLevel(fontSize: number, bodySize: number): number {
     return 0;
 }
 
+function shouldInsertSpace(prev: TextItem, next: TextItem): boolean {
+    const gap = next.x - prev.endX;
+    if (gap > prev.fontSize * 0.15) return true;
+    if (gap < -prev.fontSize * 0.5) return false;
+    return false;
+}
+
 function lineToText(line: TextLine): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     let result = '';
     for (let i = 0; i < sorted.length; i++) {
-        if (i > 0) {
-            const gap = sorted[i].x - (sorted[i - 1].x + sorted[i - 1].text.length * sorted[i - 1].fontSize * 0.4);
-            if (gap > sorted[i - 1].fontSize * 0.3) {
-                result += ' ';
-            }
+        if (i > 0 && shouldInsertSpace(sorted[i - 1], sorted[i])) {
+            result += ' ';
         }
         result += sorted[i].text;
     }
@@ -1632,11 +1815,8 @@ function lineToHtmlContent(line: TextLine, bodySize: number): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     let result = '';
     for (let i = 0; i < sorted.length; i++) {
-        if (i > 0) {
-            const gap = sorted[i].x - (sorted[i - 1].x + sorted[i - 1].text.length * sorted[i - 1].fontSize * 0.4);
-            if (gap > sorted[i - 1].fontSize * 0.3) {
-                result += ' ';
-            }
+        if (i > 0 && shouldInsertSpace(sorted[i - 1], sorted[i])) {
+            result += ' ';
         }
         const text = escapeHtml(sorted[i].text);
         const headingLevel = getHeadingLevel(sorted[i].fontSize, bodySize);
@@ -1649,6 +1829,71 @@ function lineToHtmlContent(line: TextLine, bodySize: number): string {
     return result.trim();
 }
 
+function detectColumns(lines: TextLine[]): TextLine[] {
+    if (lines.length < 4) return lines;
+
+    const pages = new Set(lines.map(l => l.items[0]?.page ?? 0));
+    const result: TextLine[] = [];
+
+    for (const page of pages) {
+        const pageLines = lines.filter(l => (l.items[0]?.page ?? 0) === page);
+        if (pageLines.length < 4) {
+            result.push(...pageLines);
+            continue;
+        }
+
+        const startXs = pageLines.map(l => l.minX).sort((a, b) => a - b);
+        let bestGap = 0;
+        let splitX = 0;
+        for (let i = 1; i < startXs.length; i++) {
+            const gap = startXs[i] - startXs[i - 1];
+            if (gap > bestGap) {
+                bestGap = gap;
+                splitX = (startXs[i - 1] + startXs[i]) / 2;
+            }
+        }
+
+        const pageWidth = Math.max(...pageLines.map(l => {
+            const maxEndX = Math.max(...l.items.map(it => it.endX));
+            return maxEndX;
+        })) - Math.min(...startXs);
+
+        if (bestGap < pageWidth * 0.15 || bestGap < 50) {
+            result.push(...pageLines);
+            continue;
+        }
+
+        const leftLines: TextLine[] = [];
+        const rightLines: TextLine[] = [];
+
+        for (const line of pageLines) {
+            const leftItems = line.items.filter(it => it.x < splitX);
+            const rightItems = line.items.filter(it => it.x >= splitX);
+
+            if (leftItems.length > 0 && rightItems.length > 0) {
+                leftLines.push({
+                    items: leftItems,
+                    y: line.y,
+                    minX: Math.min(...leftItems.map(it => it.x)),
+                });
+                rightLines.push({
+                    items: rightItems,
+                    y: line.y,
+                    minX: Math.min(...rightItems.map(it => it.x)),
+                });
+            } else if (rightItems.length > 0 && leftItems.length === 0) {
+                rightLines.push(line);
+            } else {
+                leftLines.push(line);
+            }
+        }
+
+        result.push(...leftLines, ...rightLines);
+    }
+
+    return result;
+}
+
 const BULLET_PATTERN = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-\*]\s*/;
 const NUMBERED_PATTERN = /^(\d{1,3})[.)]\s+/;
 
@@ -1656,8 +1901,9 @@ function textItemsToHtml(
     textItems: TextItem[],
     imageItems: ImageItem[],
 ): string {
-    const lines = groupIntoLines(textItems);
-    if (lines.length === 0) return '';
+    const rawLines = groupIntoLines(textItems);
+    if (rawLines.length === 0) return '';
+    const lines = detectColumns(rawLines);
 
     const bodySize = detectBodyFontSize(textItems);
     const html: string[] = [];
