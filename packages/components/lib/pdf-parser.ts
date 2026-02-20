@@ -2137,7 +2137,12 @@ function textItemsToHtml(
 
 export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
     const reader = new PdfReader(buffer);
-    reader.parse();
+
+    try {
+        reader.parse();
+    } catch {
+        throw new Error('Unable to read this PDF. It may be corrupted or use an unsupported format.');
+    }
 
     if (reader.isEncrypted()) {
         throw new Error('Encrypted PDFs are not supported.');
@@ -2152,9 +2157,13 @@ export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
     const allImageItems: ImageItem[] = [];
 
     for (let i = 0; i < pages.length; i++) {
-        const { textItems, imageItems } = extractPageContent(reader, pages[i], i);
-        allTextItems.push(...textItems);
-        allImageItems.push(...imageItems);
+        try {
+            const { textItems, imageItems } = extractPageContent(reader, pages[i], i);
+            allTextItems.push(...textItems);
+            allImageItems.push(...imageItems);
+        } catch {
+            continue;
+        }
     }
 
     if (allTextItems.length === 0 && allImageItems.length > 0) {

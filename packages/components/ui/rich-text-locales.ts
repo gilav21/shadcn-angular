@@ -149,6 +149,8 @@ export interface RichTextLocale {
         placeholder: string;
         ariaLabel: string;
         uploadingImage: string;
+        importingPdf: string;
+        importFailed: string;
         characters: string;
         words: string;
         formattingOptions: string;
@@ -301,6 +303,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Write something...',
             ariaLabel: 'Rich text editor',
             uploadingImage: 'Uploading image...',
+            importingPdf: 'Importing PDF...',
+            importFailed: 'Failed to import PDF. The file may be unsupported or corrupted.',
             characters: '{count} characters',
             words: '{count} words',
             formattingOptions: 'Formatting options',
@@ -447,6 +451,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'ניתן לכתוב כאן...',
             ariaLabel: 'עורך טקסט עשיר',
             uploadingImage: 'העלאת תמונה...',
+            importingPdf: '...מייבא קובץ PDF',
+            importFailed: 'ייבוא ה-PDF נכשל. הקובץ עשוי להיות לא נתמך או פגום.',
             characters: '{count} תווים',
             words: '{count} מילים',
             formattingOptions: 'אפשרויות עיצוב',
@@ -593,6 +599,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'الكتابة هنا...',
             ariaLabel: 'محرر نص منسق',
             uploadingImage: 'جارٍ رفع الصورة...',
+            importingPdf: '...جارٍ استيراد PDF',
+            importFailed: 'فشل استيراد PDF. قد يكون الملف غير مدعوم أو تالفاً.',
             characters: '{count} حرف',
             words: '{count} كلمة',
             formattingOptions: 'خيارات التنسيق',
@@ -739,6 +747,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Schreiben Sie etwas...',
             ariaLabel: 'Rich-Text-Editor',
             uploadingImage: 'Bild wird hochgeladen...',
+            importingPdf: 'PDF wird importiert...',
+            importFailed: 'PDF-Import fehlgeschlagen. Die Datei wird möglicherweise nicht unterstützt oder ist beschädigt.',
             characters: '{count} Zeichen',
             words: '{count} Wörter',
             formattingOptions: 'Formatierungsoptionen',
@@ -885,6 +895,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Écrivez quelque chose...',
             ariaLabel: 'Éditeur de texte enrichi',
             uploadingImage: 'Téléchargement de l\'image...',
+            importingPdf: 'Importation du PDF...',
+            importFailed: 'Échec de l\'importation du PDF. Le fichier est peut-être non pris en charge ou corrompu.',
             characters: '{count} caractères',
             words: '{count} mots',
             formattingOptions: 'Options de mise en forme',
@@ -1031,6 +1043,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Escribe algo...',
             ariaLabel: 'Editor de texto enriquecido',
             uploadingImage: 'Subiendo imagen...',
+            importingPdf: 'Importando PDF...',
+            importFailed: 'Error al importar PDF. El archivo puede no ser compatible o estar dañado.',
             characters: '{count} caracteres',
             words: '{count} palabras',
             formattingOptions: 'Opciones de formato',
@@ -1177,6 +1191,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: '何か書いてください...',
             ariaLabel: 'リッチテキストエディター',
             uploadingImage: '画像をアップロード中...',
+            importingPdf: 'PDFをインポート中...',
+            importFailed: 'PDFのインポートに失敗しました。ファイルがサポートされていないか破損している可能性があります。',
             characters: '{count} 文字',
             words: '{count} 語',
             formattingOptions: '書式設定オプション',
@@ -1323,6 +1339,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: '写点什么...',
             ariaLabel: '富文本编辑器',
             uploadingImage: '正在上传图片...',
+            importingPdf: '正在导入PDF...',
+            importFailed: 'PDF导入失败。文件可能不受支持或已损坏。',
             characters: '{count} 个字符',
             words: '{count} 个词',
             formattingOptions: '格式选项',
@@ -1469,6 +1487,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Напишите что-нибудь...',
             ariaLabel: 'Редактор форматированного текста',
             uploadingImage: 'Загрузка изображения...',
+            importingPdf: 'Импорт PDF...',
+            importFailed: 'Не удалось импортировать PDF. Файл может быть неподдерживаемым или повреждённым.',
             characters: '{count} символов',
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
@@ -1615,6 +1635,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Escreva algo...',
             ariaLabel: 'Editor de texto rico',
             uploadingImage: 'Enviando imagem...',
+            importingPdf: 'Importando PDF...',
+            importFailed: 'Falha ao importar PDF. O arquivo pode não ser suportado ou estar corrompido.',
             characters: '{count} caracteres',
             words: '{count} palavras',
             formattingOptions: 'Opções de formatação',

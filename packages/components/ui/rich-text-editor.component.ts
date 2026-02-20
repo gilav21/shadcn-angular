@@ -816,6 +816,18 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         </div>
       }
 
+      @if (fileImporting()) {
+        <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+          <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.importingPdf }}</div>
+        </div>
+      }
+
+      @if (fileImportErrorMessage()) {
+        <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+          <div class="text-sm text-destructive font-medium">{{ fileImportErrorMessage() }}</div>
+        </div>
+      }
+
       <ui-rich-text-image-resizer
           [target]="selectedImage()"
           [container]="editorDiv"
@@ -1288,6 +1300,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     dragOver = signal<boolean>(false);
     imageUploading = signal<boolean>(false);
     fileImporting = signal<boolean>(false);
+    fileImportErrorMessage = signal('');
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
@@ -2273,7 +2286,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         const ext = file.name.split('.').pop()?.toLowerCase();
         if (ext !== 'pdf') {
-            this.fileImportError.emit('Unsupported file type. Currently only PDF is supported.');
+            const msg = 'Unsupported file type. Currently only PDF is supported.';
+            this.fileImportError.emit(msg);
+            this.showImportError(msg);
             return;
         }
 
@@ -2283,16 +2298,28 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         try {
             const buffer = await file.arrayBuffer();
             const result = await parsePdf(buffer);
+            if (!result.html.trim()) {
+                const msg = this.resolvedLocale().editor.importFailed;
+                this.fileImportError.emit(msg);
+                this.showImportError(msg);
+                return;
+            }
             this.restoreSelection();
             this.insertHtml(result.html);
             this.pushHistory();
             this.fileImportComplete.emit(result.html);
         } catch (error: unknown) {
-            const message = error instanceof Error ? error.message : 'Failed to import PDF file.';
+            const message = error instanceof Error ? error.message : this.resolvedLocale().editor.importFailed;
             this.fileImportError.emit(message);
+            this.showImportError(message);
         } finally {
             this.fileImporting.set(false);
         }
+    }
+
+    private showImportError(message: string): void {
+        this.fileImportErrorMessage.set(message);
+        setTimeout(() => this.fileImportErrorMessage.set(''), 4000);
     }
 
     onEmojiInsert(emoji: string): void {
