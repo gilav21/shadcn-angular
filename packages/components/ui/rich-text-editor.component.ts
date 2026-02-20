@@ -965,6 +965,32 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             {{ resolvedLocale().table.toggleHeaderRow }}
           </button>
           <div class="my-1 h-px bg-border"></div>
+          <div class="px-2 py-1.5">
+            <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.borders }}</div>
+            <div class="flex items-center gap-1">
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersAll" (click)="setTableBorders('all')">
+                <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="1" y="1" width="18" height="18" /><line x1="10" y1="1" x2="10" y2="19" /><line x1="1" y1="10" x2="19" y2="10" />
+                </svg>
+              </button>
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersNone" (click)="setTableBorders('none')">
+                <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1" opacity="0.35">
+                  <rect x="1" y="1" width="18" height="18" stroke-dasharray="2 2" /><line x1="10" y1="1" x2="10" y2="19" stroke-dasharray="2 2" /><line x1="1" y1="10" x2="19" y2="10" stroke-dasharray="2 2" />
+                </svg>
+              </button>
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersOuter" (click)="setTableBorders('outer')">
+                <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor">
+                  <rect x="1" y="1" width="18" height="18" stroke-width="1.5" /><line x1="10" y1="1" x2="10" y2="19" stroke-width="1" opacity="0.25" stroke-dasharray="2 2" /><line x1="1" y1="10" x2="19" y2="10" stroke-width="1" opacity="0.25" stroke-dasharray="2 2" />
+                </svg>
+              </button>
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersHorizontal" (click)="setTableBorders('horizontal')">
+                <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor">
+                  <line x1="1" y1="1" x2="19" y2="1" stroke-width="1.5" /><line x1="1" y1="10" x2="19" y2="10" stroke-width="1.5" /><line x1="1" y1="19" x2="19" y2="19" stroke-width="1.5" />
+                </svg>
+              </button>
+            </div>
+          </div>
+          <div class="my-1 h-px bg-border"></div>
           <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground text-destructive" (click)="deleteTableRow()">
             {{ resolvedLocale().table.deleteRow }}
           </button>
@@ -3102,6 +3128,52 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             newThead.appendChild(firstRow);
             info.table.insertBefore(newThead, info.table.firstChild);
         }
+        this.applyMutation({ focus: true });
+    }
+
+    setTableBorders(style: 'all' | 'none' | 'outer' | 'horizontal'): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+
+        const table = info.table;
+        const cells = Array.from(table.querySelectorAll('td, th')) as HTMLElement[];
+        const rows = Array.from(table.querySelectorAll('tr'));
+
+        table.style.border = '';
+        for (const cell of cells) {
+            cell.style.border = '';
+            cell.style.borderBottom = '';
+        }
+
+        switch (style) {
+            case 'all':
+                break;
+            case 'none':
+                for (const cell of cells) {
+                    cell.style.border = 'none';
+                }
+                break;
+            case 'outer':
+                for (const cell of cells) {
+                    cell.style.border = 'none';
+                }
+                table.style.border = '1px solid hsl(var(--border))';
+                break;
+            case 'horizontal':
+                for (const cell of cells) {
+                    cell.style.border = 'none';
+                    cell.style.borderBottom = '1px solid hsl(var(--border))';
+                }
+                if (rows.length > 0) {
+                    const lastRow = rows[rows.length - 1];
+                    for (const cell of Array.from(lastRow.cells)) {
+                        cell.style.borderBottom = 'none';
+                    }
+                }
+                break;
+        }
+
         this.applyMutation({ focus: true });
     }
 

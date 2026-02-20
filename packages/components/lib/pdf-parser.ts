@@ -858,6 +858,66 @@ function isDefaultColor(color: string): boolean {
     return !color || color === '#000000' || color === '#000' || color === '';
 }
 
+function isRTLChar(code: number): boolean {
+    return (code >= 0x0590 && code <= 0x05FF) ||
+           (code >= 0xFB1D && code <= 0xFB4F) ||
+           (code >= 0x0600 && code <= 0x06FF) ||
+           (code >= 0x0750 && code <= 0x077F) ||
+           (code >= 0xFB50 && code <= 0xFDFF) ||
+           (code >= 0xFE70 && code <= 0xFEFF);
+}
+
+function hasRTLText(text: string): boolean {
+    for (let i = 0; i < text.length; i++) {
+        if (isRTLChar(text.charCodeAt(i))) return true;
+    }
+    return false;
+}
+
+function fixVisualOrderRTL(text: string): string {
+    if (!hasRTLText(text)) return text;
+
+    const chars = [...text];
+    chars.reverse();
+
+    let result = '';
+    let ltrRun = '';
+
+    for (const ch of chars) {
+        const code = ch.charCodeAt(0);
+        const isLTR = (code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A)
+            || (code >= 0x30 && code <= 0x39);
+
+        if (isLTR) {
+            ltrRun += ch;
+        } else {
+            if (ltrRun) {
+                result += ltrRun.split('').reverse().join('');
+                ltrRun = '';
+            }
+            const mirrored = ch === '(' ? ')' : ch === ')' ? '(' : ch === '[' ? ']' : ch === ']' ? '[' : ch;
+            result += mirrored;
+        }
+    }
+    if (ltrRun) {
+        result += ltrRun.split('').reverse().join('');
+    }
+    return result;
+}
+
+function isLineRTL(line: TextLine): boolean {
+    let rtl = 0;
+    let total = 0;
+    for (const item of line.items) {
+        for (let i = 0; i < item.text.length; i++) {
+            const code = item.text.charCodeAt(i);
+            if (code > 0x20) total++;
+            if (isRTLChar(code)) rtl++;
+        }
+    }
+    return total > 0 && rtl > total * 0.3;
+}
+
 interface GraphicsState {
     ctm: number[];
     fontSize: number;
@@ -1176,7 +1236,8 @@ function extractPageContent(
 
     const addTextItem = (raw: string) => {
         const fontInfo = fontInfoMap.get(gs.fontName);
-        const { text: decoded, charCodes } = pdfStringToUnicode(raw, fontInfo);
+        const { text: rawDecoded, charCodes } = pdfStringToUnicode(raw, fontInfo);
+        const decoded = fixVisualOrderRTL(rawDecoded);
         if (!decoded.trim()) {
             const advance = calcAdvance(charCodes, fontInfo);
             gs.textMatrix[4] += advance;
@@ -1361,13 +1422,14 @@ function extractPageContent(
                 gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
             }
 
-            if (combinedText.trim()) {
+            const fixedText = fixVisualOrderRTL(combinedText);
+            if (fixedText.trim()) {
                 const ctm = gs.ctm;
                 const combined = multiplyMatrix(startTm, ctm);
                 const endCombined = multiplyMatrix(gs.textMatrix, ctm);
                 const [effectiveFontSize] = getCurrentXY();
                 textItems.push({
-                    text: combinedText,
+                    text: fixedText,
                     fontSize: Math.round(effectiveFontSize * 100) / 100,
                     x: Math.round(combined[4] * 100) / 100,
                     y: Math.round(combined[5] * 100) / 100,
@@ -1838,15 +1900,21 @@ function lineToTableRowHtml(line: TextLine, splitIndex: number, bodySize: number
         rightHtml = `<h${rightHeading} style="margin: 0;">${rightHtml}</h${rightHeading}>`;
     }
 
-    return `<table style="width: 100%; border-collapse: collapse;"><tr><td style="padding: 0;">${leftHtml}</td><td style="padding: 0; text-align: right;">${rightHtml}</td></tr></table>`;
+    return `<table style="width: 100%; border-collapse: collapse;"><tr><td style="border: none; padding: 0;">${leftHtml}</td><td style="border: none; padding: 0; text-align: right;">${rightHtml}</td></tr></table>`;
 }
 
 function lineToText(line: TextLine): string {
-    const sorted = [...line.items].sort((a, b) => a.x - b.x);
+    const rtl = isLineRTL(line);
+    const sorted = [...line.items].sort((a, b) => rtl ? b.x - a.x : a.x - b.x);
     let result = '';
     for (let i = 0; i < sorted.length; i++) {
-        if (i > 0 && shouldInsertSpace(sorted[i - 1], sorted[i])) {
-            result += ' ';
+        if (i > 0) {
+            const gap = rtl
+                ? sorted[i - 1].x - sorted[i].endX
+                : sorted[i].x - sorted[i - 1].endX;
+            if (gap > sorted[i - 1].fontSize * 0.15) {
+                result += ' ';
+            }
         }
         result += sorted[i].text;
     }
@@ -1854,11 +1922,17 @@ function lineToText(line: TextLine): string {
 }
 
 function lineToHtmlContent(line: TextLine): string {
-    const sorted = [...line.items].sort((a, b) => a.x - b.x);
+    const rtl = isLineRTL(line);
+    const sorted = [...line.items].sort((a, b) => rtl ? b.x - a.x : a.x - b.x);
     let result = '';
     for (let i = 0; i < sorted.length; i++) {
-        if (i > 0 && shouldInsertSpace(sorted[i - 1], sorted[i])) {
-            result += ' ';
+        if (i > 0) {
+            const gap = rtl
+                ? sorted[i - 1].x - sorted[i].endX
+                : sorted[i].x - sorted[i - 1].endX;
+            if (gap > sorted[i - 1].fontSize * 0.15) {
+                result += ' ';
+            }
         }
         const text = escapeHtml(sorted[i].text);
         if (!isDefaultColor(sorted[i].color)) {
@@ -1949,6 +2023,7 @@ function textItemsToHtml(
     };
 
     let currentParagraph: string[] = [];
+    let currentParagraphRTL = false;
     let lastY: number | null = null;
     let lastPage = -1;
     let lastLineSpacing = 0;
@@ -1962,8 +2037,10 @@ function textItemsToHtml(
     const flushParagraph = () => {
         if (currentParagraph.length === 0) return;
         const text = currentParagraph.join(' ');
-        html.push(`<p>${text}</p>`);
+        const dir = currentParagraphRTL ? ' dir="rtl"' : '';
+        html.push(`<p${dir}>${text}</p>`);
         currentParagraph = [];
+        currentParagraphRTL = false;
     };
 
     const insertImagesBeforeY = (page: number, y: number) => {
@@ -2005,6 +2082,8 @@ function textItemsToHtml(
         const numberedMatch = lineText.match(NUMBERED_PATTERN);
 
         const largeGapIdx = findLargeGapIndex(line);
+        const rtl = isLineRTL(line);
+        const dir = rtl ? ' dir="rtl"' : '';
 
         if (largeGapIdx > 0) {
             flushParagraph();
@@ -2014,17 +2093,17 @@ function textItemsToHtml(
             flushParagraph();
             closeList();
             const content = lineToHtmlContent(line);
-            html.push(`<h${headingLevel}>${content}</h${headingLevel}>`);
+            html.push(`<h${headingLevel}${dir}>${content}</h${headingLevel}>`);
         } else if (bulletMatch) {
             flushParagraph();
             if (inNumberedList) { html.push('</ol>'); inNumberedList = false; }
-            if (!inBulletList) { html.push('<ul>'); inBulletList = true; }
+            if (!inBulletList) { html.push(`<ul${dir}>`); inBulletList = true; }
             const content = escapeHtml(lineText.replace(BULLET_PATTERN, ''));
             html.push(`<li>${content}</li>`);
         } else if (numberedMatch) {
             flushParagraph();
             if (inBulletList) { html.push('</ul>'); inBulletList = false; }
-            if (!inNumberedList) { html.push('<ol>'); inNumberedList = true; }
+            if (!inNumberedList) { html.push(`<ol${dir}>`); inNumberedList = true; }
             const content = escapeHtml(lineText.replace(NUMBERED_PATTERN, ''));
             html.push(`<li>${content}</li>`);
         } else {
@@ -2033,6 +2112,7 @@ function textItemsToHtml(
             if (isParagraphBreak || isPageBreak) {
                 flushParagraph();
             }
+            if (rtl) currentParagraphRTL = true;
             currentParagraph.push(content);
         }
 

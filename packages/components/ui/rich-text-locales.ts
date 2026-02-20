@@ -130,6 +130,11 @@ export interface RichTextLocale {
         splitCell: string;
         toggleHeaderRow: string;
         gridLabel: string;
+        borders: string;
+        bordersAll: string;
+        bordersNone: string;
+        bordersOuter: string;
+        bordersHorizontal: string;
     };
 
     imageResizer: {
@@ -279,6 +284,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Split Cell',
             toggleHeaderRow: 'Toggle Header Row',
             gridLabel: '{rows} x {cols} table',
+            borders: 'Borders',
+            bordersAll: 'All Borders',
+            bordersNone: 'No Borders',
+            bordersOuter: 'Outside Borders',
+            bordersHorizontal: 'Horizontal Lines',
         },
         imageResizer: {
             inline: 'Inline with text',
@@ -420,6 +430,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'פיצול תא',
             toggleHeaderRow: 'שינוי שורת כותרת',
             gridLabel: 'טבלה {rows} x {cols}',
+            borders: 'גבולות',
+            bordersAll: 'כל הגבולות',
+            bordersNone: 'ללא גבולות',
+            bordersOuter: 'גבולות חיצוניים',
+            bordersHorizontal: 'קווים אופקיים',
         },
         imageResizer: {
             inline: 'בתוך הטקסט',
@@ -561,6 +576,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'تقسيم الخلية',
             toggleHeaderRow: 'تبديل صف العنوان',
             gridLabel: 'جدول {rows} × {cols}',
+            borders: 'حدود',
+            bordersAll: 'كل الحدود',
+            bordersNone: 'بدون حدود',
+            bordersOuter: 'حدود خارجية',
+            bordersHorizontal: 'خطوط أفقية',
         },
         imageResizer: {
             inline: 'داخل النص',
@@ -702,6 +722,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Zelle teilen',
             toggleHeaderRow: 'Kopfzeile umschalten',
             gridLabel: 'Tabelle {rows} x {cols}',
+            borders: 'Rahmen',
+            bordersAll: 'Alle Rahmen',
+            bordersNone: 'Keine Rahmen',
+            bordersOuter: 'Außenrahmen',
+            bordersHorizontal: 'Horizontale Linien',
         },
         imageResizer: {
             inline: 'Im Text',
@@ -843,6 +868,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Diviser la cellule',
             toggleHeaderRow: 'Basculer la ligne d\'en-tête',
             gridLabel: 'Tableau {rows} x {cols}',
+            borders: 'Bordures',
+            bordersAll: 'Toutes les bordures',
+            bordersNone: 'Sans bordure',
+            bordersOuter: 'Bordure extérieure',
+            bordersHorizontal: 'Lignes horizontales',
         },
         imageResizer: {
             inline: 'Dans le texte',
@@ -984,6 +1014,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Dividir celda',
             toggleHeaderRow: 'Alternar fila de encabezado',
             gridLabel: 'Tabla de {rows} x {cols}',
+            borders: 'Bordes',
+            bordersAll: 'Todos los bordes',
+            bordersNone: 'Sin bordes',
+            bordersOuter: 'Bordes exteriores',
+            bordersHorizontal: 'Líneas horizontales',
         },
         imageResizer: {
             inline: 'En línea con el texto',
@@ -1125,6 +1160,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'セルを分割',
             toggleHeaderRow: 'ヘッダー行を切り替え',
             gridLabel: '{rows} x {cols} テーブル',
+            borders: '罫線',
+            bordersAll: 'すべての罫線',
+            bordersNone: '罫線なし',
+            bordersOuter: '外枠のみ',
+            bordersHorizontal: '横罫線',
         },
         imageResizer: {
             inline: 'テキストと同列',
@@ -1266,6 +1306,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: '拆分单元格',
             toggleHeaderRow: '切换表头行',
             gridLabel: '{rows} x {cols} 表格',
+            borders: '边框',
+            bordersAll: '所有边框',
+            bordersNone: '无边框',
+            bordersOuter: '外边框',
+            bordersHorizontal: '水平线',
         },
         imageResizer: {
             inline: '与文字内联',
@@ -1407,6 +1452,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Разделить ячейку',
             toggleHeaderRow: 'Переключить строку заголовка',
             gridLabel: 'Таблица {rows} x {cols}',
+            borders: 'Границы',
+            bordersAll: 'Все границы',
+            bordersNone: 'Без границ',
+            bordersOuter: 'Внешние границы',
+            bordersHorizontal: 'Горизонтальные линии',
         },
         imageResizer: {
             inline: 'В тексте',
@@ -1548,6 +1598,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Dividir célula',
             toggleHeaderRow: 'Alternar linha de cabeçalho',
             gridLabel: 'Tabela {rows} x {cols}',
+            borders: 'Bordas',
+            bordersAll: 'Todas as bordas',
+            bordersNone: 'Sem bordas',
+            bordersOuter: 'Bordas externas',
+            bordersHorizontal: 'Linhas horizontais',
         },
         imageResizer: {
             inline: 'Em linha com o texto',
