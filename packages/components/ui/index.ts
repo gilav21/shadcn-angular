@@ -62,6 +62,8 @@ export * from './rich-text-editor.component';
 export * from './rich-text-command-registry.service';
 export * from './rich-text-mention.component';
 export * from './rich-text-locales';
+export { parsePdf } from '../lib/pdf-parser';
+export type { PdfParseResult } from '../lib/pdf-parser';
 export * from './timeline.component';
 export * from './tree.component';
 export * from './tree-select.component';

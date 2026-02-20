@@ -28,6 +28,7 @@ export interface RichTextLocale {
         alignCenter: string;
         alignRight: string;
         insertTable: string;
+        importFile: string;
     };
 
     link: {
@@ -129,6 +130,11 @@ export interface RichTextLocale {
         splitCell: string;
         toggleHeaderRow: string;
         gridLabel: string;
+        borders: string;
+        bordersAll: string;
+        bordersNone: string;
+        bordersOuter: string;
+        bordersHorizontal: string;
     };
 
     imageResizer: {
@@ -143,6 +149,8 @@ export interface RichTextLocale {
         placeholder: string;
         ariaLabel: string;
         uploadingImage: string;
+        importingPdf: string;
+        importFailed: string;
         characters: string;
         words: string;
         formattingOptions: string;
@@ -184,6 +192,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Align Center',
             alignRight: 'Align Right',
             insertTable: 'Insert Table',
+            importFile: 'Import File',
         },
         link: {
             text: 'Link Text',
@@ -277,6 +286,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Split Cell',
             toggleHeaderRow: 'Toggle Header Row',
             gridLabel: '{rows} x {cols} table',
+            borders: 'Borders',
+            bordersAll: 'All Borders',
+            bordersNone: 'No Borders',
+            bordersOuter: 'Outside Borders',
+            bordersHorizontal: 'Horizontal Lines',
         },
         imageResizer: {
             inline: 'Inline with text',
@@ -289,6 +303,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Write something...',
             ariaLabel: 'Rich text editor',
             uploadingImage: 'Uploading image...',
+            importingPdf: 'Importing PDF...',
+            importFailed: 'Failed to import PDF. The file may be unsupported or corrupted.',
             characters: '{count} characters',
             words: '{count} words',
             formattingOptions: 'Formatting options',
@@ -324,6 +340,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'יישור למרכז',
             alignRight: 'יישור לימין',
             insertTable: 'הוספת טבלה',
+            importFile: 'ייבוא קובץ',
         },
         link: {
             text: 'טקסט הקישור',
@@ -417,6 +434,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'פיצול תא',
             toggleHeaderRow: 'שינוי שורת כותרת',
             gridLabel: 'טבלה {rows} x {cols}',
+            borders: 'גבולות',
+            bordersAll: 'כל הגבולות',
+            bordersNone: 'ללא גבולות',
+            bordersOuter: 'גבולות חיצוניים',
+            bordersHorizontal: 'קווים אופקיים',
         },
         imageResizer: {
             inline: 'בתוך הטקסט',
@@ -429,6 +451,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'ניתן לכתוב כאן...',
             ariaLabel: 'עורך טקסט עשיר',
             uploadingImage: 'העלאת תמונה...',
+            importingPdf: '...מייבא קובץ PDF',
+            importFailed: 'ייבוא ה-PDF נכשל. הקובץ עשוי להיות לא נתמך או פגום.',
             characters: '{count} תווים',
             words: '{count} מילים',
             formattingOptions: 'אפשרויות עיצוב',
@@ -464,6 +488,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'محاذاة للوسط',
             alignRight: 'محاذاة لليمين',
             insertTable: 'إدراج جدول',
+            importFile: 'استيراد ملف',
         },
         link: {
             text: 'نص الرابط',
@@ -557,6 +582,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'تقسيم الخلية',
             toggleHeaderRow: 'تبديل صف العنوان',
             gridLabel: 'جدول {rows} × {cols}',
+            borders: 'حدود',
+            bordersAll: 'كل الحدود',
+            bordersNone: 'بدون حدود',
+            bordersOuter: 'حدود خارجية',
+            bordersHorizontal: 'خطوط أفقية',
         },
         imageResizer: {
             inline: 'داخل النص',
@@ -569,6 +599,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'الكتابة هنا...',
             ariaLabel: 'محرر نص منسق',
             uploadingImage: 'جارٍ رفع الصورة...',
+            importingPdf: '...جارٍ استيراد PDF',
+            importFailed: 'فشل استيراد PDF. قد يكون الملف غير مدعوم أو تالفاً.',
             characters: '{count} حرف',
             words: '{count} كلمة',
             formattingOptions: 'خيارات التنسيق',
@@ -604,6 +636,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Zentriert',
             alignRight: 'Rechtsbündig',
             insertTable: 'Tabelle einfügen',
+            importFile: 'Datei importieren',
         },
         link: {
             text: 'Linktext',
@@ -697,6 +730,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Zelle teilen',
             toggleHeaderRow: 'Kopfzeile umschalten',
             gridLabel: 'Tabelle {rows} x {cols}',
+            borders: 'Rahmen',
+            bordersAll: 'Alle Rahmen',
+            bordersNone: 'Keine Rahmen',
+            bordersOuter: 'Außenrahmen',
+            bordersHorizontal: 'Horizontale Linien',
         },
         imageResizer: {
             inline: 'Im Text',
@@ -709,6 +747,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Schreiben Sie etwas...',
             ariaLabel: 'Rich-Text-Editor',
             uploadingImage: 'Bild wird hochgeladen...',
+            importingPdf: 'PDF wird importiert...',
+            importFailed: 'PDF-Import fehlgeschlagen. Die Datei wird möglicherweise nicht unterstützt oder ist beschädigt.',
             characters: '{count} Zeichen',
             words: '{count} Wörter',
             formattingOptions: 'Formatierungsoptionen',
@@ -744,6 +784,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Centrer',
             alignRight: 'Aligner à droite',
             insertTable: 'Insérer un tableau',
+            importFile: 'Importer un fichier',
         },
         link: {
             text: 'Texte du lien',
@@ -837,6 +878,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Diviser la cellule',
             toggleHeaderRow: 'Basculer la ligne d\'en-tête',
             gridLabel: 'Tableau {rows} x {cols}',
+            borders: 'Bordures',
+            bordersAll: 'Toutes les bordures',
+            bordersNone: 'Sans bordure',
+            bordersOuter: 'Bordure extérieure',
+            bordersHorizontal: 'Lignes horizontales',
         },
         imageResizer: {
             inline: 'Dans le texte',
@@ -849,6 +895,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Écrivez quelque chose...',
             ariaLabel: 'Éditeur de texte enrichi',
             uploadingImage: 'Téléchargement de l\'image...',
+            importingPdf: 'Importation du PDF...',
+            importFailed: 'Échec de l\'importation du PDF. Le fichier est peut-être non pris en charge ou corrompu.',
             characters: '{count} caractères',
             words: '{count} mots',
             formattingOptions: 'Options de mise en forme',
@@ -884,6 +932,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Centrar',
             alignRight: 'Alinear a la derecha',
             insertTable: 'Insertar tabla',
+            importFile: 'Importar archivo',
         },
         link: {
             text: 'Texto del enlace',
@@ -977,6 +1026,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Dividir celda',
             toggleHeaderRow: 'Alternar fila de encabezado',
             gridLabel: 'Tabla de {rows} x {cols}',
+            borders: 'Bordes',
+            bordersAll: 'Todos los bordes',
+            bordersNone: 'Sin bordes',
+            bordersOuter: 'Bordes exteriores',
+            bordersHorizontal: 'Líneas horizontales',
         },
         imageResizer: {
             inline: 'En línea con el texto',
@@ -989,6 +1043,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Escribe algo...',
             ariaLabel: 'Editor de texto enriquecido',
             uploadingImage: 'Subiendo imagen...',
+            importingPdf: 'Importando PDF...',
+            importFailed: 'Error al importar PDF. El archivo puede no ser compatible o estar dañado.',
             characters: '{count} caracteres',
             words: '{count} palabras',
             formattingOptions: 'Opciones de formato',
@@ -1024,6 +1080,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: '中央揃え',
             alignRight: '右揃え',
             insertTable: 'テーブルを挿入',
+            importFile: 'ファイルをインポート',
         },
         link: {
             text: 'リンクテキスト',
@@ -1117,6 +1174,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'セルを分割',
             toggleHeaderRow: 'ヘッダー行を切り替え',
             gridLabel: '{rows} x {cols} テーブル',
+            borders: '罫線',
+            bordersAll: 'すべての罫線',
+            bordersNone: '罫線なし',
+            bordersOuter: '外枠のみ',
+            bordersHorizontal: '横罫線',
         },
         imageResizer: {
             inline: 'テキストと同列',
@@ -1129,6 +1191,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: '何か書いてください...',
             ariaLabel: 'リッチテキストエディター',
             uploadingImage: '画像をアップロード中...',
+            importingPdf: 'PDFをインポート中...',
+            importFailed: 'PDFのインポートに失敗しました。ファイルがサポートされていないか破損している可能性があります。',
             characters: '{count} 文字',
             words: '{count} 語',
             formattingOptions: '書式設定オプション',
@@ -1164,6 +1228,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: '居中对齐',
             alignRight: '右对齐',
             insertTable: '插入表格',
+            importFile: '导入文件',
         },
         link: {
             text: '链接文字',
@@ -1257,6 +1322,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: '拆分单元格',
             toggleHeaderRow: '切换表头行',
             gridLabel: '{rows} x {cols} 表格',
+            borders: '边框',
+            bordersAll: '所有边框',
+            bordersNone: '无边框',
+            bordersOuter: '外边框',
+            bordersHorizontal: '水平线',
         },
         imageResizer: {
             inline: '与文字内联',
@@ -1269,6 +1339,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: '写点什么...',
             ariaLabel: '富文本编辑器',
             uploadingImage: '正在上传图片...',
+            importingPdf: '正在导入PDF...',
+            importFailed: 'PDF导入失败。文件可能不受支持或已损坏。',
             characters: '{count} 个字符',
             words: '{count} 个词',
             formattingOptions: '格式选项',
@@ -1304,6 +1376,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'По центру',
             alignRight: 'По правому краю',
             insertTable: 'Вставить таблицу',
+            importFile: 'Импорт файла',
         },
         link: {
             text: 'Текст ссылки',
@@ -1397,6 +1470,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Разделить ячейку',
             toggleHeaderRow: 'Переключить строку заголовка',
             gridLabel: 'Таблица {rows} x {cols}',
+            borders: 'Границы',
+            bordersAll: 'Все границы',
+            bordersNone: 'Без границ',
+            bordersOuter: 'Внешние границы',
+            bordersHorizontal: 'Горизонтальные линии',
         },
         imageResizer: {
             inline: 'В тексте',
@@ -1409,6 +1487,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Напишите что-нибудь...',
             ariaLabel: 'Редактор форматированного текста',
             uploadingImage: 'Загрузка изображения...',
+            importingPdf: 'Импорт PDF...',
+            importFailed: 'Не удалось импортировать PDF. Файл может быть неподдерживаемым или повреждённым.',
             characters: '{count} символов',
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
@@ -1444,6 +1524,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignCenter: 'Centralizar',
             alignRight: 'Alinhar à direita',
             insertTable: 'Inserir tabela',
+            importFile: 'Importar arquivo',
         },
         link: {
             text: 'Texto do link',
@@ -1537,6 +1618,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             splitCell: 'Dividir célula',
             toggleHeaderRow: 'Alternar linha de cabeçalho',
             gridLabel: 'Tabela {rows} x {cols}',
+            borders: 'Bordas',
+            bordersAll: 'Todas as bordas',
+            bordersNone: 'Sem bordas',
+            bordersOuter: 'Bordas externas',
+            bordersHorizontal: 'Linhas horizontais',
         },
         imageResizer: {
             inline: 'Em linha com o texto',
@@ -1549,6 +1635,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             placeholder: 'Escreva algo...',
             ariaLabel: 'Editor de texto rico',
             uploadingImage: 'Enviando imagem...',
+            importingPdf: 'Importando PDF...',
+            importFailed: 'Falha ao importar PDF. O arquivo pode não ser suportado ou estar corrompido.',
             characters: '{count} caracteres',
             words: '{count} palavras',
             formattingOptions: 'Opções de formatação',

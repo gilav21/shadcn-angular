@@ -64,6 +64,11 @@ export class RichTextPasteNormalizerService {
             if (this.isGoogleDocsHtml(html)) return 'google-docs';
             if (this.isApplePagesHtml(html)) return 'apple-pages';
             if (this.isLibreOfficeHtml(html)) return 'libreoffice';
+
+            if (text && this.looksLikePdfText(text) && this.isMinimalHtml(html)) {
+                return 'plain-text';
+            }
+
             return 'html';
         }
 
@@ -108,6 +113,11 @@ export class RichTextPasteNormalizerService {
     private isLibreOfficeHtml(html: string): boolean {
         return /content="LibreOffice/i.test(html) ||
             /content="OpenOffice/i.test(html);
+    }
+
+    private isMinimalHtml(html: string): boolean {
+        const semanticTagPattern = /<(?:h[1-6]|ul|ol|li|table|thead|tbody|tr|td|th|strong|em|blockquote|pre|code|a\s)[^>]*>/i;
+        return !semanticTagPattern.test(html);
     }
 
     private isExcelHtml(html: string): boolean {
@@ -889,26 +899,15 @@ export class RichTextPasteNormalizerService {
     private normalizePlainText(text: string): string {
         if (!text) return '';
 
-        let processed = text;
-        const hadNewlines = text.includes('\n');
-
-        if (this.looksLikePdfText(processed)) {
-            processed = this.structurePdfText(processed);
+        if (this.looksLikePdfText(text)) {
+            return this.structurePdfTextToHtml(text);
         }
 
-        let escaped = this.escapeHtml(processed);
+        let escaped = this.escapeHtml(text);
+        escaped = this.autoLinkUrls(escaped);
 
-        escaped = escaped.replace(
-            /(https?:\/\/[^\s<&]+)/g,
-            '<a href="$1">$1</a>'
-        );
-
-        if (!hadNewlines && !escaped.includes('\n')) {
+        if (!text.includes('\n')) {
             return escaped;
-        }
-
-        if (!escaped.includes('\n')) {
-            return `<p>${escaped}</p>`;
         }
 
         const paragraphs = escaped.split(/\n{2,}/);
@@ -937,14 +936,13 @@ export class RichTextPasteNormalizerService {
         return false;
     }
 
-    private structurePdfText(text: string): string {
+    private structurePdfTextToHtml(text: string): string {
         const lines = text.split('\n');
         const filtered = lines.filter(line => {
             const trimmed = line.trim();
             if (/^\d+$/.test(trimmed) && trimmed.length <= 4) return false;
             return true;
         });
-        const result: string[] = [];
 
         const nonEmptyLengths = filtered
             .map(l => l.trim().length)
@@ -954,36 +952,52 @@ export class RichTextPasteNormalizerService {
             ? nonEmptyLengths[Math.floor(nonEmptyLengths.length * 0.75)]
             : 80;
 
+        const htmlParts: string[] = [];
+        let listBuffer: { text: string; ordered: boolean }[] = [];
         let i = 0;
+
+        const flushListBuffer = (): void => {
+            if (listBuffer.length === 0) return;
+            const isOrdered = listBuffer[0].ordered;
+            const tag = isOrdered ? 'ol' : 'ul';
+            htmlParts.push(`<${tag}>`);
+            for (const item of listBuffer) {
+                const escaped = this.escapeHtml(item.text);
+                const linked = this.autoLinkUrls(escaped);
+                htmlParts.push(`<li>${linked}</li>`);
+            }
+            htmlParts.push(`</${tag}>`);
+            listBuffer = [];
+        };
+
         while (i < filtered.length) {
-            const line = filtered[i];
-            const trimmed = line.trim();
+            const trimmed = filtered[i].trim();
 
             if (trimmed === '') {
-                result.push('');
                 i++;
                 continue;
             }
 
             if (this.isPdfHeading(trimmed, filtered, i)) {
-                if (result.length > 0 && result[result.length - 1] !== '') {
-                    result.push('');
-                }
-                result.push(trimmed);
-                result.push('');
+                flushListBuffer();
+                const escaped = this.escapeHtml(trimmed);
+                htmlParts.push(`<h2>${escaped}</h2>`);
                 i++;
                 continue;
             }
 
             if (this.isPdfListItem(trimmed)) {
-                if (result.length > 0 && result[result.length - 1] !== '' && !this.isPdfListItem(result[result.length - 1])) {
-                    result.push('');
+                const strippedText = this.stripPdfListMarker(trimmed);
+                const ordered = this.isPdfOrderedListItem(trimmed);
+                if (listBuffer.length > 0 && listBuffer[0].ordered !== ordered) {
+                    flushListBuffer();
                 }
-                result.push(trimmed);
+                listBuffer.push({ text: strippedText, ordered });
                 i++;
                 continue;
             }
 
+            flushListBuffer();
             let paragraph = trimmed;
             let lastLineLen = trimmed.length;
             i++;
@@ -997,13 +1011,13 @@ export class RichTextPasteNormalizerService {
                 lastLineLen = nextLine.length;
                 i++;
             }
-            result.push(paragraph);
-            if (i < filtered.length && filtered[i].trim() !== '') {
-                result.push('');
-            }
+            const escaped = this.escapeHtml(paragraph);
+            const linked = this.autoLinkUrls(escaped);
+            htmlParts.push(`<p>${linked}</p>`);
         }
 
-        return result.join('\n');
+        flushListBuffer();
+        return htmlParts.join('');
     }
 
     private isPdfHeading(line: string, allLines: string[], index: number): boolean {
@@ -1039,6 +1053,26 @@ export class RichTextPasteNormalizerService {
         if (nextLine.length < 20 && currentParagraph.length > 60) return true;
 
         return false;
+    }
+
+    private isPdfOrderedListItem(line: string): boolean {
+        return /^\s*\d+[.)]\s+/.test(line) ||
+            /^\s*[a-z][.)]\s+/i.test(line);
+    }
+
+    private stripPdfListMarker(line: string): string {
+        return line
+            .replace(/^\s*[-•●○◦▪▸►–—]\s+/, '')
+            .replace(/^\s*\d+[.)]\s+/, '')
+            .replace(/^\s*[a-z][.)]\s+/i, '')
+            .replace(/^\s*[ivxlcdm]+[.)]\s+/i, '');
+    }
+
+    private autoLinkUrls(escaped: string): string {
+        return escaped.replace(
+            /(https?:\/\/[^\s<&]+)/g,
+            '<a href="$1">$1</a>'
+        );
     }
 
     // =========================================================================

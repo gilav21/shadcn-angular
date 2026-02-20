@@ -140,6 +140,48 @@ describe('RichTextPasteNormalizerService', () => {
         it('should return plain-text for empty inputs', () => {
             expect(service.detectSource(null, '')).toBe('plain-text');
         });
+
+        it('should detect Excel via Office XML namespace', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><tr><td>A</td></tr></table></body></html>';
+            expect(service.detectSource(html, '')).toBe('excel');
+        });
+
+        it('should detect Excel via Generator meta tag', () => {
+            const html = '<meta name="Generator" content="Microsoft Excel 16"><table><tr><td>Cell</td></tr></table>';
+            expect(service.detectSource(html, '')).toBe('excel');
+        });
+
+        it('should detect Google Sheets as excel when google-sheets-html-origin and table present', () => {
+            const html = '<google-sheets-html-origin><table><tr><td>Cell</td></tr></table></google-sheets-html-origin>';
+            expect(service.detectSource(html, '')).toBe('excel');
+        });
+
+        it('should detect plain-text when HTML is minimal and text looks like PDF', () => {
+            const html = '<span style="white-space: pre-wrap; font-size: 10pt;">This is the first line of a paragraph that\ncontinues on the next line because the PDF\nviewer wraps text at the column boundary.\nThis keeps going for a while so we have a\ngood amount of consistent-length lines to\ntrigger the PDF detection heuristic here.</span>';
+            const text = [
+                'This is the first line of a paragraph that',
+                'continues on the next line because the PDF',
+                'viewer wraps text at the column boundary.',
+                'This keeps going for a while so we have a',
+                'good amount of consistent-length lines to',
+                'trigger the PDF detection heuristic here.',
+            ].join('\n');
+            expect(service.detectSource(html, text)).toBe('plain-text');
+        });
+
+        it('should detect html when HTML has semantic tags even if text looks like PDF', () => {
+            const html = '<h1>Title</h1><p>This is the first line of a paragraph that continues on the next line.</p>';
+            const text = [
+                'Title',
+                'This is the first line of a paragraph that',
+                'continues on the next line because the PDF',
+                'viewer wraps text at the column boundary.',
+                'This keeps going for a while so we have a',
+                'good amount of consistent-length lines to',
+                'trigger the PDF detection heuristic here.',
+            ].join('\n');
+            expect(service.detectSource(html, text)).toBe('html');
+        });
     });
 
     // =========================================================================
@@ -673,6 +715,133 @@ describe('RichTextPasteNormalizerService', () => {
     });
 
     // =========================================================================
+    // EXCEL NORMALIZER
+    // =========================================================================
+
+    describe('normalizeExcel', () => {
+        it('should preserve basic table structure from Excel', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><tr><td>A1</td><td>B1</td></tr><tr><td>A2</td><td>B2</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('<table>');
+            expect(result).toContain('<tr>');
+            expect(result).toContain('<td>');
+            expect(result).toContain('A1');
+            expect(result).toContain('B1');
+            expect(result).toContain('A2');
+            expect(result).toContain('B2');
+        });
+
+        it('should unwrap google-sheets-html-origin wrapper', () => {
+            const html = '<google-sheets-html-origin><table><tr><td>Cell</td></tr></table></google-sheets-html-origin>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('google-sheets-html-origin');
+            expect(result).toContain('<table>');
+            expect(result).toContain('Cell');
+        });
+
+        it('should convert bold cell content to semantic strong', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><tr><td style="font-weight:bold">Bold Cell</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('<strong>');
+            expect(result).toContain('Bold Cell');
+        });
+
+        it('should convert italic cell content to semantic em', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><tr><td style="font-style:italic">Italic Cell</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('<em>');
+            expect(result).toContain('Italic Cell');
+        });
+
+        it('should fill empty cells with br element', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><tr><td>Data</td><td></td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('<td><br></td>');
+        });
+
+        it('should propagate column widths from col elements to cells', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><colgroup><col width="120"><col width="200"></colgroup><tr><td>A</td><td>B</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('<col');
+            expect(result).not.toContain('<colgroup>');
+            expect(result).toContain('120px');
+            expect(result).toContain('200px');
+        });
+
+        it('should remove XML-namespaced elements from Excel paste', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><x:ExcelWorkbook>ignored</x:ExcelWorkbook><table><tr><td>Data</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('ExcelWorkbook');
+            expect(result).toContain('Data');
+        });
+
+        it('should remove style blocks from Excel paste', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><style>td{font-family:Calibri}</style><table><tr><td>Data</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('<style');
+            expect(result).not.toContain('Calibri');
+        });
+
+        it('should strip data-sheets-* attributes from Google Sheets cells', () => {
+            const html = '<google-sheets-html-origin><table><tr><td data-sheets-value="{}" data-sheets-numberformat="General">42</td></tr></table></google-sheets-html-origin>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('data-sheets-');
+            expect(result).toContain('42');
+        });
+
+        it('should strip class and id attributes from Excel table', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table class="xl65" id="table01"><tr><td class="xl66">Data</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('class=');
+            expect(result).not.toContain('id=');
+            expect(result).toContain('Data');
+        });
+
+        it('should remove conditional comments from Excel paste', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><!--[if gte mso 9]><xml></xml><![endif]--><table><tr><td>Data</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).not.toContain('<!--');
+            expect(result).toContain('Data');
+        });
+
+        it('should map mso-highlight to background-color in Excel cells', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><table><tr><td style="mso-highlight:yellow">Highlighted</td></tr></table></body></html>';
+            const result = service.normalize(html, '');
+            expect(result).toContain('background-color: yellow');
+            expect(result).not.toContain('mso-highlight');
+        });
+
+        it('should handle realistic multi-row Excel paste with mixed formatting', () => {
+            const html = [
+                '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body>',
+                '<table>',
+                '<tr><td style="font-weight:bold">Header 1</td><td style="font-weight:bold">Header 2</td></tr>',
+                '<tr><td>Value A</td><td style="font-style:italic">Value B</td></tr>',
+                '<tr><td></td><td>Value D</td></tr>',
+                '</table>',
+                '</body></html>',
+            ].join('');
+            const result = service.normalize(html, '');
+            expect(result).toContain('<strong>');
+            expect(result).toContain('Header 1');
+            expect(result).toContain('<em>');
+            expect(result).toContain('Value B');
+            expect(result).toContain('<br>');
+            expect(result).toContain('Value D');
+        });
+
+        it('should produce clean table HTML through the full pipeline', () => {
+            const html = '<html xmlns:x="urn:schemas-microsoft-com:office:excel"><body><style>.xl65{color:red}</style><table class="xl65"><tr><td class="xl65">42</td></tr></table></body></html>';
+            const result = pipeline(html, '');
+            expect(result).toContain('<table>');
+            expect(result).toContain('42');
+            expect(result).not.toContain('mso-');
+            expect(result).not.toContain('<style');
+            expect(result).not.toContain('class=');
+        });
+    });
+
+    // =========================================================================
     // PLAIN TEXT NORMALIZER
     // =========================================================================
 
@@ -751,7 +920,7 @@ describe('RichTextPasteNormalizerService', () => {
             expect(paragraphCount).toBe(2);
         });
 
-        it('should preserve list items in PDF text', () => {
+        it('should preserve list items in PDF text as ul/li elements', () => {
             const pdfText = [
                 'Here is some introduction text that goes',
                 'across multiple lines in the PDF document.',
@@ -763,8 +932,11 @@ describe('RichTextPasteNormalizerService', () => {
                 '- Third item in the list',
             ].join('\n');
             const result = service.normalize(null, pdfText);
-            expect(result).toContain('First item');
-            expect(result).toContain('Second item');
+            expect(result).toContain('<ul>');
+            expect(result).toContain('<li>First item in the list</li>');
+            expect(result).toContain('<li>Second item in the list</li>');
+            expect(result).toContain('<li>Third item in the list</li>');
+            expect(result).toContain('</ul>');
         });
 
         it('should detect paragraph boundaries via column width in PDF text', () => {
@@ -783,7 +955,7 @@ describe('RichTextPasteNormalizerService', () => {
             expect(paragraphCount).toBeGreaterThanOrEqual(2);
         });
 
-        it('should detect headings in PDF text', () => {
+        it('should convert PDF headings to h2 elements', () => {
             const pdfText = [
                 'INTRODUCTION',
                 '',
@@ -800,10 +972,134 @@ describe('RichTextPasteNormalizerService', () => {
                 'More filler text to trigger the heuristic.',
             ].join('\n');
             const result = service.normalize(null, pdfText);
-            expect(result).toContain('INTRODUCTION');
-            expect(result).toContain('CONCLUSION');
+            expect(result).toContain('<h2>INTRODUCTION</h2>');
+            expect(result).toContain('<h2>CONCLUSION</h2>');
             const paragraphCount = (result.match(/<p>/g) || []).length;
-            expect(paragraphCount).toBeGreaterThanOrEqual(3);
+            expect(paragraphCount).toBe(2);
+        });
+
+        it('should convert PDF numbered list items to ol/li elements', () => {
+            const pdfText = [
+                'Here is some introduction text that goes',
+                'across multiple lines in the PDF document.',
+                'It keeps going for consistent line length.',
+                'And more text to trigger the PDF detection.',
+                'This paragraph continues with more content.',
+                'We need enough lines for heuristic to work.',
+                '',
+                '1) First step in the process',
+                '2) Second step in the process',
+                '3) Third step in the process',
+            ].join('\n');
+            const result = service.normalize(null, pdfText);
+            expect(result).toContain('<ol>');
+            expect(result).toContain('<li>First step in the process</li>');
+            expect(result).toContain('<li>Second step in the process</li>');
+            expect(result).toContain('<li>Third step in the process</li>');
+            expect(result).toContain('</ol>');
+        });
+
+        it('should handle mixed headings, paragraphs, and lists in PDF text', () => {
+            const pdfText = [
+                'GETTING STARTED',
+                '',
+                'This is an introductory paragraph that spans',
+                'multiple lines in the PDF and should be joined',
+                'into a single paragraph element by the parser.',
+                'More text to reach detection threshold length.',
+                '',
+                'REQUIREMENTS',
+                '',
+                '• Node.js version 18 or higher',
+                '• A package manager like npm or yarn',
+                '• A modern web browser for testing',
+                '',
+                'INSTALLATION STEPS',
+                '',
+                '1) Clone the repository from source',
+                '2) Run the install command for deps',
+                '3) Start the development server now',
+            ].join('\n');
+            const result = service.normalize(null, pdfText);
+            expect(result).toContain('<h2>GETTING STARTED</h2>');
+            expect(result).toContain('<h2>REQUIREMENTS</h2>');
+            expect(result).toContain('<h2>INSTALLATION STEPS</h2>');
+            expect(result).toContain('<p>');
+            expect(result).toContain('<ul>');
+            expect(result).toContain('<ol>');
+            expect(result).toContain('<li>Node.js version 18 or higher</li>');
+            expect(result).toContain('<li>Clone the repository from source</li>');
+        });
+
+        it('should auto-link URLs within PDF paragraphs', () => {
+            const pdfText = [
+                'Visit our website at https://example.com for',
+                'more details about the project and features.',
+                'Documentation is at https://docs.example.com',
+                'and the source code is available to everyone.',
+                'More lines to trigger the PDF heuristic well.',
+            ].join('\n');
+            const result = service.normalize(null, pdfText);
+            expect(result).toContain('<a href="https://example.com">https://example.com</a>');
+        });
+
+        it('should escape HTML entities in PDF text content', () => {
+            const pdfText = [
+                'The <script> tag is used for JavaScript and',
+                'should always be escaped in HTML documents.',
+                'Using < and > operators in code is common.',
+                'More text here to reach the detection limit.',
+                'And some more filler text for good measure.',
+            ].join('\n');
+            const result = service.normalize(null, pdfText);
+            expect(result).not.toContain('<script>');
+            expect(result).toContain('&lt;script&gt;');
+        });
+
+        it('should produce structured HTML from PDF text even when minimal HTML is on clipboard', () => {
+            const html = '<span style="white-space: pre-wrap;">INTRODUCTION\n\nThis is the first line of a paragraph that\ncontinues on the next line because the PDF\nviewer wraps text at the column boundary.\nThis keeps going for a while so we have a\ngood amount of consistent-length lines to\ntrigger the PDF detection heuristic here.\n\n- First item in the list\n- Second item in the list</span>';
+            const text = [
+                'INTRODUCTION',
+                '',
+                'This is the first line of a paragraph that',
+                'continues on the next line because the PDF',
+                'viewer wraps text at the column boundary.',
+                'This keeps going for a while so we have a',
+                'good amount of consistent-length lines to',
+                'trigger the PDF detection heuristic here.',
+                '',
+                '- First item in the list',
+                '- Second item in the list',
+            ].join('\n');
+            const result = service.normalize(html, text);
+            expect(result).toContain('<h2>INTRODUCTION</h2>');
+            expect(result).toContain('<p>');
+            expect(result).toContain('<ul>');
+            expect(result).toContain('<li>First item in the list</li>');
+        });
+
+        it('should switch list type when markers change from bullets to numbers', () => {
+            const pdfText = [
+                'Here is some introduction text that goes',
+                'across multiple lines in the PDF document.',
+                'It keeps going for consistent line length.',
+                'And more text to trigger the PDF detection.',
+                'This paragraph continues with more content.',
+                'We need enough lines for heuristic to work.',
+                '',
+                '• Unordered item one in the list',
+                '• Unordered item two in the list',
+                '',
+                '1) Ordered item one in the list',
+                '2) Ordered item two in the list',
+            ].join('\n');
+            const result = service.normalize(null, pdfText);
+            expect(result).toContain('<ul>');
+            expect(result).toContain('</ul>');
+            expect(result).toContain('<ol>');
+            expect(result).toContain('</ol>');
+            expect(result).toContain('<li>Unordered item one in the list</li>');
+            expect(result).toContain('<li>Ordered item one in the list</li>');
         });
     });
 

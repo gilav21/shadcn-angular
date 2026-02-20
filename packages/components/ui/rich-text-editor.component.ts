@@ -25,6 +25,7 @@ import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.ser
 import { Observable, isObservable, of, Subject, firstValueFrom, from, catchError } from 'rxjs';
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { parsePdf } from '../lib/pdf-parser';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
@@ -427,7 +428,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'fontColor', 'backgroundColor', 'fontSize',
     'separator',
-    'link', 'image', 'emoji',
+    'link', 'image', 'importFile', 'emoji',
     'separator',
     'table',
     'separator',
@@ -596,6 +597,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (colorSelect)="onColorSelect($event)"
         (fontSizeSelect)="onFontSizeSelect($event)"
         (tableInsert)="onTableInsert($event)"
+        (fileImport)="onFileImport($event)"
       />
     }
 
@@ -814,6 +816,18 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         </div>
       }
 
+      @if (fileImporting()) {
+        <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+          <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.importingPdf }}</div>
+        </div>
+      }
+
+      @if (fileImportErrorMessage()) {
+        <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+          <div class="text-sm text-destructive font-medium">{{ fileImportErrorMessage() }}</div>
+        </div>
+      }
+
       <ui-rich-text-image-resizer
           [target]="selectedImage()"
           [container]="editorDiv"
@@ -962,6 +976,32 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="toggleTableHeaderRow()">
             {{ resolvedLocale().table.toggleHeaderRow }}
           </button>
+          <div class="my-1 h-px bg-border"></div>
+          <div class="px-2 py-1.5">
+            <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.borders }}</div>
+            <div class="flex items-center gap-1">
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersAll" (click)="setTableBorders('all')">
+                <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5">
+                  <rect x="1" y="1" width="18" height="18" /><line x1="10" y1="1" x2="10" y2="19" /><line x1="1" y1="10" x2="19" y2="10" />
+                </svg>
+              </button>
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersNone" (click)="setTableBorders('none')">
+                <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1" opacity="0.35">
+                  <rect x="1" y="1" width="18" height="18" stroke-dasharray="2 2" /><line x1="10" y1="1" x2="10" y2="19" stroke-dasharray="2 2" /><line x1="1" y1="10" x2="19" y2="10" stroke-dasharray="2 2" />
+                </svg>
+              </button>
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersOuter" (click)="setTableBorders('outer')">
+                <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor">
+                  <rect x="1" y="1" width="18" height="18" stroke-width="1.5" /><line x1="10" y1="1" x2="10" y2="19" stroke-width="1" opacity="0.25" stroke-dasharray="2 2" /><line x1="1" y1="10" x2="19" y2="10" stroke-width="1" opacity="0.25" stroke-dasharray="2 2" />
+                </svg>
+              </button>
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.bordersHorizontal" (click)="setTableBorders('horizontal')">
+                <svg viewBox="0 0 20 20" class="w-4 h-4" fill="none" stroke="currentColor">
+                  <line x1="1" y1="1" x2="19" y2="1" stroke-width="1.5" /><line x1="1" y1="10" x2="19" y2="10" stroke-width="1.5" /><line x1="1" y1="19" x2="19" y2="19" stroke-width="1.5" />
+                </svg>
+              </button>
+            </div>
+          </div>
           <div class="my-1 h-px bg-border"></div>
           <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground text-destructive" (click)="deleteTableRow()">
             {{ resolvedLocale().table.deleteRow }}
@@ -1232,6 +1272,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      */
     tagInsert = output<RichTextEntityInsertEvent>();
 
+    fileImportStart = output<File>();
+    fileImportComplete = output<string>();
+    fileImportError = output<string>();
+
     private htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
@@ -1255,6 +1299,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     selectedText = signal<string>('');
     dragOver = signal<boolean>(false);
     imageUploading = signal<boolean>(false);
+    fileImporting = signal<boolean>(false);
+    fileImportErrorMessage = signal('');
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
@@ -1758,14 +1804,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
 
-        const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
-        if (imageFile && this.images()) {
-            await this.insertImageFile(imageFile);
-            return;
-        }
-
         const html = event.clipboardData?.getData('text/html');
         const text = event.clipboardData?.getData('text/plain') ?? '';
+
+        const imageFile = Array.from(event.clipboardData?.files ?? []).find(file => file.type.startsWith('image/'));
+        if (imageFile && this.images()) {
+            const source = this.pasteNormalizer.detectSource(html || null, text);
+            if (source !== 'excel') {
+                await this.insertImageFile(imageFile);
+                return;
+            }
+        }
 
         if (this.maxLength()) {
             const max = this.maxLength()!;
@@ -2229,6 +2278,48 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         } else {
             this.imageUploadError.emit('Invalid image URL.');
         }
+    }
+
+    async onFileImport(file: File): Promise<void> {
+        if (this.readonly() || this.disabled()) return;
+        this.flushPendingHistoryPush();
+
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (ext !== 'pdf') {
+            const msg = 'Unsupported file type. Currently only PDF is supported.';
+            this.fileImportError.emit(msg);
+            this.showImportError(msg);
+            return;
+        }
+
+        this.fileImporting.set(true);
+        this.fileImportStart.emit(file);
+
+        try {
+            const buffer = await file.arrayBuffer();
+            const result = await parsePdf(buffer);
+            if (!result.html.trim()) {
+                const msg = this.resolvedLocale().editor.importFailed;
+                this.fileImportError.emit(msg);
+                this.showImportError(msg);
+                return;
+            }
+            this.restoreSelection();
+            this.insertHtml(result.html);
+            this.pushHistory();
+            this.fileImportComplete.emit(result.html);
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : this.resolvedLocale().editor.importFailed;
+            this.fileImportError.emit(message);
+            this.showImportError(message);
+        } finally {
+            this.fileImporting.set(false);
+        }
+    }
+
+    private showImportError(message: string): void {
+        this.fileImportErrorMessage.set(message);
+        setTimeout(() => this.fileImportErrorMessage.set(''), 4000);
     }
 
     onEmojiInsert(emoji: string): void {
@@ -3064,6 +3155,64 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             newThead.appendChild(firstRow);
             info.table.insertBefore(newThead, info.table.firstChild);
         }
+        this.applyMutation({ focus: true });
+    }
+
+    setTableBorders(style: 'all' | 'none' | 'outer' | 'horizontal'): void {
+        this.tableContextMenuOpen.set(false);
+        const info = this.getTableCellInfo(this.tableContextMenuTarget);
+        if (!info) return;
+
+        const table = info.table;
+        const cells = Array.from(table.querySelectorAll('td, th')) as HTMLElement[];
+        const rows = Array.from(table.querySelectorAll('tr'));
+
+        const borderColor = cells.length > 0
+            ? getComputedStyle(cells[0]).borderTopColor
+            : 'currentColor';
+        const borderVal = `1px solid ${borderColor}`;
+
+        table.style.border = '';
+        for (const cell of cells) {
+            cell.style.border = '';
+            cell.style.borderTop = '';
+            cell.style.borderBottom = '';
+            cell.style.borderLeft = '';
+            cell.style.borderRight = '';
+        }
+
+        switch (style) {
+            case 'all':
+                break;
+            case 'none':
+                for (const cell of cells) {
+                    cell.style.border = 'none';
+                }
+                break;
+            case 'outer':
+                for (let ri = 0; ri < rows.length; ri++) {
+                    const rowCells = Array.from(rows[ri].cells);
+                    for (let ci = 0; ci < rowCells.length; ci++) {
+                        const cell = rowCells[ci];
+                        cell.style.borderTop = ri === 0 ? borderVal : 'none';
+                        cell.style.borderBottom = ri === rows.length - 1 ? borderVal : 'none';
+                        cell.style.borderLeft = ci === 0 ? borderVal : 'none';
+                        cell.style.borderRight = ci === rowCells.length - 1 ? borderVal : 'none';
+                    }
+                }
+                break;
+            case 'horizontal':
+                for (let ri = 0; ri < rows.length; ri++) {
+                    for (const cell of Array.from(rows[ri].cells)) {
+                        cell.style.borderLeft = 'none';
+                        cell.style.borderRight = 'none';
+                        cell.style.borderTop = ri === 0 ? borderVal : 'none';
+                        cell.style.borderBottom = ri < rows.length - 1 ? borderVal : 'none';
+                    }
+                }
+                break;
+        }
+
         this.applyMutation({ focus: true });
     }
 
