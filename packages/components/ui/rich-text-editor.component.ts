@@ -1535,7 +1535,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             // Task list styles
             '[&_ul[data-task-list]]:list-none [&_ul[data-task-list]]:ps-0 [&_ul[data-task-list]]:my-2',
             '[&_li_ul[data-task-list]]:ps-6 [&_li_ul[data-task-list]]:my-0',
-            '[&_li[data-task]]:flex [&_li[data-task]]:items-start [&_li[data-task]]:gap-2 [&_li[data-task]]:my-1',
+            '[&_li[data-task]]:flex [&_li[data-task]]:flex-wrap [&_li[data-task]]:items-start [&_li[data-task]]:gap-2 [&_li[data-task]]:my-1',
+            '[&_li[data-task]>ul]:w-full',
             '[&_li[data-task]_input[type=checkbox]]:mt-1 [&_li[data-task]_input[type=checkbox]]:h-4 [&_li[data-task]_input[type=checkbox]]:w-4 [&_li[data-task]_input[type=checkbox]]:cursor-pointer [&_li[data-task]_input[type=checkbox]]:accent-primary',
             '[&_li[data-task]_input[type=checkbox]]:shrink-0',
             '[&_li[data-task][data-checked=true]]:line-through [&_li[data-task][data-checked=true]]:text-muted-foreground',
@@ -1671,9 +1672,16 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const li = target.closest('li[data-task]') as HTMLElement;
             if (li) {
                 event.preventDefault();
+                const cb = target as HTMLInputElement;
                 const isChecked = li.getAttribute('data-checked') === 'true';
-                li.setAttribute('data-checked', String(!isChecked));
-                (target as HTMLInputElement).checked = !isChecked;
+                const newChecked = !isChecked;
+                li.setAttribute('data-checked', String(newChecked));
+                if (newChecked) {
+                    cb.setAttribute('checked', '');
+                } else {
+                    cb.removeAttribute('checked');
+                }
+                setTimeout(() => { cb.checked = newChecked; });
                 const textSpan = li.querySelector(':scope > span');
                 if (textSpan) {
                     const sel = this.document.getSelection();
@@ -3821,6 +3829,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private enableTaskCheckboxes(container: HTMLElement): void {
         container.querySelectorAll<HTMLInputElement>('li[data-task] input[type="checkbox"]').forEach(cb => {
             cb.removeAttribute('disabled');
+            const li = cb.closest('li[data-task]');
+            if (li) {
+                cb.checked = li.getAttribute('data-checked') === 'true';
+            }
         });
     }
 
