@@ -1403,6 +1403,11 @@ export class AppComponent {
   richTextContent = '';
   richTextHtml = '';
   richTextShowHistoryButton = signal(true);
+  lastAutoUploadUrl = '';
+  lastAutoUploadError = '';
+  fakeImageUploader = (_file: File) =>
+    of('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/1200px-Cat_November_2010-1a.jpg')
+      .pipe(delay(2000));
   sampleMentions: MentionItem[] = [
     { id: 'button', value: 'button', label: 'Button', description: 'Inputs' },
     { id: 'card', value: 'card', label: 'Card', description: 'Data Display' },
