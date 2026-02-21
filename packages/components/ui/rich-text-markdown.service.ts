@@ -46,6 +46,7 @@ export class RichTextMarkdownService {
 
         // Process blocks first (order matters)
         html = this.parseCodeBlocks(html);
+        html = this.parseToggleBlocks(html);
         html = this.parseBlockquotes(html);
         html = this.parseHeadings(html);
         html = this.parseLists(html);
@@ -101,6 +102,13 @@ export class RichTextMarkdownService {
     /**
      * Parse blockquotes (> text).
      */
+    private parseToggleBlocks(html: string): string {
+        return html.replace(/:::details\s+(.*?)\n([\s\S]*?):::/g, (_match, title: string, content: string) => {
+            const parsedContent = content.trim();
+            return `<details open><summary>${title}</summary><p>${parsedContent}</p></details>`;
+        });
+    }
+
     private parseBlockquotes(html: string): string {
         const lines = html.split('\n');
         const result: string[] = [];
@@ -145,47 +153,94 @@ export class RichTextMarkdownService {
     private parseLists(html: string): string {
         const lines = html.split('\n');
         const result: string[] = [];
-        let currentListType: 'ul' | 'ol' | null = null;
-        let listItems: string[] = [];
 
-        const flushList = () => {
-            if (currentListType && listItems.length > 0) {
-                const items = listItems.map(item => `<li>${item}</li>`).join('');
-                result.push(`<${currentListType}>${items}</${currentListType}>`);
-                listItems = [];
-                currentListType = null;
+        interface ListContext {
+            type: 'ul' | 'ol' | 'task';
+            items: string[];
+            indent: number;
+            children: ListContext[];
+        }
+
+        const buildListHtml = (ctx: ListContext): string => {
+            const tag = ctx.type === 'task' ? 'ul' : ctx.type;
+            const taskAttr = ctx.type === 'task' ? ' data-task-list' : '';
+            const items = ctx.items.map((item, i) => {
+                const childHtml = ctx.children[i] ? buildListHtml(ctx.children[i]) : '';
+                if (ctx.type === 'task') {
+                    const checked = item.startsWith('[x] ') || item.startsWith('[X] ');
+                    const text = item.replace(/^\[[ xX]\]\s*/, '');
+                    const checkedAttr = checked ? ' checked' : '';
+                    return `<li data-task data-checked="${checked}">`
+                        + `<input type="checkbox"${checkedAttr} /><span>${text}</span>${childHtml}</li>`;
+                }
+                return `<li>${item}${childHtml}</li>`;
+            });
+            return `<${tag}${taskAttr}>${items.join('')}</${tag}>`;
+        };
+
+        const stack: ListContext[] = [];
+        let rootLists: ListContext[] = [];
+
+        const flushStack = () => {
+            for (const ctx of rootLists) {
+                result.push(buildListHtml(ctx));
             }
+            rootLists = [];
+            stack.length = 0;
         };
 
         for (const line of lines) {
-            // Unordered list: - or * or + at start
-            const ulMatch = line.match(/^[\s]*[-*+]\s+(.+)$/);
-            if (ulMatch) {
-                if (currentListType !== 'ul') {
-                    flushList();
-                    currentListType = 'ul';
+            const taskMatch = line.match(/^(\s*)[-*+]\s+\[([ xX])\]\s*(.*)$/);
+            const ulMatch = !taskMatch ? line.match(/^(\s*)[-*+]\s+(.+)$/) : null;
+            const olMatch = !taskMatch && !ulMatch ? line.match(/^(\s*)\d+\.\s+(.+)$/) : null;
+
+            if (taskMatch || ulMatch || olMatch) {
+                const indent = (taskMatch || ulMatch || olMatch)![1].length;
+                let type: 'ul' | 'ol' | 'task';
+                let content: string;
+                if (taskMatch) {
+                    type = 'task';
+                    const checked = taskMatch[2] !== ' ';
+                    content = `[${checked ? 'x' : ' '}] ${taskMatch[3]}`;
+                } else if (ulMatch) {
+                    type = 'ul';
+                    content = ulMatch[2];
+                } else {
+                    type = 'ol';
+                    content = olMatch![2];
                 }
-                listItems.push(ulMatch[1]);
+
+                while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
+                    stack.pop();
+                }
+
+                if (stack.length === 0) {
+                    const ctx: ListContext = { type, items: [content], indent, children: [] };
+                    rootLists.push(ctx);
+                    stack.push(ctx);
+                } else {
+                    const parent = stack[stack.length - 1];
+                    if (parent.type === type && indent === parent.indent) {
+                        parent.items.push(content);
+                        parent.children.push(undefined!);
+                    } else if (indent > parent.indent) {
+                        const child: ListContext = { type, items: [content], indent, children: [] };
+                        const parentIdx = parent.items.length - 1;
+                        parent.children[parentIdx] = child;
+                        stack.push(child);
+                    } else {
+                        parent.items.push(content);
+                        parent.children.push(undefined!);
+                    }
+                }
                 continue;
             }
 
-            // Ordered list: 1. 2. 3. etc
-            const olMatch = line.match(/^[\s]*(\d+)\.\s+(.+)$/);
-            if (olMatch) {
-                if (currentListType !== 'ol') {
-                    flushList();
-                    currentListType = 'ol';
-                }
-                listItems.push(olMatch[2]);
-                continue;
-            }
-
-            // Not a list item
-            flushList();
+            flushStack();
             result.push(line);
         }
 
-        flushList();
+        flushStack();
         return result.join('\n');
     }
 
@@ -395,24 +450,36 @@ export class RichTextMarkdownService {
                         break;
 
                     // Lists
-                    case 'ul':
+                    case 'ul': {
+                        const isTask = element.hasAttribute('data-task-list');
                         result.push('\n');
-                        const ulItems = Array.from(element.children);
-                        for (const li of ulItems) {
-                            const liContent = this.nodeToMarkdown(li);
-                            result.push(`- ${liContent.trim()}\n`);
-                        }
+                        this.listToMarkdown(element, isTask ? 'task' : 'ul', '', result);
                         break;
-                    case 'ol':
+                    }
+                    case 'ol': {
                         result.push('\n');
-                        const olItems = Array.from(element.children);
-                        olItems.forEach((li, index) => {
-                            const liContent = this.nodeToMarkdown(li);
-                            result.push(`${index + 1}. ${liContent.trim()}\n`);
-                        });
+                        this.listToMarkdown(element, 'ol', '', result);
                         break;
+                    }
                     case 'li':
-                        // Handled by ul/ol
+                        result.push(inner);
+                        break;
+                    case 'input':
+                        break;
+
+                    // Toggle/collapsible blocks
+                    case 'details': {
+                        const summaryEl = element.querySelector('summary');
+                        const summaryText = summaryEl ? summaryEl.textContent?.trim() ?? 'Toggle' : 'Toggle';
+                        const contentParts: string[] = [];
+                        for (const ch of Array.from(element.childNodes)) {
+                            if (ch.nodeType === Node.ELEMENT_NODE && (ch as Element).tagName === 'SUMMARY') continue;
+                            contentParts.push(this.nodeToMarkdown(ch));
+                        }
+                        result.push(`\n:::details ${summaryText}\n${contentParts.join('').trim()}\n:::\n`);
+                        break;
+                    }
+                    case 'summary':
                         result.push(inner);
                         break;
 
@@ -487,6 +554,42 @@ export class RichTextMarkdownService {
         }
 
         return lines.join('\n');
+    }
+
+    private listToMarkdown(listEl: HTMLElement, type: 'ul' | 'ol' | 'task', indent: string, result: string[]): void {
+        const items = Array.from(listEl.children);
+        items.forEach((li, index) => {
+            const childParts: string[] = [];
+            let nestedList: HTMLElement | null = null;
+            for (const ch of Array.from(li.childNodes)) {
+                if (ch.nodeType === Node.ELEMENT_NODE) {
+                    const tag = (ch as Element).tagName.toLowerCase();
+                    if (tag === 'ul' || tag === 'ol') {
+                        nestedList = ch as HTMLElement;
+                        continue;
+                    }
+                    if (tag === 'input') continue;
+                }
+                childParts.push(this.nodeToMarkdown(ch));
+            }
+            const content = childParts.join('').trim();
+
+            if (type === 'task') {
+                const checked = (li as HTMLElement).getAttribute('data-checked') === 'true';
+                result.push(`${indent}- [${checked ? 'x' : ' '}] ${content}\n`);
+            } else if (type === 'ol') {
+                result.push(`${indent}${index + 1}. ${content}\n`);
+            } else {
+                result.push(`${indent}- ${content}\n`);
+            }
+
+            if (nestedList) {
+                const nestedTag = nestedList.tagName.toLowerCase();
+                const nestedType = nestedList.hasAttribute('data-task-list') ? 'task'
+                    : nestedTag === 'ol' ? 'ol' : 'ul';
+                this.listToMarkdown(nestedList, nestedType, indent + '  ', result);
+            }
+        });
     }
 
     // =========================================================================

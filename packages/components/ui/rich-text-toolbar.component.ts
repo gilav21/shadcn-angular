@@ -24,6 +24,7 @@ import {
 } from './emoji-picker.component';
 import { AutocompleteComponent } from './autocomplete.component';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
+import { RichTextCustomToolbarItem } from './rich-text-editor.component';
 
 /**
  * Identifier for a toolbar button or visual separator. Pass an array of these
@@ -96,7 +97,11 @@ export type ToolbarItem =
   | 'alignCenter'
   | 'alignRight'
   | 'table'
-  | 'importFile';
+  | 'importFile'
+  | 'indent'
+  | 'outdent'
+  | 'taskList'
+  | 'horizontalRule';
 
 interface ToolbarButton {
   id: ToolbarItem;
@@ -133,6 +138,10 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'alignRight', label: 'Align Right', localeKey: 'alignRight' },
   { id: 'table', label: 'Insert Table', localeKey: 'insertTable' },
   { id: 'importFile', label: 'Import File', localeKey: 'importFile' },
+  { id: 'indent', label: 'Increase Indent', localeKey: 'indent' },
+  { id: 'outdent', label: 'Decrease Indent', localeKey: 'outdent' },
+  { id: 'taskList', label: 'Task List', localeKey: 'taskList' },
+  { id: 'horizontalRule', label: 'Horizontal Rule', localeKey: 'horizontalRule' },
 ];
 
 const ICONS: Record<string, string> = {
@@ -163,6 +172,10 @@ const ICONS: Record<string, string> = {
   alignRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>`,
   table: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18"/><path d="M3 12h18"/><rect width="18" height="18" x="3" y="3" rx="2"/></svg>`,
   importFile: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M12 18v-6"/><path d="m9 15 3-3 3 3"/></svg>`,
+  indent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 7 12 3 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
+  outdent: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="7 8 3 12 7 16"/><line x1="21" x2="11" y1="12" y2="12"/><line x1="21" x2="11" y1="6" y2="6"/><line x1="21" x2="11" y1="18" y2="18"/></svg>`,
+  taskList: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>`,
+  horizontalRule: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>`,
 };
 
 @Component({
@@ -202,7 +215,7 @@ const ICONS: Record<string, string> = {
                 <span [innerHTML]="getIcon('link')"></span>
               </button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-80 p-4" align="start">
+            <ui-popover-content class="w-80 max-sm:w-[calc(100vw-2rem)] p-4" align="start" strategy="fixed">
               <div class="space-y-3">
                 <div>
                   <label class="text-sm font-medium mb-1 block">{{ locale().link.text }}</label>
@@ -246,7 +259,7 @@ const ICONS: Record<string, string> = {
                 <span [innerHTML]="getIcon('image')"></span>
               </button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-80 p-4" align="start">
+            <ui-popover-content class="w-80 max-sm:w-[calc(100vw-2rem)] p-4" align="start" strategy="fixed">
               <div class="space-y-3">
                 <div>
                   <label class="text-sm font-medium mb-1 block">{{ locale().image.url }}</label>
@@ -289,7 +302,7 @@ const ICONS: Record<string, string> = {
                 <span [innerHTML]="getIcon('emoji')"></span>
               </button>
             </ui-emoji-picker-trigger>
-            <ui-emoji-picker-content />
+            <ui-emoji-picker-content strategy="fixed" />
           </ui-emoji-picker>
         } @else if (item === 'fontColor') {
           <ui-popover [open]="openPopover() === 'fontColor'" (openChange)="onPopoverOpenChange('fontColor', $event)">
@@ -303,13 +316,14 @@ const ICONS: Record<string, string> = {
                 <span [innerHTML]="getIcon('fontColor')"></span>
               </button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-48 p-3" align="start">
+            <ui-popover-content class="w-48 p-3" align="start" strategy="fixed">
               <div class="space-y-2">
                 <label class="text-sm font-medium block">{{ locale().color.textColor }}</label>
                 <div class="grid grid-cols-8 gap-1">
                   @for (color of colorPalette; track color) {
                     <button
                       type="button"
+                      data-swatch
                       class="w-5 h-5 rounded border border-border hover:scale-110 transition-transform"
                       [style.background-color]="color"
                       [title]="color"
@@ -333,7 +347,7 @@ const ICONS: Record<string, string> = {
                 <span [innerHTML]="getIcon('fontSize')"></span>
               </button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-48 p-3" align="start">
+            <ui-popover-content class="w-48 p-3" align="start" strategy="fixed">
               <div class="space-y-2">
                 <label class="text-sm font-medium block">{{ locale().fontSize.selectSize }}</label>
                 <ui-autocomplete
@@ -360,13 +374,14 @@ const ICONS: Record<string, string> = {
                 <span [innerHTML]="getIcon('backgroundColor')"></span>
               </button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-48 p-3" align="start">
+            <ui-popover-content class="w-48 p-3" align="start" strategy="fixed">
               <div class="space-y-2">
                 <label class="text-sm font-medium block">{{ locale().color.highlightColor }}</label>
                 <div class="grid grid-cols-8 gap-1">
                   @for (color of highlightPalette; track color) {
                     <button
                       type="button"
+                      data-swatch
                       class="w-5 h-5 rounded border border-border hover:scale-110 transition-transform"
                       [style.background-color]="color"
                       [title]="color"
@@ -385,13 +400,14 @@ const ICONS: Record<string, string> = {
                 <span [innerHTML]="getIcon('table')"></span>
               </button>
             </ui-popover-trigger>
-            <ui-popover-content class="p-3" align="start">
+            <ui-popover-content class="p-3 max-sm:max-w-[calc(100vw-1rem)]" align="start" strategy="fixed">
               <div class="space-y-2">
                 <div class="grid gap-0.5" style="grid-template-columns: repeat(8, 1fr)">
                   @for (row of [1,2,3,4,5,6,7,8]; track row) {
                     @for (col of [1,2,3,4,5,6,7,8]; track col) {
                       <button
                         type="button"
+                        data-grid-cell
                         class="w-5 h-5 border rounded-sm transition-colors"
                         [class.bg-primary]="row <= tableGridHoverRows() && col <= tableGridHoverCols()"
                         [class.border-primary]="row <= tableGridHoverRows() && col <= tableGridHoverCols()"
@@ -444,8 +460,26 @@ const ICONS: Record<string, string> = {
           </button>
         }
       }
+      @for (custom of customItems(); track custom.id) {
+        <button
+          type="button"
+          [class]="customButtonClasses(custom)"
+          [title]="custom.tooltip"
+          [disabled]="interactionDisabled()"
+          (click)="onCustomItemClick(custom.id)"
+        >
+          <span [innerHTML]="getSafeIcon(custom.icon)"></span>
+        </button>
+      }
     </div>
   `,
+  styles: [`
+    @media (pointer: coarse) {
+      :host button:not([data-swatch]):not([data-grid-cell]) { min-height: 40px; min-width: 40px; }
+    }
+    :host { scrollbar-width: none; }
+    :host::-webkit-scrollbar { display: none; }
+  `],
   host: {
     class: 'block',
   },
@@ -479,6 +513,8 @@ export class RichTextToolbarComponent {
   colorSelect = output<{ type: 'fontColor' | 'backgroundColor'; color: string }>();
   tableInsert = output<{ rows: number; cols: number }>();
   fileImport = output<File>();
+  customItems = input<RichTextCustomToolbarItem[]>([]);
+  customItemClick = output<string>();
 
   tableGridHoverRows = signal(0);
   tableGridHoverCols = signal(0);
@@ -513,6 +549,7 @@ export class RichTextToolbarComponent {
   containerClasses = computed(() =>
     cn(
       'flex items-center flex-wrap gap-0.5 p-1 border-b bg-muted/30',
+      'max-sm:flex-nowrap max-sm:overflow-x-auto max-sm:scrollbar-hide',
       this.compact() && 'p-0.5 border-none bg-transparent',
       this.class()
     )
@@ -537,18 +574,31 @@ export class RichTextToolbarComponent {
       underline: 'underline',
       strikethrough: 'strikethrough',
       code: 'code',
+      taskList: 'taskList',
     };
     const format = formatMap[item];
     return format ? this.activeFormats().has(format) : false;
   }
 
   getIcon(item: ToolbarItem): SafeHtml {
-    const svg = ICONS[item] ?? '';
+    let key = item as string;
+    if (this.locale().rtl) {
+      if (item === 'alignLeft') key = 'alignRight';
+      else if (item === 'alignRight') key = 'alignLeft';
+      else if (item === 'indent') key = 'outdent';
+      else if (item === 'outdent') key = 'indent';
+    }
+    const svg = ICONS[key] ?? '';
     return this.sanitizer.bypassSecurityTrustHtml(svg);
   }
 
   getTooltip(item: ToolbarItem): string {
-    const button = TOOLBAR_BUTTONS.find(b => b.id === item);
+    let lookupItem = item;
+    if (this.locale().rtl) {
+      if (item === 'alignLeft') lookupItem = 'alignRight';
+      else if (item === 'alignRight') lookupItem = 'alignLeft';
+    }
+    const button = TOOLBAR_BUTTONS.find(b => b.id === lookupItem);
     if (!button) return item;
     const l = this.locale();
     const label = l ? l.toolbar[button.localeKey] : button.label;
@@ -628,5 +678,26 @@ export class RichTextToolbarComponent {
       this.fileImport.emit(file);
       input.value = '';
     }
+  }
+
+  onCustomItemClick(id: string): void {
+    if (this.interactionDisabled()) return;
+    this.customItemClick.emit(id);
+  }
+
+  customButtonClasses(item: RichTextCustomToolbarItem): string {
+    const active = item.isActive ? item.isActive(this.activeFormats()) : false;
+    return cn(
+      'inline-flex items-center justify-center rounded-md p-1.5 text-sm font-medium transition-colors',
+      'hover:bg-accent hover:text-accent-foreground',
+      'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
+      'disabled:pointer-events-none disabled:opacity-50',
+      active && 'bg-accent text-accent-foreground',
+      this.compact() && 'p-1'
+    );
+  }
+
+  getSafeIcon(svgHtml: string): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(svgHtml);
   }
 }

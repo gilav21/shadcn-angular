@@ -31,6 +31,10 @@ export class RichTextSanitizerService {
         'img',
         // Tables (for paste compatibility)
         'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+        // Task lists
+        'input',
+        // Toggle/collapsible blocks
+        'details', 'summary',
     ]);
 
     // Allowlisted attributes per element
@@ -40,7 +44,11 @@ export class RichTextSanitizerService {
         'td': new Set(['colspan', 'rowspan']),
         'th': new Set(['colspan', 'rowspan', 'scope']),
         'pre': new Set(['data-language']),
-        'code': new Set(['data-language', 'class']), // class for syntax highlighting
+        'code': new Set(['data-language', 'class']),
+        'input': new Set(['type', 'checked', 'disabled']),
+        'ul': new Set(['data-task-list']),
+        'li': new Set(['data-task', 'data-checked']),
+        'details': new Set(['open']),
         '*': new Set(['data-mention', 'data-mention-id', 'data-tag', 'data-tag-id', 'style']),
     };
 
@@ -69,6 +77,7 @@ export class RichTextSanitizerService {
         'margin-right',
         'margin-top',
         'margin-bottom',
+        'table-layout',
     ]);
 
     // Allowed class patterns (for syntax highlighting)
@@ -231,13 +240,14 @@ export class RichTextSanitizerService {
                 const tagName = element.tagName.toLowerCase();
 
                 if (this.ALLOWED_TAGS.has(tagName)) {
-                    // Create clean element
+                    if (tagName === 'input' && element.getAttribute('type') !== 'checkbox') {
+                        continue;
+                    }
+
                     const cleanElement = this.document.createElement(tagName);
 
-                    // Copy allowed attributes
                     this.sanitizeAttributes(element, cleanElement, tagName);
 
-                    // Recursively process children
                     this.processNodes(element, cleanElement);
 
                     target.appendChild(cleanElement);

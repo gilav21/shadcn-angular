@@ -397,8 +397,26 @@ export interface RichTextEntityInsertEvent {
     item: MentionItem | TagItem;
 }
 
+export interface RichTextCustomToolbarItem {
+    id: string;
+    icon: string;
+    tooltip: string;
+    order?: number;
+    isActive?: (formats: Set<string>) => boolean;
+}
+
+export interface RichTextEditorRef {
+    insertText(text: string): void;
+    insertHtml(html: string): void;
+    focus(): void;
+    getSelectedText(): string;
+    getHtmlContent(): string;
+}
+
 interface HistoryEntry {
     html: string;
+    delta: string | null;
+    keyframe: boolean;
     selection: SerializedSelection | null;
     timestamp: number;
     preview: string;
@@ -422,7 +440,9 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'paragraph', 'heading1', 'heading2', 'heading3',
     'separator',
-    'bulletList', 'orderedList',
+    'bulletList', 'orderedList', 'taskList',
+    'separator',
+    'indent', 'outdent',
     'separator',
     'alignLeft', 'alignCenter', 'alignRight',
     'separator',
@@ -433,6 +453,8 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'table',
     'separator',
     'code', 'codeBlock',
+    'separator',
+    'horizontalRule',
     'separator',
     'clear',
 ];
@@ -539,6 +561,30 @@ export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): R
             order: 120,
             run: context => context.executeToolbarCommand('redo'),
         },
+        {
+            id: 'insert.task-list',
+            label: l.taskList,
+            description: l.taskListDescription,
+            keywords: ['checkbox', 'todo', 'task', 'checklist'],
+            order: 65,
+            run: context => context.executeToolbarCommand('taskList'),
+        },
+        {
+            id: 'insert.toggle',
+            label: l.toggle,
+            description: l.toggleDescription,
+            keywords: ['details', 'summary', 'collapse', 'expand', 'accordion'],
+            order: 75,
+            run: context => context.executeToolbarCommand('toggle'),
+        },
+        {
+            id: 'insert.horizontal-rule',
+            label: l.horizontalRule,
+            description: l.horizontalRuleDescription,
+            keywords: ['hr', 'divider', 'line', 'separator'],
+            order: 95,
+            run: context => context.executeToolbarCommand('horizontalRule'),
+        },
     ];
 }
 
@@ -551,6 +597,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     { actionId: 'rich-text.redo', description: 'Redo', defaultShortcut: 'Mod+Shift+Z', category: 'History' },
     { actionId: 'rich-text.redo.alt', description: 'Redo (alternate)', defaultShortcut: 'Mod+Y', category: 'History' },
     { actionId: 'rich-text.history', description: 'Open revision history', defaultShortcut: 'Mod+Shift+H', category: 'History' },
+    { actionId: 'rich-text.find', description: 'Find in editor', defaultShortcut: 'Mod+F', category: 'Navigation' },
+    { actionId: 'rich-text.find-replace', description: 'Find and replace', defaultShortcut: 'Mod+H', category: 'Navigation' },
 ];
 
 @Component({
@@ -598,6 +646,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (fontSizeSelect)="onFontSizeSelect($event)"
         (tableInsert)="onTableInsert($event)"
         (fileImport)="onFileImport($event)"
+        [customItems]="customToolbarItems()"
+        (customItemClick)="onCustomToolbarAction($event)"
       />
     }
 
@@ -621,7 +671,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                 {{ interpolateLocale(resolvedLocale().history.button, { count: historyCount() }) }}
               </ui-button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-80 p-0" align="end" side="bottom" [restoreFocus]="false">
+            <ui-popover-content class="w-80 max-sm:w-[calc(100vw-2rem)] p-0" align="end" side="bottom" [restoreFocus]="false">
               <div class="flex items-center justify-between border-b px-3 py-2">
                 <div class="text-sm font-medium">{{ resolvedLocale().history.title }}</div>
                 <ui-button
@@ -800,11 +850,58 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (mouseup)="onSelectionChange()"
         (keyup)="onSelectionChange()"
         (click)="onEditorClick($event)"
+        (mousemove)="onEditorMouseMove($event)"
+        (mousedown)="onEditorMouseDown($event)"
         (contextmenu)="onEditorContextMenu($event)"
         (dragover)="onEditorDragOver($event)"
         (dragleave)="onEditorDragLeave($event)"
         (drop)="onEditorDrop($event)"
       ></div>
+
+      @if (findReplaceVisible()) {
+        <div class="absolute top-2 right-2 z-50 bg-popover border rounded-lg shadow-lg p-3 w-80 max-sm:w-[calc(100%-1rem)] max-sm:left-2 animate-in slide-in-from-top-2 fade-in-0"
+             (keydown.escape)="closeFindReplace()"
+             (keydown)="onFindReplaceKeydown($event)">
+          <div class="flex items-center gap-1.5 mb-2">
+            <input
+              #findInput
+              type="text"
+              [placeholder]="resolvedLocale().findReplace.findPlaceholder"
+              [value]="findQuery()"
+              (input)="onFindQueryChange($any($event.target).value)"
+              class="flex h-7 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            />
+            <button type="button"
+                    class="inline-flex items-center justify-center rounded-md p-1 text-xs font-medium transition-colors hover:bg-accent"
+                    [class.bg-accent]="findCaseSensitive()"
+                    [title]="resolvedLocale().findReplace.caseSensitive"
+                    (click)="toggleFindCaseSensitive()">Aa</button>
+          </div>
+          <div class="flex items-center justify-between mb-2">
+            <span class="text-xs text-muted-foreground">
+              {{ findMatches().length > 0 ? (findCurrentIndex() + 1) + '/' + findMatches().length : '0/0' }}
+            </span>
+            <div class="flex gap-1">
+              <button type="button" class="inline-flex items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50" [disabled]="findMatches().length === 0" (click)="findPrevious()">&#x25B2;</button>
+              <button type="button" class="inline-flex items-center justify-center rounded-md p-1 text-xs hover:bg-accent disabled:opacity-50" [disabled]="findMatches().length === 0" (click)="findNext()">&#x25BC;</button>
+              <button type="button" class="inline-flex items-center justify-center rounded-md p-1 text-xs hover:bg-accent" (click)="closeFindReplace()">&#x2715;</button>
+            </div>
+          </div>
+          @if (findShowReplace()) {
+            <div class="flex items-center gap-1.5">
+              <input
+                type="text"
+                [placeholder]="resolvedLocale().findReplace.replacePlaceholder"
+                [value]="replaceText()"
+                (input)="replaceText.set($any($event.target).value)"
+                class="flex h-7 w-full rounded-md border border-input bg-transparent px-2 py-1 text-xs shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              />
+              <button type="button" class="inline-flex items-center justify-center rounded-md px-2 py-1 text-xs hover:bg-accent whitespace-nowrap disabled:opacity-50" [disabled]="findMatches().length === 0" (click)="replaceSingle()">{{ resolvedLocale().findReplace.replace }}</button>
+              <button type="button" class="inline-flex items-center justify-center rounded-md px-2 py-1 text-xs hover:bg-accent whitespace-nowrap disabled:opacity-50" [disabled]="findMatches().length === 0" (click)="replaceAll()">{{ resolvedLocale().findReplace.replaceAll }}</button>
+            </div>
+          }
+        </div>
+      }
 
       @if (dragOver()) {
         <div class="absolute inset-0 pointer-events-none border-2 border-dashed border-primary/60 rounded-md bg-primary/5"></div>
@@ -904,7 +1001,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (slashCommandOpen()) {
         <div
-          class="absolute z-50 w-72 rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          class="absolute z-50 w-72 max-sm:w-[calc(100%-1rem)] rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
           [style.left.px]="slashCommandPosition().x"
           [style.top.px]="slashCommandPosition().y"
           role="listbox"
@@ -940,7 +1037,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (showLinkPopover()) {
         <div 
-          class="fixed z-50 bg-popover border rounded-lg shadow-lg p-4 w-80"
+          class="fixed z-50 bg-popover border rounded-lg shadow-lg p-4 w-80 max-sm:w-[calc(100vw-2rem)] max-sm:max-w-80"
           [style.left.px]="linkPopoverPosition().x"
           [style.top.px]="linkPopoverPosition().y"
         >
@@ -986,7 +1083,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (tableContextMenuOpen()) {
         <div
-          class="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          #tableContextMenuRef
+          class="fixed z-50 min-w-[180px] max-h-[calc(100vh-1rem)] overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
           [style.left.px]="tableContextMenuPosition().x"
           [style.top.px]="tableContextMenuPosition().y"
           (mousedown)="$event.preventDefault()"
@@ -1035,6 +1133,29 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             </div>
           </div>
           <div class="my-1 h-px bg-border"></div>
+          <div class="px-2 py-1.5">
+            <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.cellAlignLeft }}</div>
+            <div class="flex items-center gap-1" dir="ltr">
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignLeft" (click)="setCellAlignment('left')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
+              </button>
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignCenter" (click)="setCellAlignment('center')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>
+              </button>
+              <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignRight" (click)="setCellAlignment('right')">
+                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>
+              </button>
+            </div>
+          </div>
+          <div class="px-2 py-1.5">
+            <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.cellColor }}</div>
+            <div class="grid grid-cols-8 gap-0.5">
+              @for (color of tableCellColors; track color) {
+                <button type="button" class="w-4 h-4 rounded border border-border hover:scale-110 transition-transform" [style.background-color]="color" (click)="setCellColor(color)"></button>
+              }
+            </div>
+          </div>
+          <div class="my-1 h-px bg-border"></div>
           <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground text-destructive" (click)="deleteTableRow()">
             {{ resolvedLocale().table.deleteRow }}
           </button>
@@ -1074,6 +1195,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
     @ViewChild('slashCommandList') slashCommandList?: ElementRef<HTMLDivElement>;
+    @ViewChild('tableContextMenuRef') tableContextMenuRef?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
     // ── Content & mode ────────────────────────────────────────────
@@ -1101,6 +1223,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      * @see {@link DEFAULT_TOOLBAR_ITEMS} for the default set.
      */
     toolbarItems = input<ToolbarItem[]>(DEFAULT_TOOLBAR_ITEMS);
+
+    customToolbarItems = input<RichTextCustomToolbarItem[]>([]);
+    customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
 
     // ── Editor content area ─────────────────────────────────────
 
@@ -1351,6 +1476,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
+    private tableResizeState: {
+        table: HTMLTableElement;
+        colIndex: number;
+        startX: number;
+        startWidths: number[];
+        tableWidth: number;
+    } | null = null;
+    private tableResizeCursor = signal(false);
+    private readonly onTableResizeMoveBound = this.onTableResizeMove.bind(this);
+    private readonly onTableResizeUpBound = this.onTableResizeUp.bind(this);
+    tableCellColors = [
+        'transparent', '#ffffff', '#fef3c7', '#d9f99d', '#bbf7d0', '#a5f3fc', '#c7d2fe', '#fce7f3',
+        '#fecaca', '#fed7aa', '#fde68a', '#d9ead3', '#d0e0e3', '#cfe2f3', '#d9d2e9', '#ead1dc',
+    ];
 
     private autoUploadMap = new Map<string, { subscription: Subscription; dataUrl: string }>();
     private autoUploadObserver: MutationObserver | null = null;
@@ -1364,6 +1503,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     selectedHistoryIndex = signal<number | null>(null);
     lastAppliedHistoryIndex = signal<number | null>(null);
     private readonly historyVersion = signal<number>(0);
+
+    findReplaceVisible = signal(false);
+    findQuery = signal('');
+    replaceText = signal('');
+    findCaseSensitive = signal(false);
+    findMatches = signal<Range[]>([]);
+    findCurrentIndex = signal(-1);
+    findShowReplace = signal(false);
+    private findHighlightElements: HTMLElement[] = [];
 
     private history: HistoryEntry[] = [];
     private historyIndex = -1;
@@ -1406,6 +1554,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_table]:border-collapse [&_table]:w-full [&_table]:my-2',
             '[&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:min-w-[60px]',
             '[&_th]:border [&_th]:border-border [&_th]:p-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-left',
+            // Nested list margin reset
+            '[&_ul_ul]:my-0 [&_ol_ol]:my-0 [&_ul_ol]:my-0 [&_ol_ul]:my-0',
+            // Task list styles
+            '[&_ul[data-task-list]]:list-none [&_ul[data-task-list]]:ps-0 [&_ul[data-task-list]]:my-2',
+            '[&_li_ul[data-task-list]]:ps-6 [&_li_ul[data-task-list]]:my-0',
+            '[&_li[data-task]]:flex [&_li[data-task]]:flex-wrap [&_li[data-task]]:items-start [&_li[data-task]]:gap-2 [&_li[data-task]]:my-1',
+            '[&_li[data-task]>ul]:w-full',
+            '[&_li[data-task]_input[type=checkbox]]:mt-1 [&_li[data-task]_input[type=checkbox]]:h-4 [&_li[data-task]_input[type=checkbox]]:w-4 [&_li[data-task]_input[type=checkbox]]:cursor-pointer [&_li[data-task]_input[type=checkbox]]:accent-primary',
+            '[&_li[data-task]_input[type=checkbox]]:shrink-0',
+            '[&_li[data-task][data-checked=true]]:line-through [&_li[data-task][data-checked=true]]:text-muted-foreground',
+            // Toggle/collapsible blocks
+            '[&_details]:border [&_details]:border-border [&_details]:rounded-md [&_details]:my-2 [&_details]:overflow-hidden',
+            '[&_summary]:bg-muted/40 [&_summary]:px-3 [&_summary]:py-2 [&_summary]:cursor-pointer [&_summary]:font-medium [&_summary]:outline-none',
+            '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',
+            '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
             'disabled:cursor-not-allowed'
         )
     );
@@ -1507,7 +1670,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const entry = this.history[index];
         return {
             index,
-            html: entry.html,
+            html: this.reconstructHtmlCached(index),
             timestamp: entry.timestamp,
             preview: entry.preview,
         };
@@ -1528,6 +1691,36 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.selectedImage.set(target as HTMLImageElement);
         } else {
             this.selectedImage.set(null);
+        }
+
+        if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
+            const li = target.closest('li[data-task]') as HTMLElement;
+            if (li) {
+                event.preventDefault();
+                const cb = target as HTMLInputElement;
+                const isChecked = li.getAttribute('data-checked') === 'true';
+                const newChecked = !isChecked;
+                li.setAttribute('data-checked', String(newChecked));
+                if (newChecked) {
+                    cb.setAttribute('checked', '');
+                } else {
+                    cb.removeAttribute('checked');
+                }
+                setTimeout(() => { cb.checked = newChecked; });
+                const textSpan = li.querySelector(':scope > span');
+                if (textSpan) {
+                    const sel = this.document.getSelection();
+                    if (sel) {
+                        const r = this.document.createRange();
+                        r.selectNodeContents(textSpan);
+                        r.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(r);
+                    }
+                }
+                this.syncContentFromEditor();
+                this.pushHistory();
+            }
         }
     }
 
@@ -1681,6 +1874,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 when: () => !this.disabled() && !this.readonly() && this.showHistoryPanel(),
                 handler: () => this.openHistoryFromShortcut(),
             },
+            {
+                actionId: 'rich-text.find',
+                description: 'Find in editor',
+                defaultShortcut: 'Mod+F',
+                category: 'Navigation',
+                handler: () => this.openFindReplace(false),
+            },
+            {
+                actionId: 'rich-text.find-replace',
+                description: 'Find and replace',
+                defaultShortcut: 'Mod+H',
+                category: 'Navigation',
+                when: () => !this.disabled() && !this.readonly(),
+                handler: () => this.openFindReplace(true),
+            },
         ]);
         this.pushHistory();
     }
@@ -1688,6 +1896,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     ngAfterViewInit() {
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.enableTaskCheckboxes(this.editorDiv.nativeElement);
             this.setupAutoUploadObserver();
         }
     }
@@ -1752,6 +1961,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
     }
 
@@ -1822,9 +2032,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.closeSlashCommandPopover();
             this.showFloatingToolbar.set(false);
         }
-        if (event.key === 'Tab' && !this.mentionPopoverOpen()) {
+        if (event.key === 'Tab' && !this.mentionPopoverOpen() && !this.slashCommandOpen()) {
             event.preventDefault();
-            this.insertText('\t');
+            const listItem = this.getParentListItem();
+            if (listItem) {
+                if (event.shiftKey) {
+                    this.outdentListItem();
+                } else {
+                    this.indentListItem();
+                }
+            } else {
+                this.insertText('\t');
+            }
         }
 
         if (event.key === 'Enter' && !event.shiftKey) {
@@ -1833,6 +2052,108 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 const range = selection.getRangeAt(0);
                 let node: Node | null = range.startContainer;
 
+                // Handle Enter in task list items
+                const taskLi = this.getParentTaskListItem();
+                if (taskLi) {
+                    event.preventDefault();
+                    const textContent = taskLi.textContent?.replace(/[\s\u00A0]/g, '') || '';
+                    if (!textContent) {
+                        const parentList = taskLi.parentElement;
+                        const p = this.document.createElement('p');
+                        p.innerHTML = '<br>';
+                        parentList?.parentNode?.insertBefore(p, parentList.nextSibling);
+                        taskLi.remove();
+                        if (parentList && !parentList.hasChildNodes()) parentList.remove();
+                        const newRange = this.document.createRange();
+                        newRange.setStart(p, 0);
+                        newRange.setEnd(p, 0);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    } else {
+                        const newLi = this.document.createElement('li');
+                        newLi.setAttribute('data-task', '');
+                        newLi.setAttribute('data-checked', 'false');
+                        const checkbox = this.document.createElement('input');
+                        checkbox.type = 'checkbox';
+                        const textSpan = this.document.createElement('span');
+                        textSpan.appendChild(this.document.createTextNode('\u00A0'));
+                        newLi.appendChild(checkbox);
+                        newLi.appendChild(textSpan);
+                        taskLi.parentNode?.insertBefore(newLi, taskLi.nextSibling);
+                        const newRange = this.document.createRange();
+                        newRange.setStart(textSpan, 0);
+                        newRange.setEnd(textSpan, 0);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                    this.syncContentFromEditor();
+                    this.pushHistory();
+                    return;
+                }
+
+                // Handle Enter in summary (toggle block) → move to content
+                let summaryEl: HTMLElement | null = null;
+                let tempNode: Node | null = range.startContainer;
+                while (tempNode && tempNode !== this.editorDiv?.nativeElement) {
+                    if (tempNode.nodeType === Node.ELEMENT_NODE && (tempNode as Element).tagName === 'SUMMARY') {
+                        summaryEl = tempNode as HTMLElement;
+                        break;
+                    }
+                    tempNode = tempNode.parentNode;
+                }
+                if (summaryEl) {
+                    event.preventDefault();
+                    const details = summaryEl.parentElement;
+                    if (details) {
+                        let contentEl = summaryEl.nextElementSibling;
+                        if (!contentEl) {
+                            contentEl = this.document.createElement('p');
+                            contentEl.innerHTML = '<br>';
+                            details.appendChild(contentEl);
+                        }
+                        const newRange = this.document.createRange();
+                        newRange.setStart(contentEl, 0);
+                        newRange.setEnd(contentEl, 0);
+                        selection.removeAllRanges();
+                        selection.addRange(newRange);
+                    }
+                    return;
+                }
+
+                // Handle Enter at end of details block → escape it
+                let detailsEl: HTMLElement | null = null;
+                tempNode = range.startContainer;
+                while (tempNode && tempNode !== this.editorDiv?.nativeElement) {
+                    if (tempNode.nodeType === Node.ELEMENT_NODE && (tempNode as Element).tagName === 'DETAILS') {
+                        detailsEl = tempNode as HTMLElement;
+                        break;
+                    }
+                    tempNode = tempNode.parentNode;
+                }
+                if (detailsEl) {
+                    const lastChild = detailsEl.lastElementChild;
+                    if (lastChild && lastChild.tagName !== 'SUMMARY') {
+                        const isAtEnd = range.startOffset >= (range.startContainer.textContent?.length || 0);
+                        const isInLastChild = lastChild.contains(range.startContainer);
+                        if (isAtEnd && isInLastChild && !lastChild.textContent?.trim()) {
+                            event.preventDefault();
+                            const p = this.document.createElement('p');
+                            p.innerHTML = '<br>';
+                            detailsEl.parentNode?.insertBefore(p, detailsEl.nextSibling);
+                            lastChild.remove();
+                            const newRange = this.document.createRange();
+                            newRange.setStart(p, 0);
+                            newRange.setEnd(p, 0);
+                            selection.removeAllRanges();
+                            selection.addRange(newRange);
+                            this.syncContentFromEditor();
+                            this.pushHistory();
+                            return;
+                        }
+                    }
+                }
+
+                node = range.startContainer;
                 let preElement: HTMLPreElement | null = null;
                 while (node && node !== this.editorDiv?.nativeElement) {
                     if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'PRE') {
@@ -2161,16 +2482,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.flushPendingHistoryPush();
         this.historyIndex = entryIndex;
         const entry = this.history[this.historyIndex];
+        const html = this.reconstructHtmlCached(this.historyIndex);
 
-        this.htmlContent.set(entry.html);
+        this.htmlContent.set(html);
         if (this.editorDiv?.nativeElement) {
-            this.editorDiv.nativeElement.innerHTML = entry.html;
+            this.editorDiv.nativeElement.innerHTML = html;
         }
         this.restoreSerializedSelection(entry.selection);
 
         const outputValue = this.mode() === 'markdown'
-            ? this.markdownService.toMarkdown(entry.html)
-            : entry.html;
+            ? this.markdownService.toMarkdown(html)
+            : html;
         this.onChange(outputValue);
         this.lastAppliedHistoryIndex.set(entryIndex);
         this.bumpHistoryVersion();
@@ -2178,6 +2500,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
+        this.restoreSelection();
         this.flushPendingHistoryPush();
 
         const mentionTargets = this.getMentionElementsInSelection();
@@ -2223,6 +2546,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             case 'codeBlock':
                 this.insertCodeBlock();
                 break;
+            case 'horizontalRule':
+                this.insertHorizontalRule();
+                break;
             case 'undo':
                 this.undo();
                 break;
@@ -2237,13 +2563,25 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 this.document.execCommand('formatBlock', false, '<p>');
                 break;
             case 'alignLeft':
-                this.document.execCommand('justifyLeft', false);
+                this.document.execCommand(this.isRtl() ? 'justifyRight' : 'justifyLeft', false);
                 break;
             case 'alignCenter':
                 this.document.execCommand('justifyCenter', false);
                 break;
             case 'alignRight':
-                this.document.execCommand('justifyRight', false);
+                this.document.execCommand(this.isRtl() ? 'justifyLeft' : 'justifyRight', false);
+                break;
+            case 'indent':
+                this.indentListItem();
+                break;
+            case 'outdent':
+                this.outdentListItem();
+                break;
+            case 'taskList':
+                this.insertTaskList();
+                break;
+            case 'toggle':
+                this.insertToggleBlock();
                 break;
         }
 
@@ -2956,6 +3294,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    private insertHorizontalRule(): void {
+        this.insertHtml('<hr><p><br></p>');
+        this.pushHistory();
+    }
+
     private showLinkDialog(): void {
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() || '');
@@ -3255,6 +3598,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.tableContextMenuPosition.set({ x: event.clientX, y: event.clientY });
         this.tableContextMenuOpen.set(true);
 
+        requestAnimationFrame(() => {
+            const menu = this.tableContextMenuRef?.nativeElement;
+            if (!menu) return;
+            const rect = menu.getBoundingClientRect();
+            let x = this.tableContextMenuPosition().x;
+            let y = this.tableContextMenuPosition().y;
+            if (rect.right > window.innerWidth) {
+                x = window.innerWidth - rect.width - 8;
+            }
+            if (rect.bottom > window.innerHeight) {
+                y = window.innerHeight - rect.height - 8;
+            }
+            this.tableContextMenuPosition.set({ x, y });
+        });
+
         const closeHandler = () => {
             this.tableContextMenuOpen.set(false);
             this.document.removeEventListener('click', closeHandler);
@@ -3264,6 +3622,101 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.document.addEventListener('click', closeHandler);
             this.document.addEventListener('contextmenu', closeHandler);
         });
+    }
+
+    onEditorMouseMove(event: MouseEvent): void {
+        if (this.tableResizeState || this.readonly() || this.disabled()) return;
+        const target = event.target as HTMLElement;
+        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        if (!cell) {
+            if (this.tableResizeCursor()) {
+                this.tableResizeCursor.set(false);
+                this.editorDiv!.nativeElement.style.cursor = '';
+            }
+            return;
+        }
+        const cellRect = cell.getBoundingClientRect();
+        const colIndex = Array.from((cell.parentElement as HTMLTableRowElement).cells).indexOf(cell);
+        const nearRightBorder = event.clientX >= cellRect.right - 4;
+        const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
+        if (nearRightBorder || nearLeftBorder) {
+            this.tableResizeCursor.set(true);
+            this.editorDiv!.nativeElement.style.cursor = 'col-resize';
+        } else if (this.tableResizeCursor()) {
+            this.tableResizeCursor.set(false);
+            this.editorDiv!.nativeElement.style.cursor = '';
+        }
+    }
+
+    onEditorMouseDown(event: MouseEvent): void {
+        if (!this.tableResizeCursor() || this.readonly() || this.disabled()) return;
+        const target = event.target as HTMLElement;
+        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        if (!cell) return;
+
+        const table = cell.closest('table') as HTMLTableElement | null;
+        if (!table) return;
+
+        const row = cell.parentElement as HTMLTableRowElement;
+        const cellRect = cell.getBoundingClientRect();
+        const colIndex = Array.from(row.cells).indexOf(cell);
+        const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
+        const resizeColIndex = nearLeftBorder ? colIndex - 1 : colIndex;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const firstRow = table.rows[0];
+        if (!firstRow) return;
+        const widths = Array.from(firstRow.cells).map(c => c.getBoundingClientRect().width);
+        const tableWidth = table.getBoundingClientRect().width;
+
+        table.style.tableLayout = 'fixed';
+        table.style.width = `${tableWidth}px`;
+        for (let i = 0; i < firstRow.cells.length; i++) {
+            firstRow.cells[i].style.width = `${widths[i]}px`;
+        }
+
+        this.tableResizeState = {
+            table,
+            colIndex: resizeColIndex,
+            startX: event.clientX,
+            startWidths: widths,
+            tableWidth,
+        };
+
+        this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.addEventListener('mouseup', this.onTableResizeUpBound);
+    }
+
+    private onTableResizeMove(event: MouseEvent): void {
+        if (!this.tableResizeState) return;
+        const { table, colIndex, startX, startWidths } = this.tableResizeState;
+        const delta = event.clientX - startX;
+        const firstRow = table.rows[0];
+        if (!firstRow) return;
+
+        const newLeftWidth = Math.max(60, startWidths[colIndex] + delta);
+        const nextColIndex = colIndex + 1;
+        if (nextColIndex < startWidths.length) {
+            const newRightWidth = Math.max(60, startWidths[nextColIndex] - delta);
+            firstRow.cells[colIndex].style.width = `${newLeftWidth}px`;
+            firstRow.cells[nextColIndex].style.width = `${newRightWidth}px`;
+        } else {
+            firstRow.cells[colIndex].style.width = `${newLeftWidth}px`;
+            table.style.width = `${this.tableResizeState.tableWidth + delta}px`;
+        }
+    }
+
+    private onTableResizeUp(): void {
+        this.tableResizeState = null;
+        this.tableResizeCursor.set(false);
+        if (this.editorDiv) {
+            this.editorDiv.nativeElement.style.cursor = '';
+        }
+        this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
+        this.applyMutation({ focus: false });
     }
 
     private insertTable(rows: number, cols: number): void {
@@ -3308,25 +3761,22 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     addTableColumnLeft(): void {
-        this.tableContextMenuOpen.set(false);
-        const info = this.getTableCellInfo(this.tableContextMenuTarget);
-        if (!info) return;
-        const rows = Array.from(info.table.querySelectorAll('tr'));
-        for (const row of rows) {
-            const isHeader = row.closest('thead') !== null;
-            const newCell = this.document.createElement(isHeader ? 'th' : 'td');
-            newCell.innerHTML = '<br>';
-            const refCell = row.cells[info.colIndex];
-            if (refCell) {
-                row.insertBefore(newCell, refCell);
-            } else {
-                row.appendChild(newCell);
-            }
+        if (this.isRtl()) {
+            this.insertTableColumn('after');
+        } else {
+            this.insertTableColumn('before');
         }
-        this.applyMutation({ focus: true });
     }
 
     addTableColumnRight(): void {
+        if (this.isRtl()) {
+            this.insertTableColumn('before');
+        } else {
+            this.insertTableColumn('after');
+        }
+    }
+
+    private insertTableColumn(position: 'before' | 'after'): void {
         this.tableContextMenuOpen.set(false);
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
@@ -3336,10 +3786,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const newCell = this.document.createElement(isHeader ? 'th' : 'td');
             newCell.innerHTML = '<br>';
             const refCell = row.cells[info.colIndex];
-            if (refCell && refCell.nextSibling) {
-                row.insertBefore(newCell, refCell.nextSibling);
+            if (position === 'before') {
+                if (refCell) {
+                    row.insertBefore(newCell, refCell);
+                } else {
+                    row.appendChild(newCell);
+                }
             } else {
-                row.appendChild(newCell);
+                if (refCell && refCell.nextSibling) {
+                    row.insertBefore(newCell, refCell.nextSibling);
+                } else {
+                    row.appendChild(newCell);
+                }
             }
         }
         this.applyMutation({ focus: true });
@@ -3477,6 +3935,368 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         this.applyMutation({ focus: true });
+    }
+
+    setCellAlignment(align: 'left' | 'center' | 'right'): void {
+        this.tableContextMenuOpen.set(false);
+        if (this.tableContextMenuTarget) {
+            this.tableContextMenuTarget.style.textAlign = align;
+            this.syncContentFromEditor();
+            this.pushHistory();
+        }
+    }
+
+    setCellColor(color: string): void {
+        this.tableContextMenuOpen.set(false);
+        if (this.tableContextMenuTarget) {
+            this.tableContextMenuTarget.style.backgroundColor = color === 'transparent' ? '' : color;
+            this.syncContentFromEditor();
+            this.pushHistory();
+        }
+    }
+
+    private getParentListItem(): HTMLElement | null {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return null;
+        let node: Node | null = selection.getRangeAt(0).startContainer;
+        while (node && node !== this.editorDiv?.nativeElement) {
+            if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'LI') {
+                return node as HTMLElement;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    private getParentTaskListItem(): HTMLElement | null {
+        const li = this.getParentListItem();
+        if (li && li.hasAttribute('data-task')) return li;
+        return null;
+    }
+
+    private enableTaskCheckboxes(container: HTMLElement): void {
+        container.querySelectorAll<HTMLInputElement>('li[data-task] input[type="checkbox"]').forEach(cb => {
+            cb.removeAttribute('disabled');
+            const li = cb.closest('li[data-task]');
+            if (li) {
+                cb.checked = li.getAttribute('data-checked') === 'true';
+            }
+        });
+    }
+
+    private indentListItem(): void {
+        const li = this.getParentListItem();
+        if (!li) return;
+
+        let depth = 0;
+        let parent: Node | null = li;
+        while (parent && parent !== this.editorDiv?.nativeElement) {
+            if (parent.nodeType === Node.ELEMENT_NODE &&
+                ((parent as Element).tagName === 'UL' || (parent as Element).tagName === 'OL')) {
+                depth++;
+            }
+            parent = parent.parentNode;
+        }
+        if (depth >= 6) return;
+
+        const prevLi = li.previousElementSibling;
+        if (!prevLi || prevLi.tagName !== 'LI') return;
+
+        const parentList = li.parentElement;
+        const listType = parentList?.tagName === 'OL' ? 'ol' : 'ul';
+        let nestedList = prevLi.querySelector(`:scope > ${listType}`);
+        if (!nestedList) {
+            nestedList = this.document.createElement(listType);
+            if (parentList?.hasAttribute('data-task-list')) {
+                nestedList.setAttribute('data-task-list', '');
+            }
+            prevLi.appendChild(nestedList);
+        }
+        nestedList.appendChild(li);
+
+        this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
+    private outdentListItem(): void {
+        const li = this.getParentListItem();
+        if (!li) return;
+
+        const parentList = li.parentElement;
+        if (!parentList || (parentList.tagName !== 'UL' && parentList.tagName !== 'OL')) return;
+
+        const grandparentLi = parentList.parentElement;
+        if (!grandparentLi || grandparentLi.tagName !== 'LI') return;
+
+        const grandparentList = grandparentLi.parentElement;
+        if (!grandparentList) return;
+
+        grandparentList.insertBefore(li, grandparentLi.nextSibling);
+
+        if (!parentList.hasChildNodes() || parentList.children.length === 0) {
+            parentList.remove();
+        }
+
+        this.applyMutation({ focus: true, updateActiveFormats: true });
+    }
+
+    private insertTaskList(): void {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        let node: Node | null = selection.getRangeAt(0).startContainer;
+        while (node && node !== this.editorDiv?.nativeElement) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+                const el = node as HTMLElement;
+                if (el.closest('ul[data-task-list]')) {
+                    this.document.execCommand('insertUnorderedList', false);
+                    return;
+                }
+            }
+            node = node.parentNode;
+        }
+
+        const ul = this.document.createElement('ul');
+        ul.setAttribute('data-task-list', '');
+        const li = this.document.createElement('li');
+        li.setAttribute('data-task', '');
+        li.setAttribute('data-checked', 'false');
+        const checkbox = this.document.createElement('input');
+        checkbox.type = 'checkbox';
+        const textSpan = this.document.createElement('span');
+        textSpan.appendChild(this.document.createTextNode('\u00A0'));
+        li.appendChild(checkbox);
+        li.appendChild(textSpan);
+        ul.appendChild(li);
+
+        const range = selection.getRangeAt(0);
+        range.deleteContents();
+        range.insertNode(ul);
+
+        const newRange = this.document.createRange();
+        newRange.setStart(textSpan, 0);
+        newRange.setEnd(textSpan, 0);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    private insertToggleBlock(): void {
+        const html = '<details open><summary>Toggle title</summary><p>Content here...</p></details>';
+        this.insertHtml(html);
+        this.pushHistory();
+
+        const editor = this.editorDiv?.nativeElement;
+        if (editor) {
+            const summaries = editor.querySelectorAll('summary');
+            const lastSummary = summaries[summaries.length - 1];
+            if (lastSummary) {
+                const selection = this.document.getSelection();
+                if (selection) {
+                    const range = this.document.createRange();
+                    range.selectNodeContents(lastSummary);
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                }
+            }
+        }
+    }
+
+    onCustomToolbarAction(id: string): void {
+        this.customToolbarAction.emit({
+            id,
+            ref: {
+                insertText: (text: string) => this.insertText(text),
+                insertHtml: (html: string) => this.insertHtml(html),
+                focus: () => this.editorDiv?.nativeElement?.focus(),
+                getSelectedText: () => this.selectedText(),
+                getHtmlContent: () => this.htmlContent(),
+            },
+        });
+    }
+
+    openFindReplace(showReplace: boolean): void {
+        this.findShowReplace.set(showReplace);
+        this.findReplaceVisible.set(true);
+        requestAnimationFrame(() => {
+            const el = this.el.nativeElement.querySelector('input[placeholder]') as HTMLInputElement;
+            if (el) el.focus();
+        });
+    }
+
+    closeFindReplace(): void {
+        this.clearFindHighlights();
+        this.findReplaceVisible.set(false);
+        this.findQuery.set('');
+        this.replaceText.set('');
+        this.findMatches.set([]);
+        this.findCurrentIndex.set(-1);
+        this.editorDiv?.nativeElement?.focus();
+    }
+
+    onFindQueryChange(query: string): void {
+        this.findQuery.set(query);
+        this.performFind();
+    }
+
+    toggleFindCaseSensitive(): void {
+        this.findCaseSensitive.set(!this.findCaseSensitive());
+        this.performFind();
+    }
+
+    private performFind(preserveIndex = false): void {
+        this.clearFindHighlights();
+        const query = this.findQuery();
+        if (!query) {
+            this.findMatches.set([]);
+            this.findCurrentIndex.set(-1);
+            return;
+        }
+
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+
+        const caseSensitive = this.findCaseSensitive();
+        const searchQuery = caseSensitive ? query : query.toLowerCase();
+        const matches: Range[] = [];
+
+        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        let textNode: Text | null;
+        while ((textNode = walker.nextNode() as Text | null)) {
+            const text = caseSensitive ? textNode.textContent ?? '' : (textNode.textContent ?? '').toLowerCase();
+            let startIndex = 0;
+            while (startIndex < text.length) {
+                const idx = text.indexOf(searchQuery, startIndex);
+                if (idx === -1) break;
+                const range = this.document.createRange();
+                range.setStart(textNode, idx);
+                range.setEnd(textNode, idx + query.length);
+                matches.push(range);
+                startIndex = idx + query.length;
+            }
+        }
+
+        this.findMatches.set(matches);
+        if (matches.length > 0) {
+            if (!preserveIndex) {
+                this.findCurrentIndex.set(0);
+            }
+            this.highlightFindMatches();
+            this.scrollToCurrentMatch();
+        } else {
+            this.findCurrentIndex.set(-1);
+        }
+    }
+
+    private highlightFindMatches(): void {
+        this.clearFindHighlights();
+        const matches = this.findMatches();
+        const currentIdx = this.findCurrentIndex();
+
+        for (let i = 0; i < matches.length; i++) {
+            try {
+                const range = matches[i];
+                const mark = this.document.createElement('mark');
+                mark.setAttribute('data-find-match', '');
+                mark.style.backgroundColor = i === currentIdx ? 'rgba(250, 204, 21, 0.7)' : 'rgba(250, 204, 21, 0.3)';
+                mark.style.borderRadius = '2px';
+                if (i === currentIdx) mark.setAttribute('data-find-current', '');
+                range.surroundContents(mark);
+                this.findHighlightElements.push(mark);
+            } catch {
+                // Range may span multiple elements; skip
+            }
+        }
+    }
+
+    private clearFindHighlights(): void {
+        for (const mark of this.findHighlightElements) {
+            const parent = mark.parentNode;
+            if (parent) {
+                while (mark.firstChild) {
+                    parent.insertBefore(mark.firstChild, mark);
+                }
+                parent.removeChild(mark);
+                parent.normalize();
+            }
+        }
+        this.findHighlightElements = [];
+    }
+
+    private scrollToCurrentMatch(): void {
+        const current = this.el.nativeElement.querySelector('mark[data-find-current]') as HTMLElement;
+        if (current) current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    findNext(): void {
+        const matches = this.findMatches();
+        if (matches.length === 0) return;
+        this.findCurrentIndex.set((this.findCurrentIndex() + 1) % matches.length);
+        this.performFind(true);
+    }
+
+    findPrevious(): void {
+        const matches = this.findMatches();
+        if (matches.length === 0) return;
+        const idx = this.findCurrentIndex() - 1;
+        this.findCurrentIndex.set(idx < 0 ? matches.length - 1 : idx);
+        this.performFind(true);
+    }
+
+    replaceSingle(): void {
+        const matches = this.findMatches();
+        const idx = this.findCurrentIndex();
+        if (matches.length === 0 || idx < 0) return;
+
+        this.clearFindHighlights();
+        this.performFind();
+
+        const currentMark = this.el.nativeElement.querySelector('mark[data-find-current]') as HTMLElement;
+        if (currentMark) {
+            currentMark.textContent = this.replaceText();
+            const parent = currentMark.parentNode;
+            if (parent) {
+                while (currentMark.firstChild) parent.insertBefore(currentMark.firstChild, currentMark);
+                parent.removeChild(currentMark);
+                parent.normalize();
+            }
+        }
+        this.findHighlightElements = this.findHighlightElements.filter(el => el !== currentMark);
+        this.clearFindHighlights();
+        this.syncContentFromEditor();
+        this.pushHistory();
+        this.performFind();
+    }
+
+    replaceAll(): void {
+        this.clearFindHighlights();
+        this.performFind();
+
+        const marks = Array.from(this.el.nativeElement.querySelectorAll('mark[data-find-match]')) as HTMLElement[];
+        for (const mark of marks.reverse()) {
+            mark.textContent = this.replaceText();
+            const parent = mark.parentNode;
+            if (parent) {
+                while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
+                parent.removeChild(mark);
+                parent.normalize();
+            }
+        }
+        this.findHighlightElements = [];
+        this.syncContentFromEditor();
+        this.pushHistory();
+        this.performFind();
+    }
+
+    onFindReplaceKeydown(event: KeyboardEvent): void {
+        if (event.key === 'Enter') {
+            event.preventDefault();
+            if (event.shiftKey) {
+                this.findPrevious();
+            } else {
+                this.findNext();
+            }
+        }
     }
 
     private insertText(text: string): void {
@@ -3678,11 +4498,23 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.document.queryCommandState('insertUnorderedList')) formats.add('bulletList');
         if (this.document.queryCommandState('insertOrderedList')) formats.add('orderedList');
 
-        this.activeFormats.set(formats);
-
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
+            let el: Node | null = selection.getRangeAt(0).startContainer;
+            while (el && el !== this.editorDiv?.nativeElement) {
+                if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
+                    formats.add('taskList');
+                    break;
+                }
+                el = el.parentNode;
+            }
+        }
+
+        this.activeFormats.set(formats);
+
+        const sel = this.document.getSelection();
+        if (sel && sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
             let element = range.commonAncestorContainer;
 
             if (element.nodeType === Node.TEXT_NODE) {
@@ -4276,16 +5108,144 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return editor.contains(range.startContainer) && editor.contains(range.endContainer);
     }
 
+    private computeDelta(prev: string, current: string): string {
+        const prevLines = prev.split('\n');
+        const curLines = current.split('\n');
+        const ops: string[] = [];
+        let pi = 0;
+        let ci = 0;
+        while (pi < prevLines.length && ci < curLines.length) {
+            if (prevLines[pi] === curLines[ci]) {
+                ops.push('=' + pi);
+                pi++;
+                ci++;
+            } else {
+                let foundPrev = -1;
+                let foundCur = -1;
+                for (let look = 1; look <= 5; look++) {
+                    if (foundCur === -1 && ci + look < curLines.length && prevLines[pi] === curLines[ci + look]) {
+                        foundCur = ci + look;
+                    }
+                    if (foundPrev === -1 && pi + look < prevLines.length && prevLines[pi + look] === curLines[ci]) {
+                        foundPrev = pi + look;
+                    }
+                    if (foundCur !== -1 || foundPrev !== -1) break;
+                }
+                if (foundCur !== -1 && (foundPrev === -1 || (foundCur - ci) <= (foundPrev - pi))) {
+                    for (let k = ci; k < foundCur; k++) {
+                        ops.push('+' + curLines[k]);
+                    }
+                    ops.push('=' + pi);
+                    pi++;
+                    ci = foundCur + 1;
+                } else if (foundPrev !== -1) {
+                    for (let k = pi; k < foundPrev; k++) {
+                        ops.push('-' + k);
+                    }
+                    ops.push('=' + foundPrev);
+                    pi = foundPrev + 1;
+                    ci++;
+                } else {
+                    ops.push('-' + pi);
+                    ops.push('+' + curLines[ci]);
+                    pi++;
+                    ci++;
+                }
+            }
+        }
+        while (pi < prevLines.length) {
+            ops.push('-' + pi);
+            pi++;
+        }
+        while (ci < curLines.length) {
+            ops.push('+' + curLines[ci]);
+            ci++;
+        }
+        return ops.join('\x01');
+    }
+
+    private applyDelta(base: string, delta: string): string {
+        if (!delta) return base;
+        const baseLines = base.split('\n');
+        const ops = delta.split('\x01');
+        const result: string[] = [];
+        for (const op of ops) {
+            if (!op) continue;
+            const type = op[0];
+            const value = op.substring(1);
+            if (type === '=') {
+                const idx = parseInt(value, 10);
+                if (idx >= 0 && idx < baseLines.length) {
+                    result.push(baseLines[idx]);
+                }
+            } else if (type === '+') {
+                result.push(value);
+            }
+        }
+        return result.join('\n');
+    }
+
+    private reconstructHtml(index: number): string {
+        const entry = this.history[index];
+        if (entry.keyframe) {
+            return entry.html;
+        }
+        let keyframeIdx = index;
+        while (keyframeIdx >= 0 && !this.history[keyframeIdx].keyframe) {
+            keyframeIdx--;
+        }
+        if (keyframeIdx < 0) {
+            return entry.html;
+        }
+        let html = this.history[keyframeIdx].html;
+        for (let i = keyframeIdx + 1; i <= index; i++) {
+            const e = this.history[i];
+            if (e.keyframe) {
+                html = e.html;
+            } else if (e.delta) {
+                html = this.applyDelta(html, e.delta);
+            } else {
+                html = e.html;
+            }
+        }
+        return html;
+    }
+
+    private lastReconstructedIndex = -1;
+    private lastReconstructedHtml = '';
+
+    private reconstructHtmlCached(index: number): string {
+        if (this.lastReconstructedIndex === index && this.lastReconstructedHtml) {
+            return this.lastReconstructedHtml;
+        }
+        const html = this.reconstructHtml(index);
+        this.lastReconstructedIndex = index;
+        this.lastReconstructedHtml = html;
+        return html;
+    }
+
     private pushHistory(): void {
         const currentHtml = this.htmlContent();
         const lastEntry = this.history[this.history.length - 1];
-        if (lastEntry && lastEntry.html === currentHtml) {
+        const lastHtml = lastEntry ? this.reconstructHtmlCached(this.history.length - 1) : '';
+        if (lastEntry && lastHtml === currentHtml) {
             return;
         }
         const previewData = this.buildHistoryPreview(currentHtml);
 
+        if (this.historyIndex < this.history.length - 1) {
+            this.history = this.history.slice(0, this.historyIndex + 1);
+        }
+
+        const isKeyframe = !lastEntry || this.history.length % 10 === 0;
+        const delta = (!isKeyframe && lastEntry)
+            ? this.computeDelta(lastHtml, currentHtml)
+            : null;
+
         const entry: HistoryEntry = {
-            html: currentHtml,
+            html: isKeyframe ? currentHtml : '',
+            delta,
+            keyframe: isKeyframe,
             selection: this.captureSelection(),
             timestamp: Date.now(),
             preview: previewData.preview,
@@ -4293,17 +5253,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             lineCount: previewData.lineCount,
         };
 
-        if (this.historyIndex < this.history.length - 1) {
-            this.history = this.history.slice(0, this.historyIndex + 1);
-        }
-
         this.history.push(entry);
         this.historyIndex = this.history.length - 1;
+        this.lastReconstructedIndex = this.historyIndex;
+        this.lastReconstructedHtml = currentHtml;
 
         const maxEntries = Math.max(10, this.historyLimit());
         if (this.history.length > maxEntries) {
+            if (!this.history[0].keyframe && this.history.length > 1) {
+                this.history[1].html = this.reconstructHtml(1);
+                this.history[1].keyframe = true;
+                this.history[1].delta = null;
+            }
             this.history.shift();
             this.historyIndex--;
+            this.lastReconstructedIndex--;
         }
         this.bumpHistoryVersion();
     }
@@ -4314,16 +5278,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.isUndoRedo = true;
             this.historyIndex--;
             const entry = this.history[this.historyIndex];
-            this.htmlContent.set(entry.html);
+            const html = this.reconstructHtmlCached(this.historyIndex);
+            this.htmlContent.set(html);
 
             if (this.editorDiv?.nativeElement) {
-                this.editorDiv.nativeElement.innerHTML = entry.html;
+                this.editorDiv.nativeElement.innerHTML = html;
+                this.enableTaskCheckboxes(this.editorDiv.nativeElement);
             }
             this.restoreSerializedSelection(entry.selection);
 
             const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(entry.html)
-                : entry.html;
+                ? this.markdownService.toMarkdown(html)
+                : html;
             this.onChange(outputValue);
             this.bumpHistoryVersion();
         }
@@ -4335,16 +5301,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.isUndoRedo = true;
             this.historyIndex++;
             const entry = this.history[this.historyIndex];
-            this.htmlContent.set(entry.html);
+            const html = this.reconstructHtmlCached(this.historyIndex);
+            this.htmlContent.set(html);
 
             if (this.editorDiv?.nativeElement) {
-                this.editorDiv.nativeElement.innerHTML = entry.html;
+                this.editorDiv.nativeElement.innerHTML = html;
+                this.enableTaskCheckboxes(this.editorDiv.nativeElement);
             }
             this.restoreSerializedSelection(entry.selection);
 
             const outputValue = this.mode() === 'markdown'
-                ? this.markdownService.toMarkdown(entry.html)
-                : entry.html;
+                ? this.markdownService.toMarkdown(html)
+                : html;
             this.onChange(outputValue);
             this.bumpHistoryVersion();
         }
@@ -4529,5 +5497,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.autoUploadMap.forEach(entry => entry.subscription.unsubscribe());
         this.autoUploadMap.clear();
         this.autoUploadErrors.set(new Map());
+        this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
     }
 }

@@ -111,6 +111,7 @@ export class PopoverContentComponent implements AfterViewInit {
     sideOffset = input(4);
     avoidCollisions = input(true);
     restoreFocus = input(true);
+    strategy = input<'absolute' | 'fixed'>('absolute');
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
@@ -144,6 +145,17 @@ export class PopoverContentComponent implements AfterViewInit {
     }
 
     private calculatePosition() {
+        if (this.strategy() === 'fixed' && this.contentEl?.nativeElement) {
+            const el = this.contentEl.nativeElement;
+            const rect = el.getBoundingClientRect();
+            if (rect.right > window.innerWidth) {
+                el.style.left = `${window.innerWidth - rect.width - 8}px`;
+            }
+            if (rect.bottom > window.innerHeight) {
+                el.style.top = `${window.innerHeight - rect.height - 8}px`;
+            }
+            return;
+        }
         if (!this.avoidCollisions() || !this.contentEl?.nativeElement) {
             this.adjustedPosition.set({
                 side: this.side(),
@@ -197,6 +209,37 @@ export class PopoverContentComponent implements AfterViewInit {
         const pos = this.adjustedPosition();
         let styles = '';
 
+        if (this.strategy() === 'fixed') {
+            const triggerRect = this.popover?.getTriggerRect();
+            if (triggerRect) {
+                const currentSide = this.avoidCollisions() ? pos.side : this.side();
+                const currentAlign = this.avoidCollisions() ? pos.align : this.align();
+                let top: number;
+                let left: number;
+                if (currentSide === 'bottom') {
+                    top = triggerRect.bottom + 4;
+                } else {
+                    top = triggerRect.top - 4;
+                }
+                if (currentAlign === 'start') {
+                    left = triggerRect.left;
+                } else if (currentAlign === 'end') {
+                    left = triggerRect.right;
+                } else {
+                    left = triggerRect.left + triggerRect.width / 2;
+                }
+                left = Math.max(8, Math.min(left, window.innerWidth - 8));
+                top = Math.max(8, Math.min(top, window.innerHeight - 8));
+                styles += `position:fixed;top:${top}px;left:${left}px;`;
+                if (currentAlign === 'center') {
+                    styles += 'transform:translateX(-50%);';
+                } else if (currentAlign === 'end') {
+                    styles += 'transform:translateX(-100%);';
+                }
+            }
+            return styles;
+        }
+
         if (pos.offsetX !== 0) {
             styles += `transform: translateX(${pos.offsetX}px);`;
         }
@@ -220,11 +263,13 @@ export class PopoverContentComponent implements AfterViewInit {
             left: 'right-full mr-1 top-0',
             right: 'left-full ml-1 top-0',
         };
+        const isFixed = this.strategy() === 'fixed';
         return cn(
+            isFixed ? 'z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none' :
             'absolute z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none',
             'animate-in fade-in-0 zoom-in-95',
-            sideClasses[currentSide],
-            currentSide === 'top' || currentSide === 'bottom' ? alignClasses[currentAlign] : '',
+            !isFixed && sideClasses[currentSide],
+            !isFixed && (currentSide === 'top' || currentSide === 'bottom') ? alignClasses[currentAlign] : '',
             this.class()
         );
     });
