@@ -36,7 +36,7 @@ export class RichTextSanitizerService {
     // Allowlisted attributes per element
     private readonly ALLOWED_ATTRS: Record<string, Set<string>> = {
         'a': new Set(['href', 'title', 'target', 'rel']),
-        'img': new Set(['src', 'alt', 'width', 'height', 'title', 'data-align']),
+        'img': new Set(['src', 'alt', 'width', 'height', 'title', 'data-align', 'data-auto-upload-id', 'data-auto-upload-status']),
         'td': new Set(['colspan', 'rowspan']),
         'th': new Set(['colspan', 'rowspan', 'scope']),
         'pre': new Set(['data-language']),
