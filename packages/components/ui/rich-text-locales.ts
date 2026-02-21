@@ -155,6 +155,9 @@ export interface RichTextLocale {
         words: string;
         formattingOptions: string;
         slashCommandMenu: string;
+        autoUploadFailed: string;
+        autoUploadRetry: string;
+        autoUploadRemove: string;
     };
 }
 
@@ -309,6 +312,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} words',
             formattingOptions: 'Formatting options',
             slashCommandMenu: 'Slash command menu',
+            autoUploadFailed: 'Upload failed',
+            autoUploadRetry: 'Retry',
+            autoUploadRemove: 'Remove',
         },
     },
     he: {
@@ -457,6 +463,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} מילים',
             formattingOptions: 'אפשרויות עיצוב',
             slashCommandMenu: 'תפריט פקודות',
+            autoUploadFailed: 'ההעלאה נכשלה',
+            autoUploadRetry: 'נסה שוב',
+            autoUploadRemove: 'הסר',
         },
     },
     ar: {
@@ -605,6 +614,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} كلمة',
             formattingOptions: 'خيارات التنسيق',
             slashCommandMenu: 'قائمة الأوامر',
+            autoUploadFailed: 'فشل الرفع',
+            autoUploadRetry: 'إعادة المحاولة',
+            autoUploadRemove: 'إزالة',
         },
     },
     de: {
@@ -753,6 +765,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} Wörter',
             formattingOptions: 'Formatierungsoptionen',
             slashCommandMenu: 'Befehlsmenü',
+            autoUploadFailed: 'Upload fehlgeschlagen',
+            autoUploadRetry: 'Erneut versuchen',
+            autoUploadRemove: 'Entfernen',
         },
     },
     fr: {
@@ -901,6 +916,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} mots',
             formattingOptions: 'Options de mise en forme',
             slashCommandMenu: 'Menu de commandes',
+            autoUploadFailed: 'Échec du téléversement',
+            autoUploadRetry: 'Réessayer',
+            autoUploadRemove: 'Supprimer',
         },
     },
     es: {
@@ -1049,6 +1067,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} palabras',
             formattingOptions: 'Opciones de formato',
             slashCommandMenu: 'Menú de comandos',
+            autoUploadFailed: 'Error al subir',
+            autoUploadRetry: 'Reintentar',
+            autoUploadRemove: 'Eliminar',
         },
     },
     ja: {
@@ -1197,6 +1218,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} 語',
             formattingOptions: '書式設定オプション',
             slashCommandMenu: 'スラッシュコマンドメニュー',
+            autoUploadFailed: 'アップロード失敗',
+            autoUploadRetry: '再試行',
+            autoUploadRemove: '削除',
         },
     },
     zh: {
@@ -1345,6 +1369,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} 个词',
             formattingOptions: '格式选项',
             slashCommandMenu: '斜杠命令菜单',
+            autoUploadFailed: '上传失败',
+            autoUploadRetry: '重试',
+            autoUploadRemove: '移除',
         },
     },
     ru: {
@@ -1493,6 +1520,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
             slashCommandMenu: 'Меню команд',
+            autoUploadFailed: 'Ошибка загрузки',
+            autoUploadRetry: 'Повторить',
+            autoUploadRemove: 'Удалить',
         },
     },
     pt: {
@@ -1641,6 +1671,9 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             words: '{count} palavras',
             formattingOptions: 'Opções de formatação',
             slashCommandMenu: 'Menu de comandos',
+            autoUploadFailed: 'Falha no envio',
+            autoUploadRetry: 'Tentar novamente',
+            autoUploadRemove: 'Remover',
         },
     },
 };

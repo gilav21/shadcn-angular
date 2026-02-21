@@ -9,6 +9,7 @@ import { RICH_TEXT_LOCALES } from './rich-text-locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
 import { Component, signal } from '@angular/core';
 import { JsonPipe } from '@angular/common';
+import { delay, of } from 'rxjs';
 
 const sampleMentions: MentionItem[] = [
     { id: '1', value: 'john-doe', label: 'John Doe', description: 'john.doe@example.com' },
@@ -568,6 +569,26 @@ export const ReactiveForm: Story = {
         docs: {
             description: {
                 story: 'Using the rich text editor with Angular reactive forms.',
+            },
+        },
+    },
+};
+
+export const AutoImageUpload: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        autoImageUpload: true,
+        imageUploader: (_file: File) =>
+            of('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/1200px-Cat_November_2010-1a.jpg')
+                .pipe(delay(2000)),
+        placeholder: 'Paste or drag an image to see auto upload...',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Automatically uploads base64 images using the `imageUploader` callback. Shows a shimmer skeleton while uploading, then replaces with the returned URL. Try pasting or dragging any image into the editor.',
             },
         },
     },

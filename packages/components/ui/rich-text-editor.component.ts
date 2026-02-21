@@ -22,7 +22,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
-import { Observable, isObservable, of, Subject, firstValueFrom, from, catchError } from 'rxjs';
+import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, from, catchError } from 'rxjs';
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { parsePdf } from '../lib/pdf-parser';
@@ -828,6 +828,38 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         </div>
       }
 
+      @for (entry of autoUploadErrorList(); track entry.id) {
+        <div
+          class="absolute z-20 flex flex-col items-center justify-center gap-1.5 rounded bg-destructive/10 border border-destructive/30 backdrop-blur-[1px]"
+          [style.top.px]="entry.top"
+          [style.left.px]="entry.left"
+          [style.width.px]="entry.width"
+          [style.height.px]="entry.height"
+          contenteditable="false"
+        >
+          <svg class="h-5 w-5 text-destructive" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z" />
+          </svg>
+          <span class="text-xs text-destructive font-medium">{{ resolvedLocale().editor.autoUploadFailed }}</span>
+          <div class="flex gap-1">
+            <button
+              type="button"
+              class="text-xs px-2 py-0.5 rounded bg-background border border-border text-foreground hover:bg-accent transition-colors"
+              (click)="retryAutoUpload(entry.id)"
+            >
+              {{ resolvedLocale().editor.autoUploadRetry }}
+            </button>
+            <button
+              type="button"
+              class="text-xs px-2 py-0.5 rounded bg-background border border-border text-foreground hover:bg-accent transition-colors"
+              (click)="removeAutoUploadImage(entry.id)"
+            >
+              {{ resolvedLocale().editor.autoUploadRemove }}
+            </button>
+          </div>
+        </div>
+      }
+
       <ui-rich-text-image-resizer
           [target]="selectedImage()"
           [container]="editorDiv"
@@ -1146,6 +1178,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     imageUploader = input<((file: File) => Observable<string>) | undefined>(undefined);
 
     /**
+     * Automatically detect and upload base64 images inserted into the editor.
+     * When enabled and `imageUploader` is provided, any base64 `data:image/*`
+     * source is converted to a `File`, uploaded via the `imageUploader` callback,
+     * and replaced with the returned URL. A skeleton shimmer is shown on the
+     * image while the upload is in progress.
+     */
+    autoImageUpload = input<boolean>(false);
+
+    /**
      * Which image source options to show in the image insertion dialog.
      * - `'all'` — Both file upload and URL input.
      * - `'upload'` — File upload only.
@@ -1260,6 +1301,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /** Emits an error message string when an image upload fails. */
     imageUploadError = output<string>();
 
+    /** Emits the final URL when a base64 auto-upload completes successfully. */
+    autoImageUploadComplete = output<string>();
+
+    /** Emits an error message when a base64 auto-upload fails. */
+    autoImageUploadError = output<string>();
+
     /**
      * Emits when a mention is inserted into the editor.
      * @see {@link RichTextEntityInsertEvent} for the payload shape.
@@ -1304,6 +1351,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
+
+    private autoUploadMap = new Map<string, { subscription: Subscription; dataUrl: string }>();
+    private autoUploadObserver: MutationObserver | null = null;
+    private autoUploadCounter = 0;
+    private autoUploadMutating = false;
+    autoUploadErrors = signal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>(new Map());
+
     historyPanelOpen = signal<boolean>(false);
     historyPreviewOpen = model<boolean>(false);
     historyBrowserOpen = model<boolean>(false);
@@ -1634,7 +1688,55 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     ngAfterViewInit() {
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.setupAutoUploadObserver();
         }
+    }
+
+    private setupAutoUploadObserver(): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) return;
+
+        this.injectAutoUploadStyles();
+
+        this.autoUploadObserver = new MutationObserver(() => {
+            if (this.autoUploadMutating) return;
+            this.scanForBase64Images();
+        });
+
+        this.autoUploadObserver.observe(editor, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['src'],
+        });
+
+        this.scanForBase64Images();
+    }
+
+    private injectAutoUploadStyles(): void {
+        const styleId = 'ui-rte-auto-upload-styles';
+        if (this.document.getElementById(styleId)) return;
+
+        const style = this.document.createElement('style');
+        style.id = styleId;
+        style.textContent = `
+            @keyframes ui-auto-upload-shimmer {
+                0% { background-position: 200% 0; }
+                100% { background-position: -200% 0; }
+            }
+            img[data-auto-upload-status="uploading"] {
+                background: linear-gradient(90deg, hsl(var(--muted)) 25%, hsl(var(--muted-foreground) / 0.1) 50%, hsl(var(--muted)) 75%);
+                background-size: 200% 100%;
+                animation: ui-auto-upload-shimmer 1.5s ease-in-out infinite;
+                border-radius: 0.375rem;
+            }
+            img[data-auto-upload-status="error"] {
+                opacity: 0.4;
+                border: 2px dashed hsl(var(--destructive));
+                border-radius: 0.375rem;
+            }
+        `;
+        this.document.head.appendChild(style);
     }
 
     writeValue(value: string): void {
@@ -2975,6 +3077,167 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         });
     }
 
+    private readonly TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+    private dataUrlToFile(dataUrl: string, filename: string): File {
+        const parts = dataUrl.split(',');
+        const meta = parts[0];
+        const base64 = parts[1];
+        const mime = meta.match(/:(.*?);/)?.[1] ?? 'image/png';
+        const binary = atob(base64);
+        const bytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        return new File([bytes], filename, { type: mime });
+    }
+
+    private scanForBase64Images(): void {
+        if (!this.autoImageUpload() || !this.imageUploader() || this.disabled() || this.readonly()) {
+            return;
+        }
+        const editor = this.getEditorElement();
+        if (!editor) return;
+
+        const images = editor.querySelectorAll('img');
+        images.forEach(img => {
+            const src = img.getAttribute('src') ?? '';
+            if (src.startsWith('data:image/') && !img.hasAttribute('data-auto-upload-id')) {
+                this.processAutoUploadImage(img);
+            }
+        });
+    }
+
+    private processAutoUploadImage(img: HTMLImageElement): void {
+        const uploader = this.imageUploader();
+        if (!uploader) return;
+
+        const uploadId = `auto-upload-${++this.autoUploadCounter}`;
+        const dataUrl = img.getAttribute('src') ?? '';
+
+        const width = img.naturalWidth || img.width || parseInt(img.getAttribute('width') ?? '0', 10) || 200;
+        const height = img.naturalHeight || img.height || parseInt(img.getAttribute('height') ?? '0', 10) || 150;
+
+        this.autoUploadMutating = true;
+        img.setAttribute('data-auto-upload-id', uploadId);
+        img.setAttribute('data-auto-upload-status', 'uploading');
+        if (!img.getAttribute('width')) img.setAttribute('width', String(width));
+        if (!img.getAttribute('height')) img.setAttribute('height', String(height));
+        img.setAttribute('src', this.TRANSPARENT_PIXEL);
+        this.autoUploadMutating = false;
+
+        this.syncContentFromEditor();
+
+        const ext = (dataUrl.match(/data:image\/([\w+]+)/)?.[1] ?? 'png').replace('+xml', '');
+        const filename = `pasted-image-${uploadId}.${ext}`;
+        const file = this.dataUrlToFile(dataUrl, filename);
+
+        const subscription = from(firstValueFrom(uploader(file))).subscribe({
+            next: (uploadedUrl) => {
+                const safeSrc = this.sanitizer.sanitizeImageSrc(uploadedUrl);
+                if (!safeSrc) {
+                    this.handleAutoUploadError(uploadId, img, dataUrl, 'Uploaded image URL is not allowed by sanitizer policy.');
+                    return;
+                }
+                this.autoUploadMutating = true;
+                img.setAttribute('src', safeSrc);
+                img.removeAttribute('data-auto-upload-id');
+                img.removeAttribute('data-auto-upload-status');
+                this.autoUploadMutating = false;
+
+                this.autoUploadMap.delete(uploadId);
+                this.syncContentFromEditor();
+                this.pushHistory();
+                this.autoImageUploadComplete.emit(safeSrc);
+            },
+            error: (err: unknown) => {
+                const message = err instanceof Error ? err.message : 'Auto image upload failed.';
+                this.handleAutoUploadError(uploadId, img, dataUrl, message);
+            },
+        });
+
+        this.autoUploadMap.set(uploadId, { subscription, dataUrl });
+    }
+
+    private handleAutoUploadError(uploadId: string, img: HTMLImageElement, dataUrl: string, message: string): void {
+        this.autoUploadMutating = true;
+        img.setAttribute('data-auto-upload-status', 'error');
+        this.autoUploadMutating = false;
+
+        this.autoUploadMap.delete(uploadId);
+        const errors = new Map(this.autoUploadErrors());
+        errors.set(uploadId, { dataUrl, imgElement: img });
+        this.autoUploadErrors.set(errors);
+        this.syncContentFromEditor();
+        this.autoImageUploadError.emit(message);
+    }
+
+    retryAutoUpload(uploadId: string): void {
+        const errors = new Map(this.autoUploadErrors());
+        const entry = errors.get(uploadId);
+        if (!entry) return;
+
+        const img = entry.imgElement;
+        if (!img.isConnected) {
+            errors.delete(uploadId);
+            this.autoUploadErrors.set(errors);
+            return;
+        }
+
+        errors.delete(uploadId);
+        this.autoUploadErrors.set(errors);
+
+        this.autoUploadMutating = true;
+        img.removeAttribute('data-auto-upload-id');
+        img.removeAttribute('data-auto-upload-status');
+        img.setAttribute('src', entry.dataUrl);
+        this.autoUploadMutating = false;
+
+        this.processAutoUploadImage(img);
+    }
+
+    removeAutoUploadImage(uploadId: string): void {
+        const errors = new Map(this.autoUploadErrors());
+        const entry = errors.get(uploadId);
+        if (entry?.imgElement?.isConnected) {
+            entry.imgElement.remove();
+        }
+        errors.delete(uploadId);
+        this.autoUploadErrors.set(errors);
+
+        const pending = this.autoUploadMap.get(uploadId);
+        if (pending) {
+            pending.subscription.unsubscribe();
+            this.autoUploadMap.delete(uploadId);
+        }
+
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    autoUploadErrorList = computed(() => {
+        const errors = this.autoUploadErrors();
+        const container = this.editorDiv?.nativeElement;
+        if (!container || errors.size === 0) return [];
+
+        const containerRect = container.getBoundingClientRect();
+        const entries: Array<{ id: string; top: number; left: number; width: number; height: number }> = [];
+
+        errors.forEach((entry, id) => {
+            if (!entry.imgElement.isConnected) return;
+            const imgRect = entry.imgElement.getBoundingClientRect();
+            entries.push({
+                id,
+                top: imgRect.top - containerRect.top + container.scrollTop,
+                left: imgRect.left - containerRect.left + container.scrollLeft,
+                width: Math.max(imgRect.width, 120),
+                height: Math.max(imgRect.height, 80),
+            });
+        });
+
+        return entries;
+    });
+
     onTableInsert(event: { rows: number; cols: number }): void {
         this.restoreSelection();
         this.insertTable(event.rows, event.cols);
@@ -4259,5 +4522,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             clearTimeout(this.historyDebounceTimer);
             this.historyDebounceTimer = null;
         }
+        if (this.autoUploadObserver) {
+            this.autoUploadObserver.disconnect();
+            this.autoUploadObserver = null;
+        }
+        this.autoUploadMap.forEach(entry => entry.subscription.unsubscribe());
+        this.autoUploadMap.clear();
+        this.autoUploadErrors.set(new Map());
     }
 }

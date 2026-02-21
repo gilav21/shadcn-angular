@@ -236,6 +236,27 @@
               [showCount]="true" [showWordCount]="true" [enableSlashCommands]="true"
               minHeight="150px" />
           </div>
+
+          <!-- Auto Image Upload -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Auto Image Upload</h3>
+            <p class="text-sm text-muted-foreground">
+              Paste or drop any image — base64 is automatically replaced with a URL.
+              This demo simulates a 2-second upload, then swaps in a cute cat photo.
+            </p>
+            <ui-rich-text-editor mode="html" toolbar="top"
+              [autoImageUpload]="true"
+              [imageUploader]="fakeImageUploader"
+              (autoImageUploadComplete)="lastAutoUploadUrl = $event"
+              (autoImageUploadError)="lastAutoUploadError = $event"
+              placeholder="Paste or drag an image here to see auto upload in action..."
+              minHeight="160px" />
+            @if (lastAutoUploadUrl) {
+            <p class="text-sm text-muted-foreground">
+              Uploaded URL: <code class="text-xs bg-muted px-1.5 py-0.5 rounded">{{ lastAutoUploadUrl }}</code>
+            </p>
+            }
+          </div>
         </section>
 
         }

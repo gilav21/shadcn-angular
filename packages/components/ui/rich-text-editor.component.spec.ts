@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { of } from 'rxjs';
+import { of, Subject, throwError } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
 import { ShortcutBindingService } from '../lib/shortcut-binding.service';
 import { RichTextCommandRegistry, RichTextSlashCommandContext } from './rich-text-command-registry.service';
@@ -1098,6 +1098,172 @@ describe('RichTextEditorComponent', () => {
                 expect(component.resolvedLocale().toolbar.bold).toBeTruthy();
                 expect(component.resolvedLocale().editor.placeholder).toBeTruthy();
             }
+        });
+    });
+
+    describe('autoImageUpload', () => {
+        const TINY_BASE64 = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==';
+        const TRANSPARENT_PIXEL = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7';
+
+        it('auto-uploads base64 image when autoImageUpload and imageUploader are set', async () => {
+            const upload$ = new Subject<string>();
+            fixture.componentRef.setInput('autoImageUpload', true);
+            fixture.componentRef.setInput('imageUploader', () => upload$);
+            fixture.detectChanges();
+
+            const completeSpy = vi.spyOn(component.autoImageUploadComplete, 'emit');
+
+            const img = document.createElement('img');
+            img.setAttribute('src', TINY_BASE64);
+            img.setAttribute('alt', 'test');
+            editor.appendChild(img);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(img.getAttribute('data-auto-upload-status')).toBe('uploading');
+            expect(img.getAttribute('src')).toBe(TRANSPARENT_PIXEL);
+
+            upload$.next('https://cdn.example.com/uploaded.png');
+            upload$.complete();
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(img.getAttribute('src')).toBe('https://cdn.example.com/uploaded.png');
+            expect(img.hasAttribute('data-auto-upload-id')).toBe(false);
+            expect(img.hasAttribute('data-auto-upload-status')).toBe(false);
+            expect(completeSpy).toHaveBeenCalledWith('https://cdn.example.com/uploaded.png');
+        });
+
+        it('does not auto-upload when autoImageUpload is false', async () => {
+            fixture.componentRef.setInput('autoImageUpload', false);
+            fixture.componentRef.setInput('imageUploader', () => of('https://cdn.example.com/uploaded.png'));
+            fixture.detectChanges();
+
+            const img = document.createElement('img');
+            img.setAttribute('src', TINY_BASE64);
+            editor.appendChild(img);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(img.getAttribute('src')).toBe(TINY_BASE64);
+            expect(img.hasAttribute('data-auto-upload-id')).toBe(false);
+        });
+
+        it('does not auto-upload when imageUploader is not provided', async () => {
+            fixture.componentRef.setInput('autoImageUpload', true);
+            fixture.detectChanges();
+
+            const img = document.createElement('img');
+            img.setAttribute('src', TINY_BASE64);
+            editor.appendChild(img);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(img.getAttribute('src')).toBe(TINY_BASE64);
+            expect(img.hasAttribute('data-auto-upload-id')).toBe(false);
+        });
+
+        it('shows error overlay on upload failure', async () => {
+            fixture.componentRef.setInput('autoImageUpload', true);
+            fixture.componentRef.setInput('imageUploader', () => throwError(() => new Error('Network error')));
+            fixture.detectChanges();
+
+            const errorSpy = vi.spyOn(component.autoImageUploadError, 'emit');
+
+            const img = document.createElement('img');
+            img.setAttribute('src', TINY_BASE64);
+            editor.appendChild(img);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(img.getAttribute('data-auto-upload-status')).toBe('error');
+            expect(errorSpy).toHaveBeenCalledWith('Network error');
+            expect(component.autoUploadErrors().size).toBe(1);
+        });
+
+        it('retries upload on retry call', async () => {
+            const attempt = { count: 0 };
+            fixture.componentRef.setInput('autoImageUpload', true);
+            fixture.componentRef.setInput('imageUploader', () => {
+                attempt.count++;
+                if (attempt.count === 1) {
+                    return throwError(() => new Error('First attempt failed'));
+                }
+                return of('https://cdn.example.com/retry-success.png');
+            });
+            fixture.detectChanges();
+
+            const img = document.createElement('img');
+            img.setAttribute('src', TINY_BASE64);
+            editor.appendChild(img);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(img.getAttribute('data-auto-upload-status')).toBe('error');
+            expect(component.autoUploadErrors().size).toBe(1);
+
+            const errorId = Array.from(component.autoUploadErrors().keys())[0];
+            component.retryAutoUpload(errorId);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(img.getAttribute('src')).toBe('https://cdn.example.com/retry-success.png');
+            expect(component.autoUploadErrors().size).toBe(0);
+        });
+
+        it('removes image on removeAutoUploadImage call', async () => {
+            fixture.componentRef.setInput('autoImageUpload', true);
+            fixture.componentRef.setInput('imageUploader', () => throwError(() => new Error('fail')));
+            fixture.detectChanges();
+
+            const img = document.createElement('img');
+            img.setAttribute('src', TINY_BASE64);
+            editor.appendChild(img);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(component.autoUploadErrors().size).toBe(1);
+            const errorId = Array.from(component.autoUploadErrors().keys())[0];
+
+            component.removeAutoUploadImage(errorId);
+
+            expect(editor.querySelector('img')).toBeNull();
+            expect(component.autoUploadErrors().size).toBe(0);
+        });
+
+        it('output does not contain base64 during upload', async () => {
+            const upload$ = new Subject<string>();
+            fixture.componentRef.setInput('autoImageUpload', true);
+            fixture.componentRef.setInput('imageUploader', () => upload$);
+            fixture.detectChanges();
+
+            const img = document.createElement('img');
+            img.setAttribute('src', TINY_BASE64);
+            editor.appendChild(img);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            const output = editor.innerHTML;
+            expect(output).not.toContain(TINY_BASE64);
+            expect(output).toContain(TRANSPARENT_PIXEL);
+
+            upload$.next('https://cdn.example.com/final.png');
+            upload$.complete();
+        });
+
+        it('does not re-process images that already have data-auto-upload-id', async () => {
+            fixture.componentRef.setInput('autoImageUpload', true);
+            fixture.componentRef.setInput('imageUploader', () => of('https://cdn.example.com/img.png'));
+            fixture.detectChanges();
+
+            const img = document.createElement('img');
+            img.setAttribute('src', TINY_BASE64);
+            img.setAttribute('data-auto-upload-id', 'existing-id');
+            editor.appendChild(img);
+
+            await new Promise(r => setTimeout(r, 50));
+
+            expect(img.getAttribute('src')).toBe(TINY_BASE64);
         });
     });
 });
