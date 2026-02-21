@@ -454,6 +454,8 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'code', 'codeBlock',
     'separator',
+    'horizontalRule',
+    'separator',
     'clear',
 ];
 
@@ -575,6 +577,14 @@ export function buildDefaultSlashCommands(l: RichTextLocale['slashCommands']): R
             order: 75,
             run: context => context.executeToolbarCommand('toggle'),
         },
+        {
+            id: 'insert.horizontal-rule',
+            label: l.horizontalRule,
+            description: l.horizontalRuleDescription,
+            keywords: ['hr', 'divider', 'line', 'separator'],
+            order: 95,
+            run: context => context.executeToolbarCommand('horizontalRule'),
+        },
     ];
 }
 
@@ -661,7 +671,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                 {{ interpolateLocale(resolvedLocale().history.button, { count: historyCount() }) }}
               </ui-button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-80 p-0" align="end" side="bottom" [restoreFocus]="false">
+            <ui-popover-content class="w-80 max-sm:w-[calc(100vw-2rem)] p-0" align="end" side="bottom" [restoreFocus]="false">
               <div class="flex items-center justify-between border-b px-3 py-2">
                 <div class="text-sm font-medium">{{ resolvedLocale().history.title }}</div>
                 <ui-button
@@ -840,6 +850,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (mouseup)="onSelectionChange()"
         (keyup)="onSelectionChange()"
         (click)="onEditorClick($event)"
+        (mousemove)="onEditorMouseMove($event)"
+        (mousedown)="onEditorMouseDown($event)"
         (contextmenu)="onEditorContextMenu($event)"
         (dragover)="onEditorDragOver($event)"
         (dragleave)="onEditorDragLeave($event)"
@@ -847,7 +859,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
       ></div>
 
       @if (findReplaceVisible()) {
-        <div class="absolute top-2 right-2 z-50 bg-popover border rounded-lg shadow-lg p-3 w-80 animate-in slide-in-from-top-2 fade-in-0"
+        <div class="absolute top-2 right-2 z-50 bg-popover border rounded-lg shadow-lg p-3 w-80 max-sm:w-[calc(100%-1rem)] max-sm:left-2 animate-in slide-in-from-top-2 fade-in-0"
              (keydown.escape)="closeFindReplace()"
              (keydown)="onFindReplaceKeydown($event)">
           <div class="flex items-center gap-1.5 mb-2">
@@ -989,7 +1001,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (slashCommandOpen()) {
         <div
-          class="absolute z-50 w-72 rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          class="absolute z-50 w-72 max-sm:w-[calc(100%-1rem)] rounded-md border bg-popover text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
           [style.left.px]="slashCommandPosition().x"
           [style.top.px]="slashCommandPosition().y"
           role="listbox"
@@ -1025,7 +1037,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (showLinkPopover()) {
         <div 
-          class="fixed z-50 bg-popover border rounded-lg shadow-lg p-4 w-80"
+          class="fixed z-50 bg-popover border rounded-lg shadow-lg p-4 w-80 max-sm:w-[calc(100vw-2rem)] max-sm:max-w-80"
           [style.left.px]="linkPopoverPosition().x"
           [style.top.px]="linkPopoverPosition().y"
         >
@@ -1071,7 +1083,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (tableContextMenuOpen()) {
         <div
-          class="fixed z-50 min-w-[180px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          #tableContextMenuRef
+          class="fixed z-50 min-w-[180px] max-h-[calc(100vh-1rem)] overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
           [style.left.px]="tableContextMenuPosition().x"
           [style.top.px]="tableContextMenuPosition().y"
           (mousedown)="$event.preventDefault()"
@@ -1122,7 +1135,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           <div class="my-1 h-px bg-border"></div>
           <div class="px-2 py-1.5">
             <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.cellAlignLeft }}</div>
-            <div class="flex items-center gap-1">
+            <div class="flex items-center gap-1" dir="ltr">
               <button type="button" class="flex items-center justify-center w-7 h-7 rounded border border-transparent hover:border-border hover:bg-accent" [title]="resolvedLocale().table.cellAlignLeft" (click)="setCellAlignment('left')">
                 <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>
               </button>
@@ -1182,6 +1195,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     @ViewChild('editorDiv') editorDiv?: ElementRef<HTMLDivElement>;
     @ViewChild('slashCommandList') slashCommandList?: ElementRef<HTMLDivElement>;
+    @ViewChild('tableContextMenuRef') tableContextMenuRef?: ElementRef<HTMLDivElement>;
     @ViewChild(RichTextMentionPopoverComponent) mentionPopover?: RichTextMentionPopoverComponent;
 
     // ── Content & mode ────────────────────────────────────────────
@@ -1462,6 +1476,16 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
+    private tableResizeState: {
+        table: HTMLTableElement;
+        colIndex: number;
+        startX: number;
+        startWidths: number[];
+        tableWidth: number;
+    } | null = null;
+    private tableResizeCursor = signal(false);
+    private readonly onTableResizeMoveBound = this.onTableResizeMove.bind(this);
+    private readonly onTableResizeUpBound = this.onTableResizeUp.bind(this);
     tableCellColors = [
         'transparent', '#ffffff', '#fef3c7', '#d9f99d', '#bbf7d0', '#a5f3fc', '#c7d2fe', '#fce7f3',
         '#fecaca', '#fed7aa', '#fde68a', '#d9ead3', '#d0e0e3', '#cfe2f3', '#d9d2e9', '#ead1dc',
@@ -1544,6 +1568,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_details]:border [&_details]:border-border [&_details]:rounded-md [&_details]:my-2 [&_details]:overflow-hidden',
             '[&_summary]:bg-muted/40 [&_summary]:px-3 [&_summary]:py-2 [&_summary]:cursor-pointer [&_summary]:font-medium [&_summary]:outline-none',
             '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',
+            '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
             'disabled:cursor-not-allowed'
         )
     );
@@ -2521,6 +2546,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             case 'codeBlock':
                 this.insertCodeBlock();
                 break;
+            case 'horizontalRule':
+                this.insertHorizontalRule();
+                break;
             case 'undo':
                 this.undo();
                 break;
@@ -2535,13 +2563,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 this.document.execCommand('formatBlock', false, '<p>');
                 break;
             case 'alignLeft':
-                this.document.execCommand('justifyLeft', false);
+                this.document.execCommand(this.isRtl() ? 'justifyRight' : 'justifyLeft', false);
                 break;
             case 'alignCenter':
                 this.document.execCommand('justifyCenter', false);
                 break;
             case 'alignRight':
-                this.document.execCommand('justifyRight', false);
+                this.document.execCommand(this.isRtl() ? 'justifyLeft' : 'justifyRight', false);
                 break;
             case 'indent':
                 this.indentListItem();
@@ -3266,6 +3294,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    private insertHorizontalRule(): void {
+        this.insertHtml('<hr><p><br></p>');
+        this.pushHistory();
+    }
+
     private showLinkDialog(): void {
         const selection = this.document.getSelection();
         this.selectedText.set(selection?.toString() || '');
@@ -3565,6 +3598,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.tableContextMenuPosition.set({ x: event.clientX, y: event.clientY });
         this.tableContextMenuOpen.set(true);
 
+        requestAnimationFrame(() => {
+            const menu = this.tableContextMenuRef?.nativeElement;
+            if (!menu) return;
+            const rect = menu.getBoundingClientRect();
+            let x = this.tableContextMenuPosition().x;
+            let y = this.tableContextMenuPosition().y;
+            if (rect.right > window.innerWidth) {
+                x = window.innerWidth - rect.width - 8;
+            }
+            if (rect.bottom > window.innerHeight) {
+                y = window.innerHeight - rect.height - 8;
+            }
+            this.tableContextMenuPosition.set({ x, y });
+        });
+
         const closeHandler = () => {
             this.tableContextMenuOpen.set(false);
             this.document.removeEventListener('click', closeHandler);
@@ -3574,6 +3622,101 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.document.addEventListener('click', closeHandler);
             this.document.addEventListener('contextmenu', closeHandler);
         });
+    }
+
+    onEditorMouseMove(event: MouseEvent): void {
+        if (this.tableResizeState || this.readonly() || this.disabled()) return;
+        const target = event.target as HTMLElement;
+        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        if (!cell) {
+            if (this.tableResizeCursor()) {
+                this.tableResizeCursor.set(false);
+                this.editorDiv!.nativeElement.style.cursor = '';
+            }
+            return;
+        }
+        const cellRect = cell.getBoundingClientRect();
+        const colIndex = Array.from((cell.parentElement as HTMLTableRowElement).cells).indexOf(cell);
+        const nearRightBorder = event.clientX >= cellRect.right - 4;
+        const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
+        if (nearRightBorder || nearLeftBorder) {
+            this.tableResizeCursor.set(true);
+            this.editorDiv!.nativeElement.style.cursor = 'col-resize';
+        } else if (this.tableResizeCursor()) {
+            this.tableResizeCursor.set(false);
+            this.editorDiv!.nativeElement.style.cursor = '';
+        }
+    }
+
+    onEditorMouseDown(event: MouseEvent): void {
+        if (!this.tableResizeCursor() || this.readonly() || this.disabled()) return;
+        const target = event.target as HTMLElement;
+        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        if (!cell) return;
+
+        const table = cell.closest('table') as HTMLTableElement | null;
+        if (!table) return;
+
+        const row = cell.parentElement as HTMLTableRowElement;
+        const cellRect = cell.getBoundingClientRect();
+        const colIndex = Array.from(row.cells).indexOf(cell);
+        const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
+        const resizeColIndex = nearLeftBorder ? colIndex - 1 : colIndex;
+
+        event.preventDefault();
+        event.stopPropagation();
+
+        const firstRow = table.rows[0];
+        if (!firstRow) return;
+        const widths = Array.from(firstRow.cells).map(c => c.getBoundingClientRect().width);
+        const tableWidth = table.getBoundingClientRect().width;
+
+        table.style.tableLayout = 'fixed';
+        table.style.width = `${tableWidth}px`;
+        for (let i = 0; i < firstRow.cells.length; i++) {
+            firstRow.cells[i].style.width = `${widths[i]}px`;
+        }
+
+        this.tableResizeState = {
+            table,
+            colIndex: resizeColIndex,
+            startX: event.clientX,
+            startWidths: widths,
+            tableWidth,
+        };
+
+        this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.addEventListener('mouseup', this.onTableResizeUpBound);
+    }
+
+    private onTableResizeMove(event: MouseEvent): void {
+        if (!this.tableResizeState) return;
+        const { table, colIndex, startX, startWidths } = this.tableResizeState;
+        const delta = event.clientX - startX;
+        const firstRow = table.rows[0];
+        if (!firstRow) return;
+
+        const newLeftWidth = Math.max(60, startWidths[colIndex] + delta);
+        const nextColIndex = colIndex + 1;
+        if (nextColIndex < startWidths.length) {
+            const newRightWidth = Math.max(60, startWidths[nextColIndex] - delta);
+            firstRow.cells[colIndex].style.width = `${newLeftWidth}px`;
+            firstRow.cells[nextColIndex].style.width = `${newRightWidth}px`;
+        } else {
+            firstRow.cells[colIndex].style.width = `${newLeftWidth}px`;
+            table.style.width = `${this.tableResizeState.tableWidth + delta}px`;
+        }
+    }
+
+    private onTableResizeUp(): void {
+        this.tableResizeState = null;
+        this.tableResizeCursor.set(false);
+        if (this.editorDiv) {
+            this.editorDiv.nativeElement.style.cursor = '';
+        }
+        this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
+        this.applyMutation({ focus: false });
     }
 
     private insertTable(rows: number, cols: number): void {
@@ -3618,25 +3761,22 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     addTableColumnLeft(): void {
-        this.tableContextMenuOpen.set(false);
-        const info = this.getTableCellInfo(this.tableContextMenuTarget);
-        if (!info) return;
-        const rows = Array.from(info.table.querySelectorAll('tr'));
-        for (const row of rows) {
-            const isHeader = row.closest('thead') !== null;
-            const newCell = this.document.createElement(isHeader ? 'th' : 'td');
-            newCell.innerHTML = '<br>';
-            const refCell = row.cells[info.colIndex];
-            if (refCell) {
-                row.insertBefore(newCell, refCell);
-            } else {
-                row.appendChild(newCell);
-            }
+        if (this.isRtl()) {
+            this.insertTableColumn('after');
+        } else {
+            this.insertTableColumn('before');
         }
-        this.applyMutation({ focus: true });
     }
 
     addTableColumnRight(): void {
+        if (this.isRtl()) {
+            this.insertTableColumn('before');
+        } else {
+            this.insertTableColumn('after');
+        }
+    }
+
+    private insertTableColumn(position: 'before' | 'after'): void {
         this.tableContextMenuOpen.set(false);
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
@@ -3646,10 +3786,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const newCell = this.document.createElement(isHeader ? 'th' : 'td');
             newCell.innerHTML = '<br>';
             const refCell = row.cells[info.colIndex];
-            if (refCell && refCell.nextSibling) {
-                row.insertBefore(newCell, refCell.nextSibling);
+            if (position === 'before') {
+                if (refCell) {
+                    row.insertBefore(newCell, refCell);
+                } else {
+                    row.appendChild(newCell);
+                }
             } else {
-                row.appendChild(newCell);
+                if (refCell && refCell.nextSibling) {
+                    row.insertBefore(newCell, refCell.nextSibling);
+                } else {
+                    row.appendChild(newCell);
+                }
             }
         }
         this.applyMutation({ focus: true });
@@ -3996,7 +4144,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.performFind();
     }
 
-    private performFind(): void {
+    private performFind(preserveIndex = false): void {
         this.clearFindHighlights();
         const query = this.findQuery();
         if (!query) {
@@ -4030,7 +4178,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         this.findMatches.set(matches);
         if (matches.length > 0) {
-            this.findCurrentIndex.set(0);
+            if (!preserveIndex) {
+                this.findCurrentIndex.set(0);
+            }
             this.highlightFindMatches();
             this.scrollToCurrentMatch();
         } else {
@@ -4081,18 +4231,16 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     findNext(): void {
         const matches = this.findMatches();
         if (matches.length === 0) return;
-        this.clearFindHighlights();
         this.findCurrentIndex.set((this.findCurrentIndex() + 1) % matches.length);
-        this.performFind();
+        this.performFind(true);
     }
 
     findPrevious(): void {
         const matches = this.findMatches();
         if (matches.length === 0) return;
-        this.clearFindHighlights();
         const idx = this.findCurrentIndex() - 1;
         this.findCurrentIndex.set(idx < 0 ? matches.length - 1 : idx);
-        this.performFind();
+        this.performFind(true);
     }
 
     replaceSingle(): void {
@@ -5349,5 +5497,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.autoUploadMap.forEach(entry => entry.subscription.unsubscribe());
         this.autoUploadMap.clear();
         this.autoUploadErrors.set(new Map());
+        this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
     }
 }

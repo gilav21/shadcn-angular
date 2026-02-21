@@ -77,6 +77,7 @@ export class RichTextSanitizerService {
         'margin-right',
         'margin-top',
         'margin-bottom',
+        'table-layout',
     ]);
 
     // Allowed class patterns (for syntax highlighting)

@@ -32,6 +32,7 @@ export interface RichTextLocale {
         indent: string;
         outdent: string;
         taskList: string;
+        horizontalRule: string;
     };
 
     findReplace: {
@@ -104,6 +105,8 @@ export interface RichTextLocale {
         taskListDescription: string;
         toggle: string;
         toggleDescription: string;
+        horizontalRule: string;
+        horizontalRuleDescription: string;
     };
 
     history: {
@@ -221,6 +224,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'Increase Indent',
             outdent: 'Decrease Indent',
             taskList: 'Task List',
+            horizontalRule: 'Horizontal Rule',
         },
         findReplace: {
             find: 'Find',
@@ -287,6 +291,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'Create a task checklist',
             toggle: 'Toggle Block',
             toggleDescription: 'Insert a collapsible block',
+            horizontalRule: 'Horizontal Rule',
+            horizontalRuleDescription: 'Insert a horizontal divider',
         },
         history: {
             button: 'History ({count})',
@@ -393,6 +399,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'הגדלת הזחה',
             outdent: 'הקטנת הזחה',
             taskList: 'רשימת משימות',
+            horizontalRule: 'קו אופקי',
         },
         findReplace: {
             find: 'חיפוש',
@@ -459,6 +466,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'יצירת רשימת משימות',
             toggle: 'בלוק מתקפל',
             toggleDescription: 'הוספת בלוק מתקפל',
+            horizontalRule: 'קו אופקי',
+            horizontalRuleDescription: 'הכנסת קו מפריד אופקי',
         },
         history: {
             button: 'היסטוריה ({count})',
@@ -565,6 +574,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'زيادة المسافة البادئة',
             outdent: 'تقليل المسافة البادئة',
             taskList: 'قائمة المهام',
+            horizontalRule: 'خط أفقي',
         },
         findReplace: {
             find: 'بحث',
@@ -631,6 +641,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'إنشاء قائمة مهام',
             toggle: 'كتلة قابلة للطي',
             toggleDescription: 'إدراج كتلة قابلة للطي',
+            horizontalRule: 'خط أفقي',
+            horizontalRuleDescription: 'إدراج فاصل أفقي',
         },
         history: {
             button: 'السجل ({count})',
@@ -737,6 +749,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'Einzug vergrößern',
             outdent: 'Einzug verkleinern',
             taskList: 'Aufgabenliste',
+            horizontalRule: 'Horizontale Linie',
         },
         findReplace: {
             find: 'Suchen',
@@ -803,6 +816,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'Aufgaben-Checkliste erstellen',
             toggle: 'Aufklappblock',
             toggleDescription: 'Einklappbaren Block einfügen',
+            horizontalRule: 'Horizontale Linie',
+            horizontalRuleDescription: 'Horizontalen Trenner einfügen',
         },
         history: {
             button: 'Verlauf ({count})',
@@ -909,6 +924,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'Augmenter le retrait',
             outdent: 'Diminuer le retrait',
             taskList: 'Liste de tâches',
+            horizontalRule: 'Ligne horizontale',
         },
         findReplace: {
             find: 'Rechercher',
@@ -975,6 +991,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'Créer une liste de tâches',
             toggle: 'Bloc dépliable',
             toggleDescription: 'Insérer un bloc dépliable',
+            horizontalRule: 'Ligne horizontale',
+            horizontalRuleDescription: 'Insérer un séparateur horizontal',
         },
         history: {
             button: 'Historique ({count})',
@@ -1081,6 +1099,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'Aumentar sangría',
             outdent: 'Disminuir sangría',
             taskList: 'Lista de tareas',
+            horizontalRule: 'Línea horizontal',
         },
         findReplace: {
             find: 'Buscar',
@@ -1147,6 +1166,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'Crear una lista de tareas',
             toggle: 'Bloque plegable',
             toggleDescription: 'Insertar un bloque plegable',
+            horizontalRule: 'Línea horizontal',
+            horizontalRuleDescription: 'Insertar un separador horizontal',
         },
         history: {
             button: 'Historial ({count})',
@@ -1253,6 +1274,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'インデントを増やす',
             outdent: 'インデントを減らす',
             taskList: 'タスクリスト',
+            horizontalRule: '水平線',
         },
         findReplace: {
             find: '検索',
@@ -1319,6 +1341,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'タスクチェックリストを作成',
             toggle: 'トグルブロック',
             toggleDescription: '折りたたみブロックを挿入',
+            horizontalRule: '水平線',
+            horizontalRuleDescription: '水平の区切り線を挿入',
         },
         history: {
             button: '履歴 ({count})',
@@ -1425,6 +1449,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: '增加缩进',
             outdent: '减少缩进',
             taskList: '任务列表',
+            horizontalRule: '水平线',
         },
         findReplace: {
             find: '查找',
@@ -1491,6 +1516,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: '创建任务清单',
             toggle: '折叠块',
             toggleDescription: '插入可折叠块',
+            horizontalRule: '水平线',
+            horizontalRuleDescription: '插入水平分隔线',
         },
         history: {
             button: '历史 ({count})',
@@ -1597,6 +1624,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'Увеличить отступ',
             outdent: 'Уменьшить отступ',
             taskList: 'Список задач',
+            horizontalRule: 'Горизонтальная линия',
         },
         findReplace: {
             find: 'Найти',
@@ -1663,6 +1691,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'Создать список задач',
             toggle: 'Сворачиваемый блок',
             toggleDescription: 'Вставить сворачиваемый блок',
+            horizontalRule: 'Горизонтальная линия',
+            horizontalRuleDescription: 'Вставить горизонтальный разделитель',
         },
         history: {
             button: 'История ({count})',
@@ -1769,6 +1799,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             indent: 'Aumentar recuo',
             outdent: 'Diminuir recuo',
             taskList: 'Lista de tarefas',
+            horizontalRule: 'Linha horizontal',
         },
         findReplace: {
             find: 'Localizar',
@@ -1835,6 +1866,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             taskListDescription: 'Criar uma lista de tarefas',
             toggle: 'Bloco recolhível',
             toggleDescription: 'Inserir um bloco recolhível',
+            horizontalRule: 'Linha horizontal',
+            horizontalRuleDescription: 'Inserir um separador horizontal',
         },
         history: {
             button: 'Histórico ({count})',

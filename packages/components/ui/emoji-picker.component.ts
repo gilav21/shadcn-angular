@@ -12,6 +12,7 @@ import {
     ViewChild,
     AfterViewInit,
     OnDestroy,
+    effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -329,6 +330,7 @@ export class EmojiPickerTriggerComponent {
         @if (picker?.open()) {
             <div
                 [class]="contentClasses()"
+                [style]="contentStyles()"
                 [attr.data-slot]="'emoji-picker-content'"
                 [attr.data-state]="picker?.open() ? 'open' : 'closed'"
             >
@@ -437,7 +439,16 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     private scrollRemoveListener: (() => void) | null = null;
     private isScrollingProgrammatically = false;
 
-    constructor() { }
+    strategy = input<'absolute' | 'fixed'>('absolute');
+    private fixedPosition = signal({ top: 0, left: 0 });
+
+    constructor() {
+        effect(() => {
+            if (this.picker?.open() && this.strategy() === 'fixed') {
+                requestAnimationFrame(() => this.updateFixedPosition());
+            }
+        });
+    }
 
     ngAfterViewInit() {
         this.categorySections.changes.subscribe(() => {
@@ -449,13 +460,31 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         this.scrollRemoveListener?.();
     }
 
+    private updateFixedPosition(): void {
+        const trigger = this.el.nativeElement.closest('[data-slot="emoji-picker"]')?.querySelector('[data-slot="emoji-picker-trigger"]');
+        if (!trigger) return;
+        const rect = (trigger as HTMLElement).getBoundingClientRect();
+        const pickerWidth = Math.min(320, window.innerWidth - 16);
+        const left = Math.max(8, Math.min(rect.left, window.innerWidth - pickerWidth - 8));
+        const top = Math.min(rect.bottom + 4, window.innerHeight - 380);
+        this.fixedPosition.set({ top, left });
+    }
+
     contentClasses = computed(() =>
         cn(
-            'absolute left-0 top-full z-50 mt-1 w-80 p-3 rounded-md border bg-popover text-popover-foreground shadow-md outline-none overflow-hidden',
+            this.strategy() === 'fixed'
+                ? 'fixed z-50 w-80 max-w-[calc(100vw-1rem)] p-3 rounded-md border bg-popover text-popover-foreground shadow-md outline-none overflow-hidden'
+                : 'absolute left-0 top-full z-50 mt-1 w-80 p-3 rounded-md border bg-popover text-popover-foreground shadow-md outline-none overflow-hidden',
             'animate-in fade-in-0 zoom-in-95',
             this.class()
         )
     );
+
+    contentStyles = computed(() => {
+        if (this.strategy() !== 'fixed') return '';
+        const pos = this.fixedPosition();
+        return `top:${pos.top}px;left:${pos.left}px;`;
+    });
 
     filteredCategories = computed(() => {
         const query = this.searchQuery().toLowerCase().trim();
