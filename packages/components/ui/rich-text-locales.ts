@@ -29,6 +29,20 @@ export interface RichTextLocale {
         alignRight: string;
         insertTable: string;
         importFile: string;
+        indent: string;
+        outdent: string;
+        taskList: string;
+    };
+
+    findReplace: {
+        find: string;
+        findPlaceholder: string;
+        replace: string;
+        replacePlaceholder: string;
+        replaceAll: string;
+        caseSensitive: string;
+        noResults: string;
+        close: string;
     };
 
     link: {
@@ -86,6 +100,10 @@ export interface RichTextLocale {
         undoDescription: string;
         redo: string;
         redoDescription: string;
+        taskList: string;
+        taskListDescription: string;
+        toggle: string;
+        toggleDescription: string;
     };
 
     history: {
@@ -135,6 +153,10 @@ export interface RichTextLocale {
         bordersNone: string;
         bordersOuter: string;
         bordersHorizontal: string;
+        cellColor: string;
+        cellAlignLeft: string;
+        cellAlignCenter: string;
+        cellAlignRight: string;
     };
 
     imageResizer: {
@@ -196,6 +218,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: 'Align Right',
             insertTable: 'Insert Table',
             importFile: 'Import File',
+            indent: 'Increase Indent',
+            outdent: 'Decrease Indent',
+            taskList: 'Task List',
+        },
+        findReplace: {
+            find: 'Find',
+            findPlaceholder: 'Search text...',
+            replace: 'Replace',
+            replacePlaceholder: 'Replace with...',
+            replaceAll: 'Replace All',
+            caseSensitive: 'Match Case',
+            noResults: 'No results',
+            close: 'Close',
         },
         link: {
             text: 'Link Text',
@@ -248,6 +283,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: 'Undo last change',
             redo: 'Redo',
             redoDescription: 'Redo last undone change',
+            taskList: 'Task List',
+            taskListDescription: 'Create a task checklist',
+            toggle: 'Toggle Block',
+            toggleDescription: 'Insert a collapsible block',
         },
         history: {
             button: 'History ({count})',
@@ -294,6 +333,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: 'No Borders',
             bordersOuter: 'Outside Borders',
             bordersHorizontal: 'Horizontal Lines',
+            cellColor: 'Cell Color',
+            cellAlignLeft: 'Align Left',
+            cellAlignCenter: 'Align Center',
+            cellAlignRight: 'Align Right',
         },
         imageResizer: {
             inline: 'Inline with text',
@@ -347,6 +390,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: 'יישור לימין',
             insertTable: 'הוספת טבלה',
             importFile: 'ייבוא קובץ',
+            indent: 'הגדלת הזחה',
+            outdent: 'הקטנת הזחה',
+            taskList: 'רשימת משימות',
+        },
+        findReplace: {
+            find: 'חיפוש',
+            findPlaceholder: 'חיפוש טקסט...',
+            replace: 'החלפה',
+            replacePlaceholder: 'החלף ב...',
+            replaceAll: 'החלף הכל',
+            caseSensitive: 'התאמת רישיות',
+            noResults: 'אין תוצאות',
+            close: 'סגירה',
         },
         link: {
             text: 'טקסט הקישור',
@@ -399,6 +455,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: 'ביטול שינוי אחרון',
             redo: 'ביצוע חוזר',
             redoDescription: 'ביצוע חוזר של שינוי שבוטל',
+            taskList: 'רשימת משימות',
+            taskListDescription: 'יצירת רשימת משימות',
+            toggle: 'בלוק מתקפל',
+            toggleDescription: 'הוספת בלוק מתקפל',
         },
         history: {
             button: 'היסטוריה ({count})',
@@ -445,6 +505,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: 'ללא גבולות',
             bordersOuter: 'גבולות חיצוניים',
             bordersHorizontal: 'קווים אופקיים',
+            cellColor: 'צבע תא',
+            cellAlignLeft: 'יישור לשמאל',
+            cellAlignCenter: 'יישור למרכז',
+            cellAlignRight: 'יישור לימין',
         },
         imageResizer: {
             inline: 'בתוך הטקסט',
@@ -498,6 +562,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: 'محاذاة لليمين',
             insertTable: 'إدراج جدول',
             importFile: 'استيراد ملف',
+            indent: 'زيادة المسافة البادئة',
+            outdent: 'تقليل المسافة البادئة',
+            taskList: 'قائمة المهام',
+        },
+        findReplace: {
+            find: 'بحث',
+            findPlaceholder: 'نص البحث...',
+            replace: 'استبدال',
+            replacePlaceholder: 'استبدال بـ...',
+            replaceAll: 'استبدال الكل',
+            caseSensitive: 'مطابقة الحالة',
+            noResults: 'لا توجد نتائج',
+            close: 'إغلاق',
         },
         link: {
             text: 'نص الرابط',
@@ -550,6 +627,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: 'التراجع عن آخر تغيير',
             redo: 'إعادة',
             redoDescription: 'إعادة آخر تغيير تم التراجع عنه',
+            taskList: 'قائمة المهام',
+            taskListDescription: 'إنشاء قائمة مهام',
+            toggle: 'كتلة قابلة للطي',
+            toggleDescription: 'إدراج كتلة قابلة للطي',
         },
         history: {
             button: 'السجل ({count})',
@@ -596,6 +677,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: 'بدون حدود',
             bordersOuter: 'حدود خارجية',
             bordersHorizontal: 'خطوط أفقية',
+            cellColor: 'لون الخلية',
+            cellAlignLeft: 'محاذاة لليسار',
+            cellAlignCenter: 'محاذاة للوسط',
+            cellAlignRight: 'محاذاة لليمين',
         },
         imageResizer: {
             inline: 'داخل النص',
@@ -649,6 +734,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: 'Rechtsbündig',
             insertTable: 'Tabelle einfügen',
             importFile: 'Datei importieren',
+            indent: 'Einzug vergrößern',
+            outdent: 'Einzug verkleinern',
+            taskList: 'Aufgabenliste',
+        },
+        findReplace: {
+            find: 'Suchen',
+            findPlaceholder: 'Text suchen...',
+            replace: 'Ersetzen',
+            replacePlaceholder: 'Ersetzen durch...',
+            replaceAll: 'Alle ersetzen',
+            caseSensitive: 'Groß-/Kleinschreibung',
+            noResults: 'Keine Ergebnisse',
+            close: 'Schließen',
         },
         link: {
             text: 'Linktext',
@@ -701,6 +799,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: 'Letzte Änderung rückgängig machen',
             redo: 'Wiederherstellen',
             redoDescription: 'Letzte rückgängig gemachte Änderung wiederherstellen',
+            taskList: 'Aufgabenliste',
+            taskListDescription: 'Aufgaben-Checkliste erstellen',
+            toggle: 'Aufklappblock',
+            toggleDescription: 'Einklappbaren Block einfügen',
         },
         history: {
             button: 'Verlauf ({count})',
@@ -747,6 +849,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: 'Keine Rahmen',
             bordersOuter: 'Außenrahmen',
             bordersHorizontal: 'Horizontale Linien',
+            cellColor: 'Zellenfarbe',
+            cellAlignLeft: 'Linksbündig',
+            cellAlignCenter: 'Zentriert',
+            cellAlignRight: 'Rechtsbündig',
         },
         imageResizer: {
             inline: 'Im Text',
@@ -800,6 +906,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: 'Aligner à droite',
             insertTable: 'Insérer un tableau',
             importFile: 'Importer un fichier',
+            indent: 'Augmenter le retrait',
+            outdent: 'Diminuer le retrait',
+            taskList: 'Liste de tâches',
+        },
+        findReplace: {
+            find: 'Rechercher',
+            findPlaceholder: 'Rechercher du texte...',
+            replace: 'Remplacer',
+            replacePlaceholder: 'Remplacer par...',
+            replaceAll: 'Tout remplacer',
+            caseSensitive: 'Respecter la casse',
+            noResults: 'Aucun résultat',
+            close: 'Fermer',
         },
         link: {
             text: 'Texte du lien',
@@ -852,6 +971,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: 'Annuler la dernière modification',
             redo: 'Rétablir',
             redoDescription: 'Rétablir la dernière modification annulée',
+            taskList: 'Liste de tâches',
+            taskListDescription: 'Créer une liste de tâches',
+            toggle: 'Bloc dépliable',
+            toggleDescription: 'Insérer un bloc dépliable',
         },
         history: {
             button: 'Historique ({count})',
@@ -898,6 +1021,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: 'Sans bordure',
             bordersOuter: 'Bordure extérieure',
             bordersHorizontal: 'Lignes horizontales',
+            cellColor: 'Couleur de cellule',
+            cellAlignLeft: 'Aligner à gauche',
+            cellAlignCenter: 'Centrer',
+            cellAlignRight: 'Aligner à droite',
         },
         imageResizer: {
             inline: 'Dans le texte',
@@ -951,6 +1078,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: 'Alinear a la derecha',
             insertTable: 'Insertar tabla',
             importFile: 'Importar archivo',
+            indent: 'Aumentar sangría',
+            outdent: 'Disminuir sangría',
+            taskList: 'Lista de tareas',
+        },
+        findReplace: {
+            find: 'Buscar',
+            findPlaceholder: 'Buscar texto...',
+            replace: 'Reemplazar',
+            replacePlaceholder: 'Reemplazar con...',
+            replaceAll: 'Reemplazar todo',
+            caseSensitive: 'Coincidir mayúsculas',
+            noResults: 'Sin resultados',
+            close: 'Cerrar',
         },
         link: {
             text: 'Texto del enlace',
@@ -1003,6 +1143,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: 'Deshacer último cambio',
             redo: 'Rehacer',
             redoDescription: 'Rehacer último cambio deshecho',
+            taskList: 'Lista de tareas',
+            taskListDescription: 'Crear una lista de tareas',
+            toggle: 'Bloque plegable',
+            toggleDescription: 'Insertar un bloque plegable',
         },
         history: {
             button: 'Historial ({count})',
@@ -1049,6 +1193,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: 'Sin bordes',
             bordersOuter: 'Bordes exteriores',
             bordersHorizontal: 'Líneas horizontales',
+            cellColor: 'Color de celda',
+            cellAlignLeft: 'Alinear a la izquierda',
+            cellAlignCenter: 'Centrar',
+            cellAlignRight: 'Alinear a la derecha',
         },
         imageResizer: {
             inline: 'En línea con el texto',
@@ -1102,6 +1250,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: '右揃え',
             insertTable: 'テーブルを挿入',
             importFile: 'ファイルをインポート',
+            indent: 'インデントを増やす',
+            outdent: 'インデントを減らす',
+            taskList: 'タスクリスト',
+        },
+        findReplace: {
+            find: '検索',
+            findPlaceholder: 'テキストを検索...',
+            replace: '置換',
+            replacePlaceholder: '置換テキスト...',
+            replaceAll: 'すべて置換',
+            caseSensitive: '大文字小文字を区別',
+            noResults: '結果なし',
+            close: '閉じる',
         },
         link: {
             text: 'リンクテキスト',
@@ -1154,6 +1315,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: '最後の変更を元に戻す',
             redo: 'やり直し',
             redoDescription: '元に戻した変更をやり直す',
+            taskList: 'タスクリスト',
+            taskListDescription: 'タスクチェックリストを作成',
+            toggle: 'トグルブロック',
+            toggleDescription: '折りたたみブロックを挿入',
         },
         history: {
             button: '履歴 ({count})',
@@ -1200,6 +1365,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: '罫線なし',
             bordersOuter: '外枠のみ',
             bordersHorizontal: '横罫線',
+            cellColor: 'セルの色',
+            cellAlignLeft: '左揃え',
+            cellAlignCenter: '中央揃え',
+            cellAlignRight: '右揃え',
         },
         imageResizer: {
             inline: 'テキストと同列',
@@ -1253,6 +1422,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: '右对齐',
             insertTable: '插入表格',
             importFile: '导入文件',
+            indent: '增加缩进',
+            outdent: '减少缩进',
+            taskList: '任务列表',
+        },
+        findReplace: {
+            find: '查找',
+            findPlaceholder: '搜索文本...',
+            replace: '替换',
+            replacePlaceholder: '替换为...',
+            replaceAll: '全部替换',
+            caseSensitive: '区分大小写',
+            noResults: '无结果',
+            close: '关闭',
         },
         link: {
             text: '链接文字',
@@ -1305,6 +1487,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: '撤销上一次更改',
             redo: '重做',
             redoDescription: '重做上一次撤销的更改',
+            taskList: '任务列表',
+            taskListDescription: '创建任务清单',
+            toggle: '折叠块',
+            toggleDescription: '插入可折叠块',
         },
         history: {
             button: '历史 ({count})',
@@ -1351,6 +1537,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: '无边框',
             bordersOuter: '外边框',
             bordersHorizontal: '水平线',
+            cellColor: '单元格颜色',
+            cellAlignLeft: '左对齐',
+            cellAlignCenter: '居中对齐',
+            cellAlignRight: '右对齐',
         },
         imageResizer: {
             inline: '与文字内联',
@@ -1404,6 +1594,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: 'По правому краю',
             insertTable: 'Вставить таблицу',
             importFile: 'Импорт файла',
+            indent: 'Увеличить отступ',
+            outdent: 'Уменьшить отступ',
+            taskList: 'Список задач',
+        },
+        findReplace: {
+            find: 'Найти',
+            findPlaceholder: 'Искать текст...',
+            replace: 'Заменить',
+            replacePlaceholder: 'Заменить на...',
+            replaceAll: 'Заменить всё',
+            caseSensitive: 'С учётом регистра',
+            noResults: 'Нет результатов',
+            close: 'Закрыть',
         },
         link: {
             text: 'Текст ссылки',
@@ -1456,6 +1659,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: 'Отменить последнее изменение',
             redo: 'Повторить',
             redoDescription: 'Повторить отменённое изменение',
+            taskList: 'Список задач',
+            taskListDescription: 'Создать список задач',
+            toggle: 'Сворачиваемый блок',
+            toggleDescription: 'Вставить сворачиваемый блок',
         },
         history: {
             button: 'История ({count})',
@@ -1502,6 +1709,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: 'Без границ',
             bordersOuter: 'Внешние границы',
             bordersHorizontal: 'Горизонтальные линии',
+            cellColor: 'Цвет ячейки',
+            cellAlignLeft: 'По левому краю',
+            cellAlignCenter: 'По центру',
+            cellAlignRight: 'По правому краю',
         },
         imageResizer: {
             inline: 'В тексте',
@@ -1555,6 +1766,19 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             alignRight: 'Alinhar à direita',
             insertTable: 'Inserir tabela',
             importFile: 'Importar arquivo',
+            indent: 'Aumentar recuo',
+            outdent: 'Diminuir recuo',
+            taskList: 'Lista de tarefas',
+        },
+        findReplace: {
+            find: 'Localizar',
+            findPlaceholder: 'Pesquisar texto...',
+            replace: 'Substituir',
+            replacePlaceholder: 'Substituir por...',
+            replaceAll: 'Substituir tudo',
+            caseSensitive: 'Diferenciar maiúsculas',
+            noResults: 'Sem resultados',
+            close: 'Fechar',
         },
         link: {
             text: 'Texto do link',
@@ -1607,6 +1831,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             undoDescription: 'Desfazer última alteração',
             redo: 'Refazer',
             redoDescription: 'Refazer última alteração desfeita',
+            taskList: 'Lista de tarefas',
+            taskListDescription: 'Criar uma lista de tarefas',
+            toggle: 'Bloco recolhível',
+            toggleDescription: 'Inserir um bloco recolhível',
         },
         history: {
             button: 'Histórico ({count})',
@@ -1653,6 +1881,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             bordersNone: 'Sem bordas',
             bordersOuter: 'Bordas externas',
             bordersHorizontal: 'Linhas horizontais',
+            cellColor: 'Cor da célula',
+            cellAlignLeft: 'Alinhar à esquerda',
+            cellAlignCenter: 'Centralizar',
+            cellAlignRight: 'Alinhar à direita',
         },
         imageResizer: {
             inline: 'Em linha com o texto',
