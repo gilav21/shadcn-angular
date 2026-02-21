@@ -171,7 +171,7 @@ export class RichTextMarkdownService {
                     const text = item.replace(/^\[[ xX]\]\s*/, '');
                     const checkedAttr = checked ? ' checked' : '';
                     return `<li data-task data-checked="${checked}">`
-                        + `<input type="checkbox" disabled${checkedAttr} />${text}${childHtml}</li>`;
+                        + `<input type="checkbox"${checkedAttr} /><span>${text}</span>${childHtml}</li>`;
                 }
                 return `<li>${item}${childHtml}</li>`;
             });

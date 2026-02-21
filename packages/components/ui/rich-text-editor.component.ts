@@ -1534,8 +1534,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_ul_ul]:my-0 [&_ol_ol]:my-0 [&_ul_ol]:my-0 [&_ol_ul]:my-0',
             // Task list styles
             '[&_ul[data-task-list]]:list-none [&_ul[data-task-list]]:ps-0 [&_ul[data-task-list]]:my-2',
+            '[&_li_ul[data-task-list]]:ps-6 [&_li_ul[data-task-list]]:my-0',
             '[&_li[data-task]]:flex [&_li[data-task]]:items-start [&_li[data-task]]:gap-2 [&_li[data-task]]:my-1',
             '[&_li[data-task]_input[type=checkbox]]:mt-1 [&_li[data-task]_input[type=checkbox]]:h-4 [&_li[data-task]_input[type=checkbox]]:w-4 [&_li[data-task]_input[type=checkbox]]:cursor-pointer [&_li[data-task]_input[type=checkbox]]:accent-primary',
+            '[&_li[data-task]_input[type=checkbox]]:shrink-0',
             '[&_li[data-task][data-checked=true]]:line-through [&_li[data-task][data-checked=true]]:text-muted-foreground',
             // Toggle/collapsible blocks
             '[&_details]:border [&_details]:border-border [&_details]:rounded-md [&_details]:my-2 [&_details]:overflow-hidden',
@@ -1672,6 +1674,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 const isChecked = li.getAttribute('data-checked') === 'true';
                 li.setAttribute('data-checked', String(!isChecked));
                 (target as HTMLInputElement).checked = !isChecked;
+                const textSpan = li.querySelector(':scope > span');
+                if (textSpan) {
+                    const sel = this.document.getSelection();
+                    if (sel) {
+                        const r = this.document.createRange();
+                        r.selectNodeContents(textSpan);
+                        r.collapse(false);
+                        sel.removeAllRanges();
+                        sel.addRange(r);
+                    }
+                }
                 this.syncContentFromEditor();
                 this.pushHistory();
             }
@@ -1850,6 +1863,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     ngAfterViewInit() {
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.enableTaskCheckboxes(this.editorDiv.nativeElement);
             this.setupAutoUploadObserver();
         }
     }
@@ -1914,6 +1928,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         if (this.editorDiv?.nativeElement) {
             this.editorDiv.nativeElement.innerHTML = this.htmlContent();
+            this.enableTaskCheckboxes(this.editorDiv.nativeElement);
         }
     }
 
@@ -2008,7 +2023,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 const taskLi = this.getParentTaskListItem();
                 if (taskLi) {
                     event.preventDefault();
-                    const textContent = taskLi.textContent?.replace(/^\s*/, '') || '';
+                    const textContent = taskLi.textContent?.replace(/[\s\u00A0]/g, '') || '';
                     if (!textContent) {
                         const parentList = taskLi.parentElement;
                         const p = this.document.createElement('p');
@@ -2027,13 +2042,14 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                         newLi.setAttribute('data-checked', 'false');
                         const checkbox = this.document.createElement('input');
                         checkbox.type = 'checkbox';
-                        checkbox.disabled = true;
+                        const textSpan = this.document.createElement('span');
+                        textSpan.appendChild(this.document.createTextNode('\u00A0'));
                         newLi.appendChild(checkbox);
-                        newLi.appendChild(this.document.createTextNode(' '));
+                        newLi.appendChild(textSpan);
                         taskLi.parentNode?.insertBefore(newLi, taskLi.nextSibling);
                         const newRange = this.document.createRange();
-                        newRange.setStartAfter(checkbox);
-                        newRange.setEndAfter(checkbox);
+                        newRange.setStart(textSpan, 0);
+                        newRange.setEnd(textSpan, 0);
                         selection.removeAllRanges();
                         selection.addRange(newRange);
                     }
@@ -2451,6 +2467,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
+        this.restoreSelection();
         this.flushPendingHistoryPush();
 
         const mentionTargets = this.getMentionElementsInSelection();
@@ -3801,6 +3818,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return null;
     }
 
+    private enableTaskCheckboxes(container: HTMLElement): void {
+        container.querySelectorAll<HTMLInputElement>('li[data-task] input[type="checkbox"]').forEach(cb => {
+            cb.removeAttribute('disabled');
+        });
+    }
+
     private indentListItem(): void {
         const li = this.getParentListItem();
         if (!li) return;
@@ -3879,9 +3902,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         li.setAttribute('data-checked', 'false');
         const checkbox = this.document.createElement('input');
         checkbox.type = 'checkbox';
-        checkbox.disabled = true;
+        const textSpan = this.document.createElement('span');
+        textSpan.appendChild(this.document.createTextNode('\u00A0'));
         li.appendChild(checkbox);
-        li.appendChild(this.document.createTextNode(' '));
+        li.appendChild(textSpan);
         ul.appendChild(li);
 
         const range = selection.getRangeAt(0);
@@ -3889,8 +3913,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         range.insertNode(ul);
 
         const newRange = this.document.createRange();
-        newRange.setStartAfter(checkbox);
-        newRange.setEndAfter(checkbox);
+        newRange.setStart(textSpan, 0);
+        newRange.setEnd(textSpan, 0);
         selection.removeAllRanges();
         selection.addRange(newRange);
         this.syncContentFromEditor();
@@ -5099,6 +5123,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
             if (this.editorDiv?.nativeElement) {
                 this.editorDiv.nativeElement.innerHTML = html;
+                this.enableTaskCheckboxes(this.editorDiv.nativeElement);
             }
             this.restoreSerializedSelection(entry.selection);
 
@@ -5121,6 +5146,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
             if (this.editorDiv?.nativeElement) {
                 this.editorDiv.nativeElement.innerHTML = html;
+                this.enableTaskCheckboxes(this.editorDiv.nativeElement);
             }
             this.restoreSerializedSelection(entry.selection);
 
