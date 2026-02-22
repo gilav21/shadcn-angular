@@ -172,13 +172,11 @@
           <!-- With Mentions & Tags -->
           <div class="space-y-2">
             <h3 class="text-lg font-medium">With Mentions & Tags</h3>
-            <p class="text-sm text-muted-foreground">Type @button or #angular to trigger autocomplete — mentions link to components, tags link to #</p>
+            <p class="text-sm text-muted-foreground">Type @button or #angular to trigger autocomplete — mentions link to
+              components, tags link to #</p>
             <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
-              [mentionRender]="mentionLinkRender"
-              [tags]="true" [tagSearch]="searchTags"
-              [tagRender]="tagLinkRender"
-              placeholder="Type @button, @card, #angular, #typescript..."
-              minHeight="120px" />
+              [mentionRender]="mentionLinkRender" [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
+              placeholder="Type @button, @card, #angular, #typescript..." minHeight="120px" />
           </div>
 
           <!-- Character + Word Count -->
@@ -192,24 +190,21 @@
           <!-- Advanced Config -->
           <div class="space-y-2">
             <h3 class="text-lg font-medium">Advanced Config (History + Limits)</h3>
-            <p class="text-sm text-muted-foreground">Click a revision to quick-apply, or use Preview for full-screen view. Shortcut: Ctrl/Cmd + Shift + H</p>
+            <p class="text-sm text-muted-foreground">Click a revision to quick-apply, or use Preview for full-screen
+              view. Shortcut: Ctrl/Cmd + Shift + H</p>
             <div class="flex items-center gap-2">
-              <ui-switch
-                id="richTextShowHistoryButton"
-                [checked]="richTextShowHistoryButton()"
-                (checkedChange)="richTextShowHistoryButton.set($event)"
-              />
+              <ui-switch id="richTextShowHistoryButton" [checked]="richTextShowHistoryButton()"
+                (checkedChange)="richTextShowHistoryButton.set($event)" />
               <label for="richTextShowHistoryButton" class="text-sm font-medium">Show History Button</label>
             </div>
             @if (!richTextShowHistoryButton()) {
-              <p class="text-xs text-muted-foreground">History button hidden. Use Ctrl/Cmd + Shift + H to open history browser.</p>
+            <p class="text-xs text-muted-foreground">History button hidden. Use Ctrl/Cmd + Shift + H to open history
+              browser.</p>
             }
             <ui-rich-text-editor mode="markdown" toolbar="top" [mentions]="true" [mentionSearch]="searchMentions"
-              [mentionRender]="mentionLinkRender"
-              [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
-              [showCount]="true" [showWordCount]="true" [maxLength]="220"
-              [historyLimit]="180" [showHistoryPanel]="true" [showHistoryButton]="richTextShowHistoryButton()"
-              [historyDebounceMs]="500"
+              [mentionRender]="mentionLinkRender" [tags]="true" [tagSearch]="searchTags" [tagRender]="tagLinkRender"
+              [showCount]="true" [showWordCount]="true" [maxLength]="220" [historyLimit]="180" [showHistoryPanel]="true"
+              [showHistoryButton]="richTextShowHistoryButton()" [historyDebounceMs]="500"
               placeholder="Compose a longer note and test undo/redo behavior..." minHeight="160px" />
           </div>
 
@@ -231,10 +226,10 @@
           <!-- Hebrew RTL Locale -->
           <div class="space-y-2">
             <h3 class="text-lg font-medium">Hebrew RTL Locale</h3>
-            <p class="text-sm text-muted-foreground">Hebrew locale with automatic RTL layout. Toolbar tooltips, slash commands, and all UI strings are translated.</p>
-            <ui-rich-text-editor mode="markdown" toolbar="top" locale="he"
-              [showCount]="true" [showWordCount]="true" [enableSlashCommands]="true"
-              minHeight="150px" />
+            <p class="text-sm text-muted-foreground">Hebrew locale with automatic RTL layout. Toolbar tooltips, slash
+              commands, and all UI strings are translated.</p>
+            <ui-rich-text-editor mode="markdown" toolbar="top" locale="he" [showCount]="true" [showWordCount]="true"
+              [enableSlashCommands]="true" minHeight="150px" />
           </div>
 
           <!-- Auto Image Upload -->
@@ -244,13 +239,10 @@
               Paste or drop any image — base64 is automatically replaced with a URL.
               This demo simulates a 2-second upload, then swaps in a cute cat photo.
             </p>
-            <ui-rich-text-editor mode="html" toolbar="top"
-              [autoImageUpload]="true"
-              [imageUploader]="fakeImageUploader"
+            <ui-rich-text-editor mode="html" toolbar="top" [autoImageUpload]="true" [imageUploader]="fakeImageUploader"
               (autoImageUploadComplete)="lastAutoUploadUrl = $event"
               (autoImageUploadError)="lastAutoUploadError = $event"
-              placeholder="Paste or drag an image here to see auto upload in action..."
-              minHeight="160px" />
+              placeholder="Paste or drag an image here to see auto upload in action..." minHeight="160px" />
             @if (lastAutoUploadUrl) {
             <p class="text-sm text-muted-foreground">
               Uploaded URL: <code class="text-xs bg-muted px-1.5 py-0.5 rounded">{{ lastAutoUploadUrl }}</code>
@@ -704,6 +696,25 @@
           </div>
 
           <ui-button [disabled]="true">Disabled</ui-button>
+
+          <div class="flex flex-wrap gap-4 items-center mt-4">
+            <ui-button [ripple]="true">Default Ripple</ui-button>
+            <ui-button variant="secondary" [ripple]="true">Secondary Ripple</ui-button>
+            <ui-button variant="outline" [ripple]="true">Outline Ripple</ui-button>
+            <ui-button variant="ghost" [ripple]="true" >Ghost Ripple</ui-button>
+            <ui-button variant="link" [ripple]="true">Link Ripple</ui-button>
+            <ui-button variant="destructive" [ripple]="true">Destructive Ripple</ui-button>
+          </div>
+
+          <div class="flex flex-wrap gap-4 items-center mt-4">
+            <ui-button [ripple]="true" rippleColor="rgba(255, 0, 0, 0.5)">Custom Red Ripple</ui-button>
+            <ui-button variant="secondary" [ripple]="true" rippleColor="rgba(0, 255, 0, 0.5)">Custom Green Ripple</ui-button>
+            <ui-button variant="outline" [ripple]="true" rippleColor="rgba(0, 0, 255, 0.5)">Custom Blue Ripple</ui-button>
+            <ui-button variant="ghost" [ripple]="true" rippleColor="rgba(255, 255, 0, 0.5)">Custom Yellow Ripple</ui-button>
+            <ui-button variant="link" [ripple]="true" rippleColor="rgba(255, 0, 255, 0.5)">Custom Magenta Ripple</ui-button>
+            <ui-button variant="destructive" [ripple]="true" rippleColor="rgba(0, 255, 255, 0.5)">Custom Cyan Ripple</ui-button>
+          </div>
+
         </section>
 
         <ui-separator />
@@ -3719,7 +3730,8 @@
               (filterChange)="onServerFilter($event)" />
           </div>
           <div class="text-xs text-muted-foreground">
-            "Export All" passes the full dataset inline: <code class="text-xs bg-muted px-1 rounded">exportToExcel('file', allData)</code>.
+            "Export All" passes the full dataset inline: <code
+              class="text-xs bg-muted px-1 rounded">exportToExcel('file', allData)</code>.
             "Export Current Page" exports only what's loaded (default behavior).
           </div>
         </section>
@@ -3746,69 +3758,39 @@
             <div class="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span>Loader triggers:</span>
               <label class="flex items-center gap-2">
-                <ui-checkbox
-                  [checked]="opsLoadingVisibility().initial !== false"
-                  (checkedChange)="toggleOpsLoaderTrigger('initial', $event)"
-                  ariaLabel="Toggle initial loader"
-                />
+                <ui-checkbox [checked]="opsLoadingVisibility().initial !== false"
+                  (checkedChange)="toggleOpsLoaderTrigger('initial', $event)" ariaLabel="Toggle initial loader" />
                 initial
               </label>
               <label class="flex items-center gap-2">
-                <ui-checkbox
-                  [checked]="opsLoadingVisibility().pagination !== false"
-                  (checkedChange)="toggleOpsLoaderTrigger('pagination', $event)"
-                  ariaLabel="Toggle pagination loader"
-                />
+                <ui-checkbox [checked]="opsLoadingVisibility().pagination !== false"
+                  (checkedChange)="toggleOpsLoaderTrigger('pagination', $event)" ariaLabel="Toggle pagination loader" />
                 pagination
               </label>
               <label class="flex items-center gap-2">
-                <ui-checkbox
-                  [checked]="opsLoadingVisibility().sorting !== false"
-                  (checkedChange)="toggleOpsLoaderTrigger('sorting', $event)"
-                  ariaLabel="Toggle sorting loader"
-                />
+                <ui-checkbox [checked]="opsLoadingVisibility().sorting !== false"
+                  (checkedChange)="toggleOpsLoaderTrigger('sorting', $event)" ariaLabel="Toggle sorting loader" />
                 sorting
               </label>
               <label class="flex items-center gap-2">
-                <ui-checkbox
-                  [checked]="opsLoadingVisibility().filtering !== false"
-                  (checkedChange)="toggleOpsLoaderTrigger('filtering', $event)"
-                  ariaLabel="Toggle filtering loader"
-                />
+                <ui-checkbox [checked]="opsLoadingVisibility().filtering !== false"
+                  (checkedChange)="toggleOpsLoaderTrigger('filtering', $event)" ariaLabel="Toggle filtering loader" />
                 filtering
               </label>
             </div>
           </div>
 
           <div class="rounded-md border h-[680px] overflow-auto relative">
-            <ui-data-table
-              #opsGrid
-              [data]="opsData()"
-              [columns]="opsColumns"
-              [total]="opsTotal()"
-              [loading]="opsLoading()"
-              [loadingVisibility]="opsLoadingVisibility()"
-              [loaderComponent]="opsLoaderComponent"
-              [loaderComponentInputs]="{ total: opsTotal() }"
-              [enableColumnResize]="true"
-              [enableColumnReorder]="true"
-              [enableRowExpansion]="true"
-              [rowDetailComponent]="opsDetailComponent"
-              [rowDetailComponentInputs]="opsDetailInputs"
-              [enableMultiSort]="true"
-              [localSorting]="false"
-              [localPagination]="false"
-              [localFiltering]="false"
-              (sortChange)="onOpsSort($event)"
-              (multiSortChange)="onOpsMultiSort($event)"
-              (pageChange)="onOpsPage($event)"
-              (filterChange)="onOpsFilter($event)"
-              [(columnOrder)]="opsColumnOrder"
-              [(columnVisibility)]="opsColumnVisibility"
-              [(expandedRows)]="opsExpandedRows"
-              [uiDataTableContextMenu]="opsContextMenu"
-              [exportDataProvider]="opsExportProvider"
-            />
+            <ui-data-table #opsGrid [data]="opsData()" [columns]="opsColumns" [total]="opsTotal()"
+              [loading]="opsLoading()" [loadingVisibility]="opsLoadingVisibility()"
+              [loaderComponent]="opsLoaderComponent" [loaderComponentInputs]="{ total: opsTotal() }"
+              [enableColumnResize]="true" [enableColumnReorder]="true" [enableRowExpansion]="true"
+              [rowDetailComponent]="opsDetailComponent" [rowDetailComponentInputs]="opsDetailInputs"
+              [enableMultiSort]="true" [localSorting]="false" [localPagination]="false" [localFiltering]="false"
+              (sortChange)="onOpsSort($event)" (multiSortChange)="onOpsMultiSort($event)"
+              (pageChange)="onOpsPage($event)" (filterChange)="onOpsFilter($event)" [(columnOrder)]="opsColumnOrder"
+              [(columnVisibility)]="opsColumnVisibility" [(expandedRows)]="opsExpandedRows"
+              [uiDataTableContextMenu]="opsContextMenu" [exportDataProvider]="opsExportProvider" />
           </div>
 
           <ui-context-menu #opsContextMenu>
@@ -3829,7 +3811,8 @@
 
           <div class="text-xs text-muted-foreground">
             Showing {{ opsData().length }} of {{ opsTotal() }} incidents.
-            Export uses <code class="text-xs bg-muted px-1 rounded">exportDataProvider</code> to fetch all {{ opsTotal() }} rows server-side.
+            Export uses <code class="text-xs bg-muted px-1 rounded">exportDataProvider</code> to fetch all {{ opsTotal()
+            }} rows server-side.
             Shift+Click headers to multi-sort. Click a cell then Ctrl+C to copy.
           </div>
         </section>
@@ -4290,7 +4273,8 @@
         <section class="space-y-12">
           <div>
             <h2 id="animations" class="text-2xl font-semibold scroll-m-20">Animations</h2>
-            <p class="text-muted-foreground mt-1">A collection of animation components for landing pages, micro-interactions, and text effects.</p>
+            <p class="text-muted-foreground mt-1">A collection of animation components for landing pages,
+              micro-interactions, and text effects.</p>
           </div>
 
           <!-- Gradient Text -->
@@ -4316,7 +4300,7 @@
                 <h3 class="text-lg font-medium">Flip Text</h3>
                 <p class="text-muted-foreground text-sm">Characters flip in one by one with a staggered delay.</p>
               </div>
-              <button class="px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-accent" (click)="replayFlipText()">Replay</button>
+              <ui-button variant="outline" size="sm" (clicked)="replayFlipText()" label="Replay" />
             </div>
             <div class="text-3xl font-bold">
               <ui-flip-text #flipTextRef text="Hello World!" [delay]="60" [duration]="600" />
@@ -4332,7 +4316,7 @@
                 <h3 class="text-lg font-medium">Blur Fade</h3>
                 <p class="text-muted-foreground text-sm">Elements blur and fade in when they enter the viewport.</p>
               </div>
-              <button class="px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-accent" (click)="replayBlurFade()">Replay</button>
+              <ui-button variant="outline" size="sm" (clicked)="replayBlurFade()" label="Replay" />
             </div>
             <div class="space-y-4">
               <ui-blur-fade #blurFadeRef1 [delay]="0" direction="up">
@@ -4352,15 +4336,12 @@
           <!-- Typing Animation -->
           <div class="space-y-4">
             <h3 class="text-lg font-medium">Typing Animation</h3>
-            <p class="text-muted-foreground text-sm">A typewriter effect that types, pauses, deletes, and cycles through strings.</p>
+            <p class="text-muted-foreground text-sm">A typewriter effect that types, pauses, deletes, and cycles through
+              strings.</p>
             <div class="text-2xl font-mono">
               <span>I am a </span>
-              <ui-typing-animation
-                [strings]="['Developer', 'Designer', 'Creator', 'Problem Solver']"
-                [typeSpeed]="60"
-                [deleteSpeed]="40"
-                [pauseDuration]="2000"
-              />
+              <ui-typing-animation [strings]="['Developer', 'Designer', 'Creator', 'Problem Solver']" [typeSpeed]="60"
+                [deleteSpeed]="40" [pauseDuration]="2000" />
             </div>
           </div>
 
@@ -4371,10 +4352,7 @@
             <h3 class="text-lg font-medium">Morphing Text</h3>
             <p class="text-muted-foreground text-sm">Text morphs between words with a blur cross-fade transition.</p>
             <div class="text-4xl font-bold h-16 flex items-center">
-              <ui-morphing-text
-                [texts]="['Innovation', 'Technology', 'Future', 'Design']"
-                [interval]="3000"
-              />
+              <ui-morphing-text [texts]="['Innovation', 'Technology', 'Future', 'Design']" [interval]="3000" />
             </div>
           </div>
 
@@ -4386,11 +4364,8 @@
             <p class="text-muted-foreground text-sm">Words slide up and rotate through a list on an interval.</p>
             <div class="text-2xl font-semibold flex items-center gap-2">
               <span>We build</span>
-              <ui-word-rotate
-                class="text-primary h-[1.2em] w-32"
-                [words]="['websites', 'apps', 'tools', 'products']"
-                [duration]="2000"
-              />
+              <ui-word-rotate class="text-primary h-[1.2em] w-32" [words]="['websites', 'apps', 'tools', 'products']"
+                [duration]="2000" />
             </div>
           </div>
 
@@ -4402,16 +4377,17 @@
             <p class="text-muted-foreground text-sm">Infinite scrolling content loop.</p>
             <ui-marquee [speed]="25" [pauseOnHover]="true" [gap]="24">
               @for (item of ['Angular', 'React', 'Vue', 'Svelte', 'Next.js', 'Nuxt', 'Remix', 'Astro']; track item) {
-                <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card">
-                  <span class="font-medium">{{ item }}</span>
-                </div>
+              <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card">
+                <span class="font-medium">{{ item }}</span>
+              </div>
               }
             </ui-marquee>
             <ui-marquee [speed]="30" direction="right" [pauseOnHover]="true" [gap]="24" class="mt-4">
-              @for (item of ['TypeScript', 'Tailwind', 'Sass', 'PostCSS', 'Vite', 'Webpack', 'ESBuild', 'SWC']; track item) {
-                <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card">
-                  <span class="font-medium">{{ item }}</span>
-                </div>
+              @for (item of ['TypeScript', 'Tailwind', 'Sass', 'PostCSS', 'Vite', 'Webpack', 'ESBuild', 'SWC']; track
+              item) {
+              <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card">
+                <span class="font-medium">{{ item }}</span>
+              </div>
               }
             </ui-marquee>
           </div>
@@ -4462,16 +4438,24 @@
             <div class="flex justify-center py-12">
               <div class="relative" style="width:280px;height:280px">
                 <div class="absolute inset-0 flex items-center justify-center">
-                  <div class="h-16 w-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">A</div>
+                  <div
+                    class="h-16 w-16 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold text-lg">
+                    A</div>
                 </div>
                 <ui-orbit [radius]="120" [duration]="8">
-                  <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold">1</div>
+                  <div
+                    class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center text-white text-sm font-bold">
+                    1</div>
                 </ui-orbit>
                 <ui-orbit [radius]="120" [duration]="8" [delay]="-2.7">
-                  <div class="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-bold">2</div>
+                  <div
+                    class="h-10 w-10 rounded-full bg-green-500 flex items-center justify-center text-white text-sm font-bold">
+                    2</div>
                 </ui-orbit>
                 <ui-orbit [radius]="120" [duration]="8" [delay]="-5.3">
-                  <div class="h-10 w-10 rounded-full bg-orange-500 flex items-center justify-center text-white text-sm font-bold">3</div>
+                  <div
+                    class="h-10 w-10 rounded-full bg-orange-500 flex items-center justify-center text-white text-sm font-bold">
+                    3</div>
                 </ui-orbit>
               </div>
             </div>
@@ -4482,11 +4466,13 @@
           <!-- Wobble Card -->
           <div class="space-y-4">
             <h3 class="text-lg font-medium">Wobble Card</h3>
-            <p class="text-muted-foreground text-sm">Cards that tilt toward the mouse cursor with a 3D perspective effect.</p>
+            <p class="text-muted-foreground text-sm">Cards that tilt toward the mouse cursor with a 3D perspective
+              effect.</p>
             <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
               <ui-wobble-card class="p-8 border bg-card rounded-xl">
                 <h4 class="text-lg font-semibold">Hover Me</h4>
-                <p class="text-sm text-muted-foreground mt-2">This card tilts toward your cursor with a perspective transform.</p>
+                <p class="text-sm text-muted-foreground mt-2">This card tilts toward your cursor with a perspective
+                  transform.</p>
               </ui-wobble-card>
               <ui-wobble-card class="p-8 border bg-primary text-primary-foreground rounded-xl" [intensity]="20">
                 <h4 class="text-lg font-semibold">High Intensity</h4>
@@ -4502,16 +4488,18 @@
             <div class="flex items-center justify-between">
               <div>
                 <h3 class="text-lg font-medium">Stagger Children</h3>
-                <p class="text-muted-foreground text-sm">Children animate in one by one with a staggered delay when they enter the viewport.</p>
+                <p class="text-muted-foreground text-sm">Children animate in one by one with a staggered delay when they
+                  enter the viewport.</p>
               </div>
-              <button class="px-3 py-1.5 rounded-md border text-sm font-medium hover:bg-accent" (click)="replayStagger()">Replay</button>
+              <ui-button variant="outline" size="sm" (clicked)="replayStagger()" label="Replay" />
             </div>
-            <ui-stagger-children #staggerRef [staggerDelay]="100" [duration]="500" direction="up" class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
+            <ui-stagger-children #staggerRef [staggerDelay]="100" [duration]="500" direction="up"
+              class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
               @for (i of [1,2,3,4,5,6,7,8]; track i) {
-                <div class="p-6 rounded-xl border bg-card text-center">
-                  <div class="text-2xl font-bold text-primary">{{ i }}</div>
-                  <p class="text-sm text-muted-foreground mt-1">Card {{ i }}</p>
-                </div>
+              <div class="p-6 rounded-xl border bg-card text-center">
+                <div class="text-2xl font-bold text-primary">{{ i }}</div>
+                <p class="text-sm text-muted-foreground mt-1">Card {{ i }}</p>
+              </div>
               }
             </ui-stagger-children>
           </div>
@@ -4521,12 +4509,14 @@
           <!-- Ripple -->
           <div class="space-y-4">
             <h3 class="text-lg font-medium">Ripple</h3>
-            <p class="text-muted-foreground text-sm">A click ripple effect directive that can be applied to any element.</p>
+            <p class="text-muted-foreground text-sm">A click ripple effect directive that can be applied to any element.
+            </p>
             <div class="flex gap-4 flex-wrap">
               <button uiRipple class="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium">
                 Click for Ripple
               </button>
-              <button uiRipple uiRippleColor="rgba(59,130,246,0.4)" class="px-6 py-3 rounded-lg border bg-card font-medium">
+              <button uiRipple uiRippleColor="rgba(59,130,246,0.4)"
+                class="px-6 py-3 rounded-lg border bg-card font-medium">
                 Blue Ripple
               </button>
               <div uiRipple class="p-6 rounded-xl border bg-card cursor-pointer">
@@ -4546,10 +4536,12 @@
               <button uiMagnetic class="px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium">
                 Hover Near Me
               </button>
-              <button uiMagnetic [uiMagneticStrength]="0.5" class="h-16 w-16 rounded-full border-2 flex items-center justify-center text-2xl">
+              <button uiMagnetic [uiMagneticStrength]="0.5"
+                class="h-16 w-16 rounded-full border-2 flex items-center justify-center text-2xl">
                 +
               </button>
-              <button uiMagnetic [uiMagneticStrength]="0.6" [uiMagneticRadius]="150" class="px-6 py-3 rounded-lg border font-medium">
+              <button uiMagnetic [uiMagneticStrength]="0.6" [uiMagneticRadius]="150"
+                class="px-6 py-3 rounded-lg border font-medium">
                 Strong Pull
               </button>
             </div>
@@ -4560,7 +4552,8 @@
           <!-- Particles -->
           <div class="space-y-4">
             <h3 class="text-lg font-medium">Particles</h3>
-            <p class="text-muted-foreground text-sm">Interactive particle network rendered on canvas with mouse repulsion.</p>
+            <p class="text-muted-foreground text-sm">Interactive particle network rendered on canvas with mouse
+              repulsion.</p>
             <div class="relative h-72 rounded-xl border overflow-hidden">
               <ui-particles [count]="60" [connectDistance]="100" [speed]="0.4" />
               <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
@@ -4579,7 +4572,8 @@
             <h3 class="text-lg font-medium">Scroll Progress</h3>
             <p class="text-muted-foreground text-sm">A fixed progress bar that tracks scroll position.</p>
             <div class="p-4 rounded-xl border bg-primary/10 text-sm font-medium">
-              Look at the very top of the browser window — there is a thin colored bar. Scroll this page up and down to see it grow and shrink.
+              Look at the very top of the browser window — there is a thin colored bar. Scroll this page up and down to
+              see it grow and shrink.
             </div>
           </div>
         </section>
@@ -4589,24 +4583,24 @@
         <section class="space-y-8">
           <div>
             <h2 id="kanban" class="text-2xl font-semibold scroll-m-20">Kanban Board</h2>
-            <p class="text-muted-foreground mt-1">A drag-and-drop Kanban board with columns, WIP limits, priority borders, labels, and assignees.</p>
+            <p class="text-muted-foreground mt-1">A drag-and-drop Kanban board with columns, WIP limits, priority
+              borders, labels, and assignees.</p>
           </div>
 
           <div class="space-y-4">
             <h3 class="text-lg font-medium">Simple Mode</h3>
-            <p class="text-muted-foreground text-sm">Pass columns and cards as data arrays. Drag cards between columns.</p>
-            <ui-kanban
-              [columns]="kanbanColumns()"
-              [cards]="kanbanCards()"
-              (cardsChange)="onKanbanCardsChange($event)"
-            />
+            <p class="text-muted-foreground text-sm">Pass columns and cards as data arrays. Drag cards between columns.
+            </p>
+            <ui-kanban [columns]="kanbanColumns()" [cards]="kanbanCards()"
+              (cardsChange)="onKanbanCardsChange($event)" />
           </div>
 
           <ui-separator />
 
           <div class="space-y-4">
             <h3 class="text-lg font-medium">Custom Mode</h3>
-            <p class="text-muted-foreground text-sm">Use content projection for full control over column headers and card content.</p>
+            <p class="text-muted-foreground text-sm">Use content projection for full control over column headers and
+              card content.</p>
             <ui-kanban>
               <ui-kanban-column columnId="design" title="Design">
                 <ui-kanban-column-header>
@@ -4630,7 +4624,8 @@
                 <ui-kanban-card cardId="c2">
                   <ui-kanban-card-content>
                     <div class="flex items-center gap-3">
-                      <div class="h-8 w-8 rounded bg-purple-100 flex items-center justify-center text-purple-600">📐</div>
+                      <div class="h-8 w-8 rounded bg-purple-100 flex items-center justify-center text-purple-600">📐
+                      </div>
                       <div>
                         <p class="text-sm font-medium">Icon set update</p>
                         <p class="text-xs text-muted-foreground">Low priority</p>

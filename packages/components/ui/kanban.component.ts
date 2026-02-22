@@ -12,7 +12,7 @@ import {
     InjectionToken,
     inject,
     ElementRef,
-    NgZone,
+    ViewChild,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { BadgeComponent } from './badge.component';
@@ -286,8 +286,8 @@ export class KanbanCardComponent implements AfterContentInit {
 })
 export class KanbanColumnComponent implements AfterContentInit {
     private readonly kanban = inject(KANBAN, { optional: true });
-    private readonly el = inject(ElementRef);
-    private readonly ngZone = inject(NgZone);
+
+    @ViewChild('cardContainer') cardContainerRef?: ElementRef<HTMLElement>;
 
     class = input('');
     columnId = input('');
@@ -341,7 +341,7 @@ export class KanbanColumnComponent implements AfterContentInit {
         event.preventDefault();
         if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
 
-        const container = this.el.nativeElement.querySelector('[data-slot="kanban-card"]')?.parentElement;
+        const container = this.cardContainerRef?.nativeElement;
         if (!container) {
             this.dropIndicatorIndex.set(0);
             return;

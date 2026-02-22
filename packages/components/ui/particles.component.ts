@@ -50,6 +50,17 @@ export class ParticlesComponent implements OnInit, OnDestroy {
     private mouseY = -1000;
     private resolvedColor = '#888888';
 
+    private mouseMoveHandler = (e: MouseEvent) => {
+        const rect = (this.el.nativeElement as HTMLElement).getBoundingClientRect();
+        this.mouseX = e.clientX - rect.left;
+        this.mouseY = e.clientY - rect.top;
+    };
+
+    private mouseLeaveHandler = () => {
+        this.mouseX = -1000;
+        this.mouseY = -1000;
+    };
+
     ngOnInit() {
         if (prefersReducedMotion()) return;
 
@@ -66,6 +77,9 @@ export class ParticlesComponent implements OnInit, OnDestroy {
             cancelAnimationFrame(this.animationFrameId);
         }
         this.resizeObserver?.disconnect();
+        const host = this.el.nativeElement as HTMLElement;
+        host.removeEventListener('mousemove', this.mouseMoveHandler);
+        host.removeEventListener('mouseleave', this.mouseLeaveHandler);
         this.canvas?.remove();
     }
 
@@ -101,15 +115,8 @@ export class ParticlesComponent implements OnInit, OnDestroy {
 
         if (this.mouseInteraction()) {
             host.style.pointerEvents = 'auto';
-            host.addEventListener('mousemove', (e: MouseEvent) => {
-                const rect = host.getBoundingClientRect();
-                this.mouseX = e.clientX - rect.left;
-                this.mouseY = e.clientY - rect.top;
-            }, { passive: true });
-            host.addEventListener('mouseleave', () => {
-                this.mouseX = -1000;
-                this.mouseY = -1000;
-            });
+            host.addEventListener('mousemove', this.mouseMoveHandler, { passive: true });
+            host.addEventListener('mouseleave', this.mouseLeaveHandler);
         }
     }
 

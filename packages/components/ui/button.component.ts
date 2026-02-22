@@ -54,6 +54,7 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
       [type]="type()"
       [attr.data-slot]="'button'"
       [attr.aria-label]="ariaLabel()"
+      (click)="clicked.emit($event)"
     >
       @if (label()) {
         {{ label() }}
@@ -75,7 +76,7 @@ export class ButtonComponent {
     ariaLabel = input<string | undefined>(undefined);
     label = input<string>('');
     ripple = input(false);
-    rippleColor = input('rgba(255, 255, 255, 0.35)');
+    rippleColor = input('color-mix(in srgb, currentColor 35%, transparent)');
 
     clicked = output<MouseEvent>();
 

@@ -26,6 +26,24 @@ describe('MeteorsComponent', () => {
     beforeEach(async () => {
         rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockReturnValue(1);
 
+        const gradientStub = { addColorStop: vi.fn() };
+        vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue({
+            clearRect: vi.fn(),
+            beginPath: vi.fn(),
+            moveTo: vi.fn(),
+            lineTo: vi.fn(),
+            arc: vi.fn(),
+            fill: vi.fn(),
+            stroke: vi.fn(),
+            createLinearGradient: vi.fn().mockReturnValue(gradientStub),
+            createRadialGradient: vi.fn().mockReturnValue(gradientStub),
+            fillStyle: '',
+            strokeStyle: '',
+            lineWidth: 1,
+            lineCap: 'butt',
+            globalAlpha: 1,
+        } as unknown as CanvasRenderingContext2D);
+
         await TestBed.configureTestingModule({
             imports: [TestHostComponent],
         }).compileComponents();

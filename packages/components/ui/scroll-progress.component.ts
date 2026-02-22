@@ -68,7 +68,11 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
         if (containerInput instanceof HTMLElement) {
             this.scrollTarget = containerInput;
         } else if (typeof containerInput === 'string') {
-            this.scrollTarget = document.querySelector(containerInput) as HTMLElement | null;
+            try {
+                this.scrollTarget = document.querySelector(containerInput) as HTMLElement | null;
+            } catch {
+                this.scrollTarget = null;
+            }
         }
 
         if (!this.scrollTarget) {

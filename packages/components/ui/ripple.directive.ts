@@ -11,8 +11,8 @@ import { prefersReducedMotion } from '../lib/utils';
 @Directive({
     selector: '[uiRipple]',
     host: {
-        '[style.position]': '"relative"',
-        '[style.overflow]': '"hidden"',
+        '[style.position]': 'uiRippleDisabled() ? null : "relative"',
+        '[style.overflow]': 'uiRippleDisabled() ? null : "hidden"',
         '(click)': 'onRipple($event)',
     },
 })
@@ -20,7 +20,7 @@ export class UiRippleDirective implements OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly renderer = inject(Renderer2);
 
-    uiRippleColor = input('rgba(255, 255, 255, 0.35)');
+    uiRippleColor = input('color-mix(in srgb, currentColor 35%, transparent)');
     uiRippleDuration = input(600);
     uiRippleDisabled = input(false);
 

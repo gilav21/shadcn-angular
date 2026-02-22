@@ -9,8 +9,7 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../lib/utils';
 
 @Component({
     selector: 'ui-orbit',
@@ -21,7 +20,7 @@ import { prefersReducedMotion } from '../lib/utils';
         </div>
     `,
     host: {
-        '[class]': '"absolute inset-0 pointer-events-none"',
+        '[class]': 'hostClasses()',
         '[attr.data-slot]': '"orbit"',
     },
 })
@@ -36,6 +35,8 @@ export class OrbitComponent implements AfterViewInit, OnDestroy {
     reverse = input(false);
 
     private animationRef?: Animation;
+
+    hostClasses = computed(() => cn('absolute inset-0 pointer-events-none', this.class()));
 
     itemStyles = computed(() => ({
         position: 'absolute',

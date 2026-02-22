@@ -44,7 +44,6 @@ export class MeteorsComponent implements OnInit, OnDestroy {
     count = input(20);
     speed = input<'slow' | 'medium' | 'fast'>('medium');
     color = input('white');
-    class = input('');
 
     private canvas: HTMLCanvasElement | null = null;
     private ctx: CanvasRenderingContext2D | null = null;

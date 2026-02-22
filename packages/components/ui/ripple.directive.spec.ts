@@ -10,7 +10,7 @@ import { UiRippleDirective } from './ripple.directive';
 })
 class TestHostComponent {
     disabled = signal(false);
-    color = signal('rgba(255, 255, 255, 0.35)');
+    color = signal('color-mix(in srgb, currentColor 35%, transparent)');
     duration = signal(600);
 }
 
