@@ -39,3 +39,10 @@ export function getClippingRect(element: HTMLElement): DOMRect {
     }
     return new DOMRect(0, 0, window.innerWidth, window.innerHeight);
 }
+
+/**
+ * Check if the user prefers reduced motion via the OS-level accessibility setting.
+ */
+export function prefersReducedMotion(): boolean {
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}

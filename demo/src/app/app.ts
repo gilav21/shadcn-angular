@@ -280,7 +280,30 @@ import {
   PageBuilderComponent,
   ComponentMeta,
   ShortcutBindingService,
-  ShortcutBindingsDialogComponent
+  ShortcutBindingsDialogComponent,
+  GradientTextComponent,
+  FlipTextComponent,
+  MeteorsComponent,
+  ShineBorderComponent,
+  ScrollProgressComponent,
+  BlurFadeComponent,
+  UiRippleDirective,
+  MarqueeComponent,
+  WordRotateComponent,
+  MorphingTextComponent,
+  TypingAnimationComponent,
+  WobbleCardComponent,
+  UiMagneticDirective,
+  OrbitComponent,
+  StaggerChildrenComponent,
+  ParticlesComponent,
+  KanbanComponent,
+  KanbanColumnComponent,
+  KanbanCardComponent,
+  KanbanColumnHeaderComponent,
+  KanbanCardContentComponent,
+  KanbanColumn,
+  KanbanCard,
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -759,6 +782,27 @@ class OpsTicketDetailComponent {
     DockLabelComponent,
     PageBuilderComponent,
     PageViewerDemoComponent,
+    GradientTextComponent,
+    FlipTextComponent,
+    MeteorsComponent,
+    ShineBorderComponent,
+    ScrollProgressComponent,
+    BlurFadeComponent,
+    UiRippleDirective,
+    MarqueeComponent,
+    WordRotateComponent,
+    MorphingTextComponent,
+    TypingAnimationComponent,
+    WobbleCardComponent,
+    UiMagneticDirective,
+    OrbitComponent,
+    StaggerChildrenComponent,
+    ParticlesComponent,
+    KanbanComponent,
+    KanbanColumnComponent,
+    KanbanCardComponent,
+    KanbanColumnHeaderComponent,
+    KanbanCardContentComponent,
     ...ContextMenuIntegrations
   ],
 
@@ -778,6 +822,50 @@ export class AppComponent {
   private toastService = inject(ToastService);
   private shortcutBindings = inject(ShortcutBindingService);
   isDark = signal(false);
+
+  kanbanColumns = signal<KanbanColumn[]>([
+    { id: 'backlog', title: 'Backlog', order: 0 },
+    { id: 'todo', title: 'To Do', order: 1, wipLimit: 4 },
+    { id: 'in-progress', title: 'In Progress', order: 2, wipLimit: 3 },
+    { id: 'review', title: 'Review', order: 3, wipLimit: 2 },
+    { id: 'done', title: 'Done', order: 4 },
+  ]);
+
+  kanbanCards = signal<KanbanCard[]>([
+    { id: 'k1', columnId: 'backlog', title: 'Research competitors', description: 'Analyze top 5 competitor products', priority: 'low', order: 0, labels: [{ text: 'Research', color: '#6366f1' }] },
+    { id: 'k2', columnId: 'backlog', title: 'Design system audit', priority: 'medium', order: 1, labels: [{ text: 'Design', color: '#ec4899' }] },
+    { id: 'k3', columnId: 'todo', title: 'Implement auth flow', description: 'OAuth2 + JWT token refresh', priority: 'high', order: 0, labels: [{ text: 'Backend', color: '#f59e0b' }], assignees: [{ name: 'Alice' }, { name: 'Bob' }] },
+    { id: 'k4', columnId: 'todo', title: 'Setup CI/CD pipeline', priority: 'medium', order: 1, labels: [{ text: 'DevOps', color: '#10b981' }], assignees: [{ name: 'Charlie' }] },
+    { id: 'k5', columnId: 'in-progress', title: 'Build dashboard UI', description: 'Charts, tables, and KPI cards', priority: 'high', order: 0, labels: [{ text: 'Frontend', color: '#3b82f6' }], assignees: [{ name: 'Diana' }] },
+    { id: 'k6', columnId: 'in-progress', title: 'API rate limiting', priority: 'urgent', order: 1, labels: [{ text: 'Backend', color: '#f59e0b' }, { text: 'Security', color: '#ef4444' }], assignees: [{ name: 'Eve' }] },
+    { id: 'k7', columnId: 'review', title: 'User profile page', description: 'Avatar upload, settings, preferences', priority: 'medium', order: 0, assignees: [{ name: 'Frank' }, { name: 'Grace' }] },
+    { id: 'k8', columnId: 'done', title: 'Project setup', priority: 'low', order: 0, labels: [{ text: 'DevOps', color: '#10b981' }] },
+    { id: 'k9', columnId: 'done', title: 'Database schema', priority: 'high', order: 1, labels: [{ text: 'Backend', color: '#f59e0b' }] },
+  ]);
+
+  onKanbanCardsChange(cards: KanbanCard[]) {
+    this.kanbanCards.set(cards);
+  }
+
+  flipTextRef = viewChild<FlipTextComponent>('flipTextRef');
+  blurFadeRefs = viewChild<BlurFadeComponent>('blurFadeRef1');
+  blurFadeRef2 = viewChild<BlurFadeComponent>('blurFadeRef2');
+  blurFadeRef3 = viewChild<BlurFadeComponent>('blurFadeRef3');
+  staggerRef = viewChild<StaggerChildrenComponent>('staggerRef');
+
+  replayFlipText() {
+    this.flipTextRef()?.playAnimation();
+  }
+
+  replayBlurFade() {
+    this.blurFadeRefs()?.playAnimation();
+    this.blurFadeRef2()?.playAnimation();
+    this.blurFadeRef3()?.playAnimation();
+  }
+
+  replayStagger() {
+    this.staggerRef()?.playAnimation();
+  }
 
   verticalTopSize = signal(40);
   verticalBottomSize = signal(60);
@@ -1636,6 +1724,8 @@ ORDER BY created_at DESC;`;
     { id: 'page-builder', name: 'Page Builder', category: 'Layout', icon: '🏗️' },
     { id: 'page-renderer', name: 'Page Renderer', icon: '📄', category: 'Layout' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
+    { id: 'animations', name: 'Animations', category: 'Advanced', icon: '🎬' },
+    { id: 'kanban', name: 'Kanban Board', category: 'Advanced', icon: '📋' },
   ];
 
   categories = computed(() => {
