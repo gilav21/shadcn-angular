@@ -295,3 +295,29 @@ export const WithWipLimits: Story = {
         `,
     }),
 };
+
+export const DragInteraction: Story = {
+    render: () => ({
+        props: {
+            columns: defaultColumns,
+            cards: defaultCards,
+        },
+        template: `
+            <div class="space-y-3">
+                <div class="flex items-center gap-3 px-4 pt-4">
+                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div class="flex items-center w-8">
+                            <div class="h-1.5 w-1.5 rounded-full bg-primary shrink-0"></div>
+                            <div class="h-[2px] bg-primary rounded-full flex-1"></div>
+                            <div class="h-1.5 w-1.5 rounded-full bg-primary shrink-0"></div>
+                        </div>
+                        Drop indicator appears between cards during drag
+                    </div>
+                </div>
+                <div class="h-[600px] overflow-auto bg-muted/30 rounded-xl border">
+                    <ui-kanban [columns]="columns" [cards]="cards" />
+                </div>
+            </div>
+        `,
+    }),
+};

@@ -157,6 +157,92 @@ describe('KanbanComponent', () => {
             const card = fixture.debugElement.query(By.css('[data-slot="kanban-card"]'));
             expect(card.nativeElement.getAttribute('draggable')).toBe('true');
         });
+
+        it('should always render drop indicators in DOM', () => {
+            const indicators = fixture.debugElement.queryAll(
+                By.css('[data-slot="kanban-drop-indicator"]')
+            );
+            expect(indicators.length).toBe(3);
+            indicators.forEach(ind => {
+                expect(ind.nativeElement.classList).toContain('opacity-0');
+            });
+        });
+
+        it('should set data-drag-over attribute on column during drag', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
+            const doingColumn = columns[1];
+
+            doingColumn.nativeElement.dispatchEvent(
+                new Event('dragenter', { bubbles: true })
+            );
+            fixture.detectChanges();
+
+            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBe('true');
+        });
+
+        it('should remove drag-over state after drag leave', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
+            const doingColumn = columns[1];
+
+            doingColumn.nativeElement.dispatchEvent(
+                new Event('dragenter', { bubbles: true })
+            );
+            fixture.detectChanges();
+
+            doingColumn.nativeElement.dispatchEvent(
+                new Event('dragleave', { bubbles: true })
+            );
+            fixture.detectChanges();
+
+            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBeNull();
+        });
+
+        it('should apply visual feedback classes to dragged card', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const card = fixture.debugElement.query(
+                By.css('[data-card-id="card-1"]')
+            );
+            expect(card.nativeElement.className).toContain('opacity-50');
+            expect(card.nativeElement.className).toContain('scale-[0.98]');
+        });
+
+        it('should clean up all drag state on drop', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
+            const doingColumn = columns[1];
+
+            doingColumn.nativeElement.dispatchEvent(
+                new Event('dragenter', { bubbles: true })
+            );
+            fixture.detectChanges();
+
+            const dropEvent = new Event('drop', { bubbles: true });
+            Object.defineProperty(dropEvent, 'dataTransfer', {
+                value: { getData: () => 'card-1' }
+            });
+            doingColumn.nativeElement.dispatchEvent(dropEvent);
+            fixture.detectChanges();
+
+            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBeNull();
+        });
     });
 
     describe('Custom Mode', () => {

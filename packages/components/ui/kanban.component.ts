@@ -180,10 +180,12 @@ export class KanbanCardComponent implements AfterContentInit {
 
     classes = computed(() => cn(
         'bg-card text-card-foreground rounded-lg border shadow-sm cursor-grab active:cursor-grabbing',
-        'transition-shadow hover:shadow-md',
+        'transition-all duration-200 hover:shadow-md',
         this.card()?.priority ? 'border-l-[3px]' : '',
         this.priorityBorder(),
-        this.kanban?.draggedCardId() === this.resolvedCardId() ? 'opacity-50' : '',
+        this.kanban?.draggedCardId() === this.resolvedCardId()
+            ? 'opacity-50 scale-[0.98] shadow-lg ring-2 ring-primary/20'
+            : '',
         this.class()
     ));
 
@@ -220,6 +222,8 @@ export class KanbanCardComponent implements AfterContentInit {
             [class]="classes()"
             [attr.data-slot]="'kanban-column'"
             [attr.data-column-id]="columnId()"
+            [attr.data-drag-over]="isDragOver() || null"
+            (dragenter)="onDragEnter($event)"
             (dragover)="onDragOver($event)"
             (dragleave)="onDragLeave()"
             (drop)="onDrop($event)"
@@ -263,18 +267,25 @@ export class KanbanCardComponent implements AfterContentInit {
 
             @if (!collapsed()) {
                 <ui-scroll-area class="flex-1 min-h-0" orientation="vertical">
-                    <div class="p-2 space-y-2 min-h-[40px] relative" #cardContainer>
-                        @if (dropIndicatorIndex() >= 0) {
-                            <div
-                                class="h-0.5 bg-primary rounded-full mx-1 transition-all"
-                                [style.order]="dropIndicatorIndex()"
-                            ></div>
-                        }
+                    <div class="p-3 flex flex-col gap-3 min-h-[40px] relative" #cardContainer>
+                        <div
+                            class="absolute left-2 right-2 pointer-events-none transition-all duration-200 ease-out"
+                            [class.opacity-0]="dropIndicatorIndex() < 0"
+                            [class.opacity-100]="dropIndicatorIndex() >= 0"
+                            [style.top.px]="dropIndicatorTop()"
+                            data-slot="kanban-drop-indicator"
+                        >
+                            <div class="flex items-center">
+                                <div class="h-2 w-2 rounded-full bg-primary shrink-0"></div>
+                                <div class="h-[3px] bg-primary rounded-full flex-1"></div>
+                                <div class="h-2 w-2 rounded-full bg-primary shrink-0"></div>
+                            </div>
+                        </div>
                         @if (hasCustomCards()) {
                             <ng-content />
                         } @else {
                             @for (c of visibleCards(); track c.id) {
-                                <ui-kanban-card [card]="c" [cardId]="c.id" [style.order]="$index" />
+                                <ui-kanban-card [card]="c" [cardId]="c.id" />
                             }
                         }
                     </div>
@@ -297,6 +308,11 @@ export class KanbanColumnComponent implements AfterContentInit {
 
     collapsed = signal(false);
     dropIndicatorIndex = signal(-1);
+    dropIndicatorTop = signal(-1);
+    isDragOver = signal(false);
+
+    private dragEnterCount = 0;
+    private lastDragOverTime = 0;
 
     @ContentChildren(forwardRef(() => KanbanColumnHeaderComponent)) customHeaders!: QueryList<KanbanColumnHeaderComponent>;
     @ContentChildren(forwardRef(() => KanbanCardComponent)) customCards!: QueryList<KanbanCardComponent>;
@@ -328,7 +344,9 @@ export class KanbanColumnComponent implements AfterContentInit {
 
     classes = computed(() => cn(
         'bg-muted/50 rounded-lg border flex flex-col min-w-[280px] max-w-[350px] w-[300px]',
+        'transition-colors duration-200',
         this.isOverWipLimit() ? 'border-destructive/50' : '',
+        this.isDragOver() ? 'border-primary/50 bg-accent/30 ring-1 ring-primary/20' : '',
         this.class()
     ));
 
@@ -336,18 +354,33 @@ export class KanbanColumnComponent implements AfterContentInit {
         this.collapsed.update(v => !v);
     }
 
+    onDragEnter(event: DragEvent) {
+        if (!this.kanban?.draggedCardId()) return;
+        event.preventDefault();
+        this.dragEnterCount++;
+        this.isDragOver.set(true);
+    }
+
     onDragOver(event: DragEvent) {
         if (!this.kanban?.draggedCardId()) return;
         event.preventDefault();
         if (event.dataTransfer) event.dataTransfer.dropEffect = 'move';
 
+        const now = performance.now();
+        if (now - this.lastDragOverTime < 50) return;
+        this.lastDragOverTime = now;
+
         const container = this.cardContainerRef?.nativeElement;
         if (!container) {
             this.dropIndicatorIndex.set(0);
+            this.dropIndicatorTop.set(12);
             return;
         }
 
-        const cards = Array.from(container.querySelectorAll('[data-slot="kanban-card"]')) as HTMLElement[];
+        const cards = Array.from(
+            container.querySelectorAll('[data-slot="kanban-card"]')
+        ) as HTMLElement[];
+
         let index = cards.length;
 
         for (let i = 0; i < cards.length; i++) {
@@ -359,11 +392,33 @@ export class KanbanColumnComponent implements AfterContentInit {
             }
         }
 
+        let topPx: number;
+        if (cards.length === 0) {
+            topPx = 12;
+        } else if (index === 0) {
+            topPx = cards[0].offsetTop - 6;
+        } else if (index >= cards.length) {
+            const last = cards[cards.length - 1];
+            topPx = last.offsetTop + last.offsetHeight + 5;
+        } else {
+            const prev = cards[index - 1];
+            const curr = cards[index];
+            topPx = prev.offsetTop + prev.offsetHeight +
+                (curr.offsetTop - prev.offsetTop - prev.offsetHeight) / 2;
+        }
+
         this.dropIndicatorIndex.set(index);
+        this.dropIndicatorTop.set(topPx);
     }
 
     onDragLeave() {
-        this.dropIndicatorIndex.set(-1);
+        this.dragEnterCount--;
+        if (this.dragEnterCount <= 0) {
+            this.dragEnterCount = 0;
+            this.dropIndicatorIndex.set(-1);
+            this.dropIndicatorTop.set(-1);
+            this.isDragOver.set(false);
+        }
     }
 
     onDrop(event: DragEvent) {
@@ -373,6 +428,9 @@ export class KanbanColumnComponent implements AfterContentInit {
 
         this.kanban.moveCard(cardId, this.columnId(), this.dropIndicatorIndex());
         this.dropIndicatorIndex.set(-1);
+        this.dropIndicatorTop.set(-1);
+        this.isDragOver.set(false);
+        this.dragEnterCount = 0;
     }
 }
 
