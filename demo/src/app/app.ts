@@ -304,6 +304,9 @@ import {
   KanbanCardContentComponent,
   KanbanColumn,
   KanbanCard,
+  KanbanCardAddEvent,
+  KanbanColumnDeleteEvent,
+  KanbanHistoryState,
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -843,8 +846,65 @@ export class AppComponent {
     { id: 'k9', columnId: 'done', title: 'Database schema', priority: 'high', order: 1, labels: [{ text: 'Backend', color: '#f59e0b' }] },
   ]);
 
+  kanbanHistory = signal<KanbanHistoryState>({ canUndo: false, canRedo: false });
+  private kanbanCardIdCounter = 100;
+
   onKanbanCardsChange(cards: KanbanCard[]) {
     this.kanbanCards.set(cards);
+  }
+
+  onKanbanColumnsChange(columns: KanbanColumn[]) {
+    this.kanbanColumns.set(columns);
+  }
+
+  onKanbanCardAdded(event: KanbanCardAddEvent) {
+    const newCard: KanbanCard = {
+      id: `k-${++this.kanbanCardIdCounter}`,
+      columnId: event.columnId,
+      title: event.title,
+      description: event.description,
+      priority: event.priority,
+      labels: event.labels,
+      assignees: event.assignees,
+      order: this.kanbanCards().filter(c => c.columnId === event.columnId).length,
+    };
+    this.kanbanCards.set([...this.kanbanCards(), newCard]);
+  }
+
+  onKanbanCardUpdated(card: KanbanCard) {
+    this.kanbanCards.set(this.kanbanCards().map(c => c.id === card.id ? card : c));
+  }
+
+  onKanbanCardDeleted(cardId: string) {
+    this.kanbanCards.set(this.kanbanCards().filter(c => c.id !== cardId));
+  }
+
+  onKanbanColumnAdded(col: Omit<KanbanColumn, 'id'>) {
+    const newCol: KanbanColumn = {
+      ...col,
+      id: `col-${Date.now()}`,
+    };
+    this.kanbanColumns.set([...this.kanbanColumns(), newCol]);
+  }
+
+  onKanbanColumnUpdated(col: KanbanColumn) {
+    this.kanbanColumns.set(this.kanbanColumns().map(c => c.id === col.id ? col : c));
+  }
+
+  onKanbanColumnDeleted(event: KanbanColumnDeleteEvent) {
+    if (event.moveCardsTo) {
+      const movedCards = this.kanbanCards().map(c =>
+        c.columnId === event.columnId ? { ...c, columnId: event.moveCardsTo! } : c
+      );
+      this.kanbanCards.set(movedCards);
+    } else {
+      this.kanbanCards.set(this.kanbanCards().filter(c => c.columnId !== event.columnId));
+    }
+    this.kanbanColumns.set(this.kanbanColumns().filter(c => c.id !== event.columnId));
+  }
+
+  onKanbanHistoryChange(state: KanbanHistoryState) {
+    this.kanbanHistory.set(state);
   }
 
   flipTextRef = viewChild<FlipTextComponent>('flipTextRef');
