@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
     KanbanComponent,
     KanbanColumnComponent,
@@ -10,6 +10,9 @@ import {
     KanbanCardContentComponent,
     KanbanColumn,
     KanbanCard,
+    KanbanCardAddEvent,
+    KanbanColumnDeleteEvent,
+    KanbanHistoryState,
 } from './kanban.component';
 
 // Simple mode test host
@@ -21,6 +24,14 @@ import {
             [searchTerm]="searchTerm()"
             (cardsChange)="onCardsChange($event)"
             (cardMoved)="onCardMoved($event)"
+            (cardAdded)="onCardAdded($event)"
+            (cardUpdated)="onCardUpdated($event)"
+            (cardDeleted)="onCardDeleted($event)"
+            (columnAdded)="onColumnAdded($event)"
+            (columnUpdated)="onColumnUpdated($event)"
+            (columnDeleted)="onColumnDeleted($event)"
+            (columnsChange)="onColumnsChange($event)"
+            (historyChange)="onHistoryChange($event)"
         />
     `,
     imports: [KanbanComponent],
@@ -40,10 +51,26 @@ class KanbanSimpleTestHostComponent {
 
     searchTerm = signal('');
     cardsChanged: KanbanCard[] = [];
+    columnsChanged: KanbanColumn[] = [];
     cardMovedEvent: unknown = null;
+    cardAddedEvent: KanbanCardAddEvent | null = null;
+    cardUpdatedEvent: KanbanCard | null = null;
+    cardDeletedId: string | null = null;
+    columnAddedEvent: unknown = null;
+    columnUpdatedEvent: KanbanColumn | null = null;
+    columnDeletedEvent: KanbanColumnDeleteEvent | null = null;
+    historyState: KanbanHistoryState | null = null;
 
-    onCardsChange(cards: KanbanCard[]) { this.cardsChanged = cards; }
+    onCardsChange(cards: KanbanCard[]) { this.cardsChanged = cards; this.cards.set(cards); }
+    onColumnsChange(columns: KanbanColumn[]) { this.columnsChanged = columns; this.columns.set(columns); }
     onCardMoved(event: unknown) { this.cardMovedEvent = event; }
+    onCardAdded(event: KanbanCardAddEvent) { this.cardAddedEvent = event; }
+    onCardUpdated(event: KanbanCard) { this.cardUpdatedEvent = event; }
+    onCardDeleted(id: string) { this.cardDeletedId = id; }
+    onColumnAdded(event: unknown) { this.columnAddedEvent = event; }
+    onColumnUpdated(event: KanbanColumn) { this.columnUpdatedEvent = event; }
+    onColumnDeleted(event: KanbanColumnDeleteEvent) { this.columnDeletedEvent = event; }
+    onHistoryChange(state: KanbanHistoryState) { this.historyState = state; }
 }
 
 // Custom mode test host
@@ -156,6 +183,273 @@ describe('KanbanComponent', () => {
         it('should make cards draggable', () => {
             const card = fixture.debugElement.query(By.css('[data-slot="kanban-card"]'));
             expect(card.nativeElement.getAttribute('draggable')).toBe('true');
+        });
+
+        it('should always render drop indicators in DOM', () => {
+            const indicators = fixture.debugElement.queryAll(
+                By.css('[data-slot="kanban-drop-indicator"]')
+            );
+            expect(indicators.length).toBe(3);
+            indicators.forEach(ind => {
+                expect(ind.nativeElement.classList).toContain('opacity-0');
+            });
+        });
+
+        it('should set data-drag-over attribute on column during drag', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
+            const doingColumn = columns[1];
+
+            doingColumn.nativeElement.dispatchEvent(
+                new Event('dragenter', { bubbles: true })
+            );
+            fixture.detectChanges();
+
+            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBe('true');
+        });
+
+        it('should remove drag-over state after drag leave', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
+            const doingColumn = columns[1];
+
+            doingColumn.nativeElement.dispatchEvent(
+                new Event('dragenter', { bubbles: true })
+            );
+            fixture.detectChanges();
+
+            doingColumn.nativeElement.dispatchEvent(
+                new Event('dragleave', { bubbles: true })
+            );
+            fixture.detectChanges();
+
+            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBeNull();
+        });
+
+        it('should apply visual feedback classes to dragged card', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const card = fixture.debugElement.query(
+                By.css('[data-card-id="card-1"]')
+            );
+            expect(card.nativeElement.className).toContain('opacity-50');
+            expect(card.nativeElement.className).toContain('scale-[0.98]');
+        });
+
+        it('should clean up all drag state on drop', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            kanban.startDrag('card-1', 'todo');
+            fixture.detectChanges();
+
+            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
+            const doingColumn = columns[1];
+
+            doingColumn.nativeElement.dispatchEvent(
+                new Event('dragenter', { bubbles: true })
+            );
+            fixture.detectChanges();
+
+            const dropEvent = new Event('drop', { bubbles: true });
+            Object.defineProperty(dropEvent, 'dataTransfer', {
+                value: { getData: () => 'card-1' }
+            });
+            doingColumn.nativeElement.dispatchEvent(dropEvent);
+            fixture.detectChanges();
+
+            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBeNull();
+        });
+
+        it('should render add-card button in each column header', () => {
+            const buttons = fixture.debugElement.queryAll(
+                By.css('[data-slot="kanban-add-card-button"]')
+            );
+            expect(buttons.length).toBe(3);
+        });
+
+        it('should render empty state in column with no cards', () => {
+            const columns = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'));
+            const doneColumn = columns[2];
+            const emptyState = doneColumn.query(By.css('[data-slot="kanban-empty-state"]'));
+            expect(emptyState).toBeTruthy();
+            expect(emptyState.nativeElement.textContent).toContain('No cards yet');
+        });
+
+        it('should duplicate card via context menu action', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const card = component.cards()[0];
+
+            kanban.onDuplicateCard(card);
+            fixture.detectChanges();
+
+            expect(component.cardAddedEvent).toBeTruthy();
+            expect(component.cardAddedEvent!.title).toContain('(copy)');
+            expect(component.cardAddedEvent!.columnId).toBe('todo');
+        });
+
+        it('should move card to another column via context menu', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const card = component.cards()[0];
+
+            kanban.onMoveCardToColumn(card, 'doing');
+            fixture.detectChanges();
+
+            expect(component.cardsChanged.length).toBe(3);
+            const movedCard = component.cardsChanged.find(c => c.id === 'card-1');
+            expect(movedCard?.columnId).toBe('doing');
+        });
+
+        it('should set card priority via context menu', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const card = component.cards()[0];
+
+            kanban.onSetCardPriority(card, 'low');
+            fixture.detectChanges();
+
+            expect(component.cardUpdatedEvent).toBeTruthy();
+            expect(component.cardUpdatedEvent!.priority).toBe('low');
+        });
+
+        it('should clear priority when set to none', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const card = component.cards()[0];
+
+            kanban.onSetCardPriority(card, 'none');
+            fixture.detectChanges();
+
+            expect(component.cardUpdatedEvent).toBeTruthy();
+            expect(component.cardUpdatedEvent!.priority).toBeUndefined();
+        });
+
+        it('should delete card with delayed emit', () => {
+            vi.useFakeTimers();
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const card = component.cards()[0];
+
+            kanban.onDeleteCard(card);
+            fixture.detectChanges();
+
+            expect(component.cardsChanged.length).toBe(2);
+            expect(component.cardDeletedId).toBeNull();
+
+            vi.advanceTimersByTime(6000);
+
+            expect(component.cardDeletedId).toBe('card-1');
+            vi.useRealTimers();
+        });
+
+        it('should emit historyChange after undo', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const card = component.cards()[0];
+
+            kanban.onMoveCardToColumn(card, 'doing');
+            fixture.detectChanges();
+
+            expect(component.historyState).toBeTruthy();
+            expect(component.historyState!.canUndo).toBe(true);
+            expect(component.historyState!.canRedo).toBe(false);
+        });
+
+        it('should undo last action', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const originalCards = [...component.cards()];
+            const card = component.cards()[0];
+
+            kanban.onMoveCardToColumn(card, 'doing');
+            fixture.detectChanges();
+
+            kanban.undo();
+            fixture.detectChanges();
+
+            expect(component.cardsChanged).toEqual(originalCards);
+            expect(component.historyState!.canUndo).toBe(false);
+            expect(component.historyState!.canRedo).toBe(true);
+        });
+
+        it('should redo undone action', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const card = component.cards()[0];
+
+            kanban.onMoveCardToColumn(card, 'doing');
+            fixture.detectChanges();
+            const afterMoveCards = [...component.cardsChanged];
+
+            kanban.undo();
+            fixture.detectChanges();
+
+            kanban.redo();
+            fixture.detectChanges();
+
+            expect(component.cardsChanged).toEqual(afterMoveCards);
+            expect(component.historyState!.canUndo).toBe(true);
+            expect(component.historyState!.canRedo).toBe(false);
+        });
+
+        it('should reorder columns left', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const doingCol = component.columns()[1];
+
+            kanban.onMoveColumnLeft(doingCol);
+            fixture.detectChanges();
+
+            const movedCol = component.columnsChanged.find(c => c.id === 'doing');
+            const todoCol = component.columnsChanged.find(c => c.id === 'todo');
+            expect(movedCol!.order).toBeLessThan(todoCol!.order);
+        });
+
+        it('should reorder columns right', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const doingCol = component.columns()[1];
+
+            kanban.onMoveColumnRight(doingCol);
+            fixture.detectChanges();
+
+            const movedCol = component.columnsChanged.find(c => c.id === 'doing');
+            const doneCol = component.columnsChanged.find(c => c.id === 'done');
+            expect(movedCol!.order).toBeGreaterThan(doneCol!.order);
+        });
+
+        it('should not move first column left', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+            const todoCol = component.columns()[0];
+
+            kanban.onMoveColumnLeft(todoCol);
+            fixture.detectChanges();
+
+            expect(component.columnsChanged.length).toBe(0);
+        });
+
+        it('should capture snapshot on moveCard for history', () => {
+            const kanbanEl = fixture.debugElement.query(By.directive(KanbanComponent));
+            const kanban = kanbanEl.componentInstance as KanbanComponent;
+
+            kanban.moveCard('card-1', 'doing', 0);
+            fixture.detectChanges();
+
+            expect(component.historyState).toBeTruthy();
+            expect(component.historyState!.canUndo).toBe(true);
         });
     });
 

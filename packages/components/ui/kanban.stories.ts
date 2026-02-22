@@ -8,6 +8,9 @@ import {
     KanbanCardContentComponent,
     KanbanColumn,
     KanbanCard,
+    KanbanCardAddEvent,
+    KanbanColumnDeleteEvent,
+    KanbanHistoryState,
 } from './kanban.component';
 
 const meta: Meta<KanbanComponent> = {
@@ -290,6 +293,137 @@ export const WithWipLimits: Story = {
                 </div>
                 <div class="h-[540px] overflow-auto bg-muted/30 rounded-xl border">
                     <ui-kanban [columns]="columns" [cards]="cards" />
+                </div>
+            </div>
+        `,
+    }),
+};
+
+export const DragInteraction: Story = {
+    render: () => ({
+        props: {
+            columns: defaultColumns,
+            cards: defaultCards,
+        },
+        template: `
+            <div class="space-y-3">
+                <div class="flex items-center gap-3 px-4 pt-4">
+                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <div class="flex items-center w-8">
+                            <div class="h-1.5 w-1.5 rounded-full bg-primary shrink-0"></div>
+                            <div class="h-[2px] bg-primary rounded-full flex-1"></div>
+                            <div class="h-1.5 w-1.5 rounded-full bg-primary shrink-0"></div>
+                        </div>
+                        Drop indicator appears between cards during drag
+                    </div>
+                </div>
+                <div class="h-[600px] overflow-auto bg-muted/30 rounded-xl border">
+                    <ui-kanban [columns]="columns" [cards]="cards" />
+                </div>
+            </div>
+        `,
+    }),
+};
+
+export const WithContextMenus: Story = {
+    render: () => ({
+        props: {
+            columns: defaultColumns,
+            cards: defaultCards,
+        },
+        template: `
+            <div class="space-y-3">
+                <div class="space-y-2 px-4 pt-4">
+                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span class="font-medium text-foreground">Right-click</span> a card to edit, duplicate, move, set priority, or delete it.
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span class="font-medium text-foreground">Right-click</span> a column header to add a card, rename, set WIP limit, reorder, or delete the column.
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span class="font-medium text-foreground">Right-click</span> the board background to add a new column.
+                    </div>
+                    <div class="flex items-center gap-1.5 text-xs text-muted-foreground">
+                        <span class="font-medium text-foreground">Ctrl+Z</span> to undo, <span class="font-medium text-foreground">Ctrl+Shift+Z</span> to redo.
+                    </div>
+                </div>
+                <div class="h-[600px] overflow-auto bg-muted/30 rounded-xl border">
+                    <ui-kanban [columns]="columns" [cards]="cards" />
+                </div>
+            </div>
+        `,
+    }),
+};
+
+export const FullFeatured: Story = {
+    render: () => ({
+        props: {
+            columns: [
+                { id: 'backlog', title: 'Backlog', order: 0, wipLimit: 5 },
+                { id: 'todo', title: 'To Do', order: 1, wipLimit: 4 },
+                { id: 'in-progress', title: 'In Progress', order: 2, wipLimit: 3 },
+                { id: 'review', title: 'In Review', order: 3, wipLimit: 2 },
+                { id: 'done', title: 'Done', order: 4 },
+            ] as KanbanColumn[],
+            cards: [
+                ...defaultCards,
+                {
+                    id: 'card-7',
+                    columnId: 'backlog',
+                    title: 'Migrate to standalone components',
+                    description: 'Remove all NgModule usage and migrate to fully standalone Angular components.',
+                    priority: 'medium',
+                    labels: [{ text: 'Refactor', color: '#6366f1' }, { text: 'Angular', color: '#ef4444' }],
+                    assignees: [{ name: 'Bob Kim' }, { name: 'Carol White' }],
+                    order: 2,
+                },
+                {
+                    id: 'card-8',
+                    columnId: 'review',
+                    title: 'End-to-end test coverage',
+                    description: 'Write Playwright tests for all critical user flows.',
+                    priority: 'high',
+                    labels: [{ text: 'Testing', color: '#8b5cf6' }],
+                    assignees: [{ name: 'Eve Martinez' }],
+                    order: 1,
+                },
+                {
+                    id: 'card-9',
+                    columnId: 'done',
+                    title: 'Dark mode support',
+                    description: 'Full dark mode with system preference detection.',
+                    priority: 'medium',
+                    labels: [{ text: 'Feature', color: '#8b5cf6' }, { text: 'Design', color: '#ec4899' }],
+                    order: 1,
+                },
+            ] as KanbanCard[],
+            onCardAdded: (event: KanbanCardAddEvent) => console.log('Card added:', event),
+            onCardUpdated: (event: KanbanCard) => console.log('Card updated:', event),
+            onCardDeleted: (id: string) => console.log('Card deleted:', id),
+            onColumnAdded: (event: Omit<KanbanColumn, 'id'>) => console.log('Column added:', event),
+            onColumnUpdated: (event: KanbanColumn) => console.log('Column updated:', event),
+            onColumnDeleted: (event: KanbanColumnDeleteEvent) => console.log('Column deleted:', event),
+            onHistoryChange: (state: KanbanHistoryState) => console.log('History:', state),
+        },
+        template: `
+            <div class="space-y-3">
+                <div class="space-y-2 px-4 pt-4">
+                    <p class="text-sm text-muted-foreground">
+                        Full-featured board with WIP limits, context menus, card CRUD, column management, and undo/redo.
+                        Open your browser console to see emitted events.
+                    </p>
+                </div>
+                <div class="h-[650px] overflow-auto bg-muted/30 rounded-xl border">
+                    <ui-kanban
+                        [columns]="columns"
+                        [cards]="cards"
+                        (cardAdded)="onCardAdded($event)"
+                        (cardUpdated)="onCardUpdated($event)"
+                        (cardDeleted)="onCardDeleted($event)"
+                        (columnAdded)="onColumnAdded($event)"
+                        (columnUpdated)="onColumnUpdated($event)"
+                        (columnDeleted)="onColumnDeleted($event)"
+                        (historyChange)="onHistoryChange($event)" />
                 </div>
             </div>
         `,
