@@ -37,6 +37,9 @@ export interface ToastData {
   variant?: ToastVariant;
   duration?: number;
   action?: { label: string; onClick: () => void };
+  showCountdown?: boolean;
+  countdownSeconds?: number;
+  createdAt?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -46,16 +49,35 @@ export class ToastService {
 
   private counter = 0;
   private timeoutIds = new Map<string, ReturnType<typeof setTimeout>>();
+  private intervalIds = new Map<string, ReturnType<typeof setInterval>>();
 
   toast(options: Omit<ToastData, 'id'>) {
     const id = `toast-${++this.counter}`;
     const duration = options.duration ?? 5000;
+    const countdownSeconds = options.showCountdown ? Math.ceil(duration / 1000) : undefined;
 
-    this.toastsSignal.update(toasts => [...toasts, { ...options, id }]);
+    this.toastsSignal.update(toasts => [...toasts, {
+      ...options,
+      id,
+      countdownSeconds,
+      createdAt: Date.now(),
+    }]);
 
     if (duration > 0) {
       const timeoutId = setTimeout(() => this.dismiss(id), duration);
       this.timeoutIds.set(id, timeoutId);
+
+      if (options.showCountdown) {
+        const intervalId = setInterval(() => {
+          this.toastsSignal.update(toasts => toasts.map(t => {
+            if (t.id !== id) return t;
+            const elapsed = Date.now() - (t.createdAt ?? Date.now());
+            const remaining = Math.max(0, Math.ceil((duration - elapsed) / 1000));
+            return { ...t, countdownSeconds: remaining };
+          }));
+        }, 1000);
+        this.intervalIds.set(id, intervalId);
+      }
     }
 
     return id;
@@ -75,12 +97,19 @@ export class ToastService {
       clearTimeout(timeoutId);
       this.timeoutIds.delete(id);
     }
+    const intervalId = this.intervalIds.get(id);
+    if (intervalId) {
+      clearInterval(intervalId);
+      this.intervalIds.delete(id);
+    }
     this.toastsSignal.update(toasts => toasts.filter(t => t.id !== id));
   }
 
   dismissAll() {
     this.timeoutIds.forEach(timeoutId => clearTimeout(timeoutId));
     this.timeoutIds.clear();
+    this.intervalIds.forEach(intervalId => clearInterval(intervalId));
+    this.intervalIds.clear();
     this.toastsSignal.set([]);
   }
 }
@@ -92,11 +121,15 @@ export class ToastService {
   template: `
     <div [class]="containerClasses()" [attr.data-slot]="'toaster'">
       @for (toast of toastService.toasts(); track toast.id) {
-        <ui-toast 
-          [variant]="toast.variant" 
+        <ui-toast
+          [variant]="toast.variant"
           [title]="toast.title"
           [description]="toast.description"
           [action]="toast.action"
+          [showCountdown]="toast.showCountdown"
+          [countdownSeconds]="toast.countdownSeconds"
+          [duration]="toast.duration"
+          [createdAt]="toast.createdAt"
           (close)="toastService.dismiss(toast.id)"
         />
       }
@@ -139,7 +172,7 @@ export class ToasterComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <div [class]="classes()" [attr.data-slot]="'toast'" role="alert">
-      <div class="grid gap-1">
+      <div class="grid gap-1 flex-1">
         @if (title()) {
           <div class="text-sm font-semibold" [attr.data-slot]="'toast-title'">{{ title() }}</div>
         }
@@ -152,7 +185,9 @@ export class ToasterComponent {
           class="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-secondary focus:outline-none focus:ring-1 focus:ring-ring disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive"
           (click)="action()?.onClick()"
         >
-          {{ action()?.label }}
+          {{ action()?.label }}@if (showCountdown() && countdownSeconds() != null) {
+            <span class="ltr:ml-1 rtl:mr-1">({{ countdownSeconds() }}s)</span>
+          }
         </button>
       }
       <button
@@ -164,6 +199,14 @@ export class ToasterComponent {
           <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
         </svg>
       </button>
+      @if (showCountdown() && duration()) {
+        <div class="absolute bottom-0 left-0 right-0 h-1 bg-black/10" data-slot="toast-progress">
+          <div
+            class="h-full bg-current opacity-30 transition-[width] duration-1000 ease-linear"
+            [style.width.%]="progressPercent()"
+          ></div>
+        </div>
+      }
     </div>
   `,
   host: { class: 'contents' },
@@ -173,7 +216,18 @@ export class ToastComponent {
   title = input<string>();
   description = input<string>();
   action = input<{ label: string; onClick: () => void }>();
+  showCountdown = input<boolean | undefined>(false);
+  countdownSeconds = input<number | undefined>(undefined);
+  duration = input<number | undefined>(undefined);
+  createdAt = input<number | undefined>(undefined);
   close = output<void>();
 
   classes = computed(() => toastVariants({ variant: this.variant() }));
+
+  progressPercent = computed(() => {
+    const dur = this.duration();
+    const countdown = this.countdownSeconds();
+    if (!dur || countdown == null) return 0;
+    return Math.max(0, (countdown / Math.ceil(dur / 1000)) * 100);
+  });
 }

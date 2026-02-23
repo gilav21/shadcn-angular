@@ -5,6 +5,8 @@ import {
     computed,
     signal,
     output,
+    effect,
+    model,
     ContentChildren,
     QueryList,
     AfterContentInit,
@@ -15,6 +17,7 @@ import {
     ViewChild,
     viewChild,
     OnDestroy,
+    untracked,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -26,6 +29,8 @@ import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
 import { TextareaComponent } from './textarea.component';
 import { LabelComponent } from './label.component';
+import { ChipListComponent } from './chip-list.component';
+import { AutocompleteComponent } from './autocomplete.component';
 import {
     DialogComponent,
     DialogContentComponent,
@@ -51,8 +56,8 @@ import {
     ContextMenuSubTriggerComponent,
     ContextMenuSubContentComponent,
 } from './context-menu.component';
-import { ToastService } from './toast.component';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../lib/shortcut-binding.service';
+import { type KanbanLocale, KANBAN_LOCALES } from './kanban-locales';
 
 // ────────────────────────────────────────────────────────────────
 // Data structures
@@ -107,14 +112,6 @@ interface KanbanHistorySnapshot {
     cards: KanbanCard[];
     columns: KanbanColumn[];
 }
-
-const PRIORITY_OPTIONS: { label: string; value: KanbanCard['priority'] | 'none' }[] = [
-    { label: 'Low', value: 'low' },
-    { label: 'Medium', value: 'medium' },
-    { label: 'High', value: 'high' },
-    { label: 'Urgent', value: 'urgent' },
-    { label: 'None', value: 'none' },
-];
 
 const LABEL_PRESETS = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899', '#6b7280'];
 
@@ -297,34 +294,34 @@ export class KanbanCardComponent implements AfterContentInit {
         DialogComponent, DialogContentComponent, DialogHeaderComponent,
         DialogTitleComponent, DialogFooterComponent, InputComponent,
         TextareaComponent, ButtonComponent, LabelComponent, FormsModule,
-        BadgeComponent,
+        ChipListComponent, AutocompleteComponent,
     ],
     template: `
         <ui-dialog [(open)]="dialogOpen">
             <ui-dialog-content>
                 <ui-dialog-header>
-                    <ui-dialog-title>{{ mode() === 'add' ? 'Add Card' : 'Edit Card' }}</ui-dialog-title>
+                    <ui-dialog-title>{{ mode() === 'add' ? locale().addCard : locale().editCard }}</ui-dialog-title>
                 </ui-dialog-header>
                 <div class="space-y-4" data-slot="kanban-card-dialog-form">
                     <div class="space-y-2">
-                        <ui-label>Title *</ui-label>
+                        <ui-label>{{ locale().titleRequired }}</ui-label>
                         <ui-input
-                            [placeholder]="'Card title'"
+                            [placeholder]="locale().cardTitlePlaceholder"
                             [ngModel]="formTitle()"
                             (ngModelChange)="formTitle.set($event)" />
                     </div>
                     <div class="space-y-2">
-                        <ui-label>Description</ui-label>
+                        <ui-label>{{ locale().descriptionLabel }}</ui-label>
                         <ui-textarea
-                            [placeholder]="'Optional description'"
+                            [placeholder]="locale().optionalDescriptionPlaceholder"
                             [rows]="3"
                             [ngModel]="formDescription()"
                             (ngModelChange)="formDescription.set($event)" />
                     </div>
                     <div class="space-y-2">
-                        <ui-label>Priority</ui-label>
+                        <ui-label>{{ locale().priorityLabel }}</ui-label>
                         <div class="flex flex-wrap gap-1.5">
-                            @for (p of priorityOptions; track p.value) {
+                            @for (p of localizedPriorityOptions(); track p.value) {
                                 <button
                                     type="button"
                                     [class]="priorityButtonClass(p.value)"
@@ -334,26 +331,19 @@ export class KanbanCardComponent implements AfterContentInit {
                             }
                         </div>
                     </div>
-                    <div class="space-y-2">
-                        <ui-label>Labels</ui-label>
-                        <div class="flex flex-wrap gap-1.5">
-                            @for (label of formLabels(); track $index) {
-                                <ui-badge
-                                    class="text-xs cursor-pointer"
-                                    [label]="label.text"
-                                    [style.backgroundColor]="label.color"
-                                    [style.color]="'white'"
-                                    (click)="removeLabel($index)"
-                                />
-                            }
-                        </div>
-                        <div class="flex gap-2">
-                            <ui-input
-                                class="flex-1"
-                                [placeholder]="'Label text'"
-                                [ngModel]="newLabelText()"
-                                (ngModelChange)="newLabelText.set($event)" />
-                            <div class="flex gap-1 items-center">
+                    @if (haveLabels()) {
+                        <div class="space-y-2">
+                            <ui-label>{{ locale().labelsLabel }}</ui-label>
+                            <ui-chip-list
+                                [chipColors]="labelColorMap()"
+                                [maxRows]="3"
+                                [placeholder]="locale().labelTextPlaceholder"
+                                [ngModel]="labelChipStrings()"
+                                (chipAdded)="onLabelChipAdded($event)"
+                                (chipRemoved)="onLabelChipRemoved($event)"
+                            />
+                            <div class="flex gap-1.5 items-center">
+                                <span class="text-xs text-muted-foreground ltr:mr-1 rtl:ml-1">{{ locale().labelsLabel }}:</span>
                                 @for (color of labelPresets; track color) {
                                     <button
                                         type="button"
@@ -365,39 +355,34 @@ export class KanbanCardComponent implements AfterContentInit {
                                     </button>
                                 }
                             </div>
-                            <ui-button variant="outline" size="sm" [disabled]="!newLabelText().trim()" (clicked)="addLabel()">
-                                Add
-                            </ui-button>
                         </div>
-                    </div>
-                    <div class="space-y-2">
-                        <ui-label>Assignees</ui-label>
-                        <div class="flex flex-wrap gap-1.5">
-                            @for (a of formAssignees(); track $index) {
-                                <ui-badge
-                                    class="text-xs cursor-pointer"
-                                    [label]="a.name"
-                                    variant="secondary"
-                                    (click)="removeAssignee($index)"
+                    }
+                    @if (haveAssignees()) {
+                        <div class="space-y-2">
+                            <ui-label>{{ locale().assigneesLabel }}</ui-label>
+                            @if (assigneeOptions().length > 0) {
+                                <ui-autocomplete
+                                    [options]="assigneeOptionNames()"
+                                    [multiple]="true"
+                                    [placeholder]="locale().assigneePlaceholder"
+                                    [ngModel]="assigneeChipStrings()"
+                                    (ngModelChange)="onAssigneeSelectionChange($event)"
+                                />
+                            } @else {
+                                <ui-chip-list
+                                    [placeholder]="locale().assigneePlaceholder"
+                                    [ngModel]="assigneeChipStrings()"
+                                    (chipAdded)="onAssigneeChipAdded($event)"
+                                    (chipRemoved)="onAssigneeChipRemoved($event)"
                                 />
                             }
                         </div>
-                        <div class="flex gap-2">
-                            <ui-input
-                                class="flex-1"
-                                [placeholder]="'Assignee name'"
-                                [ngModel]="newAssigneeName()"
-                                (ngModelChange)="newAssigneeName.set($event)" />
-                            <ui-button variant="outline" size="sm" [disabled]="!newAssigneeName().trim()" (clicked)="addAssignee()">
-                                Add
-                            </ui-button>
-                        </div>
-                    </div>
+                    }
                 </div>
                 <ui-dialog-footer>
-                    <ui-button variant="outline" (clicked)="dialogOpen.set(false)">Cancel</ui-button>
+                    <ui-button variant="outline" (clicked)="dialogOpen.set(false)">{{ locale().cancel }}</ui-button>
                     <ui-button [disabled]="!formTitle().trim()" (clicked)="onSubmit()">
-                        {{ mode() === 'add' ? 'Add Card' : 'Save Changes' }}
+                        {{ mode() === 'add' ? locale().addCard : locale().saveChanges }}
                     </ui-button>
                 </ui-dialog-footer>
             </ui-dialog-content>
@@ -407,6 +392,11 @@ export class KanbanCardComponent implements AfterContentInit {
 })
 export class KanbanCardDialogComponent {
     class = input('');
+    locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
+    haveLabels = input(true);
+    haveAssignees = input(true);
+    assigneeOptions = input<{ name: string; avatar?: string }[]>([]);
+
     submitted = output<{
         mode: 'add' | 'edit';
         columnId: string;
@@ -421,15 +411,37 @@ export class KanbanCardDialogComponent {
     formPriority = signal<KanbanCard['priority'] | undefined>(undefined);
     formLabels = signal<{ text: string; color: string }[]>([]);
     formAssignees = signal<{ name: string; avatar?: string }[]>([]);
-    newLabelText = signal('');
     newLabelColor = signal(LABEL_PRESETS[0]);
-    newAssigneeName = signal('');
 
     private editingCard = signal<KanbanCard | undefined>(undefined);
     private targetColumnId = signal('');
 
-    readonly priorityOptions = PRIORITY_OPTIONS;
     readonly labelPresets = LABEL_PRESETS;
+
+    localizedPriorityOptions = computed(() => {
+        const l = this.locale();
+        return [
+            { label: l.priorityLow, value: 'low' as const },
+            { label: l.priorityMedium, value: 'medium' as const },
+            { label: l.priorityHigh, value: 'high' as const },
+            { label: l.priorityUrgent, value: 'urgent' as const },
+            { label: l.priorityNone, value: 'none' as const },
+        ];
+    });
+
+    labelChipStrings = computed(() => this.formLabels().map(l => l.text));
+
+    labelColorMap = computed(() => {
+        const map: Record<string, string> = {};
+        for (const label of this.formLabels()) {
+            map[label.text] = label.color;
+        }
+        return map;
+    });
+
+    assigneeChipStrings = computed(() => this.formAssignees().map(a => a.name));
+
+    assigneeOptionNames = computed(() => this.assigneeOptions().map(a => a.name));
 
     open(mode: 'add' | 'edit', columnId: string, card?: KanbanCard) {
         this.mode.set(mode);
@@ -440,9 +452,7 @@ export class KanbanCardDialogComponent {
         this.formPriority.set(card?.priority);
         this.formLabels.set(card?.labels ? [...card.labels] : []);
         this.formAssignees.set(card?.assignees ? [...card.assignees] : []);
-        this.newLabelText.set('');
         this.newLabelColor.set(LABEL_PRESETS[0]);
-        this.newAssigneeName.set('');
         this.dialogOpen.set(true);
     }
 
@@ -457,26 +467,31 @@ export class KanbanCardDialogComponent {
         );
     }
 
-    addLabel() {
-        const text = this.newLabelText().trim();
-        if (!text) return;
+    onLabelChipAdded(text: string) {
         this.formLabels.update(labels => [...labels, { text, color: this.newLabelColor() }]);
-        this.newLabelText.set('');
     }
 
-    removeLabel(index: number) {
-        this.formLabels.update(labels => labels.filter((_, i) => i !== index));
+    onLabelChipRemoved(text: string) {
+        this.formLabels.update(labels => labels.filter(l => l.text !== text));
     }
 
-    addAssignee() {
-        const name = this.newAssigneeName().trim();
-        if (!name) return;
-        this.formAssignees.update(assignees => [...assignees, { name }]);
-        this.newAssigneeName.set('');
+    onAssigneeChipAdded(name: string) {
+        const option = this.assigneeOptions().find(a => a.name === name);
+        this.formAssignees.update(assignees => [...assignees, option ?? { name }]);
     }
 
-    removeAssignee(index: number) {
-        this.formAssignees.update(assignees => assignees.filter((_, i) => i !== index));
+    onAssigneeChipRemoved(name: string) {
+        this.formAssignees.update(assignees => assignees.filter(a => a.name !== name));
+    }
+
+    onAssigneeSelectionChange(names: string[]) {
+        const newAssignees = names.map(name => {
+            const existing = this.formAssignees().find(a => a.name === name);
+            if (existing) return existing;
+            const option = this.assigneeOptions().find(a => a.name === name);
+            return option ?? { name };
+        });
+        this.formAssignees.set(newAssignees);
     }
 
     onSubmit() {
@@ -521,26 +536,26 @@ export class KanbanCardDialogComponent {
                 <div class="space-y-4" data-slot="kanban-column-dialog-form">
                     @if (showNameField()) {
                         <div class="space-y-2">
-                            <ui-label>Column Name *</ui-label>
+                            <ui-label>{{ locale().columnNameLabel }}</ui-label>
                             <ui-input
-                                [placeholder]="'Column name'"
+                                [placeholder]="locale().columnNamePlaceholder"
                                 [ngModel]="formName()"
                                 (ngModelChange)="formName.set($event)" />
                         </div>
                     }
                     @if (showWipField()) {
                         <div class="space-y-2">
-                            <ui-label>WIP Limit (optional)</ui-label>
+                            <ui-label>{{ locale().wipLimitLabel }}</ui-label>
                             <ui-input
                                 type="number"
-                                [placeholder]="'No limit'"
+                                [placeholder]="locale().noLimitPlaceholder"
                                 [ngModel]="formWip()"
                                 (ngModelChange)="formWip.set($event)" />
                         </div>
                     }
                 </div>
                 <ui-dialog-footer>
-                    <ui-button variant="outline" (clicked)="dialogOpen.set(false)">Cancel</ui-button>
+                    <ui-button variant="outline" (clicked)="dialogOpen.set(false)">{{ locale().cancel }}</ui-button>
                     <ui-button [disabled]="!canSubmit()" (clicked)="onSubmit()">{{ submitLabel() }}</ui-button>
                 </ui-dialog-footer>
             </ui-dialog-content>
@@ -550,6 +565,7 @@ export class KanbanCardDialogComponent {
 })
 export class KanbanColumnDialogComponent {
     class = input('');
+    locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
 
     submitted = output<{
         mode: 'add-column' | 'rename-column' | 'set-wip';
@@ -566,16 +582,18 @@ export class KanbanColumnDialogComponent {
 
     dialogTitle = computed(() => {
         const m = this.mode();
-        if (m === 'add-column') return 'Add Column';
-        if (m === 'rename-column') return 'Rename Column';
-        return 'Set WIP Limit';
+        const l = this.locale();
+        if (m === 'add-column') return l.addColumn;
+        if (m === 'rename-column') return l.renameColumn;
+        return l.setWipLimit;
     });
 
     submitLabel = computed(() => {
         const m = this.mode();
-        if (m === 'add-column') return 'Add Column';
-        if (m === 'rename-column') return 'Rename';
-        return 'Set Limit';
+        const l = this.locale();
+        if (m === 'add-column') return l.addColumn;
+        if (m === 'rename-column') return l.rename;
+        return l.setLimit;
     });
 
     showNameField = computed(() =>
@@ -644,14 +662,14 @@ export class KanbanColumnDialogComponent {
         <ui-alert-dialog #alertDialog>
             <ui-alert-dialog-content>
                 <ui-alert-dialog-header>
-                    <ui-alert-dialog-title>Delete Column</ui-alert-dialog-title>
+                    <ui-alert-dialog-title>{{ locale().deleteColumn }}</ui-alert-dialog-title>
                     <ui-alert-dialog-description>
                         @if (isLastColumn()) {
-                            This is the only column. All {{ cardCount() }} card(s) will be permanently deleted.
+                            {{ locale().lastColumnWarning }}
                         } @else if (cardCount() > 0) {
-                            This column has {{ cardCount() }} card(s). Choose what to do with them:
+                            {{ locale().columnHasCards }}
                         } @else {
-                            Are you sure you want to delete this empty column?
+                            {{ locale().deleteEmptyColumn }}
                         }
                     </ui-alert-dialog-description>
                 </ui-alert-dialog-header>
@@ -670,12 +688,12 @@ export class KanbanColumnDialogComponent {
                     </div>
                 }
                 <ui-alert-dialog-footer>
-                    <ui-alert-dialog-cancel>Cancel</ui-alert-dialog-cancel>
+                    <ui-alert-dialog-cancel>{{ locale().cancel }}</ui-alert-dialog-cancel>
                     <ui-button
                         variant="destructive"
                         [disabled]="!canConfirm()"
                         (clicked)="onConfirm()">
-                        Delete Column
+                        {{ locale().deleteColumn }}
                     </ui-button>
                 </ui-alert-dialog-footer>
             </ui-alert-dialog-content>
@@ -686,6 +704,7 @@ export class KanbanColumnDialogComponent {
 export class KanbanDeleteColumnDialogComponent {
     class = input('');
     columns = input<KanbanColumn[]>([]);
+    locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
 
     confirmed = output<KanbanColumnDeleteEvent>();
 
@@ -701,10 +720,11 @@ export class KanbanDeleteColumnDialogComponent {
     moveOptions = computed(() => {
         const delCol = this.columnToDelete();
         if (!delCol) return [];
+        const l = this.locale();
         const others = this.columns().filter(c => c.id !== delCol.id);
         const options: { label: string; value: string | undefined }[] =
-            others.map(c => ({ label: `Move to "${c.title}"`, value: c.id }));
-        options.push({ label: 'Delete all cards', value: undefined });
+            others.map(c => ({ label: `${l.moveToColumn} "${c.title}"`, value: c.id }));
+        options.push({ label: l.deleteAllCards, value: undefined });
         return options;
     });
 
@@ -839,8 +859,8 @@ export class KanbanDeleteColumnDialogComponent {
                             @if (visibleCards().length === 0) {
                                 <div class="flex flex-col items-center justify-center py-8 text-center"
                                      data-slot="kanban-empty-state">
-                                    <p class="text-sm text-muted-foreground mb-2">No cards yet</p>
-                                    <ui-button variant="ghost" size="sm" (clicked)="onAddCard()">Add a card</ui-button>
+                                    <p class="text-sm text-muted-foreground mb-2">{{ locale().noCardsYet }}</p>
+                                    <ui-button variant="ghost" size="sm" (clicked)="onAddCard()">{{ locale().addACard }}</ui-button>
                                 </div>
                             } @else {
                                 @for (c of visibleCards(); track c.id) {
@@ -865,6 +885,7 @@ export class KanbanColumnComponent implements AfterContentInit {
     title = input('');
     wipLimit = input<number | undefined>(undefined);
     collapsible = input(true);
+    locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
 
     collapsed = signal(false);
     dropIndicatorIndex = signal(-1);
@@ -1020,112 +1041,159 @@ export class KanbanColumnComponent implements AfterContentInit {
         ContextMenuComponent, ContextMenuContentComponent, ContextMenuItemComponent,
         ContextMenuSeparatorComponent, ContextMenuSubComponent,
         ContextMenuSubTriggerComponent, ContextMenuSubContentComponent,
+        ButtonComponent,
     ],
     providers: [{ provide: KANBAN, useExisting: forwardRef(() => KanbanComponent) }],
     template: `
-        <div [class]="classes()" [attr.data-slot]="'kanban'" (contextmenu)="onBoardContextMenu($event)">
-            @if (hasCustomColumns()) {
-                <ng-content />
-            } @else {
-                @for (col of sortedColumns(); track col.id) {
-                    <ui-kanban-column
-                        [columnId]="col.id"
-                        [title]="col.title"
-                        [wipLimit]="col.wipLimit"
-                        [collapsible]="true"
-                    />
+        <div [dir]="isRtl() ? 'rtl' : 'ltr'">
+            <div [class]="classes()" [attr.data-slot]="'kanban'" (contextmenu)="onBoardContextMenu($event)">
+                @if (hasCustomColumns()) {
+                    <ng-content />
+                } @else {
+                    @for (col of sortedColumns(); track col.id) {
+                        <ui-kanban-column
+                            [columnId]="col.id"
+                            [title]="col.title"
+                            [wipLimit]="col.wipLimit"
+                            [collapsible]="true"
+                            [locale]="resolvedLocale()"
+                        />
+                    }
                 }
+            </div>
+
+            <!-- Delete Toast (top center) -->
+            @if (deleteToastVisible()) {
+                <div class="fixed top-4 left-1/2 -translate-x-1/2 z-[100] w-full max-w-[420px] px-4"
+                     data-slot="kanban-delete-toast">
+                    <div class="group pointer-events-auto relative flex w-full items-center justify-between gap-2 overflow-hidden rounded-md border bg-background text-foreground p-4 ltr:pr-6 rtl:pl-6 shadow-lg">
+                        <div class="grid gap-1 flex-1">
+                            <div class="text-sm font-semibold">{{ resolvedLocale().cardDeleted }}</div>
+                            <div class="text-sm opacity-90">"{{ deleteToastCardTitle() }}" {{ resolvedLocale().cardRemovedDescription }}</div>
+                        </div>
+                        <ui-button variant="outline" size="sm" (clicked)="undoCardDelete()">
+                            {{ resolvedLocale().undo }}@if (deleteCountdown() > 0) {
+                                <span class="ltr:ml-1 rtl:mr-1">({{ deleteCountdown() }}s)</span>
+                            }
+                        </ui-button>
+                        <button
+                            class="absolute ltr:right-1 rtl:left-1 top-1 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 group-hover:opacity-100"
+                            (click)="dismissDeleteToast()"
+                            aria-label="Close"
+                        >
+                            <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </button>
+                        <div class="absolute bottom-0 left-0 right-0 h-1 bg-black/10">
+                            <div
+                                class="h-full bg-foreground/30 transition-[width] duration-1000 ease-linear"
+                                [style.width.%]="deleteProgressPercent()"
+                            ></div>
+                        </div>
+                    </div>
+                </div>
             }
+
+            <!-- Card Context Menu -->
+            <ui-context-menu #cardMenu>
+                <ui-context-menu-content class="w-52">
+                    <ui-context-menu-item (click)="onEditCard(cardMenu.data())">
+                        {{ resolvedLocale().editCardMenu }}
+                    </ui-context-menu-item>
+                    <ui-context-menu-item (click)="onDuplicateCard(cardMenu.data())">
+                        {{ resolvedLocale().duplicateCard }}
+                    </ui-context-menu-item>
+                    <ui-context-menu-sub>
+                        <ui-context-menu-sub-trigger>{{ resolvedLocale().moveTo }}</ui-context-menu-sub-trigger>
+                        <ui-context-menu-sub-content>
+                            @for (col of sortedColumns(); track col.id) {
+                                <ui-context-menu-item
+                                    [disabled]="col.id === cardMenu.data()?.columnId"
+                                    (click)="onMoveCardToColumn(cardMenu.data(), col.id)">
+                                    {{ col.title }}
+                                </ui-context-menu-item>
+                            }
+                        </ui-context-menu-sub-content>
+                    </ui-context-menu-sub>
+                    <ui-context-menu-sub>
+                        <ui-context-menu-sub-trigger>{{ resolvedLocale().setPriority }}</ui-context-menu-sub-trigger>
+                        <ui-context-menu-sub-content>
+                            @for (p of localizedPriorityOptions(); track p.value) {
+                                <ui-context-menu-item (click)="onSetCardPriority(cardMenu.data(), p.value)">
+                                    {{ p.label }}
+                                </ui-context-menu-item>
+                            }
+                        </ui-context-menu-sub-content>
+                    </ui-context-menu-sub>
+                    <ui-context-menu-separator />
+                    <ui-context-menu-item variant="destructive" (click)="onDeleteCard(cardMenu.data())">
+                        {{ resolvedLocale().deleteCardMenu }}
+                    </ui-context-menu-item>
+                </ui-context-menu-content>
+            </ui-context-menu>
+
+            <!-- Column Context Menu -->
+            <ui-context-menu #columnMenu>
+                <ui-context-menu-content class="w-52">
+                    <ui-context-menu-item (click)="onAddCard(columnMenu.data()?.id)">
+                        {{ resolvedLocale().addCardMenu }}
+                    </ui-context-menu-item>
+                    <ui-context-menu-separator />
+                    <ui-context-menu-item (click)="onRenameColumn(columnMenu.data())">
+                        {{ resolvedLocale().renameColumnMenu }}
+                    </ui-context-menu-item>
+                    <ui-context-menu-item (click)="onSetWipLimit(columnMenu.data())">
+                        {{ resolvedLocale().setWipLimitMenu }}
+                    </ui-context-menu-item>
+                    <ui-context-menu-separator />
+                    <ui-context-menu-item
+                        [disabled]="isFirstColumn(columnMenu.data())"
+                        (click)="onMoveColumnLeft(columnMenu.data())">
+                        {{ resolvedLocale().moveLeft }}
+                    </ui-context-menu-item>
+                    <ui-context-menu-item
+                        [disabled]="isLastColumnCheck(columnMenu.data())"
+                        (click)="onMoveColumnRight(columnMenu.data())">
+                        {{ resolvedLocale().moveRight }}
+                    </ui-context-menu-item>
+                    <ui-context-menu-separator />
+                    <ui-context-menu-item variant="destructive" (click)="onDeleteColumn(columnMenu.data())">
+                        {{ resolvedLocale().deleteColumnMenu }}
+                    </ui-context-menu-item>
+                </ui-context-menu-content>
+            </ui-context-menu>
+
+            <!-- Board Context Menu -->
+            <ui-context-menu #boardMenu>
+                <ui-context-menu-content class="w-44">
+                    <ui-context-menu-item (click)="onAddColumn()">{{ resolvedLocale().addColumnMenu }}</ui-context-menu-item>
+                </ui-context-menu-content>
+            </ui-context-menu>
+
+            <!-- Dialogs -->
+            <ui-kanban-card-dialog
+                [locale]="resolvedLocale()"
+                [haveLabels]="haveLabels()"
+                [haveAssignees]="haveAssignees()"
+                [assigneeOptions]="assigneeOptions()"
+                (submitted)="onCardDialogSubmitted($event)"
+            />
+            <ui-kanban-column-dialog [locale]="resolvedLocale()" (submitted)="onColumnDialogSubmitted($event)" />
+            <ui-kanban-delete-column-dialog [locale]="resolvedLocale()" [columns]="columns()" (confirmed)="onDeleteColumnConfirmed($event)" />
         </div>
-
-        <!-- Card Context Menu -->
-        <ui-context-menu #cardMenu>
-            <ui-context-menu-content class="w-52">
-                <ui-context-menu-item (click)="onEditCard(cardMenu.data())">
-                    Edit Card
-                </ui-context-menu-item>
-                <ui-context-menu-item (click)="onDuplicateCard(cardMenu.data())">
-                    Duplicate Card
-                </ui-context-menu-item>
-                <ui-context-menu-sub>
-                    <ui-context-menu-sub-trigger>Move to</ui-context-menu-sub-trigger>
-                    <ui-context-menu-sub-content>
-                        @for (col of sortedColumns(); track col.id) {
-                            <ui-context-menu-item
-                                [disabled]="col.id === cardMenu.data()?.columnId"
-                                (click)="onMoveCardToColumn(cardMenu.data(), col.id)">
-                                {{ col.title }}
-                            </ui-context-menu-item>
-                        }
-                    </ui-context-menu-sub-content>
-                </ui-context-menu-sub>
-                <ui-context-menu-sub>
-                    <ui-context-menu-sub-trigger>Set Priority</ui-context-menu-sub-trigger>
-                    <ui-context-menu-sub-content>
-                        @for (p of priorityOptions; track p.value) {
-                            <ui-context-menu-item (click)="onSetCardPriority(cardMenu.data(), p.value)">
-                                {{ p.label }}
-                            </ui-context-menu-item>
-                        }
-                    </ui-context-menu-sub-content>
-                </ui-context-menu-sub>
-                <ui-context-menu-separator />
-                <ui-context-menu-item variant="destructive" (click)="onDeleteCard(cardMenu.data())">
-                    Delete Card
-                </ui-context-menu-item>
-            </ui-context-menu-content>
-        </ui-context-menu>
-
-        <!-- Column Context Menu -->
-        <ui-context-menu #columnMenu>
-            <ui-context-menu-content class="w-52">
-                <ui-context-menu-item (click)="onAddCard(columnMenu.data()?.id)">
-                    Add Card
-                </ui-context-menu-item>
-                <ui-context-menu-separator />
-                <ui-context-menu-item (click)="onRenameColumn(columnMenu.data())">
-                    Rename Column
-                </ui-context-menu-item>
-                <ui-context-menu-item (click)="onSetWipLimit(columnMenu.data())">
-                    Set WIP Limit
-                </ui-context-menu-item>
-                <ui-context-menu-separator />
-                <ui-context-menu-item
-                    [disabled]="isFirstColumn(columnMenu.data())"
-                    (click)="onMoveColumnLeft(columnMenu.data())">
-                    Move Left
-                </ui-context-menu-item>
-                <ui-context-menu-item
-                    [disabled]="isLastColumnCheck(columnMenu.data())"
-                    (click)="onMoveColumnRight(columnMenu.data())">
-                    Move Right
-                </ui-context-menu-item>
-                <ui-context-menu-separator />
-                <ui-context-menu-item variant="destructive" (click)="onDeleteColumn(columnMenu.data())">
-                    Delete Column
-                </ui-context-menu-item>
-            </ui-context-menu-content>
-        </ui-context-menu>
-
-        <!-- Board Context Menu -->
-        <ui-context-menu #boardMenu>
-            <ui-context-menu-content class="w-44">
-                <ui-context-menu-item (click)="onAddColumn()">Add Column</ui-context-menu-item>
-            </ui-context-menu-content>
-        </ui-context-menu>
-
-        <!-- Dialogs -->
-        <ui-kanban-card-dialog (submitted)="onCardDialogSubmitted($event)" />
-        <ui-kanban-column-dialog (submitted)="onColumnDialogSubmitted($event)" />
-        <ui-kanban-delete-column-dialog [columns]="columns()" (confirmed)="onDeleteColumnConfirmed($event)" />
     `,
     host: { class: 'block' },
 })
 export class KanbanComponent implements AfterContentInit, OnDestroy {
-    private readonly toast = inject(ToastService);
     private readonly shortcuts = inject(ShortcutBindingService);
 
     class = input('');
+    locale = input<string | KanbanLocale>('en');
+    rtl = model<boolean>(false);
+    haveLabels = input(true);
+    haveAssignees = input(true);
+    assigneeOptions = input<{ name: string; avatar?: string }[]>([]);
 
     columns = input<KanbanColumn[]>([]);
     cards = input<KanbanCard[]>([]);
@@ -1154,16 +1222,44 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     private _hasCustomColumns = signal(false);
     hasCustomColumns = this._hasCustomColumns.asReadonly();
 
-    readonly priorityOptions = PRIORITY_OPTIONS;
+    resolvedLocale = computed((): KanbanLocale => {
+        const loc = this.locale();
+        if (typeof loc === 'string') {
+            return KANBAN_LOCALES[loc] ?? KANBAN_LOCALES['en'];
+        }
+        return loc;
+    });
 
+    isRtl = computed(() => this.rtl());
+
+    localizedPriorityOptions = computed(() => {
+        const l = this.resolvedLocale();
+        return [
+            { label: l.priorityLow, value: 'low' as const },
+            { label: l.priorityMedium, value: 'medium' as const },
+            { label: l.priorityHigh, value: 'high' as const },
+            { label: l.priorityUrgent, value: 'urgent' as const },
+            { label: l.priorityNone, value: 'none' as const },
+        ];
+    });
+
+    private readonly DELETE_DURATION = 6000;
     private readonly MAX_HISTORY = 50;
     private undoStack: KanbanHistorySnapshot[] = [];
     private redoStack: KanbanHistorySnapshot[] = [];
 
+    deleteToastVisible = signal(false);
+    deleteToastCardTitle = signal('');
+    deleteCountdown = signal(0);
+    deleteProgressPercent = computed(() => {
+        const total = Math.ceil(this.DELETE_DURATION / 1000);
+        return Math.max(0, (this.deleteCountdown() / total) * 100);
+    });
+
     private pendingDeletes = new Map<string, {
         card: KanbanCard;
         timeoutId: ReturnType<typeof setTimeout>;
-        toastId: string;
+        countdownIntervalId: ReturnType<typeof setInterval>;
     }>();
 
     private shortcutHandle?: ShortcutComponentHandle;
@@ -1187,6 +1283,13 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
                 category: 'Kanban',
             },
         ]);
+
+        effect(() => {
+            const loc = this.resolvedLocale();
+            untracked(() => {
+                this.rtl.set(loc.rtl);
+            });
+        });
     }
 
     ngAfterContentInit() {
@@ -1355,37 +1458,56 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         const updatedCards = this.cards().filter(c => c.id !== card.id);
         this.cardsChange.emit(updatedCards);
 
-        const toastId = this.toast.toast({
-            title: 'Card deleted',
-            description: `"${card.title}" was removed.`,
-            duration: 6000,
-            action: {
-                label: 'Undo',
-                onClick: () => this.undoCardDelete(card.id),
-            },
-        });
+        this.cancelAllPendingDeletes();
+
+        const totalSeconds = Math.ceil(this.DELETE_DURATION / 1000);
+        this.deleteToastVisible.set(true);
+        this.deleteToastCardTitle.set(card.title);
+        this.deleteCountdown.set(totalSeconds);
+
+        const countdownIntervalId = setInterval(() => {
+            this.deleteCountdown.update(v => {
+                const next = v - 1;
+                if (next <= 0) return 0;
+                return next;
+            });
+        }, 1000);
 
         const timeoutId = setTimeout(() => {
             this.pendingDeletes.delete(card.id);
+            this.deleteToastVisible.set(false);
+            clearInterval(countdownIntervalId);
             this.cardDeleted.emit(card.id);
-        }, 6000);
+        }, this.DELETE_DURATION);
 
-        this.pendingDeletes.set(card.id, { card, timeoutId, toastId });
+        this.pendingDeletes.set(card.id, { card, timeoutId, countdownIntervalId });
     }
 
-    private undoCardDelete(cardId: string) {
-        const pending = this.pendingDeletes.get(cardId);
-        if (!pending) return;
+    undoCardDelete() {
+        const entry = Array.from(this.pendingDeletes.entries()).pop();
+        if (!entry) return;
+        const [cardId, pending] = entry;
 
         clearTimeout(pending.timeoutId);
-        this.toast.dismiss(pending.toastId);
+        clearInterval(pending.countdownIntervalId);
         this.pendingDeletes.delete(cardId);
+        this.deleteToastVisible.set(false);
 
         const restoredCards = [...this.cards(), pending.card];
         this.cardsChange.emit(restoredCards);
 
         this.undoStack.pop();
         this.emitHistoryState();
+    }
+
+    dismissDeleteToast() {
+        this.deleteToastVisible.set(false);
+        for (const [cardId, pending] of this.pendingDeletes.entries()) {
+            clearTimeout(pending.timeoutId);
+            clearInterval(pending.countdownIntervalId);
+            this.pendingDeletes.delete(cardId);
+            this.cardDeleted.emit(cardId);
+        }
     }
 
     // ── Column Actions ───────────────────────────────────────────
@@ -1552,8 +1674,9 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     private cancelAllPendingDeletes() {
         for (const [, pending] of this.pendingDeletes.entries()) {
             clearTimeout(pending.timeoutId);
-            this.toast.dismiss(pending.toastId);
+            clearInterval(pending.countdownIntervalId);
         }
         this.pendingDeletes.clear();
+        this.deleteToastVisible.set(false);
     }
 }
