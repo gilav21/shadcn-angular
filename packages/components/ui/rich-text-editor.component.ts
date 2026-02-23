@@ -1107,6 +1107,19 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             {{ resolvedLocale().table.toggleHeaderRow }}
           </button>
           <div class="my-1 h-px bg-border"></div>
+          @if (tableCellSelected().length >= 2) {
+            <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="mergeCells()">
+              {{ resolvedLocale().table.mergeCells }}
+            </button>
+          }
+          @if (canSplitCell()) {
+            <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="splitCell()">
+              {{ resolvedLocale().table.splitCell }}
+            </button>
+          }
+          @if (tableCellSelected().length >= 2 || canSplitCell()) {
+            <div class="my-1 h-px bg-border"></div>
+          }
           <div class="px-2 py-1.5">
             <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.borders }}</div>
             <div class="flex items-center gap-1">
@@ -1491,6 +1504,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         '#fecaca', '#fed7aa', '#fde68a', '#d9ead3', '#d0e0e3', '#cfe2f3', '#d9d2e9', '#ead1dc',
     ];
 
+    private tableCellSelecting = false;
+    private tableCellSelectAnchor: HTMLTableCellElement | null = null;
+    tableCellSelected = signal<HTMLTableCellElement[]>([]);
+    private readonly onTableCellSelectMoveBound = this.onTableCellSelectMove.bind(this);
+    private readonly onTableCellSelectUpBound = this.onTableCellSelectUp.bind(this);
+
     private autoUploadMap = new Map<string, { subscription: Subscription; dataUrl: string }>();
     private autoUploadObserver: MutationObserver | null = null;
     private autoUploadCounter = 0;
@@ -1554,6 +1573,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_table]:border-collapse [&_table]:w-full [&_table]:my-2',
             '[&_td]:border [&_td]:border-border [&_td]:p-2 [&_td]:min-w-[60px]',
             '[&_th]:border [&_th]:border-border [&_th]:p-2 [&_th]:bg-muted [&_th]:font-semibold [&_th]:text-left',
+            '[&_td.rte-cell-selected]:bg-primary/15 [&_th.rte-cell-selected]:bg-primary/25',
             // Nested list margin reset
             '[&_ul_ul]:my-0 [&_ol_ol]:my-0 [&_ul_ol]:my-0 [&_ol_ul]:my-0',
             // Task list styles
@@ -3649,44 +3669,56 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onEditorMouseDown(event: MouseEvent): void {
-        if (!this.tableResizeCursor() || this.readonly() || this.disabled()) return;
+        if (this.readonly() || this.disabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest('td, th') as HTMLTableCellElement | null;
-        if (!cell) return;
 
-        const table = cell.closest('table') as HTMLTableElement | null;
-        if (!table) return;
+        this.clearCellSelection();
 
-        const row = cell.parentElement as HTMLTableRowElement;
-        const cellRect = cell.getBoundingClientRect();
-        const colIndex = Array.from(row.cells).indexOf(cell);
-        const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
-        const resizeColIndex = nearLeftBorder ? colIndex - 1 : colIndex;
+        if (this.tableResizeCursor()) {
+            if (!cell) return;
+            const table = cell.closest('table') as HTMLTableElement | null;
+            if (!table) return;
 
-        event.preventDefault();
-        event.stopPropagation();
+            const row = cell.parentElement as HTMLTableRowElement;
+            const cellRect = cell.getBoundingClientRect();
+            const colIndex = Array.from(row.cells).indexOf(cell);
+            const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
+            const resizeColIndex = nearLeftBorder ? colIndex - 1 : colIndex;
 
-        const firstRow = table.rows[0];
-        if (!firstRow) return;
-        const widths = Array.from(firstRow.cells).map(c => c.getBoundingClientRect().width);
-        const tableWidth = table.getBoundingClientRect().width;
+            event.preventDefault();
+            event.stopPropagation();
 
-        table.style.tableLayout = 'fixed';
-        table.style.width = `${tableWidth}px`;
-        for (let i = 0; i < firstRow.cells.length; i++) {
-            firstRow.cells[i].style.width = `${widths[i]}px`;
+            const firstRow = table.rows[0];
+            if (!firstRow) return;
+            const widths = Array.from(firstRow.cells).map(c => c.getBoundingClientRect().width);
+            const tableWidth = table.getBoundingClientRect().width;
+
+            table.style.tableLayout = 'fixed';
+            table.style.width = `${tableWidth}px`;
+            for (let i = 0; i < firstRow.cells.length; i++) {
+                firstRow.cells[i].style.width = `${widths[i]}px`;
+            }
+
+            this.tableResizeState = {
+                table,
+                colIndex: resizeColIndex,
+                startX: event.clientX,
+                startWidths: widths,
+                tableWidth,
+            };
+
+            this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
+            this.document.addEventListener('mouseup', this.onTableResizeUpBound);
+            return;
         }
 
-        this.tableResizeState = {
-            table,
-            colIndex: resizeColIndex,
-            startX: event.clientX,
-            startWidths: widths,
-            tableWidth,
-        };
-
-        this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
-        this.document.addEventListener('mouseup', this.onTableResizeUpBound);
+        if (cell && this.editorDiv?.nativeElement.contains(cell)) {
+            this.tableCellSelecting = true;
+            this.tableCellSelectAnchor = cell;
+            this.document.addEventListener('mousemove', this.onTableCellSelectMoveBound);
+            this.document.addEventListener('mouseup', this.onTableCellSelectUpBound);
+        }
     }
 
     private onTableResizeMove(event: MouseEvent): void {
@@ -3719,6 +3751,228 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.applyMutation({ focus: false });
     }
 
+    private onTableCellSelectMove(event: MouseEvent): void {
+        if (!this.tableCellSelecting || !this.tableCellSelectAnchor) return;
+        const target = this.document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+        if (!target) return;
+        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        if (!cell) return;
+        const anchorTable = this.tableCellSelectAnchor.closest('table');
+        if (!anchorTable || cell.closest('table') !== anchorTable) return;
+        this.updateCellSelection(this.tableCellSelectAnchor, cell);
+    }
+
+    private onTableCellSelectUp(): void {
+        this.tableCellSelecting = false;
+        this.document.removeEventListener('mousemove', this.onTableCellSelectMoveBound);
+        this.document.removeEventListener('mouseup', this.onTableCellSelectUpBound);
+    }
+
+    private clearCellSelection(): void {
+        for (const cell of this.tableCellSelected()) {
+            cell.classList.remove('rte-cell-selected');
+        }
+        this.tableCellSelected.set([]);
+    }
+
+    private buildCellGrid(table: HTMLTableElement): (HTMLTableCellElement | null)[][] {
+        const rows = Array.from(table.querySelectorAll('tr'));
+        const maxCols = rows.reduce((max, row) => {
+            let count = 0;
+            for (let i = 0; i < row.cells.length; i++) {
+                count += row.cells[i].colSpan;
+            }
+            return Math.max(max, count);
+        }, 0);
+
+        const grid: (HTMLTableCellElement | null)[][] = rows.map(() => Array(maxCols).fill(null));
+        for (let ri = 0; ri < rows.length; ri++) {
+            let ci = 0;
+            for (let cellIdx = 0; cellIdx < rows[ri].cells.length; cellIdx++) {
+                while (ci < maxCols && grid[ri][ci] !== null) ci++;
+                if (ci >= maxCols) break;
+                const cell = rows[ri].cells[cellIdx];
+                const rs = cell.rowSpan || 1;
+                const cs = cell.colSpan || 1;
+                for (let dr = 0; dr < rs; dr++) {
+                    for (let dc = 0; dc < cs; dc++) {
+                        if (ri + dr < rows.length && ci + dc < maxCols) {
+                            grid[ri + dr][ci + dc] = cell;
+                        }
+                    }
+                }
+                ci += cs;
+            }
+        }
+        return grid;
+    }
+
+    private getCellGridBounds(grid: (HTMLTableCellElement | null)[][], cell: HTMLTableCellElement): { minRow: number; minCol: number; maxRow: number; maxCol: number } {
+        for (let ri = 0; ri < grid.length; ri++) {
+            for (let ci = 0; ci < grid[ri].length; ci++) {
+                if (grid[ri][ci] === cell) {
+                    return {
+                        minRow: ri,
+                        minCol: ci,
+                        maxRow: ri + (cell.rowSpan || 1) - 1,
+                        maxCol: ci + (cell.colSpan || 1) - 1,
+                    };
+                }
+            }
+        }
+        return { minRow: 0, minCol: 0, maxRow: 0, maxCol: 0 };
+    }
+
+    private updateCellSelection(anchor: HTMLTableCellElement, current: HTMLTableCellElement): void {
+        const table = anchor.closest('table') as HTMLTableElement;
+        if (!table) return;
+
+        const grid = this.buildCellGrid(table);
+        const aBounds = this.getCellGridBounds(grid, anchor);
+        const cBounds = this.getCellGridBounds(grid, current);
+
+        let minRow = Math.min(aBounds.minRow, cBounds.minRow);
+        let maxRow = Math.max(aBounds.maxRow, cBounds.maxRow);
+        let minCol = Math.min(aBounds.minCol, cBounds.minCol);
+        let maxCol = Math.max(aBounds.maxCol, cBounds.maxCol);
+
+        let expanded = true;
+        while (expanded) {
+            expanded = false;
+            for (let ri = minRow; ri <= maxRow; ri++) {
+                for (let ci = minCol; ci <= maxCol; ci++) {
+                    const c = grid[ri]?.[ci];
+                    if (!c) continue;
+                    const b = this.getCellGridBounds(grid, c);
+                    if (b.minRow < minRow) { minRow = b.minRow; expanded = true; }
+                    if (b.maxRow > maxRow) { maxRow = b.maxRow; expanded = true; }
+                    if (b.minCol < minCol) { minCol = b.minCol; expanded = true; }
+                    if (b.maxCol > maxCol) { maxCol = b.maxCol; expanded = true; }
+                }
+            }
+        }
+
+        const cells = new Set<HTMLTableCellElement>();
+        for (let ri = minRow; ri <= maxRow; ri++) {
+            for (let ci = minCol; ci <= maxCol; ci++) {
+                const c = grid[ri]?.[ci];
+                if (c) cells.add(c);
+            }
+        }
+
+        this.clearCellSelection();
+        const selected = Array.from(cells);
+        if (selected.length > 1) {
+            for (const cell of selected) {
+                cell.classList.add('rte-cell-selected');
+            }
+            this.tableCellSelected.set(selected);
+        }
+    }
+
+    mergeCells(): void {
+        this.tableContextMenuOpen.set(false);
+        const selected = this.tableCellSelected();
+        if (selected.length < 2) return;
+
+        const table = selected[0].closest('table') as HTMLTableElement;
+        if (!table) return;
+
+        const grid = this.buildCellGrid(table);
+
+        let minRow = Infinity, maxRow = -1, minCol = Infinity, maxCol = -1;
+        for (const cell of selected) {
+            const b = this.getCellGridBounds(grid, cell);
+            minRow = Math.min(minRow, b.minRow);
+            maxRow = Math.max(maxRow, b.maxRow);
+            minCol = Math.min(minCol, b.minCol);
+            maxCol = Math.max(maxCol, b.maxCol);
+        }
+
+        const topLeftCell = grid[minRow]?.[minCol];
+        if (!topLeftCell) return;
+
+        const contentParts: string[] = [];
+        const processedCells = new Set<HTMLTableCellElement>();
+        for (let ri = minRow; ri <= maxRow; ri++) {
+            for (let ci = minCol; ci <= maxCol; ci++) {
+                const c = grid[ri]?.[ci];
+                if (c && !processedCells.has(c)) {
+                    processedCells.add(c);
+                    const text = c.textContent?.trim() ?? '';
+                    if (text) {
+                        contentParts.push(c.innerHTML);
+                    }
+                }
+            }
+        }
+
+        topLeftCell.colSpan = maxCol - minCol + 1;
+        topLeftCell.rowSpan = maxRow - minRow + 1;
+        topLeftCell.innerHTML = contentParts.length > 0 ? contentParts.join(' ') : '<br>';
+
+        for (const c of processedCells) {
+            if (c !== topLeftCell) {
+                c.remove();
+            }
+        }
+
+        this.clearCellSelection();
+        this.applyMutation({ focus: true });
+    }
+
+    canSplitCell(): boolean {
+        const target = this.tableContextMenuTarget;
+        if (!target) return false;
+        return (target.colSpan > 1 || target.rowSpan > 1);
+    }
+
+    splitCell(): void {
+        this.tableContextMenuOpen.set(false);
+        const target = this.tableContextMenuTarget;
+        if (!target) return;
+        const rs = target.rowSpan || 1;
+        const cs = target.colSpan || 1;
+        if (rs <= 1 && cs <= 1) return;
+
+        const table = target.closest('table') as HTMLTableElement;
+        if (!table) return;
+        const grid = this.buildCellGrid(table);
+        const bounds = this.getCellGridBounds(grid, target);
+
+        target.removeAttribute('colspan');
+        target.removeAttribute('rowspan');
+
+        const rows = Array.from(table.querySelectorAll('tr'));
+        for (let ri = bounds.minRow; ri <= bounds.maxRow; ri++) {
+            const row = rows[ri];
+            if (!row) continue;
+            for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
+                if (ri === bounds.minRow && ci === bounds.minCol) continue;
+                const isHeader = row.closest('thead') !== null;
+                const newCell = this.document.createElement(isHeader ? 'th' : 'td');
+                newCell.innerHTML = '<br>';
+
+                let refNode: HTMLTableCellElement | null = null;
+                for (let searchCol = ci + 1; searchCol < grid[ri].length; searchCol++) {
+                    const candidate = grid[ri][searchCol];
+                    if (candidate && candidate !== target && candidate.parentElement === row) {
+                        refNode = candidate;
+                        break;
+                    }
+                }
+                if (refNode) {
+                    row.insertBefore(newCell, refNode);
+                } else {
+                    row.appendChild(newCell);
+                }
+            }
+        }
+
+        this.clearCellSelection();
+        this.applyMutation({ focus: true });
+    }
+
     private insertTable(rows: number, cols: number): void {
         const headerCells = Array.from({ length: cols }, () => '<th><br></th>').join('');
         const bodyRow = '<tr>' + Array.from({ length: cols }, () => '<td><br></td>').join('') + '</tr>';
@@ -3744,9 +3998,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.tableContextMenuOpen.set(false);
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
-        const newRow = info.row.cloneNode(true) as HTMLTableRowElement;
-        Array.from(newRow.cells).forEach(cell => { cell.innerHTML = '<br>'; });
-        info.row.parentNode?.insertBefore(newRow, info.row);
+        const grid = this.buildCellGrid(info.table);
+        const bounds = this.getCellGridBounds(grid, info.cell);
+        const insertAtRow = bounds.minRow;
+        this.insertTableRowAt(info.table, grid, insertAtRow);
         this.applyMutation({ focus: true });
     }
 
@@ -3754,10 +4009,55 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.tableContextMenuOpen.set(false);
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
-        const newRow = info.row.cloneNode(true) as HTMLTableRowElement;
-        Array.from(newRow.cells).forEach(cell => { cell.innerHTML = '<br>'; });
-        info.row.parentNode?.insertBefore(newRow, info.row.nextSibling);
+        const grid = this.buildCellGrid(info.table);
+        const bounds = this.getCellGridBounds(grid, info.cell);
+        const insertAtRow = bounds.maxRow + 1;
+        this.insertTableRowAt(info.table, grid, insertAtRow);
         this.applyMutation({ focus: true });
+    }
+
+    private insertTableRowAt(table: HTMLTableElement, grid: (HTMLTableCellElement | null)[][], insertAtRow: number): void {
+        const rows = Array.from(table.querySelectorAll('tr'));
+        const numCols = grid[0]?.length ?? 0;
+        const isHeader = insertAtRow === 0 && table.querySelector('thead') !== null;
+        const newRow = this.document.createElement('tr');
+
+        const processed = new Set<HTMLTableCellElement>();
+        for (let ci = 0; ci < numCols; ci++) {
+            if (insertAtRow > 0 && insertAtRow < grid.length) {
+                const cellAbove = grid[insertAtRow - 1]?.[ci];
+                const cellBelow = grid[insertAtRow]?.[ci];
+                if (cellAbove && cellAbove === cellBelow && !processed.has(cellAbove)) {
+                    processed.add(cellAbove);
+                    cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
+                    continue;
+                }
+            } else if (insertAtRow >= grid.length && insertAtRow > 0) {
+                const cellAbove = grid[insertAtRow - 1]?.[ci];
+                if (cellAbove && !processed.has(cellAbove)) {
+                    const aboveBounds = this.getCellGridBounds(grid, cellAbove);
+                    if (aboveBounds.maxRow >= grid.length - 1 && aboveBounds.minRow < grid.length - 1) {
+                        processed.add(cellAbove);
+                        cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
+                        continue;
+                    }
+                }
+            }
+
+            if (processed.has(grid[insertAtRow > 0 ? insertAtRow - 1 : 0]?.[ci]!)) continue;
+
+            const newCell = this.document.createElement(isHeader ? 'th' : 'td');
+            newCell.innerHTML = '<br>';
+            newRow.appendChild(newCell);
+        }
+
+        if (insertAtRow >= rows.length) {
+            const parent = table.querySelector('tbody') ?? table;
+            parent.appendChild(newRow);
+        } else {
+            const refRow = rows[insertAtRow];
+            refRow.parentNode?.insertBefore(newRow, refRow);
+        }
     }
 
     addTableColumnLeft(): void {
@@ -3780,24 +4080,58 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.tableContextMenuOpen.set(false);
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
+
+        const grid = this.buildCellGrid(info.table);
+        const cellBounds = this.getCellGridBounds(grid, info.cell);
+        const insertAtCol = position === 'before' ? cellBounds.minCol : cellBounds.maxCol + 1;
         const rows = Array.from(info.table.querySelectorAll('tr'));
-        for (const row of rows) {
+        const numCols = grid[0]?.length ?? 0;
+
+        const processed = new Set<HTMLTableCellElement>();
+        for (let ri = 0; ri < grid.length; ri++) {
+            if (insertAtCol > 0 && insertAtCol < numCols) {
+                const cellLeft = grid[ri]?.[insertAtCol - 1];
+                const cellRight = grid[ri]?.[insertAtCol];
+                if (cellLeft && cellLeft === cellRight && !processed.has(cellLeft)) {
+                    processed.add(cellLeft);
+                    cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
+                    continue;
+                }
+            } else if (insertAtCol >= numCols && insertAtCol > 0) {
+                const cellLeft = grid[ri]?.[insertAtCol - 1];
+                if (cellLeft && !processed.has(cellLeft)) {
+                    const leftBounds = this.getCellGridBounds(grid, cellLeft);
+                    if (leftBounds.maxCol >= numCols - 1 && leftBounds.minCol < numCols - 1) {
+                        processed.add(cellLeft);
+                        cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
+                        continue;
+                    }
+                }
+            }
+
+            if (processed.has(grid[ri]?.[insertAtCol > 0 ? insertAtCol - 1 : 0]!)) continue;
+
+            const row = rows[ri];
+            if (!row) continue;
             const isHeader = row.closest('thead') !== null;
             const newCell = this.document.createElement(isHeader ? 'th' : 'td');
             newCell.innerHTML = '<br>';
-            const refCell = row.cells[info.colIndex];
-            if (position === 'before') {
-                if (refCell) {
-                    row.insertBefore(newCell, refCell);
-                } else {
-                    row.appendChild(newCell);
+
+            let refCell: HTMLTableCellElement | null = null;
+            for (let searchCol = insertAtCol; searchCol < numCols; searchCol++) {
+                const candidate = grid[ri]?.[searchCol];
+                if (candidate && candidate.parentElement === row) {
+                    const candidateBounds = this.getCellGridBounds(grid, candidate);
+                    if (candidateBounds.minCol >= insertAtCol) {
+                        refCell = candidate;
+                        break;
+                    }
                 }
+            }
+            if (refCell) {
+                row.insertBefore(newCell, refCell);
             } else {
-                if (refCell && refCell.nextSibling) {
-                    row.insertBefore(newCell, refCell.nextSibling);
-                } else {
-                    row.appendChild(newCell);
-                }
+                row.appendChild(newCell);
             }
         }
         this.applyMutation({ focus: true });
@@ -3807,11 +4141,44 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.tableContextMenuOpen.set(false);
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
-        const allRows = info.table.querySelectorAll('tr');
+        const allRows = Array.from(info.table.querySelectorAll('tr'));
         if (allRows.length <= 1) {
             info.table.remove();
         } else {
-            info.row.remove();
+            const grid = this.buildCellGrid(info.table);
+            const bounds = this.getCellGridBounds(grid, info.cell);
+            const rowToDelete = bounds.minRow;
+            const numCols = grid[0]?.length ?? 0;
+
+            const processed = new Set<HTMLTableCellElement>();
+            for (let ci = 0; ci < numCols; ci++) {
+                const cell = grid[rowToDelete]?.[ci];
+                if (!cell || processed.has(cell)) continue;
+                processed.add(cell);
+                const cellBounds = this.getCellGridBounds(grid, cell);
+                if (cellBounds.minRow < rowToDelete || cellBounds.maxRow > rowToDelete) {
+                    cell.rowSpan = Math.max(1, (cell.rowSpan || 1) - 1);
+                    if (cellBounds.minRow === rowToDelete && rowToDelete + 1 < allRows.length) {
+                        const nextRow = allRows[rowToDelete + 1];
+                        let inserted = false;
+                        for (let searchCol = ci + (cell.colSpan || 1); searchCol < numCols; searchCol++) {
+                            const neighbor = grid[rowToDelete + 1]?.[searchCol];
+                            if (neighbor && neighbor !== cell && neighbor.parentElement === nextRow) {
+                                const neighborBounds = this.getCellGridBounds(grid, neighbor);
+                                if (neighborBounds.minRow === rowToDelete + 1) {
+                                    nextRow.insertBefore(cell, neighbor);
+                                    inserted = true;
+                                    break;
+                                }
+                            }
+                        }
+                        if (!inserted) {
+                            nextRow.appendChild(cell);
+                        }
+                    }
+                }
+            }
+            allRows[rowToDelete].remove();
         }
         this.tableContextMenuTarget = null;
         this.applyMutation({ focus: true });
@@ -3821,14 +4188,26 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.tableContextMenuOpen.set(false);
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
-        const rows = Array.from(info.table.querySelectorAll('tr'));
-        const colCount = rows[0]?.cells.length ?? 0;
-        if (colCount <= 1) {
+
+        const grid = this.buildCellGrid(info.table);
+        const numCols = grid[0]?.length ?? 0;
+        if (numCols <= 1) {
             info.table.remove();
         } else {
-            for (const row of rows) {
-                const cell = row.cells[info.colIndex];
-                if (cell) cell.remove();
+            const bounds = this.getCellGridBounds(grid, info.cell);
+            const colToDelete = bounds.minCol;
+
+            const processed = new Set<HTMLTableCellElement>();
+            for (let ri = 0; ri < grid.length; ri++) {
+                const cell = grid[ri]?.[colToDelete];
+                if (!cell || processed.has(cell)) continue;
+                processed.add(cell);
+                const cellBounds = this.getCellGridBounds(grid, cell);
+                if (cellBounds.minCol < colToDelete || cellBounds.maxCol > colToDelete) {
+                    cell.colSpan = Math.max(1, (cell.colSpan || 1) - 1);
+                } else {
+                    cell.remove();
+                }
             }
         }
         this.tableContextMenuTarget = null;
