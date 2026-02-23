@@ -3673,7 +3673,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const target = event.target as HTMLElement;
         const cell = target.closest('td, th') as HTMLTableCellElement | null;
 
-        this.clearCellSelection();
+        const isRightClick = event.button === 2;
+        const clickedOnSelected = isRightClick && cell && this.tableCellSelected().includes(cell);
+        if (!clickedOnSelected) {
+            this.clearCellSelection();
+        }
 
         if (this.tableResizeCursor()) {
             if (!cell) return;

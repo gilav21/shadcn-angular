@@ -1558,5 +1558,47 @@ describe('RichTextEditorComponent', () => {
 
             expect(component.tableContextMenuOpen()).toBe(false);
         });
+
+        it('right-click on a selected cell preserves cell selection', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cellA1 = row.cells[0];
+            const cellA2 = row.cells[1];
+
+            cellA1.classList.add('rte-cell-selected');
+            cellA2.classList.add('rte-cell-selected');
+            component.tableCellSelected.set([cellA1, cellA2]);
+
+            const rightClick = new MouseEvent('mousedown', {
+                button: 2,
+                bubbles: true,
+                cancelable: true,
+            });
+            cellA1.dispatchEvent(rightClick);
+
+            expect(component.tableCellSelected().length).toBe(2);
+            expect(component.tableCellSelected()).toContain(cellA1);
+            expect(component.tableCellSelected()).toContain(cellA2);
+        });
+
+        it('left-click clears cell selection', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cellA1 = row.cells[0];
+            const cellA2 = row.cells[1];
+
+            cellA1.classList.add('rte-cell-selected');
+            cellA2.classList.add('rte-cell-selected');
+            component.tableCellSelected.set([cellA1, cellA2]);
+
+            const leftClick = new MouseEvent('mousedown', {
+                button: 0,
+                bubbles: true,
+                cancelable: true,
+            });
+            cellA1.dispatchEvent(leftClick);
+
+            expect(component.tableCellSelected().length).toBe(0);
+        });
     });
 });
