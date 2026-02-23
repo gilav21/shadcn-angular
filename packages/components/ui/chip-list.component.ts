@@ -55,9 +55,12 @@ export type ChipListVariant = VariantProps<typeof chipListVariants>['variant'];
       (click)="focusInput()"
     >
       @for (chip of chips(); track chip; let i = $index) {
-        <ui-badge 
-          [variant]="badgeVariant()" 
+        <ui-badge
+          [variant]="chipColors()[chip] ? 'default' : badgeVariant()"
           [class]="'shrink-0 gap-1' + (disabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
+          [style.backgroundColor]="chipColors()[chip] || null"
+          [style.color]="chipColors()[chip] ? 'white' : null"
+          [style.borderColor]="chipColors()[chip] || null"
           [attr.data-slot]="'chip'"
         >
           <span class="max-w-[200px] truncate">{{ chip }}</span>
@@ -111,6 +114,7 @@ export class ChipListComponent implements ControlValueAccessor {
   badgeVariant = input<BadgeVariant>('default');
   class = input('');
 
+  chipColors = input<Record<string, string>>({});
   maxRows = input(0);
   allowDuplicates = input(false);
   separatorKeys = input<string[]>([]);

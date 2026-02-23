@@ -389,6 +389,10 @@ export class ContextMenuSubComponent {
     registerTrigger(t: ContextMenuSubTriggerComponent) { this.trigger = t; }
     registerContent(c: ContextMenuSubContentComponent) { this.content = c; }
 
+    getTriggerElement(): HTMLElement | null {
+        return this.trigger?.triggerEl?.nativeElement ?? null;
+    }
+
     enter() {
         clearTimeout(this.timeoutId);
         this.isOpen.set(true);
@@ -492,9 +496,14 @@ export class ContextMenuSubTriggerComponent {
     selector: 'ui-context-menu-sub-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    @if (sub.isOpen()) {
+    <ng-template #subContentTemplate>
       <div
+        #subContentEl
         [class]="classes()"
+        [style.position]="'fixed'"
+        [style.left.px]="portalPosition().x"
+        [style.top.px]="portalPosition().y"
+        [style.z-index]="10000"
         role="menu"
         [attr.data-slot]="'context-menu-sub-content'"
         (mouseenter)="sub.enter()"
@@ -504,29 +513,122 @@ export class ContextMenuSubTriggerComponent {
       >
         <ng-content />
       </div>
-    }
+    </ng-template>
   `,
     host: { class: 'contents' },
 })
-export class ContextMenuSubContentComponent {
+export class ContextMenuSubContentComponent implements OnDestroy {
     class = input('');
     sub = inject(ContextMenuSubComponent);
     private contextMenu = inject(CONTEXT_MENU, { optional: true });
+    private document = inject(DOCUMENT);
+    private viewContainerRef = inject(ViewContainerRef);
     el = inject(ElementRef);
+
+    @ViewChild('subContentTemplate', { static: true }) subContentTemplate!: TemplateRef<any>;
+    @ViewChild('subContentEl') subContentEl?: ElementRef<HTMLElement>;
+
+    private embeddedViewRef: EmbeddedViewRef<any> | null = null;
+    private portalHost: HTMLElement | null = null;
+    portalPosition = signal({ x: 0, y: 0 });
 
     constructor() {
         this.sub.registerContent(this);
+        effect(() => {
+            if (this.sub.isOpen()) {
+                this.showPortal();
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        this.calculatePosition();
+                    });
+                });
+            } else {
+                this.hidePortal();
+            }
+        });
+    }
+
+    private showPortal() {
+        if (this.embeddedViewRef) return;
+
+        this.portalHost = this.document.createElement('div');
+        this.portalHost.setAttribute('data-context-menu-sub-portal', 'true');
+        this.document.body.appendChild(this.portalHost);
+        this.embeddedViewRef = this.viewContainerRef.createEmbeddedView(this.subContentTemplate);
+        this.embeddedViewRef.detectChanges();
+
+        this.embeddedViewRef.rootNodes.forEach((node: Node) => {
+            this.portalHost?.appendChild(node);
+        });
+    }
+
+    private hidePortal() {
+        if (this.embeddedViewRef) {
+            this.embeddedViewRef.destroy();
+            this.embeddedViewRef = null;
+        }
+        if (this.portalHost) {
+            this.portalHost.remove();
+            this.portalHost = null;
+        }
+    }
+
+    private calculatePosition() {
+        if (!this.portalHost) return;
+
+        const triggerEl = this.sub.getTriggerElement();
+        if (!triggerEl) return;
+
+        const content = this.portalHost.querySelector('[data-slot="context-menu-sub-content"]') as HTMLElement;
+        if (!content) return;
+
+        const triggerRect = triggerEl.getBoundingClientRect();
+        const contentRect = content.getBoundingClientRect();
+        const viewportWidth = this.document.defaultView?.innerWidth ?? 0;
+        const viewportHeight = this.document.defaultView?.innerHeight ?? 0;
+        const rtl = this.contextMenu?.isRtl() ?? false;
+
+        let x: number;
+        let y = triggerRect.top;
+
+        if (rtl) {
+            x = triggerRect.left - contentRect.width - 4;
+            if (x < 8) {
+                x = triggerRect.right + 4;
+            }
+        } else {
+            x = triggerRect.right + 4;
+            if (x + contentRect.width > viewportWidth - 8) {
+                x = triggerRect.left - contentRect.width - 4;
+            }
+        }
+
+        if (x < 8) x = 8;
+        if (x + contentRect.width > viewportWidth - 8) {
+            x = viewportWidth - contentRect.width - 8;
+        }
+
+        if (y + contentRect.height > viewportHeight - 8) {
+            y = viewportHeight - contentRect.height - 8;
+        }
+        if (y < 8) y = 8;
+
+        this.portalPosition.set({ x, y });
+    }
+
+    ngOnDestroy() {
+        this.hidePortal();
     }
 
     classes = computed(() => cn(
-        'absolute top-0 z-50 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
-        'ltr:left-full ltr:ml-1 ltr:animate-in ltr:slide-in-from-left-1 ltr:fade-in-0 ltr:zoom-in-95',
-        'rtl:right-full rtl:mr-1 rtl:animate-in rtl:slide-in-from-right-1 rtl:fade-in-0 rtl:zoom-in-95',
+        'min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+        'animate-in fade-in-0 zoom-in-95',
         this.class()
     ));
 
     focusFirst() {
-        const items = Array.from(this.el.nativeElement.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        if (!this.portalHost) return;
+        const items = Array.from(this.portalHost.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
         items[0]?.focus();
     }
 

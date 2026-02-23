@@ -237,7 +237,7 @@ export class DialogDescriptionComponent { }
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
     host: {
-        class: 'flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2',
+        class: 'flex flex-col-reverse gap-2 sm:flex-row sm:justify-end',
         '[attr.data-slot]': '"dialog-footer"',
     },
 })

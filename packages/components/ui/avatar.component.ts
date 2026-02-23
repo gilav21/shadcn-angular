@@ -28,8 +28,11 @@ import { cn } from '../lib/utils';
                     {{ fallback() }}
                 </div>
             }
+        } @else if (fallback()) {
+            <div class="flex h-full w-full items-center justify-center rounded-full bg-muted" data-slot="avatar-fallback">
+                {{ fallback() }}
+            </div>
         } @else {
-            <!-- Template mode: project content -->
             <ng-content />
         }
     `,

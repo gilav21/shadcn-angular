@@ -93,3 +93,24 @@ export * from './component-outlet.directive';
 export * from './icon.component';
 
 export * from './charts';
+
+// Animations
+export * from './gradient-text.component';
+export * from './flip-text.component';
+export * from './meteors.component';
+export * from './shine-border.component';
+export * from './scroll-progress.component';
+export * from './blur-fade.component';
+export * from './ripple.directive';
+export * from './marquee.component';
+export * from './word-rotate.component';
+export * from './morphing-text.component';
+export * from './typing-animation.component';
+export * from './wobble-card.component';
+export * from './magnetic.directive';
+export * from './orbit.component';
+export * from './stagger-children.component';
+export * from './particles.component';
+
+// Kanban
+export * from './kanban.component';

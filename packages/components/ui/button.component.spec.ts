@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ButtonComponent } from './button.component';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 describe('ButtonComponent', () => {
     let component: ButtonComponent;
@@ -121,5 +121,16 @@ describe('ButtonComponent', () => {
 
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.getAttribute('aria-label')).toBe('Close dialog');
+    });
+
+    it('should emit clicked output when inner button is clicked', () => {
+        const clickedSpy = vi.fn();
+        component.clicked.subscribe(clickedSpy);
+
+        const button = fixture.debugElement.query(By.css('button')).nativeElement as HTMLButtonElement;
+        button.click();
+
+        expect(clickedSpy).toHaveBeenCalledTimes(1);
+        expect(clickedSpy).toHaveBeenCalledWith(expect.any(MouseEvent));
     });
 });

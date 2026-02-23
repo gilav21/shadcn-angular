@@ -54,6 +54,7 @@ export const registry: Record<string, ComponentDefinition> = {
   button: {
     name: 'button',
     files: ['button.component.ts'],
+    dependencies: ['ripple'],
   },
   'button-group': {
     name: 'button-group',
@@ -498,5 +499,76 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'split-button',
     files: ['split-button.component.ts'],
     dependencies: ['button', 'dropdown-menu'],
+  },
+  // Animations
+  'gradient-text': {
+    name: 'gradient-text',
+    files: ['gradient-text.component.ts'],
+  },
+  'flip-text': {
+    name: 'flip-text',
+    files: ['flip-text.component.ts'],
+  },
+  meteors: {
+    name: 'meteors',
+    files: ['meteors.component.ts'],
+  },
+  'shine-border': {
+    name: 'shine-border',
+    files: ['shine-border.component.ts'],
+  },
+  'scroll-progress': {
+    name: 'scroll-progress',
+    files: ['scroll-progress.component.ts'],
+  },
+  'blur-fade': {
+    name: 'blur-fade',
+    files: ['blur-fade.component.ts'],
+  },
+  ripple: {
+    name: 'ripple',
+    files: ['ripple.directive.ts'],
+  },
+  marquee: {
+    name: 'marquee',
+    files: ['marquee.component.ts'],
+  },
+  'word-rotate': {
+    name: 'word-rotate',
+    files: ['word-rotate.component.ts'],
+  },
+  'morphing-text': {
+    name: 'morphing-text',
+    files: ['morphing-text.component.ts'],
+  },
+  'typing-animation': {
+    name: 'typing-animation',
+    files: ['typing-animation.component.ts'],
+  },
+  'wobble-card': {
+    name: 'wobble-card',
+    files: ['wobble-card.component.ts'],
+  },
+  magnetic: {
+    name: 'magnetic',
+    files: ['magnetic.directive.ts'],
+  },
+  orbit: {
+    name: 'orbit',
+    files: ['orbit.component.ts'],
+  },
+  'stagger-children': {
+    name: 'stagger-children',
+    files: ['stagger-children.component.ts'],
+  },
+  particles: {
+    name: 'particles',
+    files: ['particles.component.ts'],
+  },
+  // Kanban
+  kanban: {
+    name: 'kanban',
+    files: ['kanban.component.ts'],
+    dependencies: ['badge', 'avatar', 'scroll-area', 'separator'],
   },
 };
