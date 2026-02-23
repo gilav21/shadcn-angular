@@ -4670,6 +4670,32 @@
               </ui-kanban-column>
             </ui-kanban>
           </div>
+
+          <ui-separator />
+
+          <div class="space-y-4">
+            <h3 class="text-lg font-medium">Hebrew (RTL) Board</h3>
+            <p class="text-muted-foreground text-sm">Full RTL layout with Hebrew locale. All labels, context menus, dialogs, and interactions are localized.</p>
+            <div class="flex items-center gap-2 text-xs text-muted-foreground">
+              <span>היסטוריה:</span>
+              <span [class]="hebrewKanbanHistory().canUndo ? 'text-foreground font-medium' : ''">ביטול {{ hebrewKanbanHistory().canUndo ? 'זמין' : 'ריק' }}</span>
+              <span>|</span>
+              <span [class]="hebrewKanbanHistory().canRedo ? 'text-foreground font-medium' : ''">שחזור {{ hebrewKanbanHistory().canRedo ? 'זמין' : 'ריק' }}</span>
+            </div>
+            <ui-kanban
+              locale="he"
+              [columns]="hebrewKanbanColumns()"
+              [cards]="hebrewKanbanCards()"
+              (cardsChange)="onHebrewKanbanCardsChange($event)"
+              (columnsChange)="onHebrewKanbanColumnsChange($event)"
+              (cardAdded)="onHebrewKanbanCardAdded($event)"
+              (cardUpdated)="onHebrewKanbanCardUpdated($event)"
+              (cardDeleted)="onHebrewKanbanCardDeleted($event)"
+              (columnAdded)="onHebrewKanbanColumnAdded($event)"
+              (columnUpdated)="onHebrewKanbanColumnUpdated($event)"
+              (columnDeleted)="onHebrewKanbanColumnDeleted($event)"
+              (historyChange)="onHebrewKanbanHistoryChange($event)" />
+          </div>
         </section>
         }
 
