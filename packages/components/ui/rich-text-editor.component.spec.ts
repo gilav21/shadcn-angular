@@ -1266,4 +1266,297 @@ describe('RichTextEditorComponent', () => {
             expect(img.getAttribute('src')).toBe(TINY_BASE64);
         });
     });
+
+    describe('table merge and split cells', () => {
+        const create3x3Table = (): HTMLTableElement => {
+            editor.innerHTML = `
+                <table>
+                    <thead><tr><th>H1</th><th>H2</th><th>H3</th></tr></thead>
+                    <tbody>
+                        <tr><td>A1</td><td>A2</td><td>A3</td></tr>
+                        <tr><td>B1</td><td>B2</td><td>B3</td></tr>
+                    </tbody>
+                </table>`;
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            return editor.querySelector('table') as HTMLTableElement;
+        };
+
+        it('mergeCells merges two horizontally adjacent cells', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cellA1 = row.cells[0];
+            const cellA2 = row.cells[1];
+
+            cellA1.classList.add('rte-cell-selected');
+            cellA2.classList.add('rte-cell-selected');
+            component.tableCellSelected.set([cellA1, cellA2]);
+
+            component.mergeCells();
+
+            expect(cellA1.colSpan).toBe(2);
+            expect(cellA1.rowSpan).toBe(1);
+            expect(cellA1.innerHTML).toContain('A1');
+            expect(cellA1.innerHTML).toContain('A2');
+            expect(row.cells.length).toBe(2);
+        });
+
+        it('mergeCells merges two vertically adjacent cells', () => {
+            const table = create3x3Table();
+            const rows = table.querySelectorAll('tbody tr');
+            const cellA1 = (rows[0] as HTMLTableRowElement).cells[0];
+            const cellB1 = (rows[1] as HTMLTableRowElement).cells[0];
+
+            cellA1.classList.add('rte-cell-selected');
+            cellB1.classList.add('rte-cell-selected');
+            component.tableCellSelected.set([cellA1, cellB1]);
+
+            component.mergeCells();
+
+            expect(cellA1.colSpan).toBe(1);
+            expect(cellA1.rowSpan).toBe(2);
+            expect(cellA1.innerHTML).toContain('A1');
+            expect(cellA1.innerHTML).toContain('B1');
+        });
+
+        it('mergeCells merges a 2x2 block of cells', () => {
+            const table = create3x3Table();
+            const rows = table.querySelectorAll('tbody tr');
+            const cellA1 = (rows[0] as HTMLTableRowElement).cells[0];
+            const cellA2 = (rows[0] as HTMLTableRowElement).cells[1];
+            const cellB1 = (rows[1] as HTMLTableRowElement).cells[0];
+            const cellB2 = (rows[1] as HTMLTableRowElement).cells[1];
+
+            const selected = [cellA1, cellA2, cellB1, cellB2];
+            selected.forEach(c => c.classList.add('rte-cell-selected'));
+            component.tableCellSelected.set(selected);
+
+            component.mergeCells();
+
+            expect(cellA1.colSpan).toBe(2);
+            expect(cellA1.rowSpan).toBe(2);
+            expect((rows[0] as HTMLTableRowElement).cells.length).toBe(2);
+            expect((rows[1] as HTMLTableRowElement).cells.length).toBe(1);
+        });
+
+        it('mergeCells does nothing with fewer than 2 selected cells', () => {
+            const table = create3x3Table();
+            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+
+            component.tableCellSelected.set([cell]);
+            component.mergeCells();
+
+            expect(cell.colSpan).toBe(1);
+            expect(cell.rowSpan).toBe(1);
+        });
+
+        it('mergeCells concatenates content from all cells', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cells = [row.cells[0], row.cells[1], row.cells[2]];
+            cells.forEach(c => c.classList.add('rte-cell-selected'));
+            component.tableCellSelected.set(cells);
+
+            component.mergeCells();
+
+            expect(row.cells[0].colSpan).toBe(3);
+            expect(row.cells[0].textContent).toContain('A1');
+            expect(row.cells[0].textContent).toContain('A2');
+            expect(row.cells[0].textContent).toContain('A3');
+            expect(row.cells.length).toBe(1);
+        });
+
+        it('mergeCells sets innerHTML to <br> when all cells are empty', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            row.cells[0].innerHTML = '';
+            row.cells[1].innerHTML = '';
+            const cells = [row.cells[0], row.cells[1]];
+            cells.forEach(c => c.classList.add('rte-cell-selected'));
+            component.tableCellSelected.set(cells);
+
+            component.mergeCells();
+
+            expect(row.cells[0].innerHTML).toBe('<br>');
+        });
+
+        it('mergeCells clears cell selection after merge', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cells = [row.cells[0], row.cells[1]];
+            cells.forEach(c => c.classList.add('rte-cell-selected'));
+            component.tableCellSelected.set(cells);
+
+            component.mergeCells();
+
+            expect(component.tableCellSelected()).toEqual([]);
+        });
+
+        it('canSplitCell returns false for a regular cell', () => {
+            const table = create3x3Table();
+            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            (component as any).tableContextMenuTarget = cell;
+
+            expect(component.canSplitCell()).toBe(false);
+        });
+
+        it('canSplitCell returns true for a cell with colspan > 1', () => {
+            const table = create3x3Table();
+            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            cell.colSpan = 2;
+            (component as any).tableContextMenuTarget = cell;
+
+            expect(component.canSplitCell()).toBe(true);
+        });
+
+        it('canSplitCell returns true for a cell with rowspan > 1', () => {
+            const table = create3x3Table();
+            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            cell.rowSpan = 2;
+            (component as any).tableContextMenuTarget = cell;
+
+            expect(component.canSplitCell()).toBe(true);
+        });
+
+        it('splitCell splits a colspan=2 cell back into two cells', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cellA1 = row.cells[0];
+            const cellA2 = row.cells[1];
+
+            cellA1.classList.add('rte-cell-selected');
+            cellA2.classList.add('rte-cell-selected');
+            component.tableCellSelected.set([cellA1, cellA2]);
+            component.mergeCells();
+
+            expect(row.cells[0].colSpan).toBe(2);
+
+            (component as any).tableContextMenuTarget = row.cells[0];
+            component.splitCell();
+
+            expect(row.cells[0].colSpan).toBe(1);
+            expect(row.cells.length).toBe(3);
+        });
+
+        it('splitCell splits a rowspan=2 cell back into individual cells', () => {
+            const table = create3x3Table();
+            const rows = table.querySelectorAll('tbody tr');
+            const cellA1 = (rows[0] as HTMLTableRowElement).cells[0];
+            const cellB1 = (rows[1] as HTMLTableRowElement).cells[0];
+
+            cellA1.classList.add('rte-cell-selected');
+            cellB1.classList.add('rte-cell-selected');
+            component.tableCellSelected.set([cellA1, cellB1]);
+            component.mergeCells();
+
+            (component as any).tableContextMenuTarget = (rows[0] as HTMLTableRowElement).cells[0];
+            component.splitCell();
+
+            expect((rows[0] as HTMLTableRowElement).cells[0].rowSpan).toBe(1);
+            expect((rows[0] as HTMLTableRowElement).cells.length).toBe(3);
+            expect((rows[1] as HTMLTableRowElement).cells.length).toBe(3);
+        });
+
+        it('splitCell creates new cells with <br> content', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cellA1 = row.cells[0];
+            const cellA2 = row.cells[1];
+
+            cellA1.classList.add('rte-cell-selected');
+            cellA2.classList.add('rte-cell-selected');
+            component.tableCellSelected.set([cellA1, cellA2]);
+            component.mergeCells();
+
+            (component as any).tableContextMenuTarget = row.cells[0];
+            component.splitCell();
+
+            expect(row.cells[1].innerHTML).toBe('<br>');
+        });
+
+        it('splitCell does nothing if cell has no colspan or rowspan', () => {
+            const table = create3x3Table();
+            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            (component as any).tableContextMenuTarget = cell;
+
+            const cellCountBefore = (table.querySelector('tbody tr') as HTMLTableRowElement).cells.length;
+            component.splitCell();
+            const cellCountAfter = (table.querySelector('tbody tr') as HTMLTableRowElement).cells.length;
+
+            expect(cellCountAfter).toBe(cellCountBefore);
+        });
+
+        it('splitCell creates th elements when splitting inside thead', () => {
+            const table = create3x3Table();
+            const headerRow = table.querySelector('thead tr') as HTMLTableRowElement;
+            const h1 = headerRow.cells[0];
+            const h2 = headerRow.cells[1];
+
+            h1.classList.add('rte-cell-selected');
+            h2.classList.add('rte-cell-selected');
+            component.tableCellSelected.set([h1, h2]);
+            component.mergeCells();
+
+            expect(headerRow.cells[0].colSpan).toBe(2);
+
+            (component as any).tableContextMenuTarget = headerRow.cells[0];
+            component.splitCell();
+
+            expect(headerRow.cells.length).toBe(3);
+            for (let i = 0; i < headerRow.cells.length; i++) {
+                expect(headerRow.cells[i].tagName).toBe('TH');
+            }
+        });
+
+        it('splitCell splits a 2x2 merged cell correctly', () => {
+            const table = create3x3Table();
+            const rows = table.querySelectorAll('tbody tr');
+            const cellA1 = (rows[0] as HTMLTableRowElement).cells[0];
+            const cellA2 = (rows[0] as HTMLTableRowElement).cells[1];
+            const cellB1 = (rows[1] as HTMLTableRowElement).cells[0];
+            const cellB2 = (rows[1] as HTMLTableRowElement).cells[1];
+
+            const selected = [cellA1, cellA2, cellB1, cellB2];
+            selected.forEach(c => c.classList.add('rte-cell-selected'));
+            component.tableCellSelected.set(selected);
+            component.mergeCells();
+
+            const mergedCell = (rows[0] as HTMLTableRowElement).cells[0];
+            expect(mergedCell.colSpan).toBe(2);
+            expect(mergedCell.rowSpan).toBe(2);
+
+            (component as any).tableContextMenuTarget = mergedCell;
+            component.splitCell();
+
+            expect((rows[0] as HTMLTableRowElement).cells[0].colSpan).toBe(1);
+            expect((rows[0] as HTMLTableRowElement).cells[0].rowSpan).toBe(1);
+            expect((rows[0] as HTMLTableRowElement).cells.length).toBe(3);
+            expect((rows[1] as HTMLTableRowElement).cells.length).toBe(3);
+        });
+
+        it('mergeCells closes the context menu', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cells = [row.cells[0], row.cells[1]];
+            cells.forEach(c => c.classList.add('rte-cell-selected'));
+            component.tableCellSelected.set(cells);
+
+            component.tableContextMenuOpen.set(true);
+            component.mergeCells();
+
+            expect(component.tableContextMenuOpen()).toBe(false);
+        });
+
+        it('splitCell closes the context menu', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            row.cells[0].colSpan = 2;
+            row.cells[1].remove();
+            (component as any).tableContextMenuTarget = row.cells[0];
+
+            component.tableContextMenuOpen.set(true);
+            component.splitCell();
+
+            expect(component.tableContextMenuOpen()).toBe(false);
+        });
+    });
 });
