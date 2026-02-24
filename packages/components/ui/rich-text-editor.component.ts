@@ -1489,6 +1489,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     tableContextMenuOpen = signal(false);
     tableContextMenuPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private tableContextMenuTarget: HTMLTableCellElement | null = null;
+    private tableContextMenuCloseHandler: (() => void) | null = null;
     private tableResizeState: {
         table: HTMLTableElement;
         colIndex: number;
@@ -3617,6 +3618,14 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.tableContextMenuOpen.set(false);
             return;
         }
+
+        if (this.tableContextMenuCloseHandler) {
+            this.document.removeEventListener('click', this.tableContextMenuCloseHandler);
+            this.document.removeEventListener('contextmenu', this.tableContextMenuCloseHandler);
+            this.tableContextMenuCloseHandler = null;
+        }
+
+        event.stopPropagation();
         this.tableContextMenuTarget = cell;
         this.tableContextMenuPosition.set({ x: event.clientX, y: event.clientY });
         this.tableContextMenuOpen.set(true);
@@ -3640,7 +3649,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.tableContextMenuOpen.set(false);
             this.document.removeEventListener('click', closeHandler);
             this.document.removeEventListener('contextmenu', closeHandler);
+            if (this.tableContextMenuCloseHandler === closeHandler) {
+                this.tableContextMenuCloseHandler = null;
+            }
         };
+        this.tableContextMenuCloseHandler = closeHandler;
         setTimeout(() => {
             this.document.addEventListener('click', closeHandler);
             this.document.addEventListener('contextmenu', closeHandler);
