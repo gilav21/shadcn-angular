@@ -3608,12 +3608,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onEditorContextMenu(event: MouseEvent): void {
         const target = event.target as HTMLElement;
+        const table = target.closest('table');
+        if (table && this.editorDiv?.nativeElement.contains(table)) {
+            event.preventDefault();
+        }
         const cell = target.closest('td, th') as HTMLTableCellElement | null;
         if (!cell || !this.editorDiv?.nativeElement.contains(cell)) {
             this.tableContextMenuOpen.set(false);
             return;
         }
-        event.preventDefault();
         this.tableContextMenuTarget = cell;
         this.tableContextMenuPosition.set({ x: event.clientX, y: event.clientY });
         this.tableContextMenuOpen.set(true);
@@ -3672,12 +3675,16 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.readonly() || this.disabled()) return;
         const target = event.target as HTMLElement;
         const cell = target.closest('td, th') as HTMLTableCellElement | null;
-
         const isRightClick = event.button === 2;
-        const clickedOnSelected = isRightClick && cell && this.tableCellSelected().includes(cell);
-        if (!clickedOnSelected) {
-            this.clearCellSelection();
+
+        if (isRightClick) {
+            if (!cell || !this.tableCellSelected().includes(cell)) {
+                this.clearCellSelection();
+            }
+            return;
         }
+
+        this.clearCellSelection();
 
         if (this.tableResizeCursor()) {
             if (!cell) return;
