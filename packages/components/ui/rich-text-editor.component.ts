@@ -2746,9 +2746,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.readonly() || this.disabled()) return;
         this.flushPendingHistoryPush();
 
-        const ext = file.name.split('.').pop()?.toLowerCase();
-        if (ext !== 'pdf') {
-            const msg = 'Unsupported file type. Currently only PDF is supported.';
+        const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
+        if (header.length < 5 ||
+            header[0] !== 0x25 ||
+            header[1] !== 0x50 ||
+            header[2] !== 0x44 ||
+            header[3] !== 0x46 ||
+            header[4] !== 0x2D
+        ) {
+            const msg = this.resolvedLocale().editor.importNotPdf;
             this.fileImportError.emit(msg);
             this.showImportError(msg);
             return;

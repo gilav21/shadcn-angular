@@ -2136,6 +2136,17 @@ function textItemsToHtml(
 // ── Main export ─────────────────────────────────────────────────────────
 
 export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
+    const header = new Uint8Array(buffer, 0, Math.min(5, buffer.byteLength));
+    if (header.length < 5 ||
+        header[0] !== 0x25 ||
+        header[1] !== 0x50 ||
+        header[2] !== 0x44 ||
+        header[3] !== 0x46 ||
+        header[4] !== 0x2D
+    ) {
+        throw new Error('Not a valid PDF file.');
+    }
+
     const reader = new PdfReader(buffer);
 
     try {

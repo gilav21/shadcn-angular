@@ -176,6 +176,7 @@ export interface RichTextLocale {
         uploadingImage: string;
         importingPdf: string;
         importFailed: string;
+        importNotPdf: string;
         characters: string;
         words: string;
         formattingOptions: string;
@@ -357,6 +358,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: 'Uploading image...',
             importingPdf: 'Importing PDF...',
             importFailed: 'Failed to import PDF. The file may be unsupported or corrupted.',
+            importNotPdf: 'The selected file is not a valid PDF.',
             characters: '{count} characters',
             words: '{count} words',
             formattingOptions: 'Formatting options',
@@ -532,6 +534,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: 'העלאת תמונה...',
             importingPdf: '...מייבא קובץ PDF',
             importFailed: 'ייבוא ה-PDF נכשל. הקובץ עשוי להיות לא נתמך או פגום.',
+            importNotPdf: 'הקובץ שנבחר אינו קובץ PDF תקין.',
             characters: '{count} תווים',
             words: '{count} מילים',
             formattingOptions: 'אפשרויות עיצוב',
@@ -707,6 +710,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: 'جارٍ رفع الصورة...',
             importingPdf: '...جارٍ استيراد PDF',
             importFailed: 'فشل استيراد PDF. قد يكون الملف غير مدعوم أو تالفاً.',
+            importNotPdf: 'الملف المحدد ليس ملف PDF صالحاً.',
             characters: '{count} حرف',
             words: '{count} كلمة',
             formattingOptions: 'خيارات التنسيق',
@@ -882,6 +886,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: 'Bild wird hochgeladen...',
             importingPdf: 'PDF wird importiert...',
             importFailed: 'PDF-Import fehlgeschlagen. Die Datei wird möglicherweise nicht unterstützt oder ist beschädigt.',
+            importNotPdf: 'Die ausgewählte Datei ist keine gültige PDF-Datei.',
             characters: '{count} Zeichen',
             words: '{count} Wörter',
             formattingOptions: 'Formatierungsoptionen',
@@ -1057,6 +1062,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: 'Téléchargement de l\'image...',
             importingPdf: 'Importation du PDF...',
             importFailed: 'Échec de l\'importation du PDF. Le fichier est peut-être non pris en charge ou corrompu.',
+            importNotPdf: 'Le fichier sélectionné n\'est pas un PDF valide.',
             characters: '{count} caractères',
             words: '{count} mots',
             formattingOptions: 'Options de mise en forme',
@@ -1232,6 +1238,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: 'Subiendo imagen...',
             importingPdf: 'Importando PDF...',
             importFailed: 'Error al importar PDF. El archivo puede no ser compatible o estar dañado.',
+            importNotPdf: 'El archivo seleccionado no es un PDF válido.',
             characters: '{count} caracteres',
             words: '{count} palabras',
             formattingOptions: 'Opciones de formato',
@@ -1407,6 +1414,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: '画像をアップロード中...',
             importingPdf: 'PDFをインポート中...',
             importFailed: 'PDFのインポートに失敗しました。ファイルがサポートされていないか破損している可能性があります。',
+            importNotPdf: '選択されたファイルは有効なPDFではありません。',
             characters: '{count} 文字',
             words: '{count} 語',
             formattingOptions: '書式設定オプション',
@@ -1582,6 +1590,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: '正在上传图片...',
             importingPdf: '正在导入PDF...',
             importFailed: 'PDF导入失败。文件可能不受支持或已损坏。',
+            importNotPdf: '所选文件不是有效的PDF文件。',
             characters: '{count} 个字符',
             words: '{count} 个词',
             formattingOptions: '格式选项',
@@ -1757,6 +1766,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: 'Загрузка изображения...',
             importingPdf: 'Импорт PDF...',
             importFailed: 'Не удалось импортировать PDF. Файл может быть неподдерживаемым или повреждённым.',
+            importNotPdf: 'Выбранный файл не является допустимым PDF.',
             characters: '{count} символов',
             words: '{count} слов',
             formattingOptions: 'Параметры форматирования',
@@ -1932,6 +1942,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             uploadingImage: 'Enviando imagem...',
             importingPdf: 'Importando PDF...',
             importFailed: 'Falha ao importar PDF. O arquivo pode não ser suportado ou estar corrompido.',
+            importNotPdf: 'O arquivo selecionado não é um PDF válido.',
             characters: '{count} caracteres',
             words: '{count} palavras',
             formattingOptions: 'Opções de formatação',
