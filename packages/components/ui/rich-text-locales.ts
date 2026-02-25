@@ -184,6 +184,7 @@ export interface RichTextLocale {
         autoUploadFailed: string;
         autoUploadRetry: string;
         autoUploadRemove: string;
+        autoUploadNotImage: string;
     };
 }
 
@@ -366,6 +367,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'Upload failed',
             autoUploadRetry: 'Retry',
             autoUploadRemove: 'Remove',
+            autoUploadNotImage: 'The image could not be uploaded because its content is not a valid image.',
         },
     },
     he: {
@@ -542,6 +544,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'ההעלאה נכשלה',
             autoUploadRetry: 'נסה שוב',
             autoUploadRemove: 'הסר',
+            autoUploadNotImage: 'לא ניתן להעלות את התמונה מכיוון שהתוכן אינו תמונה תקינה.',
         },
     },
     ar: {
@@ -718,6 +721,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'فشل الرفع',
             autoUploadRetry: 'إعادة المحاولة',
             autoUploadRemove: 'إزالة',
+            autoUploadNotImage: 'تعذر رفع الصورة لأن محتواها ليس صورة صالحة.',
         },
     },
     de: {
@@ -894,6 +898,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'Upload fehlgeschlagen',
             autoUploadRetry: 'Erneut versuchen',
             autoUploadRemove: 'Entfernen',
+            autoUploadNotImage: 'Das Bild konnte nicht hochgeladen werden, da der Inhalt kein gültiges Bild ist.',
         },
     },
     fr: {
@@ -1070,6 +1075,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'Échec du téléversement',
             autoUploadRetry: 'Réessayer',
             autoUploadRemove: 'Supprimer',
+            autoUploadNotImage: 'L\'image n\'a pas pu être téléchargée car son contenu n\'est pas une image valide.',
         },
     },
     es: {
@@ -1246,6 +1252,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'Error al subir',
             autoUploadRetry: 'Reintentar',
             autoUploadRemove: 'Eliminar',
+            autoUploadNotImage: 'No se pudo subir la imagen porque su contenido no es una imagen válida.',
         },
     },
     ja: {
@@ -1422,6 +1429,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'アップロード失敗',
             autoUploadRetry: '再試行',
             autoUploadRemove: '削除',
+            autoUploadNotImage: 'コンテンツが有効な画像ではないため、画像をアップロードできませんでした。',
         },
     },
     zh: {
@@ -1598,6 +1606,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: '上传失败',
             autoUploadRetry: '重试',
             autoUploadRemove: '移除',
+            autoUploadNotImage: '由于内容不是有效图片，无法上传该图片。',
         },
     },
     ru: {
@@ -1774,6 +1783,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'Ошибка загрузки',
             autoUploadRetry: 'Повторить',
             autoUploadRemove: 'Удалить',
+            autoUploadNotImage: 'Изображение не удалось загрузить, так как его содержимое не является допустимым изображением.',
         },
     },
     pt: {
@@ -1950,6 +1960,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             autoUploadFailed: 'Falha no envio',
             autoUploadRetry: 'Tentar novamente',
             autoUploadRemove: 'Remover',
+            autoUploadNotImage: 'A imagem não pôde ser enviada porque seu conteúdo não é uma imagem válida.',
         },
     },
 };

@@ -26,6 +26,7 @@ import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, fr
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { parsePdf } from '../lib/pdf-parser';
+import { isValidImageDataUrl } from '../lib/image-validator';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
@@ -3498,6 +3499,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.autoUploadMutating = false;
 
         this.syncContentFromEditor();
+
+        if (!isValidImageDataUrl(dataUrl)) {
+            this.autoUploadMutating = true;
+            img.removeAttribute('data-auto-upload-id');
+            img.removeAttribute('data-auto-upload-status');
+            img.setAttribute('src', this.TRANSPARENT_PIXEL);
+            this.autoUploadMutating = false;
+            this.syncContentFromEditor();
+            this.autoImageUploadError.emit(this.resolvedLocale().editor.autoUploadNotImage);
+            return;
+        }
 
         const ext = (dataUrl.match(/data:image\/([\w+]+)/)?.[1] ?? 'png').replace('+xml', '');
         const filename = `pasted-image-${uploadId}.${ext}`;
