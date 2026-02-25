@@ -1088,6 +1088,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           [style.left.px]="tableContextMenuPosition().x"
           [style.top.px]="tableContextMenuPosition().y"
           (mousedown)="$event.preventDefault()"
+          (contextmenu)="onContextMenuOverlayContextMenu($event)"
         >
           <button type="button" class="relative flex w-full cursor-default select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors hover:bg-accent hover:text-accent-foreground" (click)="addTableRowAbove()">
             {{ resolvedLocale().table.addRowAbove }}
@@ -3607,29 +3608,27 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.insertTable(event.rows, event.cols);
     }
 
-    onEditorContextMenu(event: MouseEvent): void {
-        const target = event.target as HTMLElement;
-        const table = target.closest('table');
-        if (table && this.editorDiv?.nativeElement.contains(table)) {
-            event.preventDefault();
-        }
-        const cell = target.closest('td, th') as HTMLTableCellElement | null;
-        if (!cell || !this.editorDiv?.nativeElement.contains(cell)) {
-            this.tableContextMenuOpen.set(false);
-            return;
-        }
-
+    private closeTableContextMenu(): void {
+        this.tableContextMenuOpen.set(false);
         if (this.tableContextMenuCloseHandler) {
             this.document.removeEventListener('click', this.tableContextMenuCloseHandler);
             this.document.removeEventListener('contextmenu', this.tableContextMenuCloseHandler);
             this.tableContextMenuCloseHandler = null;
         }
+    }
 
-        event.stopPropagation();
-        this.tableContextMenuTarget = cell;
-        this.tableContextMenuPosition.set({ x: event.clientX, y: event.clientY });
-        this.tableContextMenuOpen.set(true);
+    private setupTableContextMenuCloseHandlers(): void {
+        const closeHandler = () => {
+            this.closeTableContextMenu();
+        };
+        this.tableContextMenuCloseHandler = closeHandler;
+        setTimeout(() => {
+            this.document.addEventListener('click', closeHandler);
+            this.document.addEventListener('contextmenu', closeHandler);
+        });
+    }
 
+    private adjustTableContextMenuPosition(): void {
         requestAnimationFrame(() => {
             const menu = this.tableContextMenuRef?.nativeElement;
             if (!menu) return;
@@ -3644,20 +3643,51 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             }
             this.tableContextMenuPosition.set({ x, y });
         });
+    }
 
-        const closeHandler = () => {
-            this.tableContextMenuOpen.set(false);
-            this.document.removeEventListener('click', closeHandler);
-            this.document.removeEventListener('contextmenu', closeHandler);
-            if (this.tableContextMenuCloseHandler === closeHandler) {
-                this.tableContextMenuCloseHandler = null;
+    onContextMenuOverlayContextMenu(event: MouseEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+        const menu = this.tableContextMenuRef?.nativeElement;
+        if (menu) {
+            menu.style.pointerEvents = 'none';
+            const below = this.document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
+            menu.style.pointerEvents = '';
+            const cell = below?.closest('td, th') as HTMLTableCellElement | null;
+            if (cell && this.editorDiv?.nativeElement.contains(cell)) {
+                this.closeTableContextMenu();
+                this.tableContextMenuTarget = cell;
+                this.tableContextMenuPosition.set({ x: event.clientX, y: event.clientY });
+                this.tableContextMenuOpen.set(true);
+                this.adjustTableContextMenuPosition();
+                this.setupTableContextMenuCloseHandlers();
+                return;
             }
-        };
-        this.tableContextMenuCloseHandler = closeHandler;
-        setTimeout(() => {
-            this.document.addEventListener('click', closeHandler);
-            this.document.addEventListener('contextmenu', closeHandler);
-        });
+        }
+        this.closeTableContextMenu();
+    }
+
+    onEditorContextMenu(event: MouseEvent): void {
+        const target = event.target as HTMLElement;
+        const table = target.closest('table');
+        if (table && this.editorDiv?.nativeElement.contains(table)) {
+            event.preventDefault();
+        }
+        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        if (!cell || !this.editorDiv?.nativeElement.contains(cell)) {
+            this.closeTableContextMenu();
+            return;
+        }
+
+        this.closeTableContextMenu();
+
+        event.stopPropagation();
+        this.tableContextMenuTarget = cell;
+        this.tableContextMenuPosition.set({ x: event.clientX, y: event.clientY });
+        this.tableContextMenuOpen.set(true);
+
+        this.adjustTableContextMenuPosition();
+        this.setupTableContextMenuCloseHandlers();
     }
 
     onEditorMouseMove(event: MouseEvent): void {
@@ -3895,7 +3925,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     mergeCells(): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const selected = this.tableCellSelected();
         if (selected.length < 2) return;
 
@@ -3952,7 +3982,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     splitCell(): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const target = this.tableContextMenuTarget;
         if (!target) return;
         const rs = target.rowSpan || 1;
@@ -4019,7 +4049,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     addTableRowAbove(): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
         const grid = this.buildCellGrid(info.table);
@@ -4030,7 +4060,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     addTableRowBelow(): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
         const grid = this.buildCellGrid(info.table);
@@ -4101,7 +4131,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private insertTableColumn(position: 'before' | 'after'): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
 
@@ -4162,7 +4192,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     deleteTableRow(): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
         const allRows = Array.from(info.table.querySelectorAll('tr'));
@@ -4209,7 +4239,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     deleteTableColumn(): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
 
@@ -4239,7 +4269,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     deleteTable(): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
         info.table.remove();
@@ -4248,7 +4278,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     toggleTableHeaderRow(): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
         const firstRow = info.table.querySelector('tr');
@@ -4283,7 +4313,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     setTableBorders(style: 'all' | 'none' | 'outer' | 'horizontal'): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         const info = this.getTableCellInfo(this.tableContextMenuTarget);
         if (!info) return;
 
@@ -4341,7 +4371,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     setCellAlignment(align: 'left' | 'center' | 'right'): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         if (this.tableContextMenuTarget) {
             this.tableContextMenuTarget.style.textAlign = align;
             this.syncContentFromEditor();
@@ -4350,7 +4380,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     setCellColor(color: string): void {
-        this.tableContextMenuOpen.set(false);
+        this.closeTableContextMenu();
         if (this.tableContextMenuTarget) {
             this.tableContextMenuTarget.style.backgroundColor = color === 'transparent' ? '' : color;
             this.syncContentFromEditor();
@@ -5902,5 +5932,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.autoUploadErrors.set(new Map());
         this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
+        this.closeTableContextMenu();
     }
 }

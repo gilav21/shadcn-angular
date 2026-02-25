@@ -1600,5 +1600,85 @@ describe('RichTextEditorComponent', () => {
 
             expect(component.tableCellSelected().length).toBe(0);
         });
+
+        it('context menu reopens via right-click after closing by action', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cell = row.cells[0];
+
+            const rightClick = new MouseEvent('contextmenu', {
+                clientX: 100,
+                clientY: 100,
+                bubbles: true,
+                cancelable: true,
+            });
+            cell.dispatchEvent(rightClick);
+
+            expect(component.tableContextMenuOpen()).toBe(true);
+
+            (component as any).tableContextMenuTarget = cell;
+            component.addTableRowAbove();
+
+            expect(component.tableContextMenuOpen()).toBe(false);
+
+            const rightClick2 = new MouseEvent('contextmenu', {
+                clientX: 120,
+                clientY: 120,
+                bubbles: true,
+                cancelable: true,
+            });
+            cell.dispatchEvent(rightClick2);
+
+            expect(component.tableContextMenuOpen()).toBe(true);
+        });
+
+        it('closeTableContextMenu removes document-level close handlers', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cell = row.cells[0];
+
+            const rightClick = new MouseEvent('contextmenu', {
+                clientX: 100,
+                clientY: 100,
+                bubbles: true,
+                cancelable: true,
+            });
+            cell.dispatchEvent(rightClick);
+
+            expect(component.tableContextMenuOpen()).toBe(true);
+            expect((component as any).tableContextMenuCloseHandler).not.toBeNull();
+
+            (component as any).closeTableContextMenu();
+
+            expect(component.tableContextMenuOpen()).toBe(false);
+            expect((component as any).tableContextMenuCloseHandler).toBeNull();
+        });
+
+        it('right-click on overlay prevents default and closes menu when no cell beneath', () => {
+            const table = create3x3Table();
+            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const cell = row.cells[0];
+
+            const rightClick = new MouseEvent('contextmenu', {
+                clientX: 100,
+                clientY: 100,
+                bubbles: true,
+                cancelable: true,
+            });
+            cell.dispatchEvent(rightClick);
+
+            expect(component.tableContextMenuOpen()).toBe(true);
+
+            const overlayEvent = new MouseEvent('contextmenu', {
+                clientX: 150,
+                clientY: 150,
+                bubbles: true,
+                cancelable: true,
+            });
+            component.onContextMenuOverlayContextMenu(overlayEvent);
+
+            expect(overlayEvent.defaultPrevented).toBe(true);
+            expect(component.tableContextMenuOpen()).toBe(false);
+        });
     });
 });
