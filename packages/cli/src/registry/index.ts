@@ -6,6 +6,7 @@ export interface ComponentDefinition {
   files: string[]; // Relative paths to component files
   dependencies?: string[]; // Other components this depends on
   npmDependencies?: string[]; // NPM packages this depends on
+  libFiles?: string[]; // Lib utility files this component requires (e.g. 'xlsx.ts')
   shortcutDefinitions?: {
     exportName: string;
     componentName: string;
@@ -155,6 +156,7 @@ export const registry: Record<string, ComponentDefinition> = {
       'component-outlet',
       'icon',
     ],
+    libFiles: ['xlsx.ts'],
   },
   dialog: {
     name: 'dialog',
@@ -216,7 +218,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   input: {
     name: 'input',
-    files: ['input.component.ts'],
+    files: ['input.component.ts', 'input-group.token.ts'],
   },
   'input-group': {
     name: 'input-group',
@@ -326,7 +328,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   textarea: {
     name: 'textarea',
-    files: ['textarea.component.ts'],
+    files: ['textarea.component.ts', 'input-group.token.ts'],
   },
   timeline: {
     name: 'timeline',
@@ -392,6 +394,7 @@ export const registry: Record<string, ComponentDefinition> = {
       'dialog',
       'scroll-area',
     ],
+    libFiles: ['pdf-parser.ts', 'image-validator.ts', 'svg-sanitizer.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
@@ -568,7 +571,12 @@ export const registry: Record<string, ComponentDefinition> = {
   // Kanban
   kanban: {
     name: 'kanban',
-    files: ['kanban.component.ts'],
-    dependencies: ['badge', 'avatar', 'scroll-area', 'separator'],
+    files: ['kanban.component.ts', 'kanban-locales.ts'],
+    dependencies: [
+      'badge', 'avatar', 'scroll-area', 'separator',
+      'button', 'input', 'textarea', 'label',
+      'chip-list', 'autocomplete',
+      'dialog', 'alert-dialog', 'context-menu',
+    ],
   },
 };

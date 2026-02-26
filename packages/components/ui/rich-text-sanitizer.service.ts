@@ -1,5 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
+import { isValidImageMagicBytes } from '../lib/image-validator';
+import { sanitizeSvg } from '../lib/svg-sanitizer';
 
 /**
  * Comprehensive HTML sanitization service for rich text editor.
@@ -183,7 +185,11 @@ export class RichTextSanitizerService {
 
         // Allow safe data:image/* URLs
         if (trimmed.toLowerCase().startsWith('data:image/')) {
-            return this.isAllowedDataUrl(trimmed) ? trimmed : null;
+            if (!this.isAllowedDataUrl(trimmed)) return null;
+            if (trimmed.toLowerCase().startsWith('data:image/svg+xml')) {
+                return this.sanitizeSvgDataUrl(trimmed);
+            }
+            return trimmed;
         }
 
         // Try to parse as URL
@@ -353,7 +359,7 @@ export class RichTextSanitizerService {
     }
 
     /**
-     * Check if a data: URL is an allowed image type.
+     * Check if a data: URL is an allowed image type with magic byte validation.
      */
     private isAllowedDataUrl(url: string): boolean {
         const allowedMimeTypes = [
@@ -362,10 +368,57 @@ export class RichTextSanitizerService {
             'data:image/jpg',
             'data:image/gif',
             'data:image/webp',
+            'data:image/svg+xml',
         ];
 
         const lowerUrl = url.toLowerCase();
-        return allowedMimeTypes.some(mime => lowerUrl.startsWith(mime));
+        if (!allowedMimeTypes.some(mime => lowerUrl.startsWith(mime))) {
+            return false;
+        }
+
+        if (lowerUrl.startsWith('data:image/svg+xml')) {
+            return true;
+        }
+
+        const marker = ';base64,';
+        const markerIndex = lowerUrl.indexOf(marker);
+        if (markerIndex === -1) return true;
+
+        const base64Start = markerIndex + marker.length;
+        const chunk = url.substring(base64Start, base64Start + 16);
+        if (!chunk) return false;
+
+        try {
+            const decoded = atob(chunk);
+            const bytes = new Uint8Array(decoded.length);
+            for (let i = 0; i < decoded.length; i++) {
+                bytes[i] = decoded.charCodeAt(i);
+            }
+            return isValidImageMagicBytes(bytes);
+        } catch {
+            return false;
+        }
+    }
+
+    /**
+     * Sanitize an SVG data URL by parsing and sanitizing the SVG content.
+     */
+    sanitizeSvgDataUrl(url: string): string | null {
+        const marker = ';base64,';
+        const markerIndex = url.toLowerCase().indexOf(marker);
+        if (markerIndex === -1) return null;
+
+        const base64Data = url.substring(markerIndex + marker.length);
+        if (!base64Data) return null;
+
+        try {
+            const svgString = atob(base64Data);
+            const sanitized = sanitizeSvg(svgString);
+            if (!sanitized) return null;
+            return `data:image/svg+xml;base64,${btoa(sanitized)}`;
+        } catch {
+            return null;
+        }
     }
 
     /**

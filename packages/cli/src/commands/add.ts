@@ -203,9 +203,8 @@ export async function add(components: string[], options: AddOptions) {
 
                 try {
                     let remoteContent = await fetchComponentContent(file, options);
-                    // Transform imports for comparison
-                    const utilsAlias = config.aliases.utils;
-                    remoteContent = remoteContent.replace(/(\.\.\/)+lib\/utils/g, utilsAlias);
+                    // Transform all lib/ imports for comparison
+                    remoteContent = remoteContent.replace(/(\.\.\/)+lib\//g, config.aliases.utils + '/');
 
                     const normalize = (str: string) => str.replace(/\r\n/g, '\n').trim();
                     if (normalize(localContent) !== normalize(remoteContent)) {
@@ -293,9 +292,8 @@ export async function add(components: string[], options: AddOptions) {
                     let content = contentCache.get(file);
                     if (!content) {
                         content = await fetchComponentContent(file, options);
-                        // Transform imports if not already transformed (cached is transformed)
-                        const utilsAlias = config.aliases.utils;
-                        content = content.replace(/(\.\.\/)+lib\/utils/g, utilsAlias);
+                        // Transform all lib/ imports if not already transformed (cached is transformed)
+                        content = content.replace(/(\.\.\/)+lib\//g, config.aliases.utils + '/');
                     }
 
                     await fs.ensureDir(path.dirname(targetPath));
@@ -323,6 +321,34 @@ export async function add(components: string[], options: AddOptions) {
             spinner.info('No new components installed.');
         }
 
+        // Install required lib utility files
+        if (finalComponents.length > 0) {
+            const requiredLibFiles = new Set<string>();
+            for (const name of allComponents) {
+                const component = registry[name];
+                if (component.libFiles) {
+                    component.libFiles.forEach(f => requiredLibFiles.add(f));
+                }
+            }
+
+            if (requiredLibFiles.size > 0) {
+                const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
+                await fs.ensureDir(libDir);
+
+                for (const libFile of requiredLibFiles) {
+                    const libTargetPath = path.join(libDir, libFile);
+                    if (!await fs.pathExists(libTargetPath) || options.overwrite) {
+                        try {
+                            const libContent = await fetchLibContent(libFile, options);
+                            await fs.writeFile(libTargetPath, libContent);
+                        } catch (err: any) {
+                            console.warn(chalk.yellow(`Could not install lib file ${libFile}: ${err.message}`));
+                        }
+                    }
+                }
+            }
+        }
+
         if (finalComponents.length > 0) {
             const npmDependencies = new Set<string>();
             for (const name of finalComponents) {
@@ -346,13 +372,12 @@ export async function add(components: string[], options: AddOptions) {
 
         const shortcutEntries = collectInstalledShortcutEntries(targetDir);
         if (shortcutEntries.length > 0) {
-            const utilsPathResolved = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils) + '.ts');
-            const utilsDir = path.dirname(utilsPathResolved);
-            const shortcutServicePath = path.join(utilsDir, 'shortcut-binding.service.ts');
+            const libDir2 = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
+            const shortcutServicePath = path.join(libDir2, 'shortcut-binding.service.ts');
 
             if (!await fs.pathExists(shortcutServicePath)) {
                 const shortcutServiceContent = await fetchLibContent('shortcut-binding.service.ts', options);
-                await fs.ensureDir(utilsDir);
+                await fs.ensureDir(libDir2);
                 await fs.writeFile(shortcutServicePath, shortcutServiceContent);
             }
         }

@@ -77,10 +77,11 @@ describe('RichTextSanitizerService Security Audit', () => {
             expect(output).not.toContain('vbscript:');
         });
 
-        it('should block data:image/svg+xml URLs', () => {
-            const input = '<img src="data:image/svg+xml;base64,PHN2Zy8+">';
+        it('should allow data:image/svg+xml URLs with sanitized content', () => {
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg"/>';
+            const input = `<img src="data:image/svg+xml;base64,${btoa(svg)}">`;
             const output = sanitize(input);
-            expect(output).not.toContain('data:image/svg+xml');
+            expect(output).toContain('data:image/svg+xml');
         });
     });
 
@@ -125,6 +126,73 @@ describe('RichTextSanitizerService Security Audit', () => {
         it('should handle object/embed tags', () => {
             const input = '<object data="evil.swf"></object>';
             expect(sanitize(input)).not.toContain('<object');
+        });
+    });
+
+    describe('Base64 Image Magic Byte Validation', () => {
+        it('should keep img with valid PNG base64 content', () => {
+            const pngBytes = String.fromCharCode(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00);
+            const dataUrl = `data:image/png;base64,${btoa(pngBytes)}`;
+            const input = `<img src="${dataUrl}">`;
+            const output = sanitize(input);
+            expect(output).toContain('data:image/png');
+        });
+
+        it('should strip img with fake PNG base64 (JavaScript content)', () => {
+            const jsContent = 'const x = 1; function hack() {}';
+            const dataUrl = `data:image/png;base64,${btoa(jsContent)}`;
+            const input = `<img src="${dataUrl}">`;
+            const output = sanitize(input);
+            expect(output).not.toContain('base64');
+        });
+
+        it('should strip img with fake PNG base64 (EXE content)', () => {
+            const exeBytes = String.fromCharCode(0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00);
+            const dataUrl = `data:image/png;base64,${btoa(exeBytes)}`;
+            const input = `<img src="${dataUrl}">`;
+            const output = sanitize(input);
+            expect(output).not.toContain('base64');
+        });
+
+        it('should allow img with sanitized SVG data URL', () => {
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg"><rect width="10" height="10" fill="red"/></svg>';
+            const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+            const input = `<img src="${dataUrl}">`;
+            const output = sanitize(input);
+            expect(output).toContain('data:image/svg+xml');
+            expect(output).toContain('base64');
+        });
+
+        it('should strip script from SVG data URL in img src', () => {
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert("XSS")</script><rect width="10" height="10"/></svg>';
+            const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+            const input = `<img src="${dataUrl}">`;
+            const output = sanitize(input);
+            if (output.includes('data:image/svg+xml')) {
+                const srcMatch = output.match(/src="([^"]+)"/);
+                if (srcMatch) {
+                    const base64Part = srcMatch[1].split(',')[1];
+                    const decoded = atob(base64Part);
+                    expect(decoded).not.toContain('<script');
+                    expect(decoded).not.toContain('alert');
+                }
+            }
+        });
+
+        it('should strip foreignObject from SVG data URL', () => {
+            const svg = '<svg xmlns="http://www.w3.org/2000/svg"><foreignObject><body xmlns="http://www.w3.org/1999/xhtml"><script>alert(1)</script></body></foreignObject></svg>';
+            const dataUrl = `data:image/svg+xml;base64,${btoa(svg)}`;
+            const input = `<img src="${dataUrl}">`;
+            const output = sanitize(input);
+            if (output.includes('data:image/svg+xml')) {
+                const srcMatch = output.match(/src="([^"]+)"/);
+                if (srcMatch) {
+                    const base64Part = srcMatch[1].split(',')[1];
+                    const decoded = atob(base64Part);
+                    expect(decoded).not.toContain('foreignObject');
+                    expect(decoded).not.toContain('<script');
+                }
+            }
         });
     });
 });

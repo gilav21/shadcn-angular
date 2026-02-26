@@ -220,14 +220,13 @@ export async function init(options: InitOptions) {
         // If config came from defaults, aliases are set.
         // We can reverse-map alias to path: @/ -> src/
 
-        const utilsPathResolved = resolveAliasOrPath(cwd, config.aliases.utils + '.ts');
-        const utilsDir = path.dirname(utilsPathResolved); // utils usually ends in path/to/utils
+        const libDir = resolveAliasOrPath(cwd, config.aliases.utils);
 
-        await fs.ensureDir(utilsDir);
-        await fs.writeFile(utilsPathResolved, getUtilsTemplate());
+        await fs.ensureDir(libDir);
+        await fs.writeFile(path.join(libDir, 'utils.ts'), getUtilsTemplate());
         spinner.text = 'Created utils.ts';
 
-        const shortcutServicePath = path.join(utilsDir, 'shortcut-binding.service.ts');
+        const shortcutServicePath = path.join(libDir, 'shortcut-binding.service.ts');
         const shortcutServiceContent = await fetchLibFileContent('shortcut-binding.service.ts');
         await fs.writeFile(shortcutServicePath, shortcutServiceContent);
         spinner.text = 'Created shortcut-binding.service.ts';

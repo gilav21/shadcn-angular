@@ -29,7 +29,7 @@ export function getDefaultConfig(): Config {
         },
         aliases: {
             components: '@/components',
-            utils: '@/components/lib/utils',
+            utils: '@/components/lib',
             ui: '@/components/ui',
         },
     };

@@ -24,9 +24,8 @@ function resolveProjectPath(cwd: string, inputPath: string): string {
 }
 
 function getShortcutRegistryIndexPath(cwd: string, config: Config): string {
-    const utilsFilePath = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils) + '.ts');
-    const utilsDir = path.dirname(utilsFilePath);
-    return path.join(utilsDir, 'shortcut-registry.index.ts');
+    const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
+    return path.join(libDir, 'shortcut-registry.index.ts');
 }
 
 export async function writeShortcutRegistryIndex(
@@ -41,10 +40,7 @@ export async function writeShortcutRegistryIndex(
         .sort((a, b) => a.exportName.localeCompare(b.exportName));
 
     const uiAlias = config.aliases.ui;
-    const utilsAliasDir = config.aliases.utils.includes('/')
-        ? config.aliases.utils.slice(0, config.aliases.utils.lastIndexOf('/'))
-        : config.aliases.utils;
-    const shortcutServiceImport = `${utilsAliasDir}/shortcut-binding.service`;
+    const shortcutServiceImport = `${config.aliases.utils}/shortcut-binding.service`;
 
     const imports = uniqueEntries
         .map(entry => {

@@ -41,4 +41,32 @@ describe('DataTablePaginationComponent', () => {
 
     expect(emitted.pageIndex).toBe(0);
   });
+
+  it('should render custom pageSizeOptions', () => {
+    fixture.componentRef.setInput('pageSizeOptions', [25, 50, 100]);
+    fixture.detectChanges();
+
+    expect(component.pageSizeOptions()).toEqual([25, 50, 100]);
+  });
+
+  it('should default showPageSizeSelector to true', () => {
+    expect(component.showPageSizeSelector()).toBe(true);
+  });
+
+  it('should hide rows per page section when showPageSizeSelector is false', () => {
+    fixture.componentRef.setInput('showPageSizeSelector', false);
+    fixture.detectChanges();
+
+    const rowsPerPageText = fixture.nativeElement.querySelector('p.text-sm');
+    expect(rowsPerPageText).toBeNull();
+  });
+
+  it('should show rows per page section when showPageSizeSelector is true', () => {
+    fixture.componentRef.setInput('showPageSizeSelector', true);
+    fixture.detectChanges();
+
+    const rowsPerPageText = fixture.nativeElement.querySelector('p.text-sm');
+    expect(rowsPerPageText).not.toBeNull();
+    expect(rowsPerPageText.textContent).toContain('Rows per page');
+  });
 });
