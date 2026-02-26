@@ -6,6 +6,7 @@ export interface ComponentDefinition {
   files: string[]; // Relative paths to component files
   dependencies?: string[]; // Other components this depends on
   npmDependencies?: string[]; // NPM packages this depends on
+  libFiles?: string[]; // Lib utility files this component requires (e.g. 'xlsx.ts')
   shortcutDefinitions?: {
     exportName: string;
     componentName: string;
@@ -155,6 +156,7 @@ export const registry: Record<string, ComponentDefinition> = {
       'component-outlet',
       'icon',
     ],
+    libFiles: ['xlsx.ts'],
   },
   dialog: {
     name: 'dialog',
@@ -392,6 +394,7 @@ export const registry: Record<string, ComponentDefinition> = {
       'dialog',
       'scroll-area',
     ],
+    libFiles: ['pdf-parser.ts', 'image-validator.ts', 'svg-sanitizer.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
