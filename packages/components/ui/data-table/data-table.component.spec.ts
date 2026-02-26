@@ -738,4 +738,124 @@ describe('DataTableComponent', () => {
             expect(keys[0]).toBe('role');
         });
     });
+
+    describe('Model initial state via setInput', () => {
+        it('should accept initial sortState and reflect in sortedData', () => {
+            fixture.componentRef.setInput('columns', [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'name', header: 'Name', enableSorting: true },
+                { accessorKey: 'role', header: 'Role' },
+            ]);
+            fixture.componentRef.setInput('sortState', { column: 'name', direction: 'desc' as const });
+            fixture.detectChanges();
+
+            const data = component.sortedData();
+            expect(data[0].name).toBe('Eve');
+            expect(data[4].name).toBe('Alice');
+        });
+
+        it('should accept initial multiSortState with enableMultiSort', () => {
+            fixture.componentRef.setInput('enableMultiSort', true);
+            fixture.componentRef.setInput('columns', [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'name', header: 'Name', enableSorting: true },
+                { accessorKey: 'role', header: 'Role', enableSorting: true },
+            ]);
+            fixture.componentRef.setInput('multiSortState', [
+                { column: 'role', direction: 'asc' as const },
+                { column: 'name', direction: 'desc' as const },
+            ]);
+            fixture.detectChanges();
+
+            const data = component.sortedData();
+            expect(data[0].name).toBe('David');
+            expect(data[1].name).toBe('Alice');
+        });
+
+        it('should accept initial globalFilter and reflect in filteredData', () => {
+            fixture.componentRef.setInput('globalFilter', 'Alice');
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()[0].name).toBe('Alice');
+        });
+
+        it('should accept initial columnFilters and reflect in filteredData', () => {
+            fixture.componentRef.setInput('columns', [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'name', header: 'Name' },
+                { accessorKey: 'role', header: 'Role', enableFiltering: true },
+            ]);
+            fixture.componentRef.setInput('columnFilters', { role: 'Admin' });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(2);
+            expect(component.filteredData().every(row => row.role === 'Admin')).toBe(true);
+        });
+
+        it('should accept initial columnWidths and reflect in enhancedColumns', () => {
+            fixture.componentRef.setInput('columnWidths', { name: '300px' });
+            fixture.detectChanges();
+
+            const nameCol = component.enhancedColumns().find(col => col.accessorKey === 'name');
+            expect(nameCol?._width).toBe('300px');
+        });
+    });
+
+    describe('Row Selection API', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('enableRowSelection', true);
+            fixture.detectChanges();
+        });
+
+        it('should return correct T[] from selectedRows computed', () => {
+            component.rowSelection.set({ '1': true, '3': true });
+            fixture.detectChanges();
+
+            const selected = component.selectedRows();
+            expect(selected.length).toBe(2);
+            expect(selected.map(r => r.name)).toEqual(['Alice', 'Charlie']);
+        });
+
+        it('should select rows via selectRows()', () => {
+            component.selectRows([TEST_DATA[0], TEST_DATA[2]]);
+            fixture.detectChanges();
+
+            expect(component.isRowSelected(TEST_DATA[0])).toBe(true);
+            expect(component.isRowSelected(TEST_DATA[2])).toBe(true);
+            expect(component.isRowSelected(TEST_DATA[1])).toBe(false);
+        });
+
+        it('should deselect rows via unselectRows()', () => {
+            component.selectRows(TEST_DATA);
+            fixture.detectChanges();
+
+            component.unselectRows([TEST_DATA[1], TEST_DATA[3]]);
+            fixture.detectChanges();
+
+            expect(component.isRowSelected(TEST_DATA[0])).toBe(true);
+            expect(component.isRowSelected(TEST_DATA[1])).toBe(false);
+            expect(component.isRowSelected(TEST_DATA[3])).toBe(false);
+            expect(component.selectedRows().length).toBe(3);
+        });
+
+        it('should clear all selection via clearSelection()', () => {
+            component.selectRows(TEST_DATA);
+            fixture.detectChanges();
+
+            component.clearSelection();
+            fixture.detectChanges();
+
+            expect(component.selectedRows().length).toBe(0);
+            expect(component.isAllSelected()).toBe(false);
+        });
+
+        it('should select all visible rows via selectAll()', () => {
+            component.selectAll();
+            fixture.detectChanges();
+
+            expect(component.isAllSelected()).toBe(true);
+            expect(component.selectedRows().length).toBe(TEST_DATA.length);
+        });
+    });
 });

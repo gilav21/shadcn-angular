@@ -437,14 +437,14 @@ export class DataTableComponent<T> {
   emptyStateComponentInputs = input<Record<string, unknown>>({});
 
   exporting = signal(false);
-  globalFilter = signal('');
-  columnFilters = signal<Record<string, any>>({});
-  sortState = signal<SortState>({ column: '', direction: null });
-  multiSortState = signal<SortState[]>([]);
+  globalFilter = model('');
+  columnFilters = model<Record<string, any>>({});
+  sortState = model<SortState>({ column: '', direction: null });
+  multiSortState = model<SortState[]>([]);
   paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
   pageSizeOptions = input<number[]>([10, 20, 30, 40, 50]);
   showPageSizeSelector = input(true);
-  columnWidths = signal<Record<string, string>>({});
+  columnWidths = model<Record<string, string>>({});
   columnVisibility = model<Record<string, boolean>>({});
   columnOrder = model<string[]>([]);
   loadingTrigger = signal<DataTableLoadingTrigger>('initial');
@@ -556,6 +556,12 @@ export class DataTableComponent<T> {
       }
     });
     return count;
+  });
+
+  selectedRows = computed(() => {
+    const selection = this.rowSelection();
+    const getId = this.getRowId();
+    return this.data().filter(row => !!selection[getId(row)]);
   });
 
   constructor() {
@@ -854,6 +860,28 @@ export class DataTableComponent<T> {
     const visibleCount = this.filteredRowIds().length;
     return count > 0 && count < visibleCount;
   });
+
+  selectRows(rows: T[]) {
+    const getId = this.getRowId();
+    const next = { ...this.rowSelection() };
+    rows.forEach(row => next[getId(row)] = true);
+    this.rowSelection.set(next);
+  }
+
+  unselectRows(rows: T[]) {
+    const getId = this.getRowId();
+    const next = { ...this.rowSelection() };
+    rows.forEach(row => delete next[getId(row)]);
+    this.rowSelection.set(next);
+  }
+
+  clearSelection() {
+    this.rowSelection.set({});
+  }
+
+  selectAll() {
+    this.toggleAll();
+  }
 
   onPaginationChange(state: PaginationState) {
     this.loadingTrigger.set('pagination');
