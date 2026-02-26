@@ -392,6 +392,43 @@ describe('AutocompleteComponent', () => {
         });
     });
 
+    // --- valueChange output ---
+
+    describe('valueChange output', () => {
+        it('should emit the selected value in single mode', () => {
+            const spy = vi.fn();
+            autocomplete.valueChange.subscribe(spy);
+
+            autocomplete.onSelect(fruits[0]);
+
+            expect(spy).toHaveBeenCalledWith(fruits[0]);
+        });
+
+        it('should emit null when value is cleared in single mode', () => {
+            const spy = vi.fn();
+            autocomplete.valueChange.subscribe(spy);
+
+            autocomplete.updateValue([]);
+
+            expect(spy).toHaveBeenCalledWith(null);
+        });
+
+        it('should emit array in multiple mode', async () => {
+            host.multiple.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const spy = vi.fn();
+            autocomplete.valueChange.subscribe(spy);
+
+            autocomplete.onSelect(fruits[0]);
+            expect(spy).toHaveBeenCalledWith([fruits[0]]);
+
+            autocomplete.onSelect(fruits[1]);
+            expect(spy).toHaveBeenCalledWith([fruits[0], fruits[1]]);
+        });
+    });
+
     // --- isSelected ---
 
     describe('isSelected', () => {

@@ -148,6 +148,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     readonly value = input<T | T[] | undefined>(undefined);
 
     search = output<string>();
+    valueChange = output<T | T[] | null>();
 
     open = signal(false);
     searchTerm = model('');
@@ -361,11 +362,12 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     updateValue(newValues: T[]) {
         this.internalValue.set(newValues);
 
-        if (this.multiple()) {
-            this.onChange(newValues);
-        } else {
-            this.onChange(newValues.length ? newValues[0] : null);
-        }
+        const emitValue = this.multiple()
+            ? newValues
+            : (newValues.length ? newValues[0] : null);
+
+        this.onChange(emitValue);
+        this.valueChange.emit(emitValue);
         this.onTouched();
     }
 
