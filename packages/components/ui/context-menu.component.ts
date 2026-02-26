@@ -98,6 +98,10 @@ export class ContextMenuComponent implements OnDestroy {
     data = signal<any>(undefined);
 
     private clickListener = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        if (target.closest('[data-context-menu-portal]') || target.closest('[data-context-menu-sub-portal]')) {
+            return;
+        }
         this.close();
     };
 
@@ -112,13 +116,13 @@ export class ContextMenuComponent implements OnDestroy {
     };
 
     constructor() {
-        this.document.addEventListener('click', this.clickListener);
+        this.document.addEventListener('click', this.clickListener, true);
         this.document.addEventListener('keydown', this.escListener);
         this.document.addEventListener('scroll', this.scrollListener, true);
     }
 
     ngOnDestroy() {
-        this.document.removeEventListener('click', this.clickListener);
+        this.document.removeEventListener('click', this.clickListener, true);
         this.document.removeEventListener('keydown', this.escListener);
         this.document.removeEventListener('scroll', this.scrollListener, true);
     }
@@ -175,7 +179,6 @@ export class ContextMenuTriggerComponent {
         [style.z-index]="9999"
         [attr.data-state]="contextMenu?.open() ? 'open' : 'closed'"
         [attr.data-slot]="'context-menu-content'"
-        (click)="$event.stopPropagation()"
       >
         <ng-content />
       </div>
@@ -509,7 +512,6 @@ export class ContextMenuSubTriggerComponent {
         (mouseenter)="sub.enter()"
         (mouseleave)="sub.leave()"
         (keydown)="onKeydown($event)"
-        (click)="$event.stopPropagation()"
       >
         <ng-content />
       </div>

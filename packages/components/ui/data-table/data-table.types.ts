@@ -34,7 +34,7 @@ export interface ColumnDef<T> {
     enableGlobalFilter?: boolean;
     filterFn?: (row: T, filterValue: unknown) => boolean;
     filterComponent?: Type<unknown>;
-    filterComponentInputs?: Record<string, unknown>;
+    filterComponentInputs?: Record<string, unknown> | (() => Record<string, unknown>);
     filterComponentOutputs?: Record<string, (event: unknown) => void>;
     sticky?: boolean;
     pin?: 'left' | 'right';

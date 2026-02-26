@@ -459,3 +459,58 @@ describe('ContextMenu Sub-Menu (Template-Driven)', () => {
         expect(subContent).toBeNull();
     });
 });
+
+describe('ContextMenu close on stopPropagation clicks', () => {
+    let fixture: ComponentFixture<TestHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [TestHostComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        document.querySelectorAll('[data-context-menu-portal]').forEach(el => el.remove());
+    });
+
+    it('should close when a click with stopPropagation is dispatched outside the portal', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(contextMenuComp.componentInstance.open()).toBe(true);
+
+        const outsideEl = document.createElement('div');
+        document.body.appendChild(outsideEl);
+
+        outsideEl.addEventListener('click', (e) => e.stopPropagation());
+        outsideEl.click();
+        outsideEl.remove();
+
+        expect(contextMenuComp.componentInstance.open()).toBe(false);
+    });
+
+    it('should NOT close when clicking inside the portal', async () => {
+        const contextMenuComp = fixture.debugElement.query(By.directive(ContextMenuComponent));
+        contextMenuComp.componentInstance.show(100, 100);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await new Promise(resolve => setTimeout(resolve, 50));
+
+        expect(contextMenuComp.componentInstance.open()).toBe(true);
+
+        const portal = document.querySelector('[data-context-menu-portal]') as HTMLElement;
+        expect(portal).toBeTruthy();
+
+        const menuContent = portal.querySelector('[data-slot="context-menu-content"]') as HTMLElement;
+        expect(menuContent).toBeTruthy();
+        menuContent.click();
+
+        expect(contextMenuComp.componentInstance.open()).toBe(true);
+    });
+});

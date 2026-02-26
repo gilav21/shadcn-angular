@@ -196,7 +196,7 @@ import { cn } from '../../lib/utils';
                               <ui-popover-content class="w-80">
                                 <div 
                                   [uiComponentOutlet]="col.filterComponent" 
-                                  [inputs]="col.filterComponentInputs || {}"
+                                  [inputs]="getFilterInputs(col)"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
                               </ui-popover-content>
@@ -221,7 +221,7 @@ import { cn } from '../../lib/utils';
                               <ui-popover-content class="w-80">
                                 <div 
                                   [uiComponentOutlet]="col.filterComponent" 
-                                  [inputs]="col.filterComponentInputs || {}"
+                                  [inputs]="getFilterInputs(col)"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
                               </ui-popover-content>
@@ -1063,6 +1063,13 @@ export class DataTableComponent<T> {
 
   setLoadingTrigger(trigger: DataTableLoadingTrigger) {
     this.loadingTrigger.set(trigger);
+  }
+
+  getFilterInputs(col: ColumnDef<T>): Record<string, unknown> {
+    if (typeof col.filterComponentInputs === 'function') {
+      return col.filterComponentInputs();
+    }
+    return col.filterComponentInputs || {};
   }
 
   getFilterOutputs(col: ColumnDef<T>): Record<string, (event: any) => void> {

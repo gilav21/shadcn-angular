@@ -858,4 +858,56 @@ describe('DataTableComponent', () => {
             expect(component.selectedRows().length).toBe(TEST_DATA.length);
         });
     });
+
+    describe('getFilterInputs', () => {
+        it('should return static filterComponentInputs as-is', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+                filterComponentInputs: { placeholder: 'Filter roles...' },
+            };
+
+            const result = component.getFilterInputs(col);
+            expect(result).toEqual({ placeholder: 'Filter roles...' });
+        });
+
+        it('should call filterComponentInputs when it is a function', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+                filterComponentInputs: () => ({ options: ['Admin', 'User'] }),
+            };
+
+            const result = component.getFilterInputs(col);
+            expect(result).toEqual({ options: ['Admin', 'User'] });
+        });
+
+        it('should return empty object when filterComponentInputs is undefined', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+            };
+
+            const result = component.getFilterInputs(col);
+            expect(result).toEqual({});
+        });
+
+        it('should return updated values when function references a signal', () => {
+            let currentOptions = ['Admin'];
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+                filterComponentInputs: () => ({ options: currentOptions }),
+            };
+
+            expect(component.getFilterInputs(col)).toEqual({ options: ['Admin'] });
+
+            currentOptions = ['Admin', 'User', 'Manager'];
+            expect(component.getFilterInputs(col)).toEqual({ options: ['Admin', 'User', 'Manager'] });
+        });
+    });
 });
