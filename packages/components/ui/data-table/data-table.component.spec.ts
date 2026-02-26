@@ -620,6 +620,38 @@ describe('DataTableComponent', () => {
         expect(rightPinnedStyle.right).toBe('0px');
     });
 
+    it('should accept initial paginationState via input in server-side mode', () => {
+        fixture.componentRef.setInput('localPagination', false);
+        fixture.componentRef.setInput('total', 500);
+        fixture.componentRef.setInput('paginationState', { pageIndex: 3, pageSize: 50 });
+        fixture.detectChanges();
+
+        expect(component.paginationState().pageIndex).toBe(3);
+        expect(component.paginationState().pageSize).toBe(50);
+    });
+
+    it('should default pageSizeOptions to [10, 20, 30, 40, 50]', () => {
+        expect(component.pageSizeOptions()).toEqual([10, 20, 30, 40, 50]);
+    });
+
+    it('should accept custom pageSizeOptions', () => {
+        fixture.componentRef.setInput('pageSizeOptions', [25, 50, 100]);
+        fixture.detectChanges();
+
+        expect(component.pageSizeOptions()).toEqual([25, 50, 100]);
+    });
+
+    it('should default showPageSizeSelector to true', () => {
+        expect(component.showPageSizeSelector()).toBe(true);
+    });
+
+    it('should accept showPageSizeSelector false', () => {
+        fixture.componentRef.setInput('showPageSizeSelector', false);
+        fixture.detectChanges();
+
+        expect(component.showPageSizeSelector()).toBe(false);
+    });
+
     describe('Column Resizing', () => {
         it('should not show resize handles when enableColumnResize is false', () => {
             fixture.componentRef.setInput('enableColumnResize', false);

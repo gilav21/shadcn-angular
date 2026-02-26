@@ -369,6 +369,8 @@ import { cn } from '../../lib/utils';
           class="flex-none"
           [total]="activeTotalItems()"
           [state]="paginationState()"
+          [pageSizeOptions]="pageSizeOptions()"
+          [showPageSizeSelector]="showPageSizeSelector()"
           (paginationChange)="onPaginationChange($event)"
         />
       }
@@ -439,7 +441,9 @@ export class DataTableComponent<T> {
   columnFilters = signal<Record<string, any>>({});
   sortState = signal<SortState>({ column: '', direction: null });
   multiSortState = signal<SortState[]>([]);
-  paginationState = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  pageSizeOptions = input<number[]>([10, 20, 30, 40, 50]);
+  showPageSizeSelector = input(true);
   columnWidths = signal<Record<string, string>>({});
   columnVisibility = model<Record<string, boolean>>({});
   columnOrder = model<string[]>([]);

@@ -50,16 +50,17 @@ import { isRtl } from '../../lib/utils';
       <div class="flex-1 text-sm text-muted-foreground">
       </div>
         <div class="flex items-center space-x-6 lg:space-x-8">
+        @if (showPageSizeSelector()) {
         <div class="flex items-center space-x-2">
           <p class="text-sm font-medium">Rows per page</p>
-          <ui-select 
-            [ngModel]="pageSizeString()" 
+          <ui-select
+            [ngModel]="pageSizeString()"
             (ngModelChange)="onPageSizeChange($event)">
               <ui-select-trigger class="h-8 w-[70px]">
                 <ui-select-value [placeholder]="pageSizeString()" />
               </ui-select-trigger>
               <ui-select-content side="top">
-                @for (size of [10, 20, 30, 40, 50]; track size) {
+                @for (size of pageSizeOptions(); track size) {
                   <ui-select-item [value]="size.toString()">
                     {{ size }}
                   </ui-select-item>
@@ -67,6 +68,7 @@ import { isRtl } from '../../lib/utils';
               </ui-select-content>
           </ui-select>
         </div>
+        }
         <div class="flex items-center space-x-2">
           <ui-pagination [class]="'mx-0 w-auto'">
             <ui-pagination-content>
@@ -135,6 +137,8 @@ export class DataTablePaginationComponent {
 
   total = input(0);
   state = input.required<PaginationState>();
+  pageSizeOptions = input<number[]>([10, 20, 30, 40, 50]);
+  showPageSizeSelector = input(true);
 
   paginationChange = output<PaginationState>();
 
