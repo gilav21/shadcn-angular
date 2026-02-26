@@ -218,7 +218,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   input: {
     name: 'input',
-    files: ['input.component.ts'],
+    files: ['input.component.ts', 'input-group.token.ts'],
   },
   'input-group': {
     name: 'input-group',
@@ -328,7 +328,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   textarea: {
     name: 'textarea',
-    files: ['textarea.component.ts'],
+    files: ['textarea.component.ts', 'input-group.token.ts'],
   },
   timeline: {
     name: 'timeline',
@@ -571,7 +571,12 @@ export const registry: Record<string, ComponentDefinition> = {
   // Kanban
   kanban: {
     name: 'kanban',
-    files: ['kanban.component.ts'],
-    dependencies: ['badge', 'avatar', 'scroll-area', 'separator'],
+    files: ['kanban.component.ts', 'kanban-locales.ts'],
+    dependencies: [
+      'badge', 'avatar', 'scroll-area', 'separator',
+      'button', 'input', 'textarea', 'label',
+      'chip-list', 'autocomplete',
+      'dialog', 'alert-dialog', 'context-menu',
+    ],
   },
 };

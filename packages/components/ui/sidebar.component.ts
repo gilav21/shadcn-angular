@@ -550,7 +550,7 @@ export class SidebarInsetComponent {
   class = input('');
 
   classes = computed(() => cn(
-    'flex flex-1 flex-col',
+    'flex flex-1 flex-col overflow-hidden',
     this.class()
   ));
 }
