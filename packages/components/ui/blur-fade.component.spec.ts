@@ -65,7 +65,7 @@ describe('BlurFadeComponent', () => {
 
         it('should set data-slot attribute', () => {
             const el = fixture.debugElement.query(By.directive(BlurFadeComponent));
-            expect((el.nativeElement as HTMLElement).getAttribute('data-slot')).toBe('blur-fade');
+            expect((el.nativeElement as HTMLElement).dataset['slot']).toBe('blur-fade');
         });
 
         it('should apply custom class', () => {

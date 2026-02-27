@@ -50,7 +50,7 @@ describe('InputComponent', () => {
 
     it('should have data-slot="input"', () => {
         const input = fixture.debugElement.query(By.css('input'));
-        expect(input.nativeElement.getAttribute('data-slot')).toBe('input');
+        expect(input.nativeElement.dataset.slot).toBe('input');
     });
 
     it('should have default type="text"', () => {

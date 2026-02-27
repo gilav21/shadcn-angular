@@ -1,6 +1,5 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { ScrollAreaComponent } from './scroll-area.component';
-import { moduleMetadata } from '@storybook/angular';
 import { SeparatorComponent } from './separator.component';
 
 const meta: Meta<ScrollAreaComponent> = {

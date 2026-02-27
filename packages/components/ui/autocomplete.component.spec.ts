@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { AutocompleteComponent } from './autocomplete.component';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 
@@ -45,8 +44,7 @@ describe('AutocompleteComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [TestHostComponent],
-            providers: [provideNoopAnimations()]
+            imports: [TestHostComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
@@ -85,7 +83,7 @@ describe('AutocompleteComponent', () => {
         fixture.detectChanges();
 
         const container = fixture.debugElement.query(By.css('[data-state]'));
-        expect(container.nativeElement.getAttribute('data-disabled')).toBeNull();
+        expect(container.nativeElement.dataset['disabled']).toBeUndefined();
     });
 
     it('should render in single mode by default', () => {

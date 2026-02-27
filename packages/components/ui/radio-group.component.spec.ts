@@ -141,7 +141,7 @@ describe('RadioGroup Integration', () => {
         await fixture.whenStable();
 
         expect(items[1].nativeElement.getAttribute('aria-checked')).toBe('true');
-        expect(items[1].nativeElement.getAttribute('data-state')).toBe('checked');
+        expect(items[1].nativeElement.dataset.state).toBe('checked');
     });
 
     it('should emit valueChange on selection', async () => {

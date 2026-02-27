@@ -1,11 +1,10 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   AccordionComponent,
   AccordionItemComponent,
   AccordionTriggerComponent,
   AccordionContentComponent,
 } from './accordion.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<AccordionComponent & { rtl: boolean }> = {
   title: 'UI/Accordion',

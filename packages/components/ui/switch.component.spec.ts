@@ -47,7 +47,7 @@ describe('SwitchComponent', () => {
 
     it('should have data-slot="switch"', () => {
         const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.getAttribute('data-slot')).toBe('switch');
+        expect(button.nativeElement.dataset.slot).toBe('switch');
     });
 
     it('should have role="switch"', () => {

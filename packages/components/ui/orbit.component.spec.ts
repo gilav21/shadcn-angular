@@ -62,7 +62,7 @@ describe('OrbitComponent', () => {
 
         it('should render the host with data-slot attribute', () => {
             const hostEl = fixture.debugElement.query(By.directive(OrbitComponent));
-            expect((hostEl.nativeElement as HTMLElement).getAttribute('data-slot')).toBe('orbit');
+            expect((hostEl.nativeElement as HTMLElement).dataset['slot']).toBe('orbit');
         });
 
         it('should have absolute inset-0 pointer-events-none on host', () => {

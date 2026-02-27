@@ -7,8 +7,7 @@ import {
     OnInit,
     OnDestroy,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../lib/utils';
 
 @Component({
     selector: 'ui-morphing-text',
@@ -43,7 +42,7 @@ export class MorphingTextComponent implements OnInit, OnDestroy {
     texts = input<string[]>([]);
     interval = input(3000);
 
-    private textIndex = signal(0);
+    private readonly textIndex = signal(0);
     currentVisible = signal(true);
     private intervalId: ReturnType<typeof setInterval> | null = null;
 

@@ -1463,7 +1463,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     fileImportComplete = output<string>();
     fileImportError = output<string>();
 
-    private htmlContent = signal<string>('');
+    private readonly htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
     showFloatingToolbar = signal<boolean>(false);
@@ -1499,7 +1499,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         startWidths: number[];
         tableWidth: number;
     } | null = null;
-    private tableResizeCursor = signal(false);
+    private readonly tableResizeCursor = signal(false);
     private readonly onTableResizeMoveBound = this.onTableResizeMove.bind(this);
     private readonly onTableResizeUpBound = this.onTableResizeUp.bind(this);
     tableCellColors = [
@@ -1513,7 +1513,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private readonly onTableCellSelectMoveBound = this.onTableCellSelectMove.bind(this);
     private readonly onTableCellSelectUpBound = this.onTableCellSelectUp.bind(this);
 
-    private autoUploadMap = new Map<string, { subscription: Subscription; dataUrl: string }>();
+    private readonly autoUploadMap = new Map<string, { subscription: Subscription; dataUrl: string }>();
     private autoUploadObserver: MutationObserver | null = null;
     private autoUploadCounter = 0;
     private autoUploadMutating = false;
@@ -1710,41 +1710,41 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onEditorClick(event: MouseEvent): void {
         const target = event.target as HTMLElement;
-        if (target.tagName === 'IMG') {
-            this.selectedImage.set(target as HTMLImageElement);
-        } else {
-            this.selectedImage.set(null);
-        }
+        this.selectedImage.set(target.tagName === 'IMG' ? target as HTMLImageElement : null);
 
         if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
-            const li = target.closest<HTMLElement>('li[data-task]');
-            if (li) {
-                event.preventDefault();
-                const cb = target as HTMLInputElement;
-                const isChecked = li.dataset['checked'] === 'true';
-                const newChecked = !isChecked;
-                li.dataset['checked'] = String(newChecked);
-                if (newChecked) {
-                    cb.setAttribute('checked', '');
-                } else {
-                    cb.removeAttribute('checked');
-                }
-                setTimeout(() => { cb.checked = newChecked; });
-                const textSpan = li.querySelector(':scope > span');
-                if (textSpan) {
-                    const sel = this.document.getSelection();
-                    if (sel) {
-                        const r = this.document.createRange();
-                        r.selectNodeContents(textSpan);
-                        r.collapse(false);
-                        sel.removeAllRanges();
-                        sel.addRange(r);
-                    }
-                }
-                this.syncContentFromEditor();
-                this.pushHistory();
-            }
+            this.handleTaskCheckboxClick(event, target as HTMLInputElement);
         }
+    }
+
+    private handleTaskCheckboxClick(event: MouseEvent, cb: HTMLInputElement): void {
+        const li = cb.closest<HTMLElement>('li[data-task]');
+        if (!li) return;
+
+        event.preventDefault();
+        const newChecked = li.dataset['checked'] !== 'true';
+        li.dataset['checked'] = String(newChecked);
+        if (newChecked) {
+            cb.setAttribute('checked', '');
+        } else {
+            cb.removeAttribute('checked');
+        }
+        setTimeout(() => { cb.checked = newChecked; });
+        this.placeCaretAfterTaskCheckbox(li);
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    private placeCaretAfterTaskCheckbox(li: HTMLElement): void {
+        const textSpan = li.querySelector(':scope > span');
+        if (!textSpan) return;
+        const sel = this.document.getSelection();
+        if (!sel) return;
+        const r = this.document.createRange();
+        r.selectNodeContents(textSpan);
+        r.collapse(false);
+        sel.removeAllRanges();
+        sel.addRange(r);
     }
 
     onImageResizeEnd(): void {
@@ -1972,9 +1972,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     writeValue(value: string): void {
-        if (value === null || value === undefined) {
-            value = '';
-        }
+        value ??= '';
 
         if (this.mode() === 'markdown' && value) {
             this.htmlContent.set(this.markdownService.toHtml(value));
@@ -1998,7 +1996,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onInput(event: Event): void {
         const div = event.target as HTMLDivElement;
-        const html = this.sanitizer.sanitize(div.innerHTML).replace(/\u200B/g, '');
+        const html = this.sanitizer.sanitize(div.innerHTML).replaceAll('\u200B', '');
 
         const textContent = div.textContent ?? '';
         const triggerTextContent = this.buildTriggerAwareText(div.innerHTML);
@@ -2009,10 +2007,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             : triggerTextContent.length;
 
         const textForSlash = triggerTextContent;
-        if (!this.checkSlashCommandTrigger(textForSlash, caretOffset)) {
-            this.checkMentionTrigger(textContent, caretOffset);
-        } else {
+        if (this.checkSlashCommandTrigger(textForSlash, caretOffset)) {
             this.closeMentionPopover();
+        } else {
+            this.checkMentionTrigger(textContent, caretOffset);
         }
 
         this.htmlContent.set(html);
@@ -2029,197 +2027,203 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onKeydown(event: KeyboardEvent): void {
-        if (this.slashCommandOpen()) {
-            const slashKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab', ' ', 'Spacebar'];
-            if (slashKeys.includes(event.key)) {
-                event.preventDefault();
-                this.onSlashCommandKeydown(event);
-                return;
-            }
-        }
-
-        if (this.mentionPopoverOpen() && this.mentionPopover) {
-            const popoverKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'];
-            if (popoverKeys.includes(event.key)) {
-                event.preventDefault();
-                this.mentionPopover.onKeydown(event);
-                return;
-            }
-        }
-        if (this.shortcutHandle?.dispatch(event)) {
-            return;
-        }
+        if (this.handleSlashCommandKey(event)) return;
+        if (this.handleMentionPopoverKey(event)) return;
+        if (this.shortcutHandle?.dispatch(event)) return;
 
         if (event.key === 'Escape') {
             this.closeMentionPopover();
             this.closeSlashCommandPopover();
             this.showFloatingToolbar.set(false);
         }
+
         if (event.key === 'Tab' && !this.mentionPopoverOpen() && !this.slashCommandOpen()) {
-            event.preventDefault();
-            const listItem = this.getParentListItem();
-            if (listItem) {
-                if (event.shiftKey) {
-                    this.outdentListItem();
-                } else {
-                    this.indentListItem();
-                }
-            } else {
-                this.insertText('\t');
-            }
+            this.handleTabKey(event);
         }
 
         if (event.key === 'Enter' && !event.shiftKey) {
-            const selection = this.document.getSelection();
-            if (selection && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                let node: Node | null = range.startContainer;
-
-                // Handle Enter in task list items
-                const taskLi = this.getParentTaskListItem();
-                if (taskLi) {
-                    event.preventDefault();
-                    const textContent = taskLi.textContent?.replace(/[\s\u00A0]/g, '') || '';
-                    if (!textContent) {
-                        const parentList = taskLi.parentElement;
-                        const p = this.document.createElement('p');
-                        p.innerHTML = '<br>';
-                        parentList?.parentNode?.insertBefore(p, parentList.nextSibling);
-                        taskLi.remove();
-                        if (parentList && !parentList.hasChildNodes()) parentList.remove();
-                        const newRange = this.document.createRange();
-                        newRange.setStart(p, 0);
-                        newRange.setEnd(p, 0);
-                        selection.removeAllRanges();
-                        selection.addRange(newRange);
-                    } else {
-                        const newLi = this.document.createElement('li');
-                        newLi.dataset['task'] = '';
-                        newLi.dataset['checked'] = 'false';
-                        const checkbox = this.document.createElement('input');
-                        checkbox.type = 'checkbox';
-                        const textSpan = this.document.createElement('span');
-                        textSpan.appendChild(this.document.createTextNode('\u00A0'));
-                        newLi.appendChild(checkbox);
-                        newLi.appendChild(textSpan);
-                        taskLi.parentNode?.insertBefore(newLi, taskLi.nextSibling);
-                        const newRange = this.document.createRange();
-                        newRange.setStart(textSpan, 0);
-                        newRange.setEnd(textSpan, 0);
-                        selection.removeAllRanges();
-                        selection.addRange(newRange);
-                    }
-                    this.syncContentFromEditor();
-                    this.pushHistory();
-                    return;
-                }
-
-                // Handle Enter in summary (toggle block) → move to content
-                let summaryEl: HTMLElement | null = null;
-                let tempNode: Node | null = range.startContainer;
-                while (tempNode && tempNode !== this.editorDiv?.nativeElement) {
-                    if (tempNode.nodeType === Node.ELEMENT_NODE && (tempNode as Element).tagName === 'SUMMARY') {
-                        summaryEl = tempNode as HTMLElement;
-                        break;
-                    }
-                    tempNode = tempNode.parentNode;
-                }
-                if (summaryEl) {
-                    event.preventDefault();
-                    const details = summaryEl.parentElement;
-                    if (details) {
-                        let contentEl = summaryEl.nextElementSibling;
-                        if (!contentEl) {
-                            contentEl = this.document.createElement('p');
-                            contentEl.innerHTML = '<br>';
-                            details.appendChild(contentEl);
-                        }
-                        const newRange = this.document.createRange();
-                        newRange.setStart(contentEl, 0);
-                        newRange.setEnd(contentEl, 0);
-                        selection.removeAllRanges();
-                        selection.addRange(newRange);
-                    }
-                    return;
-                }
-
-                // Handle Enter at end of details block → escape it
-                let detailsEl: HTMLElement | null = null;
-                tempNode = range.startContainer;
-                while (tempNode && tempNode !== this.editorDiv?.nativeElement) {
-                    if (tempNode.nodeType === Node.ELEMENT_NODE && (tempNode as Element).tagName === 'DETAILS') {
-                        detailsEl = tempNode as HTMLElement;
-                        break;
-                    }
-                    tempNode = tempNode.parentNode;
-                }
-                if (detailsEl) {
-                    const lastChild = detailsEl.lastElementChild;
-                    if (lastChild && lastChild.tagName !== 'SUMMARY') {
-                        const isAtEnd = range.startOffset >= (range.startContainer.textContent?.length || 0);
-                        const isInLastChild = lastChild.contains(range.startContainer);
-                        if (isAtEnd && isInLastChild && !lastChild.textContent?.trim()) {
-                            event.preventDefault();
-                            const p = this.document.createElement('p');
-                            p.innerHTML = '<br>';
-                            detailsEl.parentNode?.insertBefore(p, detailsEl.nextSibling);
-                            lastChild.remove();
-                            const newRange = this.document.createRange();
-                            newRange.setStart(p, 0);
-                            newRange.setEnd(p, 0);
-                            selection.removeAllRanges();
-                            selection.addRange(newRange);
-                            this.syncContentFromEditor();
-                            this.pushHistory();
-                            return;
-                        }
-                    }
-                }
-
-                node = range.startContainer;
-                let preElement: HTMLPreElement | null = null;
-                while (node && node !== this.editorDiv?.nativeElement) {
-                    if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'PRE') {
-                        preElement = node as HTMLPreElement;
-                        break;
-                    }
-                    node = node.parentNode;
-                }
-
-                if (preElement) {
-                    event.preventDefault();
-
-                    const codeElement = preElement.querySelector('code');
-                    const textNode = codeElement || preElement;
-                    const textContent = textNode.textContent || '';
-
-                    if (textContent.endsWith('\n')) {
-                        textNode.textContent = textContent.slice(0, -1);
-                        const p = this.document.createElement('p');
-                        p.innerHTML = '<br>';
-                        preElement.parentNode?.insertBefore(p, preElement.nextSibling);
-
-                        const newRange = this.document.createRange();
-                        newRange.setStart(p, 0);
-                        newRange.setEnd(p, 0);
-                        selection.removeAllRanges();
-                        selection.addRange(newRange);
-                    } else {
-                        const textNodeToInsert = this.document.createTextNode('\n');
-                        range.deleteContents();
-                        range.insertNode(textNodeToInsert);
-                        const newRange = this.document.createRange();
-                        newRange.setStartAfter(textNodeToInsert);
-                        newRange.setEndAfter(textNodeToInsert);
-                        selection.removeAllRanges();
-                        selection.addRange(newRange);
-                    }
-
-                    this.syncContentFromEditor();
-                    this.pushHistory();
-                }
-            }
+            this.handleEnterKey(event);
         }
+    }
+
+    private handleSlashCommandKey(event: KeyboardEvent): boolean {
+        if (!this.slashCommandOpen()) return false;
+        const slashKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab', ' ', 'Spacebar'];
+        if (!slashKeys.includes(event.key)) return false;
+        event.preventDefault();
+        this.onSlashCommandKeydown(event);
+        return true;
+    }
+
+    private handleMentionPopoverKey(event: KeyboardEvent): boolean {
+        if (!this.mentionPopoverOpen() || !this.mentionPopover) return false;
+        const popoverKeys = ['ArrowDown', 'ArrowUp', 'Enter', 'Escape', 'Tab'];
+        if (!popoverKeys.includes(event.key)) return false;
+        event.preventDefault();
+        this.mentionPopover.onKeydown(event);
+        return true;
+    }
+
+    private handleTabKey(event: KeyboardEvent): void {
+        event.preventDefault();
+        const listItem = this.getParentListItem();
+        if (!listItem) {
+            this.insertText('\t');
+            return;
+        }
+        if (event.shiftKey) {
+            this.outdentListItem();
+        } else {
+            this.indentListItem();
+        }
+    }
+
+    private handleEnterKey(event: KeyboardEvent): void {
+        const selection = this.document.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        const range = selection.getRangeAt(0);
+
+        if (this.handleEnterInTaskList(event, selection)) return;
+        if (this.handleEnterInSummary(event, range, selection)) return;
+        if (this.handleEnterAtDetailsEnd(event, range, selection)) return;
+        this.handleEnterInCodeBlock(event, range, selection);
+    }
+
+    private handleEnterInTaskList(event: KeyboardEvent, selection: Selection): boolean {
+        const taskLi = this.getParentTaskListItem();
+        if (!taskLi) return false;
+
+        event.preventDefault();
+        const textContent = taskLi.textContent?.replaceAll(/[\s\u00A0]/g, '') || '';
+        if (textContent) {
+            this.insertNewTaskListItem(taskLi, selection);
+        } else {
+            this.exitTaskList(taskLi, selection);
+        }
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
+    private insertNewTaskListItem(taskLi: HTMLElement, selection: Selection): void {
+        const newLi = this.document.createElement('li');
+        newLi.dataset['task'] = '';
+        newLi.dataset['checked'] = 'false';
+        const checkbox = this.document.createElement('input');
+        checkbox.type = 'checkbox';
+        const textSpan = this.document.createElement('span');
+        textSpan.appendChild(this.document.createTextNode('\u00A0'));
+        newLi.appendChild(checkbox);
+        newLi.appendChild(textSpan);
+        taskLi.parentNode?.insertBefore(newLi, taskLi.nextSibling);
+        this.setSelectionRange(selection, textSpan, 0);
+    }
+
+    private exitTaskList(taskLi: HTMLElement, selection: Selection): void {
+        const parentList = taskLi.parentElement;
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        parentList?.parentNode?.insertBefore(p, parentList.nextSibling);
+        taskLi.remove();
+        if (parentList && !parentList.hasChildNodes()) parentList.remove();
+        this.setSelectionRange(selection, p, 0);
+    }
+
+    private handleEnterInSummary(event: KeyboardEvent, range: Range, selection: Selection): boolean {
+        const summaryEl = this.findAncestorByTag(range.startContainer, 'SUMMARY');
+        if (!summaryEl) return false;
+
+        event.preventDefault();
+        const details = summaryEl.parentElement;
+        if (!details) return true;
+
+        let contentEl = summaryEl.nextElementSibling;
+        if (!contentEl) {
+            contentEl = this.document.createElement('p');
+            contentEl.innerHTML = '<br>';
+            details.appendChild(contentEl);
+        }
+        this.setSelectionRange(selection, contentEl, 0);
+        return true;
+    }
+
+    private handleEnterAtDetailsEnd(event: KeyboardEvent, range: Range, selection: Selection): boolean {
+        const detailsEl = this.findAncestorByTag(range.startContainer, 'DETAILS');
+        if (!detailsEl) return false;
+
+        const lastChild = detailsEl.lastElementChild;
+        if (!lastChild || lastChild.tagName === 'SUMMARY') return false;
+
+        const isAtEnd = range.startOffset >= (range.startContainer.textContent?.length || 0);
+        const isInLastChild = lastChild.contains(range.startContainer);
+        if (!isAtEnd || !isInLastChild || lastChild.textContent?.trim()) return false;
+
+        event.preventDefault();
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        detailsEl.parentNode?.insertBefore(p, detailsEl.nextSibling);
+        lastChild.remove();
+        this.setSelectionRange(selection, p, 0);
+        this.syncContentFromEditor();
+        this.pushHistory();
+        return true;
+    }
+
+    private handleEnterInCodeBlock(event: KeyboardEvent, range: Range, selection: Selection): void {
+        const preElement = this.findAncestorByTag(range.startContainer, 'PRE') as HTMLPreElement | null;
+        if (!preElement) return;
+
+        event.preventDefault();
+        const codeElement = preElement.querySelector('code');
+        const textNode = codeElement || preElement;
+        const textContent = textNode.textContent || '';
+
+        if (textContent.endsWith('\n')) {
+            this.exitCodeBlock(preElement, textNode, textContent, selection);
+        } else {
+            this.insertNewlineInCodeBlock(range, selection);
+        }
+        this.syncContentFromEditor();
+        this.pushHistory();
+    }
+
+    private exitCodeBlock(preElement: HTMLPreElement, textNode: Element | HTMLPreElement, textContent: string, selection: Selection): void {
+        textNode.textContent = textContent.slice(0, -1);
+        const p = this.document.createElement('p');
+        p.innerHTML = '<br>';
+        preElement.parentNode?.insertBefore(p, preElement.nextSibling);
+        this.setSelectionRange(selection, p, 0);
+    }
+
+    private insertNewlineInCodeBlock(range: Range, selection: Selection): void {
+        const textNodeToInsert = this.document.createTextNode('\n');
+        range.deleteContents();
+        range.insertNode(textNodeToInsert);
+        const newRange = this.document.createRange();
+        newRange.setStartAfter(textNodeToInsert);
+        newRange.setEndAfter(textNodeToInsert);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
+    }
+
+    private findAncestorByTag(startNode: Node, tagName: string): HTMLElement | null {
+        let node: Node | null = startNode;
+        while (node && node !== this.editorDiv?.nativeElement) {
+            if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === tagName) {
+                return node as HTMLElement;
+            }
+            node = node.parentNode;
+        }
+        return null;
+    }
+
+    private setSelectionRange(selection: Selection, node: Node | Element, offset: number): void {
+        const newRange = this.document.createRange();
+        newRange.setStart(node, offset);
+        newRange.setEnd(node, offset);
+        selection.removeAllRanges();
+        selection.addRange(newRange);
     }
 
     onBeforeInput(event: Event): void {
@@ -2530,38 +2534,38 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         switch (command) {
             case 'bold':
-                this.document.execCommand('bold', false);
+                this.execEditorCommand('bold');
                 this.toggleMentionStyle(mentionTargets, 'fontWeight', 'bold', 'normal');
                 break;
             case 'italic':
-                this.document.execCommand('italic', false);
+                this.execEditorCommand('italic');
                 this.toggleMentionStyle(mentionTargets, 'fontStyle', 'italic', 'normal');
                 break;
             case 'underline':
-                this.document.execCommand('underline', false);
+                this.execEditorCommand('underline');
                 this.toggleMentionTextDecoration(mentionTargets, 'underline');
                 break;
             case 'strikethrough':
-                this.document.execCommand('strikeThrough', false);
+                this.execEditorCommand('strikeThrough');
                 this.toggleMentionTextDecoration(mentionTargets, 'line-through');
                 break;
             case 'heading1':
-                this.document.execCommand('formatBlock', false, '<h1>');
+                this.execEditorCommand('formatBlock', '<h1>');
                 break;
             case 'heading2':
-                this.document.execCommand('formatBlock', false, '<h2>');
+                this.execEditorCommand('formatBlock', '<h2>');
                 break;
             case 'heading3':
-                this.document.execCommand('formatBlock', false, '<h3>');
+                this.execEditorCommand('formatBlock', '<h3>');
                 break;
             case 'bulletList':
-                this.document.execCommand('insertUnorderedList', false);
+                this.execEditorCommand('insertUnorderedList');
                 break;
             case 'orderedList':
-                this.document.execCommand('insertOrderedList', false);
+                this.execEditorCommand('insertOrderedList');
                 break;
             case 'blockquote':
-                this.document.execCommand('formatBlock', false, '<blockquote>');
+                this.execEditorCommand('formatBlock', '<blockquote>');
                 break;
             case 'code':
                 this.wrapSelectionWithTag('code');
@@ -2579,20 +2583,20 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 this.redo();
                 break;
             case 'clear':
-                this.document.execCommand('removeFormat', false);
+                this.execEditorCommand('removeFormat');
                 this.clearMentionStyles(mentionTargets);
                 break;
             case 'paragraph':
-                this.document.execCommand('formatBlock', false, '<p>');
+                this.execEditorCommand('formatBlock', '<p>');
                 break;
             case 'alignLeft':
-                this.document.execCommand(this.isRtl() ? 'justifyRight' : 'justifyLeft', false);
+                this.execEditorCommand(this.isRtl() ? 'justifyRight' : 'justifyLeft');
                 break;
             case 'alignCenter':
-                this.document.execCommand('justifyCenter', false);
+                this.execEditorCommand('justifyCenter');
                 break;
             case 'alignRight':
-                this.document.execCommand(this.isRtl() ? 'justifyLeft' : 'justifyRight', false);
+                this.execEditorCommand(this.isRtl() ? 'justifyLeft' : 'justifyRight');
                 break;
             case 'indent':
                 this.indentListItem();
@@ -2609,31 +2613,38 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         this.applyMutation({ focus: true, updateActiveFormats: true });
+        this.collapseFloatingToolbarAfterFormat();
+    }
 
-        if (this.toolbar() === 'floating') {
-            const selection = this.document.getSelection();
-            if (selection && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
+    private collapseFloatingToolbarAfterFormat(): void {
+        if (this.toolbar() !== 'floating') {
+            return;
+        }
 
-                range.collapse(false);
+        const selection = this.document.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.collapse(false);
+            this.moveCaretPastFormattingNode(selection, range);
+        }
+        this.showFloatingToolbar.set(false);
+    }
 
-                let formattedNode = range.startContainer;
-                while (formattedNode && formattedNode !== this.editorDiv?.nativeElement) {
-                    if (formattedNode.nodeType === Node.ELEMENT_NODE) {
-                        const tagName = (formattedNode as Element).tagName.toLowerCase();
-                        if (['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'code'].includes(tagName)) {
-                            const newRange = this.document.createRange();
-                            newRange.setStartAfter(formattedNode);
-                            newRange.setEndAfter(formattedNode);
-                            selection.removeAllRanges();
-                            selection.addRange(newRange);
-                            break;
-                        }
-                    }
-                    formattedNode = formattedNode.parentNode!;
+    private moveCaretPastFormattingNode(selection: Selection, range: Range): void {
+        let formattedNode = range.startContainer;
+        while (formattedNode && formattedNode !== this.editorDiv?.nativeElement) {
+            if (formattedNode.nodeType === Node.ELEMENT_NODE) {
+                const tagName = (formattedNode as Element).tagName.toLowerCase();
+                if (['b', 'strong', 'i', 'em', 'u', 's', 'strike', 'code'].includes(tagName)) {
+                    const newRange = this.document.createRange();
+                    newRange.setStartAfter(formattedNode);
+                    newRange.setEndAfter(formattedNode);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                    break;
                 }
             }
-            this.showFloatingToolbar.set(false);
+            formattedNode = formattedNode.parentNode!;
         }
     }
 
@@ -2682,17 +2693,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         if (command === 'clear') {
-            this.document.execCommand('removeFormat', false);
+            this.execEditorCommand('removeFormat');
             selection.collapseToEnd();
         } else if (command === 'heading1' || command === 'heading2' || command === 'heading3') {
             const level = command.replace('heading', '');
-            this.document.execCommand('formatBlock', false, `<h${level}>`);
+            this.execEditorCommand('formatBlock', `<h${level}>`);
             selection.collapseToEnd();
         } else if (command === 'bulletList') {
-            this.document.execCommand('insertUnorderedList', false);
+            this.execEditorCommand('insertUnorderedList');
             selection.collapseToEnd();
         } else if (command === 'orderedList') {
-            this.document.execCommand('insertOrderedList', false);
+            this.execEditorCommand('insertOrderedList');
             selection.collapseToEnd();
         }
 
@@ -2808,11 +2819,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const mentionTargets = this.getMentionElementsInSelection();
 
         if (event.type === 'fontColor') {
-            this.document.execCommand('foreColor', false, event.color);
+            this.execEditorCommand('foreColor', event.color);
             this.setMentionStyle(mentionTargets, 'color', event.color);
         } else {
-            if (!this.document.execCommand('hiliteColor', false, event.color)) {
-                this.document.execCommand('backColor', false, event.color);
+            if (!this.execEditorCommand('hiliteColor', event.color)) {
+                this.execEditorCommand('backColor', event.color);
             }
             this.setMentionStyle(mentionTargets, 'backgroundColor', event.color);
         }
@@ -2826,7 +2837,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         const mentionTargets = this.getMentionElementsInSelection();
 
-        this.document.execCommand('fontSize', false, '7');
+        this.execEditorCommand('fontSize', '7');
         if (this.editorDiv?.nativeElement) {
             const fontElements = this.editorDiv.nativeElement.querySelectorAll('font[size="7"]');
 
@@ -2867,7 +2878,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const tagTriggerPattern = /(?:^|[\s([{])#([-\p{L}\p{N}_.]*)$/u;
 
         if (this.mentions()) {
-            const mentionMatch = beforeCursor.match(mentionTriggerPattern);
+            const mentionMatch = mentionTriggerPattern.exec(beforeCursor);
             if (mentionMatch) {
                 this.mentionType.set('mention');
                 this.mentionQuery.set(mentionMatch[1]);
@@ -2879,7 +2890,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         if (this.tags()) {
-            const tagMatch = beforeCursor.match(tagTriggerPattern);
+            const tagMatch = tagTriggerPattern.exec(beforeCursor);
             if (tagMatch) {
                 this.mentionType.set('tag');
                 this.mentionQuery.set(tagMatch[1]);
@@ -2900,8 +2911,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         const beforeCursor = text.substring(0, cursorPosition);
-        const slashTriggerPattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
-        const slashMatch = beforeCursor.match(slashTriggerPattern)
+        const slashTriggerPattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
+        const slashMatch = slashTriggerPattern.exec(beforeCursor)
             ?? this.matchSlashTriggerAtCaret()
             ?? this.matchSlashTriggerWithinCurrentBlock();
         if (!slashMatch) {
@@ -2918,7 +2929,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return true;
     }
 
-    private matchSlashTriggerAtCaret(): RegExpMatchArray | null {
+    private matchSlashTriggerAtCaret(): RegExpExecArray | null {
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) {
             return null;
@@ -2929,11 +2940,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         const nodeText = (range.startContainer as Text).data.slice(0, range.startOffset);
-        const nodePattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
-        return nodeText.match(nodePattern);
+        const nodePattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
+        return nodePattern.exec(nodeText);
     }
 
-    private matchSlashTriggerWithinCurrentBlock(): RegExpMatchArray | null {
+    private matchSlashTriggerWithinCurrentBlock(): RegExpExecArray | null {
         const selection = this.document.getSelection();
         const editor = this.getEditorElement();
         if (!selection || selection.rangeCount === 0 || !editor) {
@@ -2950,7 +2961,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return null;
         }
 
-        const blockPattern = /(?:^|[\s([{\u200B\u00A0])\/([-\p{L}\p{N}_.]*)$/u;
+        const blockPattern = /(?:^|[\s([{\u200B])\/([-\p{L}\p{N}_.]*)$/u;
 
         // Chromium may report the caret container as the contenteditable root.
         // In that case, try nearby child blocks because startOffset can be unstable.
@@ -2972,7 +2983,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             pushCandidate(editor.lastChild);
 
             for (const candidate of candidateBlocks) {
-                const match = (candidate.textContent ?? '').match(blockPattern);
+                const match = blockPattern.exec(candidate.textContent ?? '');
                 if (match) {
                     return match;
                 }
@@ -2984,7 +2995,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         blockRange.setStart(block, 0);
         blockRange.setEnd(range.startContainer, range.startOffset);
         const blockText = blockRange.toString();
-        return blockText.match(blockPattern);
+        return blockPattern.exec(blockText);
     }
 
     onMentionSelect(item: MentionItem | TagItem): void {
@@ -2998,62 +3009,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const editor = this.getEditorElement();
         if (!editor) return;
 
-        this.focusEditor();
-        let selection = this.document.getSelection();
-
-        if (!selection || selection.rangeCount === 0 || !editor.contains(selection.getRangeAt(0).startContainer)) {
-            if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
-                selection = this.document.getSelection();
-                if (selection) {
-                    selection.removeAllRanges();
-                    selection.addRange(this.savedRange);
-                }
-            }
-        }
+        const selection = this.resolveMentionSelection(editor);
 
         if (selection && selection.rangeCount > 0) {
             const range = selection.getRangeAt(0);
             const triggerLength = query.length + 1;
             const triggerStr = trigger + query;
-
-            if (range.startContainer.nodeType === Node.TEXT_NODE) {
-                const textNode = range.startContainer as Text;
-                const deleteStart = Math.max(0, range.startOffset - triggerLength);
-                range.setStart(textNode, deleteStart);
-            } else {
-                const container = range.startContainer;
-                const offset = range.startOffset;
-                let resolved = false;
-
-                if (offset > 0 && container.childNodes.length >= offset) {
-                    let node: Node | null = container.childNodes[offset - 1];
-                    while (node && !resolved) {
-                        if (node.nodeType === Node.TEXT_NODE) {
-                            const text = node as Text;
-                            if (text.data.endsWith(triggerStr)) {
-                                range.setStart(text, text.length - triggerLength);
-                                range.setEnd(text, text.length);
-                                resolved = true;
-                            }
-                            break;
-                        }
-                        node = node.lastChild;
-                    }
-                }
-
-                if (!resolved) {
-                    const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
-                    while (walker.nextNode()) {
-                        const text = walker.currentNode as Text;
-                        const idx = text.data.lastIndexOf(triggerStr);
-                        if (idx !== -1) {
-                            range.setStart(text, idx);
-                            range.setEnd(text, idx + triggerStr.length);
-                            break;
-                        }
-                    }
-                }
-            }
+            this.resolveMentionDeleteRange(range, triggerStr, triggerLength, editor);
             range.deleteContents();
 
             const trailingSpace = this.document.createTextNode('\u00A0');
@@ -3088,6 +3050,72 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.closeSlashCommandPopover();
         this.pushHistory();
         this.focusEditor();
+    }
+
+    private resolveMentionSelection(editor: HTMLElement): Selection | null {
+        this.focusEditor();
+        let selection = this.document.getSelection();
+        if (selection && selection.rangeCount > 0 && editor.contains(selection.getRangeAt(0).startContainer)) {
+            return selection;
+        }
+        if (this.savedRange && editor.contains(this.savedRange.startContainer)) {
+            selection = this.document.getSelection();
+            if (selection) {
+                selection.removeAllRanges();
+                selection.addRange(this.savedRange);
+            }
+        }
+        return selection && selection.rangeCount > 0 ? selection : null;
+    }
+
+    private resolveMentionDeleteRange(range: Range, triggerStr: string, triggerLength: number, editor: HTMLElement): void {
+        if (range.startContainer.nodeType === Node.TEXT_NODE) {
+            const textNode = range.startContainer as Text;
+            const deleteStart = Math.max(0, range.startOffset - triggerLength);
+            range.setStart(textNode, deleteStart);
+            return;
+        }
+
+        if (this.resolveMentionRangeFromContainer(range, triggerStr, triggerLength)) {
+            return;
+        }
+        this.resolveMentionRangeFromEditor(range, triggerStr, editor);
+    }
+
+    private resolveMentionRangeFromContainer(range: Range, triggerStr: string, triggerLength: number): boolean {
+        const container = range.startContainer;
+        const offset = range.startOffset;
+        if (offset <= 0 || container.childNodes.length < offset) {
+            return false;
+        }
+
+        let node: Node | null = container.childNodes[offset - 1];
+        while (node) {
+            if (node.nodeType === Node.TEXT_NODE) {
+                const text = node as Text;
+                if (!text.data.endsWith(triggerStr)) {
+                    return false;
+                }
+                range.setStart(text, text.length - triggerLength);
+                range.setEnd(text, text.length);
+                return true;
+            }
+            node = node.lastChild;
+        }
+        return false;
+    }
+
+    private resolveMentionRangeFromEditor(range: Range, triggerStr: string, editor: HTMLElement): void {
+        const walker = this.document.createTreeWalker(editor, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+            const text = walker.currentNode as Text;
+            const idx = text.data.lastIndexOf(triggerStr);
+            if (idx !== -1) {
+                range.setStart(text, idx);
+                range.setEnd(text, idx + triggerStr.length);
+                return;
+            }
+        }
     }
 
     private buildEntityRenderContext(
@@ -3132,11 +3160,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private resolveEntityUrl(context: RichTextEntityRenderContext, options: RichTextEntityRenderOptions): string | null {
-        const raw = options.buildUrl
-            ? options.buildUrl(context)
-            : options.urlTemplate
-                ? this.resolveEntityTemplate(options.urlTemplate, context)
-                : '';
+        let raw = '';
+        if (options.buildUrl) {
+            raw = options.buildUrl(context);
+        } else if (options.urlTemplate) {
+            raw = this.resolveEntityTemplate(options.urlTemplate, context);
+        }
         if (!raw) {
             return null;
         }
@@ -3203,8 +3232,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         };
 
         return template
-            .replace(/@@([a-zA-Z0-9_-]+)@@/g, (_match, token: string) => values[token] ?? '')
-            .replace(/:([a-zA-Z][a-zA-Z0-9_-]*)/g, (_match, token: string) => values[token] ?? _match);
+            .replaceAll(/@@([a-zA-Z0-9_-]+)@@/g, (_match, token: string) => values[token] ?? '')
+            .replaceAll(/:([a-zA-Z][a-zA-Z0-9_-]*)/g, (_match, token: string) => values[token] ?? _match);
     }
 
     closeMentionPopover(): void {
@@ -3276,8 +3305,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         const originalOffset = range.startOffset;
-        const before = textNode.data.slice(0, originalOffset).replace(/\u200B/g, '').length;
-        textNode.data = textNode.data.replace(/\u200B/g, '');
+        const before = textNode.data.slice(0, originalOffset).replaceAll('\u200B', '').length;
+        textNode.data = textNode.data.replaceAll('\u200B', '');
 
         const newOffset = Math.min(before, textNode.data.length);
         const newRange = this.document.createRange();
@@ -3455,11 +3484,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const parts = dataUrl.split(',');
         const meta = parts[0];
         const base64 = parts[1];
-        const mime = meta.match(/:(.*?);/)?.[1] ?? 'image/png';
+        const mime = /:(.*?);/.exec(meta)?.[1] ?? 'image/png';
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) {
-            bytes[i] = binary.charCodeAt(i);
+            bytes[i] = binary.codePointAt(i)!;
         }
         return new File([bytes], filename, { type: mime });
     }
@@ -3474,7 +3503,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const images = editor.querySelectorAll('img');
         images.forEach(img => {
             const src = img.getAttribute('src') ?? '';
-            if (src.startsWith('data:image/') && !img.hasAttribute('data-auto-upload-id')) {
+            if (src.startsWith('data:image/') && img.dataset['autoUploadId'] === undefined) {
                 this.processAutoUploadImage(img);
             }
         });
@@ -3511,7 +3540,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
 
-        const ext = (dataUrl.match(/data:image\/([\w+]+)/)?.[1] ?? 'png').replace('+xml', '');
+        const ext = (/data:image\/([\w+]+)/.exec(dataUrl)?.[1] ?? 'png').replace('+xml', '');
         const filename = `pasted-image-${uploadId}.${ext}`;
         const file = this.dataUrlToFile(dataUrl, filename);
 
@@ -3747,41 +3776,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         this.clearCellSelection();
 
-        if (this.tableResizeCursor()) {
-            if (!cell) return;
-            const table = cell.closest<HTMLTableElement>('table');
-            if (!table) return;
-
-            const row = cell.parentElement as HTMLTableRowElement;
-            const cellRect = cell.getBoundingClientRect();
-            const colIndex = Array.from(row.cells).indexOf(cell);
-            const nearLeftBorder = event.clientX <= cellRect.left + 4 && colIndex > 0;
-            const resizeColIndex = nearLeftBorder ? colIndex - 1 : colIndex;
-
-            event.preventDefault();
-            event.stopPropagation();
-
-            const firstRow = table.rows[0];
-            if (!firstRow) return;
-            const widths = Array.from(firstRow.cells).map(c => c.getBoundingClientRect().width);
-            const tableWidth = table.getBoundingClientRect().width;
-
-            table.style.tableLayout = 'fixed';
-            table.style.width = `${tableWidth}px`;
-            for (let i = 0; i < firstRow.cells.length; i++) {
-                firstRow.cells[i].style.width = `${widths[i]}px`;
-            }
-
-            this.tableResizeState = {
-                table,
-                colIndex: resizeColIndex,
-                startX: event.clientX,
-                startWidths: widths,
-                tableWidth,
-            };
-
-            this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
-            this.document.addEventListener('mouseup', this.onTableResizeUpBound);
+        if (this.startTableResize(event, cell)) {
             return;
         }
 
@@ -3791,6 +3786,50 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             this.document.addEventListener('mousemove', this.onTableCellSelectMoveBound);
             this.document.addEventListener('mouseup', this.onTableCellSelectUpBound);
         }
+    }
+
+    private startTableResize(event: MouseEvent, cell: HTMLTableCellElement | null): boolean {
+        if (!this.tableResizeCursor() || !cell) {
+            return false;
+        }
+        const table = cell.closest<HTMLTableElement>('table');
+        if (!table) {
+            return false;
+        }
+        const resizeColIndex = this.getResizeColumnIndex(cell, event.clientX);
+        event.preventDefault();
+        event.stopPropagation();
+        const firstRow = table.rows[0];
+        if (!firstRow) {
+            return true;
+        }
+
+        const widths = Array.from(firstRow.cells).map(c => c.getBoundingClientRect().width);
+        const tableWidth = table.getBoundingClientRect().width;
+        table.style.tableLayout = 'fixed';
+        table.style.width = `${tableWidth}px`;
+        for (const [index, tableCell] of Array.from(firstRow.cells).entries()) {
+            tableCell.style.width = `${widths[index]}px`;
+        }
+
+        this.tableResizeState = {
+            table,
+            colIndex: resizeColIndex,
+            startX: event.clientX,
+            startWidths: widths,
+            tableWidth,
+        };
+        this.document.addEventListener('mousemove', this.onTableResizeMoveBound);
+        this.document.addEventListener('mouseup', this.onTableResizeUpBound);
+        return true;
+    }
+
+    private getResizeColumnIndex(cell: HTMLTableCellElement, clientX: number): number {
+        const row = cell.parentElement as HTMLTableRowElement;
+        const cellRect = cell.getBoundingClientRect();
+        const colIndex = Array.from(row.cells).indexOf(cell);
+        const nearLeftBorder = clientX <= cellRect.left + 4 && colIndex > 0;
+        return nearLeftBorder ? colIndex - 1 : colIndex;
     }
 
     private onTableResizeMove(event: MouseEvent): void {
@@ -3849,34 +3888,75 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private buildCellGrid(table: HTMLTableElement): (HTMLTableCellElement | null)[][] {
         const rows = Array.from(table.querySelectorAll('tr'));
-        const maxCols = rows.reduce((max, row) => {
-            let count = 0;
-            for (let i = 0; i < row.cells.length; i++) {
-                count += row.cells[i].colSpan;
-            }
-            return Math.max(max, count);
-        }, 0);
+        const maxCols = rows.reduce((max, row) => Math.max(max, this.getTotalRowColSpan(row)), 0);
 
-        const grid: (HTMLTableCellElement | null)[][] = rows.map(() => Array(maxCols).fill(null));
-        for (let ri = 0; ri < rows.length; ri++) {
-            let ci = 0;
-            for (let cellIdx = 0; cellIdx < rows[ri].cells.length; cellIdx++) {
-                while (ci < maxCols && grid[ri][ci] !== null) ci++;
-                if (ci >= maxCols) break;
-                const cell = rows[ri].cells[cellIdx];
-                const rs = cell.rowSpan || 1;
-                const cs = cell.colSpan || 1;
-                for (let dr = 0; dr < rs; dr++) {
-                    for (let dc = 0; dc < cs; dc++) {
-                        if (ri + dr < rows.length && ci + dc < maxCols) {
-                            grid[ri + dr][ci + dc] = cell;
-                        }
-                    }
-                }
-                ci += cs;
-            }
+        const grid: (HTMLTableCellElement | null)[][] = rows.map(() => new Array(maxCols).fill(null));
+        for (const [ri, row] of rows.entries()) {
+            this.fillCellGridRow(grid, rows.length, maxCols, ri, row);
         }
         return grid;
+    }
+
+    private getTotalRowColSpan(row: HTMLTableRowElement): number {
+        let count = 0;
+        for (const cell of Array.from(row.cells)) {
+            count += cell.colSpan;
+        }
+        return count;
+    }
+
+    private fillCellGridRow(
+        grid: (HTMLTableCellElement | null)[][],
+        rowCount: number,
+        maxCols: number,
+        rowIndex: number,
+        row: HTMLTableRowElement
+    ): void {
+        let colIndex = 0;
+        for (const cell of Array.from(row.cells)) {
+            colIndex = this.findNextAvailableColumn(grid, rowIndex, colIndex, maxCols);
+            if (colIndex >= maxCols) {
+                return;
+            }
+            colIndex = this.placeCellInGrid(grid, cell, rowIndex, colIndex, rowCount, maxCols);
+        }
+    }
+
+    private findNextAvailableColumn(
+        grid: (HTMLTableCellElement | null)[][],
+        rowIndex: number,
+        startColIndex: number,
+        maxCols: number
+    ): number {
+        let colIndex = startColIndex;
+        while (colIndex < maxCols && grid[rowIndex][colIndex] !== null) {
+            colIndex++;
+        }
+        return colIndex;
+    }
+
+    private placeCellInGrid(
+        grid: (HTMLTableCellElement | null)[][],
+        cell: HTMLTableCellElement,
+        rowIndex: number,
+        colIndex: number,
+        rowCount: number,
+        maxCols: number
+    ): number {
+        const rowSpan = cell.rowSpan || 1;
+        const colSpan = cell.colSpan || 1;
+        for (let dr = 0; dr < rowSpan; dr++) {
+            for (let dc = 0; dc < colSpan; dc++) {
+                if (this.isGridPositionInBounds(rowIndex + dr, colIndex + dc, rowCount, maxCols)) {
+                    grid[rowIndex + dr][colIndex + dc] = cell;
+                }
+            }
+        }
+        return colIndex + colSpan;
+    }
+
+    private isGridPositionInBounds(rowIndex: number, colIndex: number, rowCount: number, maxCols: number): boolean {
+        return rowIndex < rowCount && colIndex < maxCols;
     }
 
     private getCellGridBounds(grid: (HTMLTableCellElement | null)[][], cell: HTMLTableCellElement): { minRow: number; minCol: number; maxRow: number; maxCol: number } {
@@ -3903,43 +3983,79 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const aBounds = this.getCellGridBounds(grid, anchor);
         const cBounds = this.getCellGridBounds(grid, current);
 
-        let minRow = Math.min(aBounds.minRow, cBounds.minRow);
-        let maxRow = Math.max(aBounds.maxRow, cBounds.maxRow);
-        let minCol = Math.min(aBounds.minCol, cBounds.minCol);
-        let maxCol = Math.max(aBounds.maxCol, cBounds.maxCol);
-
-        let expanded = true;
-        while (expanded) {
-            expanded = false;
-            for (let ri = minRow; ri <= maxRow; ri++) {
-                for (let ci = minCol; ci <= maxCol; ci++) {
-                    const c = grid[ri]?.[ci];
-                    if (!c) continue;
-                    const b = this.getCellGridBounds(grid, c);
-                    if (b.minRow < minRow) { minRow = b.minRow; expanded = true; }
-                    if (b.maxRow > maxRow) { maxRow = b.maxRow; expanded = true; }
-                    if (b.minCol < minCol) { minCol = b.minCol; expanded = true; }
-                    if (b.maxCol > maxCol) { maxCol = b.maxCol; expanded = true; }
-                }
-            }
-        }
-
-        const cells = new Set<HTMLTableCellElement>();
-        for (let ri = minRow; ri <= maxRow; ri++) {
-            for (let ci = minCol; ci <= maxCol; ci++) {
-                const c = grid[ri]?.[ci];
-                if (c) cells.add(c);
-            }
-        }
+        const bounds = this.expandSelectionBounds(grid, {
+            minRow: Math.min(aBounds.minRow, cBounds.minRow),
+            maxRow: Math.max(aBounds.maxRow, cBounds.maxRow),
+            minCol: Math.min(aBounds.minCol, cBounds.minCol),
+            maxCol: Math.max(aBounds.maxCol, cBounds.maxCol),
+        });
+        const cells = this.collectCellsInBounds(grid, bounds);
 
         this.clearCellSelection();
-        const selected = Array.from(cells);
+        const selected = Array.from(cells.values());
         if (selected.length > 1) {
             for (const cell of selected) {
                 cell.classList.add('rte-cell-selected');
             }
             this.tableCellSelected.set(selected);
         }
+    }
+
+    private expandSelectionBounds(
+        grid: (HTMLTableCellElement | null)[][],
+        initial: { minRow: number; maxRow: number; minCol: number; maxCol: number }
+    ): { minRow: number; maxRow: number; minCol: number; maxCol: number } {
+        let bounds = { ...initial };
+        let expanded = true;
+        while (expanded) {
+            expanded = false;
+            for (let ri = bounds.minRow; ri <= bounds.maxRow; ri++) {
+                for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
+                    const cell = grid[ri]?.[ci];
+                    if (cell && this.tryExpandBoundsForCell(grid, cell, bounds)) {
+                        expanded = true;
+                    }
+                }
+            }
+        }
+        return bounds;
+    }
+
+    private tryExpandBoundsForCell(
+        grid: (HTMLTableCellElement | null)[][],
+        cell: HTMLTableCellElement,
+        bounds: { minRow: number; maxRow: number; minCol: number; maxCol: number }
+    ): boolean {
+        const currentBounds = this.getCellGridBounds(grid, cell);
+        return this.applyExpandedBounds(bounds, currentBounds);
+    }
+
+    private applyExpandedBounds(
+        bounds: { minRow: number; maxRow: number; minCol: number; maxCol: number },
+        currentBounds: { minRow: number; maxRow: number; minCol: number; maxCol: number }
+    ): boolean {
+        let changed = false;
+        if (currentBounds.minRow < bounds.minRow) { bounds.minRow = currentBounds.minRow; changed = true; }
+        if (currentBounds.maxRow > bounds.maxRow) { bounds.maxRow = currentBounds.maxRow; changed = true; }
+        if (currentBounds.minCol < bounds.minCol) { bounds.minCol = currentBounds.minCol; changed = true; }
+        if (currentBounds.maxCol > bounds.maxCol) { bounds.maxCol = currentBounds.maxCol; changed = true; }
+        return changed;
+    }
+
+    private collectCellsInBounds(
+        grid: (HTMLTableCellElement | null)[][],
+        bounds: { minRow: number; maxRow: number; minCol: number; maxCol: number }
+    ): Set<HTMLTableCellElement> {
+        const cells = new Set<HTMLTableCellElement>();
+        for (let ri = bounds.minRow; ri <= bounds.maxRow; ri++) {
+            for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
+                const cell = grid[ri]?.[ci];
+                if (cell) {
+                    cells.add(cell);
+                }
+            }
+        }
+        return cells;
     }
 
     mergeCells(): void {
@@ -3951,36 +4067,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!table) return;
 
         const grid = this.buildCellGrid(table);
-
-        let minRow = Infinity, maxRow = -1, minCol = Infinity, maxCol = -1;
-        for (const cell of selected) {
-            const b = this.getCellGridBounds(grid, cell);
-            minRow = Math.min(minRow, b.minRow);
-            maxRow = Math.max(maxRow, b.maxRow);
-            minCol = Math.min(minCol, b.minCol);
-            maxCol = Math.max(maxCol, b.maxCol);
-        }
-
-        const topLeftCell = grid[minRow]?.[minCol];
+        const bounds = this.getSelectionBounds(grid, selected);
+        const topLeftCell = grid[bounds.minRow]?.[bounds.minCol];
         if (!topLeftCell) return;
 
-        const contentParts: string[] = [];
-        const processedCells = new Set<HTMLTableCellElement>();
-        for (let ri = minRow; ri <= maxRow; ri++) {
-            for (let ci = minCol; ci <= maxCol; ci++) {
-                const c = grid[ri]?.[ci];
-                if (c && !processedCells.has(c)) {
-                    processedCells.add(c);
-                    const text = c.textContent?.trim() ?? '';
-                    if (text) {
-                        contentParts.push(c.innerHTML);
-                    }
-                }
-            }
-        }
-
-        topLeftCell.colSpan = maxCol - minCol + 1;
-        topLeftCell.rowSpan = maxRow - minRow + 1;
+        const { contentParts, processedCells } = this.getMergeContent(grid, bounds);
+        topLeftCell.colSpan = bounds.maxCol - bounds.minCol + 1;
+        topLeftCell.rowSpan = bounds.maxRow - bounds.minRow + 1;
         topLeftCell.innerHTML = contentParts.length > 0 ? contentParts.join(' ') : '<br>';
 
         for (const c of processedCells) {
@@ -3991,6 +4084,46 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         this.clearCellSelection();
         this.applyMutation({ focus: true });
+    }
+
+    private getSelectionBounds(
+        grid: (HTMLTableCellElement | null)[][],
+        selected: HTMLTableCellElement[]
+    ): { minRow: number; maxRow: number; minCol: number; maxCol: number } {
+        let minRow = Infinity;
+        let maxRow = -1;
+        let minCol = Infinity;
+        let maxCol = -1;
+        for (const cell of selected) {
+            const bounds = this.getCellGridBounds(grid, cell);
+            minRow = Math.min(minRow, bounds.minRow);
+            maxRow = Math.max(maxRow, bounds.maxRow);
+            minCol = Math.min(minCol, bounds.minCol);
+            maxCol = Math.max(maxCol, bounds.maxCol);
+        }
+        return { minRow, maxRow, minCol, maxCol };
+    }
+
+    private getMergeContent(
+        grid: (HTMLTableCellElement | null)[][],
+        bounds: { minRow: number; maxRow: number; minCol: number; maxCol: number }
+    ): { contentParts: string[]; processedCells: Set<HTMLTableCellElement> } {
+        const contentParts: string[] = [];
+        const processedCells = new Set<HTMLTableCellElement>();
+        for (let ri = bounds.minRow; ri <= bounds.maxRow; ri++) {
+            for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
+                const cell = grid[ri]?.[ci];
+                if (!cell || processedCells.has(cell)) {
+                    continue;
+                }
+                processedCells.add(cell);
+                const text = cell.textContent?.trim() ?? '';
+                if (text) {
+                    contentParts.push(cell.innerHTML);
+                }
+            }
+        }
+        return { contentParts, processedCells };
     }
 
     canSplitCell(): boolean {
@@ -4019,30 +4152,49 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         for (let ri = bounds.minRow; ri <= bounds.maxRow; ri++) {
             const row = rows[ri];
             if (!row) continue;
-            for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
-                if (ri === bounds.minRow && ci === bounds.minCol) continue;
-                const isHeader = row.closest('thead') !== null;
-                const newCell = this.document.createElement(isHeader ? 'th' : 'td');
-                newCell.innerHTML = '<br>';
-
-                let refNode: HTMLTableCellElement | null = null;
-                for (let searchCol = ci + 1; searchCol < grid[ri].length; searchCol++) {
-                    const candidate = grid[ri][searchCol];
-                    if (candidate && candidate !== target && candidate.parentElement === row) {
-                        refNode = candidate;
-                        break;
-                    }
-                }
-                if (refNode) {
-                    row.insertBefore(newCell, refNode);
-                } else {
-                    row.appendChild(newCell);
-                }
-            }
+            this.splitCellsInRow(row, ri, bounds, grid, target);
         }
 
         this.clearCellSelection();
         this.applyMutation({ focus: true });
+    }
+
+    private splitCellsInRow(
+        row: HTMLTableRowElement,
+        ri: number,
+        bounds: { minRow: number; maxRow: number; minCol: number; maxCol: number },
+        grid: (HTMLTableCellElement | null)[][],
+        target: HTMLTableCellElement,
+    ): void {
+        for (let ci = bounds.minCol; ci <= bounds.maxCol; ci++) {
+            if (ri === bounds.minRow && ci === bounds.minCol) continue;
+            const isHeader = row.closest('thead') !== null;
+            const newCell = this.document.createElement(isHeader ? 'th' : 'td');
+            newCell.innerHTML = '<br>';
+
+            const refNode = this.findRefNodeInRow(grid, ri, ci + 1, target, row);
+            if (refNode) {
+                refNode.before(newCell);
+            } else {
+                row.appendChild(newCell);
+            }
+        }
+    }
+
+    private findRefNodeInRow(
+        grid: (HTMLTableCellElement | null)[][],
+        ri: number,
+        startCol: number,
+        excludeCell: HTMLTableCellElement,
+        row: HTMLTableRowElement,
+    ): HTMLTableCellElement | null {
+        for (let searchCol = startCol; searchCol < grid[ri].length; searchCol++) {
+            const candidate = grid[ri][searchCol];
+            if (candidate && candidate !== excludeCell && candidate.parentElement === row) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     private insertTable(rows: number, cols: number): void {
@@ -4096,27 +4248,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         const processed = new Set<HTMLTableCellElement>();
         for (let ci = 0; ci < numCols; ci++) {
-            if (insertAtRow > 0 && insertAtRow < grid.length) {
-                const cellAbove = grid[insertAtRow - 1]?.[ci];
-                const cellBelow = grid[insertAtRow]?.[ci];
-                if (cellAbove && cellAbove === cellBelow && !processed.has(cellAbove)) {
-                    processed.add(cellAbove);
-                    cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
-                    continue;
-                }
-            } else if (insertAtRow >= grid.length && insertAtRow > 0) {
-                const cellAbove = grid[insertAtRow - 1]?.[ci];
-                if (cellAbove && !processed.has(cellAbove)) {
-                    const aboveBounds = this.getCellGridBounds(grid, cellAbove);
-                    if (aboveBounds.maxRow >= grid.length - 1 && aboveBounds.minRow < grid.length - 1) {
-                        processed.add(cellAbove);
-                        cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
-                        continue;
-                    }
-                }
-            }
-
-            if (processed.has(grid[insertAtRow > 0 ? insertAtRow - 1 : 0]?.[ci]!)) continue;
+            if (this.expandRowSpanForInsertedRow(grid, insertAtRow, ci, processed)) continue;
+            if (this.isProcessedReferenceCell(grid, insertAtRow, ci, processed)) continue;
 
             const newCell = this.document.createElement(isHeader ? 'th' : 'td');
             newCell.innerHTML = '<br>';
@@ -4130,6 +4263,47 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const refRow = rows[insertAtRow];
             refRow.parentNode?.insertBefore(newRow, refRow);
         }
+    }
+
+    private expandRowSpanForInsertedRow(
+        grid: (HTMLTableCellElement | null)[][],
+        insertAtRow: number,
+        colIndex: number,
+        processed: Set<HTMLTableCellElement>
+    ): boolean {
+        if (insertAtRow > 0 && insertAtRow < grid.length) {
+            const cellAbove = grid[insertAtRow - 1]?.[colIndex];
+            const cellBelow = grid[insertAtRow]?.[colIndex];
+            if (cellAbove && cellAbove === cellBelow && !processed.has(cellAbove)) {
+                processed.add(cellAbove);
+                cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
+                return true;
+            }
+        }
+
+        if (insertAtRow >= grid.length && insertAtRow > 0) {
+            const cellAbove = grid[insertAtRow - 1]?.[colIndex];
+            if (cellAbove && !processed.has(cellAbove)) {
+                const aboveBounds = this.getCellGridBounds(grid, cellAbove);
+                if (aboveBounds.maxRow >= grid.length - 1 && aboveBounds.minRow < grid.length - 1) {
+                    processed.add(cellAbove);
+                    cellAbove.rowSpan = (cellAbove.rowSpan || 1) + 1;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private isProcessedReferenceCell(
+        grid: (HTMLTableCellElement | null)[][],
+        insertAtRow: number,
+        colIndex: number,
+        processed: Set<HTMLTableCellElement>
+    ): boolean {
+        const refRow = insertAtRow > 0 ? insertAtRow - 1 : 0;
+        const refCell = grid[refRow]?.[colIndex];
+        return !!refCell && processed.has(refCell);
     }
 
     addTableColumnLeft(): void {
@@ -4161,27 +4335,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         const processed = new Set<HTMLTableCellElement>();
         for (let ri = 0; ri < grid.length; ri++) {
-            if (insertAtCol > 0 && insertAtCol < numCols) {
-                const cellLeft = grid[ri]?.[insertAtCol - 1];
-                const cellRight = grid[ri]?.[insertAtCol];
-                if (cellLeft && cellLeft === cellRight && !processed.has(cellLeft)) {
-                    processed.add(cellLeft);
-                    cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
-                    continue;
-                }
-            } else if (insertAtCol >= numCols && insertAtCol > 0) {
-                const cellLeft = grid[ri]?.[insertAtCol - 1];
-                if (cellLeft && !processed.has(cellLeft)) {
-                    const leftBounds = this.getCellGridBounds(grid, cellLeft);
-                    if (leftBounds.maxCol >= numCols - 1 && leftBounds.minCol < numCols - 1) {
-                        processed.add(cellLeft);
-                        cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
-                        continue;
-                    }
-                }
-            }
-
-            if (processed.has(grid[ri]?.[insertAtCol > 0 ? insertAtCol - 1 : 0]!)) continue;
+            if (this.expandColSpanForInsertedColumn(grid, insertAtCol, numCols, ri, processed)) continue;
+            if (this.isProcessedReferenceColumnCell(grid, insertAtCol, ri, processed)) continue;
 
             const row = rows[ri];
             if (!row) continue;
@@ -4189,24 +4344,74 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const newCell = this.document.createElement(isHeader ? 'th' : 'td');
             newCell.innerHTML = '<br>';
 
-            let refCell: HTMLTableCellElement | null = null;
-            for (let searchCol = insertAtCol; searchCol < numCols; searchCol++) {
-                const candidate = grid[ri]?.[searchCol];
-                if (candidate && candidate.parentElement === row) {
-                    const candidateBounds = this.getCellGridBounds(grid, candidate);
-                    if (candidateBounds.minCol >= insertAtCol) {
-                        refCell = candidate;
-                        break;
-                    }
-                }
-            }
+            const refCell = this.findColumnInsertReferenceCell(grid, row, ri, insertAtCol, numCols);
             if (refCell) {
-                row.insertBefore(newCell, refCell);
+                refCell.before(newCell);
             } else {
                 row.appendChild(newCell);
             }
         }
         this.applyMutation({ focus: true });
+    }
+
+    private expandColSpanForInsertedColumn(
+        grid: (HTMLTableCellElement | null)[][],
+        insertAtCol: number,
+        numCols: number,
+        rowIndex: number,
+        processed: Set<HTMLTableCellElement>
+    ): boolean {
+        if (insertAtCol > 0 && insertAtCol < numCols) {
+            const cellLeft = grid[rowIndex]?.[insertAtCol - 1];
+            const cellRight = grid[rowIndex]?.[insertAtCol];
+            if (cellLeft && cellLeft === cellRight && !processed.has(cellLeft)) {
+                processed.add(cellLeft);
+                cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
+                return true;
+            }
+        } else if (insertAtCol >= numCols && insertAtCol > 0) {
+            const cellLeft = grid[rowIndex]?.[insertAtCol - 1];
+            if (cellLeft && !processed.has(cellLeft)) {
+                const leftBounds = this.getCellGridBounds(grid, cellLeft);
+                if (leftBounds.maxCol >= numCols - 1 && leftBounds.minCol < numCols - 1) {
+                    processed.add(cellLeft);
+                    cellLeft.colSpan = (cellLeft.colSpan || 1) + 1;
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    private isProcessedReferenceColumnCell(
+        grid: (HTMLTableCellElement | null)[][],
+        insertAtCol: number,
+        rowIndex: number,
+        processed: Set<HTMLTableCellElement>
+    ): boolean {
+        const refCol = insertAtCol > 0 ? insertAtCol - 1 : 0;
+        const refCell = grid[rowIndex]?.[refCol];
+        return !!refCell && processed.has(refCell);
+    }
+
+    private findColumnInsertReferenceCell(
+        grid: (HTMLTableCellElement | null)[][],
+        row: HTMLTableRowElement,
+        rowIndex: number,
+        insertAtCol: number,
+        numCols: number
+    ): HTMLTableCellElement | null {
+        for (let searchCol = insertAtCol; searchCol < numCols; searchCol++) {
+            const candidate = grid[rowIndex]?.[searchCol];
+            if (candidate?.parentElement !== row) {
+                continue;
+            }
+            const candidateBounds = this.getCellGridBounds(grid, candidate);
+            if (candidateBounds.minCol >= insertAtCol) {
+                return candidate;
+            }
+        }
+        return null;
     }
 
     deleteTableRow(): void {
@@ -4217,43 +4422,72 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (allRows.length <= 1) {
             info.table.remove();
         } else {
-            const grid = this.buildCellGrid(info.table);
-            const bounds = this.getCellGridBounds(grid, info.cell);
-            const rowToDelete = bounds.minRow;
-            const numCols = grid[0]?.length ?? 0;
-
-            const processed = new Set<HTMLTableCellElement>();
-            for (let ci = 0; ci < numCols; ci++) {
-                const cell = grid[rowToDelete]?.[ci];
-                if (!cell || processed.has(cell)) continue;
-                processed.add(cell);
-                const cellBounds = this.getCellGridBounds(grid, cell);
-                if (cellBounds.minRow < rowToDelete || cellBounds.maxRow > rowToDelete) {
-                    cell.rowSpan = Math.max(1, (cell.rowSpan || 1) - 1);
-                    if (cellBounds.minRow === rowToDelete && rowToDelete + 1 < allRows.length) {
-                        const nextRow = allRows[rowToDelete + 1];
-                        let inserted = false;
-                        for (let searchCol = ci + (cell.colSpan || 1); searchCol < numCols; searchCol++) {
-                            const neighbor = grid[rowToDelete + 1]?.[searchCol];
-                            if (neighbor && neighbor !== cell && neighbor.parentElement === nextRow) {
-                                const neighborBounds = this.getCellGridBounds(grid, neighbor);
-                                if (neighborBounds.minRow === rowToDelete + 1) {
-                                    nextRow.insertBefore(cell, neighbor);
-                                    inserted = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (!inserted) {
-                            nextRow.appendChild(cell);
-                        }
-                    }
-                }
-            }
-            allRows[rowToDelete].remove();
+            this.removeTableRow(info.table, info.cell, allRows);
         }
         this.tableContextMenuTarget = null;
         this.applyMutation({ focus: true });
+    }
+
+    private removeTableRow(table: HTMLTableElement, cell: HTMLTableCellElement, allRows: HTMLTableRowElement[]): void {
+        const grid = this.buildCellGrid(table);
+        const bounds = this.getCellGridBounds(grid, cell);
+        const rowToDelete = bounds.minRow;
+        const numCols = grid[0]?.length ?? 0;
+        const processed = new Set<HTMLTableCellElement>();
+
+        for (let ci = 0; ci < numCols; ci++) {
+            const currentCell = grid[rowToDelete]?.[ci];
+            if (!currentCell || processed.has(currentCell)) {
+                continue;
+            }
+            processed.add(currentCell);
+            this.adjustCellForDeletedRow(grid, allRows, rowToDelete, ci, numCols, currentCell);
+        }
+        allRows[rowToDelete].remove();
+    }
+
+    private adjustCellForDeletedRow(
+        grid: (HTMLTableCellElement | null)[][],
+        allRows: HTMLTableRowElement[],
+        rowToDelete: number,
+        colIndex: number,
+        numCols: number,
+        cell: HTMLTableCellElement
+    ): void {
+        const cellBounds = this.getCellGridBounds(grid, cell);
+        if (cellBounds.minRow >= rowToDelete && cellBounds.maxRow <= rowToDelete) {
+            return;
+        }
+        cell.rowSpan = Math.max(1, (cell.rowSpan || 1) - 1);
+        if (cellBounds.minRow === rowToDelete && rowToDelete + 1 < allRows.length) {
+            const nextRow = allRows[rowToDelete + 1];
+            const inserted = this.insertCellBeforeNextNeighbor(grid, rowToDelete, colIndex, numCols, cell, nextRow);
+            if (!inserted) {
+                nextRow.appendChild(cell);
+            }
+        }
+    }
+
+    private insertCellBeforeNextNeighbor(
+        grid: (HTMLTableCellElement | null)[][],
+        rowToDelete: number,
+        colIndex: number,
+        numCols: number,
+        cell: HTMLTableCellElement,
+        nextRow: HTMLTableRowElement
+    ): boolean {
+        for (let searchCol = colIndex + (cell.colSpan || 1); searchCol < numCols; searchCol++) {
+            const neighbor = grid[rowToDelete + 1]?.[searchCol];
+            if (!neighbor || neighbor === cell || neighbor.parentElement !== nextRow) {
+                continue;
+            }
+            const neighborBounds = this.getCellGridBounds(grid, neighbor);
+            if (neighborBounds.minRow === rowToDelete + 1) {
+                neighbor.before(cell);
+                return true;
+            }
+        }
+        return false;
     }
 
     deleteTableColumn(): void {
@@ -4270,8 +4504,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const colToDelete = bounds.minCol;
 
             const processed = new Set<HTMLTableCellElement>();
-            for (let ri = 0; ri < grid.length; ri++) {
-                const cell = grid[ri]?.[colToDelete];
+            for (const gridRow of grid) {
+                const cell = gridRow?.[colToDelete];
                 if (!cell || processed.has(cell)) continue;
                 processed.add(cell);
                 const cellBounds = this.getCellGridBounds(grid, cell);
@@ -4344,6 +4578,26 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             : 'currentColor';
         const borderVal = `1px solid ${borderColor}`;
 
+        this.clearTableBorders(table, cells);
+
+        switch (style) {
+            case 'all':
+                break;
+            case 'none':
+                this.setBorderStyleNone(cells);
+                break;
+            case 'outer':
+                this.applyOuterTableBorders(rows, borderVal);
+                break;
+            case 'horizontal':
+                this.applyHorizontalTableBorders(rows, borderVal);
+                break;
+        }
+
+        this.applyMutation({ focus: true });
+    }
+
+    private clearTableBorders(table: HTMLTableElement, cells: HTMLElement[]): void {
         table.style.border = '';
         for (const cell of cells) {
             cell.style.border = '';
@@ -4352,40 +4606,35 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             cell.style.borderLeft = '';
             cell.style.borderRight = '';
         }
+    }
 
-        switch (style) {
-            case 'all':
-                break;
-            case 'none':
-                for (const cell of cells) {
-                    cell.style.border = 'none';
-                }
-                break;
-            case 'outer':
-                for (let ri = 0; ri < rows.length; ri++) {
-                    const rowCells = Array.from(rows[ri].cells);
-                    for (let ci = 0; ci < rowCells.length; ci++) {
-                        const cell = rowCells[ci];
-                        cell.style.borderTop = ri === 0 ? borderVal : 'none';
-                        cell.style.borderBottom = ri === rows.length - 1 ? borderVal : 'none';
-                        cell.style.borderLeft = ci === 0 ? borderVal : 'none';
-                        cell.style.borderRight = ci === rowCells.length - 1 ? borderVal : 'none';
-                    }
-                }
-                break;
-            case 'horizontal':
-                for (let ri = 0; ri < rows.length; ri++) {
-                    for (const cell of Array.from(rows[ri].cells)) {
-                        cell.style.borderLeft = 'none';
-                        cell.style.borderRight = 'none';
-                        cell.style.borderTop = ri === 0 ? borderVal : 'none';
-                        cell.style.borderBottom = ri < rows.length - 1 ? borderVal : 'none';
-                    }
-                }
-                break;
+    private setBorderStyleNone(cells: HTMLElement[]): void {
+        for (const cell of cells) {
+            cell.style.border = 'none';
         }
+    }
 
-        this.applyMutation({ focus: true });
+    private applyOuterTableBorders(rows: HTMLTableRowElement[], borderVal: string): void {
+        for (const [ri, row] of rows.entries()) {
+            const rowCells = Array.from(row.cells);
+            for (const [ci, cell] of rowCells.entries()) {
+                cell.style.borderTop = ri === 0 ? borderVal : 'none';
+                cell.style.borderBottom = ri === rows.length - 1 ? borderVal : 'none';
+                cell.style.borderLeft = ci === 0 ? borderVal : 'none';
+                cell.style.borderRight = ci === rowCells.length - 1 ? borderVal : 'none';
+            }
+        }
+    }
+
+    private applyHorizontalTableBorders(rows: HTMLTableRowElement[], borderVal: string): void {
+        for (const [ri, row] of rows.entries()) {
+            for (const cell of Array.from(row.cells)) {
+                cell.style.borderLeft = 'none';
+                cell.style.borderRight = 'none';
+                cell.style.borderTop = ri === 0 ? borderVal : 'none';
+                cell.style.borderBottom = ri < rows.length - 1 ? borderVal : 'none';
+            }
+        }
     }
 
     setCellAlignment(align: 'left' | 'center' | 'right'): void {
@@ -4421,7 +4670,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private getParentTaskListItem(): HTMLElement | null {
         const li = this.getParentListItem();
-        if (li && li.hasAttribute('data-task')) return li;
+        if (li?.dataset['task'] !== undefined) return li;
         return null;
     }
 
@@ -4451,14 +4700,14 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (depth >= 6) return;
 
         const prevLi = li.previousElementSibling;
-        if (!prevLi || prevLi.tagName !== 'LI') return;
+        if (prevLi?.tagName !== 'LI') return;
 
         const parentList = li.parentElement;
         const listType = parentList?.tagName === 'OL' ? 'ol' : 'ul';
         let nestedList = prevLi.querySelector(`:scope > ${listType}`);
         if (!nestedList) {
             nestedList = this.document.createElement(listType);
-            if (parentList?.hasAttribute('data-task-list')) {
+            if (parentList?.dataset['taskList'] !== undefined) {
                 (nestedList as HTMLElement).dataset['taskList'] = '';
             }
             prevLi.appendChild(nestedList);
@@ -4476,7 +4725,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!parentList || (parentList.tagName !== 'UL' && parentList.tagName !== 'OL')) return;
 
         const grandparentLi = parentList.parentElement;
-        if (!grandparentLi || grandparentLi.tagName !== 'LI') return;
+        if (grandparentLi?.tagName !== 'LI') return;
 
         const grandparentList = grandparentLi.parentElement;
         if (!grandparentList) return;
@@ -4499,7 +4748,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement;
                 if (el.closest('ul[data-task-list]')) {
-                    this.document.execCommand('insertUnorderedList', false);
+                    this.execEditorCommand('insertUnorderedList');
                     return;
                 }
             }
@@ -4724,7 +4973,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.performFind();
 
         const marks = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('mark[data-find-match]'));
-        for (const mark of marks.reverse()) {
+        marks.reverse();
+        for (const mark of marks) {
             mark.textContent = this.replaceText();
             const parent = mark.parentNode;
             if (parent) {
@@ -4846,7 +5096,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private syncContentFromEditor(): void {
         const editorElement = this.getEditorElement();
         if (editorElement) {
-            const html = this.sanitizer.sanitize(editorElement.innerHTML).replace(/\u200B/g, '');
+            const html = this.sanitizer.sanitize(editorElement.innerHTML).replaceAll('\u200B', '');
             this.htmlContent.set(html);
 
             const outputValue = this.mode() === 'markdown'
@@ -4924,6 +5174,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
+    private execEditorCommand(commandId: string, value?: string): boolean {
+        const doc = this.document as unknown as {
+            execCommand?: (id: string, showUI?: boolean, commandValue?: string) => boolean;
+        };
+        return doc.execCommand?.(commandId, false, value) ?? false;
+    }
+
+    private queryEditorCommandState(commandId: string): boolean {
+        const doc = this.document as unknown as { queryCommandState?: (id: string) => boolean };
+        return doc.queryCommandState?.(commandId) ?? false;
+    }
+
     private focusEditor(): void {
         this.editorDiv?.nativeElement?.focus();
     }
@@ -4942,46 +5204,56 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private updateActiveFormats(): void {
         const formats = new Set<string>();
 
-        if (this.document.queryCommandState('bold')) formats.add('bold');
-        if (this.document.queryCommandState('italic')) formats.add('italic');
-        if (this.document.queryCommandState('underline')) formats.add('underline');
-        if (this.document.queryCommandState('strikeThrough')) formats.add('strikethrough');
-        if (this.document.queryCommandState('insertUnorderedList')) formats.add('bulletList');
-        if (this.document.queryCommandState('insertOrderedList')) formats.add('orderedList');
+        if (this.queryEditorCommandState('bold')) formats.add('bold');
+        if (this.queryEditorCommandState('italic')) formats.add('italic');
+        if (this.queryEditorCommandState('underline')) formats.add('underline');
+        if (this.queryEditorCommandState('strikeThrough')) formats.add('strikethrough');
+        if (this.queryEditorCommandState('insertUnorderedList')) formats.add('bulletList');
+        if (this.queryEditorCommandState('insertOrderedList')) formats.add('orderedList');
 
+        this.detectTaskListFormat(formats);
+        this.activeFormats.set(formats);
+        this.detectCurrentFontSize();
+    }
+
+    private detectTaskListFormat(formats: Set<string>): void {
         const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            let el: Node | null = selection.getRangeAt(0).startContainer;
-            while (el && el !== this.editorDiv?.nativeElement) {
-                if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
-                    formats.add('taskList');
-                    break;
-                }
-                el = el.parentNode;
+        if (!selection || selection.rangeCount === 0) {
+            return;
+        }
+        let el: Node | null = selection.getRangeAt(0).startContainer;
+        while (el && el !== this.editorDiv?.nativeElement) {
+            if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
+                formats.add('taskList');
+                break;
             }
+            el = el.parentNode;
+        }
+    }
+
+    private detectCurrentFontSize(): void {
+        const sel = this.document.getSelection();
+        if (!sel || sel.rangeCount === 0) {
+            return;
+        }
+        const range = sel.getRangeAt(0);
+        let element = range.commonAncestorContainer;
+
+        if (element.nodeType === Node.TEXT_NODE) {
+            element = element.parentElement || element;
         }
 
-        this.activeFormats.set(formats);
-
-        const sel = this.document.getSelection();
-        if (sel && sel.rangeCount > 0) {
-            const range = sel.getRangeAt(0);
-            let element = range.commonAncestorContainer;
-
-            if (element.nodeType === Node.TEXT_NODE) {
-                element = element.parentElement || element;
-            }
-
-            if (element instanceof HTMLElement) {
-                const computedStyle = this.document.defaultView?.getComputedStyle(element);
-                if (computedStyle) {
-                    const fontSize = computedStyle.fontSize;
-                    const numericSize = Number.parseInt(fontSize, 10);
-                    if (!isNaN(numericSize)) {
-                        this.currentFontSize.set(numericSize.toString());
-                    }
-                }
-            }
+        if (!(element instanceof HTMLElement)) {
+            return;
+        }
+        const computedStyle = this.document.defaultView?.getComputedStyle(element);
+        if (!computedStyle) {
+            return;
+        }
+        const fontSize = computedStyle.fontSize;
+        const numericSize = Number.parseInt(fontSize, 10);
+        if (!Number.isNaN(numericSize)) {
+            this.currentFontSize.set(numericSize.toString());
         }
     }
 
@@ -5156,7 +5428,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
 
     private removeSlashTriggerTextFromRange(query: string, range: Range | null): HTMLElement | null {
-        if (!range || range.startContainer.nodeType !== Node.TEXT_NODE) {
+        if (range?.startContainer.nodeType !== Node.TEXT_NODE) {
             return null;
         }
         const selection = this.document.getSelection();
@@ -5187,7 +5459,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return null;
         }
         const editor = this.getEditorElement();
-        if (!editor || !editor.contains(anchorBlock)) {
+        if (!editor?.contains(anchorBlock)) {
             return null;
         }
 
@@ -5326,13 +5598,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private resolveTopLevelEditorBlock(node: Node, editor: HTMLElement): HTMLElement | null {
         if (node.nodeType === Node.TEXT_NODE && node.parentNode === editor) {
             const wrapper = this.document.createElement('p');
-            editor.insertBefore(wrapper, node);
+            (node as ChildNode).before(wrapper);
             wrapper.appendChild(node);
             return wrapper;
         }
 
         let current: Node | null = node;
-        while (current && current.parentNode && current.parentNode !== editor) {
+        while (current?.parentNode && current.parentNode !== editor) {
             current = current.parentNode;
         }
 
@@ -5361,36 +5633,53 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         if (this.isEmptyBlock(block)) {
-            let target: Text | null = null;
-            const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
-            while (walker.nextNode()) {
-                const textNode = walker.currentNode as Text;
-                if (textNode.data.includes('\u200B')) {
-                    target = textNode;
-                }
-            }
-            if (!target) {
-                target = this.document.createTextNode('\u200B');
-                if (block.firstChild) {
-                    block.insertBefore(target, block.firstChild);
-                } else {
-                    block.appendChild(target);
-                }
-            }
-
-            const range = this.document.createRange();
-            range.setStart(target, target.length);
-            range.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(range);
+            const target = this.ensureZeroWidthTextNode(block);
+            this.setSelectionAtTextEnd(selection, target);
             return;
         }
 
+        const target = this.getDeepestLastNode(block);
+        this.setSelectionAtNodeEnd(selection, target);
+    }
+
+    private ensureZeroWidthTextNode(block: HTMLElement): Text {
+        let target: Text | null = null;
+        const walker = this.document.createTreeWalker(block, NodeFilter.SHOW_TEXT);
+        while (walker.nextNode()) {
+            const textNode = walker.currentNode as Text;
+            if (textNode.data.includes('\u200B')) {
+                target = textNode;
+            }
+        }
+        if (target) {
+            return target;
+        }
+        target = this.document.createTextNode('\u200B');
+        if (block.firstChild) {
+            block.insertBefore(target, block.firstChild);
+        } else {
+            block.appendChild(target);
+        }
+        return target;
+    }
+
+    private getDeepestLastNode(block: HTMLElement): Node {
         let target: Node = block;
         while (target.lastChild) {
             target = target.lastChild;
         }
+        return target;
+    }
 
+    private setSelectionAtTextEnd(selection: Selection, textNode: Text): void {
+        const range = this.document.createRange();
+        range.setStart(textNode, textNode.length);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+    }
+
+    private setSelectionAtNodeEnd(selection: Selection, target: Node): void {
         const range = this.document.createRange();
         if (target.nodeType === Node.TEXT_NODE) {
             const text = target as Text;
@@ -5518,7 +5807,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private isEmptyBlock(block: HTMLElement): boolean {
-        const text = (block.textContent ?? '').replace(/\u200B/g, '').trim();
+        const text = (block.textContent ?? '').replaceAll('\u200B', '').trim();
         if (text.length > 0) {
             return false;
         }
@@ -5544,8 +5833,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private buildTriggerAwareText(html: string): string {
         const blockAware = html
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n');
+            .replaceAll(/<br\s*\/?>/gi, '\n')
+            .replaceAll(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n');
         return this.sanitizer.stripTags(blockAware);
     }
 
@@ -5570,39 +5859,26 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 ops.push('=' + pi);
                 pi++;
                 ci++;
-            } else {
-                let foundPrev = -1;
-                let foundCur = -1;
-                for (let look = 1; look <= 5; look++) {
-                    if (foundCur === -1 && ci + look < curLines.length && prevLines[pi] === curLines[ci + look]) {
-                        foundCur = ci + look;
-                    }
-                    if (foundPrev === -1 && pi + look < prevLines.length && prevLines[pi + look] === curLines[ci]) {
-                        foundPrev = pi + look;
-                    }
-                    if (foundCur !== -1 || foundPrev !== -1) break;
-                }
-                if (foundCur !== -1 && (foundPrev === -1 || (foundCur - ci) <= (foundPrev - pi))) {
-                    for (let k = ci; k < foundCur; k++) {
-                        ops.push('+' + curLines[k]);
-                    }
-                    ops.push('=' + pi);
-                    pi++;
-                    ci = foundCur + 1;
-                } else if (foundPrev !== -1) {
-                    for (let k = pi; k < foundPrev; k++) {
-                        ops.push('-' + k);
-                    }
-                    ops.push('=' + foundPrev);
-                    pi = foundPrev + 1;
-                    ci++;
-                } else {
-                    ops.push('-' + pi);
-                    ops.push('+' + curLines[ci]);
-                    pi++;
-                    ci++;
-                }
+                continue;
             }
+            const { foundPrev, foundCur } = this.findDeltaLookahead(prevLines, curLines, pi, ci);
+            if (foundCur !== -1 && (foundPrev === -1 || (foundCur - ci) <= (foundPrev - pi))) {
+                this.pushAddedOps(ops, curLines, ci, foundCur);
+                ops.push('=' + pi);
+                pi++;
+                ci = foundCur + 1;
+                continue;
+            }
+            if (foundPrev === -1) {
+                ops.push('-' + pi, '+' + curLines[ci]);
+                pi++;
+                ci++;
+                continue;
+            }
+            this.pushRemovedOps(ops, pi, foundPrev);
+            ops.push('=' + foundPrev);
+            pi = foundPrev + 1;
+            ci++;
         }
         while (pi < prevLines.length) {
             ops.push('-' + pi);
@@ -5613,6 +5889,40 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             ci++;
         }
         return ops.join('\x01');
+    }
+
+    private findDeltaLookahead(
+        prevLines: string[],
+        curLines: string[],
+        prevIndex: number,
+        currentIndex: number
+    ): { foundPrev: number; foundCur: number } {
+        let foundPrev = -1;
+        let foundCur = -1;
+        for (let look = 1; look <= 5; look++) {
+            if (foundCur === -1 && currentIndex + look < curLines.length && prevLines[prevIndex] === curLines[currentIndex + look]) {
+                foundCur = currentIndex + look;
+            }
+            if (foundPrev === -1 && prevIndex + look < prevLines.length && prevLines[prevIndex + look] === curLines[currentIndex]) {
+                foundPrev = prevIndex + look;
+            }
+            if (foundCur !== -1 || foundPrev !== -1) {
+                break;
+            }
+        }
+        return { foundPrev, foundCur };
+    }
+
+    private pushAddedOps(ops: string[], curLines: string[], start: number, end: number): void {
+        for (let i = start; i < end; i++) {
+            ops.push('+' + curLines[i]);
+        }
+    }
+
+    private pushRemovedOps(ops: string[], start: number, end: number): void {
+        for (let i = start; i < end; i++) {
+            ops.push('-' + i);
+        }
     }
 
     private applyDelta(base: string, delta: string): string {
@@ -5795,13 +6105,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private buildHistoryPreview(html: string): { preview: string; previewLines: string[]; lineCount: number } {
         const blockAware = html
-            .replace(/<br\s*\/?>/gi, '\n')
-            .replace(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n')
-            .replace(/<li[^>]*>/gi, '• ');
+            .replaceAll(/<br\s*\/?>/gi, '\n')
+            .replaceAll(/<\/(p|div|li|h[1-6]|blockquote|pre|tr)>/gi, '\n')
+            .replaceAll(/<li[^>]*>/gi, '• ');
         const plain = this.sanitizer.stripTags(blockAware);
         const lines = plain
             .split('\n')
-            .map(line => line.replace(/<\/?[^>]+>/g, '').replace(/\s+/g, ' ').trim())
+            .map(line => line.replaceAll(/<\/?[^>]+>/g, '').replaceAll(/\s+/g, ' ').trim())
             .filter(Boolean);
         const safeLines = lines.length ? lines : ['(empty)'];
         return {

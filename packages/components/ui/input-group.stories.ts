@@ -1,11 +1,10 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
     InputGroupComponent,
-    InputGroupInputComponent,
     InputGroupAddonComponent,
     InputGroupTextComponent,
 } from './input-group.component';
-import { moduleMetadata } from '@storybook/angular';
+import { InputComponent } from './input.component';
 
 const meta: Meta<InputGroupComponent> = {
     title: 'UI/InputGroup',
@@ -15,7 +14,7 @@ const meta: Meta<InputGroupComponent> = {
         moduleMetadata({
             imports: [
                 InputGroupComponent,
-                InputGroupInputComponent,
+                InputComponent,
                 InputGroupAddonComponent,
                 InputGroupTextComponent
             ],
@@ -39,23 +38,23 @@ export const Default: Story = {
       <div class="flex flex-col gap-4 w-[300px]">
         <ui-input-group [disabled]="disabled">
           <ui-input-group-addon>@</ui-input-group-addon>
-          <ui-input-group-input placeholder="Username" />
+          <ui-input placeholder="Username" />
         </ui-input-group>
 
         <ui-input-group [disabled]="disabled">
-          <ui-input-group-input placeholder="Recipient's username" />
+          <ui-input placeholder="Recipient's username" />
           <ui-input-group-addon>@example.com</ui-input-group-addon>
         </ui-input-group>
 
         <ui-input-group [disabled]="disabled">
           <ui-input-group-addon>$</ui-input-group-addon>
-          <ui-input-group-input placeholder="Amount" type="number" />
+          <ui-input placeholder="Amount" type="number" />
           <ui-input-group-addon>.00</ui-input-group-addon>
         </ui-input-group>
 
          <ui-input-group [disabled]="disabled">
           <ui-input-group-addon>https://</ui-input-group-addon>
-          <ui-input-group-input placeholder="example.com/users/" />
+          <ui-input placeholder="example.com/users/" />
         </ui-input-group>
       </div>
     `,

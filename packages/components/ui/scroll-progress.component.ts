@@ -88,7 +88,11 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
             }
         }
 
-        this.scrollTarget ??= window;
+        this.scrollTarget ??= this.el.nativeElement.ownerDocument.defaultView;
+
+        if (!this.scrollTarget) {
+            return;
+        }
 
         this.ngZone.runOutsideAngular(() => {
             (this.scrollTarget as EventTarget).addEventListener('scroll', this.scrollHandler, { passive: true });

@@ -1,12 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TreeSelectComponent, TreeSelectTriggerComponent, TreeSelectContentComponent, TREE_SELECT } from './tree-select.component';
+import { TreeSelectComponent } from './tree-select.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
 import { TreeComponent, TreeNode } from './tree.component';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
+import { PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
 
 const SAMPLE_NODES: TreeNode[] = [
     {
@@ -120,7 +119,7 @@ describe('TreeSelectComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [TreeSelectComponent, NoopAnimationsModule]
+            imports: [TreeSelectComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(TreeSelectComponent);
@@ -184,7 +183,7 @@ describe('TreeSelect Integration', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [TestHostComponent, NoopAnimationsModule]
+            imports: [TestHostComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
@@ -278,7 +277,7 @@ describe('TreeSelect ControlValueAccessor', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [CVATestHostComponent, NoopAnimationsModule]
+            imports: [CVATestHostComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(CVATestHostComponent);
@@ -313,16 +312,14 @@ describe('TreeSelect ControlValueAccessor', () => {
 });
 
 describe('TreeSelect Custom Mode', () => {
-    let component: CustomModeTestHostComponent;
     let fixture: ComponentFixture<CustomModeTestHostComponent>;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [CustomModeTestHostComponent, NoopAnimationsModule]
+            imports: [CustomModeTestHostComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(CustomModeTestHostComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
     });
 
@@ -364,7 +361,7 @@ describe('TreeSelect select method', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [TreeSelectComponent, NoopAnimationsModule]
+            imports: [TreeSelectComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(TreeSelectComponent);

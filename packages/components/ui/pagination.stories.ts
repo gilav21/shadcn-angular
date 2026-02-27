@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   PaginationComponent,
   PaginationContentComponent,
@@ -8,7 +8,6 @@ import {
   PaginationNextComponent,
   PaginationEllipsisComponent,
 } from './pagination.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<PaginationComponent> = {
   title: 'UI/Pagination',

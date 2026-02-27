@@ -288,7 +288,6 @@ describe('BarChartDrilldownComponent', () => {
     describe('breadcrumb visibility', () => {
         it('should not show breadcrumb when not drilled down', () => {
             fixture.detectChanges();
-            const breadcrumb = fixture.nativeElement.querySelector('button');
             const backButton = fixture.nativeElement.querySelector(
                 'button[type="button"]',
             );

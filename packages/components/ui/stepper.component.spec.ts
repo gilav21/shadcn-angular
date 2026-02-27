@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import {
     StepperComponent,
     StepperItemComponent,
@@ -103,13 +103,13 @@ describe('StepperComponent', () => {
     describe('Step Status', () => {
         it('should mark first step as current', () => {
             const firstItem = fixture.debugElement.query(By.css('[data-slot="stepper-item"]'));
-            expect(firstItem.nativeElement.getAttribute('data-status')).toBe('current');
+            expect(firstItem.nativeElement.dataset.status).toBe('current');
         });
 
         it('should mark other steps as pending', () => {
             const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
-            expect(items[1].nativeElement.getAttribute('data-status')).toBe('pending');
-            expect(items[2].nativeElement.getAttribute('data-status')).toBe('pending');
+            expect(items[1].nativeElement.dataset.status).toBe('pending');
+            expect(items[2].nativeElement.dataset.status).toBe('pending');
         });
 
         it('should update status when activeStep changes', async () => {
@@ -118,9 +118,9 @@ describe('StepperComponent', () => {
             await fixture.whenStable();
 
             const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
-            expect(items[0].nativeElement.getAttribute('data-status')).toBe('complete');
-            expect(items[1].nativeElement.getAttribute('data-status')).toBe('current');
-            expect(items[2].nativeElement.getAttribute('data-status')).toBe('pending');
+            expect(items[0].nativeElement.dataset.status).toBe('complete');
+            expect(items[1].nativeElement.dataset.status).toBe('current');
+            expect(items[2].nativeElement.dataset.status).toBe('pending');
         });
     });
 
@@ -181,7 +181,7 @@ describe('StepperComponent', () => {
     describe('Orientation', () => {
         it('should have horizontal orientation by default', () => {
             const stepper = fixture.debugElement.query(By.css('[data-slot="stepper"]'));
-            expect(stepper.nativeElement.getAttribute('data-orientation')).toBe('horizontal');
+            expect(stepper.nativeElement.dataset.orientation).toBe('horizontal');
         });
 
         it('should switch to vertical orientation', async () => {
@@ -190,7 +190,7 @@ describe('StepperComponent', () => {
             await fixture.whenStable();
 
             const stepper = fixture.debugElement.query(By.css('[data-slot="stepper"]'));
-            expect(stepper.nativeElement.getAttribute('data-orientation')).toBe('vertical');
+            expect(stepper.nativeElement.dataset.orientation).toBe('vertical');
         });
     });
 
@@ -331,7 +331,7 @@ describe('Stepper Simple Mode (Data-Driven)', () => {
 
     it('should mark first step as current', () => {
         const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
-        expect(items[0].nativeElement.getAttribute('data-status')).toBe('current');
+        expect(items[0].nativeElement.dataset.status).toBe('current');
     });
 
     it('should update status when activeStep changes', async () => {
@@ -340,8 +340,8 @@ describe('Stepper Simple Mode (Data-Driven)', () => {
         await fixture.whenStable();
 
         const items = fixture.debugElement.queryAll(By.css('[data-slot="stepper-item"]'));
-        expect(items[0].nativeElement.getAttribute('data-status')).toBe('complete');
-        expect(items[1].nativeElement.getAttribute('data-status')).toBe('current');
+        expect(items[0].nativeElement.dataset.status).toBe('complete');
+        expect(items[1].nativeElement.dataset.status).toBe('current');
     });
 
     it('should emit stepChange on click', async () => {
@@ -354,7 +354,7 @@ describe('Stepper Simple Mode (Data-Driven)', () => {
     });
 
     it('should render separators between steps', () => {
-        const separators = fixture.nativeElement.querySelectorAll('.h-0\\.5.bg-border, .h-0\\.5.bg-primary');
+        const separators = fixture.nativeElement.querySelectorAll(String.raw`.h-0\.5.bg-border, .h-0\.5.bg-primary`);
         expect(separators.length).toBeGreaterThan(0);
     });
 });

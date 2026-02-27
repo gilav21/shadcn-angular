@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { RichTextPasteNormalizerService, PasteSource } from './rich-text-paste-normalizer.service';
+import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.service';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { beforeEach, describe, expect, it } from 'vitest';

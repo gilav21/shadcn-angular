@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   AlertDialogComponent,
   AlertDialogTriggerComponent,
@@ -11,7 +11,6 @@ import {
   AlertDialogCancelComponent,
 } from './alert-dialog.component';
 import { ButtonComponent } from './button.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<AlertDialogComponent> = {
   title: 'UI/AlertDialog',

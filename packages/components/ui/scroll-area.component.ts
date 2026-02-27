@@ -4,7 +4,6 @@ import {
   input,
   computed,
   ElementRef,
-  inject,
   AfterViewInit,
   OnDestroy,
   ViewChild,
@@ -77,12 +76,12 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
   @ViewChild('viewport') viewportRef?: ElementRef<HTMLElement>;
   @ViewChild('scrollRoot') scrollRootRef?: ElementRef<HTMLElement>;
 
-  private scrollTop = signal(0);
-  private scrollLeft = signal(0);
-  private scrollHeight = signal(0);
-  private scrollWidth = signal(0);
-  private clientHeight = signal(0);
-  private clientWidth = signal(0);
+  private readonly scrollTop = signal(0);
+  private readonly scrollLeft = signal(0);
+  private readonly scrollHeight = signal(0);
+  private readonly scrollWidth = signal(0);
+  private readonly clientHeight = signal(0);
+  private readonly clientWidth = signal(0);
 
   private resizeObserver?: ResizeObserver;
 

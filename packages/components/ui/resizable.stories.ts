@@ -1,10 +1,9 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   ResizablePanelGroupComponent,
   ResizablePanelComponent,
   ResizableHandleComponent,
 } from './resizable.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<ResizablePanelGroupComponent> = {
   title: 'UI/Resizable',

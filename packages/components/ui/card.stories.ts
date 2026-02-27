@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   CardComponent,
   CardHeaderComponent,
@@ -9,7 +9,6 @@ import {
 } from './card.component';
 import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
-import { moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';
 
 // Simple mock for Label if it doesn't exist yet, or just assume it does. 

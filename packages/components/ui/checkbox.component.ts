@@ -6,8 +6,6 @@ import {
   forwardRef,
   model,
   signal,
-  ElementRef,
-  viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
@@ -102,7 +100,7 @@ export class CheckboxComponent implements ControlValueAccessor {
   label = input<string | undefined>(undefined);
 
   // Auto-generate ID when label is used
-  private _generatedId = `checkbox-${++CheckboxComponent.idCounter}`;
+  private readonly _generatedId = `checkbox-${++CheckboxComponent.idCounter}`;
   computedId = computed(() => this.elementId() ?? this._generatedId);
 
   private onChange: (value: boolean) => void = () => { };

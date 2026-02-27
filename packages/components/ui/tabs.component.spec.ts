@@ -133,7 +133,7 @@ describe('Tabs Integration', () => {
     it('should have active trigger marked', () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="tabs-trigger"]'));
         expect(triggers[0].nativeElement.getAttribute('aria-selected')).toBe('true');
-        expect(triggers[0].nativeElement.getAttribute('data-state')).toBe('active');
+        expect(triggers[0].nativeElement.dataset.state).toBe('active');
     });
 
     it('should switch tabs on trigger click', async () => {

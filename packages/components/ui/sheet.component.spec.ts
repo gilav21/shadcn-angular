@@ -175,7 +175,7 @@ describe('Sheet Integration', () => {
         await fixture.whenStable();
 
         const content = fixture.debugElement.query(By.css('[data-slot="sheet-content"]'));
-        expect(content.nativeElement.getAttribute('data-state')).toBe('open');
+        expect(content.nativeElement.dataset['state']).toBe('open');
     });
 
     it('should apply correct side classes', async () => {

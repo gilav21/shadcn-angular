@@ -113,14 +113,12 @@ describe('TableComponent', () => {
     const body = fixture.debugElement.query(By.directive(TableBodyComponent));
     const row = body.query(By.directive(TableRowComponent));
 
-    expect(row.nativeElement.getAttribute('data-state')).toBe('selected');
+    expect(row.nativeElement.dataset.state).toBe('selected');
     expect(row.nativeElement.classList.contains('data-[state=selected]:bg-muted')).toBe(true);
   });
 
   it('should render correct ARIA structure', () => {
     fixture.detectChanges();
-    const table = fixture.debugElement.query(By.directive(TableComponent));
-
     // Check for ARIA roles since it uses divs
     const header = fixture.debugElement.query(By.directive(TableHeaderComponent));
     expect(header.nativeElement.getAttribute('role')).toBe('rowgroup');

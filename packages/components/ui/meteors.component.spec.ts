@@ -59,7 +59,7 @@ describe('MeteorsComponent', () => {
 
     it('should render with data-slot attribute', () => {
         const hostEl = fixture.debugElement.query(By.directive(MeteorsComponent)).nativeElement as HTMLElement;
-        expect(hostEl.getAttribute('data-slot')).toBe('meteors');
+        expect(hostEl.dataset['slot']).toBe('meteors');
     });
 
     it('should set host position to absolute', () => {

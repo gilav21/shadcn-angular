@@ -1,6 +1,6 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input, viewChild, DestroyRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, input, viewChild, DestroyRef } from '@angular/core';
 import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule , FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { delay, of } from 'rxjs';
 import {
   ButtonComponent,
@@ -196,7 +196,6 @@ import {
   ButtonGroupComponent,
   ButtonGroupTextComponent,
   InputGroupComponent,
-  InputGroupInputComponent,
   InputGroupAddonComponent,
   InputGroupTextComponent,
   FieldComponent,
@@ -245,7 +244,6 @@ import {
   FileUploadComponent,
   ColorPickerComponent,
   DataTableComponent,
-  DataTableContextMenuDirective,
   ColumnDef,
   DataTableColumnState,
   DataTableLoadingVisibility,
@@ -319,7 +317,7 @@ import {
   ActionWidgetComponent
 } from './dashboard-widgets';
 import { PageViewerDemoComponent } from './page-viewer-demo.component';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
 import {
   BentoGridComponent,
@@ -713,7 +711,6 @@ class OpsTicketDetailComponent {
     ButtonGroupComponent,
     ButtonGroupTextComponent,
     InputGroupComponent,
-    InputGroupInputComponent,
     InputGroupAddonComponent,
     InputGroupTextComponent,
     FieldComponent,
@@ -773,8 +770,6 @@ class OpsTicketDetailComponent {
     ColumnRangeChartComponent,
     BarRaceChartComponent,
     DataTableComponent,
-    OpsTableLoaderComponent,
-    OpsTicketDetailComponent,
     ChatMessageComponent,
     ChatListComponent,
     ChatInputComponent,
@@ -835,8 +830,8 @@ export class AppComponent {
   selectOptions = ['Apple', 'Banana', 'Blueberry', 'Grapes', 'Pineapple'];
   radioOptions = ['Default', 'Comfortable', 'Compact'];
 
-  private toastService = inject(ToastService);
-  private shortcutBindings = inject(ShortcutBindingService);
+  private readonly toastService = inject(ToastService);
+  private readonly shortcutBindings = inject(ShortcutBindingService);
   isDark = signal(false);
 
   kanbanColumns = signal<KanbanColumn[]>([
@@ -1182,8 +1177,8 @@ export class AppComponent {
       this.activeComponent.set(id);
       this.updateDocumentTitle(id);
     };
-    window.addEventListener('popstate', onPopState);
-    destroyRef.onDestroy(() => window.removeEventListener('popstate', onPopState));
+    globalThis.addEventListener('popstate', onPopState);
+    destroyRef.onDestroy(() => globalThis.removeEventListener('popstate', onPopState));
   }
 
   // Custom cells demo columns using components
@@ -1215,7 +1210,7 @@ export class AppComponent {
       // Custom sort function: success > processing > pending > failed
       sortFn: (a, b) => {
         const statusOrder = { success: 0, processing: 1, pending: 2, failed: 3 };
-        return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
+        return statusOrder[a.status] - statusOrder[b.status];
       }
     },
     {
@@ -1559,7 +1554,7 @@ export class AppComponent {
   private getFilteredSortedOpsData(): OpsTicket[] {
     const source = this.opsSource();
     const filter = this.opsFilter().toLowerCase();
-    const sorts = this.opsMultiSort().length > 0 ? this.opsMultiSort() : (this.opsSort().direction ? [this.opsSort()] : []);
+    const sorts = this.resolveOpsSorts();
 
     let rows = source;
 
@@ -1580,13 +1575,43 @@ export class AppComponent {
           const aVal = a[key];
           const bVal = b[key];
           if (aVal === bVal) continue;
-          return (aVal! > bVal! ? 1 : -1) * direction;
+          return this.compareOpsSortValues(aVal, bVal) * direction;
         }
         return 0;
       });
     }
 
     return rows;
+  }
+
+  private resolveOpsSorts() {
+    const multiSort = this.opsMultiSort();
+    if (multiSort.length > 0) {
+      return multiSort;
+    }
+    const singleSort = this.opsSort();
+    return singleSort.direction ? [singleSort] : [];
+  }
+
+  private compareOpsSortValues(aVal: OpsTicket[keyof OpsTicket], bVal: OpsTicket[keyof OpsTicket]): number {
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return aVal > bVal ? 1 : -1;
+    }
+    if (aVal instanceof Date && bVal instanceof Date) {
+      return aVal.getTime() > bVal.getTime() ? 1 : -1;
+    }
+    const aText = this.normalizeOpsSortValue(aVal);
+    const bText = this.normalizeOpsSortValue(bVal);
+    return aText.localeCompare(bText);
+  }
+
+  private normalizeOpsSortValue(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') return `${value}`;
+    if (value instanceof Date) return value.toISOString();
+    if (Array.isArray(value)) return value.map(item => this.normalizeOpsSortValue(item)).join('|');
+    if (value && typeof value === 'object') return JSON.stringify(value);
+    return '';
   }
 
   opsExportProvider = async (): Promise<OpsTicket[]> => {
@@ -1699,10 +1724,9 @@ export class AppComponent {
         if (i < response.length) {
           this.chatMessages.update(msgs => {
             const newMsgs = [...msgs];
-            const lastMsg = newMsgs[newMsgs.length - 1];
-            if (lastMsg.role === 'assistant') {
-              newMsgs[newMsgs.length - 1] = { ...lastMsg, content: lastMsg.content + response[i] };
-            }
+            const lastMsg = newMsgs.at(-1);
+            if (lastMsg?.role !== 'assistant') return newMsgs;
+            newMsgs[newMsgs.length - 1] = { ...lastMsg, content: lastMsg.content + response[i] };
             return newMsgs;
           });
           i++;
@@ -1970,7 +1994,7 @@ ORDER BY created_at DESC;`;
 
   categories = computed(() => {
     const categories = new Set(this.componentLinks.map(l => l.category));
-    return Array.from(categories).sort();
+    return Array.from(categories).sort((a, b) => a.localeCompare(b));
   });
 
   getCategoryIcon(category: string): string {
@@ -2002,7 +2026,7 @@ ORDER BY created_at DESC;`;
   }
 
   private getComponentIdFromUrl(): string {
-    const path = window.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+    const path = globalThis.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
     return path || 'introduction';
   }
 
@@ -2532,17 +2556,8 @@ ORDER BY created_at DESC;`;
     const types = ['card', 'list', 'image', 'chart'];
     const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-    // Heights from 50px to 2000px with weighted distribution
-    const getHeight = () => {
-      const rand = Math.random();
-      if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);      // 40% small (50-150px)
-      if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);     // 30% medium (150-350px)
-      if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);     // 20% large (350-750px)
-      return 750 + Math.floor(Math.random() * 1250);                     // 10% extra large (750-2000px)
-    };
-
     for (let i = 0; i < this.ITEMS_PER_PAGE * 2; i++) {
-      const height = getHeight();
+      const height = this.getVirtualScrollItemHeight();
       const type = types[Math.floor(Math.random() * types.length)];
       const color = colors[Math.floor(Math.random() * colors.length)];
       const id = i + 1;
@@ -2599,18 +2614,10 @@ ORDER BY created_at DESC;`;
       const types = ['card', 'list', 'image', 'chart'];
       const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-      const getHeight = () => {
-        const rand = Math.random();
-        if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);
-        if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);
-        if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);
-        return 750 + Math.floor(Math.random() * 1250);
-      };
-
       const startId = currentItems.length + 1;
 
       for (let i = 0; i < this.ITEMS_PER_PAGE; i++) {
-        const height = getHeight();
+        const height = this.getVirtualScrollItemHeight();
         const type = types[Math.floor(Math.random() * types.length)];
         const color = colors[Math.floor(Math.random() * colors.length)];
         const id = startId + i;
@@ -2665,16 +2672,8 @@ ORDER BY created_at DESC;`;
       const types = ['card', 'list', 'image', 'chart'];
       const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-      const getHeight = () => {
-        const rand = Math.random();
-        if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);
-        if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);
-        if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);
-        return 750 + Math.floor(Math.random() * 1250);
-      };
-
       for (let i = 0; i < this.ITEMS_PER_PAGE; i++) {
-        const height = getHeight();
+        const height = this.getVirtualScrollItemHeight();
         const type = types[Math.floor(Math.random() * types.length)];
         const color = colors[Math.floor(Math.random() * colors.length)];
         const id = -(this.virtualScrollPageTop * this.ITEMS_PER_PAGE + i + 1);
@@ -2715,6 +2714,14 @@ ORDER BY created_at DESC;`;
     this.virtualScrollWindowEnd.set(state.windowEnd);
     this.virtualScrollVisibleCount.set(state.windowSize);
     this.virtualScrollProgress.set(state.scrollProgress);
+  }
+
+  private getVirtualScrollItemHeight(): number {
+    const rand = Math.random();
+    if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);
+    if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);
+    if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);
+    return 750 + Math.floor(Math.random() * 1250);
   }
 
   scrollVirtualToTop() {

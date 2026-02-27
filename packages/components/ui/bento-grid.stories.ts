@@ -1,5 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
-import { moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { BentoGridComponent, BentoGridItemComponent, DashboardItem } from './bento-grid.component';
 
 const meta: Meta<BentoGridComponent> = {

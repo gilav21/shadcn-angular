@@ -48,7 +48,7 @@ describe('TextareaComponent', () => {
 
     it('should have data-slot="textarea"', () => {
         const textarea = fixture.debugElement.query(By.css('textarea'));
-        expect(textarea.nativeElement.getAttribute('data-slot')).toBe('textarea');
+        expect(textarea.nativeElement.dataset.slot).toBe('textarea');
     });
 
     it('should render a textarea element', () => {

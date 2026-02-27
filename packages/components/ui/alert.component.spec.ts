@@ -41,7 +41,7 @@ describe('AlertComponent', () => {
     });
 
     it('should have data-slot="alert"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('alert');
+        expect(fixture.nativeElement.dataset.slot).toBe('alert');
     });
 
     it('should apply base classes', () => {
@@ -89,7 +89,7 @@ describe('AlertTitleComponent', () => {
     });
 
     it('should have data-slot="alert-title"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('alert-title');
+        expect(fixture.nativeElement.dataset.slot).toBe('alert-title');
     });
 
     it('should apply default classes', () => {
@@ -117,7 +117,7 @@ describe('AlertDescriptionComponent', () => {
     });
 
     it('should have data-slot="alert-description"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('alert-description');
+        expect(fixture.nativeElement.dataset.slot).toBe('alert-description');
     });
 
     it('should apply default classes', () => {

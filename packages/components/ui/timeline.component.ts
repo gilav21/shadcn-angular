@@ -79,7 +79,7 @@ export class TimelineItemComponent implements AfterContentInit {
     @ContentChild(forwardRef(() => TimelineHeaderComponent)) customHeader?: TimelineHeaderComponent;
     @ContentChild(forwardRef(() => TimelineContentComponent)) customContent?: TimelineContentComponent;
 
-    private _hasCustomContent = signal(false);
+    private readonly _hasCustomContent = signal(false);
     hasCustomContent = this._hasCustomContent.asReadonly();
 
     ngAfterContentInit() {

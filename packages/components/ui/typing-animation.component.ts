@@ -8,8 +8,8 @@ import {
     OnDestroy,
     output,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn , prefersReducedMotion } from '../lib/utils';
+
 
 type TypingState = 'typing' | 'pausing' | 'deleting' | 'waiting';
 
@@ -54,7 +54,7 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
     complete = output<void>();
 
     displayText = signal('');
-    private state = signal<TypingState>('typing');
+    private readonly state = signal<TypingState>('typing');
     private stringIndex = 0;
     private charIndex = 0;
     private timeoutId: ReturnType<typeof setTimeout> | null = null;

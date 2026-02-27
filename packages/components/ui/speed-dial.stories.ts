@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   SpeedDialComponent,
   SpeedDialTriggerComponent,
@@ -8,7 +8,6 @@ import {
   SpeedDialContextTriggerDirective,
 } from './speed-dial.component';
 import { ButtonComponent } from './button.component';
-import { moduleMetadata } from '@storybook/angular';
 import { TooltipDirective } from './tooltip.component';
 
 const meta: Meta<SpeedDialComponent> = {

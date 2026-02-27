@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   SidebarComponent,
   SidebarProviderComponent,
@@ -16,7 +16,6 @@ import {
   SidebarInsetComponent,
   SidebarSeparatorComponent,
 } from './sidebar.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<SidebarComponent> = {
   title: 'UI/Sidebar',

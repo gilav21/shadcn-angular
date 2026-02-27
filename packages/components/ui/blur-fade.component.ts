@@ -34,7 +34,7 @@ export class BlurFadeComponent implements AfterViewInit, OnDestroy {
 
     replay = output<void>();
 
-    private isVisible = signal(false);
+    private readonly isVisible = signal(false);
     private observer?: IntersectionObserver;
     private currentAnimation?: Animation;
 

@@ -95,7 +95,7 @@ export class InputOTPComponent {
 
   onInput(event: Event) {
     const input = event.target as HTMLInputElement;
-    const newValue = input.value.replace(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.maxLength());
+    const newValue = input.value.replaceAll(/[^a-zA-Z0-9]/g, '').toUpperCase().slice(0, this.maxLength());
     this.value.set(newValue);
     this.focusedIndex.set(Math.min(newValue.length, this.maxLength() - 1));
     input.value = newValue;

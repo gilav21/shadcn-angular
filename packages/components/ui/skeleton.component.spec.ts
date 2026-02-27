@@ -36,7 +36,7 @@ describe('SkeletonComponent', () => {
     });
 
     it('should have data-slot="skeleton"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('skeleton');
+        expect(fixture.nativeElement.dataset.slot).toBe('skeleton');
     });
 
     it('should apply animate-pulse class', () => {

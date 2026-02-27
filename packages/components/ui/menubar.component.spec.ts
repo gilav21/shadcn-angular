@@ -527,7 +527,6 @@ describe('Menubar RTL Support', () => {
 
         const shortcut = fixture.debugElement.query(By.css('[data-slot="menubar-shortcut"]'));
         expect(shortcut).toBeTruthy();
-        const parentClass = shortcut.parent?.nativeElement.className || '';
         // The shortcut span has ltr:ml-auto rtl:mr-auto
         expect(shortcut.nativeElement.className).toContain('rtl:mr-auto');
     });
