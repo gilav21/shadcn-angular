@@ -12,9 +12,13 @@ import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Base URL for the component registry (GitHub raw content)
-const REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/master/packages/components/ui';
-const LIB_REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/master/packages/components/lib';
+function getRegistryBaseUrl(branch: string) {
+    return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components/ui`;
+}
+
+function getLibRegistryBaseUrl(branch: string) {
+    return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components/lib`;
+}
 
 // Components source directory (relative to CLI dist folder) for local dev
 function getLocalComponentsDir(): string | null {
@@ -36,7 +40,8 @@ interface AddOptions {
     overwrite?: boolean;
     all?: boolean;
     path?: string;
-    remote?: boolean; // Force remote fetch
+    remote?: boolean;
+    branch: string;
 }
 
 function getLocalLibDir(): string | null {
@@ -74,7 +79,7 @@ async function fetchComponentContent(file: string, options: AddOptions): Promise
     }
 
     // 2. Fetch from remote registry
-    const url = `${REGISTRY_BASE_URL}/${file}`;
+    const url = `${getRegistryBaseUrl(options.branch)}/${file}`;
     try {
         const response = await fetch(url);
         if (!response.ok) {
@@ -99,7 +104,7 @@ async function fetchLibContent(file: string, options: AddOptions): Promise<strin
         }
     }
 
-    const url = `${LIB_REGISTRY_BASE_URL}/${file}`;
+    const url = `${getLibRegistryBaseUrl(options.branch)}/${file}`;
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
