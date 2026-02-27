@@ -75,7 +75,7 @@ describe('TypingAnimationComponent', () => {
         host.cursor.set(true);
         fixture.detectChanges();
 
-        const cursorEl = fixture.debugElement.query(By.css('.inline-block.w-\\[2px\\]'));
+        const cursorEl = fixture.debugElement.query(By.css(String.raw`.inline-block.w-\[2px\]`));
         expect(cursorEl).toBeTruthy();
     });
 
@@ -83,7 +83,7 @@ describe('TypingAnimationComponent', () => {
         host.cursor.set(false);
         fixture.detectChanges();
 
-        const cursorEl = fixture.debugElement.query(By.css('.inline-block.w-\\[2px\\]'));
+        const cursorEl = fixture.debugElement.query(By.css(String.raw`.inline-block.w-\[2px\]`));
         expect(cursorEl).toBeFalsy();
     });
 
