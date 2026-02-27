@@ -156,7 +156,9 @@ export class DatePickerComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  setDisabledState(_isDisabled: boolean): void { }
+  setDisabledState(_isDisabled: boolean): void {
+    // Disabled state is managed via the disabled input binding
+  }
 }
 
 /**
@@ -241,9 +243,8 @@ export class DateRangePickerComponent implements ControlValueAccessor {
   ));
 
   toggleOpen() {
-    if (!this.disabled()) {
-      this.isOpen.update(v => !v);
-    }
+    if (this.disabled()) return;
+    this.isOpen.update(v => !v);
   }
 
   onRangeSelect(value: unknown) {
@@ -293,5 +294,7 @@ export class DateRangePickerComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  setDisabledState(_isDisabled: boolean): void { }
+  setDisabledState(_isDisabled: boolean): void {
+    // Disabled state is managed via the disabled input binding
+  }
 }

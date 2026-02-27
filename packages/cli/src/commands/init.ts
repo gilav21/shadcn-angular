@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import prompts from 'prompts';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -98,7 +98,6 @@ export async function init(options: InitOptions) {
 
     if (options.defaults || options.yes) {
         config = getDefaultConfig();
-        createShortcutRegistry = true;
     } else {
         const THEME_COLORS: Record<string, string> = {
             zinc: '#71717a',

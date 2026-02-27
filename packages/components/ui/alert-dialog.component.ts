@@ -51,7 +51,7 @@ export class AlertDialogComponent {
     host: { class: 'contents' },
 })
 export class AlertDialogTriggerComponent {
-    private alertDialog = inject(AlertDialogComponent, { optional: true });
+    private readonly alertDialog = inject(AlertDialogComponent, { optional: true });
 
     onClick() {
         this.alertDialog?.toggle();
@@ -107,8 +107,8 @@ export class AlertDialogTriggerComponent {
     host: { class: 'contents' },
 })
 export class AlertDialogContentComponent implements AfterViewInit {
-    alertDialog = inject(AlertDialogComponent, { optional: true });
-    private el = inject(ElementRef);
+    readonly alertDialog = inject(AlertDialogComponent, { optional: true });
+    private readonly el = inject(ElementRef);
     class = input('');
     title = input<string>();
     description = input<string>();
@@ -173,19 +173,17 @@ export class AlertDialogContentComponent implements AfterViewInit {
             if (focusableElements.length === 0) return;
 
             const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+            const lastElement = Array.from(focusableElements).at(-1) as HTMLElement;
 
             if (event.shiftKey) {
                 if (document.activeElement === firstElement) {
                     event.preventDefault();
                     lastElement?.focus();
                 }
-            } else {
-                if (document.activeElement === lastElement) {
+            } else if (document.activeElement === lastElement) {
                     event.preventDefault();
                     firstElement?.focus();
                 }
-            }
         }
     }
 }
@@ -249,7 +247,7 @@ export class AlertDialogFooterComponent { }
     host: { class: 'contents' },
 })
 export class AlertDialogActionComponent {
-    private alertDialog = inject(AlertDialogComponent, { optional: true });
+    private readonly alertDialog = inject(AlertDialogComponent, { optional: true });
     class = input('');
 
     classes = computed(() =>
@@ -279,7 +277,7 @@ export class AlertDialogActionComponent {
     host: { class: 'contents' },
 })
 export class AlertDialogCancelComponent {
-    private alertDialog = inject(AlertDialogComponent, { optional: true });
+    private readonly alertDialog = inject(AlertDialogComponent, { optional: true });
     class = input('');
 
     classes = computed(() =>

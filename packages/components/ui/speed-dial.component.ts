@@ -55,8 +55,8 @@ export type SpeedDialDirection =
     },
 })
 export class SpeedDialComponent implements OnDestroy {
-    private el = inject(ElementRef);
-    private document = inject(DOCUMENT);
+    private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
 
     type = input<SpeedDialType>('linear');
     direction = input<SpeedDialDirection>('up');
@@ -79,7 +79,7 @@ export class SpeedDialComponent implements OnDestroy {
         )
     );
 
-    private clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent) => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.hide();
         }
@@ -148,7 +148,7 @@ export class SpeedDialComponent implements OnDestroy {
     host: { class: 'contents' },
 })
 export class SpeedDialTriggerComponent {
-    speedDial = inject(SpeedDialComponent, { optional: true });
+    readonly speedDial = inject(SpeedDialComponent, { optional: true });
     class = input('');
     ariaLabel = input('Toggle speed dial');
 
@@ -191,7 +191,7 @@ export class SpeedDialTriggerComponent {
     },
 })
 export class SpeedDialContextTriggerComponent {
-    speedDial = inject(SpeedDialComponent, { optional: true });
+    readonly speedDial = inject(SpeedDialComponent, { optional: true });
     class = input('');
 
     hostClasses = computed(() =>
@@ -278,11 +278,11 @@ export class SpeedDialContextTriggerDirective {
     host: { class: 'contents' },
 })
 export class SpeedDialMenuComponent {
-    speedDial = inject(SpeedDialComponent, { optional: true });
+    readonly speedDial = inject(SpeedDialComponent, { optional: true });
     class = input('');
     ariaLabel = input<string | undefined>(undefined);
 
-    private registeredItems: SpeedDialItemComponent[] = [];
+    private readonly registeredItems: SpeedDialItemComponent[] = [];
 
     registerItem(item: SpeedDialItemComponent) {
         this.registeredItems.push(item);
@@ -376,8 +376,8 @@ export class SpeedDialMenuComponent {
     host: { class: 'contents' },
 })
 export class SpeedDialItemComponent implements OnInit, OnDestroy {
-    protected speedDial = inject(SpeedDialComponent, { optional: true });
-    private menu = inject(SpeedDialMenuComponent, { optional: true });
+    protected readonly speedDial = inject(SpeedDialComponent, { optional: true });
+    private readonly menu = inject(SpeedDialMenuComponent, { optional: true });
     class = input('');
 
     itemIndex = signal(0);
@@ -463,6 +463,36 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
         };
     });
 
+    private resolveAngles(type: SpeedDialType, direction: SpeedDialDirection): { start: number; end: number } {
+        if (type === 'semi-circle') {
+            return this.resolveSemiCircleAngles(direction);
+        }
+        if (type === 'quarter-circle') {
+            return this.resolveQuarterCircleAngles(direction);
+        }
+        return { start: 0, end: 360 };
+    }
+
+    private resolveSemiCircleAngles(direction: SpeedDialDirection): { start: number; end: number } {
+        switch (direction) {
+            case 'up': return { start: -180, end: 0 };
+            case 'down': return { start: 0, end: 180 };
+            case 'left': return { start: 90, end: 270 };
+            case 'right': return { start: -90, end: 90 };
+            default: return { start: 180, end: 360 };
+        }
+    }
+
+    private resolveQuarterCircleAngles(direction: SpeedDialDirection): { start: number; end: number } {
+        switch (direction) {
+            case 'up-right': return { start: 270, end: 360 };
+            case 'up-left': return { start: 180, end: 270 };
+            case 'down-right': return { start: 0, end: 90 };
+            case 'down-left': return { start: 90, end: 180 };
+            default: return { start: 270, end: 360 };
+        }
+    }
+
     private calculateCircularPosition(
         type: SpeedDialType,
         direction: SpeedDialDirection,
@@ -470,61 +500,9 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
         index: number,
         totalItems: number
     ): { x: number; y: number } {
-        let startAngle = 0;
-        let endAngle = 360;
-
-        switch (type) {
-            case 'circle':
-                startAngle = 0;
-                endAngle = 360;
-                break;
-            case 'semi-circle':
-                switch (direction) {
-                    case 'up':
-                        startAngle = -180;
-                        endAngle = 0;
-                        break;
-                    case 'down':
-                        startAngle = 0;
-                        endAngle = 180;
-                        break;
-                    case 'left':
-                        startAngle = 90;
-                        endAngle = 270;
-                        break;
-                    case 'right':
-                        startAngle = -90;
-                        endAngle = 90;
-                        break;
-                    default:
-                        startAngle = 180;
-                        endAngle = 360;
-                }
-                break;
-            case 'quarter-circle':
-                switch (direction) {
-                    case 'up-right':
-                        startAngle = 270;
-                        endAngle = 360;
-                        break;
-                    case 'up-left':
-                        startAngle = 180;
-                        endAngle = 270;
-                        break;
-                    case 'down-right':
-                        startAngle = 0;
-                        endAngle = 90;
-                        break;
-                    case 'down-left':
-                        startAngle = 90;
-                        endAngle = 180;
-                        break;
-                    default:
-                        startAngle = 270;
-                        endAngle = 360;
-                }
-                break;
-        }
+        const angles = this.resolveAngles(type, direction);
+        const startAngle = angles.start;
+        const endAngle = angles.end;
 
         const angleRange = endAngle - startAngle;
         const itemCount = type === 'circle' ? totalItems : Math.max(totalItems - 1, 1);
@@ -554,7 +532,7 @@ export class SpeedDialItemComponent implements OnInit, OnDestroy {
     host: { class: 'contents' },
 })
 export class SpeedDialMaskComponent {
-    speedDial = inject(SpeedDialComponent, { optional: true });
+    readonly speedDial = inject(SpeedDialComponent, { optional: true });
     class = input('');
 
     classes = computed(() =>

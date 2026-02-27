@@ -166,8 +166,8 @@ describe('AlertDialog Integration', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const cancel = document.querySelector('[data-slot="alert-dialog-cancel"]') as HTMLElement;
-        cancel.click();
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
+        cancel!.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
@@ -181,8 +181,8 @@ describe('AlertDialog Integration', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const action = document.querySelector('[data-slot="alert-dialog-action"]') as HTMLElement;
-        action.click();
+        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]');
+        action!.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
@@ -286,8 +286,8 @@ describe('AlertDialog RTL Support', () => {
         expect(content).toBeTruthy();
 
         // Close with cancel
-        const cancel = document.querySelector('[data-slot="alert-dialog-cancel"]') as HTMLElement;
-        cancel.click();
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
+        cancel!.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
@@ -366,8 +366,8 @@ describe('AlertDialog Simple Mode', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const cancel = document.querySelector('[data-slot="alert-dialog-cancel"]') as HTMLElement;
-        cancel.click();
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
+        cancel!.click();
         fixture.detectChanges();
         await fixture.whenStable();
 

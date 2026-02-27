@@ -58,26 +58,29 @@ export class RichTextPasteNormalizerService {
      */
     detectSource(html: string | null, text: string): PasteSource {
         if (html && html.trim().length > 0) {
-            if (this.isExcelHtml(html)) return 'excel';
-            if (this.isOutlookHtml(html)) return 'outlook';
-            if (this.isMsWordHtml(html)) return 'msword';
-            if (this.isGoogleDocsHtml(html)) return 'google-docs';
-            if (this.isApplePagesHtml(html)) return 'apple-pages';
-            if (this.isLibreOfficeHtml(html)) return 'libreoffice';
-
-            if (text && this.looksLikePdfText(text) && this.isMinimalHtml(html)) {
-                return 'plain-text';
-            }
-
-            return 'html';
+            return this.detectHtmlSource(html, text);
         }
 
         if (text && text.trim().length > 0) {
-            if (this.looksLikeMarkdown(text)) return 'markdown';
-            return 'plain-text';
+            return this.looksLikeMarkdown(text) ? 'markdown' : 'plain-text';
         }
 
         return 'plain-text';
+    }
+
+    private detectHtmlSource(html: string, text: string): PasteSource {
+        if (this.isExcelHtml(html)) return 'excel';
+        if (this.isOutlookHtml(html)) return 'outlook';
+        if (this.isMsWordHtml(html)) return 'msword';
+        if (this.isGoogleDocsHtml(html)) return 'google-docs';
+        if (this.isApplePagesHtml(html)) return 'apple-pages';
+        if (this.isLibreOfficeHtml(html)) return 'libreoffice';
+
+        if (text && this.looksLikePdfText(text) && this.isMinimalHtml(html)) {
+            return 'plain-text';
+        }
+
+        return 'html';
     }
 
     // =========================================================================
@@ -182,19 +185,19 @@ export class RichTextPasteNormalizerService {
     }
 
     private stripConditionalComments(html: string): string {
-        return html.replace(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, '');
+        return html.replaceAll(/<!--\[if[\s\S]*?<!\[endif\]-->/gi, '');
     }
 
     private stripXmlBlocks(html: string): string {
-        return html.replace(/<xml[\s\S]*?<\/xml>/gi, '');
+        return html.replaceAll(/<xml[\s\S]*?<\/xml>/gi, '');
     }
 
     private stripStyleBlocks(html: string): string {
-        return html.replace(/<style[\s\S]*?<\/style>/gi, '');
+        return html.replaceAll(/<style[\s\S]*?<\/style>/gi, '');
     }
 
     private stripXmlProcessingInstructions(html: string): string {
-        return html.replace(/<\?xml[\s\S]*?\?>/gi, '');
+        return html.replaceAll(/<\?xml[\s\S]*?\?>/gi, '');
     }
 
     private extractCssRules(html: string): Map<string, Map<string, string>> {
@@ -202,53 +205,64 @@ export class RichTextPasteNormalizerService {
         const styleBlockRegex = /<style[^>]*>([\s\S]*?)<\/style>/gi;
         let blockMatch;
 
-        const relevantProperties = new Set([
-            'color', 'background-color', 'background',
-            'font-size', 'font-weight', 'font-style',
-            'text-decoration', 'text-align',
-        ]);
-
         while ((blockMatch = styleBlockRegex.exec(html)) !== null) {
             const cssText = blockMatch[1]
-                .replace(/\/\*[\s\S]*?\*\//g, '')
-                .replace(/<!--/g, '')
-                .replace(/-->/g, '');
-            const ruleRegex = /([^{}]+)\{([^}]+)\}/g;
-            let ruleMatch;
-
-            while ((ruleMatch = ruleRegex.exec(cssText)) !== null) {
-                const selectorGroup = ruleMatch[1].trim();
-                const declarations = ruleMatch[2].trim();
-
-                if (selectorGroup.includes('@')) continue;
-
-                const props = this.parseStyles(declarations);
-                const relevantProps = new Map<string, string>();
-
-                for (const [prop, value] of props) {
-                    if (relevantProperties.has(prop) || prop.startsWith('mso-')) {
-                        relevantProps.set(prop, value);
-                    }
-                }
-
-                if (relevantProps.size === 0) continue;
-
-                const selectors = selectorGroup.split(',').map(s => s.trim());
-                for (const sel of selectors) {
-                    if (!sel) continue;
-                    const existing = rules.get(sel);
-                    if (existing) {
-                        for (const [p, v] of relevantProps) {
-                            existing.set(p, v);
-                        }
-                    } else {
-                        rules.set(sel, new Map(relevantProps));
-                    }
-                }
-            }
+                .replaceAll(/\/\*[\s\S]*?\*\//g, '')
+                .replaceAll('<!--', '')
+                .replaceAll('-->', '');
+            this.parseCssBlock(cssText, rules);
         }
 
         return rules;
+    }
+
+    private readonly relevantCssProperties = new Set([
+        'color', 'background-color', 'background',
+        'font-size', 'font-weight', 'font-style',
+        'text-decoration', 'text-align',
+    ]);
+
+    private parseCssBlock(cssText: string, rules: Map<string, Map<string, string>>): void {
+        const ruleRegex = /([^{}]+)\{([^}]+)\}/g;
+        let ruleMatch;
+
+        while ((ruleMatch = ruleRegex.exec(cssText)) !== null) {
+            const selectorGroup = ruleMatch[1].trim();
+            const declarations = ruleMatch[2].trim();
+
+            if (selectorGroup.includes('@')) continue;
+
+            const props = this.parseStyles(declarations);
+            const relevantProps = new Map<string, string>();
+
+            for (const [prop, value] of props) {
+                if (this.relevantCssProperties.has(prop) || prop.startsWith('mso-')) {
+                    relevantProps.set(prop, value);
+                }
+            }
+
+            if (relevantProps.size === 0) continue;
+            this.mergeSelectorsIntoRules(selectorGroup, relevantProps, rules);
+        }
+    }
+
+    private mergeSelectorsIntoRules(
+        selectorGroup: string,
+        props: Map<string, string>,
+        rules: Map<string, Map<string, string>>
+    ): void {
+        const selectors = selectorGroup.split(',').map(s => s.trim());
+        for (const sel of selectors) {
+            if (!sel) continue;
+            const existing = rules.get(sel);
+            if (existing) {
+                for (const [p, v] of props) {
+                    existing.set(p, v);
+                }
+            } else {
+                rules.set(sel, new Map(props));
+            }
+        }
     }
 
     private inlineCssRules(rules: Map<string, Map<string, string>>, container: HTMLElement): void {
@@ -279,7 +293,7 @@ export class RichTextPasteNormalizerService {
 
     private removeNamespacedElements(container: HTMLElement): void {
         const namespaced = container.querySelectorAll(
-            'o\\:p, w\\:sdtContent, w\\:sdt, w\\:sdtPr, w\\:sdtEndPr, o\\:OLEObject'
+            String.raw`o\:p, w\:sdtContent, w\:sdt, w\:sdtPr, w\:sdtEndPr, o\:OLEObject`
         );
         namespaced.forEach(el => {
             const parent = el.parentNode;
@@ -287,44 +301,37 @@ export class RichTextPasteNormalizerService {
                 while (el.firstChild) {
                     parent.insertBefore(el.firstChild, el);
                 }
-                parent.removeChild(el);
+                el.remove();
             }
         });
 
         this.walkElements(container, el => {
-            if (el.tagName && el.tagName.includes(':')) {
+            if (el.tagName?.includes(':')) {
                 el.remove();
             }
         });
+    }
+
+    private detectWordHeadingLevel(el: HTMLElement): number {
+        const className = el.getAttribute('class') || '';
+        const headingMatch = /MsoHeading(\d)/i.exec(className);
+        if (headingMatch) return Number.parseInt(headingMatch[1], 10);
+
+        const style = el.getAttribute('style') || '';
+        const outlineMatch = /mso-outline-level\s*:\s*(\d)/i.exec(style);
+        if (outlineMatch) return Number.parseInt(outlineMatch[1], 10);
+
+        const styleNameMatch = /mso-style-name\s*:\s*["']?Heading\s*(\d)["']?/i.exec(style);
+        if (styleNameMatch) return Number.parseInt(styleNameMatch[1], 10);
+
+        return 0;
     }
 
     private convertWordHeadings(container: HTMLElement): void {
         this.walkElements(container, el => {
             if (el.tagName !== 'P') return;
 
-            let headingLevel = 0;
-
-            const className = el.getAttribute('class') || '';
-            const headingMatch = className.match(/MsoHeading(\d)/i);
-            if (headingMatch) {
-                headingLevel = parseInt(headingMatch[1], 10);
-            }
-
-            if (!headingLevel) {
-                const style = el.getAttribute('style') || '';
-                const outlineMatch = style.match(/mso-outline-level\s*:\s*(\d)/i);
-                if (outlineMatch) {
-                    headingLevel = parseInt(outlineMatch[1], 10);
-                }
-            }
-
-            if (!headingLevel) {
-                const styleName = el.getAttribute('style') || '';
-                const styleNameMatch = styleName.match(/mso-style-name\s*:\s*["']?Heading\s*(\d)["']?/i);
-                if (styleNameMatch) {
-                    headingLevel = parseInt(styleNameMatch[1], 10);
-                }
-            }
+            const headingLevel = this.detectWordHeadingLevel(el);
 
             if (headingLevel >= 1 && headingLevel <= 6) {
                 const heading = this.document.createElement(`h${headingLevel}`);
@@ -341,6 +348,28 @@ export class RichTextPasteNormalizerService {
         });
     }
 
+    private parseWordListItem(el: HTMLElement): { level: number; listId: string; isOrdered: boolean } | null {
+        if (el.tagName !== 'P') return null;
+
+        const className = el.getAttribute('class') || '';
+        const style = el.getAttribute('style') || '';
+
+        if (!/MsoListParagraph/i.test(className) && !/mso-list\s*:/i.test(style)) return null;
+
+        const levelMatch = /mso-list\s*:[^;]*level(\d)/i.exec(style);
+        const level = levelMatch ? Number.parseInt(levelMatch[1], 10) : 1;
+
+        const listIdMatch = /mso-list\s*:\s*(\w+)/i.exec(style);
+        const listId = listIdMatch ? listIdMatch[1] : 'default';
+
+        const textContent = el.textContent || '';
+        const isOrdered = /^\s*\d+[.)]\s/.test(textContent) ||
+            /^\s*[a-z][.)]\s/i.test(textContent) ||
+            /^\s*[ivxlcdm]+[.)]\s/i.test(textContent);
+
+        return { level, listId, isOrdered };
+    }
+
     private convertWordLists(container: HTMLElement): void {
         type ListItem = { el: HTMLElement; level: number; listId: string; isOrdered: boolean };
         const runs: ListItem[][] = [];
@@ -348,46 +377,17 @@ export class RichTextPasteNormalizerService {
 
         const children = Array.from(container.children) as HTMLElement[];
         for (const el of children) {
-            if (el.tagName !== 'P') {
+            const parsed = this.parseWordListItem(el);
+            if (!parsed) {
                 if (currentRun.length > 0) {
                     runs.push(currentRun);
                     currentRun = [];
                 }
                 continue;
             }
-
-            const className = el.getAttribute('class') || '';
-            const style = el.getAttribute('style') || '';
-
-            const isListItem = /MsoListParagraph/i.test(className) || /mso-list\s*:/i.test(style);
-            if (!isListItem) {
-                if (currentRun.length > 0) {
-                    runs.push(currentRun);
-                    currentRun = [];
-                }
-                continue;
-            }
-
-            let level = 1;
-            const levelMatch = style.match(/mso-list\s*:[^;]*level(\d)/i);
-            if (levelMatch) {
-                level = parseInt(levelMatch[1], 10);
-            }
-
-            let listId = 'default';
-            const listIdMatch = style.match(/mso-list\s*:\s*(\w+)/i);
-            if (listIdMatch) {
-                listId = listIdMatch[1];
-            }
-
-            const textContent = el.textContent || '';
-            const isOrdered = /^\s*\d+[.)]\s/.test(textContent) ||
-                /^\s*[a-z][.)]\s/i.test(textContent) ||
-                /^\s*[ivxlcdm]+[.)]\s/i.test(textContent);
 
             this.stripListBulletSpan(el);
-
-            currentRun.push({ el, level, listId, isOrdered });
+            currentRun.push({ el, ...parsed });
         }
         if (currentRun.length > 0) {
             runs.push(currentRun);
@@ -414,7 +414,7 @@ export class RichTextPasteNormalizerService {
         }
 
         const firstChild = el.firstChild;
-        if (firstChild && firstChild.nodeType === Node.TEXT_NODE) {
+        if (firstChild?.nodeType === Node.TEXT_NODE) {
             const text = firstChild.textContent || '';
             firstChild.textContent = text.replace(/^[\s\u00A0]*[\u00B7o\u00A7\u2022\u2023\u25E6\u2043\u2219]\s*/, '')
                 .replace(/^[\s\u00A0]*\d+[.)]\s*/, '')
@@ -431,14 +431,14 @@ export class RichTextPasteNormalizerService {
         const stack: { list: HTMLElement; level: number }[] = [{ list: root, level: 1 }];
 
         for (const item of items) {
-            while (stack.length > 1 && stack[stack.length - 1].level >= item.level) {
+            while (stack.length > 1 && stack.at(-1)!.level >= item.level) {
                 stack.pop();
             }
 
-            if (item.level > stack[stack.length - 1].level) {
-                const currentList = stack[stack.length - 1].list;
+            if (item.level > stack.at(-1)!.level) {
+                const currentList = stack.at(-1)!.list;
                 let lastLi = currentList.lastElementChild as HTMLElement | null;
-                if (!lastLi || lastLi.tagName !== 'LI') {
+                if (!lastLi?.tagName || lastLi.tagName !== 'LI') {
                     lastLi = this.document.createElement('li');
                     currentList.appendChild(lastLi);
                 }
@@ -452,34 +452,48 @@ export class RichTextPasteNormalizerService {
             while (item.el.firstChild) {
                 li.appendChild(item.el.firstChild);
             }
-            stack[stack.length - 1].list.appendChild(li);
+            stack.at(-1)!.list.appendChild(li);
         }
 
         return root;
     }
 
+    private isGhostTable(table: HTMLTableElement): boolean {
+        const rows = table.querySelectorAll('tr');
+        if (rows.length === 0) return false;
+        return Array.from(rows).every(row => row.querySelectorAll('td, th').length === 1);
+    }
+
     private unwrapGhostTables(container: HTMLElement): void {
         const tables = Array.from(container.querySelectorAll('table'));
         for (const table of tables) {
-            const rows = table.querySelectorAll('tr');
-            const isGhostTable = Array.from(rows).every(row => {
-                const cells = row.querySelectorAll('td, th');
-                return cells.length === 1;
-            });
+            if (!this.isGhostTable(table)) continue;
 
-            if (isGhostTable && rows.length > 0) {
-                const fragment = this.document.createDocumentFragment();
-                for (const row of Array.from(rows)) {
-                    const cell = row.querySelector('td, th');
-                    if (cell) {
-                        while (cell.firstChild) {
-                            fragment.appendChild(cell.firstChild);
-                        }
+            const fragment = this.document.createDocumentFragment();
+            for (const row of Array.from(table.querySelectorAll('tr'))) {
+                const cell = row.querySelector('td, th');
+                if (cell) {
+                    while (cell.firstChild) {
+                        fragment.appendChild(cell.firstChild);
                     }
                 }
-                table.parentNode?.replaceChild(fragment, table);
             }
+            table.parentNode?.replaceChild(fragment, table);
         }
+    }
+
+    private readonly systemColorNames = new Set([
+        'windowtext', 'auto', 'activecaption', 'appworkspace', 'background',
+        'buttonface', 'buttonhighlight', 'buttonshadow', 'buttontext',
+        'captiontext', 'graytext', 'highlight', 'highlighttext',
+        'inactiveborder', 'inactivecaption', 'inactivecaptiontext',
+        'infobackground', 'infotext', 'menu', 'menutext', 'scrollbar',
+        'threeddarkshadow', 'threedface', 'threedhighlight',
+        'threedlightshadow', 'threedshadow', 'window', 'windowframe',
+    ]);
+
+    private isSystemColor(value: string): boolean {
+        return this.systemColorNames.has(value.toLowerCase());
     }
 
     private mapOfficeStyles(container: HTMLElement): void {
@@ -494,8 +508,7 @@ export class RichTextPasteNormalizerService {
                 if (prop.startsWith('mso-')) {
                     this.mapMsoProperty(prop, value, mapped, el);
                 } else if (!prop.startsWith('-')) {
-                    if ((prop === 'color' || prop === 'background-color') &&
-                        /^(windowtext|auto|activecaption|appworkspace|background|buttonface|buttonhighlight|buttonshadow|buttontext|captiontext|graytext|highlight|highlighttext|inactiveborder|inactivecaption|inactivecaptiontext|infobackground|infotext|menu|menutext|scrollbar|threeddarkshadow|threedface|threedhighlight|threedlightshadow|threedshadow|window|windowframe|windowtext)$/i.test(value)) {
+                    if ((prop === 'color' || prop === 'background-color') && this.isSystemColor(value)) {
                         continue;
                     }
                     mapped.set(prop, value);
@@ -517,9 +530,11 @@ export class RichTextPasteNormalizerService {
         mapped: Map<string, string>,
         _el: HTMLElement
     ): void {
+        if (!value) return;
+
         switch (prop) {
             case 'mso-highlight':
-                if (value && value !== 'auto') {
+                if (value !== 'auto') {
                     mapped.set('background-color', value);
                 }
                 break;
@@ -540,17 +555,13 @@ export class RichTextPasteNormalizerService {
                 }
                 break;
             case 'mso-text-underline':
-                if (value && value !== 'none') {
+                if (value !== 'none') {
                     mapped.set('text-decoration', 'underline');
                 }
                 break;
             case 'mso-style-textfill-fill-color':
-                if (value && !mapped.has('color')) {
-                    mapped.set('color', value);
-                }
-                break;
             case 'mso-color-alt':
-                if (value && !mapped.has('color')) {
+                if (!mapped.has('color')) {
                     mapped.set('color', value);
                 }
                 break;
@@ -732,7 +743,7 @@ export class RichTextPasteNormalizerService {
     }
 
     private convertFontElements(container: HTMLElement): void {
-        const fonts = Array.from(container.querySelectorAll('font'));
+        const fonts = Array.from(container.querySelectorAll<HTMLElement>('font'));
         for (const font of fonts) {
             const span = this.document.createElement('span');
             const styles: string[] = [];
@@ -783,7 +794,7 @@ export class RichTextPasteNormalizerService {
         styleElements.forEach(el => el.remove());
 
         const comments = this.getConditionalCommentNodes(container);
-        comments.forEach(node => node.parentNode?.removeChild(node));
+        comments.forEach(node => (node as ChildNode).remove());
 
         const tables = container.querySelectorAll('table');
         for (const table of Array.from(tables)) {
@@ -912,7 +923,7 @@ export class RichTextPasteNormalizerService {
 
         const paragraphs = escaped.split(/\n{2,}/);
         const htmlParagraphs = paragraphs.map(p => {
-            const withBreaks = p.replace(/\n/g, '<br>');
+            const withBreaks = p.replaceAll('\n', '<br>');
             return `<p>${withBreaks}</p>`;
         });
 
@@ -998,20 +1009,9 @@ export class RichTextPasteNormalizerService {
             }
 
             flushListBuffer();
-            let paragraph = trimmed;
-            let lastLineLen = trimmed.length;
-            i++;
-            while (i < filtered.length) {
-                const nextLine = filtered[i].trim();
-                if (nextLine === '') break;
-                if (this.isPdfHeading(nextLine, filtered, i)) break;
-                if (this.isPdfListItem(nextLine)) break;
-                if (this.isPdfLineBreak(paragraph, nextLine, lastLineLen, columnWidth)) break;
-                paragraph += ' ' + nextLine;
-                lastLineLen = nextLine.length;
-                i++;
-            }
-            const escaped = this.escapeHtml(paragraph);
+            const mergeResult = this.mergePdfParagraph(filtered, i, trimmed, columnWidth);
+            i = mergeResult.nextIndex;
+            const escaped = this.escapeHtml(mergeResult.paragraph);
             const linked = this.autoLinkUrls(escaped);
             htmlParts.push(`<p>${linked}</p>`);
         }
@@ -1029,7 +1029,7 @@ export class RichTextPasteNormalizerService {
 
         if (nextLine === '' && prevLine === '' && line.length < 60) return true;
 
-        if (/^[A-Z][A-Z\s\d:.\-]{2,}$/.test(line) && line.length < 60) return true;
+        if (/^[A-Z][A-Z\s\d:.-]{2,}$/.test(line) && line.length < 60) return true;
 
         if (/^\d+(\.\d+)*\s+\S/.test(line) && line.length < 80 && nextLine !== '' && !line.endsWith('.')) return true;
 
@@ -1041,6 +1041,25 @@ export class RichTextPasteNormalizerService {
             /^\s*\d+[.)]\s+/.test(line) ||
             /^\s*[a-z][.)]\s+/i.test(line) ||
             /^\s*[ivxlcdm]+[.)]\s+/i.test(line);
+    }
+
+    private mergePdfParagraph(
+        lines: string[], startIndex: number, firstLine: string, columnWidth: number
+    ): { paragraph: string; nextIndex: number } {
+        let paragraph = firstLine;
+        let lastLineLen = firstLine.length;
+        let i = startIndex + 1;
+        while (i < lines.length) {
+            const nextLine = lines[i].trim();
+            if (nextLine === '') break;
+            if (this.isPdfHeading(nextLine, lines, i)) break;
+            if (this.isPdfListItem(nextLine)) break;
+            if (this.isPdfLineBreak(paragraph, nextLine, lastLineLen, columnWidth)) break;
+            paragraph += ' ' + nextLine;
+            lastLineLen = nextLine.length;
+            i++;
+        }
+        return { paragraph, nextIndex: i };
     }
 
     private isPdfLineBreak(currentParagraph: string, nextLine: string, lastLineLength: number, columnWidth: number): boolean {
@@ -1069,7 +1088,7 @@ export class RichTextPasteNormalizerService {
     }
 
     private autoLinkUrls(escaped: string): string {
-        return escaped.replace(
+        return escaped.replaceAll(
             /(https?:\/\/[^\s<&]+)/g,
             '<a href="$1">$1</a>'
         );
@@ -1086,7 +1105,7 @@ export class RichTextPasteNormalizerService {
     }
 
     private walkElements(container: HTMLElement, fn: (el: HTMLElement) => void): void {
-        const elements = Array.from(container.querySelectorAll('*')) as HTMLElement[];
+        const elements = Array.from(container.querySelectorAll<HTMLElement>('*'));
         for (let i = elements.length - 1; i >= 0; i--) {
             fn(elements[i]);
         }
@@ -1134,7 +1153,7 @@ export class RichTextPasteNormalizerService {
         while (el.firstChild) {
             parent.insertBefore(el.firstChild, el);
         }
-        parent.removeChild(el);
+        el.remove();
     }
 
     private replaceTag(el: HTMLElement, newTag: string): void {
@@ -1166,7 +1185,7 @@ export class RichTextPasteNormalizerService {
         if (el.tagName === 'BR' || el.tagName === 'HR' || el.tagName === 'IMG') return false;
 
         const text = el.textContent || '';
-        const trimmed = text.replace(/[\s\u00A0]/g, '');
+        const trimmed = text.replaceAll(/[\s\u00A0]/g, '');
         if (trimmed.length > 0) return false;
 
         if (el.querySelector('img, br, hr, table')) return false;
@@ -1216,7 +1235,7 @@ export class RichTextPasteNormalizerService {
 
             const text = node.textContent || '';
             if (/\u00A0{2,}/.test(text)) {
-                node.textContent = text.replace(/\u00A0{2,}/g, ' ');
+                node.textContent = text.replaceAll(/\u00A0{2,}/g, ' ');
             }
         }
     }
@@ -1234,7 +1253,7 @@ export class RichTextPasteNormalizerService {
             let current: HTMLElement = el;
 
             const fontWeight = styles.get('font-weight');
-            if (fontWeight === 'bold' || (fontWeight && parseInt(fontWeight, 10) >= 700)) {
+            if (fontWeight === 'bold' || (fontWeight && Number.parseInt(fontWeight, 10) >= 700)) {
                 styles.delete('font-weight');
                 current = this.wrapChildrenIn(current, 'strong');
             }
@@ -1249,10 +1268,10 @@ export class RichTextPasteNormalizerService {
             if (textDecoration) {
                 if (textDecoration.includes('underline')) {
                     styles.delete('text-decoration');
-                    current = this.wrapChildrenIn(current, 'u');
+                    this.wrapChildrenIn(current, 'u');
                 } else if (textDecoration.includes('line-through')) {
                     styles.delete('text-decoration');
-                    current = this.wrapChildrenIn(current, 'del');
+                    this.wrapChildrenIn(current, 'del');
                 }
             }
 
@@ -1277,10 +1296,10 @@ export class RichTextPasteNormalizerService {
 
     private escapeHtml(text: string): string {
         return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#x27;');
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#x27;');
     }
 }

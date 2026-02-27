@@ -309,7 +309,7 @@ export class EmojiPickerComponent {
     host: { class: 'contents' },
 })
 export class EmojiPickerTriggerComponent {
-    private picker = inject(EmojiPickerComponent, { optional: true });
+    private readonly picker = inject(EmojiPickerComponent, { optional: true });
 
     onClick(event: MouseEvent) {
         event.stopPropagation();
@@ -413,8 +413,8 @@ export class EmojiPickerTriggerComponent {
     host: { class: 'contents' },
 })
 export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
-    picker = inject(EmojiPickerComponent, { optional: true });
-    private el = inject(ElementRef);
+    readonly picker = inject(EmojiPickerComponent, { optional: true });
+    private readonly el = inject(ElementRef);
 
     class = input('');
 
@@ -440,7 +440,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     private isScrollingProgrammatically = false;
 
     strategy = input<'absolute' | 'fixed'>('absolute');
-    private fixedPosition = signal({ top: 0, left: 0 });
+    private readonly fixedPosition = signal({ top: 0, left: 0 });
 
     constructor() {
         effect(() => {
@@ -464,9 +464,9 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         const trigger = this.el.nativeElement.closest('[data-slot="emoji-picker"]')?.querySelector('[data-slot="emoji-picker-trigger"]');
         if (!trigger) return;
         const rect = (trigger as HTMLElement).getBoundingClientRect();
-        const pickerWidth = Math.min(320, window.innerWidth - 16);
-        const left = Math.max(8, Math.min(rect.left, window.innerWidth - pickerWidth - 8));
-        const top = Math.min(rect.bottom + 4, window.innerHeight - 380);
+        const pickerWidth = Math.min(320, globalThis.window.innerWidth - 16);
+        const left = Math.max(8, Math.min(rect.left, globalThis.window.innerWidth - pickerWidth - 8));
+        const top = Math.min(rect.bottom + 4, globalThis.window.innerHeight - 380);
         this.fixedPosition.set({ top, left });
     }
 
@@ -564,7 +564,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         for (const section of sections) {
             const element = section.nativeElement;
             if (element.offsetTop <= scrollTop + buffer) {
-                activeId = element.getAttribute('data-category');
+                activeId = element.dataset['category'] ?? null;
             } else {
                 break;
             }

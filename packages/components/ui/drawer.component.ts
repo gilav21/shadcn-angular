@@ -45,16 +45,16 @@ export type DrawerDirection = VariantProps<typeof drawerVariants>['direction'];
     },
 })
 export class DrawerComponent implements OnDestroy {
-    private document = inject(DOCUMENT);
+    private readonly document = inject(DOCUMENT);
 
     open = model(false);
     direction = input<DrawerDirection>('bottom');
     openChange = output<boolean>();
 
-    private scrollbarWidth = 0;
+    private readonly scrollbarWidth: number = 0;
 
     constructor() {
-        this.scrollbarWidth = window.innerWidth - this.document.documentElement.clientWidth;
+        this.scrollbarWidth = globalThis.window.innerWidth - this.document.documentElement.clientWidth;
 
         effect(() => {
             if (this.open()) {
@@ -109,7 +109,7 @@ export class DrawerComponent implements OnDestroy {
     host: { class: 'contents' },
 })
 export class DrawerTriggerComponent {
-    private drawer = inject(DrawerComponent, { optional: true });
+    private readonly drawer = inject(DrawerComponent, { optional: true });
 
     onClick() {
         this.drawer?.toggle();
@@ -168,8 +168,8 @@ export class DrawerTriggerComponent {
     host: { class: 'contents' },
 })
 export class DrawerContentComponent implements AfterViewInit {
-    drawer = inject(DrawerComponent, { optional: true });
-    private el = inject(ElementRef);
+    readonly drawer = inject(DrawerComponent, { optional: true });
+    private readonly el = inject(ElementRef);
     class = input('');
     title = input<string>();
     description = input<string>();
@@ -232,19 +232,17 @@ export class DrawerContentComponent implements AfterViewInit {
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
             );
             const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+            const lastElement = Array.from(focusableElements).at(-1) as HTMLElement;
 
             if (event.shiftKey) {
                 if (document.activeElement === firstElement) {
                     event.preventDefault();
                     lastElement?.focus();
                 }
-            } else {
-                if (document.activeElement === lastElement) {
+            } else if (document.activeElement === lastElement) {
                     event.preventDefault();
                     firstElement?.focus();
                 }
-            }
         }
     }
 }
@@ -315,7 +313,7 @@ export class DrawerFooterComponent {
     host: { class: 'contents' },
 })
 export class DrawerCloseComponent {
-    private drawer = inject(DrawerComponent, { optional: true });
+    private readonly drawer = inject(DrawerComponent, { optional: true });
 
     onClick() {
         this.drawer?.hide();

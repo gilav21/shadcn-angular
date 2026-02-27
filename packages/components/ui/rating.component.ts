@@ -124,12 +124,12 @@ export class RatingComponent implements ControlValueAccessor {
 
   value = signal(0);
   hoverValue = signal<number | null>(null);
-  private formDisabled = signal(false);
+  private readonly formDisabled = signal(false);
 
   private onChange: (value: number) => void = () => { };
   private onTouched: () => void = () => { };
 
-  private el = inject(ElementRef);
+  private readonly el = inject(ElementRef);
 
   isRtl() {
     return isRtl(this.el.nativeElement);
@@ -163,7 +163,7 @@ export class RatingComponent implements ControlValueAccessor {
         'h-5 w-5': this.size() === 'md',
         'h-6 w-6': this.size() === 'lg',
       },
-      fill !== 'empty' ? 'text-yellow-400' : 'text-muted-foreground/30',
+      fill === 'empty' ? 'text-muted-foreground/30' : 'text-yellow-400',
       !this.isDisabled() && !this.readonly() && 'cursor-pointer hover:scale-110'
     );
   }

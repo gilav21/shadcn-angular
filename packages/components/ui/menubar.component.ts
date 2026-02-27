@@ -63,8 +63,8 @@ let nextId = 0;
 })
 export class MenubarComponent {
   class = input('');
-  service = inject(MenubarService);
-  el = inject(ElementRef);
+  readonly service = inject(MenubarService);
+  readonly el = inject(ElementRef);
 
   constructor() {
     this.service.registerRoot(this.el.nativeElement);
@@ -94,7 +94,7 @@ export class MenubarComponent {
 })
 export class MenubarMenuComponent {
   id = `menubar-menu-${nextId++}`;
-  service = inject(MenubarService);
+  readonly service = inject(MenubarService);
   isOpen = computed(() => this.service.isActive(this.id));
 
   toggle() {
@@ -140,9 +140,9 @@ export class MenubarMenuComponent {
 })
 export class MenubarTriggerComponent {
   class = input('');
-  menu = inject(MenubarMenuComponent);
-  service = inject(MenubarService);
-  el = inject(ElementRef);
+  readonly menu = inject(MenubarMenuComponent);
+  readonly service = inject(MenubarService);
+  readonly el = inject(ElementRef);
 
   @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
 
@@ -191,7 +191,7 @@ export class MenubarTriggerComponent {
       setTimeout(() => {
         const content = document.querySelector(`[data-menubar-content="${this.menu.id}"]`);
         if (content) {
-          const firstItem = content.querySelector('[role="menuitem"]') as HTMLElement;
+          const firstItem = content.querySelector<HTMLElement>('[role="menuitem"]');
           firstItem?.focus();
         }
       }, 0);
@@ -203,7 +203,7 @@ export class MenubarTriggerComponent {
   }
 
   focusNextTrigger() {
-    const triggers = Array.from(document.querySelectorAll('[data-slot="menubar-trigger"]')) as HTMLElement[];
+    const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
     const index = triggers.indexOf(this.triggerEl.nativeElement);
     const nextIndex = (index + 1) % triggers.length;
     triggers[nextIndex]?.focus();
@@ -213,7 +213,7 @@ export class MenubarTriggerComponent {
   }
 
   focusPrevTrigger() {
-    const triggers = Array.from(document.querySelectorAll('[data-slot="menubar-trigger"]')) as HTMLElement[];
+    const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
     const index = triggers.indexOf(this.triggerEl.nativeElement);
     const prevIndex = (index - 1 + triggers.length) % triggers.length;
     triggers[prevIndex]?.focus();
@@ -243,9 +243,9 @@ export class MenubarTriggerComponent {
 })
 export class MenubarContentComponent {
   class = input('');
-  menu = inject(MenubarMenuComponent);
-  service = inject(MenubarService);
-  el = inject(ElementRef);
+  readonly menu = inject(MenubarMenuComponent);
+  readonly service = inject(MenubarService);
+  readonly el = inject(ElementRef);
 
   classes = computed(() => cn(
     'absolute top-full z-50 mt-1 min-w-[12rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
@@ -302,7 +302,7 @@ export class MenubarContentComponent {
   getFocusableItems(): HTMLElement[] {
     const contentDiv = document.querySelector(`[data-menubar-content="${this.menu.id}"]`);
     if (!contentDiv) return [];
-    return Array.from(contentDiv.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+    return Array.from(contentDiv.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
   }
 }
 
@@ -334,7 +334,7 @@ export class MenubarItemComponent {
   shortcut = input('');
 
   select = output<void>();
-  menu = inject(MenubarMenuComponent, { optional: true });
+  readonly menu = inject(MenubarMenuComponent, { optional: true });
 
   classes = computed(() => cn(
     'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
@@ -443,9 +443,9 @@ export class MenubarSubTriggerComponent {
   disabled = input(false, { transform: booleanAttribute });
   inset = input(false, { transform: booleanAttribute });
 
-  sub = inject(MenubarSubComponent);
-  service = inject(MenubarService);
-  el = inject(ElementRef);
+  readonly sub = inject(MenubarSubComponent);
+  readonly service = inject(MenubarService);
+  readonly el = inject(ElementRef);
 
   @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
 
@@ -515,9 +515,9 @@ export class MenubarSubTriggerComponent {
 })
 export class MenubarSubContentComponent {
   class = input('');
-  sub = inject(MenubarSubComponent);
-  service = inject(MenubarService);
-  el = inject(ElementRef);
+  readonly sub = inject(MenubarSubComponent);
+  readonly service = inject(MenubarService);
+  readonly el = inject(ElementRef);
 
   constructor() {
     this.sub.registerContent(this);
@@ -531,7 +531,7 @@ export class MenubarSubContentComponent {
   ));
 
   focusFirst() {
-    const items = Array.from(this.el.nativeElement.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+    const items = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
     items[0]?.focus();
   }
 
@@ -560,16 +560,16 @@ export class MenubarSubContentComponent {
   }
 
   focusNextItem(currentItem: HTMLElement) {
-    const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
-    const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+    const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
+    const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
     const index = items.indexOf(currentItem);
     const nextIndex = (index + 1) % items.length;
     items[nextIndex]?.focus();
   }
 
   focusPrevItem(currentItem: HTMLElement) {
-    const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
-    const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+    const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
+    const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
     const index = items.indexOf(currentItem);
     const prevIndex = (index - 1 + items.length) % items.length;
     items[prevIndex]?.focus();

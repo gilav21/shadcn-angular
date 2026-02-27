@@ -282,12 +282,10 @@ export class RichTextSanitizerService {
         for (const attr of Array.from(source.attributes)) {
             const attrName = attr.name.toLowerCase();
 
-            // Block all event handlers
             if (this.EVENT_HANDLER_PATTERN.test(attrName)) {
                 continue;
             }
 
-            // Check if attribute is allowed
             const isAllowed =
                 allowedForTag?.has(attrName) ||
                 allowedGlobal?.has(attrName);
@@ -296,54 +294,49 @@ export class RichTextSanitizerService {
                 continue;
             }
 
-            // Special handling for href and src
-            if (attrName === 'href') {
-                const safeUrl = this.sanitizeUrl(attr.value);
+            this.applyAllowedAttribute(attrName, attr.value, target);
+        }
+    }
+
+    private applyAllowedAttribute(attrName: string, value: string, target: HTMLElement): void {
+        switch (attrName) {
+            case 'href': {
+                const safeUrl = this.sanitizeUrl(value);
                 if (safeUrl) {
                     target.setAttribute('href', safeUrl);
-                    // Force safe link behavior
                     target.setAttribute('rel', 'noopener noreferrer');
                 }
-                continue;
+                return;
             }
-
-            if (attrName === 'src') {
-                const safeSrc = this.sanitizeImageSrc(attr.value);
+            case 'src': {
+                const safeSrc = this.sanitizeImageSrc(value);
                 if (safeSrc) {
                     target.setAttribute('src', safeSrc);
                 }
-                continue;
+                return;
             }
-
-            // Special handling for class attribute
-            if (attrName === 'class') {
-                const safeClasses = this.sanitizeClasses(attr.value);
+            case 'class': {
+                const safeClasses = this.sanitizeClasses(value);
                 if (safeClasses) {
                     target.setAttribute('class', safeClasses);
                 }
-                continue;
+                return;
             }
-
-            // Special handling for style attribute
-            if (attrName === 'style') {
-                const safeStyle = this.sanitizeStyle(attr.value);
+            case 'style': {
+                const safeStyle = this.sanitizeStyle(value);
                 if (safeStyle) {
                     target.setAttribute('style', safeStyle);
                 }
-                continue;
+                return;
             }
-
-            // Special handling for target attribute (links)
-            if (attrName === 'target') {
-                // Only allow _blank
-                if (attr.value === '_blank') {
+            case 'target': {
+                if (value === '_blank') {
                     target.setAttribute('target', '_blank');
                 }
-                continue;
+                return;
             }
-
-            // Copy other allowed attributes as-is
-            target.setAttribute(attrName, attr.value);
+            default:
+                target.setAttribute(attrName, value);
         }
     }
 
@@ -392,7 +385,7 @@ export class RichTextSanitizerService {
             const decoded = atob(chunk);
             const bytes = new Uint8Array(decoded.length);
             for (let i = 0; i < decoded.length; i++) {
-                bytes[i] = decoded.charCodeAt(i);
+                bytes[i] = decoded.codePointAt(i) ?? 0;
             }
             return isValidImageMagicBytes(bytes);
         } catch {

@@ -36,7 +36,7 @@ export class CommandService {
   search = signal('');
   shouldFilter = signal(true);
 
-  private items = signal<Map<string, { value: string; groupId?: string; onSelect: () => void }>>(new Map());
+  private readonly items = signal<Map<string, { value: string; groupId?: string; onSelect: () => void }>>(new Map());
   activeItemId = signal<string | null>(null);
 
   constructor() {
@@ -148,7 +148,7 @@ export class CommandComponent {
   shouldFilter = input(true);
   search = input<string | null>(null);
 
-  private service = inject(CommandService);
+  private readonly service = inject(CommandService);
 
   constructor() {
     effect(() => {
@@ -204,7 +204,7 @@ export class CommandComponent {
 })
 export class CommandInputComponent {
   @ViewChild('inputEl') inputEl!: ElementRef<HTMLInputElement>;
-  cmdService = inject(CommandService);
+  readonly cmdService = inject(CommandService);
 
   placeholder = input('Search...');
   ariaLabel = input('Search');
@@ -282,7 +282,7 @@ export class CommandListComponent {
   host: { class: 'contents' },
 })
 export class CommandEmptyComponent {
-  cmdService = inject(CommandService);
+  readonly cmdService = inject(CommandService);
 
   isVisible = computed(() => {
     return this.cmdService.filteredItemIds().size === 0;
@@ -314,7 +314,7 @@ export class CommandGroupComponent {
   class = input('');
 
   readonly id = generateId();
-  cmdService = inject(CommandService);
+  readonly cmdService = inject(CommandService);
 
   classes = computed(() => cn(
     'overflow-hidden p-1 text-foreground',
@@ -359,9 +359,9 @@ export class CommandItemComponent implements OnInit, OnDestroy {
   select = output<string>();
 
   readonly id = generateId();
-  cmdService = inject(CommandService);
-  group = inject(CommandGroupComponent, { optional: true });
-  el = inject(ElementRef);
+  readonly cmdService = inject(CommandService);
+  readonly group = inject(CommandGroupComponent, { optional: true });
+  readonly el = inject(ElementRef);
 
   isActive = computed(() => this.cmdService.activeItemId() === this.id);
 

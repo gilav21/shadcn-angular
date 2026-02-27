@@ -1,11 +1,9 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { EmojiPickerComponent } from './emoji-picker.component';
-import { EmojiPickerTriggerComponent, EmojiPickerContentComponent } from './emoji-picker.component';
+import { EmojiPickerTriggerComponent, EmojiPickerContentComponent, EmojiPickerComponent } from './emoji-picker.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
-// Mock component to test content interactions
 @Component({
     template: `
     <ui-emoji-picker [closeOnSelect]="closeOnSelect()" (emojiSelect)="onSelect($event)">

@@ -44,12 +44,12 @@ export interface ToastData {
 
 @Injectable({ providedIn: 'root' })
 export class ToastService {
-  private toastsSignal = signal<ToastData[]>([]);
+  private readonly toastsSignal = signal<ToastData[]>([]);
   toasts = this.toastsSignal.asReadonly();
 
   private counter = 0;
-  private timeoutIds = new Map<string, ReturnType<typeof setTimeout>>();
-  private intervalIds = new Map<string, ReturnType<typeof setInterval>>();
+  private readonly timeoutIds = new Map<string, ReturnType<typeof setTimeout>>();
+  private readonly intervalIds = new Map<string, ReturnType<typeof setInterval>>();
 
   toast(options: Omit<ToastData, 'id'>) {
     const id = `toast-${++this.counter}`;
@@ -138,7 +138,7 @@ export class ToastService {
   host: { class: 'contents' },
 })
 export class ToasterComponent {
-  toastService = inject(ToastService);
+  readonly toastService = inject(ToastService);
 
   vertical = input<'top' | 'center' | 'bottom'>('bottom');
   horizontal = input<'start' | 'center' | 'end'>('end');

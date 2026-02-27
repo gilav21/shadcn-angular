@@ -55,7 +55,7 @@ import { cn, isRtl } from '../lib/utils';
     },
 })
 export class SliderComponent {
-    private el = inject(ElementRef);
+    private readonly el = inject(ElementRef);
 
     min = input(0);
     max = input(100);

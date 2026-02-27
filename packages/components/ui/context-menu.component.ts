@@ -89,15 +89,15 @@ export const CONTEXT_MENU = new InjectionToken<ContextMenuComponent>('CONTEXT_ME
     providers: [{ provide: CONTEXT_MENU, useExisting: forwardRef(() => ContextMenuComponent) }],
 })
 export class ContextMenuComponent implements OnDestroy {
-    private document = inject(DOCUMENT);
-    private el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
+    private readonly el = inject(ElementRef);
 
     items = input<ContextMenuItem[]>([]);
     open = signal(false);
     position = signal({ x: 0, y: 0 });
     data = signal<any>(undefined);
 
-    private clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent) => {
         const target = event.target as HTMLElement;
         if (target.closest('[data-context-menu-portal]') || target.closest('[data-context-menu-sub-portal]')) {
             return;
@@ -105,13 +105,13 @@ export class ContextMenuComponent implements OnDestroy {
         this.close();
     };
 
-    private escListener = (event: KeyboardEvent) => {
+    private readonly escListener = (event: KeyboardEvent) => {
         if (event.key === 'Escape') {
             this.close();
         }
     };
 
-    private scrollListener = () => {
+    private readonly scrollListener = () => {
         this.close();
     };
 
@@ -157,7 +157,7 @@ export class ContextMenuComponent implements OnDestroy {
     host: { class: 'contents' },
 })
 export class ContextMenuTriggerComponent {
-    private contextMenu = inject(CONTEXT_MENU, { optional: true });
+    private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
 
     onContextMenu(event: MouseEvent) {
         event.preventDefault();
@@ -187,15 +187,15 @@ export class ContextMenuTriggerComponent {
     host: { class: 'contents' },
 })
 export class ContextMenuContentComponent implements OnDestroy {
-    contextMenu = inject(CONTEXT_MENU, { optional: true });
-    private document = inject(DOCUMENT);
+    readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
+    private readonly document = inject(DOCUMENT);
 
     class = input('');
 
     @ViewChild('contentTemplate', { static: true }) contentTemplate!: TemplateRef<any>;
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
-    private viewContainerRef = inject(ViewContainerRef);
+    private readonly viewContainerRef = inject(ViewContainerRef);
     private embeddedViewRef: EmbeddedViewRef<any> | null = null;
     private portalHost: HTMLElement | null = null;
 
@@ -222,7 +222,7 @@ export class ContextMenuContentComponent implements OnDestroy {
         if (this.embeddedViewRef) return;
 
         this.portalHost = this.document.createElement('div');
-        this.portalHost.setAttribute('data-context-menu-portal', 'true');
+        this.portalHost.dataset['contextMenuPortal'] = 'true';
         this.document.body.appendChild(this.portalHost);
         this.embeddedViewRef = this.viewContainerRef.createEmbeddedView(this.contentTemplate);
         this.embeddedViewRef.detectChanges();
@@ -233,14 +233,10 @@ export class ContextMenuContentComponent implements OnDestroy {
     }
 
     private hideContent() {
-        if (this.embeddedViewRef) {
-            this.embeddedViewRef.destroy();
-            this.embeddedViewRef = null;
-        }
-        if (this.portalHost) {
-            this.portalHost.remove();
-            this.portalHost = null;
-        }
+        this.embeddedViewRef?.destroy();
+        this.embeddedViewRef = null;
+        this.portalHost?.remove();
+        this.portalHost = null;
     }
 
     ngOnDestroy() {
@@ -250,7 +246,7 @@ export class ContextMenuContentComponent implements OnDestroy {
     private calculatePosition() {
         if (!this.portalHost) return;
 
-        const content = this.portalHost.querySelector('[data-slot="context-menu-content"]') as HTMLElement;
+        const content = this.portalHost.querySelector<HTMLElement>('[data-slot="context-menu-content"]');
         if (!content) return;
 
         const rect = content.getBoundingClientRect();
@@ -303,7 +299,7 @@ export class ContextMenuContentComponent implements OnDestroy {
     },
 })
 export class ContextMenuItemComponent {
-    private contextMenu = inject(CONTEXT_MENU, { optional: true });
+    private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
 
     class = input('');
     inset = input(false);
@@ -448,9 +444,9 @@ export class ContextMenuSubTriggerComponent {
     disabled = input(false, { transform: booleanAttribute });
     inset = input(false, { transform: booleanAttribute });
 
-    sub = inject(ContextMenuSubComponent);
-    private contextMenu = inject(CONTEXT_MENU, { optional: true });
-    el = inject(ElementRef);
+    readonly sub = inject(ContextMenuSubComponent);
+    private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
+    readonly el = inject(ElementRef);
 
     @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
 
@@ -521,11 +517,11 @@ export class ContextMenuSubTriggerComponent {
 })
 export class ContextMenuSubContentComponent implements OnDestroy {
     class = input('');
-    sub = inject(ContextMenuSubComponent);
-    private contextMenu = inject(CONTEXT_MENU, { optional: true });
-    private document = inject(DOCUMENT);
-    private viewContainerRef = inject(ViewContainerRef);
-    el = inject(ElementRef);
+    readonly sub = inject(ContextMenuSubComponent);
+    private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
+    private readonly document = inject(DOCUMENT);
+    private readonly viewContainerRef = inject(ViewContainerRef);
+    readonly el = inject(ElementRef);
 
     @ViewChild('subContentTemplate', { static: true }) subContentTemplate!: TemplateRef<any>;
     @ViewChild('subContentEl') subContentEl?: ElementRef<HTMLElement>;
@@ -554,7 +550,7 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         if (this.embeddedViewRef) return;
 
         this.portalHost = this.document.createElement('div');
-        this.portalHost.setAttribute('data-context-menu-sub-portal', 'true');
+        this.portalHost.dataset['contextMenuSubPortal'] = 'true';
         this.document.body.appendChild(this.portalHost);
         this.embeddedViewRef = this.viewContainerRef.createEmbeddedView(this.subContentTemplate);
         this.embeddedViewRef.detectChanges();
@@ -581,7 +577,7 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         const triggerEl = this.sub.getTriggerElement();
         if (!triggerEl) return;
 
-        const content = this.portalHost.querySelector('[data-slot="context-menu-sub-content"]') as HTMLElement;
+        const content = this.portalHost.querySelector<HTMLElement>('[data-slot="context-menu-sub-content"]');
         if (!content) return;
 
         const triggerRect = triggerEl.getBoundingClientRect();
@@ -630,7 +626,7 @@ export class ContextMenuSubContentComponent implements OnDestroy {
 
     focusFirst() {
         if (!this.portalHost) return;
-        const items = Array.from(this.portalHost.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        const items = Array.from(this.portalHost.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         items[0]?.focus();
     }
 
@@ -664,16 +660,16 @@ export class ContextMenuSubContentComponent implements OnDestroy {
     }
 
     focusNextItem(currentItem: HTMLElement) {
-        const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
-        const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
+        const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
         const nextIndex = (index + 1) % items.length;
         items[nextIndex]?.focus();
     }
 
     focusPrevItem(currentItem: HTMLElement) {
-        const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
-        const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
+        const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
         const prevIndex = (index - 1 + items.length) % items.length;
         items[prevIndex]?.focus();

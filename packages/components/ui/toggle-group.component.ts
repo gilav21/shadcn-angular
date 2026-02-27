@@ -118,13 +118,11 @@ export class ToggleGroupComponent {
 
         if (this.type() === 'single') {
             newValue = current.includes(itemValue) ? [] : [itemValue];
-        } else {
-            if (current.includes(itemValue)) {
+        } else if (current.includes(itemValue)) {
                 newValue = current.filter(v => v !== itemValue);
             } else {
                 newValue = [...current, itemValue];
             }
-        }
 
         this.value.set(newValue);
 
@@ -159,7 +157,7 @@ export class ToggleGroupComponent {
     },
 })
 export class ToggleGroupItemComponent {
-    group = inject(TOGGLE_GROUP, { optional: true });
+    readonly group = inject(TOGGLE_GROUP, { optional: true });
 
     value = input.required<string>();
     disabled = input(false);

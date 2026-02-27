@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
-import { ButtonVariant, ButtonSize, buttonVariants, ButtonComponent } from './button.component';
+import { ButtonVariant, ButtonSize, ButtonComponent } from './button.component';
 
 /**
  * SplitButton Item interface for data-driven mode
@@ -124,8 +124,8 @@ export interface SplitButtonItem {
     },
 })
 export class SplitButtonComponent {
-    private el = inject(ElementRef);
-    private document = inject(DOCUMENT);
+    private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
 
     label = input<string>('');
     items = input<SplitButtonItem[]>([]);
@@ -139,7 +139,7 @@ export class SplitButtonComponent {
 
     isOpen = signal(false);
 
-    private clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent) => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.isOpen.set(false);
         }
@@ -212,22 +212,22 @@ export class SplitButtonComponent {
     }
 
     onMenuKeydown(event: KeyboardEvent) {
-        const items = Array.from(
+        const items: HTMLElement[] = Array.from(
             this.el.nativeElement.querySelectorAll('[role="menuitem"]:not([disabled])')
-        ) as HTMLElement[];
+        );
         const currentIndex = items.indexOf(document.activeElement as HTMLElement);
 
         switch (event.key) {
             case 'ArrowDown':
-                event.preventDefault();
+                { event.preventDefault();
                 const nextIndex = currentIndex < items.length - 1 ? currentIndex + 1 : 0;
                 items[nextIndex]?.focus();
-                break;
+                break; }
             case 'ArrowUp':
-                event.preventDefault();
+                { event.preventDefault();
                 const prevIndex = currentIndex > 0 ? currentIndex - 1 : items.length - 1;
                 items[prevIndex]?.focus();
-                break;
+                break; }
             case 'Escape':
                 event.preventDefault();
                 this.isOpen.set(false);
@@ -261,7 +261,7 @@ export class SplitButtonComponent {
     host: { class: 'contents' },
 })
 export class SplitButtonPrimaryComponent {
-    splitButton = inject(SplitButtonComponent);
+    readonly splitButton = inject(SplitButtonComponent);
 
     classes = computed(() => cn(
         'rounded-r-none border-r-0'
@@ -303,7 +303,7 @@ export class SplitButtonMenuComponent { }
     host: { class: 'contents' },
 })
 export class SplitButtonItemComponent {
-    private splitButton = inject(SplitButtonComponent);
+    private readonly splitButton = inject(SplitButtonComponent);
 
     disabled = input(false, { transform: booleanAttribute });
     value = input<string>('');

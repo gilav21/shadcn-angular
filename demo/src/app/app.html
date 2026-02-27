@@ -3831,6 +3831,116 @@
           </div>
         </section>
 
+        <!-- Sub-Rows (Tree Data) Section -->
+        <section class="space-y-4">
+          <h2 id="data-table-tree" class="text-2xl font-semibold scroll-m-20">Data Table (Sub-Rows / Tree Data)</h2>
+          <p class="text-muted-foreground">
+            Hierarchical rows where children share the same columns as parents. Supports nested expand/collapse,
+            cascading selection, tree-aware filtering, and recursive sorting.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-3 rounded-md border p-3">
+            <ui-button size="sm" variant="outline" (click)="treeTable.expandAllSubRows(-1)">Expand All</ui-button>
+            <ui-button size="sm" variant="outline" (click)="treeTable.collapseAllSubRows()">Collapse All</ui-button>
+            <ui-button size="sm" variant="outline" (click)="treeTable.expandAllSubRows(1)">Expand Level 1</ui-button>
+
+            <div class="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
+              <label class="flex items-center gap-2">
+                Selection mode:
+              </label>
+              <select class="rounded-md border bg-background px-2 py-1 text-xs" [value]="treeSelectionMode()" (change)="treeSelectionMode.set($any($event.target).value)">
+                <option value="self">self</option>
+                <option value="descendants">descendants</option>
+                <option value="filteredDescendants">filteredDescendants</option>
+              </select>
+
+              <label class="flex items-center gap-2">
+                Filter mode:
+              </label>
+              <select class="rounded-md border bg-background px-2 py-1 text-xs" [value]="treeFilterMode()" (change)="treeFilterMode.set($any($event.target).value)">
+                <option value="includeParentOnChildMatch">includeParentOnChildMatch</option>
+                <option value="includeChildren">includeChildren</option>
+                <option value="excludeChildren">excludeChildren</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="rounded-md border h-[600px] overflow-auto relative">
+            <ui-data-table #treeTable
+              [data]="orgTreeData"
+              [columns]="orgTreeColumns"
+              [enableSubRows]="true"
+              [enableRowSelection]="true"
+              [subRowDefaultExpanded]="1"
+              [subRowSelectionMode]="treeSelectionMode()"
+              [subRowFilterMode]="treeFilterMode()"
+              [enableSubRowSorting]="true"
+              [enableRowExpansion]="true"
+              [rowDetailTemplate]="treeDetailTpl"
+              [enableColumnResize]="true"
+              [uiDataTableContextMenu]="treeContextMenu"
+              (rowContextMenu)="onTreeTableContextMenu($event)"
+            />
+          </div>
+
+          <ng-template #treeDetailTpl let-row>
+            <div class="p-4 text-sm text-muted-foreground">
+              <span class="font-medium text-foreground">{{ row.name }}</span> &mdash;
+              {{ row.role }} &middot; {{ row.headcount }} people &middot; Budget: ${{ row.budget | number:'1.0-0' }}
+            </div>
+          </ng-template>
+
+          <ui-context-menu #treeContextMenu>
+            <ui-context-menu-content class="w-64">
+              @if (treeContextMenu.data(); as ctx) {
+                <ui-context-menu-label>
+                  {{ ctx.row?.name || 'Unknown' }}
+                  <span class="ml-1 text-xs text-muted-foreground">(depth {{ ctx.depth }})</span>
+                </ui-context-menu-label>
+                <ui-context-menu-separator />
+                @if (!ctx.isLeaf) {
+                  <ui-context-menu-item (click)="treeTable.expandSubRow(ctx.row)">
+                    Expand
+                  </ui-context-menu-item>
+                  <ui-context-menu-item (click)="treeTable.collapseSubRow(ctx.row)">
+                    Collapse
+                  </ui-context-menu-item>
+                  <ui-context-menu-item (click)="treeTable.selectChildren(ctx.row)">
+                    Select All Children
+                  </ui-context-menu-item>
+                  <ui-context-menu-item (click)="treeTable.deselectChildren(ctx.row)">
+                    Deselect All Children
+                  </ui-context-menu-item>
+                  <ui-context-menu-separator />
+                }
+                @if (ctx.depth === 0) {
+                  <ui-context-menu-item (click)="treeTable.expandAllSubRows(-1)">
+                    Expand Entire Tree
+                  </ui-context-menu-item>
+                  <ui-context-menu-item (click)="treeTable.collapseAllSubRows()">
+                    Collapse Entire Tree
+                  </ui-context-menu-item>
+                  <ui-context-menu-separator />
+                }
+                <ui-context-menu-item (click)="treeTable.copyCellToClipboard()">
+                  Copy Cell
+                  <ui-context-menu-shortcut>Ctrl+C</ui-context-menu-shortcut>
+                </ui-context-menu-item>
+                <ui-context-menu-item (click)="onTreeTableAction('view', ctx)">
+                  View Details
+                </ui-context-menu-item>
+              }
+            </ui-context-menu-content>
+          </ui-context-menu>
+
+          <div class="text-xs text-muted-foreground">
+            Right-click any row for a depth-aware context menu.
+            Click the chevron to expand sub-rows. Use the checkboxes to test cascading selection.
+            Filter text to see tree-aware filtering (try "Alice" or "Backend").
+            Click the detail-row expander to see detail panels coexisting with sub-rows.
+          </div>
+        </section>
+
         <!-- Footer -->
         <div class="text-center text-muted-foreground text-sm pt-8">
           Built with Angular and Tailwind CSS. Open source.

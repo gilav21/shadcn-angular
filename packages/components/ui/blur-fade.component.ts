@@ -11,8 +11,7 @@ import {
     NgZone,
     output,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../lib/utils';
 
 @Component({
     selector: 'ui-blur-fade',

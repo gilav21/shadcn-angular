@@ -90,7 +90,7 @@ export class ShortcutBindingService {
     private readonly handledEvents = new WeakSet<KeyboardEvent>();
     private readonly componentInstanceCounters = new Map<string, number>();
     private readonly componentReusableInstanceNumbers = new Map<string, number[]>();
-    private version = signal(0);
+    private readonly version = signal(0);
     private nextOrder = 0;
 
     constructor() {
@@ -328,7 +328,7 @@ export class ShortcutBindingService {
 
     exportOverrideSchema(): ShortcutOverrideSchema {
         const schema: ShortcutOverrideSchema = {};
-        const keys = Array.from(this.overrides.keys()).sort();
+        const keys = Array.from(this.overrides.keys()).sort((a, b) => a.localeCompare(b));
         for (const key of keys) {
             const value = this.overrides.get(key);
             if (value) {
@@ -343,32 +343,10 @@ export class ShortcutBindingService {
             return;
         }
 
-        const next = new Map<string, string>();
-        if (!replace) {
-            for (const [key, value] of this.overrides.entries()) {
-                next.set(key, value);
-            }
-        }
+        const next = this.buildNextOverrides(schema, replace);
 
-        for (const [key, value] of Object.entries(schema)) {
-            const normalized = this.normalizeShortcut(value);
-            if (!normalized) {
-                continue;
-            }
-            next.set(key, normalized);
-        }
-
-        if (replace && next.size === this.overrides.size) {
-            let unchanged = true;
-            for (const [key, value] of next.entries()) {
-                if (this.overrides.get(key) !== value) {
-                    unchanged = false;
-                    break;
-                }
-            }
-            if (unchanged) {
-                return;
-            }
+        if (replace && this.areOverridesUnchanged(next)) {
+            return;
         }
 
         this.overrides.clear();
@@ -377,6 +355,34 @@ export class ShortcutBindingService {
         }
         this.persistOverridesToStorage();
         this.bumpVersion();
+    }
+
+    private buildNextOverrides(schema: ShortcutOverrideSchema, replace: boolean): Map<string, string> {
+        const next = new Map<string, string>();
+        if (!replace) {
+            for (const [key, value] of this.overrides.entries()) {
+                next.set(key, value);
+            }
+        }
+        for (const [key, value] of Object.entries(schema)) {
+            const normalized = this.normalizeShortcut(value);
+            if (normalized) {
+                next.set(key, normalized);
+            }
+        }
+        return next;
+    }
+
+    private areOverridesUnchanged(next: Map<string, string>): boolean {
+        if (next.size !== this.overrides.size) {
+            return false;
+        }
+        for (const [key, value] of next.entries()) {
+            if (this.overrides.get(key) !== value) {
+                return false;
+            }
+        }
+        return true;
     }
 
     hasShortcutOverrideForComponent(actionId: string, componentName?: string): boolean {
@@ -505,7 +511,7 @@ export class ShortcutBindingService {
             .filter(([, actionIds]) => actionIds.size > 1)
             .map(([shortcut, actionIds]) => ({
                 shortcut,
-                actionIds: Array.from(actionIds).sort(),
+                actionIds: Array.from(actionIds).sort((a, b) => a.localeCompare(b)),
             }));
     }
 
@@ -750,8 +756,7 @@ export class ShortcutBindingService {
             activeInstanceCount: previous?.activeInstanceCount ?? 0,
             activeComponentIds: previous?.activeComponentIds ?? [],
         };
-        const changed = !previous
-            || previous.description !== next.description
+        const changed = previous?.description !== next.description
             || previous.category !== next.category
             || previous.componentName !== next.componentName
             || previous.defaultShortcut !== next.defaultShortcut
@@ -761,7 +766,7 @@ export class ShortcutBindingService {
     }
 
     private createComponentId(componentName: string): string {
-        const normalizedName = componentName.trim().toLowerCase().replace(/\s+/g, '-');
+        const normalizedName = componentName.trim().toLowerCase().replaceAll(/\s+/g, '-');
         const reusable = this.componentReusableInstanceNumbers.get(normalizedName);
         if (reusable && reusable.length > 0) {
             const reused = reusable.shift();
@@ -812,7 +817,7 @@ export class ShortcutBindingService {
 
     private releaseComponentId(componentId: string): void {
         const normalizedName = this.deriveComponentName(componentId);
-        const match = componentId.match(/-(\d+)$/);
+        const match = new RegExp(/-(\d+)$/).exec(componentId);
         if (!match) {
             return;
         }
@@ -872,8 +877,8 @@ export class ShortcutBindingService {
     }
 
     private isMacPlatform(): boolean {
-        const platform = this.document.defaultView?.navigator?.platform?.toLowerCase() ?? '';
-        return platform.includes('mac') || platform.includes('iphone') || platform.includes('ipad');
+        const userAgent = this.document.defaultView?.navigator?.userAgent?.toLowerCase() ?? '';
+        return userAgent.includes('macintosh') || userAgent.includes('iphone') || userAgent.includes('ipad');
     }
 
     private bumpVersion(): void {

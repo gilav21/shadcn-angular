@@ -166,7 +166,7 @@ export class ChipListComponent implements ControlValueAccessor {
     }
 
     if (event.key === 'Backspace' && this.inputValue() === '' && this.chips().length > 0) {
-      const removed = this.chips()[this.chips().length - 1];
+      const removed = this.chips().at(-1)!;
       this.chips.update(chips => chips.slice(0, -1));
       this.onChange(this.chips());
       this.chipRemoved.emit(removed);
@@ -216,5 +216,5 @@ export class ChipListComponent implements ControlValueAccessor {
     this.onTouched = fn;
   }
 
-  setDisabledState(isDisabled: boolean): void { }
+  setDisabledState(_isDisabled: boolean): void { /* ControlValueAccessor - no-op: disabled state managed by input */ }
 }

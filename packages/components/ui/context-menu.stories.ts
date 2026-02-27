@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata} from '@storybook/angular';
 import {
   ContextMenuComponent,
   ContextMenuTriggerComponent,
@@ -13,7 +13,6 @@ import {
   ContextMenuSubContentComponent,
   ContextMenuItem,
 } from './context-menu.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<ContextMenuComponent> = {
   title: 'UI/ContextMenu',

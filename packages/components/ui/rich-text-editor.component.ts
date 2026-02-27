@@ -1717,13 +1717,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         if (target.tagName === 'INPUT' && (target as HTMLInputElement).type === 'checkbox') {
-            const li = target.closest('li[data-task]') as HTMLElement;
+            const li = target.closest<HTMLElement>('li[data-task]');
             if (li) {
                 event.preventDefault();
                 const cb = target as HTMLInputElement;
-                const isChecked = li.getAttribute('data-checked') === 'true';
+                const isChecked = li.dataset['checked'] === 'true';
                 const newChecked = !isChecked;
-                li.setAttribute('data-checked', String(newChecked));
+                li.dataset['checked'] = String(newChecked);
                 if (newChecked) {
                     cb.setAttribute('checked', '');
                 } else {
@@ -2094,8 +2094,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                         selection.addRange(newRange);
                     } else {
                         const newLi = this.document.createElement('li');
-                        newLi.setAttribute('data-task', '');
-                        newLi.setAttribute('data-checked', 'false');
+                        newLi.dataset['task'] = '';
+                        newLi.dataset['checked'] = 'false';
                         const checkbox = this.document.createElement('input');
                         checkbox.type = 'checkbox';
                         const textSpan = this.document.createElement('span');
@@ -2484,7 +2484,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         if (event.key === 'End') {
             event.preventDefault();
-            entries[entries.length - 1]?.focus();
+            entries.at(-1)?.focus();
         }
     }
 
@@ -3183,11 +3183,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private applyEntityBaseAttributes(element: HTMLElement, context: RichTextEntityRenderContext): void {
         element.setAttribute('contenteditable', 'false');
         if (context.type === 'mention') {
-            element.setAttribute('data-mention', context.value);
-            element.setAttribute('data-mention-id', context.id);
+            element.dataset['mention'] = context.value;
+            element.dataset['mentionId'] = context.id;
         } else {
-            element.setAttribute('data-tag', context.value);
-            element.setAttribute('data-tag-id', context.id);
+            element.dataset['tag'] = context.value;
+            element.dataset['tagId'] = context.id;
         }
     }
 
@@ -3487,12 +3487,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const uploadId = `auto-upload-${++this.autoUploadCounter}`;
         const dataUrl = img.getAttribute('src') ?? '';
 
-        const width = img.naturalWidth || img.width || parseInt(img.getAttribute('width') ?? '0', 10) || 200;
-        const height = img.naturalHeight || img.height || parseInt(img.getAttribute('height') ?? '0', 10) || 150;
+        const width = img.naturalWidth || img.width || Number.parseInt(img.getAttribute('width') ?? '0', 10) || 200;
+        const height = img.naturalHeight || img.height || Number.parseInt(img.getAttribute('height') ?? '0', 10) || 150;
 
         this.autoUploadMutating = true;
-        img.setAttribute('data-auto-upload-id', uploadId);
-        img.setAttribute('data-auto-upload-status', 'uploading');
+        img.dataset['autoUploadId'] = uploadId;
+        img.dataset['autoUploadStatus'] = 'uploading';
         if (!img.getAttribute('width')) img.setAttribute('width', String(width));
         if (!img.getAttribute('height')) img.setAttribute('height', String(height));
         img.setAttribute('src', this.TRANSPARENT_PIXEL);
@@ -3502,8 +3502,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         if (!isValidImageDataUrl(dataUrl)) {
             this.autoUploadMutating = true;
-            img.removeAttribute('data-auto-upload-id');
-            img.removeAttribute('data-auto-upload-status');
+            delete img.dataset['autoUploadId'];
+            delete img.dataset['autoUploadStatus'];
             img.setAttribute('src', this.TRANSPARENT_PIXEL);
             this.autoUploadMutating = false;
             this.syncContentFromEditor();
@@ -3524,8 +3524,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 }
                 this.autoUploadMutating = true;
                 img.setAttribute('src', safeSrc);
-                img.removeAttribute('data-auto-upload-id');
-                img.removeAttribute('data-auto-upload-status');
+                delete img.dataset['autoUploadId'];
+                delete img.dataset['autoUploadStatus'];
                 this.autoUploadMutating = false;
 
                 this.autoUploadMap.delete(uploadId);
@@ -3544,7 +3544,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private handleAutoUploadError(uploadId: string, img: HTMLImageElement, dataUrl: string, message: string): void {
         this.autoUploadMutating = true;
-        img.setAttribute('data-auto-upload-status', 'error');
+        img.dataset['autoUploadStatus'] = 'error';
         this.autoUploadMutating = false;
 
         this.autoUploadMap.delete(uploadId);
@@ -3571,8 +3571,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.autoUploadErrors.set(errors);
 
         this.autoUploadMutating = true;
-        img.removeAttribute('data-auto-upload-id');
-        img.removeAttribute('data-auto-upload-status');
+        delete img.dataset['autoUploadId'];
+        delete img.dataset['autoUploadStatus'];
         img.setAttribute('src', entry.dataUrl);
         this.autoUploadMutating = false;
 
@@ -3653,11 +3653,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const rect = menu.getBoundingClientRect();
             let x = this.tableContextMenuPosition().x;
             let y = this.tableContextMenuPosition().y;
-            if (rect.right > window.innerWidth) {
-                x = window.innerWidth - rect.width - 8;
+            if (rect.right > globalThis.innerWidth) {
+                x = globalThis.innerWidth - rect.width - 8;
             }
-            if (rect.bottom > window.innerHeight) {
-                y = window.innerHeight - rect.height - 8;
+            if (rect.bottom > globalThis.innerHeight) {
+                y = globalThis.innerHeight - rect.height - 8;
             }
             this.tableContextMenuPosition.set({ x, y });
         });
@@ -3671,7 +3671,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             menu.style.pointerEvents = 'none';
             const below = this.document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
             menu.style.pointerEvents = '';
-            const cell = below?.closest('td, th') as HTMLTableCellElement | null;
+            const cell = below?.closest<HTMLTableCellElement>('td, th');
             if (cell && this.editorDiv?.nativeElement.contains(cell)) {
                 this.closeTableContextMenu();
                 this.tableContextMenuTarget = cell;
@@ -3691,7 +3691,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (table && this.editorDiv?.nativeElement.contains(table)) {
             event.preventDefault();
         }
-        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        const cell = target.closest<HTMLTableCellElement>('td, th');
         if (!cell || !this.editorDiv?.nativeElement.contains(cell)) {
             this.closeTableContextMenu();
             return;
@@ -3711,7 +3711,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     onEditorMouseMove(event: MouseEvent): void {
         if (this.tableResizeState || this.readonly() || this.disabled()) return;
         const target = event.target as HTMLElement;
-        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        const cell = target.closest<HTMLTableCellElement>('td, th');
         if (!cell) {
             if (this.tableResizeCursor()) {
                 this.tableResizeCursor.set(false);
@@ -3735,7 +3735,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     onEditorMouseDown(event: MouseEvent): void {
         if (this.readonly() || this.disabled()) return;
         const target = event.target as HTMLElement;
-        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        const cell = target.closest<HTMLTableCellElement>('td, th');
         const isRightClick = event.button === 2;
 
         if (isRightClick) {
@@ -3749,7 +3749,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         if (this.tableResizeCursor()) {
             if (!cell) return;
-            const table = cell.closest('table') as HTMLTableElement | null;
+            const table = cell.closest<HTMLTableElement>('table');
             if (!table) return;
 
             const row = cell.parentElement as HTMLTableRowElement;
@@ -3827,7 +3827,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!this.tableCellSelecting || !this.tableCellSelectAnchor) return;
         const target = this.document.elementFromPoint(event.clientX, event.clientY) as HTMLElement | null;
         if (!target) return;
-        const cell = target.closest('td, th') as HTMLTableCellElement | null;
+        const cell = target.closest<HTMLTableCellElement>('td, th');
         if (!cell) return;
         const anchorTable = this.tableCellSelectAnchor.closest('table');
         if (!anchorTable || cell.closest('table') !== anchorTable) return;
@@ -3896,7 +3896,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private updateCellSelection(anchor: HTMLTableCellElement, current: HTMLTableCellElement): void {
-        const table = anchor.closest('table') as HTMLTableElement;
+        const table = anchor.closest<HTMLTableElement>('table');
         if (!table) return;
 
         const grid = this.buildCellGrid(table);
@@ -3947,7 +3947,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const selected = this.tableCellSelected();
         if (selected.length < 2) return;
 
-        const table = selected[0].closest('table') as HTMLTableElement;
+        const table = selected[0].closest<HTMLTableElement>('table');
         if (!table) return;
 
         const grid = this.buildCellGrid(table);
@@ -4007,7 +4007,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const cs = target.colSpan || 1;
         if (rs <= 1 && cs <= 1) return;
 
-        const table = target.closest('table') as HTMLTableElement;
+        const table = target.closest<HTMLTableElement>('table');
         if (!table) return;
         const grid = this.buildCellGrid(table);
         const bounds = this.getCellGridBounds(grid, target);
@@ -4057,8 +4057,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private getTableCellInfo(target: HTMLTableCellElement | null): { cell: HTMLTableCellElement; row: HTMLTableRowElement; table: HTMLTableElement; colIndex: number; rowIndex: number } | null {
         const cell = target;
         if (!cell) return null;
-        const row = cell.closest('tr') as HTMLTableRowElement | null;
-        const table = cell.closest('table') as HTMLTableElement | null;
+        const row = cell.closest<HTMLTableRowElement>('tr');
+        const table = cell.closest<HTMLTableElement>('table');
         if (!row || !table) return null;
         const colIndex = Array.from(row.cells).indexOf(cell);
         const allRows = Array.from(table.querySelectorAll('tr'));
@@ -4336,7 +4336,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!info) return;
 
         const table = info.table;
-        const cells = Array.from(table.querySelectorAll('td, th')) as HTMLElement[];
+        const cells = Array.from(table.querySelectorAll<HTMLElement>('td, th'));
         const rows = Array.from(table.querySelectorAll('tr'));
 
         const borderColor = cells.length > 0
@@ -4428,9 +4428,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private enableTaskCheckboxes(container: HTMLElement): void {
         container.querySelectorAll<HTMLInputElement>('li[data-task] input[type="checkbox"]').forEach(cb => {
             cb.removeAttribute('disabled');
-            const li = cb.closest('li[data-task]');
+            const li = cb.closest<HTMLElement>('li[data-task]');
             if (li) {
-                cb.checked = li.getAttribute('data-checked') === 'true';
+                cb.checked = li.dataset['checked'] === 'true';
             }
         });
     }
@@ -4459,7 +4459,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!nestedList) {
             nestedList = this.document.createElement(listType);
             if (parentList?.hasAttribute('data-task-list')) {
-                nestedList.setAttribute('data-task-list', '');
+                (nestedList as HTMLElement).dataset['taskList'] = '';
             }
             prevLi.appendChild(nestedList);
         }
@@ -4507,10 +4507,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         const ul = this.document.createElement('ul');
-        ul.setAttribute('data-task-list', '');
+        ul.dataset['taskList'] = '';
         const li = this.document.createElement('li');
-        li.setAttribute('data-task', '');
-        li.setAttribute('data-checked', 'false');
+        li.dataset['task'] = '';
+        li.dataset['checked'] = 'false';
         const checkbox = this.document.createElement('input');
         checkbox.type = 'checkbox';
         const textSpan = this.document.createElement('span');
@@ -4539,8 +4539,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         const editor = this.editorDiv?.nativeElement;
         if (editor) {
-            const summaries = editor.querySelectorAll('summary');
-            const lastSummary = summaries[summaries.length - 1];
+            const summaries = Array.from(editor.querySelectorAll('summary'));
+            const lastSummary = summaries.at(-1);
             if (lastSummary) {
                 const selection = this.document.getSelection();
                 if (selection) {
@@ -4570,7 +4570,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.findShowReplace.set(showReplace);
         this.findReplaceVisible.set(true);
         requestAnimationFrame(() => {
-            const el = this.el.nativeElement.querySelector('input[placeholder]') as HTMLInputElement;
+            const el = (this.el.nativeElement as HTMLElement).querySelector<HTMLInputElement>('input[placeholder]');
             if (el) el.focus();
         });
     }
@@ -4648,10 +4648,10 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             try {
                 const range = matches[i];
                 const mark = this.document.createElement('mark');
-                mark.setAttribute('data-find-match', '');
+                mark.dataset['findMatch'] = '';
                 mark.style.backgroundColor = i === currentIdx ? 'rgba(250, 204, 21, 0.7)' : 'rgba(250, 204, 21, 0.3)';
                 mark.style.borderRadius = '2px';
-                if (i === currentIdx) mark.setAttribute('data-find-current', '');
+                if (i === currentIdx) mark.dataset['findCurrent'] = '';
                 range.surroundContents(mark);
                 this.findHighlightElements.push(mark);
             } catch {
@@ -4667,7 +4667,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 while (mark.firstChild) {
                     parent.insertBefore(mark.firstChild, mark);
                 }
-                parent.removeChild(mark);
+                mark.remove();
                 parent.normalize();
             }
         }
@@ -4675,7 +4675,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     private scrollToCurrentMatch(): void {
-        const current = this.el.nativeElement.querySelector('mark[data-find-current]') as HTMLElement;
+        const current = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('mark[data-find-current]');
         if (current) current.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
@@ -4702,13 +4702,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.clearFindHighlights();
         this.performFind();
 
-        const currentMark = this.el.nativeElement.querySelector('mark[data-find-current]') as HTMLElement;
+        const currentMark = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('mark[data-find-current]');
         if (currentMark) {
             currentMark.textContent = this.replaceText();
             const parent = currentMark.parentNode;
             if (parent) {
                 while (currentMark.firstChild) parent.insertBefore(currentMark.firstChild, currentMark);
-                parent.removeChild(currentMark);
+                currentMark.remove();
                 parent.normalize();
             }
         }
@@ -4723,13 +4723,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.clearFindHighlights();
         this.performFind();
 
-        const marks = Array.from(this.el.nativeElement.querySelectorAll('mark[data-find-match]')) as HTMLElement[];
+        const marks = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('mark[data-find-match]'));
         for (const mark of marks.reverse()) {
             mark.textContent = this.replaceText();
             const parent = mark.parentNode;
             if (parent) {
                 while (mark.firstChild) parent.insertBefore(mark.firstChild, mark);
-                parent.removeChild(mark);
+                mark.remove();
                 parent.normalize();
             }
         }
@@ -4840,7 +4840,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.editorDiv?.nativeElement) {
             return this.editorDiv.nativeElement;
         }
-        return this.el.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement | null;
+        return (this.el.nativeElement as HTMLElement).querySelector<HTMLDivElement>('[data-slot="rich-text-editor"]');
     }
 
     private syncContentFromEditor(): void {
@@ -4976,7 +4976,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
                 const computedStyle = this.document.defaultView?.getComputedStyle(element);
                 if (computedStyle) {
                     const fontSize = computedStyle.fontSize;
-                    const numericSize = parseInt(fontSize, 10);
+                    const numericSize = Number.parseInt(fontSize, 10);
                     if (!isNaN(numericSize)) {
                         this.currentFontSize.set(numericSize.toString());
                     }
@@ -5082,7 +5082,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         const selectedIndex = this.slashCommandSelectedIndex();
-        const selected = list.querySelector(`[data-slash-index="${selectedIndex}"]`) as HTMLElement | null;
+        const selected = list.querySelector<HTMLElement>(`[data-slash-index="${selectedIndex}"]`);
         if (!selected) {
             return;
         }
@@ -5625,7 +5625,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const type = op[0];
             const value = op.substring(1);
             if (type === '=') {
-                const idx = parseInt(value, 10);
+                const idx = Number.parseInt(value, 10);
                 if (idx >= 0 && idx < baseLines.length) {
                     result.push(baseLines[idx]);
                 }
@@ -5677,7 +5677,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private pushHistory(): void {
         const currentHtml = this.htmlContent();
-        const lastEntry = this.history[this.history.length - 1];
+        const lastEntry = this.history.at(-1);
         const lastHtml = lastEntry ? this.reconstructHtmlCached(this.history.length - 1) : '';
         if (lastEntry && lastHtml === currentHtml) {
             return;
@@ -5815,7 +5815,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const tryFocus = (attempt: number) => {
             const root = this.el.nativeElement as HTMLElement;
             const selector = `[data-history-list="${preferredList}"] [data-history-entry-action="true"]`;
-            const firstAction = root.querySelector(selector) as HTMLElement | null;
+            const firstAction = root.querySelector<HTMLElement>(selector);
             if (firstAction) {
                 firstAction.focus();
                 return;
@@ -5834,13 +5834,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return [];
         }
         return Array.from(
-            listContainer.querySelectorAll('[data-history-entry-action="true"]')
-        ) as HTMLElement[];
+            listContainer.querySelectorAll<HTMLElement>('[data-history-entry-action="true"]')
+        );
     }
 
     private getHistoryListType(from: HTMLElement): 'popover' | 'dialog' | null {
-        const listContainer = from.closest('[data-history-list]');
-        const type = listContainer?.getAttribute('data-history-list');
+        const listContainer = from.closest<HTMLElement>('[data-history-list]');
+        const type = listContainer?.dataset['historyList'];
         if (type === 'popover' || type === 'dialog') {
             return type;
         }
@@ -5851,7 +5851,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         setTimeout(() => {
             const root = this.el.nativeElement as HTMLElement;
             const selector = `[data-history-list="${listType}"] [data-history-entry-index="${entryIndex}"]`;
-            const target = root.querySelector(selector) as HTMLElement | null;
+            const target = root.querySelector<HTMLElement>(selector);
             target?.focus();
         }, 0);
     }

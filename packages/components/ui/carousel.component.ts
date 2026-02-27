@@ -35,10 +35,10 @@ type CarouselOrientation = 'horizontal' | 'vertical';
 export class CarouselComponent implements AfterContentInit, OnDestroy {
     class = input('');
     orientation = input<CarouselOrientation>('horizontal');
-    private rootEl = inject(ElementRef<HTMLElement>);
+    private readonly rootEl = inject(ElementRef<HTMLElement>);
 
     rtl = signal(false);
-    private dirObserver: MutationObserver | null = null;
+    private readonly dirObserver: MutationObserver | null = null;
 
     @ViewChild('container', { static: true }) containerEl!: ElementRef<HTMLElement>;
 
@@ -101,7 +101,6 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
         if (!this.scrollContainer) return;
 
         const isHorizontal = this.orientation() === 'horizontal';
-        const isRtlMode = this.rtl();
 
         if (isHorizontal) {
             const scrollLeft = this.scrollContainer.scrollLeft;
@@ -203,7 +202,7 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
 })
 export class CarouselContentComponent {
     class = input('');
-    carousel = inject(CarouselComponent);
+    readonly carousel = inject(CarouselComponent);
 
     classes = computed(() => {
         const isHorizontal = this.carousel.orientation() === 'horizontal';
@@ -234,7 +233,7 @@ export class CarouselContentComponent {
 })
 export class CarouselItemComponent {
     class = input('');
-    carousel = inject(CarouselComponent);
+    readonly carousel = inject(CarouselComponent);
 
     classes = computed(() => {
         const isHorizontal = this.carousel.orientation() === 'horizontal';
@@ -269,7 +268,7 @@ export class CarouselItemComponent {
 })
 export class CarouselPreviousComponent {
     class = input('');
-    carousel = inject(CarouselComponent);
+    readonly carousel = inject(CarouselComponent);
 
     isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
 
@@ -329,7 +328,7 @@ export class CarouselPreviousComponent {
 })
 export class CarouselNextComponent {
     class = input('');
-    carousel = inject(CarouselComponent);
+    readonly carousel = inject(CarouselComponent);
 
     isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
 

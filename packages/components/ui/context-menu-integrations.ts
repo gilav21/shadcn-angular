@@ -25,6 +25,9 @@ export interface TableRowContextMenuEvent<T = unknown> {
   row: T;
   index: number;
   event: MouseEvent;
+  depth?: number;
+  isLeaf?: boolean;
+  parentRow?: T | null;
 }
 
 export interface TableCellContextMenuEvent<T = unknown> extends TableRowContextMenuEvent<T> {
@@ -84,7 +87,7 @@ export class TreeContextMenuDirective<T = unknown> {
 
   nodeContextMenu = output<TreeContextMenuEvent<T>>();
 
-  private treeElement = inject(ElementRef<HTMLElement>);
+  private readonly treeElement = inject(ElementRef<HTMLElement>);
   private readonly contextMenuListener = (event: MouseEvent) => {
     if (this.contextMenuDisabled()) {
       return;
@@ -124,9 +127,9 @@ export class TreeContextMenuDirective<T = unknown> {
   }
 
   private extractNodeData(element: HTMLElement): T {
-    const key = element.getAttribute('data-key');
-    const expanded = element.getAttribute('data-expanded') === 'true';
-    const selected = element.getAttribute('data-selected') === 'true';
+    const key = element.dataset['key'];
+    const expanded = element.dataset['expanded'] === 'true';
+    const selected = element.dataset['selected'] === 'true';
 
     const labelElement = element.querySelector('[data-slot="tree-label"]');
     const label = labelElement?.textContent?.trim() || '';
@@ -156,7 +159,7 @@ export class TableContextMenuDirective<T = unknown> implements OnDestroy {
   rowContextMenu = output<TableRowContextMenuEvent<T>>();
   cellContextMenu = output<TableCellContextMenuEvent<T>>();
 
-  private tableElement = inject(ElementRef<HTMLElement>);
+  private readonly tableElement = inject(ElementRef<HTMLElement>);
   private readonly contextMenuListener = (event: MouseEvent) => {
     if (this.contextMenuDisabled() || !this.uiTableContextMenu()) {
       return;
@@ -173,7 +176,7 @@ export class TableContextMenuDirective<T = unknown> implements OnDestroy {
 
         const rowData = this.extractRowData(row as HTMLElement, cell as HTMLElement);
 
-        if (cell.tagName === 'TD' || cell.getAttribute('data-slot') === 'table-cell') {
+        if (cell.tagName === 'TD' || (cell as HTMLElement).dataset['slot'] === 'table-cell') {
           this.cellContextMenu.emit({
             row: rowData.data,
             column: rowData.column,
@@ -209,8 +212,8 @@ export class TableContextMenuDirective<T = unknown> implements OnDestroy {
   }
 
   private extractRowData(rowElement: HTMLElement, cellElement: HTMLElement): { data: T; index: number; column: string } {
-    const indexAttr = rowElement.getAttribute('data-row-index') || rowElement.getAttribute('data-index');
-    const index = indexAttr ? parseInt(indexAttr, 10) : 0;
+    const indexAttr = rowElement.dataset['rowIndex'] || rowElement.dataset['index'];
+    const index = indexAttr ? Number.parseInt(indexAttr, 10) : 0;
 
     const dataAttr = rowElement.getAttribute(this.rowDataAttribute());
     let data: T = {} as T;
@@ -223,7 +226,7 @@ export class TableContextMenuDirective<T = unknown> implements OnDestroy {
       }
     }
 
-    const columnAttr = cellElement.getAttribute('data-column') || (cellElement as HTMLTableCellElement).cellIndex.toString();
+    const columnAttr = cellElement.dataset['column'] || (cellElement as HTMLTableCellElement).cellIndex.toString();
     const column = typeof columnAttr === 'string' ? columnAttr : `column_${columnAttr}`;
 
     return { data, index, column };
@@ -245,8 +248,8 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
   rowContextMenu = output<TableRowContextMenuEvent<T>>();
   headerContextMenu = output<DataTableHeaderContextMenuEvent>();
 
-  private tableElement = inject(ElementRef<HTMLElement>);
-  private dataTable = inject<DataTableComponent<T> | null>(DataTableComponent as any, { optional: true });
+  private readonly tableElement = inject(ElementRef<HTMLElement>);
+  private readonly dataTable = inject<DataTableComponent<T> | null>(DataTableComponent as any, { optional: true });
   private readonly contextMenuListener = (event: MouseEvent) => {
     if (this.contextMenuDisabled()) {
       return;
@@ -258,25 +261,7 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
     if (row) {
       event.preventDefault();
       event.stopPropagation();
-
-      const rowData = this.extractDataTableRow(row as HTMLElement);
-
-      const cell = target.closest('[data-slot="table-cell"], td');
-      const columnKey = cell?.getAttribute('data-column') || '';
-      if (this.dataTable && columnKey && columnKey !== '_selection' && columnKey !== '_expander') {
-        this.dataTable.focusedCell.set({ rowIndex: rowData.index, columnKey });
-      }
-
-      this.rowContextMenu.emit({
-        row: rowData.data,
-        index: rowData.index,
-        event,
-      });
-
-      const contextMenu = this.uiDataTableContextMenu();
-      if (contextMenu) {
-        contextMenu.show(event.clientX, event.clientY, rowData.data);
-      }
+      this.handleRowContextMenu(target, event, row as HTMLElement);
       return;
     }
 
@@ -285,21 +270,53 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
       if (header) {
         event.preventDefault();
         event.stopPropagation();
-
-        const columnData = this.extractHeaderData(header as HTMLElement);
-
-        this.headerContextMenu.emit({
-          column: columnData,
-          event,
-        });
-
-        const contextMenu = this.uiDataTableContextMenu();
-        if (contextMenu) {
-          contextMenu.show(event.clientX, event.clientY, columnData);
-        }
+        this.handleHeaderContextMenu(event, header as HTMLElement);
       }
     }
   };
+
+  private handleRowContextMenu(target: HTMLElement, event: MouseEvent, rowEl: HTMLElement): void {
+    const rowData = this.extractDataTableRow(rowEl);
+
+    const cell = target.closest<HTMLElement>('[data-slot="table-cell"], td');
+    const columnKey = cell?.dataset['column'] || '';
+    if (this.dataTable && columnKey && columnKey !== '_selection' && columnKey !== '_expander') {
+      this.dataTable.focusedCell.set({ rowIndex: rowData.index, columnKey });
+    }
+
+    const treeRow = this.dataTable?.getRenderedTreeRowAt(rowData.index);
+
+    this.rowContextMenu.emit({
+      row: rowData.data,
+      index: rowData.index,
+      event,
+      depth: treeRow?.depth,
+      isLeaf: treeRow?.isLeaf,
+      parentRow: treeRow?.parentRow,
+    });
+
+    const contextMenu = this.uiDataTableContextMenu();
+    if (contextMenu) {
+      const contextData = treeRow
+        ? { ...treeRow, row: rowData.data }
+        : rowData.data;
+      contextMenu.show(event.clientX, event.clientY, contextData);
+    }
+  }
+
+  private handleHeaderContextMenu(event: MouseEvent, headerEl: HTMLElement): void {
+    const columnData = this.extractHeaderData(headerEl);
+
+    this.headerContextMenu.emit({
+      column: columnData,
+      event,
+    });
+
+    const contextMenu = this.uiDataTableContextMenu();
+    if (contextMenu) {
+      contextMenu.show(event.clientX, event.clientY, columnData);
+    }
+  }
 
   constructor() {
     this.setupDataTableContextMenu();
@@ -314,22 +331,22 @@ export class DataTableContextMenuDirective<T = unknown> implements OnDestroy {
   }
 
   private extractDataTableRow(rowElement: HTMLElement): { data: T; index: number } {
-    const indexAttr = rowElement.getAttribute('data-row-index');
-    const index = indexAttr ? parseInt(indexAttr, 10) : 0;
+    const indexAttr = rowElement.dataset['rowIndex'];
+    const index = indexAttr ? Number.parseInt(indexAttr, 10) : 0;
 
     const renderedRow = this.dataTable?.getRenderedRowAt(index);
     if (renderedRow !== undefined) {
       return { data: renderedRow, index };
     }
 
-    const rowId = rowElement.getAttribute('data-row-id');
+    const rowId = rowElement.dataset['rowId'];
     const fallbackData = rowId ? ({ id: rowId } as unknown as T) : ({} as T);
 
     return { data: fallbackData, index };
   }
 
   private extractHeaderData(headerElement: HTMLElement): { id: string | null; name: string; element: HTMLElement } {
-    const columnId = headerElement.getAttribute('data-column-id');
+    const columnId = headerElement.dataset['columnId'] ?? null;
     const columnName = headerElement.textContent?.trim() || '';
 
     return {

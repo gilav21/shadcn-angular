@@ -71,12 +71,12 @@ function processElement(element: Element): void {
         const tag = child.tagName.toLowerCase();
 
         if (REMOVE_WITH_CHILDREN.has(tag)) {
-            element.removeChild(child);
+            child.remove();
             continue;
         }
 
         if (!ALLOWED_ELEMENTS.has(tag)) {
-            element.removeChild(child);
+            child.remove();
             continue;
         }
 
@@ -98,27 +98,33 @@ function sanitizeElementAttributes(element: Element, tag: string): void {
         }
 
         if (GLOBAL_ATTRS.has(name)) {
-            if (name === 'style') {
-                const safe = sanitizeSvgStyle(attr.value);
-                if (safe) {
-                    element.setAttribute('style', safe);
-                } else {
-                    element.removeAttribute('style');
-                }
-            }
+            sanitizeGlobalAttr(element, attr, name);
             continue;
         }
 
-        if (!allowed || !allowed.has(name)) {
+        if (!allowed?.has(name)) {
             element.removeAttribute(attr.name);
             continue;
         }
 
-        if (name === 'href' || name === 'xlink:href') {
-            if (DANGEROUS_URL_PATTERN.test(attr.value)) {
-                element.removeAttribute(attr.name);
-            }
+        sanitizeUrlAttr(element, attr, name);
+    }
+}
+
+function sanitizeGlobalAttr(element: Element, attr: Attr, name: string): void {
+    if (name === 'style') {
+        const safe = sanitizeSvgStyle(attr.value);
+        if (safe) {
+            element.setAttribute('style', safe);
+        } else {
+            element.removeAttribute('style');
         }
+    }
+}
+
+function sanitizeUrlAttr(element: Element, attr: Attr, name: string): void {
+    if ((name === 'href' || name === 'xlink:href') && DANGEROUS_URL_PATTERN.test(attr.value)) {
+        element.removeAttribute(attr.name);
     }
 }
 

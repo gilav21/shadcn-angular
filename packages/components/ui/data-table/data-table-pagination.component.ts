@@ -129,7 +129,7 @@ import { isRtl } from '../../lib/utils';
   `,
 })
 export class DataTablePaginationComponent {
-  private _el = inject(ElementRef);
+  private readonly _el = inject(ElementRef);
 
   isRtl() {
     return isRtl(this._el.nativeElement);

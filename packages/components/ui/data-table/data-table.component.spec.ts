@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef, PaginationState } from './data-table.types';
+import { ColumnDef, PaginationState, FlattenedTreeRow } from './data-table.types';
+import { buildTreeFromFlat } from './data-table.utils';
 import { By } from '@angular/platform-browser';
 
 interface TestData {
@@ -975,5 +976,592 @@ describe('DataTableComponent', () => {
             currentOptions = ['Admin', 'User', 'Manager'];
             expect(component.getFilterInputs(col)).toEqual({ options: ['Admin', 'User', 'Manager'] });
         });
+    });
+});
+
+interface TreeData {
+    id: string;
+    name: string;
+    role: string;
+    children?: TreeData[];
+}
+
+const TREE_DATA: TreeData[] = [
+    {
+        id: '1', name: 'Engineering', role: 'Department',
+        children: [
+            {
+                id: '1-1', name: 'Frontend', role: 'Team',
+                children: [
+                    { id: '1-1-1', name: 'Alice', role: 'Developer' },
+                    { id: '1-1-2', name: 'Bob', role: 'Developer' },
+                ],
+            },
+            {
+                id: '1-2', name: 'Backend', role: 'Team',
+                children: [
+                    { id: '1-2-1', name: 'Charlie', role: 'Developer' },
+                ],
+            },
+        ],
+    },
+    {
+        id: '2', name: 'Marketing', role: 'Department',
+        children: [
+            { id: '2-1', name: 'Diana', role: 'Manager' },
+        ],
+    },
+    { id: '3', name: 'Finance', role: 'Department' },
+];
+
+const TREE_COLUMNS: ColumnDef<TreeData>[] = [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'name', header: 'Name', enableSorting: true },
+    { accessorKey: 'role', header: 'Role' },
+];
+
+describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
+    let component: DataTableComponent<TreeData>;
+    let fixture: ComponentFixture<DataTableComponent<TreeData>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataTableComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataTableComponent<TreeData>);
+        component = fixture.componentInstance;
+
+        fixture.componentRef.setInput('data', TREE_DATA);
+        fixture.componentRef.setInput('columns', TREE_COLUMNS);
+        fixture.componentRef.setInput('enableSubRows', true);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.componentRef.setInput('showToolbar', false);
+
+        fixture.detectChanges();
+    });
+
+    describe('Tree Flattening and Visibility', () => {
+        it('should show only root rows when all collapsed (default)', () => {
+            const rows = component.processedTreeRows();
+            expect(rows.length).toBe(3);
+            expect(rows.map(r => r.row.id)).toEqual(['1', '2', '3']);
+        });
+
+        it('should show children when parent is expanded', () => {
+            component.toggleSubRowExpanded(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const ids = rows.map(r => r.row.id);
+            expect(ids).toContain('1-1');
+            expect(ids).toContain('1-2');
+            expect(ids).not.toContain('1-1-1');
+        });
+
+        it('should show grandchildren when both parent and child expanded', () => {
+            component.expandSubRow(TREE_DATA[0]);
+            component.expandSubRow(TREE_DATA[0].children![0]);
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const ids = rows.map(r => r.row.id);
+            expect(ids).toContain('1-1-1');
+            expect(ids).toContain('1-1-2');
+        });
+
+        it('should set correct depth on flattened rows', () => {
+            component.expandSubRow(TREE_DATA[0]);
+            component.expandSubRow(TREE_DATA[0].children![0]);
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const alice = rows.find(r => r.row.id === '1-1-1')!;
+            expect(alice.depth).toBe(2);
+
+            const frontend = rows.find(r => r.row.id === '1-1')!;
+            expect(frontend.depth).toBe(1);
+
+            const engineering = rows.find(r => r.row.id === '1')!;
+            expect(engineering.depth).toBe(0);
+        });
+
+        it('should mark leaf rows correctly', () => {
+            component.expandSubRow(TREE_DATA[0]);
+            component.expandSubRow(TREE_DATA[0].children![0]);
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const alice = rows.find(r => r.row.id === '1-1-1')!;
+            expect(alice.isLeaf).toBe(true);
+
+            const frontend = rows.find(r => r.row.id === '1-1')!;
+            expect(frontend.isLeaf).toBe(false);
+
+            const finance = rows.find(r => r.row.id === '3')!;
+            expect(finance.isLeaf).toBe(true);
+        });
+
+        it('should collapse children when parent is collapsed', () => {
+            component.expandSubRow(TREE_DATA[0]);
+            component.expandSubRow(TREE_DATA[0].children![0]);
+            fixture.detectChanges();
+
+            let rows = component.processedTreeRows();
+            expect(rows.map(r => r.row.id)).toContain('1-1-1');
+
+            component.collapseSubRow(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            rows = component.processedTreeRows();
+            expect(rows.map(r => r.row.id)).not.toContain('1-1');
+            expect(rows.map(r => r.row.id)).not.toContain('1-1-1');
+        });
+    });
+
+    describe('expandAllSubRows / collapseAllSubRows', () => {
+        it('should expand all sub-rows', () => {
+            component.expandAllSubRows(-1);
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            expect(rows.length).toBe(9);
+        });
+
+        it('should collapse all sub-rows', () => {
+            component.expandAllSubRows(-1);
+            fixture.detectChanges();
+
+            component.collapseAllSubRows();
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            expect(rows.length).toBe(3);
+        });
+
+        it('should report isAllSubRowsExpanded correctly', () => {
+            expect(component.isAllSubRowsExpanded()).toBe(false);
+
+            component.expandAllSubRows(-1);
+            fixture.detectChanges();
+
+            expect(component.isAllSubRowsExpanded()).toBe(true);
+        });
+    });
+
+    describe('subRowDefaultExpanded', () => {
+        it('should expand to depth 1 when subRowDefaultExpanded is 1', () => {
+            fixture.componentRef.setInput('subRowDefaultExpanded', 1);
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const ids = rows.map(r => r.row.id);
+            expect(ids).toContain('1-1');
+            expect(ids).toContain('1-2');
+            expect(ids).toContain('2-1');
+            expect(ids).not.toContain('1-1-1');
+        });
+
+        it('should expand all when subRowDefaultExpanded is -1', () => {
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            expect(rows.length).toBe(9);
+        });
+
+        it('should keep all collapsed when subRowDefaultExpanded is 0', () => {
+            fixture.componentRef.setInput('subRowDefaultExpanded', 0);
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            expect(rows.length).toBe(3);
+        });
+    });
+
+    describe('Selection Cascade', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('enableRowSelection', true);
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            fixture.detectChanges();
+        });
+
+        it('should not cascade selection when mode is self', () => {
+            fixture.componentRef.setInput('subRowSelectionMode', 'self');
+            fixture.detectChanges();
+
+            component.toggleRowWithCascade(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            expect(component.isRowSelected(TREE_DATA[0])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[0].children![0])).toBe(false);
+        });
+
+        it('should cascade to descendants when mode is descendants', () => {
+            fixture.componentRef.setInput('subRowSelectionMode', 'descendants');
+            fixture.detectChanges();
+
+            component.toggleRowWithCascade(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            expect(component.isRowSelected(TREE_DATA[0])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[0].children![0])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[0].children![0].children![0])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[0].children![0].children![1])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[0].children![1])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[0].children![1].children![0])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[1])).toBe(false);
+        });
+
+        it('should deselect descendants when parent is toggled off in descendants mode', () => {
+            fixture.componentRef.setInput('subRowSelectionMode', 'descendants');
+            fixture.detectChanges();
+
+            component.toggleRowWithCascade(TREE_DATA[0]);
+            fixture.detectChanges();
+            expect(component.isRowSelected(TREE_DATA[0])).toBe(true);
+
+            component.toggleRowWithCascade(TREE_DATA[0]);
+            fixture.detectChanges();
+            expect(component.isRowSelected(TREE_DATA[0])).toBe(false);
+            expect(component.isRowSelected(TREE_DATA[0].children![0])).toBe(false);
+            expect(component.isRowSelected(TREE_DATA[0].children![0].children![0])).toBe(false);
+        });
+
+        it('should show indeterminate when some descendants are selected', () => {
+            fixture.componentRef.setInput('subRowSelectionMode', 'descendants');
+            fixture.detectChanges();
+
+            component.toggleRow(TREE_DATA[0].children![0].children![0]);
+            fixture.detectChanges();
+
+            expect(component.isSubRowSelectionIndeterminate(TREE_DATA[0])).toBe(true);
+            expect(component.isSubRowSelectionIndeterminate(TREE_DATA[0].children![0])).toBe(true);
+        });
+
+        it('should not show indeterminate for leaf rows', () => {
+            fixture.componentRef.setInput('subRowSelectionMode', 'descendants');
+            fixture.detectChanges();
+
+            expect(component.isSubRowSelectionIndeterminate(TREE_DATA[0].children![0].children![0])).toBe(false);
+        });
+
+        it('should bubble up parent selection when all children selected', () => {
+            fixture.componentRef.setInput('subRowSelectionMode', 'descendants');
+            fixture.detectChanges();
+
+            component.toggleRowWithCascade(TREE_DATA[0].children![0].children![0]);
+            component.toggleRowWithCascade(TREE_DATA[0].children![0].children![1]);
+            fixture.detectChanges();
+
+            expect(component.isRowSelected(TREE_DATA[0].children![0])).toBe(true);
+        });
+    });
+
+    describe('Filtering Modes', () => {
+        it('should keep parent when child matches (includeParentOnChildMatch)', () => {
+            fixture.componentRef.setInput('subRowFilterMode', 'includeParentOnChildMatch');
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            fixture.detectChanges();
+
+            component.onFilterChange('Alice');
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const ids = rows.map(r => r.row.id);
+            expect(ids).toContain('1');
+            expect(ids).toContain('1-1');
+            expect(ids).toContain('1-1-1');
+            expect(ids).not.toContain('1-1-2');
+            expect(ids).not.toContain('1-2');
+            expect(ids).not.toContain('2');
+        });
+
+        it('should filter parents only with excludeChildren mode', () => {
+            fixture.componentRef.setInput('subRowFilterMode', 'excludeChildren');
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            fixture.detectChanges();
+
+            component.onFilterChange('Engineering');
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const ids = rows.map(r => r.row.id);
+            expect(ids).toContain('1');
+            expect(ids).not.toContain('2');
+        });
+
+        it('should include all children when parent matches (includeChildren)', () => {
+            fixture.componentRef.setInput('subRowFilterMode', 'includeChildren');
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            fixture.detectChanges();
+
+            component.onFilterChange('Engineering');
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const ids = rows.map(r => r.row.id);
+            expect(ids).toContain('1');
+            expect(ids).toContain('1-1');
+            expect(ids).toContain('1-2');
+        });
+    });
+
+    describe('Sorting Within Groups', () => {
+        it('should sort children within their parent group', () => {
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            fixture.detectChanges();
+
+            component.onSortChange('name', 'desc');
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const rootNames = rows.filter(r => r.depth === 0).map(r => r.row.name);
+            expect(rootNames[0]).toBe('Marketing');
+
+            const frontendChildren = rows.filter(r => r.parentId === '1-1');
+            expect(frontendChildren[0].row.name).toBe('Bob');
+            expect(frontendChildren[1].row.name).toBe('Alice');
+        });
+    });
+
+    describe('Coexistence with Detail Row Expansion', () => {
+        it('should support both sub-row and detail-row expansion on same row', () => {
+            fixture.componentRef.setInput('enableRowExpansion', true);
+            fixture.componentRef.setInput('subRowDefaultExpanded', 0);
+            fixture.detectChanges();
+
+            component.expandSubRow(TREE_DATA[0]);
+            component.toggleRowExpanded(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            expect(component.isSubRowExpanded(TREE_DATA[0])).toBe(true);
+            expect(component.isRowExpanded(TREE_DATA[0])).toBe(true);
+
+            const rows = component.processedTreeRows();
+            const ids = rows.map(r => r.row.id);
+            expect(ids).toContain('1');
+            expect(ids).toContain('1-1');
+            expect(ids).toContain('1-2');
+        });
+    });
+
+    describe('Pagination', () => {
+        it('should paginate root rows only when subRowsPaginated is false', () => {
+            fixture.componentRef.setInput('showPagination', true);
+            fixture.componentRef.setInput('subRowsPaginated', false);
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            component.paginationState.set({ pageIndex: 0, pageSize: 2 });
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            const rootIds = rows.filter(r => r.depth === 0).map(r => r.row.id);
+            expect(rootIds).toEqual(['1', '2']);
+            expect(rows.find(r => r.row.id === '3')).toBeUndefined();
+        });
+
+        it('should paginate all visible rows when subRowsPaginated is true', () => {
+            fixture.componentRef.setInput('showPagination', true);
+            fixture.componentRef.setInput('subRowsPaginated', true);
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            component.paginationState.set({ pageIndex: 0, pageSize: 3 });
+            fixture.detectChanges();
+
+            const rows = component.processedTreeRows();
+            expect(rows.length).toBe(3);
+        });
+
+        it('should report correct activeTotalItems for root-only pagination', () => {
+            fixture.componentRef.setInput('showPagination', true);
+            fixture.componentRef.setInput('subRowsPaginated', false);
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            component.paginationState.set({ pageIndex: 0, pageSize: 10 });
+            fixture.detectChanges();
+
+            expect(component.activeTotalItems()).toBe(3);
+        });
+
+        it('should report correct activeTotalItems for all-visible pagination', () => {
+            fixture.componentRef.setInput('showPagination', true);
+            fixture.componentRef.setInput('subRowsPaginated', true);
+            fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+            component.paginationState.set({ pageIndex: 0, pageSize: 10 });
+            fixture.detectChanges();
+
+            expect(component.activeTotalItems()).toBe(9);
+        });
+    });
+
+    describe('API Methods', () => {
+        it('should return correct depth via getRowDepth', () => {
+            expect(component.getRowDepth(TREE_DATA[0])).toBe(0);
+            expect(component.getRowDepth(TREE_DATA[0].children![0])).toBe(1);
+            expect(component.getRowDepth(TREE_DATA[0].children![0].children![0])).toBe(2);
+        });
+
+        it('should return correct path via getRowPath', () => {
+            expect(component.getRowPath('1-1-1')).toEqual(['1', '1-1', '1-1-1']);
+            expect(component.getRowPath('1')).toEqual(['1']);
+        });
+
+        it('should return parent row via getParentRow', () => {
+            const parent = component.getParentRow(TREE_DATA[0].children![0]);
+            expect(parent).not.toBeNull();
+            expect(parent!.id).toBe('1');
+        });
+
+        it('should return null for root row parent', () => {
+            expect(component.getParentRow(TREE_DATA[0])).toBeNull();
+        });
+
+        it('should return child rows via getChildRows', () => {
+            const children = component.getChildRows(TREE_DATA[0]);
+            expect(children.length).toBe(2);
+            expect(children[0].id).toBe('1-1');
+        });
+
+        it('should select children via selectChildren', () => {
+            fixture.componentRef.setInput('enableRowSelection', true);
+            fixture.detectChanges();
+
+            component.selectChildren(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            expect(component.isRowSelected(TREE_DATA[0].children![0])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[0].children![0].children![0])).toBe(true);
+            expect(component.isRowSelected(TREE_DATA[0])).toBe(false);
+        });
+
+        it('should deselect children via deselectChildren', () => {
+            fixture.componentRef.setInput('enableRowSelection', true);
+            fixture.detectChanges();
+
+            component.selectChildren(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            component.deselectChildren(TREE_DATA[0]);
+            fixture.detectChanges();
+
+            expect(component.isRowSelected(TREE_DATA[0].children![0])).toBe(false);
+        });
+    });
+
+    describe('getSubRowComponentInputs', () => {
+        it('should include _subRowContext in component inputs', () => {
+            component.expandSubRow(TREE_DATA[0]);
+            component.expandSubRow(TREE_DATA[0].children![0]);
+            fixture.detectChanges();
+
+            const treeRow: FlattenedTreeRow<TreeData> = {
+                row: TREE_DATA[0].children![0].children![0],
+                depth: 2,
+                parentId: '1-1',
+                parentRow: TREE_DATA[0].children![0],
+                path: ['1', '1-1', '1-1-1'],
+                isLeaf: true,
+                childCount: 0,
+                isExpanded: false,
+            };
+
+            const col: ColumnDef<TreeData> = {
+                accessorKey: 'name',
+                header: 'Name',
+                componentInputs: (row) => ({ label: row.name }),
+            };
+
+            const result = component.getSubRowComponentInputs(col, treeRow);
+            expect(result.label).toBe('Alice');
+            expect(result._subRowContext).toBeDefined();
+            expect(result._subRowContext.depth).toBe(2);
+            expect(result._subRowContext.parentId).toBe('1-1');
+            expect(result._subRowContext.isLeaf).toBe(true);
+            expect(result._subRowContext.path).toEqual(['1', '1-1', '1-1-1']);
+        });
+    });
+
+    describe('enhancedColumns with sub-rows', () => {
+        it('should mark first data column as tree expander host', () => {
+            const cols = component.enhancedColumns();
+            const hostCol = cols.find(c => c._isTreeExpanderHost);
+            expect(hostCol).toBeTruthy();
+            expect(hostCol!.accessorKey).toBe('id');
+        });
+
+        it('should mark user treeExpander column as tree expander host', () => {
+            const customCols: ColumnDef<TreeData>[] = [
+                { accessorKey: 'name', header: 'Name', treeExpander: true },
+                { accessorKey: 'role', header: 'Role' },
+            ];
+            fixture.componentRef.setInput('columns', customCols);
+            fixture.detectChanges();
+
+            const cols = component.enhancedColumns();
+            expect(cols.some(c => c.accessorKey === '_subRowExpander')).toBe(false);
+            const hostCol = cols.find(c => c._isTreeExpanderHost);
+            expect(hostCol).toBeTruthy();
+            expect(hostCol!.accessorKey).toBe('name');
+            expect(hostCol!.treeExpander).toBe(true);
+        });
+    });
+});
+
+describe('buildTreeFromFlat', () => {
+    interface FlatItem {
+        id: string;
+        parentId: string | null;
+        name: string;
+        children?: FlatItem[];
+    }
+
+    it('should build tree from flat array', () => {
+        const flat: FlatItem[] = [
+            { id: '1', parentId: null, name: 'Root A' },
+            { id: '2', parentId: null, name: 'Root B' },
+            { id: '1-1', parentId: '1', name: 'Child A1' },
+            { id: '1-2', parentId: '1', name: 'Child A2' },
+            { id: '2-1', parentId: '2', name: 'Child B1' },
+            { id: '1-1-1', parentId: '1-1', name: 'Grandchild A1-1' },
+        ];
+
+        const tree = buildTreeFromFlat(
+            flat,
+            r => r.id,
+            r => r.parentId,
+            (r, children) => ({ ...r, children })
+        );
+
+        expect(tree.length).toBe(2);
+        expect(tree[0].name).toBe('Root A');
+        expect(tree[0].children!.length).toBe(2);
+        expect(tree[0].children![0].children!.length).toBe(1);
+        expect(tree[0].children![0].children![0].name).toBe('Grandchild A1-1');
+        expect(tree[1].children!.length).toBe(1);
+    });
+
+    it('should return empty array for empty input', () => {
+        const tree = buildTreeFromFlat<FlatItem>(
+            [],
+            r => r.id,
+            r => r.parentId,
+            (r, children) => ({ ...r, children })
+        );
+        expect(tree).toEqual([]);
+    });
+
+    it('should handle single root with no children', () => {
+        const flat: FlatItem[] = [
+            { id: '1', parentId: null, name: 'Alone' },
+        ];
+
+        const tree = buildTreeFromFlat(
+            flat,
+            r => r.id,
+            r => r.parentId,
+            (r, children) => ({ ...r, children })
+        );
+
+        expect(tree.length).toBe(1);
+        expect(tree[0].name).toBe('Alone');
+        expect(tree[0].children).toBeUndefined();
     });
 });

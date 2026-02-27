@@ -70,7 +70,7 @@ describe('ContextMenuComponent', () => {
     });
 
     it('should have data-slot="context-menu"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('context-menu');
+        expect(fixture.nativeElement.dataset.slot).toBe('context-menu');
     });
 
     it('should be closed by default', () => {
@@ -504,12 +504,12 @@ describe('ContextMenu close on stopPropagation clicks', () => {
 
         expect(contextMenuComp.componentInstance.open()).toBe(true);
 
-        const portal = document.querySelector('[data-context-menu-portal]') as HTMLElement;
+        const portal = document.querySelector<HTMLElement>('[data-context-menu-portal]');
         expect(portal).toBeTruthy();
 
-        const menuContent = portal.querySelector('[data-slot="context-menu-content"]') as HTMLElement;
+        const menuContent = portal!.querySelector<HTMLElement>('[data-slot="context-menu-content"]');
         expect(menuContent).toBeTruthy();
-        menuContent.click();
+        menuContent!.click();
 
         expect(contextMenuComp.componentInstance.open()).toBe(true);
     });

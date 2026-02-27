@@ -1,6 +1,6 @@
 import { execa } from 'execa';
 import fs from 'fs-extra';
-import path from 'path';
+import path from 'node:path';
 
 export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun';
 
@@ -33,10 +33,7 @@ export async function installPackages(
     if (packageManager === 'npm') {
         args.push('install');
         if (options.dev) args.push('-D');
-    } else if (packageManager === 'yarn') {
-        args.push('add');
-        if (options.dev) args.push('-D');
-    } else if (packageManager === 'pnpm') {
+    } else if (packageManager === 'yarn' || packageManager === 'pnpm') {
         args.push('add');
         if (options.dev) args.push('-D');
     } else if (packageManager === 'bun') {

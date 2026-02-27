@@ -1,11 +1,10 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
     EmojiPickerComponent,
     EmojiPickerTriggerComponent,
     EmojiPickerContentComponent,
 } from './emoji-picker.component';
 import { ButtonComponent } from './button.component';
-import { moduleMetadata } from '@storybook/angular';
 import { Component, signal } from '@angular/core';
 
 @Component({

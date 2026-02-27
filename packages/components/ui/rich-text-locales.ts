@@ -189,7 +189,7 @@ export interface RichTextLocale {
 }
 
 export function interpolate(template: string, values: Record<string, string | number>): string {
-    return template.replace(/\{(\w+)}/g, (_, key) => String(values[key] ?? ''));
+    return template.replaceAll(/\{(\w+)}/g, (_, key) => String(values[key] ?? ''));
 }
 
 export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {

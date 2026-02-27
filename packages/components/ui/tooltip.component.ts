@@ -57,7 +57,7 @@ export class TooltipComponent {
     host: { class: 'contents' },
 })
 export class TooltipTriggerComponent {
-    private tooltip = inject(TooltipComponent, { optional: true });
+    private readonly tooltip = inject(TooltipComponent, { optional: true });
     private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
     onMouseEnter() {
@@ -97,7 +97,7 @@ export class TooltipTriggerComponent {
     host: { class: 'contents' },
 })
 export class TooltipContentComponent {
-    tooltip = inject(TooltipComponent, { optional: true });
+    readonly tooltip = inject(TooltipComponent, { optional: true });
     class = input('');
 
     classes = computed(() => {
@@ -128,8 +128,8 @@ export class TooltipDirective implements OnDestroy {
     tooltipSide = input<'top' | 'bottom' | 'left' | 'right'>('top');
     tooltipDisabled = input(false);
 
-    private el = inject(ElementRef);
-    private renderer = inject(Renderer2);
+    private readonly el = inject(ElementRef);
+    private readonly renderer = inject(Renderer2);
     private tooltipElement: HTMLElement | null = null;
     private timeoutId: ReturnType<typeof setTimeout> | null = null;
 
@@ -201,7 +201,7 @@ export class TooltipDirective implements OnDestroy {
 
         let pos = calculatePosition(side);
 
-        const { innerWidth, innerHeight } = window;
+        const { innerWidth, innerHeight } = globalThis;
 
         if (side === 'top' && pos.top < 0) {
             side = 'bottom';
@@ -228,7 +228,7 @@ export class TooltipDirective implements OnDestroy {
 
     private hideTooltip() {
         if (this.tooltipElement) {
-            this.renderer.removeChild(document.body, this.tooltipElement);
+            this.tooltipElement.remove();
             this.tooltipElement = null;
         }
     }

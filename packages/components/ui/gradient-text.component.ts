@@ -9,8 +9,7 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../lib/utils';
 
 @Component({
     selector: 'ui-gradient-text',
@@ -59,7 +58,7 @@ export class GradientTextComponent implements AfterViewInit, OnDestroy {
         if (this.animationFrameId != null) cancelAnimationFrame(this.animationFrameId);
     }
 
-    private animate = () => {
+    private readonly animate = () => {
         const elapsed = performance.now() - this.startTime;
         const duration = this.speed() * 1000;
         const progress = (elapsed % duration) / duration;

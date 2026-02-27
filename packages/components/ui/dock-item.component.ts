@@ -27,8 +27,8 @@ import { cn } from '../lib/utils';
     }
 })
 export class DockItemComponent {
-    private el = inject(ElementRef);
-    private _renderer = inject(Renderer2);
+    private readonly el = inject(ElementRef);
+    private readonly _renderer = inject(Renderer2);
 
     class = input('');
     active = input<boolean>(false);

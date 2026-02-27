@@ -78,14 +78,12 @@ export class RadioGroupItemComponent {
   class = input('');
   ariaLabel = input<string | undefined>(undefined);
 
-  // Simple mode: inline label
   label = input<string | undefined>(undefined);
 
-  // Auto-generate ID when label is used
-  private _generatedId = `radio-${++RadioGroupItemComponent.idCounter}`;
+  private readonly _generatedId = `radio-${++RadioGroupItemComponent.idCounter}`;
   computedId = computed(() => this._generatedId);
 
-  private group = inject(RADIO_GROUP, { optional: true });
+  private readonly group = inject(RADIO_GROUP, { optional: true });
 
   isSelected = computed(() => this.group?.internalValue() === this.value());
   isDisabled = computed(() => this.disabled() || (this.group?.isDisabled() ?? false));
@@ -150,12 +148,12 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
 
   // Data-driven inputs
   readonly options = input<T[]>([]);
-  readonly displayWith = input<(option: T) => string>((opt) => String(opt));
+  readonly displayWith = input<(option: T) => string>(String);
   readonly valueAttribute = input<string | undefined>(undefined);
   readonly disabledWith = input<(option: T) => boolean>(() => false);
   readonly value = input<string | undefined>(undefined);
 
-  private formDisabled = signal(false);
+  private readonly formDisabled = signal(false);
   isDisabled = computed(() => this.disabled() || this.formDisabled());
   readonly isDataDriven = computed(() => this.options().length > 0);
 

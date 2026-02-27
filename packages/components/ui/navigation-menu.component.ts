@@ -91,7 +91,7 @@ export class NavigationMenuListComponent {
 export class NavigationMenuItemComponent {
   class = input('');
   id = `nav-menu-item-${nextId++}`;
-  service = inject(NavigationMenuService);
+  readonly service = inject(NavigationMenuService);
 
   isOpen = computed(() => this.service.isActive(this.id));
 
@@ -155,7 +155,7 @@ export class NavigationMenuItemComponent {
 })
 export class NavigationMenuTriggerComponent {
   class = input('');
-  item = inject(NavigationMenuItemComponent);
+  readonly item = inject(NavigationMenuItemComponent);
 
   classes = computed(() => cn(
     'group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium',
@@ -195,7 +195,7 @@ export class NavigationMenuTriggerComponent {
 })
 export class NavigationMenuContentComponent {
   class = input('');
-  item = inject(NavigationMenuItemComponent);
+  readonly item = inject(NavigationMenuItemComponent);
 
   classes = computed(() => cn(
     'left-0 top-full mt-1.5',
@@ -251,7 +251,7 @@ export class NavigationMenuLinkComponent {
 })
 export class NavigationMenuIndicatorComponent {
   class = input('');
-  service = inject(NavigationMenuService);
+  readonly service = inject(NavigationMenuService);
 
   classes = computed(() => cn(
     'top-full z-[1] flex h-1.5 items-end justify-center overflow-hidden',
@@ -324,12 +324,12 @@ export class NavigationMenuComponent implements AfterContentInit {
   /** Data-driven items for simple mode. When provided (and no content is projected), renders the menu automatically. */
   items = input<NavigationMenuItem[]>([]);
 
-  service = inject(NavigationMenuService);
-  el = inject(ElementRef);
+  readonly service = inject(NavigationMenuService);
+  readonly el = inject(ElementRef);
 
   @ContentChild(NavigationMenuListComponent) customList?: NavigationMenuListComponent;
 
-  private _hasCustomContent = signal(true);
+  private readonly _hasCustomContent = signal(true);
   hasCustomContent = this._hasCustomContent.asReadonly();
 
   ngAfterContentInit() {

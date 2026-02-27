@@ -337,7 +337,7 @@ describe('DropdownMenu Keyboard Navigation', () => {
         const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
 
         // Focus last item
-        items[items.length - 1].nativeElement.focus();
+        items.at(-1)!.nativeElement.focus();
         fixture.detectChanges();
 
         // Press Tab - should wrap to first item (focus trap)
@@ -528,7 +528,7 @@ describe('DropdownMenu RTL Support', () => {
         const content = fixture.debugElement.query(By.css('[data-slot="dropdown-content"]'));
         const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]:not([data-disabled])'));
         // Focus last item and Tab should wrap
-        items[items.length - 1].nativeElement.focus();
+        items.at(-1)!.nativeElement.focus();
         content.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab' }));
         fixture.detectChanges();
         await fixture.whenStable();

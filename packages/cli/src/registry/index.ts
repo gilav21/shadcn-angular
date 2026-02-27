@@ -4,6 +4,7 @@
 export interface ComponentDefinition {
   name: string;
   files: string[]; // Relative paths to component files
+  peerFiles?: string[]; // Files to update only if they already exist in the user's project
   dependencies?: string[]; // Other components this depends on
   npmDependencies?: string[]; // NPM packages this depends on
   libFiles?: string[]; // Lib utility files this component requires (e.g. 'xlsx.ts')
@@ -143,7 +144,11 @@ export const registry: Record<string, ComponentDefinition> = {
       'data-table/data-table-column-header.component.ts',
       'data-table/data-table-pagination.component.ts',
       'data-table/data-table.types.ts',
+      'data-table/data-table.utils.ts',
       'data-table/index.ts',
+    ],
+    peerFiles: [
+      'context-menu-integrations.ts',
     ],
     dependencies: [
       'table',

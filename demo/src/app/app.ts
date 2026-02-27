@@ -111,6 +111,7 @@ import {
   ContextMenuItemComponent,
   ContextMenuSeparatorComponent,
   ContextMenuShortcutComponent,
+  ContextMenuLabelComponent,
   DrawerComponent,
   DrawerTriggerComponent,
   DrawerContentComponent,
@@ -251,6 +252,8 @@ import {
   ColumnResizeEvent,
   SortState,
   PaginationState,
+  SubRowSelectionMode,
+  SubRowFilterMode,
   ChatMessageComponent,
   ChatListComponent,
   ChatInputComponent,
@@ -406,6 +409,15 @@ export interface Payment {
   email: string;
   clientName?: string;
   role?: string;
+}
+
+export interface OrgNode {
+  id: string;
+  name: string;
+  role: string;
+  headcount: number;
+  budget: number;
+  children?: OrgNode[];
 }
 
 export type ComponentCategory = 'Inputs' | 'Data Display' | 'Feedback' | 'Overlay' | 'Navigation' | 'Layout' | 'Charts' | 'Advanced';
@@ -619,6 +631,7 @@ class OpsTicketDetailComponent {
     ContextMenuItemComponent,
     ContextMenuSeparatorComponent,
     ContextMenuShortcutComponent,
+    ContextMenuLabelComponent,
     DrawerComponent,
     DrawerTriggerComponent,
     DrawerContentComponent,
@@ -1105,6 +1118,18 @@ export class AppComponent {
     });
   }
 
+  onTreeTableContextMenu(event: any) {
+    console.log('Tree table context menu:', event);
+  }
+
+  onTreeTableAction(action: string, ctx: any) {
+    this.toastService.toast({
+      title: `${action} — ${ctx.row?.name}`,
+      description: `Depth: ${ctx.depth}, Leaf: ${ctx.isLeaf}, Children: ${ctx.childCount ?? 0}`,
+      variant: 'default',
+    });
+  }
+
   // Split Button Demo
   splitButtonItems: SplitButtonItem[] = [
     { label: 'Edit', value: 'edit', icon: '✎' },
@@ -1217,6 +1242,80 @@ export class AppComponent {
       variant: 'default'
     });
   }
+
+  // Sub-Rows / Tree Data Demo
+  treeSelectionMode = signal<SubRowSelectionMode>('descendants');
+  treeFilterMode = signal<SubRowFilterMode>('includeParentOnChildMatch');
+
+  orgTreeData: OrgNode[] = [
+    {
+      id: 'eng', name: 'Engineering', role: 'Department', headcount: 42, budget: 2800000,
+      children: [
+        {
+          id: 'eng-fe', name: 'Frontend', role: 'Team', headcount: 14, budget: 900000,
+          children: [
+            { id: 'eng-fe-web', name: 'Web Platform', role: 'Squad', headcount: 6, budget: 400000, children: [
+              { id: 'p-alice', name: 'Alice Chen', role: 'Tech Lead', headcount: 1, budget: 180000 },
+              { id: 'p-bob', name: 'Bob Park', role: 'Senior Engineer', headcount: 1, budget: 160000 },
+              { id: 'p-carol', name: 'Carol Wu', role: 'Engineer', headcount: 1, budget: 130000 },
+            ]},
+            { id: 'eng-fe-mobile', name: 'Mobile', role: 'Squad', headcount: 5, budget: 350000, children: [
+              { id: 'p-dave', name: 'Dave Kim', role: 'Tech Lead', headcount: 1, budget: 175000 },
+              { id: 'p-eve', name: 'Eve Singh', role: 'Engineer', headcount: 1, budget: 130000 },
+            ]},
+            { id: 'eng-fe-design', name: 'Design Systems', role: 'Squad', headcount: 3, budget: 250000 },
+          ],
+        },
+        {
+          id: 'eng-be', name: 'Backend', role: 'Team', headcount: 18, budget: 1200000,
+          children: [
+            { id: 'eng-be-api', name: 'API Platform', role: 'Squad', headcount: 8, budget: 550000, children: [
+              { id: 'p-frank', name: 'Frank Li', role: 'Principal Engineer', headcount: 1, budget: 200000 },
+              { id: 'p-grace', name: 'Grace Obi', role: 'Senior Engineer', headcount: 1, budget: 165000 },
+            ]},
+            { id: 'eng-be-data', name: 'Data Pipeline', role: 'Squad', headcount: 6, budget: 420000 },
+            { id: 'eng-be-infra', name: 'Infrastructure', role: 'Squad', headcount: 4, budget: 330000 },
+          ],
+        },
+        {
+          id: 'eng-qa', name: 'QA', role: 'Team', headcount: 10, budget: 700000,
+          children: [
+            { id: 'eng-qa-auto', name: 'Automation', role: 'Squad', headcount: 6, budget: 420000 },
+            { id: 'eng-qa-manual', name: 'Manual Testing', role: 'Squad', headcount: 4, budget: 280000 },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'product', name: 'Product', role: 'Department', headcount: 15, budget: 1500000,
+      children: [
+        { id: 'prod-core', name: 'Core Product', role: 'Team', headcount: 8, budget: 850000, children: [
+          { id: 'p-hannah', name: 'Hannah Lee', role: 'Product Manager', headcount: 1, budget: 170000 },
+          { id: 'p-ivan', name: 'Ivan Petrov', role: 'Product Designer', headcount: 1, budget: 145000 },
+        ]},
+        { id: 'prod-growth', name: 'Growth', role: 'Team', headcount: 7, budget: 650000 },
+      ],
+    },
+    {
+      id: 'marketing', name: 'Marketing', role: 'Department', headcount: 12, budget: 1100000,
+      children: [
+        { id: 'mkt-content', name: 'Content', role: 'Team', headcount: 5, budget: 450000 },
+        { id: 'mkt-perf', name: 'Performance', role: 'Team', headcount: 4, budget: 380000 },
+        { id: 'mkt-brand', name: 'Brand', role: 'Team', headcount: 3, budget: 270000 },
+      ],
+    },
+    { id: 'finance', name: 'Finance', role: 'Department', headcount: 8, budget: 750000 },
+    { id: 'hr', name: 'Human Resources', role: 'Department', headcount: 6, budget: 520000 },
+  ];
+
+  orgTreeColumns: ColumnDef<OrgNode>[] = [
+    { accessorKey: 'name', header: 'Name', enableSorting: true, width: 'auto', minWidth: '250px' },
+    { accessorKey: 'role', header: 'Role', enableSorting: true, width: '180px' },
+    { accessorKey: 'headcount', header: 'Headcount', enableSorting: true, width: '120px',
+      cell: (row) => String(row.headcount) },
+    { accessorKey: 'budget', header: 'Budget', enableSorting: true, width: '150px',
+      cell: (row) => '$' + row.budget.toLocaleString() },
+  ];
 
   // Server-Side Demo State
   serverData = signal<Payment[]>([]);

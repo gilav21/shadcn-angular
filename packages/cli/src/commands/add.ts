@@ -1,16 +1,37 @@
 import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import prompts from 'prompts';
 import chalk from 'chalk';
-import ora from 'ora';
+import ora, { type Ora } from 'ora';
 import { getConfig } from '../utils/config.js';
-import { registry, type ComponentName } from '../registry/index.js';
+import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+interface AddOptions {
+    yes?: boolean;
+    overwrite?: boolean;
+    all?: boolean;
+    path?: string;
+    remote?: boolean;
+    branch: string;
+}
+
+interface ConflictCheckResult {
+    toInstall: ComponentName[];
+    toSkip: string[];
+    conflicting: ComponentName[];
+    peerFilesToUpdate: Set<string>;
+    contentCache: Map<string, string>;
+}
+
+// ---------------------------------------------------------------------------
+// Path & URL helpers
+// ---------------------------------------------------------------------------
 
 function getRegistryBaseUrl(branch: string) {
     return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components/ui`;
@@ -20,28 +41,16 @@ function getLibRegistryBaseUrl(branch: string) {
     return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components/lib`;
 }
 
-// Components source directory (relative to CLI dist folder) for local dev
 function getLocalComponentsDir(): string | null {
-    // From dist/commands/add.js -> packages/components/ui
     const fromDist = path.resolve(__dirname, '../../../components/ui');
     if (fs.existsSync(fromDist)) {
         return fromDist;
     }
-    // Fallback: from src/commands/add.ts -> packages/components/ui
     const fromSrc = path.resolve(__dirname, '../../../components/ui');
     if (fs.existsSync(fromSrc)) {
         return fromSrc;
     }
     return null;
-}
-
-interface AddOptions {
-    yes?: boolean;
-    overwrite?: boolean;
-    all?: boolean;
-    path?: string;
-    remote?: boolean;
-    branch: string;
 }
 
 function getLocalLibDir(): string | null {
@@ -67,10 +76,17 @@ function aliasToProjectPath(aliasOrPath: string): string {
         : aliasOrPath;
 }
 
+function normalizeContent(str: string): string {
+    return str.replaceAll('\r\n', '\n').trim();
+}
+
+// ---------------------------------------------------------------------------
+// Remote content fetching
+// ---------------------------------------------------------------------------
+
 async function fetchComponentContent(file: string, options: AddOptions): Promise<string> {
     const localDir = getLocalComponentsDir();
 
-    // 1. Prefer local if available and not forced remote
     if (localDir && !options.remote) {
         const localPath = path.join(localDir, file);
         if (await fs.pathExists(localPath)) {
@@ -78,7 +94,6 @@ async function fetchComponentContent(file: string, options: AddOptions): Promise
         }
     }
 
-    // 2. Fetch from remote registry
     const url = `${getRegistryBaseUrl(options.branch)}/${file}`;
     try {
         const response = await fetch(url);
@@ -112,39 +127,22 @@ async function fetchLibContent(file: string, options: AddOptions): Promise<strin
     return response.text();
 }
 
-function collectInstalledShortcutEntries(targetDir: string): ShortcutRegistryEntry[] {
-    const entries: ShortcutRegistryEntry[] = [];
-    for (const definition of Object.values(registry)) {
-        if (!definition.shortcutDefinitions?.length) {
-            continue;
-        }
-        for (const shortcutDefinition of definition.shortcutDefinitions) {
-            const sourcePath = path.join(targetDir, shortcutDefinition.sourceFile);
-            if (fs.existsSync(sourcePath)) {
-                entries.push(shortcutDefinition);
-            }
-        }
-    }
-    return entries;
+async function fetchAndTransform(file: string, options: AddOptions, utilsAlias: string): Promise<string> {
+    let content = await fetchComponentContent(file, options);
+    content = content.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/');
+    return content;
 }
 
-export async function add(components: string[], options: AddOptions) {
-    const cwd = process.cwd();
+// ---------------------------------------------------------------------------
+// Component selection & dependency resolution
+// ---------------------------------------------------------------------------
 
-    // Load config
-    const config = await getConfig(cwd);
-    if (!config) {
-        console.log(chalk.red('Error: components.json not found.'));
-        console.log(chalk.dim('Run `npx @gilav21/shadcn-angular init` first.'));
-        process.exit(1);
+async function selectComponents(components: string[], options: AddOptions): Promise<ComponentName[]> {
+    if (options.all) {
+        return Object.keys(registry);
     }
 
-    // Get components to add
-    let componentsToAdd: ComponentName[] = [];
-
-    if (options.all) {
-        componentsToAdd = Object.keys(registry) as ComponentName[];
-    } else if (components.length === 0) {
+    if (components.length === 0) {
         const { selected } = await prompts({
             type: 'multiselect',
             name: 'selected',
@@ -155,131 +153,347 @@ export async function add(components: string[], options: AddOptions) {
             })),
             hint: '- Space to select, Enter to confirm',
         });
-        componentsToAdd = selected;
-    } else {
-        componentsToAdd = components as ComponentName[];
+        return selected;
     }
 
+    return components;
+}
+
+function validateComponents(names: ComponentName[]): void {
+    const invalid = names.filter(c => !registry[c]);
+    if (invalid.length > 0) {
+        console.log(chalk.red(`Invalid component(s): ${invalid.join(', ')}`));
+        console.log(chalk.dim('Available components: ' + Object.keys(registry).join(', ')));
+        process.exit(1);
+    }
+}
+
+function resolveDependencies(names: ComponentName[]): Set<ComponentName> {
+    const all = new Set<ComponentName>();
+    const walk = (name: ComponentName) => {
+        if (all.has(name)) return;
+        all.add(name);
+        registry[name].dependencies?.forEach(dep => walk(dep));
+    };
+    names.forEach(walk);
+    return all;
+}
+
+// ---------------------------------------------------------------------------
+// Conflict detection
+// ---------------------------------------------------------------------------
+
+async function checkFileConflict(
+    file: string,
+    targetDir: string,
+    options: AddOptions,
+    utilsAlias: string,
+    contentCache: Map<string, string>,
+): Promise<'identical' | 'changed' | 'missing'> {
+    const targetPath = path.join(targetDir, file);
+
+    if (!await fs.pathExists(targetPath)) {
+        return 'missing';
+    }
+
+    const localContent = await fs.readFile(targetPath, 'utf-8');
+    try {
+        const remoteContent = await fetchAndTransform(file, options, utilsAlias);
+        contentCache.set(file, remoteContent);
+
+        return normalizeContent(localContent) === normalizeContent(remoteContent)
+            ? 'identical'
+            : 'changed';
+    } catch {
+        return 'changed';
+    }
+}
+
+async function checkPeerFiles(
+    component: ComponentDefinition,
+    targetDir: string,
+    options: AddOptions,
+    utilsAlias: string,
+    contentCache: Map<string, string>,
+    peerFilesToUpdate: Set<string>,
+): Promise<boolean> {
+    if (!component.peerFiles) return false;
+
+    let hasChanges = false;
+    for (const file of component.peerFiles) {
+        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache);
+        if (status === 'changed') {
+            hasChanges = true;
+            peerFilesToUpdate.add(file);
+        }
+    }
+    return hasChanges;
+}
+
+async function classifyComponent(
+    name: ComponentName,
+    targetDir: string,
+    options: AddOptions,
+    utilsAlias: string,
+    contentCache: Map<string, string>,
+    peerFilesToUpdate: Set<string>,
+): Promise<'install' | 'skip' | 'conflict'> {
+    const component = registry[name];
+    let hasChanges = false;
+    let isFullyPresent = true;
+
+    for (const file of component.files) {
+        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache);
+        if (status === 'missing') isFullyPresent = false;
+        if (status === 'changed') hasChanges = true;
+    }
+
+    const peerChanged = await checkPeerFiles(
+        component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate,
+    );
+    if (peerChanged) hasChanges = true;
+
+    if (isFullyPresent && !hasChanges) return 'skip';
+    if (hasChanges) return 'conflict';
+    return 'install';
+}
+
+async function detectConflicts(
+    allComponents: Set<ComponentName>,
+    targetDir: string,
+    options: AddOptions,
+    utilsAlias: string,
+): Promise<ConflictCheckResult> {
+    const toInstall: ComponentName[] = [];
+    const toSkip: string[] = [];
+    const conflicting: ComponentName[] = [];
+    const peerFilesToUpdate = new Set<string>();
+    const contentCache = new Map<string, string>();
+
+    for (const name of allComponents) {
+        const result = await classifyComponent(
+            name, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate,
+        );
+
+        if (result === 'skip') toSkip.push(name);
+        else if (result === 'conflict') conflicting.push(name);
+        else toInstall.push(name);
+    }
+
+    return { toInstall, toSkip, conflicting, peerFilesToUpdate, contentCache };
+}
+
+// ---------------------------------------------------------------------------
+// Overwrite prompt
+// ---------------------------------------------------------------------------
+
+async function promptOverwrite(
+    conflicting: ComponentName[],
+    options: AddOptions,
+): Promise<ComponentName[]> {
+    if (conflicting.length === 0) return [];
+
+    if (options.overwrite) return conflicting;
+    if (options.yes) return [];
+
+    console.log(chalk.yellow(`\n${conflicting.length} component(s) have local changes or are different from remote.`));
+    const { selected } = await prompts({
+        type: 'multiselect',
+        name: 'selected',
+        message: 'Select components to OVERWRITE (Unselected will be skipped):',
+        choices: conflicting.map(name => ({ title: name, value: name })),
+        hint: '- Space to select, Enter to confirm',
+    });
+    return selected || [];
+}
+
+// ---------------------------------------------------------------------------
+// File writing
+// ---------------------------------------------------------------------------
+
+async function writeComponentFiles(
+    component: ComponentDefinition,
+    targetDir: string,
+    options: AddOptions,
+    utilsAlias: string,
+    contentCache: Map<string, string>,
+    spinner: Ora,
+): Promise<boolean> {
+    let success = true;
+
+    for (const file of component.files) {
+        const targetPath = path.join(targetDir, file);
+        try {
+            const content = contentCache.get(file)
+                ?? await fetchAndTransform(file, options, utilsAlias);
+
+            await fs.ensureDir(path.dirname(targetPath));
+            await fs.writeFile(targetPath, content);
+        } catch (err: any) {
+            spinner.warn(`Could not add ${file}: ${err.message}`);
+            success = false;
+        }
+    }
+
+    return success;
+}
+
+async function writePeerFiles(
+    component: ComponentDefinition,
+    targetDir: string,
+    options: AddOptions,
+    utilsAlias: string,
+    contentCache: Map<string, string>,
+    peerFilesToUpdate: Set<string>,
+    spinner: Ora,
+): Promise<void> {
+    if (!component.peerFiles) return;
+
+    for (const file of component.peerFiles) {
+        if (!peerFilesToUpdate.has(file)) continue;
+
+        const targetPath = path.join(targetDir, file);
+        try {
+            const content = contentCache.get(file)
+                ?? await fetchAndTransform(file, options, utilsAlias);
+
+            await fs.writeFile(targetPath, content);
+            spinner.text = `Updated peer file ${file}`;
+        } catch (err: any) {
+            spinner.warn(`Could not update peer file ${file}: ${err.message}`);
+        }
+    }
+}
+
+async function installLibFiles(
+    allComponents: Set<ComponentName>,
+    cwd: string,
+    libDir: string,
+    options: AddOptions,
+): Promise<void> {
+    const required = new Set<string>();
+    for (const name of allComponents) {
+        registry[name].libFiles?.forEach(f => required.add(f));
+    }
+
+    if (required.size === 0) return;
+
+    await fs.ensureDir(libDir);
+    for (const libFile of required) {
+        const targetPath = path.join(libDir, libFile);
+        if (!await fs.pathExists(targetPath) || options.overwrite) {
+            try {
+                const content = await fetchLibContent(libFile, options);
+                await fs.writeFile(targetPath, content);
+            } catch (err: any) {
+                console.warn(chalk.yellow(`Could not install lib file ${libFile}: ${err.message}`));
+            }
+        }
+    }
+}
+
+async function installNpmDependencies(
+    finalComponents: ComponentName[],
+    cwd: string,
+): Promise<void> {
+    const deps = new Set<string>();
+    for (const name of finalComponents) {
+        registry[name].npmDependencies?.forEach(dep => deps.add(dep));
+    }
+
+    if (deps.size === 0) return;
+
+    const spinner = ora('Installing dependencies...').start();
+    try {
+        await installPackages(Array.from(deps), { cwd });
+        spinner.succeed('Dependencies installed.');
+    } catch (e) {
+        spinner.fail('Failed to install dependencies.');
+        console.error(e);
+    }
+}
+
+async function ensureShortcutService(
+    targetDir: string,
+    cwd: string,
+    config: any,
+    options: AddOptions,
+): Promise<void> {
+    const entries = collectInstalledShortcutEntries(targetDir);
+
+    if (entries.length > 0) {
+        const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
+        const servicePath = path.join(libDir, 'shortcut-binding.service.ts');
+        if (!await fs.pathExists(servicePath)) {
+            const content = await fetchLibContent('shortcut-binding.service.ts', options);
+            await fs.ensureDir(libDir);
+            await fs.writeFile(servicePath, content);
+        }
+    }
+
+    await writeShortcutRegistryIndex(cwd, config, entries);
+}
+
+function collectInstalledShortcutEntries(targetDir: string): ShortcutRegistryEntry[] {
+    const entries: ShortcutRegistryEntry[] = [];
+    for (const definition of Object.values(registry)) {
+        if (!definition.shortcutDefinitions?.length) continue;
+        for (const sd of definition.shortcutDefinitions) {
+            if (fs.existsSync(path.join(targetDir, sd.sourceFile))) {
+                entries.push(sd);
+            }
+        }
+    }
+    return entries;
+}
+
+// ---------------------------------------------------------------------------
+// Main entry point
+// ---------------------------------------------------------------------------
+
+export async function add(components: string[], options: AddOptions) {
+    const cwd = process.cwd();
+
+    const config = await getConfig(cwd);
+    if (!config) {
+        console.log(chalk.red('Error: components.json not found.'));
+        console.log(chalk.dim('Run `npx @gilav21/shadcn-angular init` first.'));
+        process.exit(1);
+    }
+
+    const componentsToAdd = await selectComponents(components, options);
     if (!componentsToAdd || componentsToAdd.length === 0) {
         console.log(chalk.dim('No components selected.'));
         return;
     }
 
-    // Validate components exist
-    const invalidComponents = componentsToAdd.filter(c => !registry[c]);
-    if (invalidComponents.length > 0) {
-        console.log(chalk.red(`Invalid component(s): ${invalidComponents.join(', ')}`));
-        console.log(chalk.dim('Available components: ' + Object.keys(registry).join(', ')));
-        process.exit(1);
-    }
+    validateComponents(componentsToAdd);
 
-    // Resolve dependencies
-    const allComponents = new Set<ComponentName>();
-    const resolveDeps = (name: ComponentName) => {
-        if (allComponents.has(name)) return;
-        allComponents.add(name);
-        const component = registry[name];
-        if (component.dependencies) {
-            component.dependencies.forEach(dep => resolveDeps(dep as ComponentName));
-        }
-    };
-    componentsToAdd.forEach(c => resolveDeps(c));
-
+    const allComponents = resolveDependencies(componentsToAdd);
     const uiBasePath = options.path ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const targetDir = resolveProjectPath(cwd, uiBasePath);
+    const utilsAlias = config.aliases.utils;
 
-    // Check for existing files and diff
-    const componentsToInstall: ComponentName[] = [];
-    const componentsToSkip: string[] = [];
-    const conflictingComponents: ComponentName[] = [];
-    const contentCache = new Map<string, string>();
-
+    // Detect conflicts
     const checkSpinner = ora('Checking for conflicts...').start();
-
-    for (const name of allComponents) {
-        const component = registry[name];
-        let hasChanges = false;
-        let isFullyPresent = true;
-
-        for (const file of component.files) {
-            const targetPath = path.join(targetDir, file);
-            if (await fs.pathExists(targetPath)) {
-                const localContent = await fs.readFile(targetPath, 'utf-8');
-
-                try {
-                    let remoteContent = await fetchComponentContent(file, options);
-                    // Transform all lib/ imports for comparison
-                    remoteContent = remoteContent.replace(/(\.\.\/)+lib\//g, config.aliases.utils + '/');
-
-                    const normalize = (str: string) => str.replace(/\r\n/g, '\n').trim();
-                    if (normalize(localContent) !== normalize(remoteContent)) {
-                        hasChanges = true;
-                    }
-                    contentCache.set(file, remoteContent); // Cache for installation
-                } catch (error) {
-                    // unexpected error fetching remote
-                    console.warn(`Could not fetch remote content for comparison: ${file}`);
-                    hasChanges = true; // Assume changed/unknown
-                }
-            } else {
-                isFullyPresent = false;
-            }
-        }
-
-        if (isFullyPresent && !hasChanges) {
-            componentsToSkip.push(name);
-        } else if (hasChanges) {
-            conflictingComponents.push(name);
-        } else {
-            componentsToInstall.push(name);
-        }
-    }
-
+    const { toInstall, toSkip, conflicting, peerFilesToUpdate, contentCache } =
+        await detectConflicts(allComponents, targetDir, options, utilsAlias);
     checkSpinner.stop();
 
-    let componentsToOverwrite: ComponentName[] = [];
-
-    if (conflictingComponents.length > 0) {
-        if (options.overwrite) {
-            componentsToOverwrite = conflictingComponents;
-        } else if (options.yes) {
-            componentsToOverwrite = []; // Skip conflicts in non-interactive mode unless --overwrite
-        } else {
-            console.log(chalk.yellow(`\n${conflictingComponents.length} component(s) have local changes or are different from remote.`));
-            const { selected } = await prompts({
-                type: 'multiselect',
-                name: 'selected',
-                message: 'Select components to OVERWRITE (Unselected will be skipped):',
-                choices: conflictingComponents.map(name => ({
-                    title: name,
-                    value: name,
-                })),
-                hint: '- Space to select, Enter to confirm',
-            });
-            componentsToOverwrite = selected || [];
-        }
-    }
-
-    // Final list of components to process
-    // We process:
-    // 1. componentsToInstall (Brand new or partial)
-    // 2. componentsToOverwrite (User selected)
-    // We SKIP:
-    // 1. componentsToSkip (Identical)
-    // 2. conflictingComponents NOT in componentsToOverwrite
-
-    const finalComponents = [...componentsToInstall, ...componentsToOverwrite];
-
-    if (finalComponents.length === 0 && componentsToSkip.length > 0) {
-        console.log(chalk.green(`\nAll components are up to date! (${componentsToSkip.length} skipped)`));
-        return;
-    }
+    // Prompt user for overwrite decisions
+    const toOverwrite = await promptOverwrite(conflicting, options);
+    const finalComponents = [...toInstall, ...toOverwrite];
 
     if (finalComponents.length === 0) {
-        console.log(chalk.dim('\nNo components to install.'));
+        if (toSkip.length > 0) {
+            console.log(chalk.green(`\nAll components are up to date! (${toSkip.length} skipped)`));
+        } else {
+            console.log(chalk.dim('\nNo components to install.'));
+        }
         return;
     }
 
+    // Install component files
     const spinner = ora('Installing components...').start();
     let successCount = 0;
 
@@ -288,28 +502,15 @@ export async function add(components: string[], options: AddOptions) {
 
         for (const name of finalComponents) {
             const component = registry[name];
-            let componentSuccess = true;
 
-            for (const file of component.files) {
-                const targetPath = path.join(targetDir, file);
+            const ok = await writeComponentFiles(
+                component, targetDir, options, utilsAlias, contentCache, spinner,
+            );
+            await writePeerFiles(
+                component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, spinner,
+            );
 
-                try {
-                    let content = contentCache.get(file);
-                    if (!content) {
-                        content = await fetchComponentContent(file, options);
-                        // Transform all lib/ imports if not already transformed (cached is transformed)
-                        content = content.replace(/(\.\.\/)+lib\//g, config.aliases.utils + '/');
-                    }
-
-                    await fs.ensureDir(path.dirname(targetPath));
-                    await fs.writeFile(targetPath, content);
-                    // spinner.text = `Added ${file}`; // Too verbose?
-                } catch (err: any) {
-                    spinner.warn(`Could not add ${file}: ${err.message}`);
-                    componentSuccess = false;
-                }
-            }
-            if (componentSuccess) {
+            if (ok) {
                 successCount++;
                 spinner.text = `Added ${name}`;
             }
@@ -317,87 +518,24 @@ export async function add(components: string[], options: AddOptions) {
 
         if (successCount > 0) {
             spinner.succeed(chalk.green(`Success! Added ${successCount} component(s)`));
-
             console.log('\n' + chalk.dim('Components added:'));
-            finalComponents.forEach(name => {
-                console.log(chalk.dim('  - ') + chalk.cyan(name));
-            });
+            finalComponents.forEach(name => console.log(chalk.dim('  - ') + chalk.cyan(name)));
         } else {
             spinner.info('No new components installed.');
         }
 
-        // Install required lib utility files
-        if (finalComponents.length > 0) {
-            const requiredLibFiles = new Set<string>();
-            for (const name of allComponents) {
-                const component = registry[name];
-                if (component.libFiles) {
-                    component.libFiles.forEach(f => requiredLibFiles.add(f));
-                }
-            }
+        // Post-install: lib files, npm deps, shortcuts
+        const libDir = resolveProjectPath(cwd, aliasToProjectPath(utilsAlias));
+        await installLibFiles(allComponents, cwd, libDir, options);
+        await installNpmDependencies(finalComponents, cwd);
+        await ensureShortcutService(targetDir, cwd, config, options);
 
-            if (requiredLibFiles.size > 0) {
-                const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
-                await fs.ensureDir(libDir);
-
-                for (const libFile of requiredLibFiles) {
-                    const libTargetPath = path.join(libDir, libFile);
-                    if (!await fs.pathExists(libTargetPath) || options.overwrite) {
-                        try {
-                            const libContent = await fetchLibContent(libFile, options);
-                            await fs.writeFile(libTargetPath, libContent);
-                        } catch (err: any) {
-                            console.warn(chalk.yellow(`Could not install lib file ${libFile}: ${err.message}`));
-                        }
-                    }
-                }
-            }
-        }
-
-        if (finalComponents.length > 0) {
-            const npmDependencies = new Set<string>();
-            for (const name of finalComponents) {
-                const component = registry[name];
-                if (component.npmDependencies) {
-                    component.npmDependencies.forEach(dep => npmDependencies.add(dep));
-                }
-            }
-
-            if (npmDependencies.size > 0) {
-                const depSpinner = ora('Installing dependencies...').start();
-                try {
-                    await installPackages(Array.from(npmDependencies), { cwd });
-                    depSpinner.succeed('Dependencies installed.');
-                } catch (e) {
-                    depSpinner.fail('Failed to install dependencies.');
-                    console.error(e);
-                }
-            }
-        }
-
-        const shortcutEntries = collectInstalledShortcutEntries(targetDir);
-        if (shortcutEntries.length > 0) {
-            const libDir2 = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
-            const shortcutServicePath = path.join(libDir2, 'shortcut-binding.service.ts');
-
-            if (!await fs.pathExists(shortcutServicePath)) {
-                const shortcutServiceContent = await fetchLibContent('shortcut-binding.service.ts', options);
-                await fs.ensureDir(libDir2);
-                await fs.writeFile(shortcutServicePath, shortcutServiceContent);
-            }
-        }
-
-        await writeShortcutRegistryIndex(cwd, config, shortcutEntries);
-
-        if (componentsToSkip.length > 0) {
+        if (toSkip.length > 0) {
             console.log('\n' + chalk.dim('Components skipped (up to date):'));
-            componentsToSkip.forEach(name => {
-                console.log(chalk.dim('  - ') + chalk.gray(name));
-            });
+            toSkip.forEach(name => console.log(chalk.dim('  - ') + chalk.gray(name)));
         }
 
         console.log('');
-
     } catch (error) {
         spinner.fail('Failed to add components');
         console.error(error);

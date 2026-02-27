@@ -155,7 +155,7 @@ export class ColumnRangeChartComponent implements AfterViewInit {
   dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
 
-  private _domRtl = signal(false);
+  private readonly _domRtl = signal(false);
 
   isRtl = computed(() => {
     const d = this.dir();

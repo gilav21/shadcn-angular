@@ -72,7 +72,7 @@ export class SidebarService {
 })
 export class SidebarProviderComponent {
   class = input('');
-  service = inject(SidebarService);
+  readonly service = inject(SidebarService);
 
   constructor() {
     this.checkMobile();
@@ -88,7 +88,7 @@ export class SidebarProviderComponent {
   }
 
   private checkMobile() {
-    const isMobile = typeof window !== 'undefined' && window.innerWidth < 768;
+    const isMobile = globalThis.window !== undefined && globalThis.window.innerWidth < 768;
     this.service.setMobile(isMobile);
   }
 }
@@ -130,8 +130,8 @@ export class SidebarComponent implements AfterViewInit {
 
   // Mobile state
   isMobile = signal(false);
-  service = inject(SidebarService);
-  private el = inject(ElementRef);
+  readonly service = inject(SidebarService);
+  private readonly el = inject(ElementRef);
 
   private contentEl?: HTMLElement;
   private previousActiveElement?: Element | null;
@@ -142,11 +142,9 @@ export class SidebarComponent implements AfterViewInit {
       if (isMobileOpen) {
         this.previousActiveElement = document.activeElement;
         setTimeout(() => this.focusFirstElement(), 0);
-      } else {
-        if (this.previousActiveElement instanceof HTMLElement) {
-          this.previousActiveElement.focus();
-          this.previousActiveElement = null;
-        }
+      } else if (this.previousActiveElement instanceof HTMLElement) {
+        this.previousActiveElement.focus();
+        this.previousActiveElement = null;
       }
     });
   }
@@ -187,19 +185,18 @@ export class SidebarComponent implements AfterViewInit {
       );
       if (focusableElements.length === 0) return;
 
-      const firstElement = focusableElements[0] as HTMLElement;
-      const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+      const elements = Array.from(focusableElements) as HTMLElement[];
+      const firstElement = elements[0];
+      const lastElement = elements.at(-1)!;
 
       if (event.shiftKey) {
         if (document.activeElement === firstElement) {
           event.preventDefault();
           lastElement?.focus();
         }
-      } else {
-        if (document.activeElement === lastElement) {
-          event.preventDefault();
-          firstElement?.focus();
-        }
+      } else if (document.activeElement === lastElement) {
+        event.preventDefault();
+        firstElement?.focus();
       }
     }
   }
@@ -210,6 +207,9 @@ export class SidebarComponent implements AfterViewInit {
     const isCollapsed = this.service.isCollapsed();
     const sideValue = this.side();
 
+    const mobileTransform = sideValue === 'left' ? '-translate-x-full' : 'translate-x-full';
+    const collapsedWidth = this.collapseMode() === 'hidden' ? 'w-0 border-none overflow-hidden' : 'w-[60px]';
+
     return cn(
       'flex flex-col bg-sidebar text-sidebar-foreground',
       'border-r border-sidebar-border',
@@ -218,12 +218,12 @@ export class SidebarComponent implements AfterViewInit {
         sideValue === 'left' ? 'left-0' : 'right-0',
         'w-[280px]',
         'transition-transform duration-300 ease-in-out',
-        isOpen ? 'translate-x-0' : (sideValue === 'left' ? '-translate-x-full' : 'translate-x-full'),
+        isOpen ? 'translate-x-0' : mobileTransform,
       ] : [
         'sticky top-0 h-screen',
         'border-r border-sidebar-border hidden md:flex',
         'transition-[width] duration-300 ease-in-out',
-        isCollapsed ? (this.collapseMode() === 'hidden' ? 'w-0 border-none overflow-hidden' : 'w-[60px]') : 'w-[280px]',
+        isCollapsed ? collapsedWidth : 'w-[280px]',
       ],
       this.class()
     );
@@ -242,7 +242,7 @@ export class SidebarComponent implements AfterViewInit {
 })
 export class SidebarHeaderComponent {
   class = input('');
-  service = inject(SidebarService);
+  readonly service = inject(SidebarService);
 
   classes = computed(() => cn(
     'flex flex-col gap-2 p-4',
@@ -333,7 +333,7 @@ export class SidebarGroupComponent {
 })
 export class SidebarGroupLabelComponent {
   class = input('');
-  service = inject(SidebarService);
+  readonly service = inject(SidebarService);
 
   classes = computed(() => cn(
     'px-2 py-1.5 text-xs font-medium text-sidebar-foreground/70',
@@ -434,7 +434,7 @@ export class SidebarMenuButtonComponent {
   isActive = input(false);
   tooltip = input('');
   onClick = output<MouseEvent>();
-  service = inject(SidebarService);
+  readonly service = inject(SidebarService);
 
   isCollapsedState = computed(() => this.service.isCollapsed() && !this.service.isMobile());
 
@@ -474,7 +474,7 @@ export class SidebarMenuLinkComponent {
   class = input('');
   href = input('#');
   isActive = input(false);
-  service = inject(SidebarService);
+  readonly service = inject(SidebarService);
 
   isCollapsedState = computed(() => this.service.isCollapsed() && !this.service.isMobile());
 
@@ -520,7 +520,7 @@ export class SidebarMenuLinkComponent {
 })
 export class SidebarTriggerComponent {
   class = input('');
-  service = inject(SidebarService);
+  readonly service = inject(SidebarService);
 
   classes = computed(() => cn(
     'inline-flex h-8 w-8 items-center justify-center rounded-md',

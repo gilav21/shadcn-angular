@@ -129,11 +129,11 @@ describe('VirtualScrollComponent', () => {
         const virtualItems = fixture.nativeElement.querySelectorAll('.virtual-item');
         expect(virtualItems.length).toBeGreaterThan(0);
 
-        const firstIndex = parseInt(virtualItems[0].getAttribute('data-index'), 10);
+        const firstIndex = Number.parseInt(virtualItems[0].dataset.index, 10);
         expect(firstIndex).toBe(0);
 
         for (let i = 1; i < virtualItems.length; i++) {
-            const idx = parseInt(virtualItems[i].getAttribute('data-index'), 10);
+            const idx = Number.parseInt(virtualItems[i].dataset.index, 10);
             expect(idx).toBe(firstIndex + i);
         }
     });
@@ -155,7 +155,7 @@ describe('VirtualScrollComponent', () => {
         const container = fixture.nativeElement.querySelector('[data-slot="virtual-scroll"]');
 
         const itemsBefore = fixture.nativeElement.querySelectorAll('.virtual-item');
-        const firstIndexBefore = parseInt(itemsBefore[0].getAttribute('data-index'), 10);
+        const firstIndexBefore = Number.parseInt(itemsBefore[0].dataset.index, 10);
         expect(firstIndexBefore).toBe(0);
 
         container.scrollTop = 2000;
@@ -163,7 +163,7 @@ describe('VirtualScrollComponent', () => {
         fixture.detectChanges();
 
         const itemsAfter = fixture.nativeElement.querySelectorAll('.virtual-item');
-        const firstIndexAfter = parseInt(itemsAfter[0].getAttribute('data-index'), 10);
+        const firstIndexAfter = Number.parseInt(itemsAfter[0].dataset.index, 10);
         expect(firstIndexAfter).toBeGreaterThan(0);
     });
 
@@ -184,7 +184,7 @@ describe('VirtualScrollComponent', () => {
         fixture.detectChanges();
 
         expect(host.windowChangeEvents.length).toBeGreaterThan(0);
-        const lastEvent = host.windowChangeEvents[host.windowChangeEvents.length - 1];
+        const lastEvent = host.windowChangeEvents.at(-1)!;
         expect(lastEvent).toHaveProperty('start');
         expect(lastEvent).toHaveProperty('end');
         expect(lastEvent.start).toBeGreaterThan(0);
@@ -233,7 +233,7 @@ describe('VirtualScrollComponent', () => {
         const contentWrapper = container.querySelector('.flex.flex-col');
         if (contentWrapper) {
             const style = contentWrapper.style.paddingTop;
-            expect(parseInt(style, 10)).toBeGreaterThan(0);
+            expect(Number.parseInt(style, 10)).toBeGreaterThan(0);
         }
     });
 
@@ -246,7 +246,7 @@ describe('VirtualScrollComponent', () => {
         fixture.detectChanges();
 
         expect(host.scrollStateEvents.length).toBeGreaterThan(0);
-        const lastState = host.scrollStateEvents[host.scrollStateEvents.length - 1] as Record<string, unknown>;
+        const lastState = host.scrollStateEvents.at(-1) as Record<string, unknown>;
         expect(lastState).toHaveProperty('windowStart');
         expect(lastState).toHaveProperty('windowEnd');
         expect(lastState).toHaveProperty('windowSize');

@@ -78,8 +78,8 @@ export class MeteorsComponent implements OnInit, OnDestroy {
         temp.style.color = raw;
         document.body.appendChild(temp);
         const computed = getComputedStyle(temp).color;
-        document.body.removeChild(temp);
-        const match = computed.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+        temp.remove();
+        const match = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(computed);
         if (match) {
             this.rgb = { r: +match[1], g: +match[2], b: +match[3] };
         }
@@ -178,7 +178,7 @@ export class MeteorsComponent implements OnInit, OnDestroy {
         return m.x < -250 || m.x > w + 250 || m.y > h + 250 || m.y < -250;
     }
 
-    private animate = () => {
+    private readonly animate = () => {
         if (!this.canvas || !this.ctx) return;
         const ctx = this.ctx;
         const w = this.canvas.width;

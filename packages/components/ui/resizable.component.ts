@@ -50,7 +50,7 @@ export class ResizablePanelGroupComponent {
   },
 })
 export class ResizablePanelComponent {
-  el = inject(ElementRef);
+  readonly el = inject(ElementRef);
   class = input('');
   defaultSize = input(50);
   minSize = input(10);
@@ -121,7 +121,7 @@ export class ResizablePanelComponent {
   },
 })
 export class ResizableHandleComponent implements AfterViewInit {
-  private el = inject(ElementRef);
+  private readonly el = inject(ElementRef);
 
   class = input('');
   withHandle = input(false);
@@ -132,8 +132,8 @@ export class ResizableHandleComponent implements AfterViewInit {
   resize = output<{ delta: number; sizes: number[] }>();
 
 
-  private isDragging = signal(false);
-  private detectedDirection = signal<'horizontal' | 'vertical'>('horizontal');
+  private readonly isDragging = signal(false);
+  private readonly detectedDirection = signal<'horizontal' | 'vertical'>('horizontal');
 
   // Store cleanup functions
   private listeners: (() => void)[] = [];
@@ -153,7 +153,7 @@ export class ResizableHandleComponent implements AfterViewInit {
   ngAfterViewInit() {
     const handleEl = this.el.nativeElement as HTMLElement;
     const groupEl = handleEl.closest('[data-slot="resizable-panel-group"]');
-    const dir = (groupEl?.getAttribute('data-direction') as 'horizontal' | 'vertical') || 'horizontal';
+    const dir = ((groupEl as HTMLElement | null)?.dataset['direction'] as 'horizontal' | 'vertical') || 'horizontal';
     this.detectedDirection.set(dir);
   }
 
@@ -211,14 +211,14 @@ export class ResizableHandleComponent implements AfterViewInit {
     this.isDragging.set(true);
 
     const handleEl = this.el.nativeElement as HTMLElement;
-    const groupEl = handleEl.closest('[data-slot="resizable-panel-group"]') as HTMLElement;
+    const groupEl = handleEl.closest<HTMLElement>('[data-slot="resizable-panel-group"]');
 
     if (!groupEl) {
       console.warn('Resizable handle not inside a panel group');
       return;
     }
 
-    const groupDirection = groupEl.getAttribute('data-direction') as 'horizontal' | 'vertical' || 'horizontal';
+    const groupDirection = groupEl.dataset['direction'] as 'horizontal' | 'vertical' || 'horizontal';
     const isHorizontal = groupDirection === 'horizontal';
     const containerSize = isHorizontal ? groupEl.offsetWidth : groupEl.offsetHeight;
 
@@ -235,14 +235,14 @@ export class ResizableHandleComponent implements AfterViewInit {
     let panelAfter: HTMLElement | null = null;
 
     for (let i = handleIndex - 1; i >= 0; i--) {
-      if (children[i].getAttribute('data-slot') === 'resizable-panel') {
+      if ((children[i] as HTMLElement).dataset['slot'] === 'resizable-panel') {
         panelBefore = children[i] as HTMLElement;
         break;
       }
     }
 
     for (let i = handleIndex + 1; i < children.length; i++) {
-      if (children[i].getAttribute('data-slot') === 'resizable-panel') {
+      if ((children[i] as HTMLElement).dataset['slot'] === 'resizable-panel') {
         panelAfter = children[i] as HTMLElement;
         break;
       }
@@ -253,8 +253,10 @@ export class ResizableHandleComponent implements AfterViewInit {
       return;
     }
 
-    const startSizeBefore = isHorizontal ? panelBefore.offsetWidth : panelBefore.offsetHeight;
-    const startSizeAfter = isHorizontal ? panelAfter.offsetWidth : panelAfter.offsetHeight;
+    const beforeEl = panelBefore;
+    const afterEl = panelAfter;
+    const startSizeBefore = isHorizontal ? beforeEl.offsetWidth : beforeEl.offsetHeight;
+    const startSizeAfter = isHorizontal ? afterEl.offsetWidth : afterEl.offsetHeight;
 
     const onMove = (clientX: number, clientY: number) => {
       let delta = isHorizontal ? clientX - startX : clientY - startY;
@@ -271,8 +273,8 @@ export class ResizableHandleComponent implements AfterViewInit {
 
       if (newPercentBefore >= 10 && newPercentAfter >= 10 &&
         newPercentBefore <= 90 && newPercentAfter <= 90) {
-        panelBefore!.style.flexBasis = `${newPercentBefore}%`;
-        panelAfter!.style.flexBasis = `${newPercentAfter}%`;
+        beforeEl.style.flexBasis = `${newPercentBefore}%`;
+        afterEl.style.flexBasis = `${newPercentAfter}%`;
 
         this.resize.emit({
           delta,

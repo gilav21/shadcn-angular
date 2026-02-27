@@ -115,7 +115,7 @@ describe('DockComponent', () => {
 
             const item1Style = items[0].nativeElement.style.width;
             expect(item1Style).toBeTruthy();
-            const widthVal = parseFloat(item1Style);
+            const widthVal = Number.parseFloat(item1Style);
             expect(widthVal).toBeGreaterThan(40);
             expect(widthVal).toBeLessThanOrEqual(80);
         });
@@ -177,7 +177,7 @@ describe('DockComponent', () => {
 
         it('should apply active state from item data', () => {
             const items = fixture.debugElement.queryAll(By.directive(DockItemComponent));
-            const activeIndicator = items[1].query(By.css('.bg-foreground\\/50'));
+            const activeIndicator = items[1].query(By.css(String.raw`.bg-foreground\/50`));
             expect(activeIndicator).toBeTruthy();
         });
 

@@ -34,7 +34,7 @@ describe('PropertyEditorComponent', () => {
         id: 'test-comp',
         name: 'Test Component',
         category: 'general',
-        component: class {} as any,
+        component: class { readonly _mock = true; } as any,
         icon: 'box',
         inputs: [
             { name: 'title', type: 'string', label: 'Title' },
@@ -229,12 +229,11 @@ describe('PropertyEditorComponent', () => {
         });
 
         const el = fixture.nativeElement as HTMLElement;
-        const deleteButton = el.querySelector('button') as HTMLButtonElement;
         const allButtons = el.querySelectorAll('button');
         let foundDeleteButton: HTMLButtonElement | null = null;
         allButtons.forEach((btn) => {
             if (btn.textContent?.includes('Delete Component')) {
-                foundDeleteButton = btn as HTMLButtonElement;
+                foundDeleteButton = btn;
             }
         });
 
@@ -305,7 +304,7 @@ describe('PropertyEditorComponent', () => {
             id: 'empty-comp',
             name: 'Empty Component',
             category: 'general',
-            component: class {} as any,
+            component: class { readonly _mock = true; } as any,
             inputs: [],
         };
 

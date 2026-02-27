@@ -1,8 +1,7 @@
-import { Meta, StoryObj } from '@storybook/angular';
-import { moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { UiConfettiDirective } from './confetti.directive';
 import { ButtonComponent } from './button.component';
-import { Component, viewChild } from '@angular/core';
+import { Component } from '@angular/core';
 
 @Component({
     selector: 'confetti-demo',
@@ -25,6 +24,13 @@ class ConfettiDemoComponent {
     }
 }
 
+function fireConfetti(component: { trigger: boolean }) {
+    component.trigger = false;
+    setTimeout(() => {
+        component.trigger = true;
+    });
+}
+
 @Component({
     selector: 'confetti-side-cannons-demo',
     imports: [UiConfettiDirective, ButtonComponent],
@@ -39,10 +45,7 @@ class ConfettiSideCannonsDemoComponent {
     options = { variant: 'side-cannons' as const, particleCount: 80 };
 
     fire() {
-        this.trigger = false;
-        setTimeout(() => {
-            this.trigger = true;
-        });
+        fireConfetti(this);
     }
 }
 

@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   DrawerComponent,
   DrawerTriggerComponent,
@@ -10,7 +10,6 @@ import {
   DrawerCloseComponent,
 } from './drawer.component';
 import { ButtonComponent } from './button.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<DrawerComponent> = {
   title: 'UI/Drawer',

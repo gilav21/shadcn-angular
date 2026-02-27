@@ -3,10 +3,8 @@ import {
     Directive,
     ElementRef,
     Input,
-    OnInit,
     OnDestroy,
     inject,
-    HostListener,
     AfterViewInit,
     Renderer2
 } from '@angular/core';
@@ -22,16 +20,16 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
     @Input() slotChar: string = '_';
     @Input() showMaskTyped: boolean = false;
 
-    private el = inject(ElementRef);
-    private renderer = inject(Renderer2);
-    private ngControl = inject(NgControl, { optional: true, self: true });
-    private uiInput = inject(InputComponent, { optional: true, self: true });
+    private readonly el = inject(ElementRef);
+    private readonly renderer = inject(Renderer2);
+    private readonly ngControl = inject(NgControl, { optional: true, self: true });
+    private readonly uiInput = inject(InputComponent, { optional: true, self: true });
 
     private inputElement!: HTMLInputElement;
-    private destroyValues: (() => void)[] = [];
+    private readonly destroyValues: (() => void)[] = [];
 
     // Map of mask definitions
-    private definitions: { [key: string]: RegExp } = {
+    private readonly definitions: { [key: string]: RegExp } = {
         '0': /\d/,
         '9': /\d/,
         'a': /[a-zA-Z]/,
@@ -83,16 +81,14 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
         const rawValue = this.unmask(value);
         const maskedValue = this.applyMask(rawValue);
 
-        if (value !== maskedValue) {
+        if (value === maskedValue) {
+            this.updateModel(maskedValue);
+        } else {
             input.value = maskedValue;
             this.updateModel(maskedValue);
 
             const newCursorPos = this.calculateCursorPosition(oldCursorPos, value, maskedValue);
             input.setSelectionRange(newCursorPos, newCursorPos);
-        } else {
-            // Even if value matches, we might need to update model if it was just set programmatically
-            // but typically input event means user interaction
-            this.updateModel(maskedValue);
         }
     }
 
@@ -160,39 +156,49 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
             const maskChar = this.mask[maskIndex];
             const matcher = this.definitions[maskChar];
 
-            if (matcher) {
-                if (rawIndex < rawValue.length) {
-                    const rawChar = rawValue[rawIndex];
-                    if (matcher.test(rawChar)) {
-                        masked += rawChar;
-                        rawIndex++;
-                        maskIndex++;
-                    } else {
-                        // Invalid char for this slot, skip it?
-                        rawIndex++; // Skip the invalid char from input
-                        // Stay on this mask slot
-                    }
-                } else {
-                    // We ran out of raw values
-                    if (this.slotChar && this.showMaskTyped) {
-                        masked += this.slotChar;
-                    }
-                    maskIndex++;
-                    break; // Stop if we just want to fill what we have
-                    // Continue if we want to show full mask
-                }
-            } else {
-                // Literal
+            if (!matcher) {
+                const result = this.applyLiteral(maskChar, rawValue, rawIndex);
+                rawIndex = result.rawIndex;
                 masked += maskChar;
                 maskIndex++;
-                // If the next char in rawValue is this literal, consume it too
-                if (rawIndex < rawValue.length && rawValue[rawIndex] === maskChar) {
-                    rawIndex++;
-                }
+                continue;
+            }
+
+            const result = this.applyMaskChar(matcher, rawValue, rawIndex);
+            if (result.done) {
+                masked += result.char;
+                maskIndex++;
+                break;
+            }
+            masked += result.char;
+            rawIndex = result.rawIndex;
+            if (result.advanceMask) {
+                maskIndex++;
             }
         }
 
         return masked;
+    }
+
+    private applyLiteral(maskChar: string, rawValue: string, rawIndex: number): { rawIndex: number } {
+        if (rawIndex < rawValue.length && rawValue[rawIndex] === maskChar) {
+            return { rawIndex: rawIndex + 1 };
+        }
+        return { rawIndex };
+    }
+
+    private applyMaskChar(matcher: RegExp, rawValue: string, rawIndex: number): { char: string; rawIndex: number; advanceMask: boolean; done: boolean } {
+        if (rawIndex >= rawValue.length) {
+            const slotFill = (this.slotChar && this.showMaskTyped) ? this.slotChar : '';
+            return { char: slotFill, rawIndex, advanceMask: true, done: true };
+        }
+
+        const rawChar = rawValue[rawIndex];
+        if (matcher.test(rawChar)) {
+            return { char: rawChar, rawIndex: rawIndex + 1, advanceMask: true, done: false };
+        }
+
+        return { char: '', rawIndex: rawIndex + 1, advanceMask: false, done: false };
     }
 
     private calculateCursorPosition(oldPos: number, oldValue: string, newValue: string): number {
