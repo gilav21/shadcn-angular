@@ -169,7 +169,24 @@ import { cn } from '../../lib/utils';
                           ariaLabel="Select all"
                         />
                       } @else if (col.accessorKey === '_expander') {
-                        <span class="sr-only">Expand row</span>
+                        <button
+                          type="button"
+                          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                          [attr.aria-label]="isAllExpanded() ? 'Collapse all rows' : 'Expand all rows'"
+                          (click)="toggleAllExpanded()"
+                        >
+                          @if (isAllExpanded()) {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="17 11 12 6 7 11"/>
+                              <polyline points="17 18 12 13 7 18"/>
+                            </svg>
+                          } @else {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="7 13 12 18 17 13"/>
+                              <polyline points="7 6 12 11 17 6"/>
+                            </svg>
+                          }
+                        </button>
                       } @else if (col.headerTemplate) {
                         <ng-container *ngTemplateOutlet="col.headerTemplate; context: { $implicit: col }"></ng-container>
                       } @else if (col.enableSorting !== false) {
@@ -821,6 +838,33 @@ export class DataTableComponent<T> {
       next[id] = true;
     }
     this.expandedRows.set(next);
+  }
+
+  isAllExpanded = computed(() => {
+    const ids = this.filteredRowIds();
+    if (ids.length === 0) return false;
+    const expanded = this.expandedRows();
+    return ids.every(id => !!expanded[id]);
+  });
+
+  isExpansionIndeterminate = computed(() => {
+    const ids = this.filteredRowIds();
+    const expanded = this.expandedRows();
+    const count = ids.filter(id => !!expanded[id]).length;
+    return count > 0 && count < ids.length;
+  });
+
+  toggleAllExpanded() {
+    const ids = this.filteredRowIds();
+    if (this.isAllExpanded()) {
+      const next = { ...this.expandedRows() };
+      ids.forEach(id => delete next[id]);
+      this.expandedRows.set(next);
+    } else {
+      const next = { ...this.expandedRows() };
+      ids.forEach(id => next[id] = true);
+      this.expandedRows.set(next);
+    }
   }
 
   getRowDetailComponentInputs(row: T): Record<string, unknown> {

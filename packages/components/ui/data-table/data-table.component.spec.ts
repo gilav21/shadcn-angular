@@ -859,6 +859,72 @@ describe('DataTableComponent', () => {
         });
     });
 
+    describe('Expand All / Collapse All', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('enableRowExpansion', true);
+            fixture.detectChanges();
+        });
+
+        it('should return false from isAllExpanded when no rows are expanded', () => {
+            expect(component.isAllExpanded()).toBe(false);
+        });
+
+        it('should return true from isAllExpanded when all filtered rows are expanded', () => {
+            const getId = component.getRowId();
+            const expanded: Record<string, boolean> = {};
+            TEST_DATA.forEach(row => expanded[getId(row)] = true);
+            component.expandedRows.set(expanded);
+            fixture.detectChanges();
+
+            expect(component.isAllExpanded()).toBe(true);
+        });
+
+        it('should return true from isExpansionIndeterminate when some rows are expanded', () => {
+            const getId = component.getRowId();
+            component.expandedRows.set({ [getId(TEST_DATA[0])]: true });
+            fixture.detectChanges();
+
+            expect(component.isExpansionIndeterminate()).toBe(true);
+            expect(component.isAllExpanded()).toBe(false);
+        });
+
+        it('should expand all filtered rows via toggleAllExpanded', () => {
+            component.toggleAllExpanded();
+            fixture.detectChanges();
+
+            expect(component.isAllExpanded()).toBe(true);
+            TEST_DATA.forEach(row => {
+                expect(component.isRowExpanded(row)).toBe(true);
+            });
+        });
+
+        it('should collapse all filtered rows via toggleAllExpanded when all are expanded', () => {
+            component.toggleAllExpanded(); // expand all
+            fixture.detectChanges();
+            expect(component.isAllExpanded()).toBe(true);
+
+            component.toggleAllExpanded(); // collapse all
+            fixture.detectChanges();
+            expect(component.isAllExpanded()).toBe(false);
+            TEST_DATA.forEach(row => {
+                expect(component.isRowExpanded(row)).toBe(false);
+            });
+        });
+
+        it('should only affect filtered rows when a filter is active', () => {
+            component.onFilterChange('Admin'); // Alice + David
+            fixture.detectChanges();
+
+            component.toggleAllExpanded();
+            fixture.detectChanges();
+
+            expect(component.isAllExpanded()).toBe(true);
+            expect(component.isRowExpanded(TEST_DATA[0])).toBe(true); // Alice (Admin)
+            expect(component.isRowExpanded(TEST_DATA[3])).toBe(true); // David (Admin)
+            expect(component.isRowExpanded(TEST_DATA[1])).toBe(false); // Bob (not in filter)
+        });
+    });
+
     describe('getFilterInputs', () => {
         it('should return static filterComponentInputs as-is', () => {
             const col: ColumnDef<TestData> = {
