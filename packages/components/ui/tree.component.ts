@@ -1,12 +1,15 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    Directive,
+    TemplateRef,
     input,
     computed,
     signal,
     inject,
     InjectionToken,
     forwardRef,
+    contentChild,
     contentChildren,
     output,
     ElementRef,
@@ -26,6 +29,13 @@ export interface TreeNode {
 }
 
 export const TREE = new InjectionToken<TreeComponent>('TREE');
+
+@Directive({
+    selector: '[uiTreeNodeContent]',
+})
+export class TreeNodeContentDirective {
+    readonly templateRef = inject(TemplateRef);
+}
 
 @Component({
     selector: 'ui-tree',
@@ -48,10 +58,14 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
           @for (node of nodes; track node.key) {
             <ui-tree-item [value]="node.key" [hasNested]="!!(node.children && node.children.length > 0)">
               <ui-tree-label>
-                @if (node.icon) {
-                  <ui-tree-icon>{{ node.icon }}</ui-tree-icon>
+                @if (nodeContent(); as nc) {
+                  <ng-container *ngTemplateOutlet="nc.templateRef; context: { $implicit: node }" />
+                } @else {
+                  @if (node.icon) {
+                    <ui-tree-icon>{{ node.icon }}</ui-tree-icon>
+                  }
+                  {{ node.label }}
                 }
-                {{ node.label }}
               </ui-tree-label>
               @if (node.children && node.children.length > 0 && isExpanded(node.key)) {
                 <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: node.children, depth: depth + 1 }" />
@@ -72,6 +86,8 @@ export class TreeComponent {
     selectable = input<'single' | 'multiple' | 'none'>('none');
     data = input<TreeNode[]>([]);
     initialExpandDepth = input<number>(0);
+
+    readonly nodeContent = contentChild(TreeNodeContentDirective);
 
 
     expandedKeys = signal<Set<string>>(new Set());
@@ -489,8 +505,8 @@ let nextId = 0;
         }
         <ng-content select="ui-tree-label" />
       </div>
-      @if (hasChildren() && isExpanded()) {
-        <div class="ps-4" role="group">
+      @if (hasChildren()) {
+        <div class="ps-4" role="group" [hidden]="!isExpanded()">
           <ng-content />
         </div>
       }
