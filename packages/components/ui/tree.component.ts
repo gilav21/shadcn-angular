@@ -53,7 +53,7 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
                 }
                 {{ node.label }}
               </ui-tree-label>
-              @if (node.children && node.children.length > 0) {
+              @if (node.children && node.children.length > 0 && isExpanded(node.key)) {
                 <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: node.children, depth: depth + 1 }" />
               }
             </ui-tree-item>
@@ -71,6 +71,7 @@ export class TreeComponent {
     class = input('');
     selectable = input<'single' | 'multiple' | 'none'>('none');
     data = input<TreeNode[]>([]);
+    initialExpandDepth = input<number>(0);
 
 
     expandedKeys = signal<Set<string>>(new Set());
@@ -83,14 +84,38 @@ export class TreeComponent {
     treeRoot = viewChild<ElementRef<HTMLElement>>('treeRoot');
     items = signal<TreeItemComponent[]>([]);
     private readonly _itemRegistry = new Set<TreeItemComponent>();
+    private _updateScheduled = false;
 
     private readonly el = inject(ElementRef);
 
     constructor() {
         effect(() => {
-            this.data();
+            const nodes = this.data();
+            const depth = this.initialExpandDepth();
             this.ancestorCache.clear();
+
+            if (nodes.length > 0 && depth !== 0) {
+                const keys = this.collectKeysToDepth(nodes, depth);
+                this.expandedKeys.set(keys);
+                this.expandChange.emit(Array.from(keys));
+            }
         });
+    }
+
+    private collectKeysToDepth(nodes: TreeNode[], maxDepth: number): Set<string> {
+        const keys = new Set<string>();
+        const traverse = (list: TreeNode[], currentDepth: number) => {
+            for (const node of list) {
+                if (node.children && node.children.length > 0) {
+                    if (maxDepth === -1 || currentDepth < maxDepth) {
+                        keys.add(node.key);
+                        traverse(node.children, currentDepth + 1);
+                    }
+                }
+            }
+        };
+        traverse(nodes, 0);
+        return keys;
     }
 
     activeDescendantId = computed(() => {
@@ -171,12 +196,21 @@ export class TreeComponent {
 
     registerItem(item: TreeItemComponent) {
         this._itemRegistry.add(item);
-        this.updateItemsList();
+        this.scheduleItemsUpdate();
     }
 
     unregisterItem(item: TreeItemComponent) {
         this._itemRegistry.delete(item);
-        this.updateItemsList();
+        this.scheduleItemsUpdate();
+    }
+
+    private scheduleItemsUpdate() {
+        if (this._updateScheduled) return;
+        this._updateScheduled = true;
+        queueMicrotask(() => {
+            this._updateScheduled = false;
+            this.updateItemsList();
+        });
     }
 
     private readonly flattenedKeys = computed(() => {
@@ -395,11 +429,19 @@ export class TreeComponent {
     }
 
     private expandAllCollapsed(items: readonly TreeItemComponent[]) {
-        items.forEach(item => {
-            if (item.hasChildren() && !this.isExpanded(item.value())) {
-                this.toggleExpanded(item.value());
+        const current = this.expandedKeys();
+        const next = new Set(current);
+        let changed = false;
+        for (const item of items) {
+            if (item.hasChildren() && !next.has(item.value())) {
+                next.add(item.value());
+                changed = true;
             }
-        });
+        }
+        if (changed) {
+            this.expandedKeys.set(next);
+            this.expandChange.emit(Array.from(next));
+        }
     }
 }
 

@@ -1104,14 +1104,17 @@ export class AppComponent {
     });
   }
 
-  onTreeContextMenu(action: string, node: any) {
+  onTreeContextMenu(action: string, node: unknown) {
+    const label = (node as Record<string, unknown>)?.['label'] ?? 'Unknown';
     console.log(`Tree Context Menu Action: ${action}`, node);
     this.toastService.toast({
       title: 'Tree Context Menu Action',
-      description: `Action: ${action} on node ${node?.label}`,
+      description: `Action: ${action} on node ${label}`,
       variant: 'default',
     });
   }
+
+  readonly largeTreeData = signal<TreeNode[]>(this.generateDeepTree(5, 7));
 
   onTreeTableContextMenu(event: any) {
     console.log('Tree table context menu:', event);
@@ -2730,5 +2733,21 @@ ORDER BY created_at DESC;`;
 
   scrollVirtualToBottom() {
     this.virtualScrollRef()?.scrollToBottom();
+  }
+
+  private generateDeepTree(breadth: number, depth: number, prefix = 'node'): TreeNode[] {
+    if (depth === 0) return [];
+    const nodes: TreeNode[] = [];
+    for (let i = 0; i < breadth; i++) {
+      const key = `${prefix}-${i}`;
+      const children = depth > 1 ? this.generateDeepTree(breadth, depth - 1, key) : undefined;
+      nodes.push({
+        key,
+        label: key,
+        icon: children ? '📁' : '📄',
+        children,
+      });
+    }
+    return nodes;
   }
 }

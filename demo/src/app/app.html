@@ -3010,6 +3010,22 @@
               </ui-context-menu-content>
             </ui-context-menu>
           </div>
+
+          <h3 class="text-lg font-medium pt-4">Data-Driven Mode</h3>
+          <p class="text-sm text-muted-foreground">
+            Using the <code>[data]</code> input with <code>[initialExpandDepth]="1"</code> to auto-expand the first level.
+          </p>
+          <div class="max-w-sm border rounded-md p-4">
+            <ui-tree [data]="treeSelectNodes()" [initialExpandDepth]="1" selectable="single" />
+          </div>
+
+          <h3 class="text-lg font-medium pt-4">Large Dataset (5 x 7 depth = 97,655 nodes)</h3>
+          <p class="text-sm text-muted-foreground">
+            Lazy rendering: only root nodes are in the DOM initially. Children render on expand.
+          </p>
+          <div class="max-w-md border rounded-md p-4 max-h-96 overflow-auto">
+            <ui-tree [data]="largeTreeData()" selectable="single" />
+          </div>
         </section>
         }
         @case ('tree-select') {
