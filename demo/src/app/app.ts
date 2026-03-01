@@ -242,6 +242,9 @@ import {
   StepperDescriptionComponent,
   StepperContentComponent,
   FileUploadComponent,
+  FileViewerComponent,
+  FileViewerToolbarDirective,
+  FileViewerContentDirective,
   ColorPickerComponent,
   DataTableComponent,
   ColumnDef,
@@ -759,6 +762,9 @@ class OpsTicketDetailComponent {
     StepperDescriptionComponent,
     StepperContentComponent,
     FileUploadComponent,
+    FileViewerComponent,
+    FileViewerToolbarDirective,
+    FileViewerContentDirective,
     ColorPickerComponent,
     UiConfettiDirective,
     NumberTickerComponent,
@@ -1917,6 +1923,7 @@ ORDER BY created_at DESC;`;
     { id: 'rating', name: 'Rating', category: 'Inputs', icon: '⭐' },
     { id: 'stepper', name: 'Stepper', category: 'Navigation', icon: '👣' },
     { id: 'file-upload', name: 'File Upload', category: 'Advanced', icon: '📤' },
+    { id: 'file-viewer', name: 'File Viewer', category: 'Advanced', icon: '👁' },
     { id: 'color-picker', name: 'Color Picker', category: 'Advanced', icon: '🎨' },
     { id: 'confetti', name: 'Confetti', category: 'Advanced', icon: '🎉' },
     { id: 'number-ticker', name: 'Number Ticker', category: 'Data Display', icon: '🔢' },
@@ -2073,6 +2080,37 @@ ORDER BY created_at DESC;`;
   activeStep = signal(0);
   demoColor = signal('#3b82f6');
   colorPresets = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+  // File Viewer Demo
+  fileViewerFile = signal<File | null>(null);
+  fileViewerType = signal('');
+
+  onFileViewerDrop(event: DragEvent): void {
+    event.preventDefault();
+    const file = event.dataTransfer?.files[0];
+    if (file) this.fileViewerFile.set(file);
+  }
+
+  onFileViewerSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) this.fileViewerFile.set(file);
+  }
+
+  setFileViewerDemo(type: string): void {
+    const demos: Record<string, () => File> = {
+      text: () => new File(
+        ['# Hello World\n\nThis is a **sample** text file.\n\n- Item 1\n- Item 2\n- Item 3\n\n```typescript\nconst greeting = "Hello!";\nconsole.log(greeting);\n```'],
+        'readme.md', { type: 'text/plain' }
+      ),
+      svg: () => new File(
+        ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4F46E5"/><stop offset="100%" stop-color="#7C3AED"/></linearGradient></defs><rect width="200" height="200" rx="20" fill="url(#g)"/><text x="100" y="110" text-anchor="middle" fill="white" font-size="24" font-family="sans-serif">SVG</text></svg>'],
+        'logo.svg', { type: 'image/svg+xml' }
+      ),
+    };
+    const fn = demos[type];
+    if (fn) this.fileViewerFile.set(fn());
+  }
 
   // Confetti Demo
   confettiTrigger1 = signal(false);
