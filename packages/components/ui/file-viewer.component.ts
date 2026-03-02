@@ -14,7 +14,13 @@ import {
 import { DomSanitizer, type SafeHtml, type SafeResourceUrl, type SafeUrl } from '@angular/platform-browser';
 import { cn } from '../lib/utils';
 import { SpinnerComponent } from './spinner.component';
-import type { FileViewerType } from '../lib/file-type-detector';
+import type { FileViewerType, FileTypeResult } from '../lib/file-type-detector';
+import type {
+    PptxTextFrame, PptxTextRun, PptxBullet,
+    PptxShapeElement, PptxConnectorElement, PptxTableElement,
+    PptxParagraph, PptxGradientFill, PptxPatternFill, PptxEffects,
+    PptxUnderlineStyle, PptxTabStop,
+} from '../lib/pptx-parser';
 
 type ViewerState = 'idle' | 'loading' | 'loaded' | 'error';
 
@@ -33,6 +39,15 @@ export class FileViewerToolbarDirective {}
 
 @Directive({ selector: 'ui-file-viewer-content' })
 export class FileViewerContentDirective {}
+
+const HEADING_CLASSES: Record<number, string> = {
+    1: 'text-4xl font-bold mt-6 mb-3',
+    2: 'text-3xl font-bold mt-5 mb-3',
+    3: 'text-2xl font-bold mt-4 mb-2',
+    4: 'text-xl font-bold mt-4 mb-2',
+    5: 'text-lg font-bold mt-3 mb-2',
+    6: 'text-base font-bold mt-3 mb-2',
+};
 
 @Component({
     selector: 'ui-file-viewer',
@@ -122,7 +137,8 @@ export class FileViewerContentDirective {}
                                              [alt]="displayFilename()"
                                              class="max-w-full max-h-full object-contain transition-transform"
                                              [style.transform]="'scale(' + currentZoom() + ')'"
-                                             [style.transform-origin]="'center center'" />
+                                             [style.transform-origin]="'center center'"
+                                             (error)="onMediaError('Failed to load image')" />
                                     </div>
                                 }
                                 @case ('pdf') {
@@ -133,6 +149,11 @@ export class FileViewerContentDirective {}
                                 }
                                 @case ('xlsx') {
                                     <div class="flex flex-col h-full">
+                                        @if (xlsxTruncated()) {
+                                            <div class="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-xs border-b">
+                                                Showing first 10,000 rows. Download the file to see all data.
+                                            </div>
+                                        }
                                         <div class="flex-1 overflow-auto">
                                             <table class="w-full border-collapse text-sm">
                                                 <thead class="sticky top-0 bg-muted z-10">
@@ -174,9 +195,26 @@ export class FileViewerContentDirective {}
                                          [innerHTML]="docxHtml()">
                                     </div>
                                 }
+                                @case ('doc') {
+                                    <div class="p-6 max-w-4xl mx-auto"
+                                         [style.zoom]="currentZoom()"
+                                         [innerHTML]="docxHtml()">
+                                    </div>
+                                }
                                 @case ('pptx') {
                                     <div class="flex items-center justify-center p-4">
-                                        <div class="bg-white rounded shadow-lg overflow-hidden"
+                                        <div class="bg-white rounded shadow-lg"
+                                             [style.width.px]="pptxDisplayWidth()"
+                                             [style.height.px]="pptxDisplayHeight()"
+                                             [style.transform]="'scale(' + currentZoom() + ')'"
+                                             [style.transform-origin]="'center center'"
+                                             [innerHTML]="currentSlideHtml()">
+                                        </div>
+                                    </div>
+                                }
+                                @case ('ppt') {
+                                    <div class="flex items-center justify-center p-4">
+                                        <div class="bg-white rounded shadow-lg"
                                              [style.width.px]="pptxDisplayWidth()"
                                              [style.height.px]="pptxDisplayHeight()"
                                              [style.transform]="'scale(' + currentZoom() + ')'"
@@ -193,14 +231,16 @@ export class FileViewerContentDirective {}
                                 }
                                 @case ('video') {
                                     <div class="flex items-center justify-center p-4 h-full">
-                                        <video controls class="max-w-full max-h-full" [src]="mediaSrc()">
+                                        <video controls class="max-w-full max-h-full" [src]="mediaSrc()"
+                                               (error)="onMediaError('Failed to load video. The format may not be supported by your browser.')">
                                             Your browser does not support the video element.
                                         </video>
                                     </div>
                                 }
                                 @case ('audio') {
                                     <div class="flex items-center justify-center p-6">
-                                        <audio controls [src]="mediaSrc()" class="w-full max-w-lg">
+                                        <audio controls [src]="mediaSrc()" class="w-full max-w-lg"
+                                               (error)="onMediaError('Failed to load audio. The format may not be supported by your browser.')">
                                             Your browser does not support the audio element.
                                         </audio>
                                     </div>
@@ -261,7 +301,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     readonly pdfSrc = signal<SafeResourceUrl>('');
     readonly downloadUrl = signal<SafeUrl>('');
 
-    private readonly xlsxData = signal<{ sheets: ReadonlyArray<{ name: string; data: string[][] }> } | null>(null);
+    private readonly xlsxData = signal<{ sheets: ReadonlyArray<{ name: string; data: string[][] }>; truncated?: boolean } | null>(null);
     readonly activeSheetIndex = signal(0);
     private readonly docxRenderedHtml = signal('');
     private readonly pptxSlides = signal<ReadonlyArray<{ html: string; width: number; height: number }>>([]);
@@ -278,12 +318,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
     readonly isPaginated = computed(() => {
         const t = this.detectedType();
-        return t === 'pptx';
+        return t === 'pptx' || t === 'ppt';
     });
 
     readonly isZoomable = computed(() => {
         const t = this.detectedType();
-        return t === 'image' || t === 'docx' || t === 'pptx' || t === 'text';
+        return t === 'image' || t === 'docx' || t === 'doc' || t === 'pptx' || t === 'ppt' || t === 'text';
     });
 
     readonly zoomPercent = computed(() => Math.round(this.currentZoom() * 100));
@@ -292,6 +332,11 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const data = this.xlsxData();
         if (!data) return [];
         return data.sheets.map(s => s.name);
+    });
+
+    readonly xlsxTruncated = computed(() => {
+        const data = this.xlsxData();
+        return data?.truncated ?? false;
     });
 
     readonly xlsxHeaderRow = computed<string[] | null>(() => {
@@ -402,6 +447,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.activeSheetIndex.set(index);
     }
 
+    onMediaError(message: string): void {
+        this.handleError(message);
+    }
+
     private async loadFromUrl(url: string): Promise<void> {
         this.state.set('loading');
         try {
@@ -434,14 +483,17 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             const buffer = await file.arrayBuffer();
             const bytes = new Uint8Array(buffer);
 
-            const fileType = this.type() || await this.detectType(bytes);
+            const typeResult = this.type()
+                ? { type: this.type() as FileViewerType, mimeType: '', extension: '' }
+                : await this.detectTypeResult(bytes);
+            const fileType = typeResult.type;
             this.detectedType.set(fileType);
 
             const blobUrl = URL.createObjectURL(file);
             this.blobUrls.push(blobUrl);
             this.downloadUrl.set(this.sanitizer.bypassSecurityTrustUrl(blobUrl));
 
-            await this.processFile(fileType, bytes, buffer, file);
+            await this.processFile(fileType, bytes, file, typeResult.mimeType);
 
             this.state.set('loaded');
             this.loaded.emit({
@@ -453,12 +505,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         }
     }
 
-    private async detectType(bytes: Uint8Array): Promise<FileViewerType> {
+    private async detectTypeResult(bytes: Uint8Array): Promise<FileTypeResult> {
         const { detectFileType } = await import('../lib/file-type-detector');
-        return detectFileType(bytes).type;
+        return detectFileType(bytes);
     }
 
-    private async processFile(type: FileViewerType, bytes: Uint8Array, buffer: ArrayBuffer, file: File | Blob): Promise<void> {
+    private async processFile(type: FileViewerType, bytes: Uint8Array, file: File | Blob, mimeType: string): Promise<void> {
         switch (type) {
             case 'image':
                 await this.processImage(bytes, file);
@@ -472,15 +524,21 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             case 'docx':
                 await this.processDocx(bytes);
                 break;
+            case 'doc':
+                await this.processDoc(bytes);
+                break;
             case 'pptx':
                 await this.processPptx(bytes);
+                break;
+            case 'ppt':
+                await this.processLegacyPpt(bytes);
                 break;
             case 'text':
                 this.processText(bytes);
                 break;
             case 'video':
             case 'audio':
-                this.processMedia(file);
+                this.processMedia(bytes, mimeType);
                 break;
             default:
                 break;
@@ -538,6 +596,22 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.docxRenderedHtml.set(this.renderDocxToHtml(result.elements));
     }
 
+    private async processDoc(bytes: Uint8Array): Promise<void> {
+        const { parseDoc } = await import('../lib/doc-parser');
+        const result = parseDoc(bytes);
+        this.docxRenderedHtml.set(this.renderDocElements(result.elements));
+    }
+
+    private renderDocElements(elements: ReadonlyArray<{ readonly type: string; readonly text: string; readonly rtl?: boolean }>): string {
+        const parts: string[] = [];
+        for (const el of elements) {
+            if (!el.text.trim()) continue;
+            const dirAttr = el.rtl ? ' dir="rtl"' : '';
+            parts.push(`<p class="mb-3 leading-relaxed"${dirAttr}>${this.escapeHtml(el.text)}</p>`);
+        }
+        return parts.join('\n');
+    }
+
     private renderDocxToHtml(elements: ReadonlyArray<unknown>): string {
         const parts: string[] = [];
         for (const el of elements) {
@@ -554,31 +628,131 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private renderDocxParagraph(el: unknown): string {
-        const para = el as { runs: ReadonlyArray<{ text: string; style: { bold?: boolean; italic?: boolean; underline?: boolean; fontSize?: number; color?: string } }>; style: string; listLevel?: number; listType?: string };
+        const para = el as {
+            runs: ReadonlyArray<{
+                text: string;
+                href?: string;
+                style: {
+                    bold?: boolean; italic?: boolean; underline?: boolean; strikethrough?: boolean;
+                    fontSize?: number; color?: string; fontFamily?: string;
+                    highlight?: string; backgroundColor?: string;
+                    vertAlign?: string; rtl?: boolean;
+                };
+            }>;
+            style: string;
+            listLevel?: number; listType?: string;
+            rtl?: boolean; alignment?: string;
+            spacingBefore?: number; spacingAfter?: number; lineSpacing?: number;
+            indentLeft?: number; indentRight?: number; indentHanging?: number;
+        };
 
-        const isHeading = para.style.startsWith('Heading');
-        const headingMatch = /Heading(\d)/.exec(para.style);
-        const level = headingMatch ? Number.parseInt(headingMatch[1], 10) : 0;
-
-        let content = '';
-        for (const run of para.runs) {
-            let text = this.escapeHtml(run.text);
-            if (run.style.bold) text = `<strong>${text}</strong>`;
-            if (run.style.italic) text = `<em>${text}</em>`;
-            if (run.style.underline) text = `<u>${text}</u>`;
-            if (run.style.color) text = `<span style="color:${run.style.color}">${text}</span>`;
-            content += text;
-        }
-
+        const content = para.runs.map(run => this.buildRunHtml(run)).join('');
         if (!content.trim()) return '';
 
-        if (isHeading && level >= 1 && level <= 6) {
-            return `<h${level} class="font-bold mt-4 mb-2">${content}</h${level}>`;
+        const attrs = this.buildParagraphAttrs(para);
+        const tag = this.getParagraphTag(para);
+
+        return `<${tag.tag} ${attrs}>${tag.prefix}${content}${tag.suffix}</${tag.tag}>`;
+    }
+
+    private buildRunHtml(run: {
+        text: string;
+        href?: string;
+        style: {
+            bold?: boolean; italic?: boolean; underline?: boolean; strikethrough?: boolean;
+            fontSize?: number; color?: string; fontFamily?: string;
+            highlight?: string; backgroundColor?: string;
+            vertAlign?: string; rtl?: boolean;
+        };
+    }): string {
+        let text = this.escapeHtml(run.text);
+        if (run.style.bold) text = `<strong>${text}</strong>`;
+        if (run.style.italic) text = `<em>${text}</em>`;
+        if (run.style.underline) text = `<u>${text}</u>`;
+        if (run.style.strikethrough) text = `<s>${text}</s>`;
+        if (run.style.vertAlign === 'superscript') text = `<sup>${text}</sup>`;
+        if (run.style.vertAlign === 'subscript') text = `<sub>${text}</sub>`;
+
+        const styles = this.buildRunStyles(run.style);
+        if (styles) text = `<span style="${styles}">${text}</span>`;
+
+        if (run.href) {
+            text = `<a href="${this.escapeHtml(run.href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
+        }
+
+        return text;
+    }
+
+    private buildRunStyles(style: {
+        fontSize?: number; color?: string; fontFamily?: string;
+        highlight?: string; backgroundColor?: string;
+    }): string {
+        const parts: string[] = [];
+        if (style.color) parts.push(`color:${style.color}`);
+        if (style.fontSize) parts.push(`font-size:${style.fontSize}pt`);
+        if (style.fontFamily) parts.push(`font-family:'${style.fontFamily}',sans-serif`);
+        if (style.highlight) parts.push(`background-color:${style.highlight}`);
+        if (style.backgroundColor && !style.highlight) parts.push(`background-color:${style.backgroundColor}`);
+        return parts.join(';');
+    }
+
+    private buildParagraphAttrs(para: {
+        rtl?: boolean; alignment?: string;
+        spacingBefore?: number; spacingAfter?: number; lineSpacing?: number;
+        indentLeft?: number; indentRight?: number; indentHanging?: number;
+        listLevel?: number;
+    }): string {
+        const attrs: string[] = [];
+        if (para.rtl) attrs.push('dir="rtl"');
+
+        const styles = this.buildParagraphStyles(para);
+        if (styles) attrs.push(`style="${styles}"`);
+
+        return attrs.join(' ');
+    }
+
+    private buildParagraphStyles(para: {
+        alignment?: string; spacingBefore?: number; spacingAfter?: number;
+        lineSpacing?: number; indentLeft?: number; indentRight?: number;
+        indentHanging?: number; listLevel?: number;
+    }): string {
+        const parts: string[] = [];
+        if (para.alignment) parts.push(`text-align:${this.mapDocxAlignment(para.alignment)}`);
+        if (para.spacingBefore) parts.push(`margin-top:${para.spacingBefore}pt`);
+        if (para.spacingAfter) parts.push(`margin-bottom:${para.spacingAfter}pt`);
+        if (para.lineSpacing && para.lineSpacing > 0) parts.push(`line-height:${para.lineSpacing}`);
+        if (para.indentLeft) parts.push(`margin-left:${para.indentLeft}pt`);
+        if (para.indentRight) parts.push(`margin-right:${para.indentRight}pt`);
+        if (para.indentHanging) parts.push(`text-indent:-${para.indentHanging}pt`);
+        if (para.listLevel !== undefined) parts.push(`margin-left:${(para.listLevel) * 24}px`);
+        return parts.join(';');
+    }
+
+    private getParagraphTag(para: {
+        style: string; listType?: string; listLevel?: number;
+    }): { tag: string; prefix: string; suffix: string } {
+        const headingMatch = /Heading(\d)/.exec(para.style);
+        if (headingMatch) {
+            const level = Number.parseInt(headingMatch[1], 10);
+            if (level >= 1 && level <= 6) {
+                const cls = HEADING_CLASSES[level] ?? 'font-bold mt-4 mb-2';
+                return { tag: `h${level} class="${cls}"`, prefix: '', suffix: '' };
+            }
         }
         if (para.listType) {
-            return `<li style="margin-left:${(para.listLevel ?? 0) * 24}px">${content}</li>`;
+            return { tag: 'li', prefix: '', suffix: '' };
         }
-        return `<p class="mb-2 leading-relaxed">${content}</p>`;
+        return { tag: 'p class="mb-3 leading-relaxed"', prefix: '', suffix: '' };
+    }
+
+    private mapDocxAlignment(alignment: string): string {
+        switch (alignment) {
+            case 'right': return 'right';
+            case 'center': return 'center';
+            case 'both':
+            case 'distribute': return 'justify';
+            default: return 'left';
+        }
     }
 
     private renderDocxTable(el: unknown): string {
@@ -617,47 +791,663 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.currentPage.set(Math.min(this.page(), result.slides.length));
     }
 
-    private renderSlideToHtml(slide: { elements: ReadonlyArray<{ type: string; x: number; y: number; width: number; height: number }> }): string {
-        let html = '<div style="position:relative;width:100%;height:100%;background:#fff;">';
+    private async processLegacyPpt(bytes: Uint8Array): Promise<void> {
+        const { parsePpt } = await import('../lib/ppt-parser');
+        const result = parsePpt(bytes);
+
+        const slides = result.slides.map(slide => ({
+            html: this.renderSlideToHtml(slide),
+            width: result.slideWidth,
+            height: result.slideHeight,
+        }));
+
+        this.pptxSlides.set(slides);
+        this.totalPages.set(result.slides.length);
+        this.currentPage.set(Math.min(this.page(), result.slides.length));
+    }
+
+    private renderSlideToHtml(slide: {
+        elements: ReadonlyArray<{ type: string; x: number; y: number; width: number; height: number }>;
+        backgroundColor?: string;
+        backgroundImage?: string;
+    }): string {
+        const bgStyles = ['position:relative', 'width:100%', 'height:100%'];
+        bgStyles.push(`background-color:${slide.backgroundColor ?? '#fff'}`);
+        if (slide.backgroundImage) {
+            bgStyles.push(`background-image:url(${slide.backgroundImage})`);
+            bgStyles.push('background-size:cover');
+            bgStyles.push('background-position:center');
+        }
+        let html = `<div style="${bgStyles.join(';')}">`;
         for (const el of slide.elements) {
-            if (el.type === 'text') {
-                html += this.renderSlideTextFrame(el as unknown as { runs: ReadonlyArray<{ text: string; bold?: boolean; italic?: boolean; fontSize?: number; color?: string }>; x: number; y: number; width: number; height: number });
-            } else if (el.type === 'image') {
-                const img = el as unknown as { dataUrl: string; x: number; y: number; width: number; height: number };
-                html += `<img src="${img.dataUrl}" style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.width}px;height:${img.height}px;object-fit:contain;" />`;
-            }
+            html += this.renderSlideElement(el);
         }
         html += '</div>';
         return html;
     }
 
-    private renderSlideTextFrame(tf: { runs: ReadonlyArray<{ text: string; bold?: boolean; italic?: boolean; fontSize?: number; color?: string }>; x: number; y: number; width: number; height: number }): string {
-        let content = '';
-        for (const run of tf.runs) {
-            if (run.text === '\n') {
-                content += '<br/>';
-                continue;
-            }
-            let text = this.escapeHtml(run.text);
-            if (run.bold) text = `<strong>${text}</strong>`;
-            if (run.italic) text = `<em>${text}</em>`;
-            const styles: string[] = [];
-            if (run.fontSize) styles.push(`font-size:${run.fontSize}px`);
-            if (run.color) styles.push(`color:${run.color}`);
-            if (styles.length > 0) {
-                text = `<span style="${styles.join(';')}">${text}</span>`;
-            }
-            content += text;
+    private renderSlideElement(el: { type: string; x: number; y: number; width: number; height: number }): string {
+        if (el.type === 'text') {
+            return this.renderSlideTextFrame(el as unknown as PptxTextFrame);
         }
-        return `<div style="position:absolute;left:${tf.x}px;top:${tf.y}px;width:${tf.width}px;height:${tf.height}px;overflow:hidden;padding:4px;box-sizing:border-box;">${content}</div>`;
+        if (el.type === 'image') {
+            const img = el as unknown as { dataUrl: string; x: number; y: number; width: number; height: number };
+            return `<img src="${img.dataUrl}" style="position:absolute;left:${img.x}px;top:${img.y}px;width:${img.width}px;height:${img.height}px;object-fit:contain;z-index:2" />`;
+        }
+        if (el.type === 'table') {
+            return this.renderSlideTable(el as unknown as PptxTableElement);
+        }
+        if (el.type === 'shape') {
+            return this.renderSlideShape(el as unknown as PptxShapeElement);
+        }
+        if (el.type === 'connector') {
+            return this.renderSlideConnector(el as unknown as PptxConnectorElement);
+        }
+        return '';
+    }
+
+    private renderSlideTextFrame(tf: PptxTextFrame): string {
+        let content = '';
+        let autoNumCounter = 0;
+        for (const para of tf.paragraphs) {
+            if (para.bullet?.type === 'autoNum') {
+                autoNumCounter++;
+            } else {
+                autoNumCounter = 0;
+            }
+            content += this.renderSlideParagraph(para, autoNumCounter);
+        }
+        const styles = this.buildTextFrameStyles(tf);
+        return `<div style="${styles.join(';')}">${content}</div>`;
+    }
+
+    private renderSlideParagraph(para: PptxParagraph, autoNumCounter: number): string {
+        let content = '';
+        if (para.bullet && para.bullet.type !== 'none') {
+            content += this.renderBulletPrefix(para.bullet, autoNumCounter);
+        }
+        for (const run of para.runs) {
+            // Handle tab characters in run text
+            if (run.text.includes('\t')) {
+                const tabRendered = this.renderTabContent(run.text, para.tabs, para.defaultTabSize);
+                const runWithReplacedText = { ...run, text: '' };
+                const runHtml = this.renderSlideRun(runWithReplacedText);
+                // Insert tab-rendered content into the span
+                content += runHtml.replace('></span>', `>${tabRendered}</span>`).replace(/^$/, tabRendered);
+            } else {
+                content += this.renderSlideRun(run);
+            }
+        }
+        if (!content) content = '<br/>';
+        const styles = this.buildSlideParagraphStyles(para);
+        const dirAttr = para.rtl ? ' dir="rtl"' : '';
+        return `<div style="${styles.join(';')}"${dirAttr}>${content}</div>`;
+    }
+
+    private renderSlideRun(run: PptxTextRun): string {
+        let text = this.escapeHtml(run.text);
+        if (run.bold) text = `<strong>${text}</strong>`;
+        if (run.italic) text = `<em>${text}</em>`;
+        if (run.strikethrough) text = `<s>${text}</s>`;
+        if (run.baseline && run.baseline > 0) text = `<sup>${text}</sup>`;
+        if (run.baseline && run.baseline < 0) text = `<sub>${text}</sub>`;
+
+        const styles: string[] = [];
+        if (run.fontSize) styles.push(`font-size:${run.fontSize}pt`);
+        if (run.fontFamily) styles.push(`font-family:'${run.fontFamily}',sans-serif`);
+
+        this.applyRunFillStyles(run, styles);
+        this.applyRunDecorationStyles(run, styles);
+        this.applyRunTextEffects(run, styles);
+
+        // Underline: use CSS if underlineStyle, else <u> tag
+        if (run.underlineStyle) {
+            styles.push(...this.buildUnderlineCss(run.underlineStyle));
+        } else if (run.underline) {
+            text = `<u>${text}</u>`;
+        }
+
+        // Hyperlink default styling
+        if (run.isHyperlink && !run.color && !run.gradientFill && !run.noFill) {
+            styles.push('color:#0563C1');
+        }
+        if (run.isHyperlink && !run.underline && !run.underlineStyle) {
+            text = `<u>${text}</u>`;
+        }
+
+        const attrs: string[] = [];
+        if (styles.length > 0) attrs.push(`style="${styles.join(';')}"`);
+        if (run.hoverTooltip) attrs.push(`title="${this.escapeHtml(run.hoverTooltip)}"`);
+
+        if (attrs.length > 0) text = `<span ${attrs.join(' ')}>${text}</span>`;
+        return text;
+    }
+
+    private applyRunFillStyles(run: PptxTextRun, styles: string[]): void {
+        if (run.noFill) {
+            styles.push('color:transparent');
+            return;
+        }
+        if (run.gradientFill) {
+            styles.push(`background:${this.buildGradientCss(run.gradientFill)}`);
+            styles.push('-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
+            return;
+        }
+        if (run.imageFill) {
+            styles.push(`background-image:url(${run.imageFill})`);
+            styles.push('background-size:cover', '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
+            return;
+        }
+        if (run.patternFill) {
+            styles.push(this.buildPatternCss(run.patternFill));
+            styles.push('-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
+            return;
+        }
+        if (run.color) styles.push(`color:${run.color}`);
+    }
+
+    private applyRunDecorationStyles(run: PptxTextRun, styles: string[]): void {
+        if (run.cap === 'all') styles.push('text-transform:uppercase');
+        if (run.cap === 'small') styles.push('font-variant:small-caps');
+        if (run.spc != null) styles.push(`letter-spacing:${run.spc}pt`);
+        if (run.highlight) styles.push(`background-color:${run.highlight}`);
+    }
+
+    private applyRunTextEffects(run: PptxTextRun, styles: string[]): void {
+        if (run.textOutline) {
+            styles.push(`-webkit-text-stroke-width:${run.textOutline.width}pt`);
+            if (run.textOutline.color) styles.push(`-webkit-text-stroke-color:${run.textOutline.color}`);
+            styles.push('paint-order:stroke fill');
+        }
+        if (run.effects) styles.push(...this.buildEffectsCss(run.effects, 'text'));
+    }
+
+    private renderBulletPrefix(bullet: PptxBullet, autoNumCounter: number): string {
+        // Image bullet
+        if (bullet.imageDataUrl) {
+            return `<img src="${bullet.imageDataUrl}" style="height:1em;vertical-align:middle;margin-right:0.25em;display:inline-block" />`;
+        }
+
+        let text = '';
+        if (bullet.type === 'char') {
+            text = bullet.char ?? '•';
+        } else if (bullet.type === 'autoNum') {
+            const startAt = bullet.startAt ?? 1;
+            text = this.formatAutoNumber(bullet.autoNumScheme ?? 'arabicPeriod', autoNumCounter, startAt);
+        }
+
+        const styles: string[] = ['display:inline-block', 'min-width:1.5em', 'margin-right:0.25em'];
+        if (bullet.color) styles.push(`color:${bullet.color}`);
+        if (bullet.fontFamily) styles.push(`font-family:'${bullet.fontFamily}',sans-serif`);
+        if (bullet.sizePoints) styles.push(`font-size:${bullet.sizePoints}pt`);
+
+        return `<span style="${styles.join(';')}">${this.escapeHtml(text)}</span>`;
+    }
+
+    private formatAutoNumber(scheme: string, counter: number, startAt: number): string {
+        const n = counter - 1 + startAt;
+        switch (scheme) {
+            case 'arabicPeriod': return `${n}.`;
+            case 'arabicParenR': return `${n})`;
+            case 'romanUcPeriod': return `${this.toRoman(n)}.`;
+            case 'romanLcPeriod': return `${this.toRoman(n).toLowerCase()}.`;
+            case 'alphaUcPeriod': return `${this.toAlpha(n)}.`;
+            case 'alphaLcPeriod': return `${this.toAlpha(n).toLowerCase()}.`;
+            default: return `${n}.`;
+        }
+    }
+
+    private toRoman(n: number): string {
+        const vals = [1000, 900, 500, 400, 100, 90, 50, 40, 10, 9, 5, 4, 1];
+        const syms = ['M', 'CM', 'D', 'CD', 'C', 'XC', 'L', 'XL', 'X', 'IX', 'V', 'IV', 'I'];
+        let result = '';
+        let remaining = n;
+        for (let i = 0; i < vals.length; i++) {
+            while (remaining >= vals[i]) {
+                result += syms[i];
+                remaining -= vals[i];
+            }
+        }
+        return result;
+    }
+
+    private toAlpha(n: number): string {
+        if (n <= 0) return '';
+        let result = '';
+        let remaining = n;
+        while (remaining > 0) {
+            remaining--;
+            result = String.fromCodePoint(65 + (remaining % 26)) + result;
+            remaining = Math.floor(remaining / 26);
+        }
+        return result;
+    }
+
+    private buildTextFrameStyles(tf: {
+        readonly x: number; readonly y: number; readonly width: number; readonly height: number;
+        readonly fillColor?: string; readonly borderColor?: string;
+        readonly borderWidth?: number; readonly rotation?: number;
+    }): string[] {
+        const styles = [
+            'position:absolute',
+            `left:${tf.x}px`, `top:${tf.y}px`,
+            `width:${tf.width}px`,
+            'padding:4px', 'box-sizing:border-box',
+            'z-index:4',
+        ];
+        if (tf.fillColor) styles.push(`background-color:${tf.fillColor}`);
+        if (tf.borderColor) styles.push(`border:${tf.borderWidth ?? 1}px solid ${tf.borderColor}`);
+        if (tf.rotation) styles.push(`transform:rotate(${tf.rotation}deg)`);
+        return styles;
+    }
+
+    private buildSlideParagraphStyles(para: PptxParagraph): string[] {
+        const styles: string[] = ['margin:0'];
+        if (para.alignment) styles.push(`text-align:${this.mapSlideAlignment(para.alignment)}`);
+        if (para.spacingBefore) styles.push(`margin-top:${para.spacingBefore}pt`);
+        if (para.spacingAfter) styles.push(`margin-bottom:${para.spacingAfter}pt`);
+        if (para.lineSpacing) styles.push(`line-height:${para.lineSpacing}`);
+        if (para.marginLeft) styles.push(`margin-left:${para.marginLeft}px`);
+        if (para.indent) styles.push(`text-indent:${para.indent}px`);
+        if (para.level) styles.push(`padding-left:${para.level * 24}px`);
+        if (para.fontAlign) {
+            const vaMap: Record<string, string> = { auto: 'baseline', t: 'top', ctr: 'middle', base: 'baseline', b: 'bottom' };
+            styles.push(`vertical-align:${vaMap[para.fontAlign] ?? 'baseline'}`);
+        }
+        return styles;
+    }
+
+    private renderSlideShape(shape: PptxShapeElement): string {
+        const styles: string[] = [
+            'position:absolute',
+            `left:${shape.x}px`, `top:${shape.y}px`,
+            `width:${shape.width}px`, `height:${shape.height}px`,
+            'z-index:1',
+        ];
+
+        this.applyShapeFillStyles(shape, styles);
+
+        if (shape.borderColor) {
+            const borderStyle = this.mapDashStyleToCss(shape.dashStyle);
+            styles.push(`border:${shape.borderWidth ?? 1}px ${borderStyle} ${shape.borderColor}`);
+        }
+        if (shape.rotation) styles.push(`transform:rotate(${shape.rotation}deg)`);
+
+        const borderRadius = this.getShapeBorderRadius(shape.shapeType);
+        if (borderRadius) styles.push(`border-radius:${borderRadius}`);
+
+        const clipPath = this.getShapeClipPath(shape.shapeType);
+        if (clipPath) styles.push(`clip-path:${clipPath}`);
+
+        if (shape.effects) styles.push(...this.buildEffectsCss(shape.effects, 'shape'));
+
+        return `<div style="${styles.join(';')}"></div>`;
+    }
+
+    private applyShapeFillStyles(shape: PptxShapeElement, styles: string[]): void {
+        if (shape.gradientFill) {
+            styles.push(`background:${this.buildGradientCss(shape.gradientFill)}`);
+        } else if (shape.imageFill) {
+            styles.push(`background-image:url(${shape.imageFill})`);
+            styles.push('background-size:cover');
+        } else if (shape.patternFill) {
+            styles.push(this.buildPatternCss(shape.patternFill));
+        } else if (shape.fillColor) {
+            styles.push(`background-color:${shape.fillColor}`);
+        }
+    }
+
+    private getShapeBorderRadius(shapeType: string): string {
+        switch (shapeType) {
+            case 'roundRect': return '8px';
+            case 'ellipse': return '50%';
+            default: return '';
+        }
+    }
+
+    private getShapeClipPath(shapeType: string): string {
+        switch (shapeType) {
+            case 'rightArrow':
+            case 'notchedRightArrow':
+                return 'polygon(0 20%, 70% 20%, 70% 0, 100% 50%, 70% 100%, 70% 80%, 0 80%)';
+            case 'leftArrow':
+                return 'polygon(30% 0, 30% 20%, 100% 20%, 100% 80%, 30% 80%, 30% 100%, 0 50%)';
+            case 'upArrow':
+                return 'polygon(50% 0, 100% 30%, 80% 30%, 80% 100%, 20% 100%, 20% 30%, 0 30%)';
+            case 'downArrow':
+                return 'polygon(20% 0, 80% 0, 80% 70%, 100% 70%, 50% 100%, 0 70%, 20% 70%)';
+            case 'leftRightArrow':
+                return 'polygon(0 50%, 15% 20%, 15% 35%, 85% 35%, 85% 20%, 100% 50%, 85% 80%, 85% 65%, 15% 65%, 15% 80%)';
+            case 'upDownArrow':
+                return 'polygon(50% 0, 80% 15%, 65% 15%, 65% 85%, 80% 85%, 50% 100%, 20% 85%, 35% 85%, 35% 15%, 20% 15%)';
+            case 'chevron':
+                return 'polygon(0 0, 80% 0, 100% 50%, 80% 100%, 0 100%, 20% 50%)';
+            case 'homePlate':
+                return 'polygon(0 0, 85% 0, 100% 50%, 85% 100%, 0 100%)';
+            default:
+                return '';
+        }
+    }
+
+    private mapDashStyleToCss(dashStyle?: string): string {
+        if (!dashStyle) return 'solid';
+        switch (dashStyle) {
+            case 'dot':
+            case 'sysDot': return 'dotted';
+            case 'dash':
+            case 'sysDash':
+            case 'lgDash':
+            case 'dashDot':
+            case 'lgDashDot':
+            case 'sysDashDot':
+            case 'lgDashDotDot':
+            case 'sysDashDotDot': return 'dashed';
+            default: return 'solid';
+        }
+    }
+
+    private renderSlideConnector(conn: PptxConnectorElement): string {
+        const color = conn.color ?? '#000';
+        const lw = conn.lineWidth ?? 1;
+        const pad = lw + 2;
+        const w = Math.max(conn.width, 0);
+        const h = Math.max(conn.height, 0);
+        const svgW = w + pad * 2;
+        const svgH = h + pad * 2;
+
+        const dashAttr = this.getConnectorDashAttr(conn.dashStyle);
+        const markerDefs = this.getConnectorMarkerDefs(conn, color);
+        const markerAttrs = this.getConnectorMarkerAttrs(conn);
+
+        const pathD = this.buildConnectorPath(conn.connectorType, w, h, conn.flipH, conn.flipV, pad);
+
+        return `<svg style="position:absolute;left:${conn.x - pad}px;top:${conn.y - pad}px;width:${svgW}px;height:${svgH}px;pointer-events:none;z-index:1">${markerDefs}<path d="${pathD}" stroke="${color}" stroke-width="${lw}" fill="none"${dashAttr}${markerAttrs}/></svg>`;
+    }
+
+    private flipPoint(x: number, y: number, w: number, h: number, fH?: boolean, fV?: boolean): [number, number] {
+        return [fH ? w - x : x, fV ? h - y : y];
+    }
+
+    private buildConnectorPath(
+        connType: string | undefined, w: number, h: number, flipH?: boolean, flipV?: boolean, pad = 0,
+    ): string {
+        if (connType?.startsWith('bentConnector')) {
+            return this.buildBentConnectorPath(connType, w, h, flipH, flipV, pad);
+        }
+        if (connType?.startsWith('curvedConnector')) {
+            return this.buildCurvedConnectorPath(w, h, flipH, flipV, pad);
+        }
+        // Straight line: start at (0,0), end at (w,h) in logical space, then flip + offset by pad
+        const [x1, y1] = this.flipPoint(0, 0, w, h, flipH, flipV);
+        const [x2, y2] = this.flipPoint(w, h, w, h, flipH, flipV);
+        return `M${x1 + pad},${y1 + pad} L${x2 + pad},${y2 + pad}`;
+    }
+
+    private buildBentConnectorPath(
+        connType: string, w: number, h: number, flipH?: boolean, flipV?: boolean, pad = 0,
+    ): string {
+        const midX = w / 2;
+        const fp = (x: number, y: number): [number, number] => {
+            const [fx, fy] = this.flipPoint(x, y, w, h, flipH, flipV);
+            return [fx + pad, fy + pad];
+        };
+
+        if (connType === 'bentConnector2') {
+            const [x0, y0] = fp(0, 0);
+            const [x1, y1] = fp(w, 0);
+            const [x2, y2] = fp(w, h);
+            return `M${x0},${y0} L${x1},${y1} L${x2},${y2}`;
+        }
+
+        // bentConnector3+: Z-shape horizontal-first
+        const [x0, y0] = fp(0, 0);
+        const [x1, y1] = fp(midX, 0);
+        const [x2, y2] = fp(midX, h);
+        const [x3, y3] = fp(w, h);
+        return `M${x0},${y0} L${x1},${y1} L${x2},${y2} L${x3},${y3}`;
+    }
+
+    private buildCurvedConnectorPath(
+        w: number, h: number, flipH?: boolean, flipV?: boolean, pad = 0,
+    ): string {
+        const fp = (x: number, y: number): [number, number] => {
+            const [fx, fy] = this.flipPoint(x, y, w, h, flipH, flipV);
+            return [fx + pad, fy + pad];
+        };
+        const [x0, y0] = fp(0, 0);
+        const [cx1, cy1] = fp(w / 2, 0);
+        const [cx2, cy2] = fp(w / 2, h);
+        const [x1, y1] = fp(w, h);
+        return `M${x0},${y0} C${cx1},${cy1} ${cx2},${cy2} ${x1},${y1}`;
+    }
+
+    private getConnectorDashAttr(dashStyle?: string): string {
+        if (!dashStyle) return '';
+        switch (dashStyle) {
+            case 'dot':
+            case 'sysDot': return ' stroke-dasharray="2,4"';
+            case 'dash':
+            case 'sysDash': return ' stroke-dasharray="8,4"';
+            case 'lgDash': return ' stroke-dasharray="12,4"';
+            case 'dashDot':
+            case 'sysDashDot': return ' stroke-dasharray="8,4,2,4"';
+            case 'lgDashDot': return ' stroke-dasharray="12,4,2,4"';
+            case 'lgDashDotDot':
+            case 'sysDashDotDot': return ' stroke-dasharray="12,4,2,4,2,4"';
+            default: return '';
+        }
+    }
+
+    private getConnectorMarkerDefs(conn: PptxConnectorElement, color: string): string {
+        if (!conn.headEnd && !conn.tailEnd) return '';
+        let defs = '<defs>';
+        if (conn.tailEnd) {
+            defs += `<marker id="arrow-end" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto"><polygon points="0 0, 10 3.5, 0 7" fill="${color}"/></marker>`;
+        }
+        if (conn.headEnd) {
+            defs += `<marker id="arrow-start" markerWidth="10" markerHeight="7" refX="0" refY="3.5" orient="auto"><polygon points="10 0, 0 3.5, 10 7" fill="${color}"/></marker>`;
+        }
+        defs += '</defs>';
+        return defs;
+    }
+
+    private getConnectorMarkerAttrs(conn: PptxConnectorElement): string {
+        let attrs = '';
+        if (conn.tailEnd) attrs += ' marker-end="url(#arrow-end)"';
+        if (conn.headEnd) attrs += ' marker-start="url(#arrow-start)"';
+        return attrs;
+    }
+
+    private renderSlideTable(table: PptxTableElement): string {
+        let html = `<div style="position:absolute;left:${table.x}px;top:${table.y}px;width:${table.width}px;height:${table.height}px;overflow:hidden;z-index:3">`;
+        html += '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+
+        if (table.columnWidths) {
+            html += '<colgroup>';
+            for (const w of table.columnWidths) {
+                html += `<col style="width:${w}px">`;
+            }
+            html += '</colgroup>';
+        }
+
+        for (const row of table.rows) {
+            html += '<tr>';
+            for (const cell of row) {
+                const text = this.escapeHtml(cell.text);
+                const content = cell.bold ? `<strong>${text}</strong>` : text;
+                const cellStyles: string[] = ['border:1px solid #ccc', 'padding:2px 4px'];
+                if (cell.fillColor) cellStyles.push(`background:${cell.fillColor}`);
+                if (cell.color) cellStyles.push(`color:${cell.color}`);
+                html += `<td style="${cellStyles.join(';')}">${content}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table></div>';
+        return html;
+    }
+
+    private buildGradientCss(grad: PptxGradientFill): string {
+        const stopStr = grad.stops.map(s => `${s.color} ${s.position}%`).join(', ');
+        if (grad.type === 'linear') {
+            return `linear-gradient(${grad.angle ?? 0}deg, ${stopStr})`;
+        }
+        return `radial-gradient(ellipse at center, ${stopStr})`;
+    }
+
+    private buildPatternCss(pat: PptxPatternFill): string {
+        const fg = pat.fgColor;
+        const bg = pat.bgColor;
+        const preset = pat.preset;
+
+        if (preset.startsWith('pct')) {
+            const pct = Number.parseInt(preset.replace('pct', ''), 10);
+            const size = Math.max(4, Math.round(20 - pct / 6));
+            return `background-color:${bg};background-image:radial-gradient(circle, ${fg} 1px, transparent 1px);background-size:${size}px ${size}px`;
+        }
+
+        return this.buildPatternCssForPreset(preset, fg, bg);
+    }
+
+    private buildPatternCssForPreset(preset: string, fg: string, bg: string): string {
+        switch (preset) {
+            case 'horz':
+            case 'ltHorz':
+            case 'narHorz':
+                return `background-color:${bg};background-image:repeating-linear-gradient(0deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+            case 'dkHorz':
+                return `background-color:${bg};background-image:repeating-linear-gradient(0deg,${fg},${fg} 2px,transparent 2px,transparent 6px)`;
+            case 'vert':
+            case 'ltVert':
+            case 'narVert':
+                return `background-color:${bg};background-image:repeating-linear-gradient(90deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+            case 'dkVert':
+                return `background-color:${bg};background-image:repeating-linear-gradient(90deg,${fg},${fg} 2px,transparent 2px,transparent 6px)`;
+            case 'dnDiag':
+            case 'ltDnDiag':
+                return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+            case 'upDiag':
+            case 'ltUpDiag':
+                return `background-color:${bg};background-image:repeating-linear-gradient(135deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+            case 'dkDnDiag':
+                return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 2px,transparent 2px,transparent 6px)`;
+            case 'dkUpDiag':
+                return `background-color:${bg};background-image:repeating-linear-gradient(135deg,${fg},${fg} 2px,transparent 2px,transparent 6px)`;
+            case 'cross':
+            case 'smGrid':
+            case 'lgGrid':
+                return `background-color:${bg};background-image:repeating-linear-gradient(0deg,${fg},${fg} 1px,transparent 1px,transparent 8px),repeating-linear-gradient(90deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+            case 'diagCross':
+                return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 1px,transparent 1px,transparent 8px),repeating-linear-gradient(135deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+            default:
+                return `background-color:${bg};background-image:repeating-linear-gradient(45deg,${fg},${fg} 1px,transparent 1px,transparent 8px)`;
+        }
+    }
+
+    private buildEffectsCss(effects: PptxEffects, context: 'text' | 'shape'): string[] {
+        const result: string[] = [];
+        const filters: string[] = [];
+
+        if (effects.outerShadow) {
+            const s = effects.outerShadow;
+            if (context === 'text') {
+                result.push(`text-shadow:${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color}`);
+            } else {
+                result.push(`box-shadow:${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color}`);
+            }
+        }
+
+        if (effects.innerShadow && context === 'shape') {
+            const s = effects.innerShadow;
+            result.push(`box-shadow:inset ${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.color}`);
+        }
+
+        if (effects.glow) {
+            if (context === 'text') {
+                filters.push(`drop-shadow(0 0 ${effects.glow.radius}px ${effects.glow.color})`);
+            } else {
+                result.push(`box-shadow:0 0 ${effects.glow.radius}px ${effects.glow.color}`);
+            }
+        }
+
+        if (effects.blur) filters.push(`blur(${effects.blur}px)`);
+        if (effects.softEdge) {
+            result.push(`mask-image:radial-gradient(ellipse, black ${Math.max(0, 100 - effects.softEdge)}%, transparent 100%)`);
+        }
+        if (effects.reflection) {
+            const r = effects.reflection;
+            result.push(`-webkit-box-reflect:below ${r.distance}px linear-gradient(transparent, rgba(0,0,0,${r.startOpacity}))`);
+        }
+        if (filters.length > 0) result.push(`filter:${filters.join(' ')}`);
+
+        return result;
+    }
+
+    private buildUnderlineCss(uStyle: PptxUnderlineStyle): string[] {
+        const result: string[] = ['text-decoration-line:underline'];
+        if (uStyle.color) result.push(`text-decoration-color:${uStyle.color}`);
+        if (uStyle.width) result.push(`text-decoration-thickness:${uStyle.width}pt`);
+
+        if (uStyle.compound === 'dbl' || uStyle.compound === 'tri') {
+            result.push('text-decoration-style:double');
+        } else if (uStyle.dashStyle) {
+            result.push(`text-decoration-style:${this.mapDashToDecorationStyle(uStyle.dashStyle)}`);
+        }
+
+        return result;
+    }
+
+    private mapDashToDecorationStyle(dashStyle: string): string {
+        switch (dashStyle) {
+            case 'dot':
+            case 'sysDot': return 'dotted';
+            case 'dash':
+            case 'sysDash':
+            case 'lgDash':
+            case 'dashDot':
+            case 'lgDashDot':
+            case 'sysDashDot': return 'dashed';
+            default: return 'solid';
+        }
+    }
+
+    private renderTabContent(text: string, tabs?: ReadonlyArray<PptxTabStop>, defaultTabSize?: number): string {
+        if (!text.includes('\t')) return this.escapeHtml(text);
+
+        const parts = text.split('\t');
+        let result = this.escapeHtml(parts[0]);
+
+        for (let i = 1; i < parts.length; i++) {
+            if (tabs && tabs.length >= i) {
+                const tab = tabs[i - 1];
+                const align = tab.alignment === 'r' ? 'right' : tab.alignment === 'ctr' ? 'center' : 'left';
+                result += `<span style="display:inline-block;min-width:${tab.position}px;text-align:${align}"></span>`;
+            } else {
+                const tabWidth = defaultTabSize ?? 48;
+                result += `<span style="display:inline-block;width:${tabWidth}px"></span>`;
+            }
+            result += this.escapeHtml(parts[i]);
+        }
+
+        return result;
+    }
+
+    private mapSlideAlignment(alignment: string): string {
+        switch (alignment) {
+            case 'ctr': return 'center';
+            case 'r': return 'right';
+            case 'just': return 'justify';
+            default: return 'left';
+        }
     }
 
     private processText(bytes: Uint8Array): void {
         this.textContent.set(new TextDecoder().decode(bytes));
     }
 
-    private processMedia(file: File | Blob): void {
-        const url = URL.createObjectURL(file);
+    private processMedia(bytes: Uint8Array, mimeType: string): void {
+        const effectiveMime = mimeType || 'application/octet-stream';
+        const blob = new Blob([bytes as BlobPart], { type: effectiveMime });
+        const url = URL.createObjectURL(blob);
         this.blobUrls.push(url);
         this.mediaSrc.set(this.sanitizer.bypassSecurityTrustUrl(url));
     }

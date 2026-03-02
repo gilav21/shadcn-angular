@@ -10,6 +10,7 @@ export interface XlsxSheet {
 
 export interface XlsxParseResult {
     readonly sheets: XlsxSheet[];
+    readonly truncated?: boolean;
 }
 
 export interface XlsxParseOptions {
@@ -138,8 +139,9 @@ function getCellValue(cell: Element, sharedStrings: string[]): string {
         return rawValue || '#ERROR';
     }
 
-    if (!rawValue && !type) {
+    if (!type) {
         const fElement = cell.getElementsByTagName('f')[0];
+        if (fElement && rawValue) return rawValue;
         if (fElement) return '';
     }
 
@@ -243,5 +245,6 @@ export function parseXlsx(data: Uint8Array, options?: XlsxParseOptions): XlsxPar
         });
     }
 
-    return { sheets };
+    const truncated = sheets.some(s => s.rowCount >= maxRows);
+    return { sheets, truncated };
 }
