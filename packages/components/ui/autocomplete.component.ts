@@ -16,7 +16,7 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { Subject, debounceTime as rxDebounceTime } from 'rxjs';
-import { cn } from '../lib/utils';
+import { cn, getClippingRect } from '../lib/utils';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from './popover.component';
 import { CommandComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent, CommandService } from './command.component';
 import { HighlightPipe } from './highlight.pipe';
@@ -112,7 +112,7 @@ export type AutocompleteValue<T> = T | T[] | null;
           }
         </div>
       </ui-popover-trigger>
-      <ui-popover-content class="w-[--radix-popover-trigger-width] p-0" align="start" [restoreFocus]="false">
+      <ui-popover-content [side]="dropdownSide()" class="w-[--radix-popover-trigger-width] p-0" align="start" [restoreFocus]="false">
          <ui-command [shouldFilter]="filter()" [search]="searchTerm()">
             <ui-command-list [attr.id]="listId" role="listbox">
               <ui-command-empty>No results found.</ui-command-empty>
@@ -138,6 +138,8 @@ export type AutocompleteValue<T> = T | T[] | null;
     host: { class: 'contents' },
 })
 export class AutocompleteComponent<T = unknown> implements ControlValueAccessor {
+    private readonly el = inject(ElementRef);
+
     options = input<T[]>([]);
     displayWith = input<(option: T) => string>(String);
     valueAttribute = input<string | undefined>(undefined);
@@ -153,6 +155,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     valueChange = output<AutocompleteValue<T>>();
 
     open = signal(false);
+    readonly dropdownSide = signal<'top' | 'bottom'>('bottom');
     searchTerm = model('');
     internalValue = signal<T[]>([]);
 
@@ -229,6 +232,25 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         });
     }
 
+    private resolveDropdownSide(): void {
+        const triggerContainer = this.el.nativeElement.querySelector('[data-state]') as HTMLElement | null;
+        if (!triggerContainer) return;
+
+        const triggerRect = triggerContainer.getBoundingClientRect();
+        const boundary = getClippingRect(triggerContainer);
+        const padding = 8;
+        const maxDropdownHeight = 300;
+
+        const spaceBelow = boundary.bottom - triggerRect.bottom - padding;
+        const spaceAbove = triggerRect.top - boundary.top - padding;
+
+        if (maxDropdownHeight <= spaceBelow || spaceBelow >= spaceAbove) {
+            this.dropdownSide.set('bottom');
+        } else {
+            this.dropdownSide.set('top');
+        }
+    }
+
     getDisplayValue(option: T): string {
         const displayFn = this.displayWith();
         if (typeof displayFn !== 'function') {
@@ -270,6 +292,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
 
     onFocus() {
         if (!this.isDisabled() && !this.open()) {
+            this.resolveDropdownSide();
             this.open.set(true);
         }
     }
@@ -299,6 +322,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         }
 
         if (!this.open()) {
+            this.resolveDropdownSide();
             this.open.set(true);
         }
     }
@@ -311,11 +335,11 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         if (event.key === 'ArrowDown') {
             event.preventDefault();
             if (this.open()) {cmd?.moveNext();}
-            else {this.open.set(true);}
+            else { this.resolveDropdownSide(); this.open.set(true); }
         } else if (event.key === 'ArrowUp') {
             event.preventDefault();
             if (this.open()) {cmd?.movePrev();}
-            else {this.open.set(true);}
+            else { this.resolveDropdownSide(); this.open.set(true); }
         } else if (event.key === 'Enter') {
             event.preventDefault();
             if (this.open()) {
