@@ -50,19 +50,29 @@ function parseSharedStrings(files: Map<string, Uint8Array>): string[] {
     return strings;
 }
 
-function parseWorkbookSheetNames(files: Map<string, Uint8Array>): string[] {
+interface WorkbookSheetInfo {
+    readonly name: string;
+    readonly rId: string;
+}
+
+function parseWorkbookSheets(files: Map<string, Uint8Array>): WorkbookSheetInfo[] {
     const wbFile = files.get('xl/workbook.xml');
-    if (!wbFile) return ['Sheet1'];
+    if (!wbFile) return [{ name: 'Sheet1', rId: 'rId1' }];
 
     const doc = parseXml(new TextDecoder().decode(wbFile));
     const sheetElements = doc.getElementsByTagName('sheet');
-    const names: string[] = [];
+    const sheets: WorkbookSheetInfo[] = [];
 
     for (let i = 0; i < sheetElements.length; i++) {
-        names.push(sheetElements[i].getAttribute('name') ?? `Sheet${i + 1}`);
+        const el = sheetElements[i];
+        const name = el.getAttribute('name') ?? `Sheet${i + 1}`;
+        const rId = el.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id')
+            ?? el.getAttribute('r:id')
+            ?? `rId${i + 1}`;
+        sheets.push({ name, rId });
     }
 
-    return names.length > 0 ? names : ['Sheet1'];
+    return sheets.length > 0 ? sheets : [{ name: 'Sheet1', rId: 'rId1' }];
 }
 
 function parseSheetRelationships(files: Map<string, Uint8Array>): Map<string, string> {
@@ -76,8 +86,10 @@ function parseSheetRelationships(files: Map<string, Uint8Array>): Map<string, st
     for (let i = 0; i < rels.length; i++) {
         const id = rels[i].getAttribute('Id') ?? '';
         const target = rels[i].getAttribute('Target') ?? '';
-        if (target.includes('worksheet')) {
-            map.set(id, `xl/${target}`);
+        const relType = rels[i].getAttribute('Type') ?? '';
+        if (relType.includes('worksheet') || target.includes('worksheet')) {
+            const fullPath = target.startsWith('/') ? target.substring(1) : `xl/${target}`;
+            map.set(id, fullPath);
         }
     }
 
@@ -119,6 +131,18 @@ function getCellValue(cell: Element, sharedStrings: string[]): string {
         }
         return '';
     }
+    if (type === 'str') {
+        return rawValue;
+    }
+    if (type === 'e') {
+        return rawValue || '#ERROR';
+    }
+
+    if (!rawValue && !type) {
+        const fElement = cell.getElementsByTagName('f')[0];
+        if (fElement) return '';
+    }
+
     return rawValue;
 }
 
@@ -174,12 +198,12 @@ function parseSheet(
     return { data, mergedCells, columnCount: maxCol, rowCount: data.length };
 }
 
-function findSheetFiles(files: Map<string, Uint8Array>, sheetNames: string[]): Uint8Array[] {
+function findSheetFiles(files: Map<string, Uint8Array>, sheets: WorkbookSheetInfo[]): Uint8Array[] {
     const rels = parseSheetRelationships(files);
     const sheetFiles: Uint8Array[] = [];
 
-    for (let i = 0; i < sheetNames.length; i++) {
-        const relPath = rels.get(`rId${i + 1}`);
+    for (let i = 0; i < sheets.length; i++) {
+        const relPath = rels.get(sheets[i].rId);
         const directPath = `xl/worksheets/sheet${i + 1}.xml`;
         const sheetData = (relPath ? files.get(relPath) : undefined) ?? files.get(directPath);
         if (sheetData) {
@@ -204,14 +228,14 @@ export function parseXlsx(data: Uint8Array, options?: XlsxParseOptions): XlsxPar
 
     const files = readZip(data);
     const sharedStrings = parseSharedStrings(files);
-    const sheetNames = parseWorkbookSheetNames(files);
-    const sheetFiles = findSheetFiles(files, sheetNames);
+    const workbookSheets = parseWorkbookSheets(files);
+    const sheetFiles = findSheetFiles(files, workbookSheets);
 
     const sheets: XlsxSheet[] = [];
     for (let i = 0; i < sheetFiles.length; i++) {
         const result = parseSheet(sheetFiles[i], sharedStrings, maxRows, maxColumns);
         sheets.push({
-            name: sheetNames[i] ?? `Sheet${i + 1}`,
+            name: workbookSheets[i]?.name ?? `Sheet${i + 1}`,
             data: result.data,
             mergedCells: result.mergedCells,
             columnCount: result.columnCount,

@@ -210,9 +210,35 @@ function parsePosition(spTree: Element): { x: number; y: number; width: number; 
     };
 }
 
+function extractParagraphRuns(paragraph: Element): PptxTextRun[] {
+    const runs: PptxTextRun[] = [];
+
+    const rElements = getAllChildrenNS(paragraph, NS_A, 'r');
+    for (const r of rElements) {
+        runs.push(parseTextRun(r));
+    }
+
+    const fldElements = getAllChildrenNS(paragraph, NS_A, 'fld');
+    for (const fld of fldElements) {
+        const t = getChildNS(fld, NS_A, 't');
+        if (t?.textContent?.trim()) {
+            runs.push({ text: t.textContent });
+        }
+    }
+
+    if (runs.length === 0) {
+        const brElements = getAllChildrenNS(paragraph, NS_A, 'br');
+        if (brElements.length > 0) return [];
+        const directText = paragraph.textContent?.trim();
+        if (directText) runs.push({ text: directText });
+    }
+
+    return runs;
+}
+
 function parseTextFrame(sp: Element): PptxTextFrame | null {
-    const txBody = getChildNS(sp, NS_A, 'txBody')
-        ?? getChildNS(sp, NS_P, 'txBody');
+    const txBody = getChildNS(sp, NS_P, 'txBody')
+        ?? getChildNS(sp, NS_A, 'txBody');
     if (!txBody) return null;
 
     const paragraphs = getAllChildrenNS(txBody, NS_A, 'p');
@@ -220,10 +246,8 @@ function parseTextFrame(sp: Element): PptxTextFrame | null {
 
     for (let pi = 0; pi < paragraphs.length; pi++) {
         if (pi > 0) allRuns.push({ text: '\n' });
-        const runs = getAllChildrenNS(paragraphs[pi], NS_A, 'r');
-        for (const r of runs) {
-            allRuns.push(parseTextRun(r));
-        }
+        const pRuns = extractParagraphRuns(paragraphs[pi]);
+        allRuns.push(...pRuns);
     }
 
     if (allRuns.length === 0 || allRuns.every(r => !r.text.trim())) return null;
@@ -281,6 +305,62 @@ function normalizePath(path: string): string {
     return normalized.join('/');
 }
 
+function extractShapeElements(
+    root: Element,
+    mediaRels: Map<string, string>,
+    files: Map<string, Uint8Array>,
+): PptxSlideElement[] {
+    const elements: PptxSlideElement[] = [];
+
+    const spElements = getAllChildrenNS(root, NS_P, 'sp');
+    for (const sp of spElements) {
+        const textFrame = parseTextFrame(sp);
+        if (textFrame) elements.push(textFrame);
+    }
+
+    const picElements = getAllChildrenNS(root, NS_P, 'pic');
+    for (const pic of picElements) {
+        const img = parseImage(pic, mediaRels, files);
+        if (img) elements.push(img);
+    }
+
+    return elements;
+}
+
+function getSlideLayoutPath(files: Map<string, Uint8Array>, slideIndex: number): string | null {
+    const relsPath = `ppt/slides/_rels/slide${slideIndex + 1}.xml.rels`;
+    const relsFile = files.get(relsPath);
+    if (!relsFile) return null;
+
+    const doc = parseXml(new TextDecoder().decode(relsFile));
+    const rels = doc.getElementsByTagName('Relationship');
+
+    for (let i = 0; i < rels.length; i++) {
+        const relType = rels[i].getAttribute('Type') ?? '';
+        if (relType.includes('slideLayout')) {
+            const target = rels[i].getAttribute('Target') ?? '';
+            return target.startsWith('/') ? target.substring(1) : normalizePath(`ppt/slides/${target}`);
+        }
+    }
+    return null;
+}
+
+function getLayoutMediaRels(files: Map<string, Uint8Array>, layoutPath: string): Map<string, string> {
+    const dir = layoutPath.substring(0, layoutPath.lastIndexOf('/'));
+    const filename = layoutPath.substring(layoutPath.lastIndexOf('/') + 1);
+    const relsPath = `${dir}/_rels/${filename}.rels`;
+    const relsFile = files.get(relsPath);
+    if (!relsFile) return new Map();
+
+    const doc = parseXml(new TextDecoder().decode(relsFile));
+    const rels = doc.getElementsByTagName('Relationship');
+    const map = new Map<string, string>();
+    for (let i = 0; i < rels.length; i++) {
+        map.set(rels[i].getAttribute('Id') ?? '', rels[i].getAttribute('Target') ?? '');
+    }
+    return map;
+}
+
 function parseSlide(
     slideData: Uint8Array,
     slideIndex: number,
@@ -291,26 +371,34 @@ function parseSlide(
     const doc = parseXml(new TextDecoder().decode(slideData));
     const mediaRels = getSlideMediaRelationships(files, slideIndex);
 
-    const elements: PptxSlideElement[] = [];
+    const elements = extractShapeElements(doc.documentElement, mediaRels, files);
     let title = '';
 
-    const spElements = getAllChildrenNS(doc.documentElement, NS_P, 'sp');
-    const picElements = getAllChildrenNS(doc.documentElement, NS_P, 'pic');
-
-    for (const sp of spElements) {
-        const textFrame = parseTextFrame(sp);
-        if (textFrame) {
-            elements.push(textFrame);
-            if (!title) {
-                const plainText = textFrame.runs.map(r => r.text).join('').trim();
-                if (plainText) title = plainText;
-            }
+    for (const el of elements) {
+        if (el.type === 'text' && !title) {
+            const plainText = el.runs.map(r => r.text).join('').trim();
+            if (plainText) title = plainText;
         }
     }
 
-    for (const pic of picElements) {
-        const img = parseImage(pic, mediaRels, files);
-        if (img) elements.push(img);
+    if (elements.length === 0) {
+        const layoutPath = getSlideLayoutPath(files, slideIndex);
+        if (layoutPath) {
+            const layoutData = files.get(layoutPath);
+            if (layoutData) {
+                const layoutDoc = parseXml(new TextDecoder().decode(layoutData));
+                const layoutRels = getLayoutMediaRels(files, layoutPath);
+                const layoutElements = extractShapeElements(layoutDoc.documentElement, layoutRels, files);
+                elements.push(...layoutElements);
+
+                for (const el of layoutElements) {
+                    if (el.type === 'text' && !title) {
+                        const plainText = el.runs.map(r => r.text).join('').trim();
+                        if (plainText) title = plainText;
+                    }
+                }
+            }
+        }
     }
 
     return {

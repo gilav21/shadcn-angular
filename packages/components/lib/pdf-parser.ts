@@ -1180,20 +1180,86 @@ function processColorOperator(
     }
 }
 
-function processDoOperator(
-    operandStack: string[], reader: PdfReader, xObjectDict: Record<string, PdfObject>,
-    gs: GraphicsState, imageItems: ImageItem[], pageIndex: number,
-): void {
-    const imageName = operandStack.pop() || '';
-    const name = imageName.startsWith('/') ? imageName.slice(1) : imageName;
-    const xObjRef = xObjectDict[name];
+function processDoOperator(ctx: ContentExtractionContext): void {
+    const rawName = ctx.operandStack.pop() || '';
+    const name = rawName.startsWith('/') ? rawName.slice(1) : rawName;
+    const xObjRef = ctx.xObjectDict[name];
     if (!xObjRef) return;
-    const xObj = reader.resolveDeep(xObjRef);
+    const xObj = ctx.reader.resolveDeep(xObjRef);
     if (xObj.type !== 'stream') return;
     const xDict = xObj.value as Record<string, PdfObject>;
-    if (reader.getString(xDict['Subtype']) !== 'Image') return;
-    const imgResult = extractXObjectImage(reader, xObj, gs.ctm, pageIndex);
-    if (imgResult) imageItems.push(imgResult);
+    const subtype = ctx.reader.getString(xDict['Subtype']);
+
+    if (subtype === 'Image') {
+        const imgResult = extractXObjectImage(ctx.reader, xObj, ctx.gs.ctm, ctx.pageIndex);
+        if (imgResult) ctx.imageItems.push(imgResult);
+    } else if (subtype === 'Form') {
+        processFormXObject(ctx, xObj);
+    }
+}
+
+function buildFormFontInfoMap(
+    ctx: ContentExtractionContext, fontDict: Record<string, PdfObject>,
+): Map<string, FontInfo> {
+    const fontInfoMap = new Map(ctx.fontInfoMap);
+    for (const [fontName, fontRef] of Object.entries(fontDict)) {
+        fontInfoMap.set(fontName, buildFontInfo(ctx.reader, fontRef));
+    }
+    return fontInfoMap;
+}
+
+function buildFormCtm(ctx: ContentExtractionContext, dict: Record<string, PdfObject>): number[] {
+    const matrixObj = dict['Matrix'];
+    if (!matrixObj) return ctx.gs.ctm.slice();
+    const matrixArr = ctx.reader.getArray(matrixObj);
+    if (matrixArr.length !== 6) return ctx.gs.ctm.slice();
+    const m = matrixArr.map(o => ctx.reader.getNumber(o));
+    return multiplyMatrix(m, ctx.gs.ctm);
+}
+
+function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObject): void {
+    if (parentCtx.formDepth >= 10) return;
+
+    const dict = formObj.value as Record<string, PdfObject>;
+    const decoded = parentCtx.reader.decodeStreamData(dict, formObj.stream!);
+    if (decoded.length === 0) return;
+
+    const resources = dict['Resources'] ? parentCtx.reader.getDict(dict['Resources']) : {};
+    const fontDict = resources['Font'] ? parentCtx.reader.getDict(resources['Font']) : {};
+    const xObjectDict = resources['XObject'] ? parentCtx.reader.getDict(resources['XObject']) : {};
+
+    const mergedXObjectDict = { ...parentCtx.xObjectDict, ...xObjectDict };
+    const fontInfoMap = buildFormFontInfoMap(parentCtx, fontDict);
+    const formCtm = buildFormCtm(parentCtx, dict);
+
+    const tokens = tokenizeContentStream(decoded);
+    const ctx: ContentExtractionContext = {
+        reader: parentCtx.reader,
+        fontInfoMap,
+        xObjectDict: mergedXObjectDict,
+        textItems: parentCtx.textItems,
+        imageItems: parentCtx.imageItems,
+        stateStack: [],
+        gs: {
+            ctm: formCtm,
+            fontSize: parentCtx.gs.fontSize,
+            fontName: parentCtx.gs.fontName,
+            fillColor: parentCtx.gs.fillColor,
+            textMatrix: identityMatrix(),
+            lineMatrix: identityMatrix(),
+            leading: 0, charSpacing: 0, wordSpacing: 0, textRise: 0, horizontalScaling: 100,
+        },
+        operandStack: [],
+        pageIndex: parentCtx.pageIndex,
+        formDepth: parentCtx.formDepth + 1,
+    };
+
+    let i = 0;
+    while (i < tokens.length) {
+        const token = tokens[i];
+        i++;
+        i = processContentToken(token, ctx, tokens, i);
+    }
 }
 
 const IGNORED_OPERATORS = new Set([
@@ -1275,6 +1341,7 @@ interface ContentExtractionContext {
     gs: GraphicsState;
     operandStack: string[];
     pageIndex: number;
+    formDepth: number;
 }
 
 function popNumber(ctx: ContentExtractionContext): number {
@@ -1329,7 +1396,7 @@ function processTextShowToken(token: string, ctx: ContentExtractionContext): boo
 
 function processResourceToken(token: string, ctx: ContentExtractionContext, tokens: string[], tokenIndex: number): number {
     if (token === 'Do') {
-        processDoOperator(ctx.operandStack, ctx.reader, ctx.xObjectDict, ctx.gs, ctx.imageItems, ctx.pageIndex);
+        processDoOperator(ctx);
         return tokenIndex;
     }
     if (token === 'BI') {
@@ -1395,6 +1462,7 @@ function extractPageContent(
         },
         operandStack: [],
         pageIndex,
+        formDepth: 0,
     };
 
     let i = 0;

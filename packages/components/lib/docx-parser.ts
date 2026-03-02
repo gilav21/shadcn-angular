@@ -75,6 +75,12 @@ function getAllChildrenNS(parent: Element, ns: string, localName: string): Eleme
     return result;
 }
 
+function getAttrVal(element: Element, ns: string, localName: string): string | null {
+    const nsVal = element.getAttributeNS(ns, localName);
+    if (nsVal) return nsVal;
+    return element.getAttribute(localName);
+}
+
 function parseRelationships(files: Map<string, Uint8Array>): Map<string, string> {
     const relsFile = files.get('word/_rels/document.xml.rels');
     if (!relsFile) return new Map();
@@ -95,7 +101,6 @@ function parseRelationships(files: Map<string, Uint8Array>): Map<string, string>
 function parseRunStyle(rPr: Element | null): DocxRunStyle {
     if (!rPr) return {};
 
-    const style: DocxRunStyle = {};
     const result: {
         bold?: boolean;
         italic?: boolean;
@@ -104,23 +109,31 @@ function parseRunStyle(rPr: Element | null): DocxRunStyle {
         color?: string;
     } = {};
 
-    if (getChildNS(rPr, NS_W, 'b')) result.bold = true;
-    if (getChildNS(rPr, NS_W, 'i')) result.italic = true;
+    const bEl = getChildNS(rPr, NS_W, 'b');
+    if (bEl) {
+        const bVal = getAttrVal(bEl, NS_W, 'val');
+        result.bold = !bVal || bVal !== '0';
+    }
+    const iEl = getChildNS(rPr, NS_W, 'i');
+    if (iEl) {
+        const iVal = getAttrVal(iEl, NS_W, 'val');
+        result.italic = !iVal || iVal !== '0';
+    }
     if (getChildNS(rPr, NS_W, 'u')) result.underline = true;
 
     const sz = getChildNS(rPr, NS_W, 'sz');
     if (sz) {
-        const val = sz.getAttributeNS(NS_W, 'val');
+        const val = getAttrVal(sz, NS_W, 'val');
         if (val) result.fontSize = Number.parseInt(val, 10) / 2;
     }
 
     const color = getChildNS(rPr, NS_W, 'color');
     if (color) {
-        const val = color.getAttributeNS(NS_W, 'val');
+        const val = getAttrVal(color, NS_W, 'val');
         if (val && val !== 'auto') result.color = `#${val}`;
     }
 
-    return { ...style, ...result };
+    return result;
 }
 
 function extractImageFromDrawing(
@@ -185,14 +198,14 @@ function parseParagraphStyle(pPr: Element | null): { style: string; listLevel?: 
     if (!pPr) return { style: '' };
 
     const pStyleEl = getChildNS(pPr, NS_W, 'pStyle');
-    const style = pStyleEl?.getAttributeNS(NS_W, 'val') ?? '';
+    const style = (pStyleEl ? getAttrVal(pStyleEl, NS_W, 'val') : null) ?? '';
 
     const numPr = getChildNS(pPr, NS_W, 'numPr');
     if (numPr) {
         const ilvl = getChildNS(numPr, NS_W, 'ilvl');
-        const level = ilvl ? Number.parseInt(ilvl.getAttributeNS(NS_W, 'val') ?? '0', 10) : 0;
+        const level = ilvl ? Number.parseInt(getAttrVal(ilvl, NS_W, 'val') ?? '0', 10) : 0;
         const numId = getChildNS(numPr, NS_W, 'numId');
-        const numIdVal = numId ? Number.parseInt(numId.getAttributeNS(NS_W, 'val') ?? '0', 10) : 0;
+        const numIdVal = numId ? Number.parseInt(getAttrVal(numId, NS_W, 'val') ?? '0', 10) : 0;
         if (numIdVal > 0) {
             return { style, listLevel: level, listType: 'bullet' };
         }
@@ -233,6 +246,63 @@ function parseRun(
     return { runs, images };
 }
 
+function parseHyperlinkRuns(
+    hyperlink: Element,
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+): { runs: DocxRun[]; images: DocxImage[] } {
+    const allRuns: DocxRun[] = [];
+    const allImages: DocxImage[] = [];
+
+    const rId = hyperlink.getAttributeNS(NS_R, 'id') ?? hyperlink.getAttribute('r:id') ?? '';
+    const target = rId ? (relationships.get(rId) ?? '') : '';
+
+    const runElements = getAllChildrenNS(hyperlink, NS_W, 'r');
+    for (const run of runElements) {
+        const { runs, images } = parseRun(run, relationships, files);
+        for (const r of runs) {
+            if (target && r.text.trim()) {
+                allRuns.push({ text: r.text, style: { ...r.style, underline: true, color: r.style.color ?? '#0563C1' } });
+            } else {
+                allRuns.push(r);
+            }
+        }
+        allImages.push(...images);
+    }
+
+    return { runs: allRuns, images: allImages };
+}
+
+function collectDirectChildRuns(
+    para: Element,
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+): { runs: DocxRun[]; images: DocxImage[] } {
+    const allRuns: DocxRun[] = [];
+    const allImages: DocxImage[] = [];
+
+    for (let i = 0; i < para.childNodes.length; i++) {
+        const child = para.childNodes[i];
+        if (!(child instanceof Element)) continue;
+
+        const localName = child.localName;
+        if (localName === 'r') {
+            const { runs, images } = parseRun(child, relationships, files);
+            allRuns.push(...runs);
+            allImages.push(...images);
+        } else if (localName === 'hyperlink') {
+            const { runs, images } = parseHyperlinkRuns(child, relationships, files);
+            allRuns.push(...runs);
+            allImages.push(...images);
+        } else if (localName === 'drawing') {
+            const img = extractImageFromDrawing(child, relationships, files);
+            if (img) allImages.push(img);
+        }
+    }
+
+    return { runs: allRuns, images: allImages };
+}
+
 function parseParagraph(
     para: Element,
     relationships: Map<string, string>,
@@ -241,21 +311,7 @@ function parseParagraph(
     const pPr = getChildNS(para, NS_W, 'pPr');
     const { style, listLevel, listType } = parseParagraphStyle(pPr);
 
-    const allRuns: DocxRun[] = [];
-    const allImages: DocxImage[] = [];
-
-    const runElements = getAllChildrenNS(para, NS_W, 'r');
-    for (const run of runElements) {
-        const { runs, images } = parseRun(run, relationships, files);
-        allRuns.push(...runs);
-        allImages.push(...images);
-    }
-
-    const drawingElements = getAllChildrenNS(para, NS_W, 'drawing');
-    for (const drawing of drawingElements) {
-        const img = extractImageFromDrawing(drawing, relationships, files);
-        if (img) allImages.push(img);
-    }
+    const { runs: allRuns, images: allImages } = collectDirectChildRuns(para, relationships, files);
 
     const paragraph: DocxParagraph = {
         type: 'paragraph',
@@ -280,11 +336,11 @@ function parseTableCell(
     if (tcPr) {
         const gridSpan = getChildNS(tcPr, NS_W, 'gridSpan');
         if (gridSpan) {
-            colSpan = Number.parseInt(gridSpan.getAttributeNS(NS_W, 'val') ?? '1', 10);
+            colSpan = Number.parseInt(getAttrVal(gridSpan, NS_W, 'val') ?? '1', 10);
         }
         const vMerge = getChildNS(tcPr, NS_W, 'vMerge');
         if (vMerge) {
-            const mergeVal = vMerge.getAttributeNS(NS_W, 'val');
+            const mergeVal = getAttrVal(vMerge, NS_W, 'val');
             if (!mergeVal || mergeVal === 'continue') {
                 rowSpan = 0;
             }
@@ -343,6 +399,82 @@ function extractPlainText(elements: ReadonlyArray<DocxElement>): string {
     return parts.join('\n');
 }
 
+function parseBodyElements(
+    body: Element,
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+): DocxElement[] {
+    const elements: DocxElement[] = [];
+
+    for (let i = 0; i < body.childNodes.length; i++) {
+        const child = body.childNodes[i];
+        if (!(child instanceof Element)) continue;
+
+        const localName = child.localName;
+        if (localName === 'p') {
+            const { paragraph, images } = parseParagraph(child, relationships, files);
+            elements.push(...images);
+            elements.push(paragraph);
+        } else if (localName === 'tbl') {
+            elements.push(parseTable(child, relationships, files));
+        } else if (localName === 'sdt') {
+            const sdtContent = getChildNS(child, NS_W, 'sdtContent');
+            if (sdtContent) {
+                elements.push(...parseBodyElements(sdtContent, relationships, files));
+            }
+        }
+    }
+
+    return elements;
+}
+
+function parseHeaderFooterContent(
+    files: Map<string, Uint8Array>,
+    relationships: Map<string, string>,
+): DocxElement[] {
+    const elements: DocxElement[] = [];
+
+    for (const [rId, target] of relationships) {
+        if (!target.startsWith('header') && !target.startsWith('footer')) continue;
+
+        const filePath = `word/${target}`;
+        const fileData = files.get(filePath);
+        if (!fileData) continue;
+
+        const doc = parseXml(new TextDecoder().decode(fileData));
+        const bodyEl = doc.documentElement;
+        if (!bodyEl) continue;
+
+        const hfRelsPath = `word/_rels/${target}.rels`;
+        const hfRelsFile = files.get(hfRelsPath);
+        const hfRelationships = hfRelsFile ? parseRelationshipsFromXml(hfRelsFile) : relationships;
+
+        for (let i = 0; i < bodyEl.childNodes.length; i++) {
+            const child = bodyEl.childNodes[i];
+            if (!(child instanceof Element)) continue;
+            if (child.localName === 'p') {
+                const { paragraph, images } = parseParagraph(child, hfRelationships, files);
+                elements.push(...images);
+                if (paragraph.runs.some(r => r.text.trim())) {
+                    elements.push(paragraph);
+                }
+            }
+        }
+    }
+
+    return elements;
+}
+
+function parseRelationshipsFromXml(data: Uint8Array): Map<string, string> {
+    const doc = parseXml(new TextDecoder().decode(data));
+    const rels = doc.getElementsByTagName('Relationship');
+    const map = new Map<string, string>();
+    for (let i = 0; i < rels.length; i++) {
+        map.set(rels[i].getAttribute('Id') ?? '', rels[i].getAttribute('Target') ?? '');
+    }
+    return map;
+}
+
 export function parseDocx(data: Uint8Array): DocxParseResult {
     const files = readZip(data);
     const documentFile = files.get('word/document.xml');
@@ -357,21 +489,7 @@ export function parseDocx(data: Uint8Array): DocxParseResult {
         throw new Error('Invalid DOCX: missing document body');
     }
 
-    const elements: DocxElement[] = [];
-
-    for (let i = 0; i < body.childNodes.length; i++) {
-        const child = body.childNodes[i];
-        if (!(child instanceof Element)) continue;
-
-        const localName = child.localName;
-        if (localName === 'p') {
-            const { paragraph, images } = parseParagraph(child, relationships, files);
-            elements.push(...images);
-            elements.push(paragraph);
-        } else if (localName === 'tbl') {
-            elements.push(parseTable(child, relationships, files));
-        }
-    }
+    const elements = parseBodyElements(body, relationships, files);
 
     const plainText = extractPlainText(elements);
     return { elements, plainText };
