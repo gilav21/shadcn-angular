@@ -197,6 +197,7 @@ export interface PptxConnectorElement {
     readonly lineWidth?: number;
     readonly flipH?: boolean;
     readonly flipV?: boolean;
+    readonly rotation?: number;
     readonly connectorType?: string;
     readonly dashStyle?: string;
     readonly headEnd?: boolean;
@@ -275,6 +276,16 @@ function parseXml(xmlString: string): Document {
 function getChildNS(parent: Element, ns: string, localName: string): Element | null {
     const children = parent.getElementsByTagNameNS(ns, localName);
     return children.length > 0 ? children[0] : null;
+}
+
+function getDirectChildNS(parent: Element, ns: string, localName: string): Element | null {
+    for (let i = 0; i < parent.children.length; i++) {
+        const child = parent.children[i];
+        if (child.namespaceURI === ns && child.localName === localName) {
+            return child;
+        }
+    }
+    return null;
 }
 
 function getAllChildrenNS(parent: Element, ns: string, localName: string): Element[] {
@@ -392,6 +403,20 @@ function applyColorModifiers(colorEl: Element, baseHex: string): string {
 
     hsl.l = Math.max(0, Math.min(1, hsl.l));
     hsl.s = Math.max(0, Math.min(1, hsl.s));
+
+    const alphaEl = getChildNS(colorEl, NS_A, 'alpha');
+    if (alphaEl) {
+        const alphaVal = Number.parseInt(alphaEl.getAttribute('val') ?? '100000', 10) / 100000;
+        if (alphaVal <= 0) return 'transparent';
+        if (alphaVal < 1) {
+            const hex = hslToHex(hsl.h, hsl.s, hsl.l);
+            const raw = hex.replace('#', '');
+            const r = Number.parseInt(raw.substring(0, 2), 16);
+            const g = Number.parseInt(raw.substring(2, 4), 16);
+            const b = Number.parseInt(raw.substring(4, 6), 16);
+            return `rgba(${r},${g},${b},${Math.round(alphaVal * 100) / 100})`;
+        }
+    }
 
     return hslToHex(hsl.h, hsl.s, hsl.l);
 }
@@ -1321,16 +1346,24 @@ function parseShapeStyling(
 ): ShapeStylingResult {
     const result: ShapeStylingResult = {};
 
-    const noFill = getChildNS(spPr, NS_A, 'noFill');
+    const noFill = getDirectChildNS(spPr, NS_A, 'noFill');
     if (noFill) {
         result.explicitNoFill = true;
     } else {
-        const solidFill = getChildNS(spPr, NS_A, 'solidFill');
+        const solidFill = getDirectChildNS(spPr, NS_A, 'solidFill');
         if (solidFill) {
             result.fillColor = resolveColorWithModifiers(solidFill, themeColors);
         } else {
             parseShapeAdvancedFills(spPr, themeColors, mediaRels, files, baseDir, result);
         }
+    }
+
+    // If spPr has NO fill-related children at all, treat as implicit noFill
+    // (shapes wanting a style-ref fill would have an explicit fill element)
+    const hasAnyFill = result.fillColor || result.gradientFill || result.imageFill
+        || result.patternFill || result.explicitNoFill;
+    if (!hasAnyFill) {
+        result.explicitNoFill = true;
     }
 
     parseShapeLine(spPr, themeColors, result);
@@ -1348,17 +1381,17 @@ function parseShapeAdvancedFills(
     result?: ShapeStylingResult,
 ): void {
     if (!result) return;
-    const gradFill = getChildNS(spPr, NS_A, 'gradFill');
+    const gradFill = getDirectChildNS(spPr, NS_A, 'gradFill');
     if (gradFill) {
         result.gradientFill = parseGradientFill(gradFill, themeColors);
         return;
     }
-    const blipFill = getChildNS(spPr, NS_A, 'blipFill');
+    const blipFill = getDirectChildNS(spPr, NS_A, 'blipFill');
     if (blipFill && mediaRels && files && baseDir) {
         result.imageFill = resolveBlipToDataUrlWithBase(blipFill, mediaRels, files, baseDir);
         return;
     }
-    const pattFill = getChildNS(spPr, NS_A, 'pattFill');
+    const pattFill = getDirectChildNS(spPr, NS_A, 'pattFill');
     if (pattFill) {
         result.patternFill = parsePatternFill(pattFill, themeColors);
     }
@@ -1470,6 +1503,7 @@ function parseShapeAsConnector(
     const pos = xfrm ? parsePosition(xfrm) : { x: 0, y: 0, width: 0, height: 0 };
     const flipH = xfrm?.getAttribute('flipH') === '1';
     const flipV = xfrm?.getAttribute('flipV') === '1';
+    const rotation = xfrm ? parseRotation(xfrm) : undefined;
 
     let color: string | undefined;
     let lineWidth: number | undefined;
@@ -1506,6 +1540,7 @@ function parseShapeAsConnector(
         ...(lineWidth ? { lineWidth } : {}),
         ...(flipH ? { flipH } : {}),
         ...(flipV ? { flipV } : {}),
+        ...(rotation ? { rotation } : {}),
         connectorType,
         ...(dashStyle ? { dashStyle } : {}),
         ...(headEnd ? { headEnd } : {}),
@@ -1564,9 +1599,10 @@ function parseConnector(cxnSp: Element, themeColors: ThemeColorMap): PptxConnect
     const xfrm = getChildNS(spPr, NS_A, 'xfrm');
     const pos = xfrm ? parsePosition(xfrm) : { x: 0, y: 0, width: 0, height: 0 };
 
-    // Extract flip attributes for correct line direction
+    // Extract flip and rotation attributes for correct line direction
     const flipH = xfrm?.getAttribute('flipH') === '1';
     const flipV = xfrm?.getAttribute('flipV') === '1';
+    const rotation = xfrm ? parseRotation(xfrm) : undefined;
 
     // Connector preset geometry (straight, bentConnector, curvedConnector)
     const prstGeom = getChildNS(spPr, NS_A, 'prstGeom');
@@ -1606,6 +1642,7 @@ function parseConnector(cxnSp: Element, themeColors: ThemeColorMap): PptxConnect
         ...(lineWidth ? { lineWidth } : {}),
         ...(flipH ? { flipH } : {}),
         ...(flipV ? { flipV } : {}),
+        ...(rotation ? { rotation } : {}),
         connectorType,
         ...(dashStyle ? { dashStyle } : {}),
         ...(headEnd ? { headEnd } : {}),

@@ -1161,7 +1161,8 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
         const pathD = this.buildConnectorPath(conn.connectorType, w, h, conn.flipH, conn.flipV, pad);
 
-        return `<svg style="position:absolute;left:${conn.x - pad}px;top:${conn.y - pad}px;width:${svgW}px;height:${svgH}px;pointer-events:none;z-index:1">${markerDefs}<path d="${pathD}" stroke="${color}" stroke-width="${lw}" fill="none"${dashAttr}${markerAttrs}/></svg>`;
+        const rotateStyle = conn.rotation ? `transform:rotate(${conn.rotation}deg);transform-origin:center;` : '';
+        return `<svg style="position:absolute;left:${conn.x - pad}px;top:${conn.y - pad}px;width:${svgW}px;height:${svgH}px;${rotateStyle}pointer-events:none;z-index:1">${markerDefs}<path d="${pathD}" stroke="${color}" stroke-width="${lw}" fill="none"${dashAttr}${markerAttrs}/></svg>`;
     }
 
     private flipPoint(x: number, y: number, w: number, h: number, fH?: boolean, fV?: boolean): [number, number] {
