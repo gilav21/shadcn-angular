@@ -194,12 +194,14 @@ const HEADING_CLASSES: Record<number, string> = {
                                 @case ('docx') {
                                     <div class="p-6 max-w-4xl mx-auto"
                                          [style.zoom]="currentZoom()"
+                                         [attr.dir]="docxRtl() ? 'rtl' : null"
                                          [innerHTML]="docxHtml()">
                                     </div>
                                 }
                                 @case ('doc') {
                                     <div class="p-6 max-w-4xl mx-auto"
                                          [style.zoom]="currentZoom()"
+                                         [attr.dir]="docxRtl() ? 'rtl' : null"
                                          [innerHTML]="docxHtml()">
                                     </div>
                                 }
@@ -306,6 +308,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     private readonly xlsxData = signal<{ sheets: ReadonlyArray<{ name: string; data: string[][] }>; truncated?: boolean } | null>(null);
     readonly activeSheetIndex = signal(0);
     private readonly docxRenderedHtml = signal('');
+    protected readonly docxRtl = signal(false);
     private readonly pptxSlides = signal<ReadonlyArray<{ html: string; width: number; height: number }>>([]);
 
     private readonly blobUrls: string[] = [];
@@ -595,6 +598,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     private async processDocx(bytes: Uint8Array): Promise<void> {
         const { parseDocx } = await import('../lib/docx-parser');
         const result = parseDocx(bytes);
+        this.docxRtl.set(this.detectDocumentRtl(result.elements));
         const headerHtml = this.renderDocxHeadersFooters(result.headers, 'header');
         const bodyHtml = this.renderDocxToHtml(result.elements);
         const footerHtml = this.renderDocxHeadersFooters(result.footers, 'footer');
@@ -604,19 +608,23 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processDoc(bytes: Uint8Array): Promise<void> {
-        const { parseDoc } = await import('../lib/doc-parser');
-        const result = parseDoc(bytes);
-        this.docxRenderedHtml.set(this.renderDocElements(result.elements));
+        const { parseDocEnhanced } = await import('../lib/doc-enhanced-parser');
+        const result = parseDocEnhanced(bytes);
+        this.docxRtl.set(this.detectDocumentRtl(result.elements));
+        this.docxRenderedHtml.set(this.renderDocxToHtml(result.elements));
     }
 
-    private renderDocElements(elements: ReadonlyArray<{ readonly type: string; readonly text: string; readonly rtl?: boolean }>): string {
-        const parts: string[] = [];
+    private detectDocumentRtl(elements: ReadonlyArray<{ type: string }>): boolean {
+        let rtlCount = 0;
+        let totalCount = 0;
         for (const el of elements) {
-            if (!el.text.trim()) continue;
-            const dirAttr = el.rtl ? ' dir="rtl"' : '';
-            parts.push(`<p class="mb-3 leading-relaxed"${dirAttr}>${this.escapeHtml(el.text)}</p>`);
+            if (el.type === 'paragraph') {
+                const para = el as { type: string; rtl?: boolean };
+                totalCount++;
+                if (para.rtl) rtlCount++;
+            }
         }
-        return parts.join('\n');
+        return totalCount > 0 && rtlCount > totalCount / 2;
     }
 
     private renderDocxToHtml(elements: ReadonlyArray<unknown>): string {
@@ -713,7 +721,11 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (run.isDeleted) text = `<del class="bg-red-100 dark:bg-red-900/30 text-muted-foreground">${text}</del>`;
 
         const styles = this.buildRunStyles(run.style);
-        if (styles) text = `<span style="${styles}">${text}</span>`;
+        const dirAttr = run.style.rtl ? ' dir="rtl"' : '';
+        if (styles || dirAttr) {
+            const styleAttr = styles ? ` style="${styles}"` : '';
+            text = `<span${dirAttr}${styleAttr}>${text}</span>`;
+        }
 
         if (run.href) {
             text = `<a href="${this.escapeHtml(run.href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;

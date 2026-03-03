@@ -1,9 +1,9 @@
 import { readZip } from './zip-reader';
 import { isValidImageMagicBytes } from './image-validator';
 
-type DocxVertAlign = 'superscript' | 'subscript';
-type DocxBreakType = 'page' | 'column' | 'textWrapping';
-type DocxListType = 'bullet' | 'numbered';
+export type DocxVertAlign = 'superscript' | 'subscript';
+export type DocxBreakType = 'page' | 'column' | 'textWrapping';
+export type DocxListType = 'bullet' | 'numbered';
 
 export interface DocxRunStyle {
     readonly bold?: boolean;

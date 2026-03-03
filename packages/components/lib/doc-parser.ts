@@ -306,10 +306,27 @@ function splitIntoParagraphs(rawText: string): ReadonlyArray<string> {
     return paragraphs;
 }
 
+function isRtlText(text: string): boolean {
+    let rtlCount = 0;
+    let ltrCount = 0;
+    for (const char of text) {
+        const code = char.codePointAt(0) ?? 0;
+        if ((code >= 0x0590 && code <= 0x05FF) || (code >= 0x0600 && code <= 0x06FF) ||
+            (code >= 0x0700 && code <= 0x074F) || (code >= 0xFB50 && code <= 0xFDFF) ||
+            (code >= 0xFE70 && code <= 0xFEFF)) {
+            rtlCount++;
+        } else if (code >= 0x0041 && code <= 0x007A) {
+            ltrCount++;
+        }
+    }
+    return rtlCount > 0 && rtlCount >= ltrCount;
+}
+
 function buildElements(paragraphs: ReadonlyArray<string>): ReadonlyArray<DocParagraphElement> {
     return paragraphs.map(text => ({
         type: 'paragraph' as const,
         text,
+        ...(isRtlText(text) ? { rtl: true } : {}),
     }));
 }
 
