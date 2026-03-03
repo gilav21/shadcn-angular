@@ -141,6 +141,7 @@ export interface PptxTextFrame {
     readonly borderColor?: string;
     readonly borderWidth?: number;
     readonly rotation?: number;
+    readonly fontScale?: number;
 }
 
 export interface PptxImageElement {
@@ -1779,6 +1780,11 @@ function parseTextFrame(
     const hasContent = paragraphs.some(para => para.runs.some(r => r.text.trim()));
     if (!hasContent) return null;
 
+    const bodyPr = getChildNS(txBody, NS_A, 'bodyPr');
+    const normAutofit = bodyPr ? getChildNS(bodyPr, NS_A, 'normAutofit') : null;
+    const fontScaleAttr = normAutofit?.getAttribute('fontScale');
+    const fontScale = fontScaleAttr ? Number.parseInt(fontScaleAttr, 10) / 100000 : undefined;
+
     const spPr = getChildNS(sp, NS_P, 'spPr') ?? getChildNS(sp, NS_A, 'spPr');
     const xfrm = spPr ? getChildNS(spPr, NS_A, 'xfrm') : null;
     const phFallback = resolvePlaceholderPosition(sp, phPositions);
@@ -1798,6 +1804,7 @@ function parseTextFrame(
         ...(styling.borderColor ? { borderColor: styling.borderColor } : {}),
         ...(styling.borderWidth ? { borderWidth: styling.borderWidth } : {}),
         ...(rotation ? { rotation } : {}),
+        ...(fontScale && fontScale < 1 ? { fontScale } : {}),
     };
 }
 

@@ -203,7 +203,7 @@ const HEADING_CLASSES: Record<number, string> = {
                                 }
                                 @case ('pptx') {
                                     <div class="flex items-center justify-center p-4">
-                                        <div class="bg-white rounded shadow-lg"
+                                        <div class="bg-white rounded shadow-lg overflow-hidden"
                                              [style.width.px]="pptxDisplayWidth()"
                                              [style.height.px]="pptxDisplayHeight()"
                                              [style.transform]="'scale(' + currentZoom() + ')'"
@@ -214,7 +214,7 @@ const HEADING_CLASSES: Record<number, string> = {
                                 }
                                 @case ('ppt') {
                                     <div class="flex items-center justify-center p-4">
-                                        <div class="bg-white rounded shadow-lg"
+                                        <div class="bg-white rounded shadow-lg overflow-hidden"
                                              [style.width.px]="pptxDisplayWidth()"
                                              [style.height.px]="pptxDisplayHeight()"
                                              [style.transform]="'scale(' + currentZoom() + ')'"
@@ -858,6 +858,11 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             content += this.renderSlideParagraph(para, autoNumCounter);
         }
         const styles = this.buildTextFrameStyles(tf);
+        if (tf.fontScale && tf.fontScale < 1) {
+            const invScale = Math.round(100 / tf.fontScale);
+            const innerStyle = `transform:scale(${tf.fontScale});transform-origin:top left;width:${invScale}%`;
+            return `<div style="${styles.join(';')}"><div style="${innerStyle}">${content}</div></div>`;
+        }
         return `<div style="${styles.join(';')}">${content}</div>`;
     }
 
