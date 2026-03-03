@@ -593,3 +593,58 @@ export const AutoImageUpload: Story = {
         },
     },
 };
+
+export const FontFamilyToolbar: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize', 'separator', 'fontColor'],
+        placeholder: 'Select text and change its font family...',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Toolbar with the font family dropdown. Select text and pick a typeface from the built-in web-safe list.',
+            },
+        },
+    },
+};
+
+export const CustomFontFamilies: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize'],
+        fontFamilies: ['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins'],
+        fontFamiliesStrategy: 'replace',
+        placeholder: 'Using custom Google Fonts only...',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Custom font families with `fontFamiliesStrategy="replace"` — only the provided fonts appear in the dropdown.',
+            },
+        },
+    },
+};
+
+export const AppendedFontFamilies: Story = {
+    args: {
+        mode: 'html',
+        toolbar: 'top',
+        toolbarItems: ['bold', 'italic', 'separator', 'fontFamily', 'fontSize'],
+        fontFamilies: ['Roboto', 'Open Sans', 'Lato'],
+        fontFamiliesStrategy: 'append',
+        placeholder: 'Default fonts + custom fonts appended...',
+        minHeight: '200px',
+    },
+    parameters: {
+        docs: {
+            description: {
+                story: 'Custom font families with `fontFamiliesStrategy="append"` (default) — custom fonts are added after the built-in web-safe defaults.',
+            },
+        },
+    },
+};

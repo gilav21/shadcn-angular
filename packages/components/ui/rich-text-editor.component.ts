@@ -26,7 +26,7 @@ import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, fr
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { isValidImageDataUrl } from '../lib/image-validator';
-import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
+import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
 import { ButtonComponent } from './button.component';
@@ -446,7 +446,7 @@ export const DEFAULT_TOOLBAR_ITEMS: ToolbarItem[] = [
     'separator',
     'alignLeft', 'alignCenter', 'alignRight',
     'separator',
-    'fontColor', 'backgroundColor', 'fontSize',
+    'fontColor', 'backgroundColor', 'fontSize', 'fontFamily',
     'separator',
     'link', 'image', 'importFile', 'emoji',
     'separator',
@@ -635,6 +635,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         [activeFormats]="activeFormats()"
         [selectedText]="selectedText()"
         [currentFontSize]="currentFontSize()"
+        [currentFontFamily]="currentFontFamily()"
+        [fontFamilyOptions]="resolvedFontFamilies()"
         [disabled]="disabled()"
         [readonly]="readonly()"
         [locale]="resolvedLocale()"
@@ -644,6 +646,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (emojiInsert)="onEmojiInsert($event)"
         (colorSelect)="onColorSelect($event)"
         (fontSizeSelect)="onFontSizeSelect($event)"
+        (fontFamilySelect)="onFontFamilySelect($event)"
         (tableInsert)="onTableInsert($event)"
         (fileImport)="onFileImport($event)"
         [customItems]="customToolbarItems()"
@@ -1241,6 +1244,22 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     customToolbarItems = input<RichTextCustomToolbarItem[]>([]);
     customToolbarAction = output<{ id: string; ref: RichTextEditorRef }>();
 
+    /**
+     * Custom font families for the font family dropdown.
+     * Behaviour depends on {@link fontFamiliesStrategy}:
+     * - `'append'` (default) — these fonts are added **after** the built-in defaults.
+     * - `'replace'` — **only** these fonts are shown; defaults are discarded.
+     *
+     * @see {@link DEFAULT_FONT_FAMILIES} for the built-in list.
+     */
+    fontFamilies = input<string[]>([]);
+
+    /**
+     * Whether custom {@link fontFamilies} replace or extend the defaults.
+     * @see {@link FontFamilyStrategy}
+     */
+    fontFamiliesStrategy = input<FontFamilyStrategy>('append');
+
     // ── Editor content area ─────────────────────────────────────
 
     /** Placeholder text shown when the editor is empty. Falls back to the locale default. */
@@ -1410,6 +1429,17 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         buildDefaultSlashCommands(this.resolvedLocale().slashCommands)
     );
 
+    resolvedFontFamilies = computed<string[]>(() => {
+        const custom = this.fontFamilies();
+        if (custom.length === 0) {
+            return DEFAULT_FONT_FAMILIES;
+        }
+        if (this.fontFamiliesStrategy() === 'replace') {
+            return custom;
+        }
+        return [...DEFAULT_FONT_FAMILIES, ...custom];
+    });
+
     // ── Outputs ──────────────────────────────────────────────────
 
     /** Emits the current content as an HTML string after every change. */
@@ -1465,6 +1495,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private readonly htmlContent = signal<string>('');
     activeFormats = signal<Set<string>>(new Set());
     currentFontSize = signal<string>('');
+    currentFontFamily = signal<string>('');
     showFloatingToolbar = signal<boolean>(false);
     floatingToolbarPosition = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     readonly emptyFormats = new Set<string>();
@@ -2906,6 +2937,32 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const sizeVal = size.endsWith('px') ? size : `${size}px`;
         this.setMentionStyle(mentionTargets, 'fontSize', sizeVal);
 
+        this.syncContentFromEditor();
+        this.focusEditor();
+        this.pushHistory();
+    }
+
+    onFontFamilySelect(family: string): void {
+        this.flushPendingHistoryPush();
+        this.restoreSelection();
+
+        const mentionTargets = this.getMentionElementsInSelection();
+
+        this.execEditorCommand('fontName', family);
+        if (this.editorDiv?.nativeElement) {
+            const fontElements = this.editorDiv.nativeElement.querySelectorAll('font[face]');
+            for (const font of fontElements) {
+                const el = font as HTMLElement;
+                const span = this.document.createElement('span');
+                span.style.fontFamily = el.getAttribute('face') ?? family;
+                while (el.firstChild) {
+                    span.appendChild(el.firstChild);
+                }
+                el.parentNode?.replaceChild(span, el);
+            }
+        }
+
+        this.setMentionStyle(mentionTargets, 'fontFamily', family);
         this.syncContentFromEditor();
         this.focusEditor();
         this.pushHistory();
@@ -5192,7 +5249,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
     }
 
-    private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize', value: string): void {
+    private setMentionStyle(elements: HTMLElement[], prop: 'color' | 'backgroundColor' | 'fontSize' | 'fontFamily', value: string): void {
         for (const el of elements) {
             el.style[prop] = value;
         }
@@ -5206,6 +5263,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             el.style.color = '';
             el.style.backgroundColor = '';
             el.style.fontSize = '';
+            el.style.fontFamily = '';
         }
     }
 
@@ -5263,6 +5321,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.detectTaskListFormat(formats);
         this.activeFormats.set(formats);
         this.detectCurrentFontSize();
+        this.detectCurrentFontFamily();
     }
 
     private detectTaskListFormat(formats: Set<string>): void {
@@ -5303,6 +5362,32 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const numericSize = Number.parseInt(fontSize, 10);
         if (!Number.isNaN(numericSize)) {
             this.currentFontSize.set(numericSize.toString());
+        }
+    }
+
+    private detectCurrentFontFamily(): void {
+        const sel = this.document.getSelection();
+        if (!sel || sel.rangeCount === 0) {
+            return;
+        }
+        const range = sel.getRangeAt(0);
+        let element = range.commonAncestorContainer;
+
+        if (element.nodeType === Node.TEXT_NODE) {
+            element = element.parentElement || element;
+        }
+
+        if (!(element instanceof HTMLElement)) {
+            return;
+        }
+        const computedStyle = this.document.defaultView?.getComputedStyle(element);
+        if (!computedStyle) {
+            return;
+        }
+        const fontFamily = computedStyle.fontFamily;
+        if (fontFamily) {
+            const cleaned = fontFamily.split(',')[0].trim().replaceAll(/^["']|["']$/g, '');
+            this.currentFontFamily.set(cleaned);
         }
     }
 
