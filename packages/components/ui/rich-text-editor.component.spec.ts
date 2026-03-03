@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, Subject, throwError } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
+import { DEFAULT_FONT_FAMILIES } from './rich-text-toolbar.component';
 import { ShortcutBindingService } from '../lib/shortcut-binding.service';
 import { RichTextCommandRegistry, RichTextSlashCommandContext } from './rich-text-command-registry.service';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
@@ -1679,6 +1680,98 @@ describe('RichTextEditorComponent', () => {
 
             expect(overlayEvent.defaultPrevented).toBe(true);
             expect(component.tableContextMenuOpen()).toBe(false);
+        });
+    });
+
+    describe('font family', () => {
+        it('includes fontFamily in DEFAULT_TOOLBAR_ITEMS', () => {
+            const items = component.toolbarItems();
+            expect(items).toContain('fontFamily');
+        });
+
+        it('uses DEFAULT_FONT_FAMILIES when no custom fonts provided', () => {
+            expect(component.resolvedFontFamilies()).toEqual(DEFAULT_FONT_FAMILIES);
+        });
+
+        it('appends custom fonts to defaults with append strategy', () => {
+            fixture.componentRef.setInput('fontFamilies', ['Roboto', 'Open Sans']);
+            fixture.componentRef.setInput('fontFamiliesStrategy', 'append');
+            fixture.detectChanges();
+
+            const resolved = component.resolvedFontFamilies();
+            expect(resolved).toEqual([...DEFAULT_FONT_FAMILIES, 'Roboto', 'Open Sans']);
+        });
+
+        it('replaces defaults with custom fonts using replace strategy', () => {
+            fixture.componentRef.setInput('fontFamilies', ['Roboto', 'Open Sans']);
+            fixture.componentRef.setInput('fontFamiliesStrategy', 'replace');
+            fixture.detectChanges();
+
+            const resolved = component.resolvedFontFamilies();
+            expect(resolved).toEqual(['Roboto', 'Open Sans']);
+        });
+
+        it('keeps defaults when empty fontFamilies array is provided', () => {
+            fixture.componentRef.setInput('fontFamilies', []);
+            fixture.componentRef.setInput('fontFamiliesStrategy', 'replace');
+            fixture.detectChanges();
+
+            expect(component.resolvedFontFamilies()).toEqual(DEFAULT_FONT_FAMILIES);
+        });
+
+        it('applies font-family style via font[face] to span conversion', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<font face="Georgia">Hello World</font>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const selection = document.getSelection();
+            const range = document.createRange();
+            range.selectNodeContents(editor);
+            selection?.removeAllRanges();
+            selection?.addRange(range);
+
+            component.onFontFamilySelect('Georgia');
+            fixture.detectChanges();
+
+            const fontElements = editor.querySelectorAll('font[face]');
+            expect(fontElements.length).toBe(0);
+
+            const spans = editor.querySelectorAll('span');
+            const hasGeorgia = Array.from(spans).some(
+                span => span.style.fontFamily.includes('Georgia')
+            );
+            expect(hasGeorgia).toBe(true);
+        });
+
+        it('detects current font family at cursor position', () => {
+            fixture.componentRef.setInput('mode', 'html');
+            fixture.detectChanges();
+
+            editor.innerHTML = '<span style="font-family: Georgia">Styled text</span>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            const textNode = editor.querySelector('span')?.firstChild as Text;
+            if (textNode) {
+                const selection = document.getSelection();
+                const range = document.createRange();
+                range.setStart(textNode, 2);
+                range.collapse(true);
+                selection?.removeAllRanges();
+                selection?.addRange(range);
+
+                editor.dispatchEvent(new Event('keyup', { bubbles: true }));
+                fixture.detectChanges();
+
+                expect(component.currentFontFamily()).toBeTruthy();
+            }
+        });
+
+        it('defaults to append strategy', () => {
+            expect(component.fontFamiliesStrategy()).toBe('append');
         });
     });
 });

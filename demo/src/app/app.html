@@ -232,6 +232,26 @@
               [enableSlashCommands]="true" minHeight="150px" />
           </div>
 
+          <!-- Font Family Selection -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Font Family Selection</h3>
+            <p class="text-sm text-muted-foreground">Select text and change its font family. Uses the built-in web-safe font list.</p>
+            <ui-rich-text-editor mode="html" toolbar="top"
+              [toolbarItems]="['bold', 'italic', 'separator', 'fontFamily', 'fontSize', 'separator', 'fontColor']"
+              placeholder="Type something, select it, and pick a font..." minHeight="120px" />
+          </div>
+
+          <!-- Custom Font Families -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Custom Font Families (Replace Mode)</h3>
+            <p class="text-sm text-muted-foreground">Only custom fonts are shown when using <code class="text-xs bg-muted px-1.5 py-0.5 rounded">fontFamiliesStrategy="replace"</code>.</p>
+            <ui-rich-text-editor mode="html" toolbar="top"
+              [toolbarItems]="['bold', 'italic', 'separator', 'fontFamily', 'fontSize']"
+              [fontFamilies]="['Roboto', 'Open Sans', 'Lato', 'Montserrat', 'Poppins']"
+              fontFamiliesStrategy="replace"
+              placeholder="Custom Google Fonts only..." minHeight="120px" />
+          </div>
+
           <!-- Auto Image Upload -->
           <div class="space-y-2">
             <h3 class="text-lg font-medium">Auto Image Upload</h3>

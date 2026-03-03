@@ -52,6 +52,7 @@ import { RichTextCustomToolbarItem } from './rich-text-editor.component';
  * - `'fontColor'` — Text color picker.
  * - `'backgroundColor'` — Background highlight color picker.
  * - `'fontSize'` — Font size selector dropdown.
+ * - `'fontFamily'` — Font family selector dropdown.
  * - `'alignLeft'` / `'alignCenter'` / `'alignRight'` — Text alignment.
  *
  * **History:**
@@ -96,6 +97,7 @@ export type ToolbarItem =
   | 'alignLeft'
   | 'alignCenter'
   | 'alignRight'
+  | 'fontFamily'
   | 'table'
   | 'importFile'
   | 'indent'
@@ -133,6 +135,7 @@ const TOOLBAR_BUTTONS: ToolbarButton[] = [
   { id: 'fontColor', label: 'Text Color', localeKey: 'textColor' },
   { id: 'backgroundColor', label: 'Background Color', localeKey: 'backgroundColor' },
   { id: 'fontSize', label: 'Font Size', localeKey: 'fontSize' },
+  { id: 'fontFamily', label: 'Font Family', localeKey: 'fontFamily' },
   { id: 'alignLeft', label: 'Align Left', localeKey: 'alignLeft' },
   { id: 'alignCenter', label: 'Align Center', localeKey: 'alignCenter' },
   { id: 'alignRight', label: 'Align Right', localeKey: 'alignRight' },
@@ -167,6 +170,7 @@ const ICONS: Record<string, string> = {
   fontColor: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h16"/><path d="m6 16 6-12 6 12"/><path d="M8 12h8"/></svg>`,
   backgroundColor: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m19 11-8-8-8.6 8.6a2 2 0 0 0 0 2.8l5.2 5.2c.8.8 2 .8 2.8 0L19 11Z"/><path d="m5 2 5 5"/><path d="M2 13h15"/><path d="M22 20a2 2 0 1 1-4 0c0-1.6 1.7-2.4 2-4 .3 1.6 2 2.4 2 4Z"/></svg>`,
   fontSize: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" x2="15" y1="20" y2="20"/><line x1="12" x2="12" y1="4" y2="20"/></svg>`,
+  fontFamily: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 14h-5"/><path d="M21 18h-5"/><path d="M17 14v8"/><path d="m3 16 4-8 4 8"/><path d="M4.5 14h5"/></svg>`,
   alignLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="15" x2="3" y1="12" y2="12"/><line x1="17" x2="3" y1="18" y2="18"/></svg>`,
   alignCenter: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="17" x2="7" y1="12" y2="12"/><line x1="19" x2="5" y1="18" y2="18"/></svg>`,
   alignRight: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="21" x2="3" y1="6" y2="6"/><line x1="21" x2="9" y1="12" y2="12"/><line x1="21" x2="7" y1="18" y2="18"/></svg>`,
@@ -177,6 +181,34 @@ const ICONS: Record<string, string> = {
   taskList: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 17 2 2 4-4"/><path d="m3 7 2 2 4-4"/><path d="M13 6h8"/><path d="M13 12h8"/><path d="M13 18h8"/></svg>`,
   horizontalRule: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/></svg>`,
 };
+
+/**
+ * The default set of web-safe font families offered by the font family dropdown.
+ * Pass a custom array via `[fontFamilyOptions]` on the toolbar (or `[fontFamilies]`
+ * on the editor) to replace or extend this list.
+ */
+export const DEFAULT_FONT_FAMILIES: string[] = [
+  'Arial',
+  'Helvetica',
+  'Verdana',
+  'Tahoma',
+  'Trebuchet MS',
+  'Times New Roman',
+  'Georgia',
+  'Garamond',
+  'Courier New',
+  'Lucida Console',
+  'Comic Sans MS',
+  'Impact',
+];
+
+/**
+ * Controls whether custom font families replace or extend the built-in defaults.
+ *
+ * - `'append'`  — Custom fonts are added after {@link DEFAULT_FONT_FAMILIES}.
+ * - `'replace'` — Only the custom fonts are shown; defaults are discarded.
+ */
+export type FontFamilyStrategy = 'append' | 'replace';
 
 @Component({
   selector: 'ui-rich-text-toolbar',
@@ -362,6 +394,33 @@ const ICONS: Record<string, string> = {
               </div>
             </ui-popover-content>
           </ui-popover>
+        } @else if (item === 'fontFamily') {
+          <ui-popover [open]="openPopover() === 'fontFamily'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('fontFamily') : closePopoverPanel('fontFamily')">
+            <ui-popover-trigger>
+              <button
+                type="button"
+                [class]="buttonClasses(item)"
+                [title]="getTooltip(item)"
+                [disabled]="interactionDisabled()"
+              >
+                <span [innerHTML]="getIcon('fontFamily')"></span>
+              </button>
+            </ui-popover-trigger>
+            <ui-popover-content class="w-56 p-3" align="start" strategy="fixed">
+              <div class="space-y-2">
+                <label class="text-sm font-medium block">{{ locale().fontFamily.selectFamily }}</label>
+                <ui-autocomplete
+                  [(ngModel)]="selectedFontFamily"
+                  [options]="fontFamilyOptions()"
+                  [placeholder]="locale().fontFamily.selectFamilyPlaceholder"
+                  [disabled]="interactionDisabled()"
+                  [filter]="true"
+                  (ngModelChange)="onFontFamilyAutocompleteChange($event)"
+                  class="w-full"
+                />
+              </div>
+            </ui-popover-content>
+          </ui-popover>
         } @else if (item === 'backgroundColor') {
           <ui-popover [open]="openPopover() === 'backgroundColor'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('backgroundColor') : closePopoverPanel('backgroundColor')">
             <ui-popover-trigger>
@@ -500,6 +559,8 @@ export class RichTextToolbarComponent {
   activeFormats = input<Set<string>>(new Set());
   selectedText = input<string>('');
   currentFontSize = input<string>('');
+  currentFontFamily = input<string>('');
+  fontFamilyOptions = input<string[]>(DEFAULT_FONT_FAMILIES);
   compact = input<boolean>(false);
   class = input<string>('');
   disabled = input<boolean>(false);
@@ -536,9 +597,11 @@ export class RichTextToolbarComponent {
   fontSizeOptions = Array.from({ length: 33 }, (_, i) => 8 + i * 2);
 
   fontSizeSelect = output<string>();
+  fontFamilySelect = output<string>();
 
   openPopover = signal<string | null>(null);
   selectedFontSize = signal<string>('');
+  selectedFontFamily = signal<string>('');
 
   fontSizeOptionsWithPx = computed(() =>
     this.fontSizeOptions.map(size => `${size}px`)
@@ -647,6 +710,12 @@ export class RichTextToolbarComponent {
         this.selectedFontSize.set(`${currentSize}px`);
       }
     }
+    if (popoverId === 'fontFamily') {
+      const currentFamily = this.currentFontFamily();
+      if (currentFamily) {
+        this.selectedFontFamily.set(currentFamily);
+      }
+    }
   }
 
   closePopoverPanel(popoverId: string): void {
@@ -668,6 +737,14 @@ export class RichTextToolbarComponent {
     const numericValue = value.replaceAll(/[^\d]/g, '');
     if (numericValue && !Number.isNaN(Number(numericValue))) {
       this.fontSizeSelect.emit(numericValue);
+      this.openPopover.set(null);
+    }
+  }
+
+  onFontFamilyAutocompleteChange(value: string): void {
+    if (this.interactionDisabled()) return;
+    if (value) {
+      this.fontFamilySelect.emit(value);
       this.openPopover.set(null);
     }
   }

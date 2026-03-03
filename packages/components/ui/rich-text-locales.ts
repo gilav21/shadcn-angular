@@ -24,6 +24,7 @@ export interface RichTextLocale {
         textColor: string;
         backgroundColor: string;
         fontSize: string;
+        fontFamily: string;
         alignLeft: string;
         alignCenter: string;
         alignRight: string;
@@ -68,6 +69,11 @@ export interface RichTextLocale {
         selectSizePlaceholder: string;
         customSize: string;
         apply: string;
+    };
+
+    fontFamily: {
+        selectFamily: string;
+        selectFamilyPlaceholder: string;
     };
 
     color: {
@@ -218,6 +224,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: 'Text Color',
             backgroundColor: 'Background Color',
             fontSize: 'Font Size',
+            fontFamily: 'Font Family',
             alignLeft: 'Align Left',
             alignCenter: 'Align Center',
             alignRight: 'Align Right',
@@ -258,6 +265,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'Select size',
             customSize: 'Custom Size',
             apply: 'Apply',
+        },
+        fontFamily: {
+            selectFamily: 'Select Font',
+            selectFamilyPlaceholder: 'Search fonts...',
         },
         color: {
             textColor: 'Text Color',
@@ -395,6 +406,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: 'צבע טקסט',
             backgroundColor: 'צבע רקע',
             fontSize: 'גודל גופן',
+            fontFamily: 'משפחת גופנים',
             alignLeft: 'יישור לשמאל',
             alignCenter: 'יישור למרכז',
             alignRight: 'יישור לימין',
@@ -435,6 +447,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'בחירת גודל',
             customSize: 'גודל מותאם',
             apply: 'החלה',
+        },
+        fontFamily: {
+            selectFamily: 'בחירת גופן',
+            selectFamilyPlaceholder: 'חיפוש גופנים...',
         },
         color: {
             textColor: 'צבע טקסט',
@@ -572,6 +588,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: 'لون النص',
             backgroundColor: 'لون الخلفية',
             fontSize: 'حجم الخط',
+            fontFamily: 'نوع الخط',
             alignLeft: 'محاذاة لليسار',
             alignCenter: 'محاذاة للوسط',
             alignRight: 'محاذاة لليمين',
@@ -612,6 +629,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'اختيار الحجم',
             customSize: 'حجم مخصص',
             apply: 'تطبيق',
+        },
+        fontFamily: {
+            selectFamily: 'اختيار الخط',
+            selectFamilyPlaceholder: 'البحث عن خطوط...',
         },
         color: {
             textColor: 'لون النص',
@@ -749,6 +770,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: 'Textfarbe',
             backgroundColor: 'Hintergrundfarbe',
             fontSize: 'Schriftgröße',
+            fontFamily: 'Schriftart',
             alignLeft: 'Linksbündig',
             alignCenter: 'Zentriert',
             alignRight: 'Rechtsbündig',
@@ -789,6 +811,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'Größe wählen',
             customSize: 'Benutzerdefinierte Größe',
             apply: 'Anwenden',
+        },
+        fontFamily: {
+            selectFamily: 'Schriftart wählen',
+            selectFamilyPlaceholder: 'Schriftarten suchen...',
         },
         color: {
             textColor: 'Textfarbe',
@@ -926,6 +952,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: 'Couleur du texte',
             backgroundColor: 'Couleur de fond',
             fontSize: 'Taille de police',
+            fontFamily: 'Police de caractères',
             alignLeft: 'Aligner à gauche',
             alignCenter: 'Centrer',
             alignRight: 'Aligner à droite',
@@ -966,6 +993,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'Choisir la taille',
             customSize: 'Taille personnalisée',
             apply: 'Appliquer',
+        },
+        fontFamily: {
+            selectFamily: 'Choisir la police',
+            selectFamilyPlaceholder: 'Rechercher des polices...',
         },
         color: {
             textColor: 'Couleur du texte',
@@ -1103,6 +1134,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: 'Color de texto',
             backgroundColor: 'Color de fondo',
             fontSize: 'Tamaño de fuente',
+            fontFamily: 'Familia tipográfica',
             alignLeft: 'Alinear a la izquierda',
             alignCenter: 'Centrar',
             alignRight: 'Alinear a la derecha',
@@ -1143,6 +1175,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'Seleccionar tamaño',
             customSize: 'Tamaño personalizado',
             apply: 'Aplicar',
+        },
+        fontFamily: {
+            selectFamily: 'Seleccionar fuente',
+            selectFamilyPlaceholder: 'Buscar fuentes...',
         },
         color: {
             textColor: 'Color de texto',
@@ -1280,6 +1316,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: '文字色',
             backgroundColor: '背景色',
             fontSize: 'フォントサイズ',
+            fontFamily: 'フォント',
             alignLeft: '左揃え',
             alignCenter: '中央揃え',
             alignRight: '右揃え',
@@ -1320,6 +1357,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'サイズを選択',
             customSize: 'カスタムサイズ',
             apply: '適用',
+        },
+        fontFamily: {
+            selectFamily: 'フォントを選択',
+            selectFamilyPlaceholder: 'フォントを検索...',
         },
         color: {
             textColor: '文字色',
@@ -1457,6 +1498,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: '文字颜色',
             backgroundColor: '背景颜色',
             fontSize: '字号',
+            fontFamily: '字体',
             alignLeft: '左对齐',
             alignCenter: '居中对齐',
             alignRight: '右对齐',
@@ -1497,6 +1539,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: '选择大小',
             customSize: '自定义大小',
             apply: '应用',
+        },
+        fontFamily: {
+            selectFamily: '选择字体',
+            selectFamilyPlaceholder: '搜索字体...',
         },
         color: {
             textColor: '文字颜色',
@@ -1634,6 +1680,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: 'Цвет текста',
             backgroundColor: 'Цвет фона',
             fontSize: 'Размер шрифта',
+            fontFamily: 'Шрифт',
             alignLeft: 'По левому краю',
             alignCenter: 'По центру',
             alignRight: 'По правому краю',
@@ -1674,6 +1721,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'Выберите размер',
             customSize: 'Свой размер',
             apply: 'Применить',
+        },
+        fontFamily: {
+            selectFamily: 'Выбрать шрифт',
+            selectFamilyPlaceholder: 'Поиск шрифтов...',
         },
         color: {
             textColor: 'Цвет текста',
@@ -1811,6 +1862,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             textColor: 'Cor do texto',
             backgroundColor: 'Cor de fundo',
             fontSize: 'Tamanho da fonte',
+            fontFamily: 'Família tipográfica',
             alignLeft: 'Alinhar à esquerda',
             alignCenter: 'Centralizar',
             alignRight: 'Alinhar à direita',
@@ -1851,6 +1903,10 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectSizePlaceholder: 'Selecionar tamanho',
             customSize: 'Tamanho personalizado',
             apply: 'Aplicar',
+        },
+        fontFamily: {
+            selectFamily: 'Selecionar fonte',
+            selectFamilyPlaceholder: 'Pesquisar fontes...',
         },
         color: {
             textColor: 'Cor do texto',
