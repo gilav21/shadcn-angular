@@ -2,12 +2,17 @@ import { readZip } from './zip-reader';
 import { isValidImageMagicBytes } from './image-validator';
 
 type DocxVertAlign = 'superscript' | 'subscript';
+type DocxBreakType = 'page' | 'column' | 'textWrapping';
+type DocxListType = 'bullet' | 'numbered';
 
 export interface DocxRunStyle {
     readonly bold?: boolean;
     readonly italic?: boolean;
     readonly underline?: boolean;
     readonly strikethrough?: boolean;
+    readonly doubleStrikethrough?: boolean;
+    readonly caps?: boolean;
+    readonly smallCaps?: boolean;
     readonly fontSize?: number;
     readonly color?: string;
     readonly fontFamily?: string;
@@ -15,12 +20,31 @@ export interface DocxRunStyle {
     readonly backgroundColor?: string;
     readonly vertAlign?: DocxVertAlign;
     readonly rtl?: boolean;
+    readonly charSpacing?: number;
+    readonly hidden?: boolean;
 }
 
 export interface DocxRun {
     readonly text: string;
     readonly style: DocxRunStyle;
     readonly href?: string;
+    readonly breakType?: DocxBreakType;
+    readonly isInserted?: boolean;
+    readonly isDeleted?: boolean;
+    readonly anchorId?: string;
+}
+
+export interface DocxBorder {
+    readonly style: string;
+    readonly color: string;
+    readonly size: number;
+}
+
+export interface DocxParagraphBorders {
+    readonly top?: DocxBorder;
+    readonly bottom?: DocxBorder;
+    readonly left?: DocxBorder;
+    readonly right?: DocxBorder;
 }
 
 export interface DocxParagraph {
@@ -28,7 +52,7 @@ export interface DocxParagraph {
     readonly runs: ReadonlyArray<DocxRun>;
     readonly style: string;
     readonly listLevel?: number;
-    readonly listType?: 'bullet' | 'numbered';
+    readonly listType?: DocxListType;
     readonly rtl?: boolean;
     readonly alignment?: string;
     readonly spacingBefore?: number;
@@ -37,17 +61,70 @@ export interface DocxParagraph {
     readonly indentLeft?: number;
     readonly indentRight?: number;
     readonly indentHanging?: number;
+    readonly indentFirstLine?: number;
+    readonly shading?: string;
+    readonly borders?: DocxParagraphBorders;
+}
+
+export interface DocxTableBorder {
+    readonly style: string;
+    readonly color: string;
+    readonly size: number;
+}
+
+export interface DocxTableCellStyle {
+    readonly backgroundColor?: string;
+    readonly verticalAlign?: string;
+    readonly width?: number;
+    readonly widthUnit?: string;
+    readonly borders?: {
+        readonly top?: DocxTableBorder;
+        readonly bottom?: DocxTableBorder;
+        readonly left?: DocxTableBorder;
+        readonly right?: DocxTableBorder;
+    };
+    readonly paddings?: {
+        readonly top?: number;
+        readonly bottom?: number;
+        readonly left?: number;
+        readonly right?: number;
+    };
 }
 
 export interface DocxTableCell {
-    readonly paragraphs: ReadonlyArray<DocxParagraph>;
+    readonly elements: ReadonlyArray<DocxParagraph | DocxTable>;
     readonly colSpan: number;
     readonly rowSpan: number;
+    readonly cellStyle?: DocxTableCellStyle;
+}
+
+export interface DocxTableRowStyle {
+    readonly height?: number;
+    readonly isHeader?: boolean;
+}
+
+export interface DocxTableRow {
+    readonly cells: ReadonlyArray<DocxTableCell>;
+    readonly rowStyle?: DocxTableRowStyle;
+}
+
+export interface DocxTableStyle {
+    readonly width?: number;
+    readonly widthUnit?: string;
+    readonly borders?: {
+        readonly top?: DocxTableBorder;
+        readonly bottom?: DocxTableBorder;
+        readonly left?: DocxTableBorder;
+        readonly right?: DocxTableBorder;
+        readonly insideH?: DocxTableBorder;
+        readonly insideV?: DocxTableBorder;
+    };
 }
 
 export interface DocxTable {
     readonly type: 'table';
-    readonly rows: ReadonlyArray<ReadonlyArray<DocxTableCell>>;
+    readonly rows: ReadonlyArray<DocxTableRow>;
+    readonly tableStyle?: DocxTableStyle;
 }
 
 export interface DocxImage {
@@ -58,17 +135,42 @@ export interface DocxImage {
     readonly altText: string;
 }
 
+export interface DocxFootnote {
+    readonly id: string;
+    readonly paragraphs: ReadonlyArray<DocxParagraph>;
+}
+
 export type DocxElement = DocxParagraph | DocxTable | DocxImage;
+
+export interface DocxComment {
+    readonly id: string;
+    readonly author: string;
+    readonly date: string;
+    readonly paragraphs: ReadonlyArray<DocxParagraph>;
+}
 
 export interface DocxParseResult {
     readonly elements: ReadonlyArray<DocxElement>;
     readonly plainText: string;
+    readonly footnotes: ReadonlyArray<DocxFootnote>;
+    readonly endnotes: ReadonlyArray<DocxFootnote>;
+    readonly comments: ReadonlyArray<DocxComment>;
+    readonly headers: ReadonlyArray<ReadonlyArray<DocxElement>>;
+    readonly footers: ReadonlyArray<ReadonlyArray<DocxElement>>;
 }
 
 const NS_W = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const NS_R = 'http://schemas.openxmlformats.org/officeDocument/2006/relationships';
 const NS_WP = 'http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing';
 const NS_A = 'http://schemas.openxmlformats.org/drawingml/2006/main';
+const NS_MC = 'http://schemas.openxmlformats.org/markup-compatibility/2006';
+
+type ThemeColorMap = ReadonlyMap<string, string>;
+
+const SCHEME_COLOR_ALIASES: ReadonlyMap<string, string> = new Map([
+    ['tx1', 'dk1'], ['tx2', 'dk2'],
+    ['bg1', 'lt1'], ['bg2', 'lt2'],
+]);
 
 const EMU_PER_PIXEL = 9525;
 const TWIPS_PER_PT = 20;
@@ -175,7 +277,7 @@ function parseNumberingDefinitions(files: Map<string, Uint8Array>): Map<string, 
     return numMap;
 }
 
-function parseRunStyle(rPr: Element | null): DocxRunStyle {
+function parseRunStyle(rPr: Element | null, themeColors?: ThemeColorMap): DocxRunStyle {
     if (!rPr) return {};
 
     const result: {
@@ -183,6 +285,9 @@ function parseRunStyle(rPr: Element | null): DocxRunStyle {
         italic?: boolean;
         underline?: boolean;
         strikethrough?: boolean;
+        doubleStrikethrough?: boolean;
+        caps?: boolean;
+        smallCaps?: boolean;
         fontSize?: number;
         color?: string;
         fontFamily?: string;
@@ -190,16 +295,23 @@ function parseRunStyle(rPr: Element | null): DocxRunStyle {
         backgroundColor?: string;
         vertAlign?: DocxVertAlign;
         rtl?: boolean;
+        charSpacing?: number;
+        hidden?: boolean;
     } = {};
 
     parseBoldItalic(rPr, result);
     if (getChildNS(rPr, NS_W, 'u')) result.underline = true;
     if (getChildNS(rPr, NS_W, 'strike')) result.strikethrough = true;
+    if (getChildNS(rPr, NS_W, 'dstrike')) result.doubleStrikethrough = true;
+    if (getChildNS(rPr, NS_W, 'caps')) result.caps = true;
+    if (getChildNS(rPr, NS_W, 'smallCaps')) result.smallCaps = true;
+    if (getChildNS(rPr, NS_W, 'vanish')) result.hidden = true;
 
-    parseFontSizeAndColor(rPr, result);
+    parseFontSizeAndColor(rPr, result, themeColors);
     parseFontFamily(rPr, result);
     parseHighlightAndShading(rPr, result);
     parseVertAlignAndRtl(rPr, result);
+    parseCharSpacing(rPr, result);
 
     return result;
 }
@@ -217,7 +329,11 @@ function parseBoldItalic(rPr: Element, result: { bold?: boolean; italic?: boolea
     }
 }
 
-function parseFontSizeAndColor(rPr: Element, result: { fontSize?: number; color?: string }): void {
+function parseFontSizeAndColor(
+    rPr: Element,
+    result: { fontSize?: number; color?: string },
+    themeColors?: ThemeColorMap,
+): void {
     const sz = getChildNS(rPr, NS_W, 'sz');
     if (sz) {
         const val = getAttrVal(sz, NS_W, 'val');
@@ -227,7 +343,65 @@ function parseFontSizeAndColor(rPr: Element, result: { fontSize?: number; color?
     const color = getChildNS(rPr, NS_W, 'color');
     if (color) {
         const val = getAttrVal(color, NS_W, 'val');
-        if (val && val !== 'auto') result.color = `#${val}`;
+        if (val && val !== 'auto') {
+            result.color = `#${val}`;
+        } else if (themeColors) {
+            const themeColor = getAttrVal(color, NS_W, 'themeColor');
+            if (themeColor) {
+                const resolved = resolveThemeColor(themeColor, themeColors);
+                if (resolved) {
+                    const tint = getAttrVal(color, NS_W, 'themeTint');
+                    const shade = getAttrVal(color, NS_W, 'themeShade');
+                    result.color = applyTintShade(resolved, tint, shade);
+                }
+            }
+        }
+    }
+}
+
+function resolveThemeColor(themeColor: string, themeColors: ThemeColorMap): string | undefined {
+    const mapped = SCHEME_COLOR_ALIASES.get(themeColor) ?? themeColor;
+    return themeColors.get(mapped);
+}
+
+function applyTintShade(hex: string, tint: string | null, shade: string | null): string {
+    if (!tint && !shade) return hex;
+
+    const r = Number.parseInt(hex.substring(1, 3), 16);
+    const g = Number.parseInt(hex.substring(3, 5), 16);
+    const b = Number.parseInt(hex.substring(5, 7), 16);
+
+    if (tint) {
+        const t = Number.parseInt(tint, 16) / 255;
+        return rgbToHex(
+            Math.round(r + (255 - r) * t),
+            Math.round(g + (255 - g) * t),
+            Math.round(b + (255 - b) * t),
+        );
+    }
+
+    if (shade) {
+        const s = Number.parseInt(shade, 16) / 255;
+        return rgbToHex(
+            Math.round(r * s),
+            Math.round(g * s),
+            Math.round(b * s),
+        );
+    }
+
+    return hex;
+}
+
+function rgbToHex(r: number, g: number, b: number): string {
+    const toHex = (v: number): string => Math.min(255, Math.max(0, v)).toString(16).padStart(2, '0');
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
+function parseCharSpacing(rPr: Element, result: { charSpacing?: number }): void {
+    const spacing = getChildNS(rPr, NS_W, 'spacing');
+    if (spacing) {
+        const val = getAttrVal(spacing, NS_W, 'val');
+        if (val) result.charSpacing = Number.parseInt(val, 10) / TWIPS_PER_PT;
     }
 }
 
@@ -334,7 +508,7 @@ function uint8ArrayToBase64(data: Uint8Array): string {
 interface ParagraphStyleResult {
     readonly style: string;
     readonly listLevel?: number;
-    readonly listType?: 'bullet' | 'numbered';
+    readonly listType?: DocxListType;
     readonly rtl?: boolean;
     readonly alignment?: string;
     readonly spacingBefore?: number;
@@ -343,6 +517,9 @@ interface ParagraphStyleResult {
     readonly indentLeft?: number;
     readonly indentRight?: number;
     readonly indentHanging?: number;
+    readonly indentFirstLine?: number;
+    readonly shading?: string;
+    readonly borders?: DocxParagraphBorders;
 }
 
 function parseParagraphStyle(
@@ -360,7 +537,56 @@ function parseParagraphStyle(
         ...parseBidiAndAlignment(pPr),
         ...parseSpacingProperties(pPr),
         ...parseIndentProperties(pPr),
+        ...parseParagraphBordersAndShading(pPr),
     };
+}
+
+function parseParagraphBordersAndShading(pPr: Element): {
+    shading?: string; borders?: DocxParagraphBorders;
+} {
+    const result: { shading?: string; borders?: DocxParagraphBorders } = {};
+
+    const shd = getChildNS(pPr, NS_W, 'shd');
+    if (shd) {
+        const fill = getAttrVal(shd, NS_W, 'fill');
+        if (fill && fill !== 'auto') result.shading = `#${fill}`;
+    }
+
+    const pBdr = getChildNS(pPr, NS_W, 'pBdr');
+    if (pBdr) {
+        result.borders = parseBorderSet(pBdr);
+    }
+
+    return result;
+}
+
+function parseBorderSet(borderParent: Element): DocxParagraphBorders {
+    const borders: {
+        top?: DocxBorder; bottom?: DocxBorder; left?: DocxBorder; right?: DocxBorder;
+    } = {};
+
+    const top = getChildNS(borderParent, NS_W, 'top');
+    if (top) borders.top = parseSingleBorder(top);
+
+    const bottom = getChildNS(borderParent, NS_W, 'bottom');
+    if (bottom) borders.bottom = parseSingleBorder(bottom);
+
+    const left = getChildNS(borderParent, NS_W, 'left');
+    if (left) borders.left = parseSingleBorder(left);
+
+    const right = getChildNS(borderParent, NS_W, 'right');
+    if (right) borders.right = parseSingleBorder(right);
+
+    return borders;
+}
+
+function parseSingleBorder(el: Element): DocxBorder {
+    const style = getAttrVal(el, NS_W, 'val') ?? 'single';
+    const colorVal = getAttrVal(el, NS_W, 'color');
+    const color = colorVal && colorVal !== 'auto' ? `#${colorVal}` : '#000000';
+    const sizeVal = getAttrVal(el, NS_W, 'sz');
+    const size = sizeVal ? Number.parseInt(sizeVal, 10) / 8 : 1;
+    return { style, color, size };
 }
 
 function parseListProperties(
@@ -440,11 +666,13 @@ function parseSpacingProperties(pPr: Element): { spacingBefore?: number; spacing
     return result;
 }
 
-function parseIndentProperties(pPr: Element): { indentLeft?: number; indentRight?: number; indentHanging?: number } {
+function parseIndentProperties(pPr: Element): {
+    indentLeft?: number; indentRight?: number; indentHanging?: number; indentFirstLine?: number;
+} {
     const ind = getChildNS(pPr, NS_W, 'ind');
     if (!ind) return {};
 
-    const result: { indentLeft?: number; indentRight?: number; indentHanging?: number } = {};
+    const result: { indentLeft?: number; indentRight?: number; indentHanging?: number; indentFirstLine?: number } = {};
 
     const left = getAttrVal(ind, NS_W, 'left') ?? getAttrVal(ind, NS_W, 'start');
     if (left) result.indentLeft = Number.parseInt(left, 10) / TWIPS_PER_PT;
@@ -455,19 +683,20 @@ function parseIndentProperties(pPr: Element): { indentLeft?: number; indentRight
     const hanging = getAttrVal(ind, NS_W, 'hanging');
     if (hanging) result.indentHanging = Number.parseInt(hanging, 10) / TWIPS_PER_PT;
 
+    const firstLine = getAttrVal(ind, NS_W, 'firstLine');
+    if (firstLine) result.indentFirstLine = Number.parseInt(firstLine, 10) / TWIPS_PER_PT;
+
     return result;
 }
 
-function parseRun(
+function parseRunChildren(
     run: Element,
+    style: DocxRunStyle,
     relationships: Map<string, string>,
     files: Map<string, Uint8Array>,
 ): { runs: DocxRun[]; images: DocxImage[] } {
     const runs: DocxRun[] = [];
     const images: DocxImage[] = [];
-
-    const rPr = getChildNS(run, NS_W, 'rPr');
-    const style = parseRunStyle(rPr);
 
     for (let i = 0; i < run.childNodes.length; i++) {
         const child = run.childNodes[i];
@@ -477,39 +706,92 @@ function parseRun(
         if (localName === 't') {
             const text = child.textContent ?? '';
             if (text) runs.push({ text, style });
+        } else if (localName === 'delText') {
+            const text = child.textContent ?? '';
+            if (text) runs.push({ text, style });
         } else if (localName === 'br') {
-            runs.push({ text: '\n', style });
+            const breakType = parseBreakType(child);
+            runs.push({ text: '\n', style, breakType });
         } else if (localName === 'tab') {
             runs.push({ text: '\t', style });
+        } else if (localName === 'sym') {
+            const symRun = parseSymbol(child, style);
+            if (symRun) runs.push(symRun);
+        } else if (localName === 'noBreakHyphen') {
+            runs.push({ text: '\u2011', style });
+        } else if (localName === 'softHyphen') {
+            runs.push({ text: '\u00AD', style });
         } else if (localName === 'drawing' || localName === 'pict') {
             const img = extractImageFromDrawing(child, relationships, files);
             if (img) images.push(img);
+        } else if (localName === 'footnoteReference' || localName === 'endnoteReference') {
+            const noteId = getAttrVal(child, NS_W, 'id');
+            if (noteId) {
+                const marker = localName === 'footnoteReference' ? `[${noteId}]` : `{${noteId}}`;
+                runs.push({ text: marker, style: { ...style, vertAlign: 'superscript' } });
+            }
+        } else if (localName === 'commentReference') {
+            const commentId = getAttrVal(child, NS_W, 'id');
+            if (commentId) {
+                runs.push({ text: `*${commentId}`, style: { ...style, vertAlign: 'superscript' } });
+            }
         }
     }
 
     return { runs, images };
 }
 
+function parseBreakType(br: Element): DocxBreakType | undefined {
+    const typeAttr = getAttrVal(br, NS_W, 'type');
+    if (typeAttr === 'page') return 'page';
+    if (typeAttr === 'column') return 'column';
+    return undefined;
+}
+
+function parseSymbol(sym: Element, baseStyle: DocxRunStyle): DocxRun | null {
+    const charCode = getAttrVal(sym, NS_W, 'char');
+    if (!charCode) return null;
+    const codePoint = Number.parseInt(charCode, 16);
+    const text = String.fromCodePoint(codePoint);
+    const font = getAttrVal(sym, NS_W, 'font');
+    const style = font ? { ...baseStyle, fontFamily: font } : baseStyle;
+    return { text, style };
+}
+
+function parseRun(
+    run: Element,
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
+): { runs: DocxRun[]; images: DocxImage[] } {
+    const rPr = getChildNS(run, NS_W, 'rPr');
+    const style = parseRunStyle(rPr, themeColors);
+    return parseRunChildren(run, style, relationships, files);
+}
+
 function parseHyperlinkRuns(
     hyperlink: Element,
     relationships: Map<string, string>,
     files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
 ): { runs: DocxRun[]; images: DocxImage[] } {
     const allRuns: DocxRun[] = [];
     const allImages: DocxImage[] = [];
 
     const rId = hyperlink.getAttributeNS(NS_R, 'id') ?? hyperlink.getAttribute('r:id') ?? '';
     const target = rId ? (relationships.get(rId) ?? '') : '';
+    const anchor = hyperlink.getAttributeNS(NS_W, 'anchor') ?? hyperlink.getAttribute('w:anchor') ?? '';
+    const href = target || (anchor ? `#bookmark-${anchor}` : '');
 
     const runElements = getAllChildrenNS(hyperlink, NS_W, 'r');
     for (const run of runElements) {
-        const { runs, images } = parseRun(run, relationships, files);
+        const { runs, images } = parseRun(run, relationships, files, themeColors);
         for (const r of runs) {
-            if (target && r.text.trim()) {
+            if (href && r.text.trim()) {
                 allRuns.push({
                     text: r.text,
                     style: { ...r.style, underline: true, color: r.style.color ?? '#0563C1' },
-                    href: target,
+                    href,
                 });
             } else {
                 allRuns.push(r);
@@ -525,30 +807,168 @@ function collectDirectChildRuns(
     para: Element,
     relationships: Map<string, string>,
     files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
 ): { runs: DocxRun[]; images: DocxImage[] } {
     const allRuns: DocxRun[] = [];
     const allImages: DocxImage[] = [];
+    let fieldState: 'none' | 'begin' | 'separate' = 'none';
 
     for (let i = 0; i < para.childNodes.length; i++) {
         const child = para.childNodes[i];
         if (!(child instanceof Element)) continue;
 
-        const localName = child.localName;
-        if (localName === 'r') {
-            const { runs, images } = parseRun(child, relationships, files);
-            allRuns.push(...runs);
-            allImages.push(...images);
-        } else if (localName === 'hyperlink') {
-            const { runs, images } = parseHyperlinkRuns(child, relationships, files);
-            allRuns.push(...runs);
-            allImages.push(...images);
-        } else if (localName === 'drawing') {
-            const img = extractImageFromDrawing(child, relationships, files);
-            if (img) allImages.push(img);
+        if (child.localName === 'r' && child.namespaceURI === NS_W) {
+            const fldCharResult = checkFieldChar(child);
+            if (fldCharResult === 'begin') { fieldState = 'begin'; continue; }
+            if (fldCharResult === 'separate') { fieldState = 'separate'; continue; }
+            if (fldCharResult === 'end') { fieldState = 'none'; continue; }
+
+            if (fieldState === 'begin') continue;
+            if (fieldState === 'separate') {
+                const { runs, images } = parseRun(child, relationships, files, themeColors);
+                allRuns.push(...runs);
+                allImages.push(...images);
+                continue;
+            }
         }
+
+        if (fieldState === 'begin') continue;
+
+        collectChildElement(child, allRuns, allImages, relationships, files, themeColors);
     }
 
     return { runs: allRuns, images: allImages };
+}
+
+function checkFieldChar(run: Element): 'begin' | 'separate' | 'end' | null {
+    for (let i = 0; i < run.childNodes.length; i++) {
+        const child = run.childNodes[i];
+        if (child instanceof Element && child.localName === 'fldChar') {
+            const fldCharType = getAttrVal(child, NS_W, 'fldCharType');
+            if (fldCharType === 'begin') return 'begin';
+            if (fldCharType === 'separate') return 'separate';
+            if (fldCharType === 'end') return 'end';
+        }
+    }
+    return null;
+}
+
+function collectChildElement(
+    child: Element,
+    allRuns: DocxRun[],
+    allImages: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
+): void {
+    const localName = child.localName;
+
+    if (localName === 'r') {
+        const { runs, images } = parseRun(child, relationships, files, themeColors);
+        allRuns.push(...runs);
+        allImages.push(...images);
+    } else if (localName === 'hyperlink') {
+        const { runs, images } = parseHyperlinkRuns(child, relationships, files, themeColors);
+        allRuns.push(...runs);
+        allImages.push(...images);
+    } else if (localName === 'drawing') {
+        const img = extractImageFromDrawing(child, relationships, files);
+        if (img) allImages.push(img);
+    } else if (localName === 'bookmarkStart') {
+        const name = getAttrVal(child, NS_W, 'name');
+        if (name && name !== '_GoBack') {
+            allRuns.push({ text: '', style: {}, anchorId: `bookmark-${name}` });
+        }
+    } else if (localName === 'ins') {
+        collectTrackChangeRuns(child, allRuns, allImages, relationships, files, true, themeColors);
+    } else if (localName === 'del') {
+        collectTrackChangeRuns(child, allRuns, allImages, relationships, files, false, themeColors);
+    } else if (localName === 'fldSimple') {
+        collectFieldSimpleRuns(child, allRuns, allImages, relationships, files, themeColors);
+    } else if (isUnwrappableElement(localName)) {
+        unwrapAndCollect(child, allRuns, allImages, relationships, files, themeColors);
+    } else if (localName === 'AlternateContent' && child.namespaceURI === NS_MC) {
+        collectAlternateContent(child, allRuns, allImages, relationships, files, themeColors);
+    }
+}
+
+function isUnwrappableElement(localName: string): boolean {
+    return localName === 'sdt' || localName === 'smartTag' || localName === 'customXml';
+}
+
+function unwrapAndCollect(
+    wrapper: Element,
+    allRuns: DocxRun[],
+    allImages: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
+): void {
+    const content = wrapper.localName === 'sdt'
+        ? getChildNS(wrapper, NS_W, 'sdtContent')
+        : wrapper;
+    if (!content) return;
+
+    const { runs, images } = collectDirectChildRuns(content, relationships, files, themeColors);
+    allRuns.push(...runs);
+    allImages.push(...images);
+}
+
+function collectTrackChangeRuns(
+    element: Element,
+    allRuns: DocxRun[],
+    allImages: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    isInserted: boolean,
+    themeColors?: ThemeColorMap,
+): void {
+    for (let i = 0; i < element.childNodes.length; i++) {
+        const child = element.childNodes[i];
+        if (!(child instanceof Element)) continue;
+
+        if (child.localName === 'r') {
+            const { runs, images } = parseRun(child, relationships, files, themeColors);
+            for (const r of runs) {
+                allRuns.push(isInserted
+                    ? { ...r, isInserted: true }
+                    : { ...r, isDeleted: true });
+            }
+            allImages.push(...images);
+        } else {
+            collectChildElement(child, allRuns, allImages, relationships, files, themeColors);
+        }
+    }
+}
+
+function collectFieldSimpleRuns(
+    fldSimple: Element,
+    allRuns: DocxRun[],
+    allImages: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
+): void {
+    const { runs, images } = collectDirectChildRuns(fldSimple, relationships, files, themeColors);
+    allRuns.push(...runs);
+    allImages.push(...images);
+}
+
+function collectAlternateContent(
+    mc: Element,
+    allRuns: DocxRun[],
+    allImages: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
+): void {
+    const choice = getChildNS(mc, NS_MC, 'Choice');
+    const target = choice ?? getChildNS(mc, NS_MC, 'Fallback');
+    if (!target) return;
+
+    const { runs, images } = collectDirectChildRuns(target, relationships, files, themeColors);
+    allRuns.push(...runs);
+    allImages.push(...images);
 }
 
 function parseParagraph(
@@ -556,29 +976,155 @@ function parseParagraph(
     relationships: Map<string, string>,
     files: Map<string, Uint8Array>,
     numberingMap: Map<string, Map<number, NumberingDefinition>>,
+    themeColors?: ThemeColorMap,
 ): { paragraph: DocxParagraph; images: DocxImage[] } {
     const pPr = getChildNS(para, NS_W, 'pPr');
     const styleResult = parseParagraphStyle(pPr, numberingMap);
 
-    const { runs: allRuns, images: allImages } = collectDirectChildRuns(para, relationships, files);
+    const { runs: allRuns, images: allImages } = collectDirectChildRuns(para, relationships, files, themeColors);
 
+    const paragraph: DocxParagraph = buildParagraphFromStyle(styleResult, allRuns);
+    return { paragraph, images: allImages };
+}
+
+function buildParagraphFromStyle(
+    sr: ParagraphStyleResult,
+    runs: ReadonlyArray<DocxRun>,
+): DocxParagraph {
     const paragraph: DocxParagraph = {
         type: 'paragraph',
-        runs: allRuns,
-        style: styleResult.style,
-        ...(styleResult.listLevel !== undefined ? { listLevel: styleResult.listLevel } : {}),
-        ...(styleResult.listType !== undefined ? { listType: styleResult.listType } : {}),
-        ...(styleResult.rtl !== undefined ? { rtl: styleResult.rtl } : {}),
-        ...(styleResult.alignment !== undefined ? { alignment: styleResult.alignment } : {}),
-        ...(styleResult.spacingBefore !== undefined ? { spacingBefore: styleResult.spacingBefore } : {}),
-        ...(styleResult.spacingAfter !== undefined ? { spacingAfter: styleResult.spacingAfter } : {}),
-        ...(styleResult.lineSpacing !== undefined ? { lineSpacing: styleResult.lineSpacing } : {}),
-        ...(styleResult.indentLeft !== undefined ? { indentLeft: styleResult.indentLeft } : {}),
-        ...(styleResult.indentRight !== undefined ? { indentRight: styleResult.indentRight } : {}),
-        ...(styleResult.indentHanging !== undefined ? { indentHanging: styleResult.indentHanging } : {}),
+        runs,
+        style: sr.style,
+        ...(sr.listLevel !== undefined ? { listLevel: sr.listLevel } : {}),
+        ...(sr.listType !== undefined ? { listType: sr.listType } : {}),
+        ...(sr.rtl !== undefined ? { rtl: sr.rtl } : {}),
+        ...(sr.alignment !== undefined ? { alignment: sr.alignment } : {}),
+        ...(sr.spacingBefore !== undefined ? { spacingBefore: sr.spacingBefore } : {}),
+        ...(sr.spacingAfter !== undefined ? { spacingAfter: sr.spacingAfter } : {}),
+        ...(sr.lineSpacing !== undefined ? { lineSpacing: sr.lineSpacing } : {}),
+        ...(sr.indentLeft !== undefined ? { indentLeft: sr.indentLeft } : {}),
+        ...(sr.indentRight !== undefined ? { indentRight: sr.indentRight } : {}),
+        ...(sr.indentHanging !== undefined ? { indentHanging: sr.indentHanging } : {}),
+        ...(sr.indentFirstLine !== undefined ? { indentFirstLine: sr.indentFirstLine } : {}),
+        ...(sr.shading !== undefined ? { shading: sr.shading } : {}),
+        ...(sr.borders !== undefined ? { borders: sr.borders } : {}),
     };
+    return paragraph;
+}
 
-    return { paragraph, images: allImages };
+function parseTableCellStyle(tcPr: Element | null): {
+    colSpan: number; rowSpan: number; cellStyle?: DocxTableCellStyle;
+} {
+    if (!tcPr) return { colSpan: 1, rowSpan: 1 };
+
+    let colSpan = 1;
+    let rowSpan = 1;
+
+    const gridSpan = getChildNS(tcPr, NS_W, 'gridSpan');
+    if (gridSpan) {
+        colSpan = Number.parseInt(getAttrVal(gridSpan, NS_W, 'val') ?? '1', 10);
+    }
+
+    const vMerge = getChildNS(tcPr, NS_W, 'vMerge');
+    if (vMerge) {
+        const mergeVal = getAttrVal(vMerge, NS_W, 'val');
+        if (!mergeVal || mergeVal === 'continue') {
+            rowSpan = 0;
+        }
+    }
+
+    const cellStyle = buildCellStyle(tcPr);
+    return { colSpan, rowSpan, cellStyle };
+}
+
+function buildCellStyle(tcPr: Element): DocxTableCellStyle | undefined {
+    const style: {
+        backgroundColor?: string; verticalAlign?: string;
+        width?: number; widthUnit?: string;
+        borders?: DocxTableCellStyle['borders'];
+        paddings?: DocxTableCellStyle['paddings'];
+    } = {};
+    let hasStyle = false;
+
+    const shd = getChildNS(tcPr, NS_W, 'shd');
+    if (shd) {
+        const fill = getAttrVal(shd, NS_W, 'fill');
+        if (fill && fill !== 'auto') { style.backgroundColor = `#${fill}`; hasStyle = true; }
+    }
+
+    const vAlign = getChildNS(tcPr, NS_W, 'vAlign');
+    if (vAlign) {
+        const val = getAttrVal(vAlign, NS_W, 'val');
+        if (val) { style.verticalAlign = val; hasStyle = true; }
+    }
+
+    const tcW = getChildNS(tcPr, NS_W, 'tcW');
+    if (tcW) {
+        const w = getAttrVal(tcW, NS_W, 'w');
+        const wType = getAttrVal(tcW, NS_W, 'type') ?? 'dxa';
+        if (w) { style.width = Number.parseInt(w, 10); style.widthUnit = wType; hasStyle = true; }
+    }
+
+    const tcBorders = getChildNS(tcPr, NS_W, 'tcBorders');
+    if (tcBorders) {
+        style.borders = parseTableBorderSet(tcBorders);
+        hasStyle = true;
+    }
+
+    const tcMar = getChildNS(tcPr, NS_W, 'tcMar');
+    if (tcMar) {
+        style.paddings = parseCellMargins(tcMar);
+        hasStyle = true;
+    }
+
+    return hasStyle ? style : undefined;
+}
+
+function parseCellMargins(tcMar: Element): DocxTableCellStyle['paddings'] {
+    const paddings: { top?: number; bottom?: number; left?: number; right?: number } = {};
+    for (const side of ['top', 'bottom', 'left', 'right'] as const) {
+        const el = getChildNS(tcMar, NS_W, side === 'left' ? 'start' : side === 'right' ? 'end' : side);
+        const fallback = el ?? getChildNS(tcMar, NS_W, side);
+        if (fallback) {
+            const w = getAttrVal(fallback, NS_W, 'w');
+            if (w) paddings[side] = Number.parseInt(w, 10) / TWIPS_PER_PT;
+        }
+    }
+    return paddings;
+}
+
+function parseTableBorderSet(borderParent: Element): DocxTableCellStyle['borders'] {
+    const borders: {
+        top?: DocxTableBorder; bottom?: DocxTableBorder;
+        left?: DocxTableBorder; right?: DocxTableBorder;
+    } = {};
+
+    for (const side of ['top', 'bottom', 'left', 'right'] as const) {
+        const el = getChildNS(borderParent, NS_W, side);
+        if (el) borders[side] = parseTableBorderElement(el);
+    }
+
+    return borders;
+}
+
+function parseTableBorderElement(el: Element): DocxTableBorder {
+    const style = getAttrVal(el, NS_W, 'val') ?? 'single';
+    const colorVal = getAttrVal(el, NS_W, 'color');
+    const color = colorVal && colorVal !== 'auto' ? `#${colorVal}` : '#000000';
+    const sizeVal = getAttrVal(el, NS_W, 'sz');
+    const size = sizeVal ? Number.parseInt(sizeVal, 10) / 8 : 1;
+    return { style, color, size };
+}
+
+function getDirectChildElements(parent: Element, ns: string, localName: string): Element[] {
+    const result: Element[] = [];
+    for (let i = 0; i < parent.childNodes.length; i++) {
+        const child = parent.childNodes[i];
+        if (child instanceof Element && child.namespaceURI === ns && child.localName === localName) {
+            result.push(child);
+        }
+    }
+    return result;
 }
 
 function parseTableCell(
@@ -586,33 +1132,77 @@ function parseTableCell(
     relationships: Map<string, string>,
     files: Map<string, Uint8Array>,
     numberingMap: Map<string, Map<number, NumberingDefinition>>,
+    themeColors?: ThemeColorMap,
 ): DocxTableCell {
     const tcPr = getChildNS(tc, NS_W, 'tcPr');
-    let colSpan = 1;
-    let rowSpan = 1;
+    const { colSpan, rowSpan, cellStyle } = parseTableCellStyle(tcPr);
 
-    if (tcPr) {
-        const gridSpan = getChildNS(tcPr, NS_W, 'gridSpan');
-        if (gridSpan) {
-            colSpan = Number.parseInt(getAttrVal(gridSpan, NS_W, 'val') ?? '1', 10);
-        }
-        const vMerge = getChildNS(tcPr, NS_W, 'vMerge');
-        if (vMerge) {
-            const mergeVal = getAttrVal(vMerge, NS_W, 'val');
-            if (!mergeVal || mergeVal === 'continue') {
-                rowSpan = 0;
-            }
+    const elements: (DocxParagraph | DocxTable)[] = [];
+    for (let i = 0; i < tc.childNodes.length; i++) {
+        const child = tc.childNodes[i];
+        if (!(child instanceof Element)) continue;
+
+        if (child.localName === 'p' && child.namespaceURI === NS_W) {
+            const { paragraph } = parseParagraph(child, relationships, files, numberingMap, themeColors);
+            elements.push(paragraph);
+        } else if (child.localName === 'tbl' && child.namespaceURI === NS_W) {
+            elements.push(parseTable(child, relationships, files, numberingMap, themeColors));
         }
     }
 
-    const paragraphs: DocxParagraph[] = [];
-    const paraElements = getAllChildrenNS(tc, NS_W, 'p');
-    for (const para of paraElements) {
-        const { paragraph } = parseParagraph(para, relationships, files, numberingMap);
-        paragraphs.push(paragraph);
+    return { elements, colSpan, rowSpan, cellStyle };
+}
+
+function parseTableStyle(tblPr: Element | null): DocxTableStyle | undefined {
+    if (!tblPr) return undefined;
+
+    const style: {
+        width?: number; widthUnit?: string; borders?: DocxTableStyle['borders'];
+    } = {};
+    let hasStyle = false;
+
+    const tblW = getChildNS(tblPr, NS_W, 'tblW');
+    if (tblW) {
+        const w = getAttrVal(tblW, NS_W, 'w');
+        const wType = getAttrVal(tblW, NS_W, 'type') ?? 'dxa';
+        if (w) { style.width = Number.parseInt(w, 10); style.widthUnit = wType; hasStyle = true; }
     }
 
-    return { paragraphs, colSpan, rowSpan };
+    const tblBorders = getChildNS(tblPr, NS_W, 'tblBorders');
+    if (tblBorders) {
+        const borders: {
+            top?: DocxTableBorder; bottom?: DocxTableBorder;
+            left?: DocxTableBorder; right?: DocxTableBorder;
+            insideH?: DocxTableBorder; insideV?: DocxTableBorder;
+        } = {};
+        for (const side of ['top', 'bottom', 'left', 'right', 'insideH', 'insideV'] as const) {
+            const el = getChildNS(tblBorders, NS_W, side);
+            if (el) borders[side] = parseTableBorderElement(el);
+        }
+        style.borders = borders;
+        hasStyle = true;
+    }
+
+    return hasStyle ? style : undefined;
+}
+
+function parseRowStyle(tr: Element): DocxTableRowStyle | undefined {
+    const trPr = getChildNS(tr, NS_W, 'trPr');
+    if (!trPr) return undefined;
+
+    const style: { height?: number; isHeader?: boolean } = {};
+    let hasStyle = false;
+
+    const trHeight = getChildNS(trPr, NS_W, 'trHeight');
+    if (trHeight) {
+        const val = getAttrVal(trHeight, NS_W, 'val');
+        if (val) { style.height = Number.parseInt(val, 10) / TWIPS_PER_PT; hasStyle = true; }
+    }
+
+    const tblHeader = getChildNS(trPr, NS_W, 'tblHeader');
+    if (tblHeader) { style.isHeader = true; hasStyle = true; }
+
+    return hasStyle ? style : undefined;
 }
 
 function parseTable(
@@ -620,20 +1210,46 @@ function parseTable(
     relationships: Map<string, string>,
     files: Map<string, Uint8Array>,
     numberingMap: Map<string, Map<number, NumberingDefinition>>,
+    themeColors?: ThemeColorMap,
 ): DocxTable {
-    const rows: DocxTableCell[][] = [];
-    const trElements = getAllChildrenNS(tbl, NS_W, 'tr');
+    const tblPr = getChildNS(tbl, NS_W, 'tblPr');
+    const tableStyle = parseTableStyle(tblPr);
+
+    const rows: DocxTableRow[] = [];
+    const trElements = getDirectChildElements(tbl, NS_W, 'tr');
 
     for (const tr of trElements) {
         const cells: DocxTableCell[] = [];
-        const tcElements = getAllChildrenNS(tr, NS_W, 'tc');
+        const tcElements = getDirectChildElements(tr, NS_W, 'tc');
         for (const tc of tcElements) {
-            cells.push(parseTableCell(tc, relationships, files, numberingMap));
+            cells.push(parseTableCell(tc, relationships, files, numberingMap, themeColors));
         }
-        rows.push(cells);
+        const rowStyle = parseRowStyle(tr);
+        rows.push({ cells, rowStyle });
     }
 
-    return { type: 'table', rows };
+    fixRowSpans(rows);
+    return { type: 'table', rows, tableStyle };
+}
+
+function fixRowSpans(rows: ReadonlyArray<DocxTableRow>): void {
+    if (rows.length === 0) return;
+
+    const maxCols = Math.max(...rows.map(r => r.cells.length));
+    for (let col = 0; col < maxCols; col++) {
+        let startRow = -1;
+        for (let row = 0; row < rows.length; row++) {
+            const cell = rows[row].cells[col] as DocxTableCell | undefined;
+            if (!cell) continue;
+
+            if (cell.rowSpan === 0 && startRow >= 0) {
+                const startCell = rows[startRow].cells[col] as { rowSpan: number };
+                startCell.rowSpan++;
+            } else if (cell.rowSpan !== 0) {
+                startRow = row;
+            }
+        }
+    }
 }
 
 function extractPlainText(elements: ReadonlyArray<DocxElement>): string {
@@ -645,10 +1261,8 @@ function extractPlainText(elements: ReadonlyArray<DocxElement>): string {
             if (text.trim()) parts.push(text);
         } else if (el.type === 'table') {
             for (const row of el.rows) {
-                const cellTexts = row.map(cell =>
-                    cell.paragraphs.map(p =>
-                        p.runs.map(r => r.text).join('')
-                    ).join(' ')
+                const cellTexts = row.cells.map(cell =>
+                    extractCellText(cell)
                 );
                 parts.push(cellTexts.join('\t'));
             }
@@ -658,11 +1272,21 @@ function extractPlainText(elements: ReadonlyArray<DocxElement>): string {
     return parts.join('\n');
 }
 
+function extractCellText(cell: DocxTableCell): string {
+    return cell.elements.map(el => {
+        if (el.type === 'paragraph') {
+            return el.runs.map(r => r.text).join('');
+        }
+        return '';
+    }).join(' ');
+}
+
 function parseBodyElements(
     body: Element,
     relationships: Map<string, string>,
     files: Map<string, Uint8Array>,
     numberingMap: Map<string, Map<number, NumberingDefinition>>,
+    themeColors?: ThemeColorMap,
 ): DocxElement[] {
     const elements: DocxElement[] = [];
 
@@ -670,22 +1294,406 @@ function parseBodyElements(
         const child = body.childNodes[i];
         if (!(child instanceof Element)) continue;
 
-        const localName = child.localName;
-        if (localName === 'p') {
-            const { paragraph, images } = parseParagraph(child, relationships, files, numberingMap);
-            elements.push(...images);
-            elements.push(paragraph);
-        } else if (localName === 'tbl') {
-            elements.push(parseTable(child, relationships, files, numberingMap));
-        } else if (localName === 'sdt') {
-            const sdtContent = getChildNS(child, NS_W, 'sdtContent');
-            if (sdtContent) {
-                elements.push(...parseBodyElements(sdtContent, relationships, files, numberingMap));
-            }
-        }
+        parseBodyChild(child, elements, relationships, files, numberingMap, themeColors);
     }
 
     return elements;
+}
+
+function parseBodyChild(
+    child: Element,
+    elements: DocxElement[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    numberingMap: Map<string, Map<number, NumberingDefinition>>,
+    themeColors?: ThemeColorMap,
+): void {
+    const localName = child.localName;
+
+    if (localName === 'p') {
+        const { paragraph, images } = parseParagraph(child, relationships, files, numberingMap, themeColors);
+        elements.push(...images);
+        elements.push(paragraph);
+    } else if (localName === 'tbl') {
+        elements.push(parseTable(child, relationships, files, numberingMap, themeColors));
+    } else if (localName === 'sdt' || localName === 'customXml' || localName === 'smartTag') {
+        const content = localName === 'sdt'
+            ? getChildNS(child, NS_W, 'sdtContent')
+            : child;
+        if (content) {
+            elements.push(...parseBodyElements(content, relationships, files, numberingMap, themeColors));
+        }
+    } else if (localName === 'AlternateContent' && child.namespaceURI === NS_MC) {
+        const choice = getChildNS(child, NS_MC, 'Choice');
+        const target = choice ?? getChildNS(child, NS_MC, 'Fallback');
+        if (target) {
+            elements.push(...parseBodyElements(target, relationships, files, numberingMap, themeColors));
+        }
+    }
+}
+
+function parseThemeColors(files: Map<string, Uint8Array>): ThemeColorMap {
+    const themeFile = files.get('word/theme/theme1.xml');
+    if (!themeFile) return new Map();
+
+    const doc = parseXml(new TextDecoder().decode(themeFile));
+    const map = new Map<string, string>();
+
+    const themeElements = getChildNS(doc.documentElement, NS_A, 'themeElements');
+    const clrScheme = themeElements ? getChildNS(themeElements, NS_A, 'clrScheme') : null;
+    if (!clrScheme) return map;
+
+    const colorNames = ['dk1', 'lt1', 'dk2', 'lt2', 'accent1', 'accent2', 'accent3', 'accent4', 'accent5', 'accent6', 'hlink', 'folHlink'];
+    for (const name of colorNames) {
+        const el = getChildNS(clrScheme, NS_A, name);
+        if (!el) continue;
+
+        const srgb = getChildNS(el, NS_A, 'srgbClr');
+        if (srgb) {
+            map.set(name, `#${srgb.getAttribute('val') ?? '000000'}`);
+            continue;
+        }
+        const sys = getChildNS(el, NS_A, 'sysClr');
+        if (sys) {
+            map.set(name, `#${sys.getAttribute('lastClr') ?? sys.getAttribute('val') ?? '000000'}`);
+        }
+    }
+
+    return map;
+}
+
+function parseFootnotesOrEndnotes(
+    files: Map<string, Uint8Array>,
+    fileName: string,
+    relationships: Map<string, string>,
+    numberingMap: Map<string, Map<number, NumberingDefinition>>,
+    themeColors?: ThemeColorMap,
+): DocxFootnote[] {
+    const file = files.get(fileName);
+    if (!file) return [];
+
+    const doc = parseXml(new TextDecoder().decode(file));
+    const tagName = fileName.includes('footnote') ? 'footnote' : 'endnote';
+    const noteElements = getAllChildrenNS(doc.documentElement, NS_W, tagName);
+    const notes: DocxFootnote[] = [];
+
+    for (const note of noteElements) {
+        const id = getAttrVal(note, NS_W, 'id') ?? '';
+        const noteType = getAttrVal(note, NS_W, 'type');
+        if (noteType === 'separator' || noteType === 'continuationSeparator') continue;
+
+        const paragraphs: DocxParagraph[] = [];
+        const paraElements = getAllChildrenNS(note, NS_W, 'p');
+        for (const para of paraElements) {
+            const { paragraph } = parseParagraph(para, relationships, files, numberingMap, themeColors);
+            paragraphs.push(paragraph);
+        }
+
+        if (paragraphs.length > 0) {
+            notes.push({ id, paragraphs });
+        }
+    }
+
+    return notes;
+}
+
+interface ResolvedStyle {
+    readonly runStyle?: DocxRunStyle;
+    readonly paragraphAlignment?: string;
+    readonly paragraphSpacingBefore?: number;
+    readonly paragraphSpacingAfter?: number;
+    readonly paragraphIndentLeft?: number;
+    readonly paragraphIndentRight?: number;
+    readonly paragraphIndentFirstLine?: number;
+}
+
+type StyleMap = ReadonlyMap<string, ResolvedStyle>;
+
+function parseStyles(files: Map<string, Uint8Array>, themeColors?: ThemeColorMap): StyleMap {
+    const stylesFile = files.get('word/styles.xml');
+    if (!stylesFile) return new Map();
+
+    const doc = parseXml(new TextDecoder().decode(stylesFile));
+    const rawStyles = new Map<string, { basedOn?: string; rPr?: Element; pPr?: Element }>();
+
+    const defaultRunStyle = extractDocDefaults(doc, themeColors);
+    const styleElements = getAllChildrenNS(doc.documentElement, NS_W, 'style');
+
+    for (const styleEl of styleElements) {
+        const styleId = getAttrVal(styleEl, NS_W, 'styleId') ?? '';
+        if (!styleId) continue;
+
+        const basedOnEl = getChildNS(styleEl, NS_W, 'basedOn');
+        const basedOn = basedOnEl ? (getAttrVal(basedOnEl, NS_W, 'val') ?? undefined) : undefined;
+        const rPr = getChildNS(styleEl, NS_W, 'rPr') ?? undefined;
+        const pPr = getChildNS(styleEl, NS_W, 'pPr') ?? undefined;
+
+        rawStyles.set(styleId, { basedOn, rPr, pPr });
+    }
+
+    return resolveAllStyles(rawStyles, defaultRunStyle, themeColors);
+}
+
+function extractDocDefaults(doc: Document, themeColors?: ThemeColorMap): DocxRunStyle {
+    const docDefaults = getChildNS(doc.documentElement, NS_W, 'docDefaults');
+    if (!docDefaults) return {};
+
+    const rPrDefault = getChildNS(docDefaults, NS_W, 'rPrDefault');
+    if (!rPrDefault) return {};
+
+    const rPr = getChildNS(rPrDefault, NS_W, 'rPr');
+    return parseRunStyle(rPr, themeColors);
+}
+
+function resolveAllStyles(
+    rawStyles: Map<string, { basedOn?: string; rPr?: Element; pPr?: Element }>,
+    defaultRunStyle: DocxRunStyle,
+    themeColors?: ThemeColorMap,
+): Map<string, ResolvedStyle> {
+    const resolved = new Map<string, ResolvedStyle>();
+    const resolving = new Set<string>();
+
+    for (const styleId of rawStyles.keys()) {
+        resolveStyleChain(styleId, rawStyles, resolved, resolving, defaultRunStyle, themeColors);
+    }
+
+    return resolved;
+}
+
+function resolveStyleChain(
+    styleId: string,
+    rawStyles: Map<string, { basedOn?: string; rPr?: Element; pPr?: Element }>,
+    resolved: Map<string, ResolvedStyle>,
+    resolving: Set<string>,
+    defaultRunStyle: DocxRunStyle,
+    themeColors?: ThemeColorMap,
+): ResolvedStyle {
+    if (resolved.has(styleId)) return resolved.get(styleId)!;
+    if (resolving.has(styleId)) return {};
+    resolving.add(styleId);
+
+    const raw = rawStyles.get(styleId);
+    if (!raw) { resolving.delete(styleId); return {}; }
+
+    let base: ResolvedStyle = {};
+    if (raw.basedOn) {
+        base = resolveStyleChain(raw.basedOn, rawStyles, resolved, resolving, defaultRunStyle, themeColors);
+    }
+
+    const ownRun = raw.rPr ? parseRunStyle(raw.rPr, themeColors) : {};
+    const mergedRun = mergeRunStyles(defaultRunStyle, base.runStyle ?? {}, ownRun);
+    const ownPara = extractParagraphStyleProps(raw.pPr);
+
+    const result: ResolvedStyle = {
+        runStyle: mergedRun,
+        paragraphAlignment: ownPara.alignment ?? base.paragraphAlignment,
+        paragraphSpacingBefore: ownPara.spacingBefore ?? base.paragraphSpacingBefore,
+        paragraphSpacingAfter: ownPara.spacingAfter ?? base.paragraphSpacingAfter,
+        paragraphIndentLeft: ownPara.indentLeft ?? base.paragraphIndentLeft,
+        paragraphIndentRight: ownPara.indentRight ?? base.paragraphIndentRight,
+        paragraphIndentFirstLine: ownPara.indentFirstLine ?? base.paragraphIndentFirstLine,
+    };
+
+    resolved.set(styleId, result);
+    resolving.delete(styleId);
+    return result;
+}
+
+function mergeRunStyles(
+    defaults: DocxRunStyle,
+    base: DocxRunStyle,
+    own: DocxRunStyle,
+): DocxRunStyle {
+    return {
+        bold: own.bold ?? base.bold ?? defaults.bold,
+        italic: own.italic ?? base.italic ?? defaults.italic,
+        underline: own.underline ?? base.underline ?? defaults.underline,
+        strikethrough: own.strikethrough ?? base.strikethrough ?? defaults.strikethrough,
+        doubleStrikethrough: own.doubleStrikethrough ?? base.doubleStrikethrough ?? defaults.doubleStrikethrough,
+        caps: own.caps ?? base.caps ?? defaults.caps,
+        smallCaps: own.smallCaps ?? base.smallCaps ?? defaults.smallCaps,
+        fontSize: own.fontSize ?? base.fontSize ?? defaults.fontSize,
+        color: own.color ?? base.color ?? defaults.color,
+        fontFamily: own.fontFamily ?? base.fontFamily ?? defaults.fontFamily,
+        highlight: own.highlight ?? base.highlight ?? defaults.highlight,
+        backgroundColor: own.backgroundColor ?? base.backgroundColor ?? defaults.backgroundColor,
+        vertAlign: own.vertAlign ?? base.vertAlign ?? defaults.vertAlign,
+        rtl: own.rtl ?? base.rtl ?? defaults.rtl,
+        charSpacing: own.charSpacing ?? base.charSpacing ?? defaults.charSpacing,
+        hidden: own.hidden ?? base.hidden ?? defaults.hidden,
+    };
+}
+
+function extractParagraphStyleProps(pPr: Element | undefined): {
+    alignment?: string; spacingBefore?: number; spacingAfter?: number;
+    indentLeft?: number; indentRight?: number; indentFirstLine?: number;
+} {
+    if (!pPr) return {};
+    const result: {
+        alignment?: string; spacingBefore?: number; spacingAfter?: number;
+        indentLeft?: number; indentRight?: number; indentFirstLine?: number;
+    } = {};
+
+    const jcEl = getChildNS(pPr, NS_W, 'jc');
+    if (jcEl) {
+        const val = getAttrVal(jcEl, NS_W, 'val');
+        if (val) result.alignment = val;
+    }
+
+    const spacing = getChildNS(pPr, NS_W, 'spacing');
+    if (spacing) {
+        const before = getAttrVal(spacing, NS_W, 'before');
+        if (before) result.spacingBefore = Number.parseInt(before, 10) / TWIPS_PER_PT;
+        const after = getAttrVal(spacing, NS_W, 'after');
+        if (after) result.spacingAfter = Number.parseInt(after, 10) / TWIPS_PER_PT;
+    }
+
+    const ind = getChildNS(pPr, NS_W, 'ind');
+    if (ind) {
+        const left = getAttrVal(ind, NS_W, 'left') ?? getAttrVal(ind, NS_W, 'start');
+        if (left) result.indentLeft = Number.parseInt(left, 10) / TWIPS_PER_PT;
+        const right = getAttrVal(ind, NS_W, 'right') ?? getAttrVal(ind, NS_W, 'end');
+        if (right) result.indentRight = Number.parseInt(right, 10) / TWIPS_PER_PT;
+        const firstLine = getAttrVal(ind, NS_W, 'firstLine');
+        if (firstLine) result.indentFirstLine = Number.parseInt(firstLine, 10) / TWIPS_PER_PT;
+    }
+
+    return result;
+}
+
+function parseComments(
+    files: Map<string, Uint8Array>,
+    relationships: Map<string, string>,
+    numberingMap: Map<string, Map<number, NumberingDefinition>>,
+    themeColors?: ThemeColorMap,
+): DocxComment[] {
+    const file = files.get('word/comments.xml');
+    if (!file) return [];
+
+    const doc = parseXml(new TextDecoder().decode(file));
+    const commentElements = getAllChildrenNS(doc.documentElement, NS_W, 'comment');
+    const comments: DocxComment[] = [];
+
+    for (const comment of commentElements) {
+        const id = getAttrVal(comment, NS_W, 'id') ?? '';
+        const author = getAttrVal(comment, NS_W, 'author') ?? '';
+        const date = getAttrVal(comment, NS_W, 'date') ?? '';
+
+        const paragraphs: DocxParagraph[] = [];
+        const paraElements = getAllChildrenNS(comment, NS_W, 'p');
+        for (const para of paraElements) {
+            const { paragraph } = parseParagraph(para, relationships, files, numberingMap, themeColors);
+            paragraphs.push(paragraph);
+        }
+
+        if (paragraphs.length > 0) {
+            comments.push({ id, author, date, paragraphs });
+        }
+    }
+
+    return comments;
+}
+
+function parseHeadersFooters(
+    files: Map<string, Uint8Array>,
+    relationships: Map<string, string>,
+    numberingMap: Map<string, Map<number, NumberingDefinition>>,
+    themeColors?: ThemeColorMap,
+): { headers: DocxElement[][]; footers: DocxElement[][] } {
+    const headers: DocxElement[][] = [];
+    const footers: DocxElement[][] = [];
+
+    for (const [, target] of relationships) {
+        if (!target.startsWith('header') && !target.startsWith('footer')) continue;
+        const filePath = target.startsWith('/') ? target.substring(1) : `word/${target}`;
+        const file = files.get(filePath);
+        if (!file) continue;
+
+        const doc = parseXml(new TextDecoder().decode(file));
+        const body = doc.documentElement;
+        const elements = parseBodyElements(body, relationships, files, numberingMap, themeColors);
+
+        if (target.startsWith('header')) {
+            headers.push(elements);
+        } else {
+            footers.push(elements);
+        }
+    }
+
+    return { headers, footers };
+}
+
+function applyStyleInheritance(
+    elements: DocxElement[],
+    styleMap: StyleMap,
+): DocxElement[] {
+    return elements.map(el => {
+        if (el.type === 'paragraph') return applyStyleToParagraph(el, styleMap);
+        if (el.type === 'table') return applyStyleToTable(el, styleMap);
+        return el;
+    });
+}
+
+function applyStyleToParagraph(para: DocxParagraph, styleMap: StyleMap): DocxParagraph {
+    if (!para.style) return para;
+    const resolved = styleMap.get(para.style);
+    if (!resolved) return para;
+
+    const mergedRuns = para.runs.map(run => applyStyleToRun(run, resolved));
+
+    return {
+        ...para,
+        runs: mergedRuns,
+        alignment: para.alignment ?? resolved.paragraphAlignment,
+        spacingBefore: para.spacingBefore ?? resolved.paragraphSpacingBefore,
+        spacingAfter: para.spacingAfter ?? resolved.paragraphSpacingAfter,
+        indentLeft: para.indentLeft ?? resolved.paragraphIndentLeft,
+        indentRight: para.indentRight ?? resolved.paragraphIndentRight,
+        indentFirstLine: para.indentFirstLine ?? resolved.paragraphIndentFirstLine,
+    };
+}
+
+function applyStyleToRun(run: DocxRun, resolved: ResolvedStyle): DocxRun {
+    if (!resolved.runStyle) return run;
+    const rs = resolved.runStyle;
+    return {
+        ...run,
+        style: {
+            bold: run.style.bold ?? rs.bold,
+            italic: run.style.italic ?? rs.italic,
+            underline: run.style.underline ?? rs.underline,
+            strikethrough: run.style.strikethrough ?? rs.strikethrough,
+            doubleStrikethrough: run.style.doubleStrikethrough ?? rs.doubleStrikethrough,
+            caps: run.style.caps ?? rs.caps,
+            smallCaps: run.style.smallCaps ?? rs.smallCaps,
+            fontSize: run.style.fontSize ?? rs.fontSize,
+            color: run.style.color ?? rs.color,
+            fontFamily: run.style.fontFamily ?? rs.fontFamily,
+            highlight: run.style.highlight ?? rs.highlight,
+            backgroundColor: run.style.backgroundColor ?? rs.backgroundColor,
+            vertAlign: run.style.vertAlign ?? rs.vertAlign,
+            rtl: run.style.rtl ?? rs.rtl,
+            charSpacing: run.style.charSpacing ?? rs.charSpacing,
+            hidden: run.style.hidden ?? rs.hidden,
+        },
+    };
+}
+
+function applyStyleToTable(table: DocxTable, styleMap: StyleMap): DocxTable {
+    return {
+        ...table,
+        rows: table.rows.map(row => ({
+            ...row,
+            cells: row.cells.map(cell => ({
+                ...cell,
+                elements: cell.elements.map(el => {
+                    if (el.type === 'paragraph') return applyStyleToParagraph(el, styleMap);
+                    if (el.type === 'table') return applyStyleToTable(el as DocxTable, styleMap);
+                    return el;
+                }),
+            })),
+        })),
+    };
 }
 
 export function parseDocx(data: Uint8Array): DocxParseResult {
@@ -697,14 +1705,22 @@ export function parseDocx(data: Uint8Array): DocxParseResult {
 
     const relationships = parseRelationships(files);
     const numberingMap = parseNumberingDefinitions(files);
+    const themeColors = parseThemeColors(files);
+    const styleMap = parseStyles(files, themeColors);
     const doc = parseXml(new TextDecoder().decode(documentFile));
     const body = doc.getElementsByTagNameNS(NS_W, 'body')[0];
     if (!body) {
         throw new Error('Invalid DOCX: missing document body');
     }
 
-    const elements = parseBodyElements(body, relationships, files, numberingMap);
+    let elements = parseBodyElements(body, relationships, files, numberingMap, themeColors);
+    elements = applyStyleInheritance(elements, styleMap);
+
+    const { headers, footers } = parseHeadersFooters(files, relationships, numberingMap, themeColors);
+    const footnotes = parseFootnotesOrEndnotes(files, 'word/footnotes.xml', relationships, numberingMap, themeColors);
+    const endnotes = parseFootnotesOrEndnotes(files, 'word/endnotes.xml', relationships, numberingMap, themeColors);
+    const comments = parseComments(files, relationships, numberingMap, themeColors);
 
     const plainText = extractPlainText(elements);
-    return { elements, plainText };
+    return { elements, plainText, footnotes, endnotes, comments, headers, footers };
 }

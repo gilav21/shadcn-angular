@@ -220,6 +220,12 @@ export class RichTextPasteNormalizerService {
         'color', 'background-color', 'background',
         'font-size', 'font-weight', 'font-style',
         'text-decoration', 'text-align',
+        'font-family', 'line-height', 'text-indent',
+        'letter-spacing', 'vertical-align',
+        'margin-left', 'margin-right', 'margin-top', 'margin-bottom',
+        'border', 'border-top', 'border-bottom', 'border-left', 'border-right',
+        'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
+        'text-transform', 'font-variant',
     ]);
 
     private parseCssBlock(cssText: string, rules: Map<string, Map<string, string>>): void {
@@ -482,18 +488,30 @@ export class RichTextPasteNormalizerService {
         }
     }
 
-    private readonly systemColorNames = new Set([
-        'windowtext', 'auto', 'activecaption', 'appworkspace', 'background',
-        'buttonface', 'buttonhighlight', 'buttonshadow', 'buttontext',
-        'captiontext', 'graytext', 'highlight', 'highlighttext',
-        'inactiveborder', 'inactivecaption', 'inactivecaptiontext',
-        'infobackground', 'infotext', 'menu', 'menutext', 'scrollbar',
-        'threeddarkshadow', 'threedface', 'threedhighlight',
-        'threedlightshadow', 'threedshadow', 'window', 'windowframe',
+    private readonly systemColorMap = new Map<string, string>([
+        ['windowtext', '#000000'], ['window', '#ffffff'],
+        ['buttonface', '#f0f0f0'], ['buttontext', '#000000'],
+        ['buttonhighlight', '#ffffff'], ['buttonshadow', '#808080'],
+        ['graytext', '#808080'], ['highlight', '#0078d7'],
+        ['highlighttext', '#ffffff'], ['captiontext', '#000000'],
+        ['activecaption', '#99b4d1'], ['inactivecaption', '#bfcddb'],
+        ['inactivecaptiontext', '#000000'], ['inactiveborder', '#f4f7fc'],
+        ['infobackground', '#ffffe1'], ['infotext', '#000000'],
+        ['menu', '#f0f0f0'], ['menutext', '#000000'],
+        ['scrollbar', '#c8c8c8'], ['appworkspace', '#ababab'],
+        ['background', '#000080'], ['windowframe', '#646464'],
+        ['threeddarkshadow', '#696969'], ['threedface', '#f0f0f0'],
+        ['threedhighlight', '#ffffff'], ['threedlightshadow', '#e3e3e3'],
+        ['threedshadow', '#a0a0a0'],
     ]);
 
-    private isSystemColor(value: string): boolean {
-        return this.systemColorNames.has(value.toLowerCase());
+    private isSystemColorValue(value: string): boolean {
+        const lower = value.toLowerCase();
+        return lower === 'auto' || this.systemColorMap.has(lower);
+    }
+
+    private mapSystemColor(value: string): string | null {
+        return this.systemColorMap.get(value.toLowerCase()) ?? null;
     }
 
     private mapOfficeStyles(container: HTMLElement): void {
@@ -508,10 +526,12 @@ export class RichTextPasteNormalizerService {
                 if (prop.startsWith('mso-')) {
                     this.mapMsoProperty(prop, value, mapped, el);
                 } else if (!prop.startsWith('-')) {
-                    if ((prop === 'color' || prop === 'background-color') && this.isSystemColor(value)) {
-                        continue;
+                    if ((prop === 'color' || prop === 'background-color') && this.isSystemColorValue(value)) {
+                        const resolved = this.mapSystemColor(value);
+                        if (resolved) mapped.set(prop, resolved);
+                    } else {
+                        mapped.set(prop, value);
                     }
-                    mapped.set(prop, value);
                 }
             }
 
@@ -563,6 +583,36 @@ export class RichTextPasteNormalizerService {
             case 'mso-color-alt':
                 if (!mapped.has('color')) {
                     mapped.set('color', value);
+                }
+                break;
+            case 'mso-ansi-font-weight':
+                if (!mapped.has('font-weight')) {
+                    mapped.set('font-weight', value);
+                }
+                break;
+            case 'mso-font-kerning':
+                if (!mapped.has('letter-spacing') && value !== '0pt') {
+                    mapped.set('letter-spacing', value);
+                }
+                break;
+            case 'mso-line-height-alt':
+                if (!mapped.has('line-height')) {
+                    mapped.set('line-height', value);
+                }
+                break;
+            case 'mso-text-raise':
+                if (!mapped.has('vertical-align') && value !== '0') {
+                    mapped.set('vertical-align', value);
+                }
+                break;
+            case 'mso-border-alt':
+                if (!mapped.has('border')) {
+                    mapped.set('border', value.replaceAll(/\s*windowtext\s*/gi, ' #000000 ').trim());
+                }
+                break;
+            case 'mso-padding-alt':
+                if (!mapped.has('padding')) {
+                    mapped.set('padding', value);
                 }
                 break;
         }
@@ -645,8 +695,7 @@ export class RichTextPasteNormalizerService {
                 }
             }
 
-            const stripProps = ['font-family', 'font-variant', 'white-space',
-                'letter-spacing', 'orphans', 'widows', 'text-transform'];
+            const stripProps = ['white-space', 'orphans', 'widows'];
             for (const prop of stripProps) {
                 styles.delete(prop);
             }
@@ -1211,11 +1260,14 @@ export class RichTextPasteNormalizerService {
     }
 
     private normalizeWhitespace(container: HTMLElement): void {
+        const spacerunElements = new Set<HTMLElement>();
+
         this.walkElements(container, el => {
             if (el.tagName === 'PRE' || el.tagName === 'CODE') return;
 
             const style = el.getAttribute('style') || '';
             if (/mso-spacerun\s*:\s*yes/i.test(style)) {
+                spacerunElements.add(el);
                 const styles = this.parseStyles(style);
                 styles.delete('mso-spacerun');
                 const serialized = this.serializeStyles(styles);
@@ -1232,6 +1284,7 @@ export class RichTextPasteNormalizerService {
         while ((node = walker.nextNode() as Text | null)) {
             const parent = node.parentElement;
             if (parent && (parent.tagName === 'PRE' || parent.tagName === 'CODE')) continue;
+            if (parent && spacerunElements.has(parent)) continue;
 
             const text = node.textContent || '';
             if (/\u00A0{2,}/.test(text)) {
@@ -1266,12 +1319,16 @@ export class RichTextPasteNormalizerService {
 
             const textDecoration = styles.get('text-decoration');
             if (textDecoration) {
-                if (textDecoration.includes('underline')) {
+                const hasUnderline = textDecoration.includes('underline');
+                const hasLineThrough = textDecoration.includes('line-through');
+                if (hasUnderline || hasLineThrough) {
                     styles.delete('text-decoration');
-                    this.wrapChildrenIn(current, 'u');
-                } else if (textDecoration.includes('line-through')) {
-                    styles.delete('text-decoration');
-                    this.wrapChildrenIn(current, 'del');
+                }
+                if (hasUnderline) {
+                    current = this.wrapChildrenIn(current, 'u');
+                }
+                if (hasLineThrough) {
+                    current = this.wrapChildrenIn(current, 'del');
                 }
             }
 

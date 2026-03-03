@@ -40,6 +40,8 @@ export class FileViewerToolbarDirective {}
 @Directive({ selector: 'ui-file-viewer-content' })
 export class FileViewerContentDirective {}
 
+const TWIPS_PER_PT = 20;
+
 const HEADING_CLASSES: Record<number, string> = {
     1: 'text-4xl font-bold mt-6 mb-3',
     2: 'text-3xl font-bold mt-5 mb-3',
@@ -593,7 +595,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     private async processDocx(bytes: Uint8Array): Promise<void> {
         const { parseDocx } = await import('../lib/docx-parser');
         const result = parseDocx(bytes);
-        this.docxRenderedHtml.set(this.renderDocxToHtml(result.elements));
+        const headerHtml = this.renderDocxHeadersFooters(result.headers, 'header');
+        const bodyHtml = this.renderDocxToHtml(result.elements);
+        const footerHtml = this.renderDocxHeadersFooters(result.footers, 'footer');
+        const footnotesHtml = this.renderDocxFootnotes(result.footnotes, result.endnotes);
+        const commentsHtml = this.renderDocxComments(result.comments);
+        this.docxRenderedHtml.set(headerHtml + bodyHtml + footerHtml + footnotesHtml + commentsHtml);
     }
 
     private async processDoc(bytes: Uint8Array): Promise<void> {
@@ -632,11 +639,18 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             runs: ReadonlyArray<{
                 text: string;
                 href?: string;
+                breakType?: string;
+                isInserted?: boolean;
+                isDeleted?: boolean;
+                anchorId?: string;
                 style: {
-                    bold?: boolean; italic?: boolean; underline?: boolean; strikethrough?: boolean;
+                    bold?: boolean; italic?: boolean; underline?: boolean;
+                    strikethrough?: boolean; doubleStrikethrough?: boolean;
+                    caps?: boolean; smallCaps?: boolean;
                     fontSize?: number; color?: string; fontFamily?: string;
                     highlight?: string; backgroundColor?: string;
                     vertAlign?: string; rtl?: boolean;
+                    charSpacing?: number; hidden?: boolean;
                 };
             }>;
             style: string;
@@ -644,10 +658,22 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             rtl?: boolean; alignment?: string;
             spacingBefore?: number; spacingAfter?: number; lineSpacing?: number;
             indentLeft?: number; indentRight?: number; indentHanging?: number;
+            indentFirstLine?: number;
+            shading?: string;
+            borders?: {
+                top?: { style: string; color: string; size: number };
+                bottom?: { style: string; color: string; size: number };
+                left?: { style: string; color: string; size: number };
+                right?: { style: string; color: string; size: number };
+            };
         };
 
         const content = para.runs.map(run => this.buildRunHtml(run)).join('');
-        if (!content.trim()) return '';
+        if (!content.trim()) {
+            const hasPageBreak = para.runs.some(r => r.breakType === 'page');
+            if (hasPageBreak) return '<hr class="my-8 border-t-2 border-dashed border-muted-foreground/30" />';
+            return '';
+        }
 
         const attrs = this.buildParagraphAttrs(para);
         const tag = this.getParagraphTag(para);
@@ -658,20 +684,33 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     private buildRunHtml(run: {
         text: string;
         href?: string;
+        breakType?: string;
+        isInserted?: boolean;
+        isDeleted?: boolean;
+        anchorId?: string;
         style: {
-            bold?: boolean; italic?: boolean; underline?: boolean; strikethrough?: boolean;
+            bold?: boolean; italic?: boolean; underline?: boolean;
+            strikethrough?: boolean; doubleStrikethrough?: boolean;
+            caps?: boolean; smallCaps?: boolean;
             fontSize?: number; color?: string; fontFamily?: string;
             highlight?: string; backgroundColor?: string;
             vertAlign?: string; rtl?: boolean;
+            charSpacing?: number; hidden?: boolean;
         };
     }): string {
+        if (run.style.hidden) return '';
+        if (run.breakType === 'page') return '<hr class="my-8 border-t-2 border-dashed border-muted-foreground/30" />';
+        if (run.anchorId) return `<a id="${this.escapeHtml(run.anchorId)}"></a>`;
+
         let text = this.escapeHtml(run.text);
         if (run.style.bold) text = `<strong>${text}</strong>`;
         if (run.style.italic) text = `<em>${text}</em>`;
         if (run.style.underline) text = `<u>${text}</u>`;
-        if (run.style.strikethrough) text = `<s>${text}</s>`;
+        if (run.style.strikethrough || run.style.doubleStrikethrough) text = `<s>${text}</s>`;
         if (run.style.vertAlign === 'superscript') text = `<sup>${text}</sup>`;
         if (run.style.vertAlign === 'subscript') text = `<sub>${text}</sub>`;
+        if (run.isInserted) text = `<ins class="bg-green-100 dark:bg-green-900/30">${text}</ins>`;
+        if (run.isDeleted) text = `<del class="bg-red-100 dark:bg-red-900/30 text-muted-foreground">${text}</del>`;
 
         const styles = this.buildRunStyles(run.style);
         if (styles) text = `<span style="${styles}">${text}</span>`;
@@ -686,6 +725,8 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     private buildRunStyles(style: {
         fontSize?: number; color?: string; fontFamily?: string;
         highlight?: string; backgroundColor?: string;
+        doubleStrikethrough?: boolean; caps?: boolean; smallCaps?: boolean;
+        charSpacing?: number;
     }): string {
         const parts: string[] = [];
         if (style.color) parts.push(`color:${style.color}`);
@@ -693,6 +734,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (style.fontFamily) parts.push(`font-family:'${style.fontFamily}',sans-serif`);
         if (style.highlight) parts.push(`background-color:${style.highlight}`);
         if (style.backgroundColor && !style.highlight) parts.push(`background-color:${style.backgroundColor}`);
+        if (style.doubleStrikethrough) parts.push('text-decoration-style:double');
+        if (style.caps) parts.push('text-transform:uppercase');
+        if (style.smallCaps) parts.push('font-variant:small-caps');
+        if (style.charSpacing) parts.push(`letter-spacing:${style.charSpacing}pt`);
         return parts.join(';');
     }
 
@@ -700,7 +745,14 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         rtl?: boolean; alignment?: string;
         spacingBefore?: number; spacingAfter?: number; lineSpacing?: number;
         indentLeft?: number; indentRight?: number; indentHanging?: number;
-        listLevel?: number;
+        indentFirstLine?: number; listLevel?: number;
+        shading?: string;
+        borders?: {
+            top?: { style: string; color: string; size: number };
+            bottom?: { style: string; color: string; size: number };
+            left?: { style: string; color: string; size: number };
+            right?: { style: string; color: string; size: number };
+        };
     }): string {
         const attrs: string[] = [];
         if (para.rtl) attrs.push('dir="rtl"');
@@ -714,7 +766,14 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     private buildParagraphStyles(para: {
         alignment?: string; spacingBefore?: number; spacingAfter?: number;
         lineSpacing?: number; indentLeft?: number; indentRight?: number;
-        indentHanging?: number; listLevel?: number;
+        indentHanging?: number; indentFirstLine?: number; listLevel?: number;
+        shading?: string;
+        borders?: {
+            top?: { style: string; color: string; size: number };
+            bottom?: { style: string; color: string; size: number };
+            left?: { style: string; color: string; size: number };
+            right?: { style: string; color: string; size: number };
+        };
     }): string {
         const parts: string[] = [];
         if (para.alignment) parts.push(`text-align:${this.mapDocxAlignment(para.alignment)}`);
@@ -724,8 +783,28 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (para.indentLeft) parts.push(`margin-left:${para.indentLeft}pt`);
         if (para.indentRight) parts.push(`margin-right:${para.indentRight}pt`);
         if (para.indentHanging) parts.push(`text-indent:-${para.indentHanging}pt`);
+        if (para.indentFirstLine) parts.push(`text-indent:${para.indentFirstLine}pt`);
         if (para.listLevel !== undefined) parts.push(`margin-left:${(para.listLevel) * 24}px`);
+        if (para.shading) parts.push(`background-color:${para.shading};padding:4px 8px`);
+        if (para.borders) {
+            this.appendBorderStyles(parts, para.borders);
+        }
         return parts.join(';');
+    }
+
+    private appendBorderStyles(parts: string[], borders: {
+        top?: { style: string; color: string; size: number };
+        bottom?: { style: string; color: string; size: number };
+        left?: { style: string; color: string; size: number };
+        right?: { style: string; color: string; size: number };
+    }): void {
+        if (borders.top) parts.push(`border-top:${borders.top.size}pt solid ${borders.top.color}`);
+        if (borders.bottom) parts.push(`border-bottom:${borders.bottom.size}pt solid ${borders.bottom.color}`);
+        if (borders.left) parts.push(`border-left:${borders.left.size}pt solid ${borders.left.color}`);
+        if (borders.right) parts.push(`border-right:${borders.right.size}pt solid ${borders.right.color}`);
+        if (borders.top || borders.bottom || borders.left || borders.right) {
+            parts.push('padding:4px 8px');
+        }
     }
 
     private getParagraphTag(para: {
@@ -756,24 +835,202 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private renderDocxTable(el: unknown): string {
-        const table = el as { rows: ReadonlyArray<ReadonlyArray<{ paragraphs: ReadonlyArray<{ runs: ReadonlyArray<{ text: string }> }>; colSpan: number }>> };
-        let html = '<table class="w-full border-collapse my-4 text-sm">';
+        const table = el as {
+            rows: ReadonlyArray<{
+                cells: ReadonlyArray<{
+                    elements: ReadonlyArray<{ type: string }>;
+                    colSpan: number;
+                    rowSpan: number;
+                    cellStyle?: {
+                        backgroundColor?: string; verticalAlign?: string;
+                        width?: number; widthUnit?: string;
+                        borders?: {
+                            top?: { size: number; color: string };
+                            bottom?: { size: number; color: string };
+                            left?: { size: number; color: string };
+                            right?: { size: number; color: string };
+                        };
+                        paddings?: {
+                            top?: number; bottom?: number; left?: number; right?: number;
+                        };
+                    };
+                }>;
+                rowStyle?: { height?: number; isHeader?: boolean };
+            }>;
+            tableStyle?: {
+                width?: number; widthUnit?: string;
+            };
+        };
+
+        const tableWidth = this.buildTableWidth(table.tableStyle);
+        let html = `<table class="w-full border-collapse my-4 text-sm"${tableWidth}>`;
+
+        let inThead = false;
         for (const row of table.rows) {
-            html += '<tr>';
-            for (const cell of row) {
-                const text = cell.paragraphs.map(p => p.runs.map(r => this.escapeHtml(r.text)).join('')).join('<br/>');
-                const colspan = cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : '';
-                html += `<td class="border border-border px-2 py-1"${colspan}>${text}</td>`;
+            const isHeader = row.rowStyle?.isHeader ?? false;
+            if (isHeader && !inThead) { html += '<thead>'; inThead = true; }
+            if (!isHeader && inThead) { html += '</thead><tbody>'; inThead = false; }
+
+            const rowHeight = row.rowStyle?.height ? ` style="height:${row.rowStyle.height}pt"` : '';
+            html += `<tr${rowHeight}>`;
+            for (const cell of row.cells) {
+                if (cell.rowSpan === 0) continue;
+                html += this.renderDocxTableCell(cell, isHeader);
             }
             html += '</tr>';
         }
+
+        if (inThead) html += '</thead>';
         html += '</table>';
         return html;
+    }
+
+    private buildTableWidth(tableStyle?: { width?: number; widthUnit?: string }): string {
+        if (!tableStyle?.width) return '';
+        if (tableStyle.widthUnit === 'pct') return ` style="width:${tableStyle.width / 50}%"`;
+        return ` style="width:${tableStyle.width / TWIPS_PER_PT}pt"`;
+    }
+
+    private renderDocxTableCell(cell: {
+        elements: ReadonlyArray<{ type: string }>;
+        colSpan: number;
+        rowSpan: number;
+        cellStyle?: {
+            backgroundColor?: string; verticalAlign?: string;
+            width?: number; widthUnit?: string;
+            borders?: {
+                top?: { size: number; color: string };
+                bottom?: { size: number; color: string };
+                left?: { size: number; color: string };
+                right?: { size: number; color: string };
+            };
+            paddings?: {
+                top?: number; bottom?: number; left?: number; right?: number;
+            };
+        };
+    }, isHeader: boolean): string {
+        const tag = isHeader ? 'th' : 'td';
+        const content = this.renderDocxCellContent(cell.elements);
+        const colspan = cell.colSpan > 1 ? ` colspan="${cell.colSpan}"` : '';
+        const rowspan = cell.rowSpan > 1 ? ` rowspan="${cell.rowSpan}"` : '';
+        const cellStyles = this.buildCellStyles(cell.cellStyle);
+
+        return `<${tag} class="border border-border px-2 py-1"${colspan}${rowspan}${cellStyles}>${content}</${tag}>`;
+    }
+
+    private renderDocxCellContent(elements: ReadonlyArray<{ type: string }>): string {
+        const parts: string[] = [];
+        for (const el of elements) {
+            if (el.type === 'paragraph') {
+                const paraHtml = this.renderDocxParagraph(el);
+                if (paraHtml) parts.push(paraHtml);
+            } else if (el.type === 'table') {
+                parts.push(this.renderDocxTable(el));
+            }
+        }
+        return parts.join('');
+    }
+
+    private buildCellStyles(cellStyle?: {
+        backgroundColor?: string; verticalAlign?: string;
+        width?: number; widthUnit?: string;
+        borders?: {
+            top?: { size: number; color: string };
+            bottom?: { size: number; color: string };
+            left?: { size: number; color: string };
+            right?: { size: number; color: string };
+        };
+        paddings?: {
+            top?: number; bottom?: number; left?: number; right?: number;
+        };
+    }): string {
+        if (!cellStyle) return '';
+        const parts: string[] = [];
+        if (cellStyle.backgroundColor) parts.push(`background-color:${cellStyle.backgroundColor}`);
+        if (cellStyle.verticalAlign) parts.push(`vertical-align:${this.mapVerticalAlign(cellStyle.verticalAlign)}`);
+        if (cellStyle.width) {
+            if (cellStyle.widthUnit === 'pct') {
+                parts.push(`width:${cellStyle.width / 50}%`);
+            } else {
+                parts.push(`width:${cellStyle.width / TWIPS_PER_PT}pt`);
+            }
+        }
+        if (cellStyle.borders) {
+            const b = cellStyle.borders;
+            if (b.top) parts.push(`border-top:${b.top.size}pt solid ${b.top.color}`);
+            if (b.bottom) parts.push(`border-bottom:${b.bottom.size}pt solid ${b.bottom.color}`);
+            if (b.left) parts.push(`border-left:${b.left.size}pt solid ${b.left.color}`);
+            if (b.right) parts.push(`border-right:${b.right.size}pt solid ${b.right.color}`);
+        }
+        if (cellStyle.paddings) {
+            const p = cellStyle.paddings;
+            if (p.top) parts.push(`padding-top:${p.top}pt`);
+            if (p.bottom) parts.push(`padding-bottom:${p.bottom}pt`);
+            if (p.left) parts.push(`padding-left:${p.left}pt`);
+            if (p.right) parts.push(`padding-right:${p.right}pt`);
+        }
+        return parts.length > 0 ? ` style="${parts.join(';')}"` : '';
+    }
+
+    private mapVerticalAlign(val: string): string {
+        if (val === 'center') return 'middle';
+        if (val === 'bottom') return 'bottom';
+        return 'top';
     }
 
     private renderDocxImage(el: unknown): string {
         const img = el as { dataUrl: string; width: number; height: number; altText: string };
         return `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="${this.escapeHtml(img.altText)}" class="my-2 max-w-full" />`;
+    }
+
+    private renderDocxFootnotes(
+        footnotes: ReadonlyArray<{ id: string; paragraphs: ReadonlyArray<unknown> }>,
+        endnotes: ReadonlyArray<{ id: string; paragraphs: ReadonlyArray<unknown> }>,
+    ): string {
+        const allNotes = [...footnotes, ...endnotes];
+        if (allNotes.length === 0) return '';
+
+        let html = '<hr class="my-6 border-t border-border" />';
+        html += '<section class="text-xs text-muted-foreground space-y-1">';
+        for (const note of allNotes) {
+            const content = note.paragraphs.map(p => this.renderDocxParagraph(p)).join('');
+            html += `<div><sup>${this.escapeHtml(note.id)}</sup> ${content}</div>`;
+        }
+        html += '</section>';
+        return html;
+    }
+
+    private renderDocxComments(
+        comments: ReadonlyArray<{ id: string; author: string; date: string; paragraphs: ReadonlyArray<unknown> }>,
+    ): string {
+        if (comments.length === 0) return '';
+
+        let html = '<hr class="my-6 border-t border-border" />';
+        html += '<section class="text-xs text-muted-foreground space-y-2">';
+        html += '<h4 class="font-semibold text-sm text-foreground">Comments</h4>';
+        for (const comment of comments) {
+            const content = comment.paragraphs.map(p => this.renderDocxParagraph(p)).join('');
+            const authorHtml = comment.author ? `<strong>${this.escapeHtml(comment.author)}</strong>` : '';
+            html += `<div class="border-l-2 border-muted pl-2"><sup>*${this.escapeHtml(comment.id)}</sup> ${authorHtml} ${content}</div>`;
+        }
+        html += '</section>';
+        return html;
+    }
+
+    private renderDocxHeadersFooters(
+        sections: ReadonlyArray<ReadonlyArray<unknown>>,
+        type: 'header' | 'footer',
+    ): string {
+        if (sections.length === 0) return '';
+
+        const first = sections[0];
+        if (!first || first.length === 0) return '';
+
+        const borderClass = type === 'header' ? 'border-b mb-4 pb-2' : 'border-t mt-4 pt-2';
+        let html = `<section class="text-xs text-muted-foreground ${borderClass} border-border">`;
+        html += this.renderDocxToHtml(first);
+        html += '</section>';
+        return html;
     }
 
     private async processPptx(bytes: Uint8Array): Promise<void> {

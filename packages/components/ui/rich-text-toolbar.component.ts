@@ -442,7 +442,7 @@ const ICONS: Record<string, string> = {
           <input
             #fileInput
             type="file"
-            accept=".pdf"
+            accept=".pdf,.docx"
             class="hidden"
             (change)="onFileSelect($event)"
           />

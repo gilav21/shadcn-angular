@@ -25,7 +25,6 @@ import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.ser
 import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, from, catchError } from 'rxjs';
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { parsePdf } from '../lib/pdf-parser';
 import { isValidImageDataUrl } from '../lib/image-validator';
 import { RichTextToolbarComponent, ToolbarItem } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
@@ -916,7 +915,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (fileImporting()) {
         <div class="absolute inset-0 z-20 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
-          <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.importingPdf }}</div>
+          <div class="text-sm text-muted-foreground">{{ resolvedLocale().editor.importingFile }}</div>
         </div>
       }
 
@@ -2759,14 +2758,16 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.flushPendingHistoryPush();
 
         const header = new Uint8Array(await file.slice(0, 5).arrayBuffer());
-        if (header.length < 5 ||
-            header[0] !== 0x25 ||
-            header[1] !== 0x50 ||
-            header[2] !== 0x44 ||
-            header[3] !== 0x46 ||
-            header[4] !== 0x2D
-        ) {
-            const msg = this.resolvedLocale().editor.importNotPdf;
+        const isZip = header.length >= 4 &&
+            header[0] === 0x50 && header[1] === 0x4B &&
+            header[2] === 0x03 && header[3] === 0x04;
+        const isPdf = header.length >= 5 &&
+            header[0] === 0x25 && header[1] === 0x50 &&
+            header[2] === 0x44 && header[3] === 0x46 &&
+            header[4] === 0x2D;
+
+        if (!isZip && !isPdf) {
+            const msg = this.resolvedLocale().editor.importInvalidFile;
             this.fileImportError.emit(msg);
             this.showImportError(msg);
             return;
@@ -2776,18 +2777,11 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.fileImportStart.emit(file);
 
         try {
-            const buffer = await file.arrayBuffer();
-            const result = await parsePdf(buffer);
-            if (!result.html.trim()) {
-                const msg = this.resolvedLocale().editor.importFailed;
-                this.fileImportError.emit(msg);
-                this.showImportError(msg);
-                return;
+            if (isZip) {
+                await this.importDocx(file);
+            } else {
+                await this.importPdf(file);
             }
-            this.restoreSelection();
-            this.insertHtml(result.html);
-            this.pushHistory();
-            this.fileImportComplete.emit(result.html);
         } catch (error: unknown) {
             const message = error instanceof Error ? error.message : this.resolvedLocale().editor.importFailed;
             this.fileImportError.emit(message);
@@ -2795,6 +2789,40 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         } finally {
             this.fileImporting.set(false);
         }
+    }
+
+    private async importDocx(file: File): Promise<void> {
+        const bytes = new Uint8Array(await file.arrayBuffer());
+        const { parseDocx } = await import('../lib/docx-parser');
+        const { renderDocxForEditor } = await import('../lib/docx-to-editor-html');
+        const result = parseDocx(bytes);
+        const html = renderDocxForEditor(result);
+        if (!html.trim()) {
+            const msg = this.resolvedLocale().editor.importFailed;
+            this.fileImportError.emit(msg);
+            this.showImportError(msg);
+            return;
+        }
+        this.restoreSelection();
+        this.insertHtml(html);
+        this.pushHistory();
+        this.fileImportComplete.emit(html);
+    }
+
+    private async importPdf(file: File): Promise<void> {
+        const buffer = await file.arrayBuffer();
+        const { parsePdf } = await import('../lib/pdf-parser');
+        const result = await parsePdf(buffer);
+        if (!result.html.trim()) {
+            const msg = this.resolvedLocale().editor.importFailed;
+            this.fileImportError.emit(msg);
+            this.showImportError(msg);
+            return;
+        }
+        this.restoreSelection();
+        this.insertHtml(result.html);
+        this.pushHistory();
+        this.fileImportComplete.emit(result.html);
     }
 
     private showImportError(message: string): void {

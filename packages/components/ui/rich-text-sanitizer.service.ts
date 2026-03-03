@@ -33,6 +33,7 @@ export class RichTextSanitizerService {
         'img',
         // Tables (for paste compatibility)
         'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+        'colgroup', 'col', 'caption',
         // Task lists
         'input',
         // Toggle/collapsible blocks
@@ -51,7 +52,8 @@ export class RichTextSanitizerService {
         'ul': new Set(['data-task-list']),
         'li': new Set(['data-task', 'data-checked']),
         'details': new Set(['open']),
-        '*': new Set(['data-mention', 'data-mention-id', 'data-tag', 'data-tag-id', 'style']),
+        'col': new Set(['span', 'width']),
+        '*': new Set(['data-mention', 'data-mention-id', 'data-tag', 'data-tag-id', 'style', 'dir']),
     };
 
     // Allowed CSS properties for inline styles
@@ -80,6 +82,33 @@ export class RichTextSanitizerService {
         'margin-top',
         'margin-bottom',
         'table-layout',
+        // Document import fidelity
+        'font-family',
+        'line-height',
+        'text-indent',
+        'letter-spacing',
+        'font-variant',
+        'text-transform',
+        'text-decoration-style',
+        'text-decoration-color',
+        'word-spacing',
+        // Borders (paragraphs, tables, cells)
+        'border',
+        'border-top',
+        'border-bottom',
+        'border-left',
+        'border-right',
+        'border-collapse',
+        'border-spacing',
+        // Longhand border properties (Word paste uses these)
+        'border-width',
+        'border-style',
+        'border-color',
+        // Padding (table cells, bordered paragraphs)
+        'padding',
+        'padding-top',
+        'padding-bottom',
+        'padding-right',
     ]);
 
     // Allowed class patterns (for syntax highlighting)
@@ -332,6 +361,12 @@ export class RichTextSanitizerService {
             case 'target': {
                 if (value === '_blank') {
                     target.setAttribute('target', '_blank');
+                }
+                return;
+            }
+            case 'dir': {
+                if (value === 'rtl' || value === 'ltr' || value === 'auto') {
+                    target.setAttribute('dir', value);
                 }
                 return;
             }
