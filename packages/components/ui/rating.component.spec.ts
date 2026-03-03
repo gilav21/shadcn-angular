@@ -129,7 +129,7 @@ describe('RatingComponent', () => {
 
         it('should have data-readonly attribute', () => {
             const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(rating.nativeElement.getAttribute('data-readonly')).toBeTruthy();
+            expect(rating.nativeElement.dataset.readonly).toBeTruthy();
         });
     });
 
@@ -149,7 +149,7 @@ describe('RatingComponent', () => {
 
         it('should have data-disabled attribute', () => {
             const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            expect(rating.nativeElement.getAttribute('data-disabled')).toBeTruthy();
+            expect(rating.nativeElement.dataset.disabled).toBeTruthy();
         });
 
         it('should have opacity-50 class', () => {

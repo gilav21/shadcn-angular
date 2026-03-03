@@ -275,21 +275,21 @@ export class BentoGridComponent {
     rowHeight = input<string, string | number>('120px', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
-            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
     columnWidth = input<string, string | number>('1fr', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
-            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
     gap = input<string, string | number>('1.5rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
-            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
@@ -297,14 +297,14 @@ export class BentoGridComponent {
     borderRadius = input<string, string | number>('0.75rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
-            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
     itemPadding = input<string, string | number>('1rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
-            if (typeof v === 'string' && !isNaN(parseFloat(v)) && isFinite(Number(v))) return `${v}px`;
+            if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
@@ -316,7 +316,7 @@ export class BentoGridComponent {
     externalDrop = output<{ widgetId: string, targetId: string | null, x?: number, y?: number }>();
     componentInit = output<{ id: string, ref: ComponentRef<any> }>();
 
-    private el = inject(ElementRef);
+    private readonly el = inject(ElementRef);
 
     gridPattern = computed(() => {
         const color = 'currentColor';
@@ -345,15 +345,15 @@ export class BentoGridComponent {
      */
     private parseCssDimension(value: string, referenceValue: number = 0): number {
         if (!value) return 0;
-        const num = parseFloat(value);
-        if (isNaN(num)) return 0;
+        const num = Number.parseFloat(value);
+        if (Number.isNaN(num)) return 0;
 
         if (value.endsWith('rem')) {
-            const fontSize = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+            const fontSize = Number.parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
             return num * fontSize;
         }
         if (value.endsWith('em')) {
-            const fontSize = parseFloat(getComputedStyle(this.el.nativeElement).fontSize) || 16;
+            const fontSize = Number.parseFloat(getComputedStyle(this.el.nativeElement).fontSize) || 16;
             return num * fontSize;
         }
         if (value.endsWith('%')) {
@@ -415,20 +415,6 @@ export class BentoGridComponent {
         const items = this.items().filter(i => selectedIds.includes(i.id));
         if (items.length !== selectedIds.length) return false;
 
-
-
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-        let totalArea = 0;
-
-        for (const item of items) {
-            minX = Math.min(minX, item.x);
-            minY = Math.min(minY, item.y);
-            maxX = Math.max(maxX, item.x + item.cols - 1);
-            maxY = Math.max(maxY, item.y + item.rows - 1);
-            totalArea += item.cols * item.rows;
-        }
-
-        const boundingBoxArea = (maxX - minX + 1) * (maxY - minY + 1);
 
 
         const visited = new Set<string>();
@@ -592,7 +578,7 @@ export class BentoGridComponent {
         maxRow += 2;
 
         const totalCells = this.cols() * maxRow;
-        return Array(totalCells).fill(0).map((_, i) => ({
+        return new Array(totalCells).fill(0).map((_, i) => ({
             id: i,
         }));
     });
@@ -651,53 +637,52 @@ export class BentoGridComponent {
         const draggedId = this.draggedItemId();
 
         if (draggedId) {
-            const preview = this.dropPreview();
-            if (preview) {
-                let currentItems = [...this.items()];
-                const itemIndex = currentItems.findIndex(i => i.id === draggedId);
-
-                if (itemIndex > -1) {
-                    const updatedDraggedItem = {
-                        ...currentItems[itemIndex],
-                        x: preview.x,
-                        y: preview.y
-                    };
-                    currentItems[itemIndex] = updatedDraggedItem;
-
-                    for (let i = 0; i < currentItems.length; i++) {
-                        if (currentItems[i].id === draggedId) continue;
-
-                        const shrinking = this.shrinkItem(updatedDraggedItem, currentItems[i]);
-                        if (shrinking) {
-                            currentItems[i] = shrinking;
-                        } else if (this.isOverlapping(updatedDraggedItem, currentItems[i])) {
-                            // If we can't shrink, we remove/clip completely or handle overlap
-                            // For now, based on "clipping", we might let them overlap or remove?
-                            // The previous code had splicing here:
-                            currentItems.splice(i, 1);
-                            i--;
-                        }
-                    }
-
-                    this.itemsChange.emit(currentItems);
-                }
-            }
-
-            this.draggedItemId.set(null);
-            this.dropPreview.set(null);
+            this.handleInternalDrop(draggedId);
             return;
         }
 
-        const data = event.dataTransfer?.getData('application/json');
-        if (data) {
-            try {
-                const parsed = JSON.parse(data);
-                if (parsed.type === 'widget' && parsed.id) {
-                    this.externalDrop.emit({ widgetId: parsed.id, targetId: targetItem.id });
-                }
-            } catch (e) {
-                console.error('Failed to parse drop data', e);
+        this.handleExternalDrop(event, targetItem);
+    }
+
+    private handleInternalDrop(draggedId: string) {
+        const preview = this.dropPreview();
+        if (preview) {
+            const currentItems = this.applyDropPreview(draggedId, preview);
+            if (currentItems) {
+                this.itemsChange.emit(currentItems);
             }
+        }
+
+        this.draggedItemId.set(null);
+        this.dropPreview.set(null);
+    }
+
+    private applyDropPreview(draggedId: string, preview: { x: number; y: number; cols: number; rows: number }): DashboardItem[] | null {
+        const currentItems = [...this.items()];
+        const itemIndex = currentItems.findIndex(i => i.id === draggedId);
+        if (itemIndex === -1) return null;
+
+        const updatedDraggedItem = {
+            ...currentItems[itemIndex],
+            x: preview.x,
+            y: preview.y
+        };
+        currentItems[itemIndex] = updatedDraggedItem;
+
+        return this.resolveOverlaps(currentItems, updatedDraggedItem, draggedId);
+    }
+
+    private handleExternalDrop(event: DragEvent, targetItem: DashboardItem) {
+        const data = event.dataTransfer?.getData('application/json');
+        if (!data) return;
+
+        try {
+            const parsed = JSON.parse(data);
+            if (parsed.type === 'widget' && parsed.id) {
+                this.externalDrop.emit({ widgetId: parsed.id, targetId: targetItem.id });
+            }
+        } catch (e) {
+            console.error('Failed to parse drop data', e);
         }
     }
 
@@ -735,7 +720,8 @@ export class BentoGridComponent {
                     const { x, y } = this.getGridCoordinates(event);
                     this.externalDrop.emit({ widgetId: parsed.id, targetId: null, x, y });
                 }
-            } catch (e) {
+            } catch {
+                // Intentionally ignored: invalid JSON from external drag source
             }
         }
     }
@@ -805,7 +791,7 @@ export class BentoGridComponent {
 
         return candidates.reduce((prev, current) =>
             (prev.cols * prev.rows > current.cols * current.rows) ? prev : current
-        );
+        , candidates[0]);
     }
 
     private isOverlapping(rect1: { x: number, y: number, cols: number, rows: number }, rect2: { x: number, y: number, cols: number, rows: number }): boolean {
@@ -814,6 +800,27 @@ export class BentoGridComponent {
         const x2 = Math.min(rect1.x + rect1.cols, rect2.x + rect2.cols);
         const y2 = Math.min(rect1.y + rect1.rows, rect2.y + rect2.rows);
         return x1 < x2 && y1 < y2;
+    }
+
+    private resolveOverlaps(
+        items: DashboardItem[],
+        updatedItem: { x: number; y: number; cols: number; rows: number },
+        excludeId: string
+    ): DashboardItem[] {
+        const result: DashboardItem[] = [];
+        for (const item of items) {
+            if (item.id === excludeId) {
+                result.push(item);
+                continue;
+            }
+            const shrunk = this.shrinkItem(updatedItem, item);
+            if (shrunk) {
+                result.push(shrunk);
+            } else if (!this.isOverlapping(updatedItem, item)) {
+                result.push(item);
+            }
+        }
+        return result;
     }
 
 
@@ -916,12 +923,12 @@ export class BentoGridComponent {
         event.preventDefault();
         event.stopPropagation();
 
-        const element = (event.target as HTMLElement).closest('.bento-item') as HTMLElement;
+        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item')!;
         const rect = element.getBoundingClientRect();
 
 
 
-        const container = element.closest('.grid') as HTMLElement;
+        const container = element.closest<HTMLElement>('.grid');
         if (!container) return;
 
         const containerRect = container.getBoundingClientRect();
@@ -952,7 +959,7 @@ export class BentoGridComponent {
     onDragStart(event: DragEvent, item: DashboardItem) {
         if (!this.editable()) return;
 
-        const element = (event.target as HTMLElement).closest('.bento-item') as HTMLElement;
+        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item')!;
         const rect = element.getBoundingClientRect();
 
         // Capture offset relative to the item's top-left corner
@@ -979,7 +986,7 @@ export class BentoGridComponent {
         const preview = this.resizePreview();
         if (!id || !preview) return;
 
-        let currentItems = [...this.items()];
+        const currentItems = [...this.items()];
         const itemIndex = currentItems.findIndex(i => i.id === id);
 
         if (itemIndex > -1) {
@@ -992,19 +999,7 @@ export class BentoGridComponent {
             };
             currentItems[itemIndex] = updatedItem;
 
-            for (let i = 0; i < currentItems.length; i++) {
-                if (currentItems[i].id === id) continue;
-
-                const shrinking = this.shrinkItem(updatedItem, currentItems[i]);
-                if (shrinking) {
-                    currentItems[i] = shrinking;
-                } else if (this.isOverlapping(updatedItem, currentItems[i])) {
-                    currentItems.splice(i, 1);
-                    i--;
-                }
-            }
-
-            this.itemsChange.emit(currentItems);
+            this.itemsChange.emit(this.resolveOverlaps(currentItems, updatedItem, id));
         }
 
         this.resizingItemId.set(null);

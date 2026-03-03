@@ -71,12 +71,16 @@ export interface KanbanColumn {
     order: number;
 }
 
+export type KanbanPriority = 'low' | 'medium' | 'high' | 'urgent';
+
+export type KanbanColumnDialogMode = 'add-column' | 'rename-column' | 'set-wip';
+
 export interface KanbanCard {
     id: string;
     columnId: string;
     title: string;
     description?: string;
-    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    priority?: KanbanPriority;
     labels?: { text: string; color: string }[];
     assignees?: { name: string; avatar?: string }[];
     order: number;
@@ -93,7 +97,7 @@ export interface KanbanCardAddEvent {
     columnId: string;
     title: string;
     description?: string;
-    priority?: 'low' | 'medium' | 'high' | 'urgent';
+    priority?: KanbanPriority;
     labels?: { text: string; color: string }[];
     assignees?: { name: string; avatar?: string }[];
 }
@@ -228,14 +232,14 @@ export class KanbanCardComponent implements AfterContentInit {
 
     @ContentChildren(KanbanCardContentComponent) customContentChildren!: QueryList<KanbanCardContentComponent>;
 
-    private _hasCustomContent = signal(false);
+    private readonly _hasCustomContent = signal(false);
     hasCustomContent = this._hasCustomContent.asReadonly();
 
     ngAfterContentInit() {
         this._hasCustomContent.set(this.customContentChildren.length > 0);
     }
 
-    private priorityBorder = computed(() => {
+    private readonly priorityBorder = computed(() => {
         const p = this.card()?.priority;
         if (p === 'low') return 'border-l-green-500';
         if (p === 'medium') return 'border-l-yellow-500';
@@ -413,8 +417,8 @@ export class KanbanCardDialogComponent {
     formAssignees = signal<{ name: string; avatar?: string }[]>([]);
     newLabelColor = signal(LABEL_PRESETS[0]);
 
-    private editingCard = signal<KanbanCard | undefined>(undefined);
-    private targetColumnId = signal('');
+    private readonly editingCard = signal<KanbanCard | undefined>(undefined);
+    private readonly targetColumnId = signal('');
 
     readonly labelPresets = LABEL_PRESETS;
 
@@ -568,17 +572,17 @@ export class KanbanColumnDialogComponent {
     locale = input<KanbanLocale>(KANBAN_LOCALES['en']);
 
     submitted = output<{
-        mode: 'add-column' | 'rename-column' | 'set-wip';
+        mode: KanbanColumnDialogMode;
         name?: string;
         wipLimit?: number;
         columnId?: string;
     }>();
 
     dialogOpen = signal(false);
-    mode = signal<'add-column' | 'rename-column' | 'set-wip'>('add-column');
+    mode = signal<KanbanColumnDialogMode>('add-column');
     formName = signal('');
     formWip = signal('');
-    private editingColumnId = signal('');
+    private readonly editingColumnId = signal('');
 
     dialogTitle = computed(() => {
         const m = this.mode();
@@ -634,11 +638,11 @@ export class KanbanColumnDialogComponent {
     }
 
     onSubmit() {
-        const wipVal = parseInt(this.formWip(), 10);
+        const wipVal = Number.parseInt(this.formWip(), 10);
         this.submitted.emit({
             mode: this.mode(),
             name: this.formName().trim() || undefined,
-            wipLimit: isNaN(wipVal) || wipVal <= 0 ? undefined : wipVal,
+            wipLimit: Number.isNaN(wipVal) || wipVal <= 0 ? undefined : wipVal,
             columnId: this.editingColumnId() || undefined,
         });
         this.dialogOpen.set(false);
@@ -708,8 +712,8 @@ export class KanbanDeleteColumnDialogComponent {
 
     confirmed = output<KanbanColumnDeleteEvent>();
 
-    private columnToDelete = signal<KanbanColumn | undefined>(undefined);
-    private cardsInColumn = signal(0);
+    private readonly columnToDelete = signal<KanbanColumn | undefined>(undefined);
+    private readonly cardsInColumn = signal(0);
     selectedTarget = signal<string | undefined>(undefined);
 
     alertDialogRef = viewChild<AlertDialogComponent>('alertDialog');
@@ -898,9 +902,9 @@ export class KanbanColumnComponent implements AfterContentInit {
     @ContentChildren(forwardRef(() => KanbanColumnHeaderComponent)) customHeaders!: QueryList<KanbanColumnHeaderComponent>;
     @ContentChildren(forwardRef(() => KanbanCardComponent)) customCards!: QueryList<KanbanCardComponent>;
 
-    private _hasCustomHeader = signal(false);
+    private readonly _hasCustomHeader = signal(false);
     hasCustomHeader = this._hasCustomHeader.asReadonly();
-    private _hasCustomCards = signal(false);
+    private readonly _hasCustomCards = signal(false);
     hasCustomCards = this._hasCustomCards.asReadonly();
 
     ngAfterContentInit() {
@@ -970,8 +974,8 @@ export class KanbanColumnComponent implements AfterContentInit {
         }
 
         const cards = Array.from(
-            container.querySelectorAll('[data-slot="kanban-card"]')
-        ) as HTMLElement[];
+            container.querySelectorAll<HTMLElement>('[data-slot="kanban-card"]')
+        );
 
         let index = cards.length;
 
@@ -990,7 +994,7 @@ export class KanbanColumnComponent implements AfterContentInit {
         } else if (index === 0) {
             topPx = cards[0].offsetTop - 6;
         } else if (index >= cards.length) {
-            const last = cards[cards.length - 1];
+            const last = cards.at(-1)!;
             topPx = last.offsetTop + last.offsetHeight + 5;
         } else {
             const prev = cards[index - 1];
@@ -1212,14 +1216,14 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     @ContentChildren(forwardRef(() => KanbanColumnComponent)) customColumnChildren!: QueryList<KanbanColumnComponent>;
 
-    private cardMenuRef = viewChild<ContextMenuComponent>('cardMenu');
-    private columnMenuRef = viewChild<ContextMenuComponent>('columnMenu');
-    private boardMenuRef = viewChild<ContextMenuComponent>('boardMenu');
-    private cardDialogRef = viewChild(KanbanCardDialogComponent);
-    private columnDialogRef = viewChild(KanbanColumnDialogComponent);
-    private deleteColumnDialogRef = viewChild(KanbanDeleteColumnDialogComponent);
+    private readonly cardMenuRef = viewChild<ContextMenuComponent>('cardMenu');
+    private readonly columnMenuRef = viewChild<ContextMenuComponent>('columnMenu');
+    private readonly boardMenuRef = viewChild<ContextMenuComponent>('boardMenu');
+    private readonly cardDialogRef = viewChild(KanbanCardDialogComponent);
+    private readonly columnDialogRef = viewChild(KanbanColumnDialogComponent);
+    private readonly deleteColumnDialogRef = viewChild(KanbanDeleteColumnDialogComponent);
 
-    private _hasCustomColumns = signal(false);
+    private readonly _hasCustomColumns = signal(false);
     hasCustomColumns = this._hasCustomColumns.asReadonly();
 
     resolvedLocale = computed((): KanbanLocale => {
@@ -1245,7 +1249,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
 
     private readonly DELETE_DURATION = 6000;
     private readonly MAX_HISTORY = 50;
-    private undoStack: KanbanHistorySnapshot[] = [];
+    private readonly undoStack: KanbanHistorySnapshot[] = [];
     private redoStack: KanbanHistorySnapshot[] = [];
 
     deleteToastVisible = signal(false);
@@ -1256,13 +1260,13 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         return Math.max(0, (this.deleteCountdown() / total) * 100);
     });
 
-    private pendingDeletes = new Map<string, {
+    private readonly pendingDeletes = new Map<string, {
         card: KanbanCard;
         timeoutId: ReturnType<typeof setTimeout>;
         countdownIntervalId: ReturnType<typeof setInterval>;
     }>();
 
-    private shortcutHandle?: ShortcutComponentHandle;
+    private readonly shortcutHandle?: ShortcutComponentHandle;
 
     constructor() {
         this.shortcutHandle = this.shortcuts.registerComponent('kanban', [
@@ -1313,7 +1317,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         [...this.columns()].sort((a, b) => a.order - b.order)
     );
 
-    private filteredCards = computed(() => {
+    private readonly filteredCards = computed(() => {
         const term = this.searchTerm().toLowerCase().trim();
         if (!term) return this.cards();
         return this.cards().filter(card =>
@@ -1391,7 +1395,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     isLastColumnCheck(column: KanbanColumn | undefined): boolean {
         if (!column) return true;
         const sorted = this.sortedColumns();
-        return sorted.length === 0 || sorted[sorted.length - 1].id === column.id;
+        return sorted.length === 0 || sorted.at(-1)!.id === column.id;
     }
 
     // ── Card Actions ─────────────────────────────────────────────
@@ -1588,7 +1592,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     }
 
     onColumnDialogSubmitted(event: {
-        mode: 'add-column' | 'rename-column' | 'set-wip';
+        mode: KanbanColumnDialogMode;
         name?: string;
         wipLimit?: number;
         columnId?: string;

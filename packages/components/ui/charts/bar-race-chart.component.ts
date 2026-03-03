@@ -132,7 +132,7 @@ interface RaceBar {
         <div class="flex justify-between text-xs text-muted-foreground mt-1">
           @if (frameLabels().length > 0) {
             <span>{{ frameLabels()[0] }}</span>
-            <span>{{ frameLabels()[frameLabels().length - 1] }}</span>
+            <span>{{ frameLabels().at(-1) }}</span>
           }
         </div>
       </div>
@@ -147,7 +147,7 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
 
-  private _domRtl = signal(false);
+  private readonly _domRtl = signal(false);
 
 
   isRtl = computed(() => {
@@ -185,7 +185,7 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   currentFrameIndex = signal(0);
   isPlaying = signal(false);
   private animationTimer: ReturnType<typeof setTimeout> | null = null;
-  private colorMap = new Map<string, string>();
+  private readonly colorMap = new Map<string, string>();
 
   svgWidth = computed(() => this.width());
   svgHeight = computed(() => this.height());
@@ -359,7 +359,7 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
 
   onSliderChange(event: Event) {
     const target = event.target as HTMLInputElement;
-    const value = parseInt(target.value, 10);
+    const value = Number.parseInt(target.value, 10);
     this.pause();
     this.goToFrame(value);
   }

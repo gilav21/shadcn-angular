@@ -1,12 +1,15 @@
 import {
     Component,
     ChangeDetectionStrategy,
+    Directive,
+    TemplateRef,
     input,
     computed,
     signal,
     inject,
     InjectionToken,
     forwardRef,
+    contentChild,
     contentChildren,
     output,
     ElementRef,
@@ -26,6 +29,13 @@ export interface TreeNode {
 }
 
 export const TREE = new InjectionToken<TreeComponent>('TREE');
+
+@Directive({
+    selector: '[uiTreeNodeContent]',
+})
+export class TreeNodeContentDirective {
+    readonly templateRef = inject(TemplateRef);
+}
 
 @Component({
     selector: 'ui-tree',
@@ -48,12 +58,16 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
           @for (node of nodes; track node.key) {
             <ui-tree-item [value]="node.key" [hasNested]="!!(node.children && node.children.length > 0)">
               <ui-tree-label>
-                @if (node.icon) {
-                  <ui-tree-icon>{{ node.icon }}</ui-tree-icon>
+                @if (nodeContent(); as nc) {
+                  <ng-container *ngTemplateOutlet="nc.templateRef; context: { $implicit: node }" />
+                } @else {
+                  @if (node.icon) {
+                    <ui-tree-icon>{{ node.icon }}</ui-tree-icon>
+                  }
+                  {{ node.label }}
                 }
-                {{ node.label }}
               </ui-tree-label>
-              @if (node.children && node.children.length > 0) {
+              @if (node.children && node.children.length > 0 && isExpanded(node.key)) {
                 <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: node.children, depth: depth + 1 }" />
               }
             </ui-tree-item>
@@ -71,6 +85,9 @@ export class TreeComponent {
     class = input('');
     selectable = input<'single' | 'multiple' | 'none'>('none');
     data = input<TreeNode[]>([]);
+    initialExpandDepth = input<number>(0);
+
+    readonly nodeContent = contentChild(TreeNodeContentDirective);
 
 
     expandedKeys = signal<Set<string>>(new Set());
@@ -82,15 +99,39 @@ export class TreeComponent {
 
     treeRoot = viewChild<ElementRef<HTMLElement>>('treeRoot');
     items = signal<TreeItemComponent[]>([]);
-    private _itemRegistry = new Set<TreeItemComponent>();
+    private readonly _itemRegistry = new Set<TreeItemComponent>();
+    private _updateScheduled = false;
 
-    private el = inject(ElementRef);
+    private readonly el = inject(ElementRef);
 
     constructor() {
         effect(() => {
-            this.data();
+            const nodes = this.data();
+            const depth = this.initialExpandDepth();
             this.ancestorCache.clear();
+
+            if (nodes.length > 0 && depth !== 0) {
+                const keys = this.collectKeysToDepth(nodes, depth);
+                this.expandedKeys.set(keys);
+                this.expandChange.emit(Array.from(keys));
+            }
         });
+    }
+
+    private collectKeysToDepth(nodes: TreeNode[], maxDepth: number): Set<string> {
+        const keys = new Set<string>();
+        const traverse = (list: TreeNode[], currentDepth: number) => {
+            for (const node of list) {
+                if (node.children && node.children.length > 0) {
+                    if (maxDepth === -1 || currentDepth < maxDepth) {
+                        keys.add(node.key);
+                        traverse(node.children, currentDepth + 1);
+                    }
+                }
+            }
+        };
+        traverse(nodes, 0);
+        return keys;
     }
 
     activeDescendantId = computed(() => {
@@ -171,15 +212,24 @@ export class TreeComponent {
 
     registerItem(item: TreeItemComponent) {
         this._itemRegistry.add(item);
-        this.updateItemsList();
+        this.scheduleItemsUpdate();
     }
 
     unregisterItem(item: TreeItemComponent) {
         this._itemRegistry.delete(item);
-        this.updateItemsList();
+        this.scheduleItemsUpdate();
     }
 
-    private flattenedKeys = computed(() => {
+    private scheduleItemsUpdate() {
+        if (this._updateScheduled) return;
+        this._updateScheduled = true;
+        queueMicrotask(() => {
+            this._updateScheduled = false;
+            this.updateItemsList();
+        });
+    }
+
+    private readonly flattenedKeys = computed(() => {
         const nodes = this.data();
         if (nodes.length === 0) return null;
 
@@ -199,7 +249,7 @@ export class TreeComponent {
         return keyMap;
     });
 
-    private parentMap = computed(() => {
+    private readonly parentMap = computed(() => {
         const nodes = this.data();
         if (nodes.length === 0) return null;
 
@@ -220,7 +270,7 @@ export class TreeComponent {
         return map;
     });
 
-    private ancestorCache = new Map<string, string[]>();
+    private readonly ancestorCache = new Map<string, string[]>();
 
     private getAncestors(key: string): string[] {
         if (this.ancestorCache.has(key)) {
@@ -288,64 +338,27 @@ export class TreeComponent {
         const currentIndex = currentFocus ? itemValues.indexOf(currentFocus) : -1;
 
         const expandKey = this.isRtl() ? 'ArrowLeft' : 'ArrowRight';
-
         const collapseKey = this.isRtl() ? 'ArrowRight' : 'ArrowLeft';
 
         switch (event.key) {
             case 'ArrowDown':
                 event.preventDefault();
-                if (currentIndex < items.length - 1) {
-                    this.focusedKey.set(itemValues[currentIndex + 1]);
-                } else if (currentIndex === -1 && items.length > 0) {
-                    this.focusedKey.set(itemValues[0]);
-                }
+                this.handleArrowDown(itemValues, currentIndex, items.length);
                 break;
 
             case 'ArrowUp':
                 event.preventDefault();
-                if (currentIndex > 0) {
-                    this.focusedKey.set(itemValues[currentIndex - 1]);
-                } else if (currentIndex === -1 && items.length > 0) {
-                    this.focusedKey.set(itemValues[items.length - 1]);
-                }
+                this.handleArrowUp(itemValues, currentIndex, items.length);
                 break;
 
             case expandKey:
                 event.preventDefault();
-                if (currentFocus) {
-                    const item = items.find(i => i.value() === currentFocus);
-                    if (item?.hasChildren()) {
-                        if (!this.isExpanded(currentFocus)) {
-                            this.toggleExpanded(currentFocus);
-                        } else {
-                            const childIndex = currentIndex + 1;
-                            if (childIndex < items.length) {
-                                this.focusedKey.set(itemValues[childIndex]);
-                            }
-                        }
-                    }
-                }
+                this.handleExpand(items, itemValues, currentFocus, currentIndex);
                 break;
 
             case collapseKey:
                 event.preventDefault();
-                if (currentFocus) {
-                    if (this.isExpanded(currentFocus)) {
-                        this.toggleExpanded(currentFocus);
-                    } else {
-                        const currentItem = items.find(i => i.value() === currentFocus);
-                        let parentKey = currentItem?.parentItem?.value();
-                        if (!parentKey) {
-                            parentKey = this.parentMap()?.get(currentFocus);
-                        }
-                        if (parentKey) {
-                            this.focusedKey.set(parentKey);
-                            if (this.isExpanded(parentKey)) {
-                                this.toggleExpanded(parentKey);
-                            }
-                        }
-                    }
-                }
+                this.handleCollapse(items, currentFocus);
                 break;
 
             case 'Enter':
@@ -366,18 +379,84 @@ export class TreeComponent {
             case 'End':
                 event.preventDefault();
                 if (items.length > 0) {
-                    this.focusedKey.set(itemValues[items.length - 1]);
+                    this.focusedKey.set(itemValues.at(-1)!);
                 }
                 break;
 
             case '*':
                 event.preventDefault();
-                items.forEach(item => {
-                    if (item.hasChildren() && !this.isExpanded(item.value())) {
-                        this.toggleExpanded(item.value());
-                    }
-                });
+                this.expandAllCollapsed(items);
                 break;
+        }
+    }
+
+    private handleArrowDown(itemValues: string[], currentIndex: number, totalItems: number) {
+        if (currentIndex < totalItems - 1) {
+            this.focusedKey.set(itemValues[currentIndex + 1]);
+        } else if (currentIndex === -1 && totalItems > 0) {
+            this.focusedKey.set(itemValues[0]);
+        }
+    }
+
+    private handleArrowUp(itemValues: string[], currentIndex: number, totalItems: number) {
+        if (currentIndex > 0) {
+            this.focusedKey.set(itemValues[currentIndex - 1]);
+        } else if (currentIndex === -1 && totalItems > 0) {
+            this.focusedKey.set(itemValues.at(-1)!);
+        }
+    }
+
+    private handleExpand(
+        items: readonly TreeItemComponent[],
+        itemValues: string[],
+        currentFocus: string | null,
+        currentIndex: number
+    ) {
+        if (!currentFocus) return;
+        const item = items.find(i => i.value() === currentFocus);
+        if (!item?.hasChildren()) return;
+
+        if (this.isExpanded(currentFocus)) {
+            const childIndex = currentIndex + 1;
+            if (childIndex < items.length) {
+                this.focusedKey.set(itemValues[childIndex]);
+            }
+        } else {
+            this.toggleExpanded(currentFocus);
+        }
+    }
+
+    private handleCollapse(items: readonly TreeItemComponent[], currentFocus: string | null) {
+        if (!currentFocus) return;
+
+        if (this.isExpanded(currentFocus)) {
+            this.toggleExpanded(currentFocus);
+            return;
+        }
+
+        const currentItem = items.find(i => i.value() === currentFocus);
+        const parentKey = currentItem?.parentItem?.value() ?? this.parentMap()?.get(currentFocus);
+        if (parentKey) {
+            this.focusedKey.set(parentKey);
+            if (this.isExpanded(parentKey)) {
+                this.toggleExpanded(parentKey);
+            }
+        }
+    }
+
+    private expandAllCollapsed(items: readonly TreeItemComponent[]) {
+        const current = this.expandedKeys();
+        const next = new Set(current);
+        let changed = false;
+        for (const item of items) {
+            if (item.hasChildren() && !next.has(item.value())) {
+                next.add(item.value());
+                changed = true;
+            }
+        }
+        if (changed) {
+            this.expandedKeys.set(next);
+            this.expandChange.emit(Array.from(next));
         }
     }
 }
@@ -426,8 +505,8 @@ let nextId = 0;
         }
         <ng-content select="ui-tree-label" />
       </div>
-      @if (hasChildren() && isExpanded()) {
-        <div class="ps-4" role="group">
+      @if (hasChildren()) {
+        <div class="ps-4" role="group" [hidden]="!isExpanded()">
           <ng-content />
         </div>
       }
@@ -444,10 +523,10 @@ export class TreeItemComponent {
 
     headerElement = viewChild<ElementRef<HTMLElement>>('header');
 
-    elementRef = inject(ElementRef);
-    parentItem = inject(TreeItemComponent, { optional: true, skipSelf: true });
+    readonly elementRef = inject(ElementRef);
+    readonly parentItem = inject(TreeItemComponent, { optional: true, skipSelf: true });
 
-    tree = inject(TREE, { optional: true });
+    readonly tree = inject(TREE, { optional: true });
     children = contentChildren(forwardRef(() => TreeItemComponent));
 
     hasNested = input<boolean | undefined>(undefined);

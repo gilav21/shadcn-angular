@@ -1,7 +1,7 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table/data-table.component';
 import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility } from './data-table/data-table.types';
-import { importProvidersFrom, Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from './input.component';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent } from './context-menu.component';
 import { ContextMenuIntegrations } from './context-menu-integrations';
@@ -143,7 +143,7 @@ class EnterpriseOpsTableStoryComponent {
         { accessorKey: 'summary', header: 'Summary', width: 'auto', enableSorting: false, enableGlobalFilter: false },
     ];
 
-    private source: OpsTicket[] = Array.from({ length: 120 }, (_, i) => ({
+    private readonly source: OpsTicket[] = Array.from({ length: 120 }, (_, i) => ({
         id: `INC-${(1000 + i).toString()}`,
         account: ['Acme Retail', 'Helios Health', 'Nova Bank', 'Orbit Logistics'][i % 4],
         service: ['Checkout API', 'Billing Engine', 'Ledger Sync', 'Route Optimizer'][i % 4],
@@ -182,7 +182,8 @@ class EnterpriseOpsTableStoryComponent {
     private load() {
         this.loading.set(true);
         const query = this.filter().toLowerCase();
-        const sorts = this.sorts().length > 0 ? this.sorts() : (this.sort().direction ? [this.sort()] : []);
+        const activeSorts = this.sort().direction ? [this.sort()] : [];
+        const sorts = this.sorts().length > 0 ? this.sorts() : activeSorts;
         const { pageIndex, pageSize } = this.page();
 
         setTimeout(() => {
@@ -202,7 +203,7 @@ class EnterpriseOpsTableStoryComponent {
                         const aVal = a[key];
                         const bVal = b[key];
                         if (aVal === bVal) continue;
-                        return (aVal! > bVal! ? 1 : -1) * direction;
+                        return (aVal > bVal ? 1 : -1) * direction;
                     }
                     return 0;
                 });

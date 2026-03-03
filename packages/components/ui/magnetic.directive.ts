@@ -26,7 +26,7 @@ export class UiMagneticDirective implements OnDestroy {
 
     transform = signal('translate(0px, 0px)');
 
-    private mouseMoveHandler = (event: MouseEvent) => {
+    private readonly mouseMoveHandler = (event: MouseEvent) => {
         if (prefersReducedMotion()) return;
 
         const el = this.el.nativeElement as HTMLElement;
@@ -36,7 +36,7 @@ export class UiMagneticDirective implements OnDestroy {
 
         const distX = event.clientX - centerX;
         const distY = event.clientY - centerY;
-        const distance = Math.sqrt(distX * distX + distY * distY);
+        const distance = Math.hypot(distX, distY);
 
         if (distance < this.uiMagneticRadius()) {
             const strength = this.uiMagneticStrength();
@@ -48,7 +48,7 @@ export class UiMagneticDirective implements OnDestroy {
         }
     };
 
-    private mouseLeaveHandler = () => {
+    private readonly mouseLeaveHandler = () => {
         this.transform.set('translate(0px, 0px)');
     };
 

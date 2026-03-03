@@ -4,6 +4,7 @@ import {
     TreeItemComponent,
     TreeLabelComponent,
     TreeIconComponent,
+    TreeNode,
 } from './tree.component';
 import {
     ContextMenuComponent,
@@ -226,6 +227,96 @@ export const WithContextMenu: Story = {
                         </ui-context-menu-item>
                     </ui-context-menu-content>
                 </ui-context-menu>
+            </div>
+        `,
+    }),
+};
+
+const sampleTreeData: TreeNode[] = [
+    {
+        key: 'src',
+        label: 'src',
+        icon: '📁',
+        children: [
+            {
+                key: 'components',
+                label: 'components',
+                icon: '📁',
+                children: [
+                    { key: 'button.ts', label: 'button.ts', icon: '📄' },
+                    { key: 'input.ts', label: 'input.ts', icon: '📄' },
+                    { key: 'tree.ts', label: 'tree.ts', icon: '📄' },
+                ],
+            },
+            {
+                key: 'utils',
+                label: 'utils',
+                icon: '📁',
+                children: [
+                    { key: 'cn.ts', label: 'cn.ts', icon: '📄' },
+                ],
+            },
+            { key: 'main.ts', label: 'main.ts', icon: '📄' },
+        ],
+    },
+    {
+        key: 'docs',
+        label: 'docs',
+        icon: '📁',
+        children: [
+            { key: 'readme.md', label: 'README.md', icon: '📄' },
+        ],
+    },
+    { key: 'package.json', label: 'package.json', icon: '📄' },
+];
+
+export const DataDriven: Story = {
+    render: () => ({
+        props: { data: sampleTreeData },
+        template: `
+            <div class="max-w-sm border rounded-md p-4">
+                <ui-tree [data]="data" selectable="single" />
+            </div>
+        `,
+    }),
+};
+
+export const DataDrivenWithInitialExpand: Story = {
+    render: () => ({
+        props: { data: sampleTreeData },
+        template: `
+            <div class="max-w-sm border rounded-md p-4">
+                <ui-tree [data]="data" [initialExpandDepth]="1" selectable="single" />
+            </div>
+        `,
+    }),
+};
+
+function generateLargeTree(breadth: number, depth: number, prefix = 'node'): TreeNode[] {
+    if (depth === 0) return [];
+    const nodes: TreeNode[] = [];
+    for (let i = 0; i < breadth; i++) {
+        const key = `${prefix}-${i}`;
+        const children = depth > 1 ? generateLargeTree(breadth, depth - 1, key) : undefined;
+        nodes.push({
+            key,
+            label: key,
+            icon: children ? '📁' : '📄',
+            children,
+        });
+    }
+    return nodes;
+}
+
+const largeTreeData = generateLargeTree(10, 3);
+
+export const LargeDataset: Story = {
+    render: () => ({
+        props: { data: largeTreeData },
+        template: `
+            <div class="max-w-md border rounded-md p-4 max-h-96 overflow-auto">
+                <p class="text-xs text-muted-foreground mb-2">1,110 nodes — only root level rendered initially</p>
+                <ui-tree [data]="data" selectable="single" />
             </div>
         `,
     }),

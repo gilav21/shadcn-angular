@@ -5,11 +5,10 @@ import {
     SpeedDialMenuComponent,
     SpeedDialItemComponent,
     SpeedDialMaskComponent,
-    SpeedDialContextTriggerComponent
 } from './speed-dial.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 @Component({
     template: `
@@ -41,7 +40,6 @@ class TestHostComponent {
 
 describe('SpeedDialComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let component: TestHostComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -49,7 +47,6 @@ describe('SpeedDialComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
     });
 
@@ -59,7 +56,7 @@ describe('SpeedDialComponent', () => {
 
     it('should be closed by default', () => {
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu.nativeElement.getAttribute('data-state')).toBe('closed');
+        expect(menu.nativeElement.dataset.state).toBe('closed');
     });
 
     it('should open when trigger is clicked', () => {
@@ -80,7 +77,7 @@ describe('SpeedDialComponent', () => {
         fixture.detectChanges();
 
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu.nativeElement.getAttribute('data-state')).toBe('closed');
+        expect(menu.nativeElement.dataset.state).toBe('closed');
     });
 
     it('should close when mask is clicked', () => {
@@ -93,7 +90,7 @@ describe('SpeedDialComponent', () => {
         fixture.detectChanges();
 
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu.nativeElement.getAttribute('data-state')).toBe('closed');
+        expect(menu.nativeElement.dataset.state).toBe('closed');
     });
 
     it('should close on click outside', () => {
@@ -105,7 +102,7 @@ describe('SpeedDialComponent', () => {
         fixture.detectChanges();
 
         const menu = fixture.debugElement.query(By.css('[data-slot="speed-dial-menu"]'));
-        expect(menu.nativeElement.getAttribute('data-state')).toBe('closed');
+        expect(menu.nativeElement.dataset.state).toBe('closed');
     });
 
     it('should rotate trigger when open', () => {

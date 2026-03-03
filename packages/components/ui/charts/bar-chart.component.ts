@@ -225,7 +225,7 @@ export class BarChartComponent {
   hoveredIndex = signal<number | null>(null);
   tooltipPosition = signal({ x: 0, y: 0 });
 
-  private _domRtl = signal(false);
+  private readonly _domRtl = signal(false);
 
 
   isVertical = computed(() => this.orientation() === 'vertical');
@@ -316,23 +316,20 @@ export class BarChartComponent {
         height = barLength;
         labelX = x + width / 2;
         labelY = y - 6;
+      } else if (this.isRtl()) {
+        x = area.right - barLength;
+        y = area.top + index * (barSize + gap);
+        width = barLength;
+        height = barSize;
+        labelX = x - 6;
+        labelY = y + height / 2;
       } else {
-        // Horizontal (Bar) Chart
-        if (this.isRtl()) {
-          x = area.right - barLength;
-          y = area.top + index * (barSize + gap);
-          width = barLength;
-          height = barSize;
-          labelX = x - 6;
-          labelY = y + height / 2;
-        } else {
-          x = area.left;
-          y = area.top + index * (barSize + gap);
-          width = barLength;
-          height = barSize;
-          labelX = x + width + 6;
-          labelY = y + height / 2;
-        }
+        x = area.left;
+        y = area.top + index * (barSize + gap);
+        width = barLength;
+        height = barSize;
+        labelX = x + width + 6;
+        labelY = y + height / 2;
       }
 
       return {

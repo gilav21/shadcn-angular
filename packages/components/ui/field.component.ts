@@ -74,7 +74,7 @@ export class FieldComponent {
   class = input('');
   orientation = input<'vertical' | 'horizontal'>('vertical');
 
-  private context = inject(FIELD_CONTEXT);
+  private readonly context = inject(FIELD_CONTEXT);
 
   /**
    * Get the combined aria-describedby value for this field's input.
@@ -202,28 +202,36 @@ export class FieldDescriptionComponent implements OnInit, OnDestroy {
   class = input('');
   id = input<string>('');
 
-  private context = inject(FIELD_CONTEXT, { optional: true });
+  private readonly context = inject(FIELD_CONTEXT, { optional: true });
   private generatedId = '';
 
   readonly resolvedId = computed(() => this.id() || this.generatedId);
 
   ngOnInit() {
-    if (this.context) {
-      this.generatedId = this.id() || `${this.context.fieldId}-description`;
-      this.context.registerDescribedBy(this.generatedId);
-    }
+    this.generatedId = registerFieldDescribedBy(this.context, this.id(), 'description');
   }
 
   ngOnDestroy() {
-    if (this.context && this.generatedId) {
-      this.context.unregisterDescribedBy(this.generatedId);
-    }
+    unregisterFieldDescribedBy(this.context, this.generatedId);
   }
 
   classes = computed(() => cn(
     'text-sm text-muted-foreground',
     this.class()
   ));
+}
+
+function registerFieldDescribedBy(context: FieldContext | null, id: string, suffix: string): string {
+  if (!context) return '';
+  const generatedId = id || `${context.fieldId}-${suffix}`;
+  context.registerDescribedBy(generatedId);
+  return generatedId;
+}
+
+function unregisterFieldDescribedBy(context: FieldContext | null, generatedId: string): void {
+  if (context && generatedId) {
+    context.unregisterDescribedBy(generatedId);
+  }
 }
 
 /**
@@ -243,22 +251,17 @@ export class FieldErrorComponent implements OnInit, OnDestroy {
   class = input('');
   id = input<string>('');
 
-  private context = inject(FIELD_CONTEXT, { optional: true });
+  private readonly context = inject(FIELD_CONTEXT, { optional: true });
   private generatedId = '';
 
   readonly resolvedId = computed(() => this.id() || this.generatedId);
 
   ngOnInit() {
-    if (this.context) {
-      this.generatedId = this.id() || `${this.context.fieldId}-error`;
-      this.context.registerDescribedBy(this.generatedId);
-    }
+    this.generatedId = registerFieldDescribedBy(this.context, this.id(), 'error');
   }
 
   ngOnDestroy() {
-    if (this.context && this.generatedId) {
-      this.context.unregisterDescribedBy(this.generatedId);
-    }
+    unregisterFieldDescribedBy(this.context, this.generatedId);
   }
 
   classes = computed(() => cn(

@@ -65,7 +65,7 @@ export class FlipTextComponent {
 
     playAnimation() {
         const host = this.el.nativeElement as HTMLElement;
-        const chars = host.querySelectorAll('.animate-flip-in') as NodeListOf<HTMLElement>;
+        const chars = host.querySelectorAll<HTMLElement>('.animate-flip-in');
         chars.forEach((el, i) => {
             el.getAnimations().forEach(a => a.cancel());
             el.style.opacity = '0';

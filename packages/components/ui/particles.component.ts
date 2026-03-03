@@ -50,13 +50,13 @@ export class ParticlesComponent implements OnInit, OnDestroy {
     private mouseY = -1000;
     private resolvedColor = '#888888';
 
-    private mouseMoveHandler = (e: MouseEvent) => {
+    private readonly mouseMoveHandler = (e: MouseEvent) => {
         const rect = (this.el.nativeElement as HTMLElement).getBoundingClientRect();
         this.mouseX = e.clientX - rect.left;
         this.mouseY = e.clientY - rect.top;
     };
 
-    private mouseLeaveHandler = () => {
+    private readonly mouseLeaveHandler = () => {
         this.mouseX = -1000;
         this.mouseY = -1000;
     };
@@ -149,9 +149,8 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         }
     }
 
-    private animate = () => {
+    private readonly animate = () => {
         if (!this.canvas || !this.ctx) return;
-        const ctx = this.ctx;
         const w = this.canvas.width;
         const h = this.canvas.height;
 
@@ -160,10 +159,20 @@ export class ParticlesComponent implements OnInit, OnDestroy {
             return;
         }
 
-        const connDist = this.connectDistance();
         const color = this.resolvedColor;
 
-        ctx.clearRect(0, 0, w, h);
+        this.ctx.clearRect(0, 0, w, h);
+
+        this.updateAndDrawParticles(w, h, color);
+        this.drawConnections(color);
+
+        this.ctx.globalAlpha = 1;
+        this.animationFrameId = requestAnimationFrame(this.animate);
+    };
+
+    private updateAndDrawParticles(w: number, h: number, color: string) {
+        const ctx = this.ctx!;
+        const applyMouse = this.mouseInteraction() && this.mouseX > -999;
 
         for (const p of this.particles) {
             p.x += p.vx;
@@ -172,10 +181,10 @@ export class ParticlesComponent implements OnInit, OnDestroy {
             if (p.x < 0 || p.x > w) p.vx *= -1;
             if (p.y < 0 || p.y > h) p.vy *= -1;
 
-            if (this.mouseInteraction() && this.mouseX > -999) {
+            if (applyMouse) {
                 const dx = this.mouseX - p.x;
                 const dy = this.mouseY - p.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
+                const dist = Math.hypot(dx, dy);
                 if (dist < 100) {
                     p.vx -= dx * 0.002;
                     p.vy -= dy * 0.002;
@@ -188,29 +197,30 @@ export class ParticlesComponent implements OnInit, OnDestroy {
             ctx.globalAlpha = 0.6;
             ctx.fill();
         }
+    }
 
-        if (connDist > 0) {
-            for (let i = 0; i < this.particles.length; i++) {
-                for (let j = i + 1; j < this.particles.length; j++) {
-                    const a = this.particles[i];
-                    const b = this.particles[j];
-                    const dx = a.x - b.x;
-                    const dy = a.y - b.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < connDist) {
-                        ctx.beginPath();
-                        ctx.moveTo(a.x, a.y);
-                        ctx.lineTo(b.x, b.y);
-                        ctx.strokeStyle = color;
-                        ctx.globalAlpha = 0.3 * (1 - dist / connDist);
-                        ctx.lineWidth = 0.5;
-                        ctx.stroke();
-                    }
+    private drawConnections(color: string) {
+        const ctx = this.ctx!;
+        const connDist = this.connectDistance();
+        if (connDist <= 0) return;
+
+        for (let i = 0; i < this.particles.length; i++) {
+            for (let j = i + 1; j < this.particles.length; j++) {
+                const a = this.particles[i];
+                const b = this.particles[j];
+                const dx = a.x - b.x;
+                const dy = a.y - b.y;
+                const dist = Math.hypot(dx, dy);
+                if (dist < connDist) {
+                    ctx.beginPath();
+                    ctx.moveTo(a.x, a.y);
+                    ctx.lineTo(b.x, b.y);
+                    ctx.strokeStyle = color;
+                    ctx.globalAlpha = 0.3 * (1 - dist / connDist);
+                    ctx.lineWidth = 0.5;
+                    ctx.stroke();
                 }
             }
         }
-
-        ctx.globalAlpha = 1;
-        this.animationFrameId = requestAnimationFrame(this.animate);
-    };
+    }
 }

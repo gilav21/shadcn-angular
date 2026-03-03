@@ -10,10 +10,10 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
-import { ChartDirection } from './chart.types';
 import {
   ChartSeries,
   StackingMode,
+  ChartDirection
 } from './chart.types';
 import {
   getChartColor,
@@ -176,7 +176,7 @@ export class StackedBarChartComponent implements AfterViewInit {
   dir = input<ChartDirection>('auto');
   private readonly el = inject(ElementRef);
 
-  private _domRtl = signal(false);
+  private readonly _domRtl = signal(false);
 
 
   isRtl = computed(() => {
@@ -209,7 +209,7 @@ export class StackedBarChartComponent implements AfterViewInit {
 
   segmentClick = output<{ series: string; category: string; value: number }>();
 
-  private hoveredKey = signal<{ category: number; series: number } | null>(null);
+  private readonly hoveredKey = signal<{ category: number; series: number } | null>(null);
   tooltipPosition = signal({ x: 0, y: 0 });
 
   svgWidth = computed(() => this.width());
@@ -342,7 +342,7 @@ export class StackedBarChartComponent implements AfterViewInit {
   }
 
   getBarTopY(bar: StackedBar): number {
-    const topSegment = bar.segments[bar.segments.length - 1];
+    const topSegment = bar.segments.at(-1);
     return topSegment?.y ?? 0;
   }
 

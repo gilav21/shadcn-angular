@@ -13,7 +13,7 @@
           <ui-sidebar-menu>
             @for (link of getLinksByCategory(category); track link.id) {
             <ui-sidebar-menu-item>
-              <ui-sidebar-menu-button [isActive]="activeComponent() === link.id" (click)="navTo(link.id)"
+              <ui-sidebar-menu-button [isActive]="activeComponent() === link.id" (click)="navTo(link.id)" (keydown.enter)="navTo(link.id)"
                 [tooltip]="link.name">
                 <span class="text-base">{{ link.icon }}</span>
                 <span>{{ link.name }}</span>
@@ -38,7 +38,7 @@
         {{ activeComponent() | titlecase }}
       </span>
       <div class="ml-auto flex items-center gap-2">
-        <ui-button variant="ghost" size="icon" (click)="showShortcutBindingsDialog.set(true)">
+        <ui-button variant="ghost" size="icon" (click)="showShortcutBindingsDialog.set(true)" (keydown.enter)="showShortcutBindingsDialog.set(true)">
           <span class="sr-only">Keyboard Shortcuts</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -49,7 +49,7 @@
             <path d="M7 14h10"></path>
           </svg>
         </ui-button>
-        <ui-button variant="ghost" size="icon" (click)="showCommandDialog.set(true)">
+        <ui-button variant="ghost" size="icon" (click)="showCommandDialog.set(true)" (keydown.enter)="showCommandDialog.set(true)">
           <span class="sr-only">Search</span>
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
             stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -59,7 +59,7 @@
           </svg>
         </ui-button>
         <div class="flex items-center gap-2">
-          <ui-button variant="ghost" size="icon" (click)="toggleDirection(!isRtl())">
+          <ui-button variant="ghost" size="icon" (click)="toggleDirection(!isRtl())" (keydown.enter)="toggleDirection(!isRtl())">
             <span class="text-xs font-bold">{{ isRtl() ? 'RTL' : 'LTR' }}</span>
           </ui-button>
           <ui-select [ngModel]="sidebarCollapseMode()" (ngModelChange)="sidebarCollapseMode.set($event)">
@@ -71,7 +71,7 @@
               <ui-select-item value="hidden">Hidden</ui-select-item>
             </ui-select-content>
           </ui-select>
-          <ui-button variant="ghost" size="icon" (click)="toggleTheme(!isDark())">
+          <ui-button variant="ghost" size="icon" (click)="toggleTheme(!isDark())" (keydown.enter)="toggleTheme(!isDark())">
             @if (!isDark()) {
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
@@ -261,21 +261,21 @@
 
           <div class="grid gap-8 max-w-sm">
             <div class="space-y-2">
-              <label class="text-sm font-medium">Single Selection</label>
+              <p class="text-sm font-medium">Single Selection</p>
               <ui-autocomplete [options]="frameworks()" [displayWith]="displayFn" placeholder="Select framework..."
                 [(ngModel)]="selectedFramework" />
               <p class="text-sm text-muted-foreground">Selected: {{ selectedFramework() | json }}</p>
             </div>
 
             <div class="space-y-2">
-              <label class="text-sm font-medium">Multiple Selection</label>
+              <p class="text-sm font-medium">Multiple Selection</p>
               <ui-autocomplete [options]="frameworks()" [displayWith]="displayFn" [multiple]="true"
                 placeholder="Select frameworks..." [(ngModel)]="selectedFrameworks" />
               <p class="text-sm text-muted-foreground">Selected: {{ selectedFrameworks() | json }}</p>
             </div>
 
             <div class="space-y-2">
-              <label class="text-sm font-medium">Disabled</label>
+              <p class="text-sm font-medium">Disabled</p>
               <ui-autocomplete [options]="frameworks()" [displayWith]="displayFn" placeholder="Disabled..."
                 [disabled]="true" />
             </div>
@@ -418,7 +418,7 @@
               <ui-stepper-content>
                 <div class="p-4 border rounded-md space-y-4">
                   <p class="text-sm text-muted-foreground">Enter your account information...</p>
-                  <ui-button (click)="activeStep.set(1)">Continue</ui-button>
+                  <ui-button (click)="activeStep.set(1)" (keydown.enter)="activeStep.set(1)">Continue</ui-button>
                 </div>
               </ui-stepper-content>
             </ui-stepper-item>
@@ -431,8 +431,8 @@
                 <div class="p-4 border rounded-md space-y-4">
                   <p class="text-sm text-muted-foreground">Configure your profile settings...</p>
                   <div class="flex gap-2">
-                    <ui-button variant="outline" (click)="activeStep.set(0)">Back</ui-button>
-                    <ui-button (click)="activeStep.set(2)">Continue</ui-button>
+                    <ui-button variant="outline" (click)="activeStep.set(0)" (keydown.enter)="activeStep.set(0)">Back</ui-button>
+                    <ui-button (click)="activeStep.set(2)" (keydown.enter)="activeStep.set(2)">Continue</ui-button>
                   </div>
                 </div>
               </ui-stepper-content>
@@ -445,7 +445,7 @@
               <ui-stepper-content>
                 <div class="p-4 border rounded-md space-y-4">
                   <p class="text-sm text-muted-foreground">All done! Your account is ready.</p>
-                  <ui-button variant="outline" (click)="activeStep.set(1)">Back</ui-button>
+                  <ui-button variant="outline" (click)="activeStep.set(1)" (keydown.enter)="activeStep.set(1)">Back</ui-button>
                 </div>
               </ui-stepper-content>
             </ui-stepper-item>
@@ -462,6 +462,95 @@
 
           <div class="max-w-md">
             <ui-file-upload accept="image/*,.pdf" [multiple]="true" [maxFiles]="5" [maxSize]="5242880" />
+          </div>
+        </section>
+
+        }
+        @case ('file-viewer') {
+        <section class="space-y-8">
+          <div>
+            <h2 id="file-viewer" class="text-2xl font-semibold scroll-m-20">File Viewer</h2>
+            <p class="text-muted-foreground mt-1">
+              A client-side file previewer supporting PDF, DOCX, XLSX, PPTX, images, text, video, and audio — no server or external packages required.
+            </p>
+          </div>
+
+          <!-- Quick demo buttons -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Quick Demos</h3>
+            <div class="flex flex-wrap gap-2">
+              <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('text')">Text File</ui-button>
+              <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('svg')">SVG Image</ui-button>
+            </div>
+          </div>
+
+          <!-- Drop zone -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Try Your Own File</h3>
+            <div class="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                 (dragover)="$event.preventDefault()"
+                 (drop)="onFileViewerDrop($event)">
+              <p class="mb-2">Drag & drop a file here, or</p>
+              <label class="inline-flex items-center gap-1.5 text-sm text-primary hover:underline cursor-pointer">
+                <input type="file" class="hidden" (change)="onFileViewerSelect($event)" />
+                browse to select
+              </label>
+              <p class="text-xs mt-2">Supports PDF, DOCX, XLSX, PPTX, images, text, video, audio</p>
+            </div>
+          </div>
+
+          <!-- Simple mode viewer -->
+          @if (fileViewerFile()) {
+            <div class="space-y-2">
+              <h3 class="text-lg font-medium">Simple Mode</h3>
+              <p class="text-sm text-muted-foreground">Uses input-driven API — just pass the file.</p>
+              <ui-file-viewer [file]="fileViewerFile()" height="500px" />
+            </div>
+          }
+
+          <!-- Custom mode example -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Custom Mode (Content Projection)</h3>
+            <p class="text-sm text-muted-foreground">Full control over toolbar and content via projection.</p>
+            <ui-file-viewer [file]="fileViewerFile()" height="400px">
+              <ui-file-viewer-toolbar>
+                <div class="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
+                  <span class="font-medium text-sm">Custom Toolbar</span>
+                  <ui-badge variant="outline">Projected</ui-badge>
+                </div>
+              </ui-file-viewer-toolbar>
+              <ui-file-viewer-content />
+            </ui-file-viewer>
+          </div>
+
+          <!-- Code examples -->
+          <div class="space-y-2">
+            <h3 class="text-lg font-medium">Usage</h3>
+            <ui-code-block language="html" code='<!-- Simple mode: just pass a file -->
+<ui-file-viewer [file]="myFile" height="500px" />
+
+<!-- With URL source -->
+<ui-file-viewer src="https://example.com/document.pdf" />
+
+<!-- Custom mode: full control -->
+<ui-file-viewer [file]="myFile">
+  <ui-file-viewer-toolbar>
+    <div class="px-3 py-2 border-b">Custom toolbar</div>
+  </ui-file-viewer-toolbar>
+  <ui-file-viewer-content />
+</ui-file-viewer>
+
+<!-- With event handling -->
+<ui-file-viewer
+  [file]="myFile"
+  height="600px"
+  [zoom]="1"
+  [page]="1"
+  filename="report.pdf"
+  (loaded)="onLoaded($event)"
+  (error)="onError($event)"
+  (pageChange)="onPage($event)"
+  (zoomChange)="onZoom($event)" />' />
           </div>
         </section>
 
@@ -500,7 +589,7 @@
                 class="relative h-[200px] w-full border rounded-lg flex items-center justify-center bg-background overflow-hidden"
                 uiConfetti [manualTrigger]="confettiTrigger1()"
                 [options]="{ spread: 90, particleCount: 100, origin: { x: 0.6, y: 0.6 } }">
-                <ui-button (click)="fireConfetti1()">Celebrate!</ui-button>
+                <ui-button (click)="fireConfetti1()" (keydown.enter)="fireConfetti1()">Celebrate!</ui-button>
               </div>
             </div>
 
@@ -517,7 +606,7 @@
                     startVelocity: 50,
                     gravity: 0.1
                  }">
-                <ui-button variant="outline" (click)="fireConfetti2()">Black & Red</ui-button>
+                <ui-button variant="outline" (click)="fireConfetti2()" (keydown.enter)="fireConfetti2()">Black & Red</ui-button>
               </div>
             </div>
 
@@ -528,12 +617,12 @@
                 class="relative h-[200px] w-full border rounded-lg flex items-center justify-center bg-background overflow-hidden"
                 uiConfetti [manualTrigger]="confettiTrigger3()"
                 [options]="{ variant: 'side-cannons', particleCount: 300, ticks: 400, startVelocity: 60 }">
-                <ui-button variant="secondary" (click)="fireConfetti3()">Fill Container</ui-button>
+                <ui-button variant="secondary" (click)="fireConfetti3()" (keydown.enter)="fireConfetti3()">Fill Container</ui-button>
               </div>
             </div>
 
 
-            <ui-button variant="secondary" class="w-[200px] p-0 " (click)="fireConfetti4()">
+            <ui-button variant="secondary" class="w-[200px] p-0 " (click)="fireConfetti4()" (keydown.enter)="fireConfetti4()">
               <div class="relative h-full w-full border flex items-center justify-center" uiConfetti
                 [manualTrigger]="confettiTrigger4()"
                 [options]="{ variant: 'side-cannons', particleCount: 85, ticks: 500, startVelocity: 15, angle: 120, gravity: 0.02 }">
@@ -907,14 +996,14 @@
             <div class="space-y-2">
               <ui-label>Content Projection</ui-label>
               <ui-split-button>
-                <ui-split-button-primary (click)="onSplitPrimaryClick()">
+                <ui-split-button-primary (click)="onSplitPrimaryClick()" (keydown.enter)="onSplitPrimaryClick()">
                   Deploy
                 </ui-split-button-primary>
                 <ui-split-button-menu>
-                  <ui-split-button-item (click)="onSplitItemClick({label: 'Staging'})">
+                  <ui-split-button-item (click)="onSplitItemClick({label: 'Staging'})" (keydown.enter)="onSplitItemClick({label: 'Staging'})">
                     Deploy to Staging
                   </ui-split-button-item>
-                  <ui-split-button-item (click)="onSplitItemClick({label: 'Production'})">
+                  <ui-split-button-item (click)="onSplitItemClick({label: 'Production'})" (keydown.enter)="onSplitItemClick({label: 'Production'})">
                     Deploy to Production
                   </ui-split-button-item>
                 </ui-split-button-menu>
@@ -1449,7 +1538,7 @@
                 </div>
               </div>
               <ui-dialog-footer>
-                <ui-button (click)="uiDialog.hide()">Save changes</ui-button>
+                <ui-button (click)="uiDialog.hide()" (keydown.enter)="uiDialog.hide()">Save changes</ui-button>
               </ui-dialog-footer>
             </ui-dialog-content>
           </ui-dialog>
@@ -2105,9 +2194,9 @@
           <p class="text-muted-foreground">Show notification toasts to users.</p>
 
           <div class="flex gap-2">
-            <ui-button (click)="showToast('default')">Show Toast</ui-button>
-            <ui-button variant="outline" (click)="showToast('success')">Success Toast</ui-button>
-            <ui-button variant="destructive" (click)="showToast('error')">Error Toast</ui-button>
+            <ui-button (click)="showToast('default')" (keydown.enter)="showToast('default')">Show Toast</ui-button>
+            <ui-button variant="outline" (click)="showToast('success')" (keydown.enter)="showToast('success')">Success Toast</ui-button>
+            <ui-button variant="destructive" (click)="showToast('error')" (keydown.enter)="showToast('error')">Error Toast</ui-button>
           </div>
         </section>
 
@@ -2380,7 +2469,7 @@
             </ui-command-list>
           </ui-command>
           <div class="flex flex-col gap-2">
-            <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">Show command
+            <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)" (keydown.enter)="showCommandDialog.set(true)">Show command
               dialog</ui-button>
             <p class="text-sm text-muted-foreground">Press <ui-kbd>⌘</ui-kbd> <ui-kbd>K</ui-kbd></p>
           </div>
@@ -2747,7 +2836,6 @@
             </ui-button>
           </div>
 
-          <!-- <ui-page-spinner /> -->
         </section>
 
         }
@@ -2850,12 +2938,12 @@
                   <path d="m21 21-4.35-4.35" />
                 </svg>
               </ui-input-group-addon>
-              <ui-input-group-input placeholder="Search..." />
+              <ui-input placeholder="Search..." />
             </ui-input-group>
 
             <ui-input-group>
               <ui-input-group-addon>$</ui-input-group-addon>
-              <ui-input-group-input placeholder="0.00" type="number" />
+              <ui-input placeholder="0.00" type="number" />
               <ui-input-group-addon align="inline-end">
                 <ui-input-group-text>USD</ui-input-group-text>
               </ui-input-group-addon>
@@ -2870,7 +2958,7 @@
                   <circle cx="12" cy="10" r="3" />
                 </svg>
               </ui-input-group-addon>
-              <ui-input-group-input placeholder="Enter location" />
+              <ui-input placeholder="Enter location" />
               <ui-input-group-addon align="inline-end">
                 <ui-button variant="ghost" size="sm">Locate</ui-button>
               </ui-input-group-addon>
@@ -2915,8 +3003,8 @@
               <ui-field-separator />
 
               <ui-field orientation="horizontal">
-                <ui-checkbox id="terms" />
-                <ui-field-label for="terms" class="font-normal">I agree to the terms</ui-field-label>
+              <ui-checkbox id="terms-field" />
+              <ui-field-label for="terms-field" class="font-normal">I agree to the terms</ui-field-label>
               </ui-field>
             </ui-field-group>
           </div>
@@ -2994,22 +3082,38 @@
 
             <ui-context-menu #treeContextMenu>
               <ui-context-menu-content class="w-64">
-                <ui-context-menu-item (click)="onTreeContextMenu('open', treeContextMenu.data())">
+                <ui-context-menu-item (click)="onTreeContextMenu('open', treeContextMenu.data())" (keydown.enter)="onTreeContextMenu('open', treeContextMenu.data())">
                   Open
                   <ui-context-menu-shortcut>⏎</ui-context-menu-shortcut>
                 </ui-context-menu-item>
-                <ui-context-menu-item (click)="onTreeContextMenu('properties', treeContextMenu.data())">
+                <ui-context-menu-item (click)="onTreeContextMenu('properties', treeContextMenu.data())" (keydown.enter)="onTreeContextMenu('properties', treeContextMenu.data())">
                   Properties
                   <ui-context-menu-shortcut>⌘I</ui-context-menu-shortcut>
                 </ui-context-menu-item>
                 <ui-context-menu-separator />
                 <ui-context-menu-item variant="destructive"
-                  (click)="onTreeContextMenu('delete', treeContextMenu.data())">
+                  (click)="onTreeContextMenu('delete', treeContextMenu.data())" (keydown.enter)="onTreeContextMenu('delete', treeContextMenu.data())">
                   Delete
                   <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
                 </ui-context-menu-item>
               </ui-context-menu-content>
             </ui-context-menu>
+          </div>
+
+          <h3 class="text-lg font-medium pt-4">Data-Driven Mode</h3>
+          <p class="text-sm text-muted-foreground">
+            Using the <code>[data]</code> input with <code>[initialExpandDepth]="1"</code> to auto-expand the first level.
+          </p>
+          <div class="max-w-sm border rounded-md p-4">
+            <ui-tree [data]="treeSelectNodes()" [initialExpandDepth]="1" selectable="single" />
+          </div>
+
+          <h3 class="text-lg font-medium pt-4">Large Dataset (5 x 7 depth = 97,655 nodes)</h3>
+          <p class="text-sm text-muted-foreground">
+            Lazy rendering: only root nodes are in the DOM initially. Children render on expand.
+          </p>
+          <div class="max-w-md border rounded-md p-4 max-h-96 overflow-auto">
+            <ui-tree [data]="largeTreeData()" selectable="single" />
           </div>
         </section>
         }
@@ -3230,14 +3334,14 @@
                 <span>Rendered: {{ virtualScrollVisibleCount() }} items</span>
               </div>
               <div class="flex gap-2">
-                <button uiButton variant="outline" size="sm" (click)="loadMoreBottom()"
+                <button uiButton variant="outline" size="sm" (click)="loadMoreBottom()" (keydown.enter)="loadMoreBottom()"
                   [disabled]="virtualScrollLoading() || !virtualScrollHasMoreBottom()">
                   Load More
                 </button>
-                <button uiButton variant="outline" size="sm" (click)="scrollVirtualToTop()">
+                <button uiButton variant="outline" size="sm" (click)="scrollVirtualToTop()" (keydown.enter)="scrollVirtualToTop()">
                   Top
                 </button>
-                <button uiButton variant="outline" size="sm" (click)="scrollVirtualToBottom()">
+                <button uiButton variant="outline" size="sm" (click)="scrollVirtualToBottom()" (keydown.enter)="scrollVirtualToBottom()">
                   Bottom
                 </button>
               </div>
@@ -3532,13 +3636,9 @@
             </ui-speed-dial>
           </div>
 
-          <!-- Context Menu Speed Dial -->
           <h3 class="text-lg font-medium mt-6">Context Menu (Right-click)</h3>
           <ui-speed-dial type="circle" [transitionDelay]="500" direction="down-right" [radius]="40"
             #speedDialContextMenu>
-            <!-- <ui-speed-dial-context-trigger class="w-full h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
-              <span>Right-click anywhere in this area</span>
-            </ui-speed-dial-context-trigger> -->
             <ui-speed-dial-menu>
               <ui-speed-dial-item>
                 <ui-button size="icon-sm" variant="secondary" class="rounded-full" uiTooltip="Copy">
@@ -3591,7 +3691,7 @@
             </ui-speed-dial-menu>
           </ui-speed-dial>
 
-          <div [uiSpeedDialContextTrigger]="speedDialContextMenu" (click)="writeToLog('test')"
+          <div [uiSpeedDialContextTrigger]="speedDialContextMenu" (click)="writeToLog('test')" (keydown.enter)="writeToLog('test')"
             class="h-32 border-2 border-dashed border-muted rounded-lg flex items-center justify-center text-muted-foreground hover:border-primary/50 transition-colors cursor-context-menu">
             Right-click anywhere here
           </div>
@@ -3600,7 +3700,7 @@
         }
         @case ('chip-list') {
         <section class="space-y-4">
-          <h2 id="chip-list" class="text-2xl font-semibold scroll-m-20">Chip List</h2>
+          <h2 id="chip-list-secondary" class="text-2xl font-semibold scroll-m-20">Chip List</h2>
           <p class="text-muted-foreground">
             Input that converts text into chips. Type and press Enter to add.
           </p>
@@ -3649,10 +3749,10 @@
           </p>
 
           <div class="flex items-center gap-2 mb-2">
-            <ui-button variant="outline" size="sm" (click)="clientTable.exportToCsv('payments')">
+            <ui-button variant="outline" size="sm" (click)="clientTable.exportToCsv('payments')" (keydown.enter)="clientTable.exportToCsv('payments')">
               Export CSV
             </ui-button>
-            <ui-button variant="outline" size="sm" (click)="clientTable.exportToExcel('payments')">
+            <ui-button variant="outline" size="sm" (click)="clientTable.exportToExcel('payments')" (keydown.enter)="clientTable.exportToExcel('payments')">
               Export Excel
             </ui-button>
           </div>
@@ -3666,22 +3766,22 @@
 
           <ui-context-menu #tableContextMenu>
             <ui-context-menu-content class="w-64">
-              <ui-context-menu-item (click)="clientTable.copyCellToClipboard()">
+              <ui-context-menu-item (click)="clientTable.copyCellToClipboard()" (keydown.enter)="clientTable.copyCellToClipboard()">
                 Copy Cell
                 <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
               </ui-context-menu-item>
               <ui-context-menu-separator />
-              <ui-context-menu-item (click)="onContextMenuAction('view', tableContextMenu.data())">
+              <ui-context-menu-item (click)="onContextMenuAction('view', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('view', tableContextMenu.data())">
                 View Details
                 <ui-context-menu-shortcut>⌘V</ui-context-menu-shortcut>
               </ui-context-menu-item>
-              <ui-context-menu-item (click)="onContextMenuAction('edit', tableContextMenu.data())">
+              <ui-context-menu-item (click)="onContextMenuAction('edit', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('edit', tableContextMenu.data())">
                 Edit Payment
                 <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
               </ui-context-menu-item>
               <ui-context-menu-separator />
               <ui-context-menu-item variant="destructive"
-                (click)="onContextMenuAction('delete', tableContextMenu.data())">
+                (click)="onContextMenuAction('delete', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('delete', tableContextMenu.data())">
                 Delete
                 <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
               </ui-context-menu-item>
@@ -3710,10 +3810,10 @@
           </p>
 
           <div class="flex items-center gap-2 mb-2">
-            <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-all', payments())">
+            <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-all', payments())" (keydown.enter)="serverGrid.exportToExcel('payments-all', payments())">
               Export All (inline data)
             </ui-button>
-            <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-page')">
+            <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-page')" (keydown.enter)="serverGrid.exportToExcel('payments-page')">
               Export Current Page
             </ui-button>
           </div>
@@ -3747,36 +3847,36 @@
           </p>
 
           <div class="flex flex-wrap items-center gap-3 rounded-md border p-3">
-            <ui-button size="sm" variant="outline" (click)="refreshOpsData()">Refresh</ui-button>
-            <ui-button size="sm" variant="outline" (click)="applyOpsCompactPreset()">Apply Compact Layout</ui-button>
-            <ui-button size="sm" variant="outline" (click)="moveOpsPriorityToFront()">Move Priority Next</ui-button>
-            <ui-button size="sm" variant="outline" (click)="saveOpsLayout()">Save Layout</ui-button>
-            <ui-button size="sm" variant="outline" (click)="restoreOpsLayout()">Restore Layout</ui-button>
-            <ui-button size="sm" variant="outline" (click)="opsGrid.exportToCsv('incidents')">Export CSV</ui-button>
-            <ui-button size="sm" variant="outline" (click)="opsGrid.exportToExcel('incidents')">Export Excel</ui-button>
+            <ui-button size="sm" variant="outline" (click)="refreshOpsData()" (keydown.enter)="refreshOpsData()">Refresh</ui-button>
+            <ui-button size="sm" variant="outline" (click)="applyOpsCompactPreset()" (keydown.enter)="applyOpsCompactPreset()">Apply Compact Layout</ui-button>
+            <ui-button size="sm" variant="outline" (click)="moveOpsPriorityToFront()" (keydown.enter)="moveOpsPriorityToFront()">Move Priority Next</ui-button>
+            <ui-button size="sm" variant="outline" (click)="saveOpsLayout()" (keydown.enter)="saveOpsLayout()">Save Layout</ui-button>
+            <ui-button size="sm" variant="outline" (click)="restoreOpsLayout()" (keydown.enter)="restoreOpsLayout()">Restore Layout</ui-button>
+            <ui-button size="sm" variant="outline" (click)="opsGrid.exportToCsv('incidents')" (keydown.enter)="opsGrid.exportToCsv('incidents')">Export CSV</ui-button>
+            <ui-button size="sm" variant="outline" (click)="opsGrid.exportToExcel('incidents')" (keydown.enter)="opsGrid.exportToExcel('incidents')">Export Excel</ui-button>
 
             <div class="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
               <span>Loader triggers:</span>
-              <label class="flex items-center gap-2">
+              <div class="flex items-center gap-2">
                 <ui-checkbox [checked]="opsLoadingVisibility().initial !== false"
                   (checkedChange)="toggleOpsLoaderTrigger('initial', $event)" ariaLabel="Toggle initial loader" />
                 initial
-              </label>
-              <label class="flex items-center gap-2">
+              </div>
+              <div class="flex items-center gap-2">
                 <ui-checkbox [checked]="opsLoadingVisibility().pagination !== false"
                   (checkedChange)="toggleOpsLoaderTrigger('pagination', $event)" ariaLabel="Toggle pagination loader" />
                 pagination
-              </label>
-              <label class="flex items-center gap-2">
+              </div>
+              <div class="flex items-center gap-2">
                 <ui-checkbox [checked]="opsLoadingVisibility().sorting !== false"
                   (checkedChange)="toggleOpsLoaderTrigger('sorting', $event)" ariaLabel="Toggle sorting loader" />
                 sorting
-              </label>
-              <label class="flex items-center gap-2">
+              </div>
+              <div class="flex items-center gap-2">
                 <ui-checkbox [checked]="opsLoadingVisibility().filtering !== false"
                   (checkedChange)="toggleOpsLoaderTrigger('filtering', $event)" ariaLabel="Toggle filtering loader" />
                 filtering
-              </label>
+              </div>
             </div>
           </div>
 
@@ -3795,15 +3895,15 @@
 
           <ui-context-menu #opsContextMenu>
             <ui-context-menu-content class="w-56">
-              <ui-context-menu-item (click)="opsGrid.copyCellToClipboard()">
+              <ui-context-menu-item (click)="opsGrid.copyCellToClipboard()" (keydown.enter)="opsGrid.copyCellToClipboard()">
                 Copy Cell
                 <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
               </ui-context-menu-item>
               <ui-context-menu-separator />
-              <ui-context-menu-item (click)="opsGrid.exportToCsv('incidents')">
+              <ui-context-menu-item (click)="opsGrid.exportToCsv('incidents')" (keydown.enter)="opsGrid.exportToCsv('incidents')">
                 Export CSV
               </ui-context-menu-item>
-              <ui-context-menu-item (click)="opsGrid.exportToExcel('incidents')">
+              <ui-context-menu-item (click)="opsGrid.exportToExcel('incidents')" (keydown.enter)="opsGrid.exportToExcel('incidents')">
                 Export Excel
               </ui-context-menu-item>
             </ui-context-menu-content>
@@ -3831,6 +3931,116 @@
           </div>
         </section>
 
+        <!-- Sub-Rows (Tree Data) Section -->
+        <section class="space-y-4">
+          <h2 id="data-table-tree" class="text-2xl font-semibold scroll-m-20">Data Table (Sub-Rows / Tree Data)</h2>
+          <p class="text-muted-foreground">
+            Hierarchical rows where children share the same columns as parents. Supports nested expand/collapse,
+            cascading selection, tree-aware filtering, and recursive sorting.
+          </p>
+
+          <div class="flex flex-wrap items-center gap-3 rounded-md border p-3">
+            <ui-button size="sm" variant="outline" (click)="treeTable.expandAllSubRows(-1)" (keydown.enter)="treeTable.expandAllSubRows(-1)">Expand All</ui-button>
+            <ui-button size="sm" variant="outline" (click)="treeTable.collapseAllSubRows()" (keydown.enter)="treeTable.collapseAllSubRows()">Collapse All</ui-button>
+            <ui-button size="sm" variant="outline" (click)="treeTable.expandAllSubRows(1)" (keydown.enter)="treeTable.expandAllSubRows(1)">Expand Level 1</ui-button>
+
+            <div class="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
+              <span class="flex items-center gap-2">
+                Selection mode:
+              </span>
+              <select class="rounded-md border bg-background px-2 py-1 text-xs" [value]="treeSelectionMode()" (change)="treeSelectionMode.set($any($event.target).value)">
+                <option value="self">self</option>
+                <option value="descendants">descendants</option>
+                <option value="filteredDescendants">filteredDescendants</option>
+              </select>
+
+              <span class="flex items-center gap-2">
+                Filter mode:
+              </span>
+              <select class="rounded-md border bg-background px-2 py-1 text-xs" [value]="treeFilterMode()" (change)="treeFilterMode.set($any($event.target).value)">
+                <option value="includeParentOnChildMatch">includeParentOnChildMatch</option>
+                <option value="includeChildren">includeChildren</option>
+                <option value="excludeChildren">excludeChildren</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="rounded-md border h-[600px] overflow-auto relative">
+            <ui-data-table #treeTable
+              [data]="orgTreeData"
+              [columns]="orgTreeColumns"
+              [enableSubRows]="true"
+              [enableRowSelection]="true"
+              [subRowDefaultExpanded]="1"
+              [subRowSelectionMode]="treeSelectionMode()"
+              [subRowFilterMode]="treeFilterMode()"
+              [enableSubRowSorting]="true"
+              [enableRowExpansion]="true"
+              [rowDetailTemplate]="treeDetailTpl"
+              [enableColumnResize]="true"
+              [uiDataTableContextMenu]="treeContextMenu"
+              (rowContextMenu)="onTreeTableContextMenu($event)"
+            />
+          </div>
+
+          <ng-template #treeDetailTpl let-row>
+            <div class="p-4 text-sm text-muted-foreground">
+              <span class="font-medium text-foreground">{{ row.name }}</span> &mdash;
+              {{ row.role }} &middot; {{ row.headcount }} people &middot; Budget: ${{ row.budget | number:'1.0-0' }}
+            </div>
+          </ng-template>
+
+          <ui-context-menu #treeContextMenu>
+            <ui-context-menu-content class="w-64">
+              @if (treeContextMenu.data(); as ctx) {
+                <ui-context-menu-label>
+                  {{ ctx.row?.name || 'Unknown' }}
+                  <span class="ml-1 text-xs text-muted-foreground">(depth {{ ctx.depth }})</span>
+                </ui-context-menu-label>
+                <ui-context-menu-separator />
+                @if (!ctx.isLeaf) {
+                  <ui-context-menu-item (click)="treeTable.expandSubRow(ctx.row)" (keydown.enter)="treeTable.expandSubRow(ctx.row)">
+                    Expand
+                  </ui-context-menu-item>
+                  <ui-context-menu-item (click)="treeTable.collapseSubRow(ctx.row)" (keydown.enter)="treeTable.collapseSubRow(ctx.row)">
+                    Collapse
+                  </ui-context-menu-item>
+                  <ui-context-menu-item (click)="treeTable.selectChildren(ctx.row)" (keydown.enter)="treeTable.selectChildren(ctx.row)">
+                    Select All Children
+                  </ui-context-menu-item>
+                  <ui-context-menu-item (click)="treeTable.deselectChildren(ctx.row)" (keydown.enter)="treeTable.deselectChildren(ctx.row)">
+                    Deselect All Children
+                  </ui-context-menu-item>
+                  <ui-context-menu-separator />
+                }
+                @if (ctx.depth === 0) {
+                  <ui-context-menu-item (click)="treeTable.expandAllSubRows(-1)" (keydown.enter)="treeTable.expandAllSubRows(-1)">
+                    Expand Entire Tree
+                  </ui-context-menu-item>
+                  <ui-context-menu-item (click)="treeTable.collapseAllSubRows()" (keydown.enter)="treeTable.collapseAllSubRows()">
+                    Collapse Entire Tree
+                  </ui-context-menu-item>
+                  <ui-context-menu-separator />
+                }
+                <ui-context-menu-item (click)="treeTable.copyCellToClipboard()" (keydown.enter)="treeTable.copyCellToClipboard()">
+                  Copy Cell
+                  <ui-context-menu-shortcut>Ctrl+C</ui-context-menu-shortcut>
+                </ui-context-menu-item>
+                <ui-context-menu-item (click)="onTreeTableAction('view', ctx)" (keydown.enter)="onTreeTableAction('view', ctx)">
+                  View Details
+                </ui-context-menu-item>
+              }
+            </ui-context-menu-content>
+          </ui-context-menu>
+
+          <div class="text-xs text-muted-foreground">
+            Right-click any row for a depth-aware context menu.
+            Click the chevron to expand sub-rows. Use the checkboxes to test cascading selection.
+            Filter text to see tree-aware filtering (try "Alice" or "Backend").
+            Click the detail-row expander to see detail panels coexisting with sub-rows.
+          </div>
+        </section>
+
         <!-- Footer -->
         <div class="text-center text-muted-foreground text-sm pt-8">
           Built with Angular and Tailwind CSS. Open source.
@@ -3839,7 +4049,7 @@
 
         @case ('alert') {
         <section class="space-y-4">
-          <h2 id="alert" class="text-2xl font-semibold scroll-m-20">Alert</h2>
+          <h2 id="alert-secondary" class="text-2xl font-semibold scroll-m-20">Alert</h2>
           <p class="text-muted-foreground">Displays a callout for user attention.</p>
 
           <div class="space-y-4">
@@ -3870,7 +4080,7 @@
 
         @case ('avatar') {
         <section class="space-y-4">
-          <h2 id="avatar" class="text-2xl font-semibold scroll-m-20">Avatar</h2>
+          <h2 id="avatar-secondary" class="text-2xl font-semibold scroll-m-20">Avatar</h2>
           <p class="text-muted-foreground">An image element with a fallback for representing the user.</p>
 
           <div class="flex gap-4">
@@ -3895,7 +4105,7 @@
 
         @case ('breadcrumb') {
         <section class="space-y-4">
-          <h2 id="breadcrumb" class="text-2xl font-semibold scroll-m-20">Breadcrumb</h2>
+          <h2 id="breadcrumb-secondary" class="text-2xl font-semibold scroll-m-20">Breadcrumb</h2>
           <p class="text-muted-foreground">Displays the path to the current resource.</p>
 
           <ui-breadcrumb>
@@ -3930,7 +4140,7 @@
 
         @case ('pagination') {
         <section class="space-y-4">
-          <h2 id="pagination" class="text-2xl font-semibold scroll-m-20">Pagination</h2>
+          <h2 id="pagination-secondary" class="text-2xl font-semibold scroll-m-20">Pagination</h2>
           <p class="text-muted-foreground">Pagination with page navigation, next and previous links.</p>
 
           <ui-pagination>
@@ -3964,7 +4174,7 @@
 
         @case ('stepper') {
         <section class="space-y-4">
-          <h2 id="stepper" class="text-2xl font-semibold scroll-m-20">Stepper</h2>
+          <h2 id="stepper-secondary" class="text-2xl font-semibold scroll-m-20">Stepper</h2>
           <p class="text-muted-foreground">A stepper component to display progress through a sequence of steps.</p>
 
           <ui-stepper [activeStep]="1">
@@ -4009,7 +4219,7 @@
 
         @case ('tree-view') {
         <section class="space-y-4">
-          <h2 id="tree-view" class="text-2xl font-semibold scroll-m-20">Tree View</h2>
+          <h2 id="tree-view-secondary" class="text-2xl font-semibold scroll-m-20">Tree View</h2>
           <p class="text-muted-foreground">A hierarchical list of items.</p>
 
           <ui-tree>
@@ -4076,7 +4286,7 @@
             <div class="absolute inset-x-0 bottom-4">
               <ui-dock [items]="dockItems()" [magnification]="50" [distance]="80">
                 <ng-template #itemTemplate let-item let-index="index">
-                  <ui-dock-item [class]="item.class || ''" [active]="item.active" (click)="toggleDockItem(index)">
+                  <ui-dock-item [class]="item.class || ''" [active]="item.active" (click)="toggleDockItem(index)" (keydown.enter)="toggleDockItem(index)">
                     @if (item.label) { <ui-dock-label>{{ item.label }}</ui-dock-label> }
                     @if (item.icon) { <ui-dock-icon>{{ item.icon }}</ui-dock-icon> }
                   </ui-dock-item>
@@ -4093,7 +4303,7 @@
               <ui-dock [magnification]="dockMagnification()" [distance]="dockDistance()">
 
                 <!-- Finder -->
-                <ui-dock-item #finder [active]="true" (click)="finder.startBounce();">
+                <ui-dock-item #finder [active]="true" (click)="finder.startBounce();" (keydown.enter)="finder.startBounce();">
                   <ui-dock-label>Finder</ui-dock-label>
                   <ui-dock-icon
                     class="bg-gradient-to-b from-sky-400 to-sky-600 border border-sky-400/30 text-white rounded-xl shadow-lg shadow-sky-500/20">
@@ -4107,7 +4317,7 @@
                 </ui-dock-item>
 
                 <!-- Launchpad -->
-                <ui-dock-item #launchpad (click)="launchpad.startBounce()">
+                <ui-dock-item #launchpad (click)="launchpad.startBounce()" (keydown.enter)="launchpad.startBounce()">
                   <ui-dock-label>Launchpad</ui-dock-label>
                   <ui-dock-icon
                     class="bg-gradient-to-br from-indigo-400 via-purple-500 to-pink-500 border border-white/20 text-white rounded-xl shadow-lg shadow-purple-500/20">
@@ -4122,7 +4332,7 @@
                 </ui-dock-item>
 
                 <!-- Safari -->
-                <ui-dock-item #safari [active]="true" (click)="safari.startBounce()">
+                <ui-dock-item #safari [active]="true" (click)="safari.startBounce()" (keydown.enter)="safari.startBounce()">
                   <ui-dock-label>Safari</ui-dock-label>
                   <ui-dock-icon class="bg-white text-blue-500 rounded-xl shadow-lg border-2 border-slate-100">
                     <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
@@ -4134,7 +4344,7 @@
                 </ui-dock-item>
 
                 <!-- Messages -->
-                <ui-dock-item #messages (click)="messages.startBounce()">
+                <ui-dock-item #messages (click)="messages.startBounce()" (keydown.enter)="messages.startBounce()">
                   <ui-dock-label>Messages</ui-dock-label>
                   <ui-dock-icon
                     class="bg-gradient-to-b from-green-400 to-green-600 border border-green-400/30 text-white rounded-xl shadow-lg shadow-green-500/20">
@@ -4147,7 +4357,7 @@
                 </ui-dock-item>
 
                 <!-- Mail -->
-                <ui-dock-item #mail (click)="mail.startBounce()">
+                <ui-dock-item #mail (click)="mail.startBounce()" (keydown.enter)="mail.startBounce()">
                   <ui-dock-label>Mail</ui-dock-label>
                   <ui-dock-icon
                     class="bg-gradient-to-b from-sky-400 to-blue-600 border border-blue-400/30 text-white rounded-xl shadow-lg shadow-blue-500/20">
@@ -4160,7 +4370,7 @@
                 </ui-dock-item>
 
                 <!-- Photos -->
-                <ui-dock-item #photos [active]="true" (click)="photos.startBounce()">
+                <ui-dock-item #photos [active]="true" (click)="photos.startBounce()" (keydown.enter)="photos.startBounce()">
                   <ui-dock-label>Photos</ui-dock-label>
                   <ui-dock-icon class="bg-white text-black rounded-xl border-2 border-slate-100 shadow-lg">
                     <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none"
@@ -4174,7 +4384,7 @@
                 </ui-dock-item>
 
                 <!-- Calendar -->
-                <ui-dock-item #cal (click)="cal.startBounce()">
+                <ui-dock-item #cal (click)="cal.startBounce()" (keydown.enter)="cal.startBounce()">
                   <ui-dock-label>Calendar</ui-dock-label>
                   <ui-dock-icon class="bg-white rounded-xl border shadow-lg overflow-hidden group/cal relative">
                     <div class="absolute top-0 inset-x-0 h-3 bg-red-500"></div>
@@ -4222,7 +4432,7 @@
         <section class="space-y-4">
           <div class="flex items-center justify-between">
             <h2 id="bento-grid" class="text-2xl font-semibold scroll-m-20">Bento Grid (Dashboard)</h2>
-            <button (click)="toggleEditMode()"
+            <button (click)="toggleEditMode()" (keydown.enter)="toggleEditMode()"
               class="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors">
               {{ isEditMode() ? 'Done' : 'Edit Layout' }}
             </button>

@@ -168,7 +168,7 @@ export class CalendarComponent {
 
   selectedChange = output<Date | DateRange | Date[] | string | string[] | null>();
 
-  private viewDate = signal(new Date());
+  private readonly viewDate = signal(new Date());
 
 
 
@@ -200,7 +200,7 @@ export class CalendarComponent {
 
   private viewDateInitialized = false;
 
-  private activeLocale = computed((): CalendarLocale => {
+  private readonly activeLocale = computed((): CalendarLocale => {
     const key = this.locale();
     return CALENDAR_LOCALES[key] ?? CALENDAR_LOCALES['en'];
   });
@@ -230,7 +230,6 @@ export class CalendarComponent {
   years = computed(() => {
     const current = new Date().getFullYear();
     const start = current - 100;
-    const end = current + 10;
     const years: number[] = [];
     for (let i = current; i >= start; i--) {
       years.push(i);
@@ -302,7 +301,7 @@ export class CalendarComponent {
       return new Date(y, m - 1, d);
     }
     const d = new Date(val);
-    return isNaN(d.getTime()) ? null : d;
+    return Number.isNaN(d.getTime()) ? null : d;
   }
 
   isSelected(day: Date): boolean {
@@ -337,7 +336,7 @@ export class CalendarComponent {
   isInRange(day: Date): boolean {
     if (this.mode() !== 'range') return false;
     const val = this.selected() as DateRange | null;
-    if (!val || !val.start || !val.end) return false;
+    if (!val?.start || !val.end) return false;
 
     const time = day.getTime();
     const start = val.start.getTime();
@@ -393,13 +392,11 @@ export class CalendarComponent {
 
       if (!current.start || (current.start && current.end)) {
         newVal = { start: day, end: null };
-      } else {
-        if (day < current.start) {
+      } else if (day < current.start) {
           newVal = { start: day, end: current.start };
         } else {
           newVal = { start: current.start, end: day };
         }
-      }
     }
 
     this.selected.set(newVal);
@@ -445,13 +442,13 @@ export class CalendarComponent {
   }
 
   onMonthChange(month: string) {
-    const monthNum = parseInt(month, 10);
+    const monthNum = Number.parseInt(month, 10);
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), monthNum, 1));
   }
 
   onYearChange(year: string) {
-    const yearNum = parseInt(year, 10);
+    const yearNum = Number.parseInt(year, 10);
     const current = this.viewDate();
     this.viewDate.set(new Date(yearNum, current.getMonth(), 1));
   }

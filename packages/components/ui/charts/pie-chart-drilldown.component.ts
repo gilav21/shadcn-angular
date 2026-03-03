@@ -244,7 +244,12 @@ export class PieChartDrilldownComponent {
   chartContainerClasses = computed(() => {
     const pos = this.legendPosition();
     const flexDir = pos === 'left' || pos === 'right' ? 'flex-row' : 'flex-col';
-    const reverse = pos === 'left' ? 'flex-row-reverse' : pos === 'top' ? 'flex-col-reverse' : '';
+    let reverse = '';
+    if (pos === 'left') {
+      reverse = 'flex-row-reverse';
+    } else if (pos === 'top') {
+      reverse = 'flex-col-reverse';
+    }
 
     return cn('relative flex gap-4 items-center', flexDir, reverse);
   });

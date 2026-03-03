@@ -102,15 +102,15 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
     ],
 })
 export class SelectComponent<T = string> implements OnDestroy, ControlValueAccessor {
-    private el = inject(ElementRef);
-    private document = inject(DOCUMENT);
+    private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
 
     readonly disabled = input(false);
     readonly placeholder = input('Select an option');
     readonly defaultValue = input<T | undefined>(undefined);
     readonly position = input<'popper' | 'item-aligned'>('item-aligned');
     readonly options = input<T[]>([]);
-    readonly displayWith = input<(option: T) => string>((opt) => String(opt));
+    readonly displayWith = input<(option: T) => string>(String);
     readonly value = input<T | undefined>(undefined);
     readonly valueAttribute = input<string | undefined>(undefined);
     readonly disabledWith = input<(option: T) => boolean>(() => false);
@@ -147,13 +147,13 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
-    private clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent) => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.close();
         }
     };
 
-    private keydownListener = (event: KeyboardEvent) => {
+    private readonly keydownListener = (event: KeyboardEvent) => {
         if (event.key === 'Escape' && this.open()) {
             this.close();
         }
@@ -195,11 +195,11 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         effect(() => {
             if (this.open()) {
                 const currentVal = this.internalValue();
-                if (currentVal !== undefined) {
-                    const index = this.options().findIndex(opt => this.getValue(opt) === currentVal);
-                    this.focusedIndex.set(index >= 0 ? index : 0);
-                } else {
+                if (currentVal === undefined) {
                     this.focusedIndex.set(0);
+                } else {
+                    const index = this.options().findIndex(opt => this.getValue(opt) === currentVal);
+                    this.focusedIndex.set(Math.max(index, 0));
                 }
 
                 if (this.isDataDriven()) {
@@ -330,11 +330,6 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
             case 'Enter':
             case ' ':
             case 'ArrowDown':
-                event.preventDefault();
-                if (!this.open()) {
-                    this.open.set(true);
-                }
-                break;
             case 'ArrowUp':
                 event.preventDefault();
                 if (!this.open()) {
@@ -436,7 +431,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     host: { class: 'contents' },
 })
 export class SelectTriggerComponent {
-    select = inject(SELECT, { optional: true });
+    readonly select = inject(SELECT, { optional: true });
     class = input('');
     ariaLabel = input<string | undefined>(undefined);
 
@@ -490,12 +485,18 @@ export class SelectTriggerComponent {
     },
 })
 export class SelectValueComponent {
-    private select = inject(SELECT, { optional: true });
+    private readonly select = inject(SELECT, { optional: true });
     placeholder = input('Select an option');
     displayValue = input<string | undefined>(undefined);
 
     hasValue = computed(() => this.select?.internalValue() !== undefined && this.select?.internalValue() !== null);
-    shownValue = computed(() => this.displayValue() ?? String(this.select?.internalValue() ?? ''));
+    shownValue = computed(() => {
+        if (this.displayValue() !== undefined) return this.displayValue()!;
+        const val = this.select?.internalValue();
+        if (val === undefined || val === null) return '';
+        if (typeof val === 'object') return JSON.stringify(val);
+        return String(val as string | number | boolean);
+    });
 
     hostClasses = computed(() =>
         cn(
@@ -525,9 +526,9 @@ export class SelectValueComponent {
     host: { class: 'contents' },
 })
 export class SelectContentComponent implements AfterViewInit {
-    select = inject(SELECT, { optional: true });
-    private el = inject(ElementRef);
-    private document = inject(DOCUMENT);
+    readonly select = inject(SELECT, { optional: true });
+    private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
 
     class = input('');
     position = input<'popper' | 'item-aligned'>('item-aligned');
@@ -535,9 +536,9 @@ export class SelectContentComponent implements AfterViewInit {
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
-    private offsetY = signal(0);
-    private effectivePosition = signal<'popper' | 'item-aligned'>('item-aligned');
-    private effectiveSide = signal<'top' | 'bottom'>('bottom');
+    private readonly offsetY = signal(0);
+    private readonly effectivePosition = signal<'popper' | 'item-aligned'>('item-aligned');
+    private readonly effectiveSide = signal<'top' | 'bottom'>('bottom');
     private previousActiveElement: HTMLElement | null = null;
 
     constructor() {
@@ -722,8 +723,8 @@ export class SelectContentComponent implements AfterViewInit {
     },
 })
 export class SelectItemComponent implements AfterViewInit, OnDestroy {
-    private select = inject(SELECT, { optional: true });
-    private el = inject(ElementRef);
+    private readonly select = inject(SELECT, { optional: true });
+    private readonly el = inject(ElementRef);
 
     value = input.required<string>();
     disabled = input(false);

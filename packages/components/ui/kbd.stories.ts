@@ -1,6 +1,5 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { KbdComponent } from './kbd.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<KbdComponent> = {
     title: 'UI/Kbd',

@@ -176,7 +176,7 @@ export class TabsTriggerComponent {
   value = input.required<string>();
   class = input('');
 
-  private tabs = inject(TABS, { optional: true });
+  private readonly tabs = inject(TABS, { optional: true });
 
   isActive = computed(() => this.tabs?.activeTab() === this.value());
   triggerId = computed(() => this.tabs?.getTriggerId(this.value()) ?? '');
@@ -222,7 +222,7 @@ export class TabsContentComponent {
   value = input.required<string>();
   class = input('');
 
-  private tabs = inject(TABS, { optional: true });
+  private readonly tabs = inject(TABS, { optional: true });
 
   isActive = computed(() => this.tabs?.activeTab() === this.value());
   triggerId = computed(() => this.tabs?.getTriggerId(this.value()) ?? '');

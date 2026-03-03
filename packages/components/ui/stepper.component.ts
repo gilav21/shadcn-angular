@@ -9,7 +9,6 @@ import {
   contentChildren,
   model,
   output,
-  signal,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -96,7 +95,7 @@ export class StepperComponent {
   items = contentChildren(forwardRef(() => StepperItemComponent));
 
   // For simple mode, use steps array length
-  private simpleStepCount = computed(() => this.steps().length);
+  private readonly simpleStepCount = computed(() => this.steps().length);
 
   classes = computed(() =>
     cn(
@@ -201,7 +200,7 @@ export class StepperItemComponent {
   class = input('');
   value = input.required<string>();
 
-  stepper = inject(STEPPER, { optional: true });
+  readonly stepper = inject(STEPPER, { optional: true });
 
   index = computed(() => this.stepper?.getStepIndex(this.value()) ?? 0);
   status = computed<StepStatus>(() => this.stepper?.getStepStatus(this.index()) ?? 'pending');
@@ -276,8 +275,8 @@ export class StepperItemComponent {
 export class StepperTriggerComponent {
   class = input('');
 
-  stepper = inject(STEPPER, { optional: true });
-  item = inject(StepperItemComponent, { optional: true });
+  readonly stepper = inject(STEPPER, { optional: true });
+  readonly item = inject(StepperItemComponent, { optional: true });
 
   stepNumber = computed(() => (this.item?.index() ?? 0) + 1);
   canClick = computed(() => this.stepper?.canNavigateTo(this.item?.index() ?? 0) ?? true);
@@ -367,8 +366,8 @@ export class StepperDescriptionComponent {
 export class StepperContentComponent {
   class = input('');
 
-  stepper = inject(STEPPER, { optional: true });
-  item = inject(StepperItemComponent, { optional: true });
+  readonly stepper = inject(STEPPER, { optional: true });
+  readonly item = inject(StepperItemComponent, { optional: true });
 
   isActive = computed(() => this.item?.status() === 'current');
 
@@ -395,8 +394,8 @@ export class StepperContentComponent {
 export class StepperSeparatorComponent {
   class = input('');
 
-  stepper = inject(STEPPER, { optional: true });
-  item = inject(StepperItemComponent, { optional: true });
+  readonly stepper = inject(STEPPER, { optional: true });
+  readonly item = inject(StepperItemComponent, { optional: true });
 
   isComplete = computed(() => this.item?.status() === 'complete');
 

@@ -40,7 +40,7 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
 
     private scrollTarget: HTMLElement | Window | null = null;
 
-    private scrollHandler = () => {
+    private readonly scrollHandler = () => {
         let scrollTop: number;
         let scrollHeight: number;
 
@@ -69,7 +69,7 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
             this.scrollTarget = containerInput;
         } else if (typeof containerInput === 'string') {
             try {
-                this.scrollTarget = document.querySelector(containerInput) as HTMLElement | null;
+                this.scrollTarget = document.querySelector<HTMLElement>(containerInput);
             } catch {
                 this.scrollTarget = null;
             }
@@ -88,8 +88,10 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
             }
         }
 
+        this.scrollTarget ??= this.el.nativeElement.ownerDocument.defaultView;
+
         if (!this.scrollTarget) {
-            this.scrollTarget = window;
+            return;
         }
 
         this.ngZone.runOutsideAngular(() => {

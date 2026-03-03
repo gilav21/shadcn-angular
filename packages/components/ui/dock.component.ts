@@ -78,10 +78,10 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
     position = input<'bottom' | 'top' | 'left' | 'right'>('bottom');
     items = input<DockItemData[]>([]);
 
-    @ContentChildren(DockItemComponent) private projectedItems!: QueryList<DockItemComponent>;
-    @ViewChildren(DockItemComponent) private viewItems!: QueryList<DockItemComponent>;
+    @ContentChildren(DockItemComponent) private readonly projectedItems!: QueryList<DockItemComponent>;
+    @ViewChildren(DockItemComponent) private readonly viewItems!: QueryList<DockItemComponent>;
 
-    private _hasCustomContent = signal(false);
+    private readonly _hasCustomContent = signal(false);
     hasCustomContent = this._hasCustomContent.asReadonly();
 
     ngAfterContentInit() {
@@ -90,8 +90,8 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
 
     classes = computed(() => cn(dockVariants({ position: this.position() }), this.class()));
 
-    private _el = inject(ElementRef);
-    private _ngZone = inject(NgZone);
+    private readonly _el = inject(ElementRef);
+    private readonly _ngZone = inject(NgZone);
 
     private _itemCenters: number[] = [];
     private readonly onMouseMoveBound = this.onMouseMove.bind(this);

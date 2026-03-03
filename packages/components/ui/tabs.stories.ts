@@ -1,11 +1,10 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   TabsComponent,
   TabsListComponent,
   TabsTriggerComponent,
   TabsContentComponent,
 } from './tabs.component';
-import { moduleMetadata } from '@storybook/angular';
 import { ButtonComponent } from './button.component';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent } from './card.component';
 import { LabelComponent } from './label.component';

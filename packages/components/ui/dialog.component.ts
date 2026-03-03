@@ -45,7 +45,7 @@ export class DialogComponent {
     host: { class: 'contents' },
 })
 export class DialogTriggerComponent {
-    private dialog = inject(DialogComponent, { optional: true });
+    private readonly dialog = inject(DialogComponent, { optional: true });
 
     onClick() {
         this.dialog?.toggle();
@@ -104,8 +104,8 @@ export class DialogTriggerComponent {
     host: { class: 'contents' },
 })
 export class DialogContentComponent implements AfterViewInit {
-    dialog = inject(DialogComponent, { optional: true });
-    private el = inject(ElementRef);
+    readonly dialog = inject(DialogComponent, { optional: true });
+    private readonly el = inject(ElementRef);
     class = input('');
     title = input<string>();
     description = input<string>();
@@ -182,19 +182,17 @@ export class DialogContentComponent implements AfterViewInit {
             if (focusableElements.length === 0) return;
 
             const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+            const lastElement = Array.from(focusableElements).at(-1) as HTMLElement;
 
             if (event.shiftKey) {
                 if (document.activeElement === firstElement) {
                     event.preventDefault();
                     lastElement?.focus();
                 }
-            } else {
-                if (document.activeElement === lastElement) {
+            } else if (document.activeElement === lastElement) {
                     event.preventDefault();
                     firstElement?.focus();
                 }
-            }
         }
     }
 }

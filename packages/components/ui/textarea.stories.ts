@@ -1,6 +1,5 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { TextareaComponent } from './textarea.component';
-import { moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';
 import { LabelComponent } from './label.component';
 

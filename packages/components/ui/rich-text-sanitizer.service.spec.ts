@@ -165,25 +165,25 @@ describe('RichTextSanitizerService', () => {
         });
 
         it('should allow data:image/png with valid content', () => {
-            const pngBytes = String.fromCharCode(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00);
+            const pngBytes = String.fromCodePoint(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00);
             const src = `data:image/png;base64,${btoa(pngBytes)}`;
             expect(service.sanitizeImageSrc(src)).toBe(src);
         });
 
         it('should allow data:image/jpeg with valid content', () => {
-            const jpegBytes = String.fromCharCode(0xFF, 0xD8, 0xFF, 0xE0, 0x00);
+            const jpegBytes = String.fromCodePoint(0xFF, 0xD8, 0xFF, 0xE0, 0x00);
             const src = `data:image/jpeg;base64,${btoa(jpegBytes)}`;
             expect(service.sanitizeImageSrc(src)).toBe(src);
         });
 
         it('should allow data:image/gif with valid content', () => {
-            const gifBytes = String.fromCharCode(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);
+            const gifBytes = String.fromCodePoint(0x47, 0x49, 0x46, 0x38, 0x39, 0x61);
             const src = `data:image/gif;base64,${btoa(gifBytes)}`;
             expect(service.sanitizeImageSrc(src)).toBe(src);
         });
 
         it('should allow data:image/webp with valid content', () => {
-            const webpBytes = String.fromCharCode(0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50);
+            const webpBytes = String.fromCodePoint(0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00, 0x57, 0x45, 0x42, 0x50);
             const src = `data:image/webp;base64,${btoa(webpBytes)}`;
             expect(service.sanitizeImageSrc(src)).toBe(src);
         });

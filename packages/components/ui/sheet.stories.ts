@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   SheetComponent,
   SheetTriggerComponent,
@@ -12,7 +12,6 @@ import {
 import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
 import { LabelComponent } from './label.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<SheetComponent> = {
   title: 'UI/Sheet',

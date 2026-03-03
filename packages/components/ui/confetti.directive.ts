@@ -42,6 +42,21 @@ export interface ConfettiOptions {
     variant?: 'default' | 'side-cannons';
 }
 
+interface ParticleConfig {
+    x: number;
+    y: number;
+    angle: number;
+    spread: number;
+    startVelocity: number;
+    decay: number;
+    gravity: number;
+    drift: number;
+    colors: string[];
+    shapes: ('square' | 'circle')[];
+    scalar: number;
+    ticks: number;
+}
+
 interface Particle {
     x: number;
     y: number;
@@ -166,9 +181,9 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
 
         for (let i = 0; i < particleCount; i++) {
             this._particles.push(
-                this._createParticle(
-                    originX,
-                    originY,
+                this._createParticle({
+                    x: originX,
+                    y: originY,
                     angle,
                     spread,
                     startVelocity,
@@ -178,41 +193,28 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
                     colors,
                     shapes,
                     scalar,
-                    ticks
-                )
+                    ticks,
+                })
             );
         }
     }
 
-    private _createParticle(
-        x: number,
-        y: number,
-        angle: number,
-        spread: number,
-        startVelocity: number,
-        decay: number,
-        gravity: number,
-        drift: number,
-        colors: string[],
-        shapes: ('square' | 'circle')[],
-        scalar: number,
-        ticks: number
-    ): Particle {
-        const radAngle = (angle * Math.PI) / 180;
-        const radSpread = (spread * Math.PI) / 180;
+    private _createParticle(config: ParticleConfig): Particle {
+        const radAngle = (config.angle * Math.PI) / 180;
+        const radSpread = (config.spread * Math.PI) / 180;
 
         const randomAngle = radAngle + (Math.random() - 0.5) * radSpread;
 
-        const velocity = startVelocity * 0.5 + Math.random() * startVelocity;
+        const velocity = config.startVelocity * 0.5 + Math.random() * config.startVelocity;
         const velX = velocity * Math.cos(randomAngle);
         const velY = velocity * -Math.sin(randomAngle);
 
-        const color = colors[Math.floor(Math.random() * colors.length)];
-        const shape = shapes[Math.floor(Math.random() * shapes.length)];
+        const color = config.colors[Math.floor(Math.random() * config.colors.length)];
+        const shape = config.shapes[Math.floor(Math.random() * config.shapes.length)];
 
         return {
-            x,
-            y,
+            x: config.x,
+            y: config.y,
             wobble: Math.random() * 10,
             wobbleSpeed: Math.min(0.11, Math.random() * 0.1 + 0.05),
             velocity: { x: velX, y: velY },
@@ -221,20 +223,20 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
             color,
             shape,
             tick: 0,
-            totalTicks: ticks,
-            decay,
-            drift,
+            totalTicks: config.ticks,
+            decay: config.decay,
+            drift: config.drift,
             random: Math.random() + 2,
             tiltSin: 0,
             tiltCos: 0,
             wobbleX: 0,
             wobbleY: 0,
-            gravity: gravity * 3,
-            scalar,
+            gravity: config.gravity * 3,
+            scalar: config.scalar,
         };
     }
 
-    private _animate = () => {
+    private readonly _animate = () => {
         if (!this._ctx || !this._canvas) return;
 
         this._ctx.clearRect(0, 0, this._canvas.width, this._canvas.height);

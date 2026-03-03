@@ -15,6 +15,7 @@ program
     .description('Initialize shadcn-angular in your project')
     .option('-y, --yes', 'Skip confirmation prompt')
     .option('-d, --defaults', 'Use default configuration')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
     .action(init);
 
 program
@@ -26,6 +27,7 @@ program
     .option('-a, --all', 'Add all available components')
     .option('-p, --path <path>', 'The path to add the component to')
     .option('--remote', 'Force remote fetch from GitHub registry')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
     .action(add);
 
 program.parse();

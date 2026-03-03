@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   DialogComponent,
   DialogTriggerComponent,
@@ -11,7 +11,6 @@ import {
 import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
 import { LabelComponent } from './label.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<DialogComponent & { rtl: boolean }> = {
   title: 'UI/Dialog',

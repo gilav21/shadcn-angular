@@ -118,7 +118,7 @@ describe('CalendarComponent', () => {
         // The container adds ltr:border-l rtl:border-r.
         // Icon is inside a div that should be visually correctly placed.
         // We can check if the icon container has rtl:border-r
-        const iconContainer = fixture.debugElement.query(By.css('div.rtl\\:border-r'));
+        const iconContainer = fixture.debugElement.query(By.css(String.raw`div.rtl\:border-r`));
         expect(iconContainer).toBeTruthy();
     });
 

@@ -1,7 +1,7 @@
-import { Meta, StoryObj, applicationConfig } from '@storybook/angular';
+import { Meta, StoryObj , moduleMetadata } from '@storybook/angular';
 import { ToastComponent, ToasterComponent, ToastService } from './toast.component';
 import { ButtonComponent } from './button.component';
-import { moduleMetadata } from '@storybook/angular';
+
 import { Component, inject, input } from '@angular/core';
 
 // Create a wrapper component to trigger toasts with configurable position
@@ -24,7 +24,7 @@ import { Component, inject, input } from '@angular/core';
   `
 })
 class ToastStoryWrapperComponent {
-    private toastService = inject(ToastService);
+    private readonly toastService = inject(ToastService);
 
     vertical = input<'top' | 'center' | 'bottom'>('bottom');
     horizontal = input<'start' | 'center' | 'end'>('end');

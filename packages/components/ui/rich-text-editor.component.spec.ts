@@ -32,7 +32,7 @@ describe('RichTextEditorComponent', () => {
         shortcutBindings = TestBed.inject(ShortcutBindingService);
         commandRegistry = TestBed.inject(RichTextCommandRegistry);
         fixture.detectChanges();
-        editor = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
+        editor = (fixture.nativeElement as HTMLElement).querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement;
         shortcutBindings.clearShortcutOverride('rich-text.history');
         commandRegistry.clear();
     });
@@ -130,7 +130,7 @@ describe('RichTextEditorComponent', () => {
         component.writeValue('<p>Hello <b>World</b></p>');
         fixture.detectChanges();
 
-        const p = editor.querySelector('p') as HTMLParagraphElement;
+        const p = editor.querySelector<HTMLParagraphElement>('p')!;
         const plainText = p.firstChild as Text;
         const boldText = p.querySelector('b')?.firstChild as Text;
 
@@ -191,7 +191,7 @@ describe('RichTextEditorComponent', () => {
             alt: 'x" onerror="alert(1)" data-x="1',
         });
 
-        const img = editor.querySelector('img') as HTMLImageElement | null;
+        const img = editor.querySelector<HTMLImageElement>('img');
         expect(img).toBeTruthy();
         expect(img?.getAttribute('src')).toBe('https://example.com/safe.png');
         expect(img?.getAttribute('onerror')).toBeNull();
@@ -250,7 +250,7 @@ describe('RichTextEditorComponent', () => {
 
         component.onMentionSelect({ id: 'u1', value: 'john-doe', label: 'John Doe' });
 
-        const chip = editor.querySelector('[data-mention="john-doe"]') as HTMLElement | null;
+        const chip = editor.querySelector<HTMLElement>('[data-mention="john-doe"]');
         expect(chip).toBeTruthy();
 
         const selection = document.getSelection();
@@ -276,7 +276,7 @@ describe('RichTextEditorComponent', () => {
 
         component.onMentionSelect({ id: 'u1', value: 'john-doe', label: 'John Doe' });
 
-        const link = editor.querySelector('[data-mention="john-doe"]') as HTMLAnchorElement | null;
+        const link = editor.querySelector<HTMLAnchorElement>('[data-mention="john-doe"]');
         expect(link).toBeTruthy();
         expect(link?.tagName).toBe('A');
         expect(link?.href).toContain('https://users.example.com/u1?label=');
@@ -335,7 +335,7 @@ describe('RichTextEditorComponent', () => {
 
         vi.advanceTimersByTime(1);
         expect((component as any).history.length).toBe(2);
-        expect((component as any).history[(component as any).history.length - 1].preview).toContain('abc');
+        expect((component as any).history.at(-1).preview).toContain('abc');
 
         vi.useRealTimers();
     });
@@ -368,7 +368,7 @@ describe('RichTextEditorComponent', () => {
         fixture.detectChanges();
         (component as any).pushHistory();
 
-        const latest = (component as any).history[(component as any).history.length - 1];
+        const latest = (component as any).history.at(-1);
         expect(latest.lineCount).toBe(4);
         expect(latest.previewLines).toEqual(['Line one', 'Line two', 'Line three']);
     });
@@ -565,11 +565,11 @@ describe('RichTextEditorComponent', () => {
 
     it('moves focus with arrow keys within same history list', () => {
         const list = document.createElement('div');
-        list.setAttribute('data-history-list', 'test');
+        list.dataset['historyList'] = 'test';
         const first = document.createElement('div');
         const second = document.createElement('div');
-        first.setAttribute('data-history-entry-action', 'true');
-        second.setAttribute('data-history-entry-action', 'true');
+        first.dataset['historyEntryAction'] = 'true';
+        second.dataset['historyEntryAction'] = 'true';
         first.tabIndex = 0;
         second.tabIndex = 0;
         list.appendChild(first);
@@ -589,13 +589,13 @@ describe('RichTextEditorComponent', () => {
 
     it('supports Home/End keyboard navigation in history list', () => {
         const list = document.createElement('div');
-        list.setAttribute('data-history-list', 'test');
+        list.dataset['historyList'] = 'test';
         const first = document.createElement('div');
         const second = document.createElement('div');
         const third = document.createElement('div');
-        first.setAttribute('data-history-entry-action', 'true');
-        second.setAttribute('data-history-entry-action', 'true');
-        third.setAttribute('data-history-entry-action', 'true');
+        first.dataset['historyEntryAction'] = 'true';
+        second.dataset['historyEntryAction'] = 'true';
+        third.dataset['historyEntryAction'] = 'true';
         first.tabIndex = 0;
         second.tabIndex = 0;
         third.tabIndex = 0;
@@ -624,9 +624,9 @@ describe('RichTextEditorComponent', () => {
 
     it('closes history popover on Escape from history row', () => {
         const list = document.createElement('div');
-        list.setAttribute('data-history-list', 'popover');
+        list.dataset['historyList'] = 'popover';
         const row = document.createElement('div');
-        row.setAttribute('data-history-entry-action', 'true');
+        row.dataset['historyEntryAction'] = 'true';
         row.tabIndex = 0;
         list.appendChild(row);
         fixture.nativeElement.appendChild(list);
@@ -644,9 +644,9 @@ describe('RichTextEditorComponent', () => {
 
     it('closes history browser dialog on Escape from history row', () => {
         const list = document.createElement('div');
-        list.setAttribute('data-history-list', 'dialog');
+        list.dataset['historyList'] = 'dialog';
         const row = document.createElement('div');
-        row.setAttribute('data-history-entry-action', 'true');
+        row.dataset['historyEntryAction'] = 'true';
         row.tabIndex = 0;
         list.appendChild(row);
         fixture.nativeElement.appendChild(list);
@@ -672,12 +672,12 @@ describe('RichTextEditorComponent', () => {
         (component as any).pushHistory();
 
         const list = document.createElement('div');
-        list.setAttribute('data-history-list', 'popover');
+        list.dataset['historyList'] = 'popover';
         fixture.nativeElement.appendChild(list);
 
         const entry = document.createElement('div');
-        entry.setAttribute('data-history-entry-action', 'true');
-        entry.setAttribute('data-history-entry-index', '1');
+        entry.dataset['historyEntryAction'] = 'true';
+        entry.dataset['historyEntryIndex'] = '1';
         entry.tabIndex = 0;
         list.appendChild(entry);
         entry.focus();
@@ -714,9 +714,9 @@ describe('RichTextEditorComponent', () => {
         vi.runAllTimers();
         fixture.detectChanges();
 
-        const actions = Array.from(
-            fixture.nativeElement.querySelectorAll('[data-history-list="dialog"] [data-history-entry-action="true"]')
-        ) as HTMLElement[];
+        const actions: HTMLElement[] = Array.from(
+            (fixture.nativeElement as HTMLElement).querySelectorAll('[data-history-list="dialog"] [data-history-entry-action="true"]')
+        );
         expect(actions.length).toBeGreaterThanOrEqual(2);
         expect(document.activeElement).toBe(actions[0]);
 
@@ -724,7 +724,7 @@ describe('RichTextEditorComponent', () => {
             key: 'ArrowDown',
             currentTarget: actions[0],
             preventDefault: vi.fn(),
-        } as unknown as KeyboardEvent, Number(actions[0].getAttribute('data-history-entry-index') ?? 0));
+        } as unknown as KeyboardEvent, Number(actions[0].dataset['historyEntryIndex'] ?? 0));
 
         expect(document.activeElement).toBe(actions[1]);
         vi.useRealTimers();
@@ -932,7 +932,7 @@ describe('RichTextEditorComponent', () => {
         expect(headingCommand).toBeTruthy();
         await component.onSlashCommandSelect(headingCommand!);
 
-        const editorAfter = fixture.nativeElement.querySelector('[data-slot="rich-text-editor"]') as HTMLDivElement | null;
+        const editorAfter = (fixture.nativeElement as HTMLElement).querySelector<HTMLDivElement>('[data-slot="rich-text-editor"]');
         expect(editorAfter).toBeTruthy();
         expect(editorAfter?.tagName).toBe('DIV');
         expect(editorAfter?.isContentEditable).toBe(true);
@@ -1120,7 +1120,7 @@ describe('RichTextEditorComponent', () => {
 
             await new Promise(r => setTimeout(r, 50));
 
-            expect(img.getAttribute('data-auto-upload-status')).toBe('uploading');
+            expect(img.dataset['autoUploadStatus']).toBe('uploading');
             expect(img.getAttribute('src')).toBe(TRANSPARENT_PIXEL);
 
             upload$.next('https://cdn.example.com/uploaded.png');
@@ -1129,8 +1129,8 @@ describe('RichTextEditorComponent', () => {
             await new Promise(r => setTimeout(r, 50));
 
             expect(img.getAttribute('src')).toBe('https://cdn.example.com/uploaded.png');
-            expect(img.hasAttribute('data-auto-upload-id')).toBe(false);
-            expect(img.hasAttribute('data-auto-upload-status')).toBe(false);
+            expect('autoUploadId' in img.dataset).toBe(false);
+            expect('autoUploadStatus' in img.dataset).toBe(false);
             expect(completeSpy).toHaveBeenCalledWith('https://cdn.example.com/uploaded.png');
         });
 
@@ -1146,7 +1146,7 @@ describe('RichTextEditorComponent', () => {
             await new Promise(r => setTimeout(r, 50));
 
             expect(img.getAttribute('src')).toBe(TINY_BASE64);
-            expect(img.hasAttribute('data-auto-upload-id')).toBe(false);
+            expect('autoUploadId' in img.dataset).toBe(false);
         });
 
         it('does not auto-upload when imageUploader is not provided', async () => {
@@ -1160,7 +1160,7 @@ describe('RichTextEditorComponent', () => {
             await new Promise(r => setTimeout(r, 50));
 
             expect(img.getAttribute('src')).toBe(TINY_BASE64);
-            expect(img.hasAttribute('data-auto-upload-id')).toBe(false);
+            expect('autoUploadId' in img.dataset).toBe(false);
         });
 
         it('shows error overlay on upload failure', async () => {
@@ -1176,7 +1176,7 @@ describe('RichTextEditorComponent', () => {
 
             await new Promise(r => setTimeout(r, 50));
 
-            expect(img.getAttribute('data-auto-upload-status')).toBe('error');
+            expect(img.dataset['autoUploadStatus']).toBe('error');
             expect(errorSpy).toHaveBeenCalledWith('Network error');
             expect(component.autoUploadErrors().size).toBe(1);
         });
@@ -1199,7 +1199,7 @@ describe('RichTextEditorComponent', () => {
 
             await new Promise(r => setTimeout(r, 50));
 
-            expect(img.getAttribute('data-auto-upload-status')).toBe('error');
+            expect(img.dataset['autoUploadStatus']).toBe('error');
             expect(component.autoUploadErrors().size).toBe(1);
 
             const errorId = Array.from(component.autoUploadErrors().keys())[0];
@@ -1258,7 +1258,7 @@ describe('RichTextEditorComponent', () => {
 
             const img = document.createElement('img');
             img.setAttribute('src', TINY_BASE64);
-            img.setAttribute('data-auto-upload-id', 'existing-id');
+            img.dataset['autoUploadId'] = 'existing-id';
             editor.appendChild(img);
 
             await new Promise(r => setTimeout(r, 50));
@@ -1278,12 +1278,12 @@ describe('RichTextEditorComponent', () => {
                     </tbody>
                 </table>`;
             editor.dispatchEvent(new Event('input', { bubbles: true }));
-            return editor.querySelector('table') as HTMLTableElement;
+            return editor.querySelector<HTMLTableElement>('table')!;
         };
 
         it('mergeCells merges two horizontally adjacent cells', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cellA1 = row.cells[0];
             const cellA2 = row.cells[1];
 
@@ -1340,7 +1340,7 @@ describe('RichTextEditorComponent', () => {
 
         it('mergeCells does nothing with fewer than 2 selected cells', () => {
             const table = create3x3Table();
-            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            const cell = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[0];
 
             component.tableCellSelected.set([cell]);
             component.mergeCells();
@@ -1351,7 +1351,7 @@ describe('RichTextEditorComponent', () => {
 
         it('mergeCells concatenates content from all cells', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cells = [row.cells[0], row.cells[1], row.cells[2]];
             cells.forEach(c => c.classList.add('rte-cell-selected'));
             component.tableCellSelected.set(cells);
@@ -1367,7 +1367,7 @@ describe('RichTextEditorComponent', () => {
 
         it('mergeCells sets innerHTML to <br> when all cells are empty', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             row.cells[0].innerHTML = '';
             row.cells[1].innerHTML = '';
             const cells = [row.cells[0], row.cells[1]];
@@ -1381,7 +1381,7 @@ describe('RichTextEditorComponent', () => {
 
         it('mergeCells clears cell selection after merge', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cells = [row.cells[0], row.cells[1]];
             cells.forEach(c => c.classList.add('rte-cell-selected'));
             component.tableCellSelected.set(cells);
@@ -1393,7 +1393,7 @@ describe('RichTextEditorComponent', () => {
 
         it('canSplitCell returns false for a regular cell', () => {
             const table = create3x3Table();
-            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            const cell = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[0];
             (component as any).tableContextMenuTarget = cell;
 
             expect(component.canSplitCell()).toBe(false);
@@ -1401,7 +1401,7 @@ describe('RichTextEditorComponent', () => {
 
         it('canSplitCell returns true for a cell with colspan > 1', () => {
             const table = create3x3Table();
-            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            const cell = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[0];
             cell.colSpan = 2;
             (component as any).tableContextMenuTarget = cell;
 
@@ -1410,7 +1410,7 @@ describe('RichTextEditorComponent', () => {
 
         it('canSplitCell returns true for a cell with rowspan > 1', () => {
             const table = create3x3Table();
-            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            const cell = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[0];
             cell.rowSpan = 2;
             (component as any).tableContextMenuTarget = cell;
 
@@ -1419,7 +1419,7 @@ describe('RichTextEditorComponent', () => {
 
         it('splitCell splits a colspan=2 cell back into two cells', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cellA1 = row.cells[0];
             const cellA2 = row.cells[1];
 
@@ -1458,7 +1458,7 @@ describe('RichTextEditorComponent', () => {
 
         it('splitCell creates new cells with <br> content', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cellA1 = row.cells[0];
             const cellA2 = row.cells[1];
 
@@ -1475,19 +1475,19 @@ describe('RichTextEditorComponent', () => {
 
         it('splitCell does nothing if cell has no colspan or rowspan', () => {
             const table = create3x3Table();
-            const cell = (table.querySelector('tbody tr') as HTMLTableRowElement).cells[0];
+            const cell = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells[0];
             (component as any).tableContextMenuTarget = cell;
 
-            const cellCountBefore = (table.querySelector('tbody tr') as HTMLTableRowElement).cells.length;
+            const cellCountBefore = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells.length;
             component.splitCell();
-            const cellCountAfter = (table.querySelector('tbody tr') as HTMLTableRowElement).cells.length;
+            const cellCountAfter = table.querySelector<HTMLTableRowElement>('tbody tr')!.cells.length;
 
             expect(cellCountAfter).toBe(cellCountBefore);
         });
 
         it('splitCell creates th elements when splitting inside thead', () => {
             const table = create3x3Table();
-            const headerRow = table.querySelector('thead tr') as HTMLTableRowElement;
+            const headerRow = table.querySelector<HTMLTableRowElement>('thead tr')!;
             const h1 = headerRow.cells[0];
             const h2 = headerRow.cells[1];
 
@@ -1502,8 +1502,8 @@ describe('RichTextEditorComponent', () => {
             component.splitCell();
 
             expect(headerRow.cells.length).toBe(3);
-            for (let i = 0; i < headerRow.cells.length; i++) {
-                expect(headerRow.cells[i].tagName).toBe('TH');
+            for (const cell of Array.from(headerRow.cells)) {
+                expect(cell.tagName).toBe('TH');
             }
         });
 
@@ -1535,7 +1535,7 @@ describe('RichTextEditorComponent', () => {
 
         it('mergeCells closes the context menu', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cells = [row.cells[0], row.cells[1]];
             cells.forEach(c => c.classList.add('rte-cell-selected'));
             component.tableCellSelected.set(cells);
@@ -1548,7 +1548,7 @@ describe('RichTextEditorComponent', () => {
 
         it('splitCell closes the context menu', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             row.cells[0].colSpan = 2;
             row.cells[1].remove();
             (component as any).tableContextMenuTarget = row.cells[0];
@@ -1561,7 +1561,7 @@ describe('RichTextEditorComponent', () => {
 
         it('right-click on a selected cell preserves cell selection', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cellA1 = row.cells[0];
             const cellA2 = row.cells[1];
 
@@ -1583,7 +1583,7 @@ describe('RichTextEditorComponent', () => {
 
         it('left-click clears cell selection', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cellA1 = row.cells[0];
             const cellA2 = row.cells[1];
 
@@ -1603,7 +1603,7 @@ describe('RichTextEditorComponent', () => {
 
         it('context menu reopens via right-click after closing by action', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cell = row.cells[0];
 
             const rightClick = new MouseEvent('contextmenu', {
@@ -1634,7 +1634,7 @@ describe('RichTextEditorComponent', () => {
 
         it('closeTableContextMenu removes document-level close handlers', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cell = row.cells[0];
 
             const rightClick = new MouseEvent('contextmenu', {
@@ -1656,7 +1656,7 @@ describe('RichTextEditorComponent', () => {
 
         it('right-click on overlay prevents default and closes menu when no cell beneath', () => {
             const table = create3x3Table();
-            const row = table.querySelector('tbody tr') as HTMLTableRowElement;
+            const row = table.querySelector<HTMLTableRowElement>('tbody tr')!;
             const cell = row.cells[0];
 
             const rightClick = new MouseEvent('contextmenu', {

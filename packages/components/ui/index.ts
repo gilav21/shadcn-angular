@@ -62,8 +62,8 @@ export * from './rich-text-editor.component';
 export * from './rich-text-command-registry.service';
 export * from './rich-text-mention.component';
 export * from './rich-text-locales';
-export { parsePdf } from '../lib/pdf-parser';
-export type { PdfParseResult } from '../lib/pdf-parser';
+export { parsePdf, parsePdfPaged } from '../lib/pdf-parser';
+export type { PdfParseResult, PdfParseResultPaged, PdfPageResult } from '../lib/pdf-parser';
 export * from './timeline.component';
 export * from './tree.component';
 export * from './tree-select.component';
@@ -114,3 +114,17 @@ export * from './particles.component';
 
 // Kanban
 export * from './kanban.component';
+
+// File Viewer
+export * from './file-viewer.component';
+export { inflate, zlibInflate } from '../lib/inflate';
+export { readZip, listZipEntries, extractZipEntry } from '../lib/zip-reader';
+export type { ZipEntry, ZipReadOptions } from '../lib/zip-reader';
+export { detectFileType, detectFileTypeFromFile } from '../lib/file-type-detector';
+export type { FileViewerType, FileTypeResult } from '../lib/file-type-detector';
+export { parseXlsx } from '../lib/xlsx-reader';
+export type { XlsxSheet, XlsxParseResult, XlsxParseOptions } from '../lib/xlsx-reader';
+export { parseDocx } from '../lib/docx-parser';
+export type { DocxParseResult, DocxElement, DocxParagraph, DocxTable, DocxImage, DocxRun, DocxRunStyle, DocxTableCell } from '../lib/docx-parser';
+export { parsePptx } from '../lib/pptx-parser';
+export type { PptxParseResult, PptxSlide, PptxSlideElement, PptxTextFrame, PptxImageElement, PptxShapeElement, PptxTextRun } from '../lib/pptx-parser';

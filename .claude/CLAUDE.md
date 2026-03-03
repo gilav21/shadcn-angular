@@ -266,6 +266,56 @@ classes = computed(() => cn(
 - **Storybook**: Every component must have a Storybook story showing all inputs/options.
 - **Demo Page**: Create a rich demo page with unique variants and "copy-paste ready" examples for developers.
 
+### 4. SonarQube Compliance (Zero Tolerance)
+
+All code must pass SonarQube with **zero issues**. Apply these rules from the start:
+
+#### TypeScript Strictness
+- **No `any` types** — use proper generics or `unknown`
+- **No unnecessary type assertions** (`as Type`) — only assert when the compiler genuinely can't infer the type (S4325)
+- **Mark never-reassigned members `readonly`** — signals, computed, viewChild, arrow function properties, etc. (S2933)
+- **Remove all unused imports, variables, parameters** (S1128, ts6133)
+- **Merge duplicate imports** from the same module into one statement (S3863)
+- **Extract repeated union types into type aliases** — if a union like `'sm' | 'md' | 'lg'` appears 3+ times, create a `type Size = 'sm' | 'md' | 'lg'` (S4323)
+
+#### Modern API Preferences
+- **`Number.isNaN()`** over `isNaN()`, **`Number.isFinite()`** over `isFinite()`, **`Number.parseFloat()`** over `parseFloat()` (S7773)
+- **`String.fromCodePoint()`** over `String.fromCharCode()`, **`.codePointAt()`** over `.charCodeAt()` (S7758)
+- **`Math.hypot(dx, dy)`** over `Math.sqrt(dx*dx + dy*dy)` (S7769)
+- **`structuredClone(obj)`** over `JSON.parse(JSON.stringify(obj))` (S7784)
+- **`el.dataset.fooBar`** over `el.getAttribute('data-foo-bar')` / `el.setAttribute('data-foo-bar', ...)` / `el.hasAttribute('data-foo-bar')` (S7761)
+- **`RegExp.exec(str)`** over `str.match(regex)` for single matches (S6594)
+- **`.replaceAll()`** over `.replace()` with global regex flag `/g` (S7781)
+- **`globalThis`** over `window` when accessing global scope (S7764)
+- **`new Array(n)`** over `Array(n)` (S7723)
+- **`Blob.text()`** over `FileReader.readAsText()` (S7756)
+- **`\d`** over `[0-9]` in regex (S6353)
+
+#### Cognitive Complexity (S3776 — max 15)
+- **Keep functions under 15 cognitive complexity** — this is the most common SonarQube violation
+- **Extract helper functions** for nested logic blocks
+- **Use early returns** (guard clauses) to reduce nesting depth
+- **Extract switch/case bodies** into separate named functions
+- **Extract loop bodies** when they contain conditionals
+
+#### Control Flow & Logic
+- **No negated conditions in if/else** — flip the branches: `if (!x) { A } else { B }` → `if (x) { B } else { A }` (S7735)
+- **No nested ternaries** — extract to variables or if/else (S3358)
+- **No duplicate branch/case blocks** — merge identical branches with `||` or fall-through cases (S1871)
+- **No redundant assignments** — don't re-assign a variable to the value it already holds (S4165)
+- **No loop variable reassignment** — use `while` loops or restructure (S2310)
+- **Use `for-of`** instead of index-based `for` when the index is only used for array access (S4138)
+- **Use `else if`** instead of `if` as the only statement in an `else` block (S6660)
+- **Always handle or comment catch blocks** — no empty `catch {}` (S2486)
+- **Always provide initial value to `.reduce()`** (S6959)
+- **No identical sub-expressions** in `||` or `&&` (S1764)
+- **Avoid boolean parameters** that switch behavior — use separate methods instead (S2301)
+
+#### Regex
+- **No unnecessary escapes** in regex (S6535)
+- **No duplicate characters** in character classes (S5869)
+- **Use quantifiers** `{2}` instead of repeating characters (S6326)
+
 ---
 
 ## Checklist for New Components
@@ -285,6 +335,10 @@ Before submitting a component, verify:
 - [ ] Demo page includes copy-paste examples
 - [ ] No unused declarations (imports, variables, parameters, types) — no `ts(6133)` errors
 - [ ] Strict typing (no `any`, handles `undefined`)
+- [ ] SonarQube zero issues — all rules in Section 4 above are followed
+- [ ] No cognitive complexity > 15 in any function
+- [ ] All class members that aren't reassigned are `readonly`
+- [ ] Uses modern APIs (`Number.isNaN`, `structuredClone`, `.dataset`, etc.)
 
 ---
 
@@ -301,6 +355,14 @@ When generating or modifying components:
 7. **Follow naming conventions** exactly
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
 9. **Clean up unused declarations** — after writing or modifying code, verify every import, variable, and parameter is actually used. Remove any that aren't. Watch for `ts(6133)` errors.
+10. **SonarQube compliance** — follow ALL rules in Section 4 "SonarQube Compliance". Key points:
+    - Mark never-reassigned members `readonly` (signals, computed, viewChild, arrow properties)
+    - Use modern APIs: `Number.isNaN`, `Number.parseFloat`, `Math.hypot`, `structuredClone`, `.dataset`, `String.fromCodePoint`, `.codePointAt`, `.replaceAll`, `globalThis`
+    - Keep cognitive complexity ≤ 15 — extract helpers, use early returns
+    - No negated if/else, no nested ternaries, no duplicate branches
+    - Merge duplicate imports, extract repeated union types into aliases
+    - Use `for-of` over index-based `for` when index is only used for access
+    - Use `RegExp.exec()` over `String.match()` for single matches
 
 ### Template for New Compound Components
 

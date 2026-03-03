@@ -93,7 +93,7 @@ describe('WobbleCardComponent', () => {
 
     it('should apply data-slot attribute', () => {
         const el = fixture.debugElement.query(By.directive(WobbleCardComponent));
-        expect((el.nativeElement as HTMLElement).getAttribute('data-slot')).toBe('wobble-card');
+        expect((el.nativeElement as HTMLElement).dataset['slot']).toBe('wobble-card');
     });
 
     it('should apply custom class', () => {

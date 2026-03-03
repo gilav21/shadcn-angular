@@ -42,7 +42,7 @@ export type SheetSide = VariantProps<typeof sheetVariants>['side'];
     host: { class: 'contents' },
 })
 export class SheetComponent implements OnDestroy {
-    private document = inject(DOCUMENT);
+    private readonly document = inject(DOCUMENT);
 
     open = signal(false);
     openChange = output<boolean>();
@@ -50,7 +50,7 @@ export class SheetComponent implements OnDestroy {
     private scrollbarWidth = 0;
 
     constructor() {
-        this.scrollbarWidth = window.innerWidth - this.document.documentElement.clientWidth;
+        this.scrollbarWidth = globalThis.window.innerWidth - this.document.documentElement.clientWidth;
 
         effect(() => {
             if (this.open()) {
@@ -67,7 +67,7 @@ export class SheetComponent implements OnDestroy {
 
     private lockScroll() {
         const body = this.document.body;
-        this.scrollbarWidth = window.innerWidth - this.document.documentElement.clientWidth;
+        this.scrollbarWidth = globalThis.window.innerWidth - this.document.documentElement.clientWidth;
         body.style.overflow = 'hidden';
         body.style.paddingRight = `${this.scrollbarWidth}px`;
     }
@@ -106,7 +106,7 @@ export class SheetComponent implements OnDestroy {
     host: { class: 'contents' },
 })
 export class SheetTriggerComponent {
-    private sheet = inject(SheetComponent, { optional: true });
+    private readonly sheet = inject(SheetComponent, { optional: true });
 
     onClick() {
         this.sheet?.toggle();
@@ -169,8 +169,8 @@ export class SheetTriggerComponent {
     host: { class: 'contents' },
 })
 export class SheetContentComponent implements AfterViewInit {
-    sheet = inject(SheetComponent, { optional: true });
-    private el = inject(ElementRef);
+    readonly sheet = inject(SheetComponent, { optional: true });
+    private readonly el = inject(ElementRef);
 
     side = input<SheetSide>('right');
     class = input('');
@@ -224,19 +224,17 @@ export class SheetContentComponent implements AfterViewInit {
                 'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
             );
             const firstElement = focusableElements[0] as HTMLElement;
-            const lastElement = focusableElements[focusableElements.length - 1] as HTMLElement;
+            const lastElement = Array.from(focusableElements).at(-1) as HTMLElement;
 
             if (event.shiftKey) {
                 if (document.activeElement === firstElement) {
                     event.preventDefault();
                     lastElement?.focus();
                 }
-            } else {
-                if (document.activeElement === lastElement) {
+            } else if (document.activeElement === lastElement) {
                     event.preventDefault();
                     firstElement?.focus();
                 }
-            }
         }
     }
 
@@ -308,7 +306,7 @@ export class SheetFooterComponent { }
     host: { class: 'contents' },
 })
 export class SheetCloseComponent {
-    private sheet = inject(SheetComponent, { optional: true });
+    private readonly sheet = inject(SheetComponent, { optional: true });
 
     onClick() {
         this.sheet?.hide();

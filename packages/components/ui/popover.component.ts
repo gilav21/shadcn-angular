@@ -12,9 +12,13 @@ import {
     effect,
     ViewChild,
     model,
+    DestroyRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn, getClippingRect } from '../lib/utils';
+
+type PopoverSide = 'top' | 'right' | 'bottom' | 'left';
+type PopoverAlign = 'start' | 'center' | 'end';
 
 @Component({
     selector: 'ui-popover',
@@ -23,24 +27,57 @@ import { cn, getClippingRect } from '../lib/utils';
     host: { class: 'relative inline-block' },
 })
 export class PopoverComponent implements OnDestroy {
-    private el = inject(ElementRef);
-    private document = inject(DOCUMENT);
+    private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
+    private readonly destroyRef = inject(DestroyRef);
 
     open = model<boolean>(false);
+    closeOnScroll = input(false);
     openChange = output<boolean>();
 
-    private clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent) => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.hide();
         }
     };
 
+    private scrollCleanup: (() => void) | null = null;
+
     constructor() {
         this.document.addEventListener('click', this.clickListener);
+
+        effect(() => {
+            const isOpen = this.open();
+            const shouldClose = this.closeOnScroll();
+
+            this.removeScrollListener();
+
+            if (isOpen && shouldClose) {
+                setTimeout(() => {
+                    const el = this.el.nativeElement;
+                    const handler = (e: Event) => {
+                        if (e.target instanceof Node && el.contains(e.target)) return;
+                        this.hide();
+                    };
+                    globalThis.window.addEventListener('scroll', handler, { capture: true, passive: true });
+                    this.scrollCleanup = () => globalThis.window.removeEventListener('scroll', handler, { capture: true });
+                }, 0);
+            }
+        });
+
+        this.destroyRef.onDestroy(() => this.removeScrollListener());
+    }
+
+    private removeScrollListener(): void {
+        if (this.scrollCleanup) {
+            this.scrollCleanup();
+            this.scrollCleanup = null;
+        }
     }
 
     ngOnDestroy() {
         this.document.removeEventListener('click', this.clickListener);
+        this.removeScrollListener();
     }
 
     toggle() {
@@ -76,7 +113,7 @@ export class PopoverComponent implements OnDestroy {
     host: { class: 'contents' },
 })
 export class PopoverTriggerComponent {
-    private popover = inject(PopoverComponent, { optional: true });
+    private readonly popover = inject(PopoverComponent, { optional: true });
 
     onClick(event: MouseEvent) {
         event.stopPropagation();
@@ -103,11 +140,11 @@ export class PopoverTriggerComponent {
     host: { class: 'contents' },
 })
 export class PopoverContentComponent implements AfterViewInit {
-    popover = inject(PopoverComponent, { optional: true });
+    readonly popover = inject(PopoverComponent, { optional: true });
 
     class = input('');
-    align = input<'start' | 'center' | 'end'>('center');
-    side = input<'top' | 'right' | 'bottom' | 'left'>('bottom');
+    align = input<PopoverAlign>('center');
+    side = input<PopoverSide>('bottom');
     sideOffset = input(4);
     avoidCollisions = input(true);
     restoreFocus = input(true);
@@ -115,9 +152,9 @@ export class PopoverContentComponent implements AfterViewInit {
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
-    private adjustedPosition = signal<{
-        side: 'top' | 'right' | 'bottom' | 'left';
-        align: 'start' | 'center' | 'end';
+    private readonly adjustedPosition = signal<{
+        side: PopoverSide;
+        align: PopoverAlign;
         offsetX: number;
         offsetY: number;
     }>({ side: 'bottom', align: 'center', offsetX: 0, offsetY: 0 });
@@ -146,14 +183,7 @@ export class PopoverContentComponent implements AfterViewInit {
 
     private calculatePosition() {
         if (this.strategy() === 'fixed' && this.contentEl?.nativeElement) {
-            const el = this.contentEl.nativeElement;
-            const rect = el.getBoundingClientRect();
-            if (rect.right > window.innerWidth) {
-                el.style.left = `${window.innerWidth - rect.width - 8}px`;
-            }
-            if (rect.bottom > window.innerHeight) {
-                el.style.top = `${window.innerHeight - rect.height - 8}px`;
-            }
+            this.adjustFixedPosition(this.contentEl.nativeElement);
             return;
         }
         if (!this.avoidCollisions() || !this.contentEl?.nativeElement) {
@@ -166,18 +196,30 @@ export class PopoverContentComponent implements AfterViewInit {
             return;
         }
 
-        const content = this.contentEl.nativeElement;
+        this.adjustCollisionPosition(this.contentEl.nativeElement);
+    }
+
+    private adjustFixedPosition(el: HTMLElement) {
+        const rect = el.getBoundingClientRect();
+        if (rect.right > globalThis.window.innerWidth) {
+            el.style.left = `${globalThis.window.innerWidth - rect.width - 8}px`;
+        }
+        if (rect.bottom > globalThis.window.innerHeight) {
+            el.style.top = `${globalThis.window.innerHeight - rect.height - 8}px`;
+        }
+    }
+
+    private adjustCollisionPosition(content: HTMLElement) {
         const contentRect = content.getBoundingClientRect();
         const boundary = getClippingRect(content);
 
         let adjustedSide = this.side();
-        let adjustedAlign = this.align();
+        const adjustedAlign = this.align();
         let offsetX = 0;
         let offsetY = 0;
 
         if (contentRect.right > boundary.right) {
-            const overflow = contentRect.right - boundary.right + 8;
-            offsetX = -overflow;
+            offsetX = -(contentRect.right - boundary.right + 8);
         } else if (contentRect.left < boundary.left) {
             offsetX = boundary.left - contentRect.left + 8;
         }
@@ -186,8 +228,7 @@ export class PopoverContentComponent implements AfterViewInit {
             if (adjustedSide === 'bottom') {
                 adjustedSide = 'top';
             } else {
-                const overflow = contentRect.bottom - boundary.bottom + 8;
-                offsetY = -overflow;
+                offsetY = -(contentRect.bottom - boundary.bottom + 8);
             }
         } else if (contentRect.top < boundary.top) {
             if (adjustedSide === 'top') {
@@ -207,45 +248,45 @@ export class PopoverContentComponent implements AfterViewInit {
 
     positionStyles = computed(() => {
         const pos = this.adjustedPosition();
-        let styles = '';
 
         if (this.strategy() === 'fixed') {
-            const triggerRect = this.popover?.getTriggerRect();
-            if (triggerRect) {
-                const currentSide = this.avoidCollisions() ? pos.side : this.side();
-                const currentAlign = this.avoidCollisions() ? pos.align : this.align();
-                let top: number;
-                let left: number;
-                if (currentSide === 'bottom') {
-                    top = triggerRect.bottom + 4;
-                } else {
-                    top = triggerRect.top - 4;
-                }
-                if (currentAlign === 'start') {
-                    left = triggerRect.left;
-                } else if (currentAlign === 'end') {
-                    left = triggerRect.right;
-                } else {
-                    left = triggerRect.left + triggerRect.width / 2;
-                }
-                left = Math.max(8, Math.min(left, window.innerWidth - 8));
-                top = Math.max(8, Math.min(top, window.innerHeight - 8));
-                styles += `position:fixed;top:${top}px;left:${left}px;`;
-                if (currentAlign === 'center') {
-                    styles += 'transform:translateX(-50%);';
-                } else if (currentAlign === 'end') {
-                    styles += 'transform:translateX(-100%);';
-                }
-            }
-            return styles;
+            return this.computeFixedStyles(pos);
         }
 
         if (pos.offsetX !== 0) {
-            styles += `transform: translateX(${pos.offsetX}px);`;
+            return `transform: translateX(${pos.offsetX}px);`;
         }
 
-        return styles;
+        return '';
     });
+
+    private computeFixedStyles(pos: { side: PopoverSide; align: PopoverAlign; offsetX: number; offsetY: number }): string {
+        const triggerRect = this.popover?.getTriggerRect();
+        if (!triggerRect) return '';
+
+        const currentSide = this.avoidCollisions() ? pos.side : this.side();
+        const currentAlign = this.avoidCollisions() ? pos.align : this.align();
+
+        const top = currentSide === 'bottom' ? triggerRect.bottom + 4 : triggerRect.top - 4;
+        let left = this.computeFixedLeft(currentAlign, triggerRect);
+
+        left = Math.max(8, Math.min(left, globalThis.window.innerWidth - 8));
+        const clampedTop = Math.max(8, Math.min(top, globalThis.window.innerHeight - 8));
+
+        let styles = `position:fixed;top:${clampedTop}px;left:${left}px;`;
+        if (currentAlign === 'center') {
+            styles += 'transform:translateX(-50%);';
+        } else if (currentAlign === 'end') {
+            styles += 'transform:translateX(-100%);';
+        }
+        return styles;
+    }
+
+    private computeFixedLeft(align: PopoverAlign, triggerRect: DOMRect): number {
+        if (align === 'start') return triggerRect.left;
+        if (align === 'end') return triggerRect.right;
+        return triggerRect.left + triggerRect.width / 2;
+    }
 
     classes = computed(() => {
         const pos = this.adjustedPosition();
@@ -286,7 +327,7 @@ export class PopoverContentComponent implements AfterViewInit {
     host: { class: 'contents' },
 })
 export class PopoverCloseComponent {
-    private popover = inject(PopoverComponent, { optional: true });
+    private readonly popover = inject(PopoverComponent, { optional: true });
 
     onClick() {
         this.popover?.hide();

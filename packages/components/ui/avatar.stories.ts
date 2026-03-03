@@ -1,6 +1,5 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { AvatarComponent, AvatarImageComponent, AvatarFallbackComponent } from './avatar.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<AvatarComponent> = {
     title: 'UI/Avatar',

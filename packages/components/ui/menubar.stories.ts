@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   MenubarComponent,
   MenubarMenuComponent,
@@ -11,7 +11,6 @@ import {
   MenubarSubTriggerComponent,
   MenubarSubContentComponent,
 } from './menubar.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<MenubarComponent> = {
   title: 'UI/Menubar',

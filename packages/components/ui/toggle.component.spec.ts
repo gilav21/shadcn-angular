@@ -41,7 +41,7 @@ describe('ToggleComponent', () => {
 
     it('should have data-slot="toggle"', () => {
         const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.getAttribute('data-slot')).toBe('toggle');
+        expect(button.nativeElement.dataset.slot).toBe('toggle');
     });
 
     it('should have aria-pressed="false" by default', () => {
@@ -51,7 +51,7 @@ describe('ToggleComponent', () => {
 
     it('should have data-state="off" by default', () => {
         const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.getAttribute('data-state')).toBe('off');
+        expect(button.nativeElement.dataset.state).toBe('off');
     });
 
     it('should toggle on click', async () => {
@@ -62,7 +62,7 @@ describe('ToggleComponent', () => {
 
         expect(component.pressed()).toBe(true);
         expect(button.nativeElement.getAttribute('aria-pressed')).toBe('true');
-        expect(button.nativeElement.getAttribute('data-state')).toBe('on');
+        expect(button.nativeElement.dataset.state).toBe('on');
     });
 
     it('should not toggle when disabled', async () => {

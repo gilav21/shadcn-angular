@@ -186,7 +186,7 @@ interface ShortcutDialogGroup {
                               </div>
                             } @else {
                               <div class="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                                No active instances. Use the \"All\" control to define the shared shortcut for future instances.
+                                No active instances. Use the "All" control to define the shared shortcut for future instances.
                               </div>
                             }
                           </ui-accordion-content>
@@ -217,7 +217,7 @@ export class ShortcutBindingsDialogComponent {
 
     private readonly shortcutBindings = inject(ShortcutBindingService);
     private readonly overrideVersion = signal(0);
-    private lastAppliedMappingSchema = signal<string | null>(null);
+    private readonly lastAppliedMappingSchema = signal<string | null>(null);
 
     search = signal('');
     capturingActionKey = signal<string | null>(null);
@@ -498,7 +498,7 @@ export class ShortcutBindingsDialogComponent {
     }
 
     private instanceSortValue(componentId: string): number {
-        const match = componentId.match(/-(\d+)$/);
+        const match = new RegExp(/-(\d+)$/).exec(componentId);
         if (!match) {
             return Number.MAX_SAFE_INTEGER;
         }

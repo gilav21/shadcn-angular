@@ -228,7 +228,7 @@ export class FileUploadComponent {
     const maxSize = this.maxSize();
     const accept = this.accept();
 
-    let available = maxFiles !== null ? maxFiles - currentFiles.length : newFiles.length;
+    let available = maxFiles === null ? newFiles.length : maxFiles - currentFiles.length;
 
     for (const file of newFiles) {
       if (available <= 0) break;
@@ -272,9 +272,10 @@ export class FileUploadComponent {
   }
 
   updateFileProgress(id: string, progress: number) {
+    const newStatus: FileUploadItem['status'] = progress >= 100 ? 'complete' : 'uploading';
     this.files.update((files) =>
       files.map((f) =>
-        f.id === id ? { ...f, progress, status: progress >= 100 ? 'complete' : 'uploading' } : f
+        f.id === id ? { ...f, progress, status: newStatus } : f
       )
     );
   }
@@ -312,6 +313,6 @@ export class FileUploadComponent {
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return `${parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
+    return `${Number.parseFloat((bytes / Math.pow(k, i)).toFixed(1))} ${sizes[i]}`;
   }
 }

@@ -86,7 +86,7 @@ export class AvatarComponent {
     host: { '[class]': '"contents"' },
 })
 export class AvatarImageComponent {
-    avatar = inject(AvatarComponent, { optional: true });
+    readonly avatar = inject(AvatarComponent, { optional: true });
 
     src = input.required<string>();
     alt = input('');
@@ -116,7 +116,7 @@ export class AvatarImageComponent {
     host: { '[class]': '"contents"' },
 })
 export class AvatarFallbackComponent {
-    avatar = inject(AvatarComponent, { optional: true });
+    readonly avatar = inject(AvatarComponent, { optional: true });
 
     class = input('');
 

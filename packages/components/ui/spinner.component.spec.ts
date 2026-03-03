@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { SpinnerComponent, PageSpinnerComponent } from './spinner.component';
-import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -59,7 +58,6 @@ describe('SpinnerComponent', () => {
 
 describe('PageSpinnerComponent', () => {
     let fixture: ComponentFixture<PageSpinnerComponent>;
-    let component: PageSpinnerComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -67,7 +65,6 @@ describe('PageSpinnerComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(PageSpinnerComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
     });
 

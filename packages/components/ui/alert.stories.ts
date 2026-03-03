@@ -1,6 +1,5 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { AlertComponent, AlertTitleComponent, AlertDescriptionComponent } from './alert.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<AlertComponent> = {
   title: 'UI/Alert',

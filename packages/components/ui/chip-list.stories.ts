@@ -1,7 +1,6 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { ChipListComponent } from './chip-list.component';
 import { FormsModule } from '@angular/forms';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<ChipListComponent> = {
   title: 'UI/Chip List',

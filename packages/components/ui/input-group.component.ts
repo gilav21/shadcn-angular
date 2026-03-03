@@ -3,7 +3,6 @@ import {
   ChangeDetectionStrategy,
   input,
   computed,
-  InjectionToken,
   forwardRef,
   signal,
 } from '@angular/core';
@@ -75,8 +74,8 @@ export class InputGroupComponent {
 }
 
 /**
- * InputGroupInput - The main input within an input group
- * @deprecated Use ui-input instead
+ * InputGroupInput - Legacy input for input-group.
+ * Prefer using `ui-input` inside `ui-input-group`.
  */
 @Component({
   selector: 'ui-input-group-input',
@@ -110,7 +109,7 @@ export class InputGroupInputComponent implements ControlValueAccessor {
   disabled = input(false);
 
   value = signal('');
-  private formDisabled = signal(false);
+  private readonly formDisabled = signal(false);
   isDisabled = computed(() => this.disabled() || this.formDisabled());
 
   private onChange: (value: string) => void = () => { };

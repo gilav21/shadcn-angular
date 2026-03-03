@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   BreadcrumbComponent,
   BreadcrumbListComponent,
@@ -8,7 +8,6 @@ import {
   BreadcrumbSeparatorComponent,
   BreadcrumbEllipsisComponent,
 } from './breadcrumb.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<BreadcrumbComponent> = {
   title: 'UI/Breadcrumb',

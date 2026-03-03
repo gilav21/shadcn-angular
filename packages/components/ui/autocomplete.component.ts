@@ -16,13 +16,15 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { Subject, debounceTime as rxDebounceTime } from 'rxjs';
-import { cn } from '../lib/utils';
+import { cn, getClippingRect } from '../lib/utils';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from './popover.component';
 import { CommandComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent, CommandService } from './command.component';
 import { HighlightPipe } from './highlight.pipe';
 import { BadgeComponent } from './badge.component';
 
 let autocompleteIdCounter = 0;
+
+export type AutocompleteValue<T> = T | T[] | null;
 
 @Component({
     selector: 'ui-autocomplete',
@@ -110,7 +112,7 @@ let autocompleteIdCounter = 0;
           }
         </div>
       </ui-popover-trigger>
-      <ui-popover-content class="w-[--radix-popover-trigger-width] p-0" align="start" [restoreFocus]="false">
+      <ui-popover-content [side]="dropdownSide()" class="w-[--radix-popover-trigger-width] p-0" align="start" [restoreFocus]="false">
          <ui-command [shouldFilter]="filter()" [search]="searchTerm()">
             <ui-command-list [attr.id]="listId" role="listbox">
               <ui-command-empty>No results found.</ui-command-empty>
@@ -136,8 +138,10 @@ let autocompleteIdCounter = 0;
     host: { class: 'contents' },
 })
 export class AutocompleteComponent<T = unknown> implements ControlValueAccessor {
+    private readonly el = inject(ElementRef);
+
     options = input<T[]>([]);
-    displayWith = input<(option: T) => string>((opt) => String(opt));
+    displayWith = input<(option: T) => string>(String);
     valueAttribute = input<string | undefined>(undefined);
     filter = input(true);
     multiple = input(false);
@@ -148,8 +152,10 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     readonly value = input<T | T[] | undefined>(undefined);
 
     search = output<string>();
+    valueChange = output<AutocompleteValue<T>>();
 
     open = signal(false);
+    readonly dropdownSide = signal<'top' | 'bottom'>('bottom');
     searchTerm = model('');
     internalValue = signal<T[]>([]);
 
@@ -167,13 +173,13 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     inputEl = viewChild<ElementRef<HTMLInputElement>>('inputEl');
     command = viewChild(CommandComponent);
 
-    private onChange: (value: T | T[] | null) => void = () => { };
+    private onChange: (value: AutocompleteValue<T>) => void = () => { };
     onTouched: () => void = () => { };
 
-    private formDisabled = signal(false);
-    private destroyRef = inject(DestroyRef);
-    private commandService = inject(CommandService, { optional: true });
-    private searchSubject = new Subject<string>();
+    private readonly formDisabled = signal(false);
+    private readonly destroyRef = inject(DestroyRef);
+    private readonly commandService = inject(CommandService, { optional: true });
+    private readonly searchSubject = new Subject<string>();
 
     activeItemId = computed(() => {
         return this.commandService?.activeItemId() ?? null;
@@ -204,7 +210,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
                 const found = this.options().find(opt => this.getValue(opt) === val);
                 if (found) return found;
             }
-            return val as T;
+            return val;
         });
     });
 
@@ -224,6 +230,25 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
                 }
             }
         });
+    }
+
+    private resolveDropdownSide(): void {
+        const triggerContainer = this.el.nativeElement.querySelector('[data-state]') as HTMLElement | null;
+        if (!triggerContainer) return;
+
+        const triggerRect = triggerContainer.getBoundingClientRect();
+        const boundary = getClippingRect(triggerContainer);
+        const padding = 8;
+        const maxDropdownHeight = 300;
+
+        const spaceBelow = boundary.bottom - triggerRect.bottom - padding;
+        const spaceAbove = triggerRect.top - boundary.top - padding;
+
+        if (maxDropdownHeight <= spaceBelow || spaceBelow >= spaceAbove) {
+            this.dropdownSide.set('bottom');
+        } else {
+            this.dropdownSide.set('top');
+        }
     }
 
     getDisplayValue(option: T): string {
@@ -252,7 +277,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
 
     isSelected(option: T): boolean {
         const val = this.getValue(option);
-        return this.internalValue().some(v => this.getValue(v as T) === val);
+        return this.internalValue().some(v => this.getValue(v) === val);
     }
 
     onContainerClick(event: MouseEvent) {
@@ -267,6 +292,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
 
     onFocus() {
         if (!this.isDisabled() && !this.open()) {
+            this.resolveDropdownSide();
             this.open.set(true);
         }
     }
@@ -296,6 +322,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         }
 
         if (!this.open()) {
+            this.resolveDropdownSide();
             this.open.set(true);
         }
     }
@@ -307,12 +334,12 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
 
         if (event.key === 'ArrowDown') {
             event.preventDefault();
-            if (!this.open()) this.open.set(true);
-            else cmd?.moveNext();
+            if (this.open()) {cmd?.moveNext();}
+            else { this.resolveDropdownSide(); this.open.set(true); }
         } else if (event.key === 'ArrowUp') {
             event.preventDefault();
-            if (!this.open()) this.open.set(true);
-            else cmd?.movePrev();
+            if (this.open()) {cmd?.movePrev();}
+            else { this.resolveDropdownSide(); this.open.set(true); }
         } else if (event.key === 'Enter') {
             event.preventDefault();
             if (this.open()) {
@@ -333,10 +360,10 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
 
         if (this.multiple()) {
             const currentVals = this.internalValue();
-            const isAlreadySelected = currentVals.some(v => this.getValue(v as T) === val);
+            const isAlreadySelected = currentVals.some(v => this.getValue(v) === val);
 
             if (isAlreadySelected) {
-                newValues = currentVals.filter(v => this.getValue(v as T) !== val);
+                newValues = currentVals.filter(v => this.getValue(v) !== val);
             } else {
                 newValues = [...currentVals, option];
             }
@@ -354,22 +381,26 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     removeItem(item: T, event: MouseEvent) {
         event.stopPropagation();
         const val = this.getValue(item);
-        const newValues = this.internalValue().filter(v => this.getValue(v as T) !== val);
+        const newValues = this.internalValue().filter(v => this.getValue(v) !== val);
         this.updateValue(newValues);
     }
 
     updateValue(newValues: T[]) {
         this.internalValue.set(newValues);
 
+        let emitValue: AutocompleteValue<T>;
         if (this.multiple()) {
-            this.onChange(newValues);
+            emitValue = newValues;
         } else {
-            this.onChange(newValues.length ? newValues[0] : null);
+            emitValue = newValues.length ? newValues[0] : null;
         }
+
+        this.onChange(emitValue);
+        this.valueChange.emit(emitValue);
         this.onTouched();
     }
 
-    writeValue(value: T | T[] | null): void {
+    writeValue(value: AutocompleteValue<T>): void {
         if (value === null || value === undefined) {
             this.internalValue.set([]);
         } else if (Array.isArray(value)) {
@@ -379,7 +410,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
         }
     }
 
-    registerOnChange(fn: (value: T | T[] | null) => void): void {
+    registerOnChange(fn: (value: AutocompleteValue<T>) => void): void {
         this.onChange = fn;
     }
 

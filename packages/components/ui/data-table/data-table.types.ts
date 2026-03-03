@@ -34,7 +34,7 @@ export interface ColumnDef<T> {
     enableGlobalFilter?: boolean;
     filterFn?: (row: T, filterValue: unknown) => boolean;
     filterComponent?: Type<unknown>;
-    filterComponentInputs?: Record<string, unknown>;
+    filterComponentInputs?: Record<string, unknown> | (() => Record<string, unknown>);
     filterComponentOutputs?: Record<string, (event: unknown) => void>;
     sticky?: boolean;
     pin?: 'left' | 'right';
@@ -42,6 +42,8 @@ export interface ColumnDef<T> {
     minWidth?: string;
     enableHiding?: boolean;
     enableReordering?: boolean;
+    treeExpander?: boolean;
+    _isTreeExpanderHost?: boolean;
 }
 
 export interface DataTableRowEvent<T> {
@@ -78,4 +80,29 @@ export interface DataTableExportOptions {
     includeHeaders?: boolean;
     onlyVisible?: boolean;
     onlyFiltered?: boolean;
+}
+
+export type SubRowSelectionMode = 'self' | 'descendants' | 'filteredDescendants';
+
+export type SubRowFilterMode = 'includeChildren' | 'excludeChildren' | 'includeParentOnChildMatch';
+
+export interface SubRowContext<T> {
+    row: T;
+    parentRow: T | null;
+    parentId: string | null;
+    depth: number;
+    path: string[];
+    isLeaf: boolean;
+    childCount: number;
+}
+
+export interface FlattenedTreeRow<T> {
+    row: T;
+    depth: number;
+    parentId: string | null;
+    parentRow: T | null;
+    path: string[];
+    isLeaf: boolean;
+    childCount: number;
+    isExpanded: boolean;
 }

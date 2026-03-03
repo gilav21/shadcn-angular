@@ -1,7 +1,6 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { RadioGroupComponent, RadioGroupItemComponent } from './radio-group.component';
 import { LabelComponent } from './label.component';
-import { moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';
 
 const meta: Meta<RadioGroupComponent> = {

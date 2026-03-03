@@ -39,7 +39,7 @@ describe('AvatarComponent', () => {
     });
 
     it('should have data-slot="avatar"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('avatar');
+        expect(fixture.nativeElement.dataset['slot']).toBe('avatar');
     });
 
     it('should apply default classes', () => {
@@ -93,7 +93,7 @@ describe('AvatarImageComponent', () => {
 
     it('should have data-slot="avatar-image"', () => {
         const img = fixture.debugElement.query(By.css('img'));
-        expect(img.nativeElement.getAttribute('data-slot')).toBe('avatar-image');
+        expect(img.nativeElement.dataset['slot']).toBe('avatar-image');
     });
 });
 
@@ -117,7 +117,7 @@ describe('AvatarFallbackComponent', () => {
 
     it('should have data-slot="avatar-fallback"', () => {
         const fallback = fixture.debugElement.query(By.css('[data-slot="avatar-fallback"]'));
-        expect(fallback.nativeElement.getAttribute('data-slot')).toBe('avatar-fallback');
+        expect(fallback.nativeElement.dataset['slot']).toBe('avatar-fallback');
     });
 
     it('should apply default classes', () => {

@@ -2,7 +2,6 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
-  output,
   computed,
   signal,
   forwardRef,
@@ -81,7 +80,7 @@ export class NativeSelectComponent implements ControlValueAccessor {
 
   protected innerValue = signal('');
 
-  private formDisabled = signal(false);
+  private readonly formDisabled = signal(false);
   isDisabled = computed(() => this.disabled() || this.formDisabled());
   onChange: (value: string) => void = () => { };
   onTouched: () => void = () => { };

@@ -57,7 +57,7 @@ describe('CardComponent', () => {
     });
 
     it('should have data-slot="card"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('card');
+        expect(fixture.nativeElement.dataset['slot']).toBe('card');
     });
 
     it('should apply default classes', () => {
@@ -87,7 +87,7 @@ describe('CardHeaderComponent', () => {
     });
 
     it('should have data-slot="card-header"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('card-header');
+        expect(fixture.nativeElement.dataset['slot']).toBe('card-header');
     });
 
     it('should apply grid layout classes', () => {
@@ -109,7 +109,7 @@ describe('CardTitleComponent', () => {
     });
 
     it('should have data-slot="card-title"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('card-title');
+        expect(fixture.nativeElement.dataset['slot']).toBe('card-title');
     });
 
     it('should apply font classes', () => {
@@ -130,7 +130,7 @@ describe('CardDescriptionComponent', () => {
     });
 
     it('should have data-slot="card-description"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('card-description');
+        expect(fixture.nativeElement.dataset['slot']).toBe('card-description');
     });
 
     it('should apply muted text classes', () => {
@@ -152,7 +152,7 @@ describe('CardContentComponent', () => {
     });
 
     it('should have data-slot="card-content"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('card-content');
+        expect(fixture.nativeElement.dataset['slot']).toBe('card-content');
     });
 
     it('should apply padding classes', () => {
@@ -173,7 +173,7 @@ describe('CardFooterComponent', () => {
     });
 
     it('should have data-slot="card-footer"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('card-footer');
+        expect(fixture.nativeElement.dataset['slot']).toBe('card-footer');
     });
 
     it('should apply flex layout', () => {

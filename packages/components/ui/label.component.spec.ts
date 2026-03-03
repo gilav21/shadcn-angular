@@ -37,7 +37,7 @@ describe('LabelComponent', () => {
 
     it('should have data-slot="label"', () => {
         const label = fixture.debugElement.query(By.css('label'));
-        expect(label.nativeElement.getAttribute('data-slot')).toBe('label');
+        expect(label.nativeElement.dataset.slot).toBe('label');
     });
 
     it('should render a label element', () => {

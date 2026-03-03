@@ -150,7 +150,7 @@ describe('Carousel Vertical Orientation', () => {
 
     it('should set data-orientation="vertical"', () => {
         const carousel = fixture.debugElement.query(By.css('[data-slot="carousel"]'));
-        expect(carousel.nativeElement.getAttribute('data-orientation')).toBe('vertical');
+        expect(carousel.nativeElement.dataset['orientation']).toBe('vertical');
     });
 
     it('should apply vertical flex classes to content', () => {
@@ -250,9 +250,6 @@ describe('Carousel RTL Support', () => {
         document.documentElement.setAttribute('dir', 'rtl');
         fixture.detectChanges();
         await fixture.whenStable();
-
-        const carouselComp = fixture.debugElement.query(By.directive(CarouselComponent));
-        const initialIndex = carouselComp.componentInstance.currentIndex();
 
         // Click the previous button (left arrow) - in RTL this scrolls forward
         const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));

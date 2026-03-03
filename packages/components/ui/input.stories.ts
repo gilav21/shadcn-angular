@@ -1,7 +1,6 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { InputComponent } from './input.component';
 import { FormsModule } from '@angular/forms';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<InputComponent> = {
     title: 'UI/Input',

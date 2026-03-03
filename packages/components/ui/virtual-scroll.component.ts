@@ -123,12 +123,12 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
   measurementVersion = signal(0);
 
   private readonly CHUNK_SIZE = 500;
-  private chunkCorrections = new Map<number, number>();
-  private itemHeights = new Map<number, number>();
+  private readonly chunkCorrections = new Map<number, number>();
+  private readonly itemHeights = new Map<number, number>();
 
-  private resizeObserver: ResizeObserver;
+  private readonly resizeObserver: ResizeObserver;
   private containerObserver?: ResizeObserver;
-  private ngZone = inject(NgZone);
+  private readonly ngZone = inject(NgZone);
 
   totalItems = computed(() => this.items().length);
   itemTemplate = computed(() => this.itemTemplateRef);
@@ -321,7 +321,7 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
 
     for (const entry of entries) {
       const el = entry.target as HTMLElement;
-      const index = parseInt(el.dataset['index'] || '-1', 10);
+      const index = Number.parseInt(el.dataset['index'] || '-1', 10);
       if (index === -1) continue;
 
       const newHeight = entry.borderBoxSize[0].blockSize;

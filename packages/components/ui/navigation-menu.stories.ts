@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
     NavigationMenuComponent,
     NavigationMenuListComponent,
@@ -9,7 +9,6 @@ import {
     NavigationMenuIndicatorComponent,
     NavigationMenuItem,
 } from './navigation-menu.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<NavigationMenuComponent> = {
     title: 'UI/NavigationMenu',

@@ -1,5 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
-import { moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { ShineBorderComponent } from './shine-border.component';
 
 const meta: Meta<ShineBorderComponent> = {

@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   TableComponent,
   TableHeaderComponent,
@@ -9,7 +9,6 @@ import {
   TableCellComponent,
   TableCaptionComponent,
 } from './table.component';
-import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<TableComponent & { rtl: boolean }> = {
   title: 'UI/Table',

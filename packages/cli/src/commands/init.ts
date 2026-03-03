@@ -1,6 +1,6 @@
 import fs from 'fs-extra';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import prompts from 'prompts';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -10,7 +10,9 @@ import { getUtilsTemplate } from '../templates/utils.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
 
-const LIB_REGISTRY_BASE_URL = 'https://raw.githubusercontent.com/gilav21/shadcn-angular/master/packages/components/lib';
+function getLibRegistryBaseUrl(branch: string) {
+    return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components/lib`;
+}
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -22,7 +24,7 @@ function getLocalLibDir(): string | null {
     return null;
 }
 
-async function fetchLibFileContent(file: string): Promise<string> {
+async function fetchLibFileContent(file: string, branch: string): Promise<string> {
     const localLibDir = getLocalLibDir();
     if (localLibDir) {
         const localPath = path.join(localLibDir, file);
@@ -31,7 +33,7 @@ async function fetchLibFileContent(file: string): Promise<string> {
         }
     }
 
-    const url = `${LIB_REGISTRY_BASE_URL}/${file}`;
+    const url = `${getLibRegistryBaseUrl(branch)}/${file}`;
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
@@ -42,6 +44,7 @@ async function fetchLibFileContent(file: string): Promise<string> {
 interface InitOptions {
     yes?: boolean;
     defaults?: boolean;
+    branch: string;
 }
 
 function resolveProjectPath(cwd: string, inputPath: string): string {
@@ -95,7 +98,6 @@ export async function init(options: InitOptions) {
 
     if (options.defaults || options.yes) {
         config = getDefaultConfig();
-        createShortcutRegistry = true;
     } else {
         const THEME_COLORS: Record<string, string> = {
             zinc: '#71717a',
@@ -227,7 +229,7 @@ export async function init(options: InitOptions) {
         spinner.text = 'Created utils.ts';
 
         const shortcutServicePath = path.join(libDir, 'shortcut-binding.service.ts');
-        const shortcutServiceContent = await fetchLibFileContent('shortcut-binding.service.ts');
+        const shortcutServiceContent = await fetchLibFileContent('shortcut-binding.service.ts', options.branch);
         await fs.writeFile(shortcutServicePath, shortcutServiceContent);
         spinner.text = 'Created shortcut-binding.service.ts';
 

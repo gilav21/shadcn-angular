@@ -7,8 +7,7 @@ import {
     ElementRef,
     inject,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn , prefersReducedMotion } from '../lib/utils';
 
 @Component({
     selector: 'ui-wobble-card',
@@ -29,8 +28,8 @@ export class WobbleCardComponent {
     intensity = input(15);
     perspective = input(1000);
 
-    private rotateX = signal(0);
-    private rotateY = signal(0);
+    private readonly rotateX = signal(0);
+    private readonly rotateY = signal(0);
 
     classes = computed(() => cn(
         'relative overflow-hidden rounded-xl transition-transform duration-200 ease-out',

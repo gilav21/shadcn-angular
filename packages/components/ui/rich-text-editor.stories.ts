@@ -1,5 +1,5 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { RichTextEditorComponent, DEFAULT_TOOLBAR_ITEMS } from './rich-text-editor.component';
+import { RichTextEditorComponent } from './rich-text-editor.component';
 import { RichTextToolbarComponent } from './rich-text-toolbar.component';
 import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './rich-text-mention.component';
 import { RichTextSlashCommand } from './rich-text-command-registry.service';
@@ -7,7 +7,7 @@ import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';
 import { RICH_TEXT_LOCALES } from './rich-text-locales';
 import { FormsModule, ReactiveFormsModule, FormControl, FormGroup } from '@angular/forms';
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { JsonPipe } from '@angular/common';
 import { delay, of } from 'rxjs';
 

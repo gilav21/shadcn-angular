@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { AutocompleteComponent } from './autocomplete.component';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 
@@ -45,8 +44,7 @@ describe('AutocompleteComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [TestHostComponent],
-            providers: [provideNoopAnimations()]
+            imports: [TestHostComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
@@ -85,7 +83,7 @@ describe('AutocompleteComponent', () => {
         fixture.detectChanges();
 
         const container = fixture.debugElement.query(By.css('[data-state]'));
-        expect(container.nativeElement.getAttribute('data-disabled')).toBeNull();
+        expect(container.nativeElement.dataset['disabled']).toBeUndefined();
     });
 
     it('should render in single mode by default', () => {
@@ -389,6 +387,43 @@ describe('AutocompleteComponent', () => {
             await fixture.whenStable();
 
             expect(autocomplete.isDisabled()).toBe(true);
+        });
+    });
+
+    // --- valueChange output ---
+
+    describe('valueChange output', () => {
+        it('should emit the selected value in single mode', () => {
+            const spy = vi.fn();
+            autocomplete.valueChange.subscribe(spy);
+
+            autocomplete.onSelect(fruits[0]);
+
+            expect(spy).toHaveBeenCalledWith(fruits[0]);
+        });
+
+        it('should emit null when value is cleared in single mode', () => {
+            const spy = vi.fn();
+            autocomplete.valueChange.subscribe(spy);
+
+            autocomplete.updateValue([]);
+
+            expect(spy).toHaveBeenCalledWith(null);
+        });
+
+        it('should emit array in multiple mode', async () => {
+            host.multiple.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const spy = vi.fn();
+            autocomplete.valueChange.subscribe(spy);
+
+            autocomplete.onSelect(fruits[0]);
+            expect(spy).toHaveBeenCalledWith([fruits[0]]);
+
+            autocomplete.onSelect(fruits[1]);
+            expect(spy).toHaveBeenCalledWith([fruits[0], fruits[1]]);
         });
     });
 

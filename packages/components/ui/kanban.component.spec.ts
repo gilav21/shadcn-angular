@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
     KanbanComponent,
     KanbanColumnComponent,
@@ -209,7 +209,7 @@ describe('KanbanComponent', () => {
             );
             fixture.detectChanges();
 
-            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBe('true');
+            expect(doingColumn.nativeElement.dataset.dragOver).toBe('true');
         });
 
         it('should remove drag-over state after drag leave', () => {
@@ -231,7 +231,7 @@ describe('KanbanComponent', () => {
             );
             fixture.detectChanges();
 
-            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBeNull();
+            expect(doingColumn.nativeElement.dataset.dragOver).toBeUndefined();
         });
 
         it('should apply visual feedback classes to dragged card', () => {
@@ -268,7 +268,7 @@ describe('KanbanComponent', () => {
             doingColumn.nativeElement.dispatchEvent(dropEvent);
             fixture.detectChanges();
 
-            expect(doingColumn.nativeElement.getAttribute('data-drag-over')).toBeNull();
+            expect(doingColumn.nativeElement.dataset.dragOver).toBeUndefined();
         });
 
         it('should render add-card button in each column header', () => {

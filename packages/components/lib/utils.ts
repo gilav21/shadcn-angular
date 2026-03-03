@@ -28,21 +28,22 @@ export function isRtl(el: HTMLElement): boolean {
 export function getClippingRect(element: HTMLElement): DOMRect {
     let parent = element.parentElement;
     while (parent && parent !== document.documentElement) {
-        const style = window.getComputedStyle(parent);
+        const style = globalThis.window?.getComputedStyle(parent);
         if (
-            /^(hidden|auto|scroll|clip)$/.test(style.overflowX) ||
-            /^(hidden|auto|scroll|clip)$/.test(style.overflowY)
+            style &&
+            (/^(hidden|auto|scroll|clip)$/.test(style.overflowX) ||
+            /^(hidden|auto|scroll|clip)$/.test(style.overflowY))
         ) {
             return parent.getBoundingClientRect();
         }
         parent = parent.parentElement;
     }
-    return new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+    return new DOMRect(0, 0, globalThis.window?.innerWidth ?? 0, globalThis.window?.innerHeight ?? 0);
 }
 
 /**
  * Check if the user prefers reduced motion via the OS-level accessibility setting.
  */
 export function prefersReducedMotion(): boolean {
-    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    return globalThis.window?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
 }

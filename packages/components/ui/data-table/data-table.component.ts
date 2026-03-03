@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { isRtl } from '../../lib/utils';
+import { cn, isRtl } from '../../lib/utils';
 import { generateXlsx } from '../../lib/xlsx';
 import {
   TableComponent,
@@ -40,9 +40,11 @@ import {
   DataTableLoadingTrigger,
   DataTableLoadingVisibility,
   DataTableExportOptions,
+  SubRowSelectionMode,
+  SubRowFilterMode,
+  FlattenedTreeRow,
+  SubRowContext,
 } from './data-table.types';
-import { cn } from '../../lib/utils';
-
 @Component({
   selector: 'ui-data-table',
   imports: [
@@ -148,7 +150,7 @@ import { cn } from '../../lib/utils';
                   [class.cursor-grabbing]="isDraggingColumn(col)"
                   [class.opacity-70]="isDraggingColumn(col)"
                   [class.relative]="isDropTargetColumn(col)"
-                  [attr.data-column-id]="toString(col.accessorKey)"
+                  [attr.data-column-id]="String(col.accessorKey)"
                   [attr.draggable]="isColumnDraggable(col) ? 'true' : null"
                   [style]="getCellStyle(col, true)"
                   (dragstart)="onColumnDragStart($event, col)"
@@ -162,21 +164,70 @@ import { cn } from '../../lib/utils';
                   <div class="flex items-center w-full h-full">
                     <div class="flex-1 min-w-0">
                       @if (col.accessorKey === '_selection') {
-                        <ui-checkbox 
+                        <ui-checkbox
                           [checked]="isAllSelected()"
                           [indeterminate]="isIndeterminate()"
                           (checkedChange)="toggleAll()"
                           ariaLabel="Select all"
                         />
+                      } @else if (col._isTreeExpanderHost) {
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                            [attr.aria-label]="isAllSubRowsExpanded() ? 'Collapse all sub-rows' : 'Expand all sub-rows'"
+                            (click)="isAllSubRowsExpanded() ? collapseAllSubRows() : expandAllSubRows(-1)"
+                          >
+                            @if (isAllSubRowsExpanded()) {
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="17 11 12 6 7 11"/>
+                                <polyline points="17 18 12 13 7 18"/>
+                              </svg>
+                            } @else {
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                <polyline points="7 13 12 18 17 13"/>
+                                <polyline points="7 6 12 11 17 6"/>
+                              </svg>
+                            }
+                          </button>
+                          @if (col.enableSorting !== false) {
+                            <ui-data-table-column-header
+                              [title]="col.header"
+                              [column]="String(col.accessorKey)"
+                              [direction]="getSortDirection(col.accessorKey)"
+                              [sortIndex]="getSortIndex(col.accessorKey)"
+                              (sortMeta)="onSortChange(col.accessorKey, $event.direction, $event.multi)"
+                            />
+                          } @else {
+                            <span>{{ col.header }}</span>
+                          }
+                        </div>
                       } @else if (col.accessorKey === '_expander') {
-                        <span class="sr-only">Expand row</span>
+                        <button
+                          type="button"
+                          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                          [attr.aria-label]="isAllExpanded() ? 'Collapse all rows' : 'Expand all rows'"
+                          (click)="toggleAllExpanded()"
+                        >
+                          @if (isAllExpanded()) {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="17 11 12 6 7 11"/>
+                              <polyline points="17 18 12 13 7 18"/>
+                            </svg>
+                          } @else {
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                              <polyline points="7 13 12 18 17 13"/>
+                              <polyline points="7 6 12 11 17 6"/>
+                            </svg>
+                          }
+                        </button>
                       } @else if (col.headerTemplate) {
                         <ng-container *ngTemplateOutlet="col.headerTemplate; context: { $implicit: col }"></ng-container>
                       } @else if (col.enableSorting !== false) {
                         <div class="flex items-center gap-2">
                           <ui-data-table-column-header
                             [title]="col.header"
-                            [column]="toString(col.accessorKey)"
+                            [column]="String(col.accessorKey)"
                             [direction]="getSortDirection(col.accessorKey)"
                             [sortIndex]="getSortIndex(col.accessorKey)"
                             (sortMeta)="onSortChange(col.accessorKey, $event.direction, $event.multi)"
@@ -196,7 +247,7 @@ import { cn } from '../../lib/utils';
                               <ui-popover-content class="w-80">
                                 <div 
                                   [uiComponentOutlet]="col.filterComponent" 
-                                  [inputs]="col.filterComponentInputs || {}"
+                                  [inputs]="getFilterInputs(col)"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
                               </ui-popover-content>
@@ -221,7 +272,7 @@ import { cn } from '../../lib/utils';
                               <ui-popover-content class="w-80">
                                 <div 
                                   [uiComponentOutlet]="col.filterComponent" 
-                                  [inputs]="col.filterComponentInputs || {}"
+                                  [inputs]="getFilterInputs(col)"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
                               </ui-popover-content>
@@ -255,9 +306,142 @@ import { cn } from '../../lib/utils';
             </ui-table-row>
           </ui-table-header>
           <ui-table-body>
-            @if (processedData().length > 0) {
+            @if (enableSubRows()) {
+              @if (processedTreeRows().length > 0) {
+                @for (treeRow of processedTreeRows(); track getRowId()(treeRow.row); let i = $index) {
+                  <ui-table-row
+                    [attr.data-state]="isRowSelected(treeRow.row) ? 'selected' : null"
+                    [attr.data-row-index]="i"
+                    [attr.data-row-id]="getRowId()(treeRow.row)"
+                    [attr.data-depth]="treeRow.depth"
+                    [attr.aria-level]="treeRow.depth + 1"
+                    [attr.aria-expanded]="treeRow.isLeaf ? null : treeRow.isExpanded"
+                    class="border-0"
+                  >
+                    @for (col of enhancedColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, i, treeRow.depth)"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getTreeCellStyle(col, treeRow.depth)"
+                        (click)="onCellClick(i, col, $event)"
+                      >
+                        @if (col.accessorKey === '_selection') {
+                          <ui-checkbox
+                            [checked]="isRowSelected(treeRow.row)"
+                            [indeterminate]="isSubRowSelectionIndeterminate(treeRow.row)"
+                            (checkedChange)="toggleRowWithCascade(treeRow.row)"
+                            ariaLabel="Select row"
+                          />
+                        } @else if (col._isTreeExpanderHost) {
+                          <div class="flex items-center gap-1 min-w-0" [style.padding-left.px]="treeRow.depth * subRowIndentSize()">
+                            @if (!treeRow.isLeaf) {
+                              <button
+                                type="button"
+                                class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                                [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'"
+                                (click)="toggleSubRowExpanded(treeRow.row, $event)"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded">
+                                  <polyline points="9 18 15 12 9 6"></polyline>
+                                </svg>
+                              </button>
+                            } @else {
+                              <span class="inline-block h-6 w-6 shrink-0"></span>
+                            }
+                            <span class="truncate">
+                              @if (col.component) {
+                                <div
+                                  [uiComponentOutlet]="col.component"
+                                  [inputs]="getSubRowComponentInputs(col, treeRow)"
+                                  [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}"
+                                ></div>
+                              } @else if (col.template) {
+                                <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
+                              } @else if (col.cell) {
+                                {{ col.cell(treeRow.row) }}
+                              } @else {
+                                {{ getCellValue(treeRow.row, col.accessorKey, col) }}
+                              }
+                            </span>
+                          </div>
+                        } @else if (col.accessorKey === '_expander') {
+                          <button
+                            type="button"
+                            class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                            [attr.aria-label]="isRowExpanded(treeRow.row) ? 'Collapse row' : 'Expand row'"
+                            [attr.aria-expanded]="isRowExpanded(treeRow.row)"
+                            (click)="toggleRowExpanded(treeRow.row, $event)"
+                          >
+                            @if (isRowExpanded(treeRow.row)) {
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="18 15 12 9 6 15"></polyline>
+                              </svg>
+                            } @else {
+                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="6 9 12 15 18 9"></polyline>
+                              </svg>
+                            }
+                          </button>
+                        } @else if (col.component) {
+                          <div
+                            [uiComponentOutlet]="col.component"
+                            [inputs]="getSubRowComponentInputs(col, treeRow)"
+                            [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}"
+                          ></div>
+                        } @else if (col.template) {
+                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
+                        } @else if (col.cell) {
+                           {{ col.cell(treeRow.row) }}
+                        } @else {
+                          {{ getCellValue(treeRow.row, col.accessorKey, col) }}
+                        }
+                      </ui-table-cell>
+                    }
+                    @if (!hasFlexibleColumns()) {
+                      <ui-table-cell
+                        class="flex-1 pointer-events-none"
+                        [class]="getCellClass({ _width: 'auto' })"
+                      ></ui-table-cell>
+                    }
+                  </ui-table-row>
+                  @if (enableRowExpansion() && isRowExpanded(treeRow.row)) {
+                    <ui-table-row class="border-0 bg-muted/20">
+                      <ui-table-cell class="flex-1 border-b" style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;">
+                        @if (rowDetailTemplate()) {
+                          <ng-container
+                            *ngTemplateOutlet="rowDetailTemplate(); context: { $implicit: treeRow.row, row: treeRow.row }"
+                          ></ng-container>
+                        } @else if (rowDetailComponent()) {
+                          <div
+                            [uiComponentOutlet]="rowDetailComponent()"
+                            [inputs]="getRowDetailComponentInputs(treeRow.row)"
+                          ></div>
+                        } @else {
+                          <pre class="text-xs text-muted-foreground whitespace-pre-wrap">{{ treeRow.row | json }}</pre>
+                        }
+                      </ui-table-cell>
+                    </ui-table-row>
+                  }
+                }
+              } @else {
+                <ui-table-row class="hover:bg-transparent justify-center w-full">
+                  <ui-table-cell class="h-96 text-center w-full p-0 border-none justify-center">
+                    @if (emptyStateComponent()) {
+                      <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
+                    } @else {
+                      <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 h-10 w-10 opacity-20">
+                          <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
+                        </svg>
+                        <p>No results found.</p>
+                      </div>
+                    }
+                  </ui-table-cell>
+                </ui-table-row>
+              }
+            } @else if (processedData().length > 0) {
               @for (row of processedData(); track getRowId()(row); let i = $index) {
-                <ui-table-row 
+                <ui-table-row
                   [attr.data-state]="isRowSelected(row) ? 'selected' : null"
                   [attr.data-row-index]="i"
                   [attr.data-row-id]="getRowId()(row)"
@@ -266,12 +450,12 @@ import { cn } from '../../lib/utils';
                   @for (col of enhancedColumns(); track col.accessorKey) {
                     <ui-table-cell
                       [class]="getCellClass(col, i)"
-                      [attr.data-column]="toString(col.accessorKey)"
+                      [attr.data-column]="String(col.accessorKey)"
                       [style]="getCellStyle(col)"
                       (click)="onCellClick(i, col, $event)"
                     >
                       @if (col.accessorKey === '_selection') {
-                        <ui-checkbox 
+                        <ui-checkbox
                           [checked]="isRowSelected(row)"
                           (checkedChange)="toggleRow(row)"
                           ariaLabel="Select row"
@@ -295,8 +479,8 @@ import { cn } from '../../lib/utils';
                           }
                         </button>
                       } @else if (col.component) {
-                        <div 
-                          [uiComponentOutlet]="col.component" 
+                        <div
+                          [uiComponentOutlet]="col.component"
                           [inputs]="col.componentInputs ? col.componentInputs(row) : {}"
                           [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}"
                         ></div>
@@ -310,7 +494,7 @@ import { cn } from '../../lib/utils';
                     </ui-table-cell>
                   }
                   @if (!hasFlexibleColumns()) {
-                    <ui-table-cell 
+                    <ui-table-cell
                       class="flex-1 pointer-events-none"
                       [class]="getCellClass({ _width: 'auto' })"
                     ></ui-table-cell>
@@ -378,8 +562,8 @@ import { cn } from '../../lib/utils';
   `,
 })
 export class DataTableComponent<T> {
-  private _document = inject(DOCUMENT);
-  private _el = inject(ElementRef);
+  private readonly _document = inject(DOCUMENT);
+  private readonly _el = inject(ElementRef);
   isRtl() {
     return isRtl(this._el.nativeElement);
   }
@@ -427,6 +611,17 @@ export class DataTableComponent<T> {
   rowDetailComponent = input<Type<unknown>>();
   rowDetailComponentInputs = input<((row: T) => Record<string, unknown>) | undefined>(undefined);
 
+  enableSubRows = input(false);
+  getChildren = input<(row: T) => T[] | undefined>((row: any) => row.children);
+  setChildren = input<(row: T, children: T[]) => T>((row: any, children: any[]) => ({ ...row, children }));
+  subRowDefaultExpanded = input(0);
+  subRowSelectionMode = input<SubRowSelectionMode>('self');
+  subRowFilterMode = input<SubRowFilterMode>('includeParentOnChildMatch');
+  enableSubRowSorting = input(true);
+  subRowIndentSize = input(20);
+  subRowsPaginated = input(false);
+  subRowExpandedRows = model<Record<string, boolean>>({});
+
   enableColumnResize = input(false);
   enableColumnReorder = input(false);
   columnResize = output<ColumnResizeEvent>();
@@ -437,14 +632,14 @@ export class DataTableComponent<T> {
   emptyStateComponentInputs = input<Record<string, unknown>>({});
 
   exporting = signal(false);
-  globalFilter = signal('');
-  columnFilters = signal<Record<string, any>>({});
-  sortState = signal<SortState>({ column: '', direction: null });
-  multiSortState = signal<SortState[]>([]);
+  globalFilter = model('');
+  columnFilters = model<Record<string, any>>({});
+  sortState = model<SortState>({ column: '', direction: null });
+  multiSortState = model<SortState[]>([]);
   paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
   pageSizeOptions = input<number[]>([10, 20, 30, 40, 50]);
   showPageSizeSelector = input(true);
-  columnWidths = signal<Record<string, string>>({});
+  columnWidths = model<Record<string, string>>({});
   columnVisibility = model<Record<string, boolean>>({});
   columnOrder = model<string[]>([]);
   loadingTrigger = signal<DataTableLoadingTrigger>('initial');
@@ -486,7 +681,7 @@ export class DataTableComponent<T> {
       if (this.isFilterValueEmpty(filterValue)) return;
 
       const column = columns.find(col => col.accessorKey === columnKey);
-      if (!column || !column.enableFiltering) return;
+      if (!column?.enableFiltering) return;
 
       if (column.filterFn) {
         data = data.filter(row => column.filterFn!(row, filterValue));
@@ -501,40 +696,212 @@ export class DataTableComponent<T> {
     return data;
   });
 
+  private readonly treeIndex = computed(() => {
+    if (!this.enableSubRows()) {
+      return { children: new Map<string, string[]>(), descendants: new Map<string, string[]>(), parent: new Map<string, string>() };
+    }
+    const getId = this.getRowId();
+    const getChildrenFn = this.getChildren();
+    const childrenMap = new Map<string, string[]>();
+    const descendantsMap = new Map<string, string[]>();
+    const parentMap = new Map<string, string>();
+
+    const walk = (rows: T[], parentId: string | null) => {
+      for (const row of rows) {
+        const id = getId(row);
+        if (parentId !== null) {
+          parentMap.set(id, parentId);
+        }
+        const kids = getChildrenFn(row);
+        const kidIds: string[] = [];
+        if (kids && kids.length > 0) {
+          for (const kid of kids) {
+            kidIds.push(getId(kid));
+          }
+          childrenMap.set(id, kidIds);
+          walk(kids, id);
+        } else {
+          childrenMap.set(id, []);
+        }
+      }
+    };
+    walk(this.data(), null);
+
+    const getDescendants = (id: string): string[] => {
+      if (descendantsMap.has(id)) return descendantsMap.get(id)!;
+      const kids = childrenMap.get(id) ?? [];
+      const all: string[] = [];
+      for (const kid of kids) {
+        all.push(kid, ...getDescendants(kid));
+      }
+      descendantsMap.set(id, all);
+      return all;
+    };
+
+    for (const id of childrenMap.keys()) {
+      getDescendants(id);
+    }
+
+    return { children: childrenMap, descendants: descendantsMap, parent: parentMap };
+  });
+
+  filteredTreeData = computed<T[]>(() => {
+    if (!this.enableSubRows() || !this.localFiltering()) return this.data();
+
+    const globalFilterValue = this.globalFilter().toLowerCase();
+    const colFilters = this.columnFilters();
+    const columns = this.enhancedColumns().filter(col =>
+      col.accessorKey !== '_selection' && col.accessorKey !== '_expander'
+    );
+    const hasGlobalFilter = !!globalFilterValue;
+    const hasColumnFilters = Object.keys(colFilters).some(k => !this.isFilterValueEmpty(colFilters[k]));
+
+    if (!hasGlobalFilter && !hasColumnFilters) return this.data();
+
+    const getChildrenFn = this.getChildren();
+    const setChildrenFn = this.setChildren();
+    const mode = this.subRowFilterMode();
+
+    const matchesGlobal = (row: T): boolean => {
+      const globalFilterFn = this.globalFilterFn();
+      if (globalFilterFn) {
+        return globalFilterFn(row, globalFilterValue, columns);
+      }
+      const globallyFilterable = columns.filter(col => col.enableGlobalFilter !== false);
+      return globallyFilterable.some(col => {
+        const value = this.getCellValue(row, col.accessorKey, col);
+        return String(value).toLowerCase().includes(globalFilterValue);
+      });
+    };
+
+    const matchesColumns = (row: T): boolean => {
+      for (const columnKey of Object.keys(colFilters)) {
+        const filterValue = colFilters[columnKey];
+        if (this.isFilterValueEmpty(filterValue)) continue;
+        const column = columns.find(col => col.accessorKey === columnKey);
+        if (!column?.enableFiltering) continue;
+        if (column.filterFn) {
+          if (!column.filterFn(row, filterValue)) return false;
+        } else {
+          const cellValue = this.getCellValue(row, columnKey, column);
+          if (!String(cellValue).toLowerCase().includes(String(filterValue).toLowerCase())) return false;
+        }
+      }
+      return true;
+    };
+
+    const matchesRow = (row: T): boolean => {
+      if (hasGlobalFilter && !matchesGlobal(row)) return false;
+      if (hasColumnFilters && !matchesColumns(row)) return false;
+      return true;
+    };
+
+    const filterIncludeChildren = (rows: T[]): T[] => {
+      const result: T[] = [];
+      for (const row of rows) {
+        if (matchesRow(row)) {
+          result.push(row);
+        } else {
+          const children = getChildrenFn(row);
+          if (children && children.length > 0) {
+            const filteredKids = filterTree(children);
+            if (filteredKids.length > 0) {
+              result.push(setChildrenFn(row, filteredKids));
+            }
+          }
+        }
+      }
+      return result;
+    };
+
+    const filterIncludeParents = (rows: T[]): T[] => {
+      const result: T[] = [];
+      for (const row of rows) {
+        const children = getChildrenFn(row);
+        const selfMatches = matchesRow(row);
+
+        if (children && children.length > 0) {
+          const filteredKids = filterTree(children);
+          if (selfMatches || filteredKids.length > 0) {
+            result.push(setChildrenFn(row, filteredKids));
+          }
+        } else if (selfMatches) {
+          result.push(row);
+        }
+      }
+      return result;
+    };
+
+    const filterTree = (rows: T[]): T[] => {
+      if (mode === 'excludeChildren') return rows.filter(matchesRow);
+      if (mode === 'includeChildren') return filterIncludeChildren(rows);
+      return filterIncludeParents(rows);
+    };
+
+    return filterTree(this.data());
+  });
+
+  sortedTreeData = computed<T[]>(() => {
+    if (!this.enableSubRows()) return [];
+    const data = this.filteredTreeData();
+    if (!this.localSorting() || !this.enableSubRowSorting()) return data;
+
+    const sorts = this.activeSorts();
+    if (sorts.length === 0) return data;
+
+    const getChildrenFn = this.getChildren();
+    const setChildrenFn = this.setChildren();
+
+    const compareFn = this.buildSortComparator(sorts);
+
+    const sortRows = (rows: T[]): T[] => {
+      const sorted = [...rows].sort(compareFn);
+      return sorted.map(row => {
+        const children = getChildrenFn(row);
+        if (children && children.length > 0) {
+          return setChildrenFn(row, sortRows(children));
+        }
+        return row;
+      });
+    };
+
+    return sortRows(data);
+  });
+
+  visibleTreeRows = computed<FlattenedTreeRow<T>[]>(() => {
+    if (!this.enableSubRows()) return [];
+    return this.flattenTreeFull(this.sortedTreeData());
+  });
+
   sortedData = computed(() => {
+    if (this.enableSubRows()) return [];
     const data = [...this.filteredData()];
     if (!this.localSorting()) return data;
 
     const sorts = this.activeSorts();
     if (sorts.length === 0) return data;
 
-    return data.sort((a, b) => {
-      for (const sort of sorts) {
-        const column = this.enhancedColumns().find(col => col.accessorKey === sort.column);
-        if (!column || !sort.direction) {
-          continue;
-        }
-
-        let result = 0;
-        if (column.sortFn) {
-          result = column.sortFn(a, b);
-        } else {
-          const aVal = this.getCellValue(a, sort.column, column);
-          const bVal = this.getCellValue(b, sort.column, column);
-          if (aVal < bVal) result = -1;
-          if (aVal > bVal) result = 1;
-        }
-
-        if (result !== 0) {
-          return sort.direction === 'asc' ? result : -result;
-        }
-      }
-
-      return 0;
-    });
+    return data.sort(this.buildSortComparator(sorts));
   });
 
   processedData = computed(() => {
+    if (this.enableSubRows()) {
+      const visible = this.visibleTreeRows();
+      if (!this.localPagination()) return visible.map(tr => tr.row);
+
+      if (this.subRowsPaginated()) {
+        const { pageIndex, pageSize } = this.paginationState();
+        const start = pageIndex * pageSize;
+        return visible.slice(start, start + pageSize).map(tr => tr.row);
+      }
+
+      const treeData = this.sortedTreeData();
+      const { pageIndex, pageSize } = this.paginationState();
+      const start = pageIndex * pageSize;
+      const rootSlice = treeData.slice(start, start + pageSize);
+      return this.flattenTreeRowsForPage(rootSlice);
+    }
+
     const data = this.sortedData();
     if (!this.localPagination()) return data;
 
@@ -543,11 +910,42 @@ export class DataTableComponent<T> {
     return data.slice(start, start + pageSize);
   });
 
-  activeTotalItems = computed(() =>
-    this.localPagination() ? this.filteredData().length : this.total()
-  );
-  private filteredRowIds = computed(() => this.filteredData().map(row => this.getRowId()(row)));
-  private filteredSelectionCount = computed(() => {
+  processedTreeRows = computed<FlattenedTreeRow<T>[]>(() => {
+    if (!this.enableSubRows()) return [];
+    const visible = this.visibleTreeRows();
+    if (!this.localPagination()) return visible;
+
+    if (this.subRowsPaginated()) {
+      const { pageIndex, pageSize } = this.paginationState();
+      const start = pageIndex * pageSize;
+      return visible.slice(start, start + pageSize);
+    }
+
+    const treeData = this.sortedTreeData();
+    const { pageIndex, pageSize } = this.paginationState();
+    const start = pageIndex * pageSize;
+    const rootSlice = treeData.slice(start, start + pageSize);
+    return this.flattenTreeRowsForPageFull(rootSlice);
+  });
+
+  activeTotalItems = computed(() => {
+    if (this.enableSubRows()) {
+      if (!this.localPagination()) return this.total();
+      if (this.subRowsPaginated()) {
+        return this.visibleTreeRows().length;
+      }
+      return this.sortedTreeData().length;
+    }
+    return this.localPagination() ? this.filteredData().length : this.total();
+  });
+
+  private readonly filteredRowIds = computed(() => {
+    if (this.enableSubRows()) {
+      return this.visibleTreeRows().map(tr => this.getRowId()(tr.row));
+    }
+    return this.filteredData().map(row => this.getRowId()(row));
+  });
+  private readonly filteredSelectionCount = computed(() => {
     const selected = this.rowSelection();
     let count = 0;
     this.filteredRowIds().forEach(id => {
@@ -556,6 +954,12 @@ export class DataTableComponent<T> {
       }
     });
     return count;
+  });
+
+  selectedRows = computed(() => {
+    const selection = this.rowSelection();
+    const getId = this.getRowId();
+    return this.data().filter(row => !!selection[getId(row)]);
   });
 
   constructor() {
@@ -663,6 +1067,23 @@ export class DataTableComponent<T> {
       computedCols = [selectionCol, ...visibleCols];
     }
 
+    if (this.enableSubRows()) {
+      const hasUserTreeExpander = cols.some(c => c.treeExpander);
+      if (hasUserTreeExpander) {
+        const treeIdx = computedCols.findIndex(c => c.treeExpander);
+        if (treeIdx !== -1) {
+          computedCols[treeIdx] = { ...computedCols[treeIdx], _isTreeExpanderHost: true };
+        }
+      } else {
+        const firstDataIdx = computedCols.findIndex(c =>
+          c.accessorKey !== '_selection' && c.accessorKey !== '_expander'
+        );
+        if (firstDataIdx !== -1) {
+          computedCols[firstDataIdx] = { ...computedCols[firstDataIdx], _isTreeExpanderHost: true };
+        }
+      }
+    }
+
     if (this.enableRowExpansion()) {
       const expanderCol: ColumnDef<T> = {
         accessorKey: '_expander',
@@ -682,7 +1103,7 @@ export class DataTableComponent<T> {
       const col = computedCols[i];
       const key = String(col.accessorKey);
       const widthStr = widths[key] || col.width || '150px';
-      const widthVal = parseInt(widthStr, 10) || 150;
+      const widthVal = Number.parseInt(widthStr, 10) || 150;
       if (col.pin === 'right') {
         rightOffsets.set(i, currentRight);
         currentRight += widthVal;
@@ -695,14 +1116,17 @@ export class DataTableComponent<T> {
       const isPinnedRight = col.pin === 'right';
       const key = String(col.accessorKey);
       const widthStr = widths[key] || col.width || '150px';
-      const widthVal = parseInt(widthStr, 10) || 150;
+      const widthVal = Number.parseInt(widthStr, 10) || 150;
       const isStickyLeft = isSticky || isPinnedLeft;
+      let pin: string | undefined;
+      if (isPinnedRight) pin = 'right';
+      else if (isStickyLeft) pin = 'left';
 
       const columnData = {
         ...col,
         _stickyLeft: isStickyLeft ? currentLeft : undefined,
         _stickyRight: isPinnedRight ? rightOffsets.get(index) ?? 0 : undefined,
-        _pin: isPinnedRight ? 'right' : isStickyLeft ? 'left' : undefined,
+        _pin: pin,
         _width: widthStr,
         _minWidth: col.minWidth || '50px'
       };
@@ -713,6 +1137,11 @@ export class DataTableComponent<T> {
 
       return columnData;
     });
+  });
+
+  treeExpanderColumn = computed(() => {
+    if (!this.enableSubRows()) return null;
+    return this.enhancedColumns().find(c => c._isTreeExpanderHost) ?? null;
   });
 
   hasColumnFilters = computed(() => {
@@ -736,12 +1165,13 @@ export class DataTableComponent<T> {
     );
   }
 
-  getCellClass(col: any, rowIndex?: number) {
+  getCellClass(col: any, rowIndex?: number, treeDepth?: number) {
     const focused = this.focusedCell();
     const isFocused = rowIndex !== undefined && focused !== null
       && focused.rowIndex === rowIndex && focused.columnKey === String(col.accessorKey);
     return cn(
-      'bg-background whitespace-nowrap overflow-hidden text-ellipsis',
+      'whitespace-nowrap overflow-hidden text-ellipsis',
+      treeDepth === undefined && 'bg-background',
       this.showRowBorders() && 'border-b',
       this.showColumnBorders() && 'border-r',
       isFocused && 'ring-1 ring-ring/40 ring-inset'
@@ -777,6 +1207,16 @@ export class DataTableComponent<T> {
       style.zIndex = col.sticky ? '30' : '20';
     }
 
+    return style;
+  }
+
+  getTreeCellStyle(col: any, depth: number) {
+    const style = this.getCellStyle(col);
+    if (depth > 0) {
+      style['background-color'] = `color-mix(in srgb, var(--border) ${Math.min(depth * 20, 80)}%, var(--background))`;
+    } else {
+      style['background-color'] = 'var(--background)';
+    }
     return style;
   }
 
@@ -817,6 +1257,33 @@ export class DataTableComponent<T> {
     this.expandedRows.set(next);
   }
 
+  isAllExpanded = computed(() => {
+    const ids = this.filteredRowIds();
+    if (ids.length === 0) return false;
+    const expanded = this.expandedRows();
+    return ids.every(id => !!expanded[id]);
+  });
+
+  isExpansionIndeterminate = computed(() => {
+    const ids = this.filteredRowIds();
+    const expanded = this.expandedRows();
+    const count = ids.filter(id => !!expanded[id]).length;
+    return count > 0 && count < ids.length;
+  });
+
+  toggleAllExpanded() {
+    const ids = this.filteredRowIds();
+    if (this.isAllExpanded()) {
+      const next = { ...this.expandedRows() };
+      ids.forEach(id => delete next[id]);
+      this.expandedRows.set(next);
+    } else {
+      const next = { ...this.expandedRows() };
+      ids.forEach(id => next[id] = true);
+      this.expandedRows.set(next);
+    }
+  }
+
   getRowDetailComponentInputs(row: T): Record<string, unknown> {
     const resolver = this.rowDetailComponentInputs();
     return resolver ? resolver(row) : {};
@@ -854,6 +1321,28 @@ export class DataTableComponent<T> {
     const visibleCount = this.filteredRowIds().length;
     return count > 0 && count < visibleCount;
   });
+
+  selectRows(rows: T[]) {
+    const getId = this.getRowId();
+    const next = { ...this.rowSelection() };
+    rows.forEach(row => next[getId(row)] = true);
+    this.rowSelection.set(next);
+  }
+
+  unselectRows(rows: T[]) {
+    const getId = this.getRowId();
+    const next = { ...this.rowSelection() };
+    rows.forEach(row => delete next[getId(row)]);
+    this.rowSelection.set(next);
+  }
+
+  clearSelection() {
+    this.rowSelection.set({});
+  }
+
+  selectAll() {
+    this.toggleAll();
+  }
 
   onPaginationChange(state: PaginationState) {
     this.loadingTrigger.set('pagination');
@@ -899,7 +1388,7 @@ export class DataTableComponent<T> {
   moveColumn(columnKey: string | keyof T, targetIndex: number) {
     const key = String(columnKey);
     const currentOrder = this.applyKeyOrder(this.columns().map(col => String(col.accessorKey)));
-    const currentIndex = currentOrder.findIndex(item => item === key);
+    const currentIndex = currentOrder.indexOf(key);
     if (currentIndex === -1) {
       return;
     }
@@ -1037,6 +1526,13 @@ export class DataTableComponent<T> {
     this.loadingTrigger.set(trigger);
   }
 
+  getFilterInputs(col: ColumnDef<T>): Record<string, unknown> {
+    if (typeof col.filterComponentInputs === 'function') {
+      return col.filterComponentInputs();
+    }
+    return col.filterComponentInputs || {};
+  }
+
   getFilterOutputs(col: ColumnDef<T>): Record<string, (event: any) => void> {
     return {
       ...col.filterComponentOutputs,
@@ -1044,13 +1540,35 @@ export class DataTableComponent<T> {
     };
   }
 
-  private isFilterValueEmpty(value: unknown): boolean {
+  isFilterValueEmpty(value: unknown): boolean {
     return value === undefined || value === null || value === '';
   }
 
-  toString(key: string | keyof T): string {
-    return String(key);
+  private compareByColumn(a: T, b: T, column: ColumnDef<T>): number {
+    if (column.sortFn) return column.sortFn(a, b);
+    const aVal = this.getCellValue(a, column.accessorKey, column);
+    const bVal = this.getCellValue(b, column.accessorKey, column);
+    if (aVal < bVal) return -1;
+    if (aVal > bVal) return 1;
+    return 0;
   }
+
+  private buildSortComparator(sorts: SortState[]): (a: T, b: T) => number {
+    return (a: T, b: T) => {
+      for (const sort of sorts) {
+        const column = this.enhancedColumns().find(col => col.accessorKey === sort.column);
+        if (!column || !sort.direction) continue;
+
+        const result = this.compareByColumn(a, b, column);
+        if (result !== 0) {
+          return sort.direction === 'asc' ? result : -result;
+        }
+      }
+      return 0;
+    };
+  }
+
+  protected readonly String = String;
 
   getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): any {
     if (column?.accessorFn) {
@@ -1119,7 +1637,7 @@ export class DataTableComponent<T> {
       const csvContent = data.map(row =>
         row.map(cell => {
           if (cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
-            return '"' + cell.replace(/"/g, '""') + '"';
+            return '"' + cell.replaceAll('"', '""') + '"';
           }
           return cell;
         }).join(',')
@@ -1220,6 +1738,294 @@ export class DataTableComponent<T> {
     }
   }
 
+  toggleSubRowExpanded(row: T, event?: Event) {
+    event?.stopPropagation();
+    const id = this.getRowId()(row);
+    const isCurrentlyExpanded = this.isSubRowExpanded(row);
+    const next = { ...this.subRowExpandedRows() };
+    next[id] = !isCurrentlyExpanded;
+    this.subRowExpandedRows.set(next);
+  }
+
+  expandSubRow(row: T) {
+    const id = this.getRowId()(row);
+    this.subRowExpandedRows.update(current => ({ ...current, [id]: true }));
+  }
+
+  collapseSubRow(row: T) {
+    const id = this.getRowId()(row);
+    const current = this.subRowExpandedRows();
+    const next = { ...current };
+    delete next[id];
+    this.subRowExpandedRows.set(next);
+  }
+
+  isSubRowExpanded(row: T): boolean {
+    const id = this.getRowId()(row);
+    const expanded = this.subRowExpandedRows();
+    if (id in expanded) return expanded[id];
+    const defaultExpanded = this.subRowDefaultExpanded();
+    if (defaultExpanded === -1) return true;
+    const depth = this.getRowDepth(row);
+    return depth < defaultExpanded;
+  }
+
+  expandAllSubRows(toDepth?: number) {
+    const getId = this.getRowId();
+    const getChildrenFn = this.getChildren();
+    const next: Record<string, boolean> = {};
+    const targetDepth = toDepth ?? -1;
+
+    const walk = (rows: T[], depth: number) => {
+      for (const row of rows) {
+        const children = getChildrenFn(row);
+        if (children && children.length > 0) {
+          if (targetDepth === -1 || depth < targetDepth) {
+            next[getId(row)] = true;
+          }
+          walk(children, depth + 1);
+        }
+      }
+    };
+    walk(this.data(), 0);
+    this.subRowExpandedRows.set(next);
+  }
+
+  collapseAllSubRows() {
+    this.subRowExpandedRows.set({});
+  }
+
+  isAllSubRowsExpanded = computed(() => {
+    if (!this.enableSubRows()) return false;
+    const getId = this.getRowId();
+    const getChildrenFn = this.getChildren();
+    const expanded = this.subRowExpandedRows();
+    const defaultExpanded = this.subRowDefaultExpanded();
+
+    const check = (rows: T[], depth: number): boolean => {
+      for (const row of rows) {
+        const children = getChildrenFn(row);
+        if (children && children.length > 0) {
+          const id = getId(row);
+          const isExp = id in expanded ? expanded[id] : (defaultExpanded === -1 || depth < defaultExpanded);
+          if (!isExp) return false;
+          if (!check(children, depth + 1)) return false;
+        }
+      }
+      return true;
+    };
+    return check(this.data(), 0);
+  });
+
+  getRowDepth(row: T): number {
+    const id = this.getRowId()(row);
+    const index = this.treeIndex();
+    let depth = 0;
+    let currentId: string | undefined = index.parent.get(id);
+    while (currentId !== undefined) {
+      depth++;
+      currentId = index.parent.get(currentId);
+    }
+    return depth;
+  }
+
+  getRowPath(rowId: string): string[] {
+    const index = this.treeIndex();
+    const path: string[] = [rowId];
+    let currentId: string | undefined = index.parent.get(rowId);
+    while (currentId !== undefined) {
+      path.unshift(currentId);
+      currentId = index.parent.get(currentId);
+    }
+    return path;
+  }
+
+  getParentRow(row: T): T | null {
+    const id = this.getRowId()(row);
+    const index = this.treeIndex();
+    const parentId = index.parent.get(id);
+    if (parentId === undefined) return null;
+    return this.findRowById(parentId);
+  }
+
+  getChildRows(row: T): T[] {
+    const getChildrenFn = this.getChildren();
+    return getChildrenFn(row) ?? [];
+  }
+
+  selectChildren(parentRow: T) {
+    const id = this.getRowId()(parentRow);
+    const index = this.treeIndex();
+    const descendantIds = index.descendants.get(id) ?? [];
+    const next = { ...this.rowSelection() };
+    descendantIds.forEach(did => next[did] = true);
+    this.rowSelection.set(next);
+  }
+
+  deselectChildren(parentRow: T) {
+    const id = this.getRowId()(parentRow);
+    const index = this.treeIndex();
+    const descendantIds = index.descendants.get(id) ?? [];
+    const next = { ...this.rowSelection() };
+    descendantIds.forEach(did => delete next[did]);
+    this.rowSelection.set(next);
+  }
+
+  toggleRowWithCascade(row: T) {
+    const mode = this.subRowSelectionMode();
+    if (mode === 'self') {
+      this.toggleRow(row);
+      return;
+    }
+
+    const id = this.getRowId()(row);
+    const isSelected = !!this.rowSelection()[id];
+    const index = this.treeIndex();
+    const next = { ...this.rowSelection() };
+
+    if (isSelected) {
+      delete next[id];
+    } else {
+      next[id] = true;
+    }
+
+    if (mode === 'descendants') {
+      const descendantIds = index.descendants.get(id) ?? [];
+      descendantIds.forEach(did => {
+        if (isSelected) {
+          delete next[did];
+        } else {
+          next[did] = true;
+        }
+      });
+    } else if (mode === 'filteredDescendants') {
+      const visibleIds = new Set(this.filteredRowIds());
+      const descendantIds = index.descendants.get(id) ?? [];
+      descendantIds.forEach(did => {
+        if (!visibleIds.has(did)) return;
+        if (isSelected) {
+          delete next[did];
+        } else {
+          next[did] = true;
+        }
+      });
+    }
+
+    this.bubbleUpSelection(id, next);
+    this.rowSelection.set(next);
+  }
+
+  isSubRowSelectionIndeterminate(row: T): boolean {
+    if (this.subRowSelectionMode() === 'self') return false;
+    const id = this.getRowId()(row);
+    const index = this.treeIndex();
+    const descendantIds = index.descendants.get(id) ?? [];
+    if (descendantIds.length === 0) return false;
+
+    const selected = this.rowSelection();
+    let selectedCount = 0;
+    for (const did of descendantIds) {
+      if (selected[did]) selectedCount++;
+    }
+    return selectedCount > 0 && selectedCount < descendantIds.length;
+  }
+
+  getSubRowComponentInputs(col: ColumnDef<T>, treeRow: FlattenedTreeRow<T>): Record<string, any> {
+    const base = col.componentInputs ? col.componentInputs(treeRow.row) : {};
+    const context: SubRowContext<T> = {
+      row: treeRow.row,
+      parentRow: treeRow.parentRow,
+      parentId: treeRow.parentId,
+      depth: treeRow.depth,
+      path: treeRow.path,
+      isLeaf: treeRow.isLeaf,
+      childCount: treeRow.childCount,
+    };
+    return { ...base, _subRowContext: context };
+  }
+
+  private bubbleUpSelection(rowId: string, selection: Record<string, boolean>) {
+    const index = this.treeIndex();
+    let parentId = index.parent.get(rowId);
+    while (parentId !== undefined) {
+      const siblingIds = index.children.get(parentId) ?? [];
+      const allSelected = siblingIds.every(sid => !!selection[sid]);
+      if (allSelected) {
+        selection[parentId] = true;
+      } else {
+        delete selection[parentId];
+      }
+      parentId = index.parent.get(parentId);
+    }
+  }
+
+  private findRowById(targetId: string): T | null {
+    const getId = this.getRowId();
+    const getChildrenFn = this.getChildren();
+
+    const search = (rows: T[]): T | null => {
+      for (const row of rows) {
+        if (getId(row) === targetId) return row;
+        const children = getChildrenFn(row);
+        if (children && children.length > 0) {
+          const found = search(children);
+          if (found) return found;
+        }
+      }
+      return null;
+    };
+    return search(this.data());
+  }
+
+  private isNodeExpanded(id: string, depth: number): boolean {
+    const expanded = this.subRowExpandedRows();
+    if (id in expanded) return expanded[id];
+    const defaultExpanded = this.subRowDefaultExpanded();
+    if (defaultExpanded === -1) return true;
+    return depth < defaultExpanded;
+  }
+
+  private flattenTreeFull(rows: T[]): FlattenedTreeRow<T>[] {
+    const getId = this.getRowId();
+    const getChildrenFn = this.getChildren();
+    const result: FlattenedTreeRow<T>[] = [];
+
+    const walk = (items: T[], depth: number, parentId: string | null, parentRow: T | null, path: string[]) => {
+      for (const row of items) {
+        const id = getId(row);
+        const children = getChildrenFn(row) ?? [];
+        const isLeaf = children.length === 0;
+        const rowExpanded = !isLeaf && this.isNodeExpanded(id, depth);
+        const rowPath = [...path, id];
+
+        result.push({
+          row,
+          depth,
+          parentId,
+          parentRow,
+          path: rowPath,
+          isLeaf,
+          childCount: children.length,
+          isExpanded: rowExpanded,
+        });
+
+        if (rowExpanded && children.length > 0) {
+          walk(children, depth + 1, id, row, rowPath);
+        }
+      }
+    };
+    walk(rows, 0, null, null, []);
+    return result;
+  }
+
+  private flattenTreeRowsForPage(rootSlice: T[]): T[] {
+    return this.flattenTreeFull(rootSlice).map(tr => tr.row);
+  }
+
+  private flattenTreeRowsForPageFull(rootSlice: T[]): FlattenedTreeRow<T>[] {
+    return this.flattenTreeFull(rootSlice);
+  }
+
   private downloadBlob(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
     const a = this._document.createElement('a');
@@ -1228,7 +2034,7 @@ export class DataTableComponent<T> {
     a.style.display = 'none';
     this._document.body.appendChild(a);
     a.click();
-    this._document.body.removeChild(a);
+    a.remove();
     URL.revokeObjectURL(url);
   }
 
@@ -1330,6 +2136,10 @@ export class DataTableComponent<T> {
     return this.processedData()[index];
   }
 
+  getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined {
+    return this.processedTreeRows()[index];
+  }
+
   private resizingColumn: any = null;
   private resizeStartX = 0;
   private resizeStartWidth = 0;
@@ -1351,7 +2161,7 @@ export class DataTableComponent<T> {
   private startResize(clientX: number, col: any) {
     this.resizingColumn = col;
     this.resizeStartX = clientX;
-    this.resizeStartWidth = parseInt(col._width, 10) || 150;
+    this.resizeStartWidth = Number.parseInt(col._width, 10) || 150;
     this._isRtlResize = this.isRtl();
 
     const onMouseMove = (e: MouseEvent) => this.onResizeMove(e.clientX);
@@ -1386,7 +2196,7 @@ export class DataTableComponent<T> {
 
     const delta = clientX - this.resizeStartX;
     const effectiveDelta = this._isRtlResize ? -delta : delta;
-    const minWidth = parseInt(this.resizingColumn._minWidth, 10) || 50;
+    const minWidth = Number.parseInt(this.resizingColumn._minWidth, 10) || 50;
     const newWidth = Math.max(minWidth, this.resizeStartWidth + effectiveDelta);
     const key = String(this.resizingColumn.accessorKey);
 

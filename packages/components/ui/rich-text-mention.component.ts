@@ -195,7 +195,7 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
 
   selectedIndex = signal<number>(0);
 
-  private clickListener = (event: MouseEvent) => {
+  private readonly clickListener = (event: MouseEvent) => {
     const target = event.target as HTMLElement;
     if (!target.closest('ui-rich-text-mention-popover')) {
       this.close.emit();
@@ -271,9 +271,6 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
         }
         break;
       case 'Escape':
-        event.preventDefault();
-        this.close.emit();
-        break;
       case 'Tab':
         event.preventDefault();
         this.close.emit();

@@ -78,7 +78,7 @@ export class SwitchComponent implements ControlValueAccessor {
     label = input<string | undefined>(undefined);
 
     // Auto-generate ID when label is used
-    private _generatedId = `switch-${++SwitchComponent.idCounter}`;
+    private readonly _generatedId = `switch-${++SwitchComponent.idCounter}`;
     computedId = computed(() => this._generatedId);
 
     private readonly _disabled = signal(false);

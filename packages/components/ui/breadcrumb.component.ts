@@ -5,12 +5,6 @@ import {
   computed,
   ElementRef,
   viewChild,
-  inject,
-  ContentChildren,
-  AfterContentInit,
-  QueryList,
-  forwardRef,
-  signal,
 } from '@angular/core';
 import { cn } from '../lib/utils';
 
@@ -169,7 +163,7 @@ export class BreadcrumbPageComponent {
   },
 })
 export class BreadcrumbSeparatorComponent {
-  private contentWrapper = viewChild<ElementRef>('contentWrapper');
+  private readonly contentWrapper = viewChild<ElementRef>('contentWrapper');
 
   class = input('');
   hasContent = computed(() => {

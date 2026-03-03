@@ -50,7 +50,6 @@ class TestHostComponent {
 
 describe('ParticlesComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let host: TestHostComponent;
 
     beforeEach(async () => {
         vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation(() => 1 as unknown as number);
@@ -61,7 +60,6 @@ describe('ParticlesComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        host = fixture.componentInstance;
         fixture.detectChanges();
     });
 
@@ -77,25 +75,25 @@ describe('ParticlesComponent', () => {
 
     it('should append the canvas as a child of the host element', () => {
         const hostEl = fixture.debugElement.query(By.directive(ParticlesComponent)).nativeElement as HTMLElement;
-        const canvas = hostEl.querySelector('canvas') as HTMLCanvasElement;
-        expect(canvas.parentElement).toBe(hostEl);
+        const canvas = hostEl.querySelector<HTMLCanvasElement>('canvas');
+        expect(canvas!.parentElement).toBe(hostEl);
     });
 
     it('should set canvas position to absolute', () => {
         const hostEl = fixture.debugElement.query(By.directive(ParticlesComponent)).nativeElement as HTMLElement;
-        const canvas = hostEl.querySelector('canvas') as HTMLCanvasElement;
-        expect(canvas.style.position).toBe('absolute');
+        const canvas = hostEl.querySelector<HTMLCanvasElement>('canvas');
+        expect(canvas!.style.position).toBe('absolute');
     });
 
     it('should set canvas pointerEvents to none', () => {
         const hostEl = fixture.debugElement.query(By.directive(ParticlesComponent)).nativeElement as HTMLElement;
-        const canvas = hostEl.querySelector('canvas') as HTMLCanvasElement;
-        expect(canvas.style.pointerEvents).toBe('none');
+        const canvas = hostEl.querySelector<HTMLCanvasElement>('canvas');
+        expect(canvas!.style.pointerEvents).toBe('none');
     });
 
     it('should set data-slot attribute on host', () => {
         const hostEl = fixture.debugElement.query(By.directive(ParticlesComponent)).nativeElement as HTMLElement;
-        expect(hostEl.getAttribute('data-slot')).toBe('particles');
+        expect(hostEl.dataset['slot']).toBe('particles');
     });
 
     it('should set host position to absolute', () => {
@@ -138,7 +136,7 @@ describe('ParticlesComponent reduced motion behavior', () => {
     let fixture: ComponentFixture<ReducedMotionHostComponent>;
 
     beforeEach(async () => {
-        vi.spyOn(window, 'matchMedia').mockReturnValue({
+        vi.spyOn(globalThis, 'matchMedia').mockReturnValue({
             matches: true,
             media: '(prefers-reduced-motion: reduce)',
             onchange: null,
@@ -175,7 +173,7 @@ describe('ParticlesComponent reduced motion behavior', () => {
 
     it('should still set the data-slot attribute even with reduced motion', () => {
         const hostEl = fixture.debugElement.query(By.directive(ParticlesComponent)).nativeElement as HTMLElement;
-        expect(hostEl.getAttribute('data-slot')).toBe('particles');
+        expect(hostEl.dataset['slot']).toBe('particles');
     });
 
     it('should not call the animate method when reduced motion is preferred', () => {

@@ -2,7 +2,6 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
     signal,
     forwardRef,
@@ -100,7 +99,7 @@ export class TextareaComponent implements ControlValueAccessor {
         this.onTouched = fn;
     }
 
-    setDisabledState(isDisabled: boolean): void { }
+    setDisabledState(_isDisabled: boolean): void { /* ControlValueAccessor - no-op: disabled state managed by input */ }
 
     toString(): string {
         return this.value();

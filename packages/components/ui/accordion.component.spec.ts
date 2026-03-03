@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent, ACCORDION } from './accordion.component';
+import { AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent } from './accordion.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -211,13 +211,13 @@ describe('Accordion Integration', () => {
 
     it('should have data-state attribute', async () => {
         const triggers = fixture.debugElement.queryAll(By.css('[data-slot="accordion-trigger"]'));
-        expect(triggers[0].nativeElement.getAttribute('data-state')).toBe('closed');
+        expect(triggers[0].nativeElement.dataset.state).toBe('closed');
 
         triggers[0].nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(triggers[0].nativeElement.getAttribute('data-state')).toBe('open');
+        expect(triggers[0].nativeElement.dataset.state).toBe('open');
     });
 
     it('should close previous item in single mode', async () => {

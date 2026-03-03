@@ -1,4 +1,4 @@
-import { Meta, StoryObj } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import {
   SelectComponent,
   SelectTriggerComponent,
@@ -9,9 +9,7 @@ import {
   SelectLabelComponent,
   SelectSeparatorComponent,
 } from './select.component';
-import { moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';
-import { signal } from '@angular/core';
 
 // Sample data for data-driven stories
 interface Country {

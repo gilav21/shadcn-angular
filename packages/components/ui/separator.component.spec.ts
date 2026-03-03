@@ -37,7 +37,7 @@ describe('SeparatorComponent', () => {
     });
 
     it('should have data-slot="separator"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('separator');
+        expect(fixture.nativeElement.dataset['slot']).toBe('separator');
     });
 
     it('should have role="separator"', () => {

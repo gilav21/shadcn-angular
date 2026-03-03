@@ -1,6 +1,86 @@
 import { Injectable, inject } from '@angular/core';
-import { DOCUMENT } from '@angular/common';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
+
+type ListType = 'ul' | 'ol' | 'task';
+
+interface ListContext {
+    type: ListType;
+    items: string[];
+    indent: number;
+    children: ListContext[];
+}
+
+interface ParsedListLine {
+    indent: number;
+    type: ListType;
+    content: string;
+}
+
+function parseListLine(line: string): ParsedListLine | null {
+    const taskMatch = new RegExp(/^(\s*)[-*+]\s+\[([ xX])\]\s*(.*)$/).exec(line);
+    if (taskMatch) {
+        const checked = taskMatch[2] !== ' ';
+        return {
+            indent: taskMatch[1].length,
+            type: 'task',
+            content: `[${checked ? 'x' : ' '}] ${taskMatch[3]}`,
+        };
+    }
+
+    const ulMatch = new RegExp(/^(\s*)[-*+]\s+(.+)$/).exec(line);
+    if (ulMatch) {
+        return { indent: ulMatch[1].length, type: 'ul', content: ulMatch[2] };
+    }
+
+    const olMatch = new RegExp(/^(\s*)\d+\.\s+(.+)$/).exec(line);
+    if (olMatch) {
+        return { indent: olMatch[1].length, type: 'ol', content: olMatch[2] };
+    }
+
+    return null;
+}
+
+function pushListItem(
+    stack: ListContext[],
+    rootLists: ListContext[],
+    type: ListType,
+    content: string,
+    indent: number,
+): void {
+    if (stack.length === 0) {
+        const ctx: ListContext = { type, items: [content], indent, children: [] };
+        rootLists.push(ctx);
+        stack.push(ctx);
+        return;
+    }
+
+    const parent = stack.at(-1)!;
+    if (indent > parent.indent) {
+        const child: ListContext = { type, items: [content], indent, children: [] };
+        parent.children[parent.items.length - 1] = child;
+        stack.push(child);
+    } else {
+        parent.items.push(content);
+        parent.children.push(undefined!);
+    }
+}
+
+function buildListContextHtml(ctx: ListContext): string {
+    const tag = ctx.type === 'task' ? 'ul' : ctx.type;
+    const taskAttr = ctx.type === 'task' ? ' data-task-list' : '';
+    const items = ctx.items.map((item, i) => {
+        const childHtml = ctx.children[i] ? buildListContextHtml(ctx.children[i]) : '';
+        if (ctx.type === 'task') {
+            const checked = item.startsWith('[x] ') || item.startsWith('[X] ');
+            const text = item.replace(/^\[[ xX]\]\s*/, '');
+            const checkedAttr = checked ? ' checked' : '';
+            return `<li data-task data-checked="${checked}">`
+                + `<input type="checkbox"${checkedAttr} /><span>${text}</span>${childHtml}</li>`;
+        }
+        return `<li>${item}${childHtml}</li>`;
+    });
+    return `<${tag}${taskAttr}>${items.join('')}</${tag}>`;
+}
 
 /**
  * Service for converting between Markdown and HTML.
@@ -23,7 +103,6 @@ import { RichTextSanitizerService } from './rich-text-sanitizer.service';
  */
 @Injectable({ providedIn: 'root' })
 export class RichTextMarkdownService {
-    private readonly document = inject(DOCUMENT);
     private readonly sanitizer = inject(RichTextSanitizerService);
 
     // =========================================================================
@@ -39,7 +118,7 @@ export class RichTextMarkdownService {
         let html = markdown;
 
         // Normalize line endings
-        html = html.replace(/\r\n/g, '\n');
+        html = html.replaceAll('\r\n', '\n');
 
         // Escape HTML entities in content (before processing)
         html = this.escapeHtmlInContent(html);
@@ -72,8 +151,8 @@ export class RichTextMarkdownService {
         // We need to be careful not to escape characters that are part of Markdown syntax
         // Only escape < and > that look like HTML tags
         return text
-            .replace(/<(?![\s\w*_`~\[\]!#-])/g, '&lt;')
-            .replace(/(?<![\s\w*_`~\[\]!#-])>/g, '&gt;');
+            .replaceAll(/<(?![\s\w*`~[\]!#-])/g, '&lt;')
+            .replaceAll(/(?<![\s\w*`~[\]!#-])>/g, '&gt;');
     }
 
     /**
@@ -82,7 +161,7 @@ export class RichTextMarkdownService {
     private parseCodeBlocks(html: string): string {
         // Fenced code blocks with optional language
         const fencedPattern = /```(\w*)\n([\s\S]*?)```/g;
-        html = html.replace(fencedPattern, (_, lang, code) => {
+        html = html.replaceAll(fencedPattern, (_, lang, code) => {
             const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
             const escapedCode = this.escapeHtml(code.trimEnd());
             return `<pre><code${langAttr}>${escapedCode}</code></pre>`;
@@ -90,7 +169,7 @@ export class RichTextMarkdownService {
 
         // Also support ~~~ fences
         const tildeFencedPattern = /~~~(\w*)\n([\s\S]*?)~~~/g;
-        html = html.replace(tildeFencedPattern, (_, lang, code) => {
+        html = html.replaceAll(tildeFencedPattern, (_, lang, code) => {
             const langAttr = lang ? ` data-language="${lang}" class="language-${lang}"` : '';
             const escapedCode = this.escapeHtml(code.trimEnd());
             return `<pre><code${langAttr}>${escapedCode}</code></pre>`;
@@ -103,7 +182,7 @@ export class RichTextMarkdownService {
      * Parse blockquotes (> text).
      */
     private parseToggleBlocks(html: string): string {
-        return html.replace(/:::details\s+(.*?)\n([\s\S]*?):::/g, (_match, title: string, content: string) => {
+        return html.replaceAll(/:::details\s+(.*?)\n([\s\S]*?):::/g, (_match, title: string, content: string) => {
             const parsedContent = content.trim();
             return `<details open><summary>${title}</summary><p>${parsedContent}</p></details>`;
         });
@@ -141,7 +220,7 @@ export class RichTextMarkdownService {
      * Parse headings (# - ######).
      */
     private parseHeadings(html: string): string {
-        return html.replace(/^(#{1,6})\s+(.+)$/gm, (_, hashes, content) => {
+        return html.replaceAll(/^(#{1,6})\s+(.+)$/gm, (_, hashes, content) => {
             const level = hashes.length;
             return `<h${level}>${content}</h${level}>`;
         });
@@ -154,90 +233,33 @@ export class RichTextMarkdownService {
         const lines = html.split('\n');
         const result: string[] = [];
 
-        interface ListContext {
-            type: 'ul' | 'ol' | 'task';
-            items: string[];
-            indent: number;
-            children: ListContext[];
-        }
-
-        const buildListHtml = (ctx: ListContext): string => {
-            const tag = ctx.type === 'task' ? 'ul' : ctx.type;
-            const taskAttr = ctx.type === 'task' ? ' data-task-list' : '';
-            const items = ctx.items.map((item, i) => {
-                const childHtml = ctx.children[i] ? buildListHtml(ctx.children[i]) : '';
-                if (ctx.type === 'task') {
-                    const checked = item.startsWith('[x] ') || item.startsWith('[X] ');
-                    const text = item.replace(/^\[[ xX]\]\s*/, '');
-                    const checkedAttr = checked ? ' checked' : '';
-                    return `<li data-task data-checked="${checked}">`
-                        + `<input type="checkbox"${checkedAttr} /><span>${text}</span>${childHtml}</li>`;
-                }
-                return `<li>${item}${childHtml}</li>`;
-            });
-            return `<${tag}${taskAttr}>${items.join('')}</${tag}>`;
-        };
-
         const stack: ListContext[] = [];
         let rootLists: ListContext[] = [];
 
         const flushStack = () => {
             for (const ctx of rootLists) {
-                result.push(buildListHtml(ctx));
+                result.push(buildListContextHtml(ctx));
             }
             rootLists = [];
             stack.length = 0;
         };
 
         for (const line of lines) {
-            const taskMatch = line.match(/^(\s*)[-*+]\s+\[([ xX])\]\s*(.*)$/);
-            const ulMatch = !taskMatch ? line.match(/^(\s*)[-*+]\s+(.+)$/) : null;
-            const olMatch = !taskMatch && !ulMatch ? line.match(/^(\s*)\d+\.\s+(.+)$/) : null;
+            const parsed = parseListLine(line);
 
-            if (taskMatch || ulMatch || olMatch) {
-                const indent = (taskMatch || ulMatch || olMatch)![1].length;
-                let type: 'ul' | 'ol' | 'task';
-                let content: string;
-                if (taskMatch) {
-                    type = 'task';
-                    const checked = taskMatch[2] !== ' ';
-                    content = `[${checked ? 'x' : ' '}] ${taskMatch[3]}`;
-                } else if (ulMatch) {
-                    type = 'ul';
-                    content = ulMatch[2];
-                } else {
-                    type = 'ol';
-                    content = olMatch![2];
-                }
-
-                while (stack.length > 0 && stack[stack.length - 1].indent >= indent) {
-                    stack.pop();
-                }
-
-                if (stack.length === 0) {
-                    const ctx: ListContext = { type, items: [content], indent, children: [] };
-                    rootLists.push(ctx);
-                    stack.push(ctx);
-                } else {
-                    const parent = stack[stack.length - 1];
-                    if (parent.type === type && indent === parent.indent) {
-                        parent.items.push(content);
-                        parent.children.push(undefined!);
-                    } else if (indent > parent.indent) {
-                        const child: ListContext = { type, items: [content], indent, children: [] };
-                        const parentIdx = parent.items.length - 1;
-                        parent.children[parentIdx] = child;
-                        stack.push(child);
-                    } else {
-                        parent.items.push(content);
-                        parent.children.push(undefined!);
-                    }
-                }
+            if (!parsed) {
+                flushStack();
+                result.push(line);
                 continue;
             }
 
-            flushStack();
-            result.push(line);
+            const { indent, type, content } = parsed;
+
+            while (stack.length > 0 && stack.at(-1)!.indent >= indent) {
+                stack.pop();
+            }
+
+            pushListItem(stack, rootLists, type, content, indent);
         }
 
         flushStack();
@@ -248,7 +270,7 @@ export class RichTextMarkdownService {
      * Parse horizontal rules (---, ***, ___).
      */
     private parseHorizontalRules(html: string): string {
-        return html.replace(/^([-*_]){3,}\s*$/gm, '<hr>');
+        return html.replaceAll(/^([-*_]){3,}\s*$/gm, '<hr>');
     }
 
     /**
@@ -279,7 +301,7 @@ export class RichTextMarkdownService {
      * Parse images ![alt](src).
      */
     private parseImages(html: string): string {
-        return html.replace(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
+        return html.replaceAll(/!\[([^\]]*)\]\(([^)]+)\)/g, (_, alt, src) => {
             const safeSrc = this.sanitizer.sanitizeImageSrc(src);
             if (!safeSrc) return '';
             return `<img src="${safeSrc}" alt="${this.escapeHtml(alt)}">`;
@@ -290,7 +312,7 @@ export class RichTextMarkdownService {
      * Parse links [text](url).
      */
     private parseLinks(html: string): string {
-        return html.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+        return html.replaceAll(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
             const safeUrl = this.sanitizer.sanitizeUrl(url);
             if (!safeUrl) return text;
             return `<a href="${safeUrl}" rel="noopener noreferrer">${text}</a>`;
@@ -303,14 +325,14 @@ export class RichTextMarkdownService {
      */
     private parseBoldItalic(html: string): string {
         // Bold + Italic: ***text*** or ___text___
-        html = html.replace(/(\*\*\*|___)(.+?)\1/g, '<strong><em>$2</em></strong>');
+        html = html.replaceAll(/(\*\*\*|___)(.+?)\1/g, '<strong><em>$2</em></strong>');
 
         // Bold: **text** or __text__
-        html = html.replace(/(\*\*|__)(.+?)\1/g, '<strong>$2</strong>');
+        html = html.replaceAll(/(\*\*|__)(.+?)\1/g, '<strong>$2</strong>');
 
         // Italic: *text* or _text_ (but not mid-word underscores)
-        html = html.replace(/(?<!\w)\*([^*]+)\*(?!\w)/g, '<em>$1</em>');
-        html = html.replace(/(?<!\w)_([^_]+)_(?!\w)/g, '<em>$1</em>');
+        html = html.replaceAll(/(?<!\w)\*([^*]+)\*(?!\w)/g, '<em>$1</em>');
+        html = html.replaceAll(/(?<!\w)_([^_]+)_(?!\w)/g, '<em>$1</em>');
 
         return html;
     }
@@ -319,14 +341,14 @@ export class RichTextMarkdownService {
      * Parse strikethrough ~~text~~.
      */
     private parseStrikethrough(html: string): string {
-        return html.replace(/~~(.+?)~~/g, '<del>$1</del>');
+        return html.replaceAll(/~~(.+?)~~/g, '<del>$1</del>');
     }
 
     /**
      * Parse inline code `code`.
      */
     private parseInlineCode(html: string): string {
-        return html.replace(/`([^`]+)`/g, '<code>$1</code>');
+        return html.replaceAll(/`([^`]+)`/g, '<code>$1</code>');
     }
 
     /**
@@ -334,7 +356,7 @@ export class RichTextMarkdownService {
      */
     private parseLineBreaks(html: string): string {
         // Two spaces at end of line = <br>
-        return html.replace(/  \n/g, '<br>\n');
+        return html.replaceAll('  \n', '<br>\n');
     }
 
     /**
@@ -342,11 +364,11 @@ export class RichTextMarkdownService {
      */
     private escapeHtml(text: string): string {
         return text
-            .replace(/&/g, '&amp;')
-            .replace(/</g, '&lt;')
-            .replace(/>/g, '&gt;')
-            .replace(/"/g, '&quot;')
-            .replace(/'/g, '&#39;');
+            .replaceAll('&', '&amp;')
+            .replaceAll('<', '&lt;')
+            .replaceAll('>', '&gt;')
+            .replaceAll('"', '&quot;')
+            .replaceAll("'", '&#39;');
     }
 
     // =========================================================================
@@ -381,152 +403,131 @@ export class RichTextMarkdownService {
             if (child.nodeType === Node.TEXT_NODE) {
                 result.push(child.textContent ?? '');
             } else if (child.nodeType === Node.ELEMENT_NODE) {
-                const element = child as HTMLElement;
-                const tagName = element.tagName.toLowerCase();
-                const inner = this.nodeToMarkdown(element);
-
-                switch (tagName) {
-                    // Headings
-                    case 'h1':
-                        result.push(`\n# ${inner}\n`);
-                        break;
-                    case 'h2':
-                        result.push(`\n## ${inner}\n`);
-                        break;
-                    case 'h3':
-                        result.push(`\n### ${inner}\n`);
-                        break;
-                    case 'h4':
-                        result.push(`\n#### ${inner}\n`);
-                        break;
-                    case 'h5':
-                        result.push(`\n##### ${inner}\n`);
-                        break;
-                    case 'h6':
-                        result.push(`\n###### ${inner}\n`);
-                        break;
-
-                    // Inline formatting
-                    case 'strong':
-                    case 'b':
-                        result.push(`**${inner}**`);
-                        break;
-                    case 'em':
-                    case 'i':
-                        result.push(`*${inner}*`);
-                        break;
-                    case 'del':
-                    case 's':
-                        result.push(`~~${inner}~~`);
-                        break;
-                    case 'u':
-                        // Markdown doesn't have underline, use HTML
-                        result.push(`<u>${inner}</u>`);
-                        break;
-
-                    // Code
-                    case 'code':
-                        if (element.parentElement?.tagName.toLowerCase() === 'pre') {
-                            result.push(inner);
-                        } else {
-                            result.push(`\`${inner}\``);
-                        }
-                        break;
-                    case 'pre':
-                        const lang = element.querySelector('code')?.getAttribute('data-language') ?? '';
-                        const codeContent = element.textContent ?? '';
-                        result.push(`\n\`\`\`${lang}\n${codeContent}\n\`\`\`\n`);
-                        break;
-
-                    // Links and images
-                    case 'a':
-                        const href = element.getAttribute('href') ?? '';
-                        result.push(`[${inner}](${href})`);
-                        break;
-                    case 'img':
-                        const src = element.getAttribute('src') ?? '';
-                        const alt = element.getAttribute('alt') ?? '';
-                        result.push(`![${alt}](${src})`);
-                        break;
-
-                    // Lists
-                    case 'ul': {
-                        const isTask = element.hasAttribute('data-task-list');
-                        result.push('\n');
-                        this.listToMarkdown(element, isTask ? 'task' : 'ul', '', result);
-                        break;
-                    }
-                    case 'ol': {
-                        result.push('\n');
-                        this.listToMarkdown(element, 'ol', '', result);
-                        break;
-                    }
-                    case 'li':
-                        result.push(inner);
-                        break;
-                    case 'input':
-                        break;
-
-                    // Toggle/collapsible blocks
-                    case 'details': {
-                        const summaryEl = element.querySelector('summary');
-                        const summaryText = summaryEl ? summaryEl.textContent?.trim() ?? 'Toggle' : 'Toggle';
-                        const contentParts: string[] = [];
-                        for (const ch of Array.from(element.childNodes)) {
-                            if (ch.nodeType === Node.ELEMENT_NODE && (ch as Element).tagName === 'SUMMARY') continue;
-                            contentParts.push(this.nodeToMarkdown(ch));
-                        }
-                        result.push(`\n:::details ${summaryText}\n${contentParts.join('').trim()}\n:::\n`);
-                        break;
-                    }
-                    case 'summary':
-                        result.push(inner);
-                        break;
-
-                    // Block elements
-                    case 'blockquote':
-                        const quoteLines = inner.split('\n').filter(Boolean);
-                        result.push('\n' + quoteLines.map(line => `> ${line}`).join('\n') + '\n');
-                        break;
-                    case 'p':
-                        result.push(`\n${inner}\n`);
-                        break;
-                    case 'div':
-                        result.push(`\n${inner}\n`);
-                        break;
-                    case 'br':
-                        result.push('  \n');
-                        break;
-                    case 'hr':
-                        result.push('\n---\n');
-                        break;
-
-                    // Mentions and tags
-                    case 'span':
-                        if (element.hasAttribute('data-mention')) {
-                            const mention = element.getAttribute('data-mention');
-                            result.push(`@${mention}`);
-                        } else if (element.hasAttribute('data-tag')) {
-                            const tag = element.getAttribute('data-tag');
-                            result.push(`#${tag}`);
-                        } else {
-                            result.push(inner);
-                        }
-                        break;
-
-                    // Tables - convert to simple format
-                    case 'table':
-                        result.push('\n' + this.tableToMarkdown(element) + '\n');
-                        break;
-
-                    // Default: just include content
-                    default:
-                        result.push(inner);
-                }
+                result.push(this.elementToMarkdown(child as HTMLElement));
             }
         }
 
         return result.join('');
+    }
+
+    private elementToMarkdown(element: HTMLElement): string {
+        const tagName = element.tagName.toLowerCase();
+        const inner = this.nodeToMarkdown(element);
+
+        const headingLevel = this.headingTagLevel(tagName);
+        if (headingLevel > 0) {
+            return `\n${'#'.repeat(headingLevel)} ${inner}\n`;
+        }
+
+        const inlineResult = this.inlineTagToMarkdown(tagName, inner, element);
+        if (inlineResult !== null) return inlineResult;
+
+        const blockResult = this.blockTagToMarkdown(tagName, inner, element);
+        if (blockResult !== null) return blockResult;
+
+        return inner;
+    }
+
+    private headingTagLevel(tagName: string): number {
+        const match = /^h([1-6])$/.exec(tagName);
+        return match ? Number(match[1]) : 0;
+    }
+
+    private inlineTagToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
+        switch (tagName) {
+            case 'strong':
+            case 'b':
+                return `**${inner}**`;
+            case 'em':
+            case 'i':
+                return `*${inner}*`;
+            case 'del':
+            case 's':
+                return `~~${inner}~~`;
+            case 'u':
+                return `<u>${inner}</u>`;
+            case 'code':
+                return element.parentElement?.tagName.toLowerCase() === 'pre'
+                    ? inner
+                    : `\`${inner}\``;
+            case 'a': {
+                const href = element.getAttribute('href') ?? '';
+                return `[${inner}](${href})`;
+            }
+            case 'img': {
+                const src = element.getAttribute('src') ?? '';
+                const alt = element.getAttribute('alt') ?? '';
+                return `![${alt}](${src})`;
+            }
+            case 'span':
+                return this.spanToMarkdown(element, inner);
+            default:
+                return null;
+        }
+    }
+
+    private spanToMarkdown(element: HTMLElement, inner: string): string {
+        if ('mention' in element.dataset) {
+            return `@${element.dataset['mention']}`;
+        }
+        if ('tag' in element.dataset) {
+            return `#${element.dataset['tag']}`;
+        }
+        return inner;
+    }
+
+    private blockTagToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
+        switch (tagName) {
+            case 'pre': {
+                const lang = element.querySelector('code')?.dataset['language'] ?? '';
+                const codeContent = element.textContent ?? '';
+                return `\n\`\`\`${lang}\n${codeContent}\n\`\`\`\n`;
+            }
+            case 'ul': {
+                const result: string[] = ['\n'];
+                const isTask = 'taskList' in element.dataset;
+                this.listToMarkdown(element, isTask ? 'task' : 'ul', '', result);
+                return result.join('');
+            }
+            case 'ol': {
+                const result: string[] = ['\n'];
+                this.listToMarkdown(element, 'ol', '', result);
+                return result.join('');
+            }
+            case 'li':
+            case 'summary':
+                return inner;
+            case 'input':
+                return '';
+            case 'details':
+                return this.detailsToMarkdown(element);
+            case 'blockquote': {
+                const quoteLines = inner.split('\n').filter(Boolean);
+                return '\n' + quoteLines.map(line => `> ${line}`).join('\n') + '\n';
+            }
+            case 'p':
+            case 'div':
+                return `\n${inner}\n`;
+            case 'br':
+                return '  \n';
+            case 'hr':
+                return '\n---\n';
+            case 'table':
+                return '\n' + this.tableToMarkdown(element) + '\n';
+            default:
+                return null;
+        }
+    }
+
+    private detailsToMarkdown(element: HTMLElement): string {
+        const summaryEl = element.querySelector('summary');
+        const summaryText = summaryEl?.textContent?.trim() ?? 'Toggle';
+        const contentParts: string[] = [];
+        for (const ch of Array.from(element.childNodes)) {
+            if (ch.nodeType === Node.ELEMENT_NODE && (ch as Element).tagName === 'SUMMARY') continue;
+            contentParts.push(this.nodeToMarkdown(ch));
+        }
+        return `\n:::details ${summaryText}\n${contentParts.join('').trim()}\n:::\n`;
     }
 
     /**
@@ -541,7 +542,7 @@ export class RichTextMarkdownService {
 
         for (const row of rows) {
             const cells = Array.from(row.querySelectorAll('th, td'));
-            const cellContents = cells.map(cell => this.nodeToMarkdown(cell).trim().replace(/\|/g, '\\|'));
+            const cellContents = cells.map(cell => this.nodeToMarkdown(cell).trim().replaceAll('|', String.raw`\|`));
 
             lines.push('| ' + cellContents.join(' | ') + ' |');
 
@@ -556,40 +557,51 @@ export class RichTextMarkdownService {
         return lines.join('\n');
     }
 
-    private listToMarkdown(listEl: HTMLElement, type: 'ul' | 'ol' | 'task', indent: string, result: string[]): void {
+    private listToMarkdown(listEl: HTMLElement, type: ListType, indent: string, result: string[]): void {
         const items = Array.from(listEl.children);
         items.forEach((li, index) => {
-            const childParts: string[] = [];
-            let nestedList: HTMLElement | null = null;
-            for (const ch of Array.from(li.childNodes)) {
-                if (ch.nodeType === Node.ELEMENT_NODE) {
-                    const tag = (ch as Element).tagName.toLowerCase();
-                    if (tag === 'ul' || tag === 'ol') {
-                        nestedList = ch as HTMLElement;
-                        continue;
-                    }
-                    if (tag === 'input') continue;
-                }
-                childParts.push(this.nodeToMarkdown(ch));
-            }
-            const content = childParts.join('').trim();
-
-            if (type === 'task') {
-                const checked = (li as HTMLElement).getAttribute('data-checked') === 'true';
-                result.push(`${indent}- [${checked ? 'x' : ' '}] ${content}\n`);
-            } else if (type === 'ol') {
-                result.push(`${indent}${index + 1}. ${content}\n`);
-            } else {
-                result.push(`${indent}- ${content}\n`);
-            }
+            const { content, nestedList } = this.extractListItemContent(li);
+            result.push(this.formatListItem(type, li as HTMLElement, content, indent, index));
 
             if (nestedList) {
-                const nestedTag = nestedList.tagName.toLowerCase();
-                const nestedType = nestedList.hasAttribute('data-task-list') ? 'task'
-                    : nestedTag === 'ol' ? 'ol' : 'ul';
+                const nestedType = this.detectNestedListType(nestedList);
                 this.listToMarkdown(nestedList, nestedType, indent + '  ', result);
             }
         });
+    }
+
+    private extractListItemContent(li: Element): { content: string; nestedList: HTMLElement | null } {
+        const childParts: string[] = [];
+        let nestedList: HTMLElement | null = null;
+        for (const ch of Array.from(li.childNodes)) {
+            if (ch.nodeType === Node.ELEMENT_NODE) {
+                const tag = (ch as Element).tagName.toLowerCase();
+                if (tag === 'ul' || tag === 'ol') {
+                    nestedList = ch as HTMLElement;
+                    continue;
+                }
+                if (tag === 'input') continue;
+            }
+            childParts.push(this.nodeToMarkdown(ch));
+        }
+        return { content: childParts.join('').trim(), nestedList };
+    }
+
+    private formatListItem(type: ListType, li: HTMLElement, content: string, indent: string, index: number): string {
+        if (type === 'task') {
+            const checked = li.dataset['checked'] === 'true';
+            return `${indent}- [${checked ? 'x' : ' '}] ${content}\n`;
+        }
+        if (type === 'ol') {
+            return `${indent}${index + 1}. ${content}\n`;
+        }
+        return `${indent}- ${content}\n`;
+    }
+
+    private detectNestedListType(nestedList: HTMLElement): ListType {
+        if ('taskList' in nestedList.dataset) return 'task';
+        if (nestedList.tagName.toLowerCase() === 'ol') return 'ol';
+        return 'ul';
     }
 
     // =========================================================================

@@ -53,7 +53,7 @@ export class ChatMessageComponent implements AfterContentInit {
 
   @ViewChild('projected', { static: true }) projectedRef?: ElementRef<HTMLElement>;
 
-  private _hasProjectedContent = signal(false);
+  private readonly _hasProjectedContent = signal(false);
   hasProjectedContent = this._hasProjectedContent.asReadonly();
 
   showAvatar = computed(() => this.role() !== 'system');

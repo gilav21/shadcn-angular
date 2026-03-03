@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent, SelectGroupComponent, SelectLabelComponent } from './select.component';
+import { SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent } from './select.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
@@ -294,7 +294,6 @@ describe('Select ControlValueAccessor', () => {
 
 describe('Select Keyboard Navigation', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let component: TestHostComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -302,7 +301,6 @@ describe('Select Keyboard Navigation', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
         await fixture.whenStable();
     });
@@ -648,7 +646,6 @@ describe('Select Data-Driven ControlValueAccessor', () => {
 // Data-driven keyboard navigation
 describe('Select Data-Driven Keyboard Navigation', () => {
     let fixture: ComponentFixture<DataDrivenStringTestHost>;
-    let component: DataDrivenStringTestHost;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -656,7 +653,6 @@ describe('Select Data-Driven Keyboard Navigation', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(DataDrivenStringTestHost);
-        component = fixture.componentInstance;
         fixture.detectChanges();
     });
 

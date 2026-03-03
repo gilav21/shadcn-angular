@@ -6,7 +6,7 @@ function toBytes(arr: number[]): Uint8Array {
 }
 
 function toBase64DataUrl(mime: string, bytes: number[]): string {
-    const binary = String.fromCharCode(...bytes);
+    const binary = String.fromCodePoint(...bytes);
     return `data:${mime};base64,${btoa(binary)}`;
 }
 
@@ -148,7 +148,7 @@ describe('isValidImageDataUrl', () => {
 
     it('should reject fake PNG data URL with JavaScript content', () => {
         const jsContent = new TextEncoder().encode('const x = 1;');
-        const binary = String.fromCharCode(...jsContent);
+        const binary = String.fromCodePoint(...jsContent);
         const dataUrl = `data:image/png;base64,${btoa(binary)}`;
         expect(isValidImageDataUrl(dataUrl)).toBe(false);
     });

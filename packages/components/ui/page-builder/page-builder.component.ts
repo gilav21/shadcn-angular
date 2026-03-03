@@ -394,7 +394,7 @@ export class PageBuilderComponent {
 
     categories = computed(() => {
         const cats = new Set(this.components().map(c => c.category));
-        return Array.from(cats).sort();
+        return Array.from(cats).sort((a, b) => a.localeCompare(b));
     });
 
     componentsByCategory = computed(() => {
@@ -407,7 +407,7 @@ export class PageBuilderComponent {
     });
 
     updateGridSetting(signal: WritableSignal<string>, value: string) {
-        if (value && !isNaN(parseFloat(value)) && isFinite(Number(value))) {
+        if (value && !Number.isNaN(Number.parseFloat(value)) && Number.isFinite(Number(value))) {
             signal.set(`${value}px`);
         } else {
             signal.set(value);
@@ -501,14 +501,14 @@ export class PageBuilderComponent {
         this.items.set(newItems);
     }
 
-    onItemChange(event: { id: string, prop: keyof DashboardItem | string, value: any }) {
+    onItemChange(event: { id: string, prop: string, value: any }) {
         const id = event.id;
         if (!id) return;
 
         this.items.update(items => items.map(item => {
             if (item.id === id) {
                 if (typeof event.prop === 'string' && !['x', 'y', 'cols', 'rows', 'bindings'].includes(event.prop)) {
-                    const newInputs = { ...(item.inputs || {}) };
+                    const newInputs = { ...item.inputs };
                     newInputs[event.prop] = event.value;
                     return { ...item, inputs: newInputs };
                 } else {
@@ -561,7 +561,7 @@ export class PageBuilderComponent {
         const jsonString = JSON.stringify(data, null, 2);
 
         try {
-            const win = window as unknown as WindowWithFileSystem;
+            const win = globalThis as unknown as WindowWithFileSystem;
             if (win.showSaveFilePicker) {
                 const handle = await win.showSaveFilePicker({
                     suggestedName: fileName,
@@ -581,7 +581,7 @@ export class PageBuilderComponent {
         }
 
         const blob = new Blob([jsonString], { type: 'application/json' });
-        const url = window.URL.createObjectURL(blob);
+        const url = globalThis.URL.createObjectURL(blob);
         const link = document.createElement('a');
         link.href = url;
         link.setAttribute('download', fileName);
@@ -591,14 +591,14 @@ export class PageBuilderComponent {
         link.click();
 
         setTimeout(() => {
-            document.body.removeChild(link);
-            window.URL.revokeObjectURL(url);
+            link.remove();
+            globalThis.URL.revokeObjectURL(url);
         }, 2000);
     }
 
     async importJson() {
         try {
-            const win = window as unknown as WindowWithFileSystem;
+            const win = globalThis as unknown as WindowWithFileSystem;
             if (win.showOpenFilePicker) {
                 const [handle] = await win.showOpenFilePicker({
                     types: [{
@@ -624,17 +624,13 @@ export class PageBuilderComponent {
         }
     }
 
-    handleFileInput(event: Event) {
+    async handleFileInput(event: Event) {
         const input = event.target as HTMLInputElement;
         const file = input.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const text = e.target?.result as string;
-            this.loadLayout(text);
-        };
-        reader.readAsText(file);
+        const text = await file.text();
+        this.loadLayout(text);
     }
 
     private loadLayout(jsonString: string) {
@@ -699,7 +695,7 @@ export class PageBuilderComponent {
 
             let type: InputType = 'string';
 
-            if (instance && instance[name] !== undefined) {
+            if (instance?.[name] !== undefined) {
                 const val = typeof instance[name] === 'function' ? instance[name]() : instance[name];
                 if (typeof val === 'number') type = 'number';
                 else if (typeof val === 'boolean') type = 'boolean';

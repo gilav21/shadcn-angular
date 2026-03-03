@@ -9,8 +9,7 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn , prefersReducedMotion } from '../lib/utils';
 
 @Component({
     selector: 'ui-stagger-children',
@@ -79,8 +78,8 @@ export class StaggerChildrenComponent implements AfterViewInit, OnDestroy {
 
     private hideChildren() {
         const children = (this.el.nativeElement as HTMLElement).children;
-        for (let i = 0; i < children.length; i++) {
-            (children[i] as HTMLElement).style.opacity = '0';
+        for (const child of Array.from(children)) {
+            (child as HTMLElement).style.opacity = '0';
         }
     }
 

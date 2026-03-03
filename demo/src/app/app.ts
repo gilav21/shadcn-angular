@@ -1,6 +1,6 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, effect, input, viewChild, DestroyRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, input, viewChild, DestroyRef } from '@angular/core';
 import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
-import { FormsModule } from '@angular/forms';
+import { FormsModule , FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { delay, of } from 'rxjs';
 import {
   ButtonComponent,
@@ -111,6 +111,7 @@ import {
   ContextMenuItemComponent,
   ContextMenuSeparatorComponent,
   ContextMenuShortcutComponent,
+  ContextMenuLabelComponent,
   DrawerComponent,
   DrawerTriggerComponent,
   DrawerContentComponent,
@@ -195,7 +196,6 @@ import {
   ButtonGroupComponent,
   ButtonGroupTextComponent,
   InputGroupComponent,
-  InputGroupInputComponent,
   InputGroupAddonComponent,
   InputGroupTextComponent,
   FieldComponent,
@@ -242,15 +242,19 @@ import {
   StepperDescriptionComponent,
   StepperContentComponent,
   FileUploadComponent,
+  FileViewerComponent,
+  FileViewerToolbarDirective,
+  FileViewerContentDirective,
   ColorPickerComponent,
   DataTableComponent,
-  DataTableContextMenuDirective,
   ColumnDef,
   DataTableColumnState,
   DataTableLoadingVisibility,
   ColumnResizeEvent,
   SortState,
   PaginationState,
+  SubRowSelectionMode,
+  SubRowFilterMode,
   ChatMessageComponent,
   ChatListComponent,
   ChatInputComponent,
@@ -316,7 +320,7 @@ import {
   ActionWidgetComponent
 } from './dashboard-widgets';
 import { PageViewerDemoComponent } from './page-viewer-demo.component';
-import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
+
 import { UiConfettiDirective } from "../../../packages/components/ui/confetti.directive";
 import {
   BentoGridComponent,
@@ -406,6 +410,15 @@ export interface Payment {
   email: string;
   clientName?: string;
   role?: string;
+}
+
+export interface OrgNode {
+  id: string;
+  name: string;
+  role: string;
+  headcount: number;
+  budget: number;
+  children?: OrgNode[];
 }
 
 export type ComponentCategory = 'Inputs' | 'Data Display' | 'Feedback' | 'Overlay' | 'Navigation' | 'Layout' | 'Charts' | 'Advanced';
@@ -619,6 +632,7 @@ class OpsTicketDetailComponent {
     ContextMenuItemComponent,
     ContextMenuSeparatorComponent,
     ContextMenuShortcutComponent,
+    ContextMenuLabelComponent,
     DrawerComponent,
     DrawerTriggerComponent,
     DrawerContentComponent,
@@ -700,7 +714,6 @@ class OpsTicketDetailComponent {
     ButtonGroupComponent,
     ButtonGroupTextComponent,
     InputGroupComponent,
-    InputGroupInputComponent,
     InputGroupAddonComponent,
     InputGroupTextComponent,
     FieldComponent,
@@ -749,6 +762,9 @@ class OpsTicketDetailComponent {
     StepperDescriptionComponent,
     StepperContentComponent,
     FileUploadComponent,
+    FileViewerComponent,
+    FileViewerToolbarDirective,
+    FileViewerContentDirective,
     ColorPickerComponent,
     UiConfettiDirective,
     NumberTickerComponent,
@@ -760,8 +776,6 @@ class OpsTicketDetailComponent {
     ColumnRangeChartComponent,
     BarRaceChartComponent,
     DataTableComponent,
-    OpsTableLoaderComponent,
-    OpsTicketDetailComponent,
     ChatMessageComponent,
     ChatListComponent,
     ChatInputComponent,
@@ -822,8 +836,8 @@ export class AppComponent {
   selectOptions = ['Apple', 'Banana', 'Blueberry', 'Grapes', 'Pineapple'];
   radioOptions = ['Default', 'Comfortable', 'Compact'];
 
-  private toastService = inject(ToastService);
-  private shortcutBindings = inject(ShortcutBindingService);
+  private readonly toastService = inject(ToastService);
+  private readonly shortcutBindings = inject(ShortcutBindingService);
   isDark = signal(false);
 
   kanbanColumns = signal<KanbanColumn[]>([
@@ -1096,11 +1110,26 @@ export class AppComponent {
     });
   }
 
-  onTreeContextMenu(action: string, node: any) {
+  onTreeContextMenu(action: string, node: unknown) {
+    const label = (node as Record<string, unknown>)?.['label'] ?? 'Unknown';
     console.log(`Tree Context Menu Action: ${action}`, node);
     this.toastService.toast({
       title: 'Tree Context Menu Action',
-      description: `Action: ${action} on node ${node?.label}`,
+      description: `Action: ${action} on node ${label}`,
+      variant: 'default',
+    });
+  }
+
+  readonly largeTreeData = signal<TreeNode[]>(this.generateDeepTree(5, 7));
+
+  onTreeTableContextMenu(event: any) {
+    console.log('Tree table context menu:', event);
+  }
+
+  onTreeTableAction(action: string, ctx: any) {
+    this.toastService.toast({
+      title: `${action} — ${ctx.row?.name}`,
+      description: `Depth: ${ctx.depth}, Leaf: ${ctx.isLeaf}, Children: ${ctx.childCount ?? 0}`,
       variant: 'default',
     });
   }
@@ -1157,8 +1186,8 @@ export class AppComponent {
       this.activeComponent.set(id);
       this.updateDocumentTitle(id);
     };
-    window.addEventListener('popstate', onPopState);
-    destroyRef.onDestroy(() => window.removeEventListener('popstate', onPopState));
+    globalThis.addEventListener('popstate', onPopState);
+    destroyRef.onDestroy(() => globalThis.removeEventListener('popstate', onPopState));
   }
 
   // Custom cells demo columns using components
@@ -1190,7 +1219,7 @@ export class AppComponent {
       // Custom sort function: success > processing > pending > failed
       sortFn: (a, b) => {
         const statusOrder = { success: 0, processing: 1, pending: 2, failed: 3 };
-        return statusOrder[a.status as keyof typeof statusOrder] - statusOrder[b.status as keyof typeof statusOrder];
+        return statusOrder[a.status] - statusOrder[b.status];
       }
     },
     {
@@ -1217,6 +1246,80 @@ export class AppComponent {
       variant: 'default'
     });
   }
+
+  // Sub-Rows / Tree Data Demo
+  treeSelectionMode = signal<SubRowSelectionMode>('descendants');
+  treeFilterMode = signal<SubRowFilterMode>('includeParentOnChildMatch');
+
+  orgTreeData: OrgNode[] = [
+    {
+      id: 'eng', name: 'Engineering', role: 'Department', headcount: 42, budget: 2800000,
+      children: [
+        {
+          id: 'eng-fe', name: 'Frontend', role: 'Team', headcount: 14, budget: 900000,
+          children: [
+            { id: 'eng-fe-web', name: 'Web Platform', role: 'Squad', headcount: 6, budget: 400000, children: [
+              { id: 'p-alice', name: 'Alice Chen', role: 'Tech Lead', headcount: 1, budget: 180000 },
+              { id: 'p-bob', name: 'Bob Park', role: 'Senior Engineer', headcount: 1, budget: 160000 },
+              { id: 'p-carol', name: 'Carol Wu', role: 'Engineer', headcount: 1, budget: 130000 },
+            ]},
+            { id: 'eng-fe-mobile', name: 'Mobile', role: 'Squad', headcount: 5, budget: 350000, children: [
+              { id: 'p-dave', name: 'Dave Kim', role: 'Tech Lead', headcount: 1, budget: 175000 },
+              { id: 'p-eve', name: 'Eve Singh', role: 'Engineer', headcount: 1, budget: 130000 },
+            ]},
+            { id: 'eng-fe-design', name: 'Design Systems', role: 'Squad', headcount: 3, budget: 250000 },
+          ],
+        },
+        {
+          id: 'eng-be', name: 'Backend', role: 'Team', headcount: 18, budget: 1200000,
+          children: [
+            { id: 'eng-be-api', name: 'API Platform', role: 'Squad', headcount: 8, budget: 550000, children: [
+              { id: 'p-frank', name: 'Frank Li', role: 'Principal Engineer', headcount: 1, budget: 200000 },
+              { id: 'p-grace', name: 'Grace Obi', role: 'Senior Engineer', headcount: 1, budget: 165000 },
+            ]},
+            { id: 'eng-be-data', name: 'Data Pipeline', role: 'Squad', headcount: 6, budget: 420000 },
+            { id: 'eng-be-infra', name: 'Infrastructure', role: 'Squad', headcount: 4, budget: 330000 },
+          ],
+        },
+        {
+          id: 'eng-qa', name: 'QA', role: 'Team', headcount: 10, budget: 700000,
+          children: [
+            { id: 'eng-qa-auto', name: 'Automation', role: 'Squad', headcount: 6, budget: 420000 },
+            { id: 'eng-qa-manual', name: 'Manual Testing', role: 'Squad', headcount: 4, budget: 280000 },
+          ],
+        },
+      ],
+    },
+    {
+      id: 'product', name: 'Product', role: 'Department', headcount: 15, budget: 1500000,
+      children: [
+        { id: 'prod-core', name: 'Core Product', role: 'Team', headcount: 8, budget: 850000, children: [
+          { id: 'p-hannah', name: 'Hannah Lee', role: 'Product Manager', headcount: 1, budget: 170000 },
+          { id: 'p-ivan', name: 'Ivan Petrov', role: 'Product Designer', headcount: 1, budget: 145000 },
+        ]},
+        { id: 'prod-growth', name: 'Growth', role: 'Team', headcount: 7, budget: 650000 },
+      ],
+    },
+    {
+      id: 'marketing', name: 'Marketing', role: 'Department', headcount: 12, budget: 1100000,
+      children: [
+        { id: 'mkt-content', name: 'Content', role: 'Team', headcount: 5, budget: 450000 },
+        { id: 'mkt-perf', name: 'Performance', role: 'Team', headcount: 4, budget: 380000 },
+        { id: 'mkt-brand', name: 'Brand', role: 'Team', headcount: 3, budget: 270000 },
+      ],
+    },
+    { id: 'finance', name: 'Finance', role: 'Department', headcount: 8, budget: 750000 },
+    { id: 'hr', name: 'Human Resources', role: 'Department', headcount: 6, budget: 520000 },
+  ];
+
+  orgTreeColumns: ColumnDef<OrgNode>[] = [
+    { accessorKey: 'name', header: 'Name', enableSorting: true, width: 'auto', minWidth: '250px' },
+    { accessorKey: 'role', header: 'Role', enableSorting: true, width: '180px' },
+    { accessorKey: 'headcount', header: 'Headcount', enableSorting: true, width: '120px',
+      cell: (row) => String(row.headcount) },
+    { accessorKey: 'budget', header: 'Budget', enableSorting: true, width: '150px',
+      cell: (row) => '$' + row.budget.toLocaleString() },
+  ];
 
   // Server-Side Demo State
   serverData = signal<Payment[]>([]);
@@ -1460,7 +1563,7 @@ export class AppComponent {
   private getFilteredSortedOpsData(): OpsTicket[] {
     const source = this.opsSource();
     const filter = this.opsFilter().toLowerCase();
-    const sorts = this.opsMultiSort().length > 0 ? this.opsMultiSort() : (this.opsSort().direction ? [this.opsSort()] : []);
+    const sorts = this.resolveOpsSorts();
 
     let rows = source;
 
@@ -1481,13 +1584,43 @@ export class AppComponent {
           const aVal = a[key];
           const bVal = b[key];
           if (aVal === bVal) continue;
-          return (aVal! > bVal! ? 1 : -1) * direction;
+          return this.compareOpsSortValues(aVal, bVal) * direction;
         }
         return 0;
       });
     }
 
     return rows;
+  }
+
+  private resolveOpsSorts() {
+    const multiSort = this.opsMultiSort();
+    if (multiSort.length > 0) {
+      return multiSort;
+    }
+    const singleSort = this.opsSort();
+    return singleSort.direction ? [singleSort] : [];
+  }
+
+  private compareOpsSortValues(aVal: OpsTicket[keyof OpsTicket], bVal: OpsTicket[keyof OpsTicket]): number {
+    if (typeof aVal === 'number' && typeof bVal === 'number') {
+      return aVal > bVal ? 1 : -1;
+    }
+    if (aVal instanceof Date && bVal instanceof Date) {
+      return aVal.getTime() > bVal.getTime() ? 1 : -1;
+    }
+    const aText = this.normalizeOpsSortValue(aVal);
+    const bText = this.normalizeOpsSortValue(bVal);
+    return aText.localeCompare(bText);
+  }
+
+  private normalizeOpsSortValue(value: unknown): string {
+    if (typeof value === 'string') return value;
+    if (typeof value === 'number' || typeof value === 'bigint' || typeof value === 'boolean') return `${value}`;
+    if (value instanceof Date) return value.toISOString();
+    if (Array.isArray(value)) return value.map(item => this.normalizeOpsSortValue(item)).join('|');
+    if (value && typeof value === 'object') return JSON.stringify(value);
+    return '';
   }
 
   opsExportProvider = async (): Promise<OpsTicket[]> => {
@@ -1600,10 +1733,9 @@ export class AppComponent {
         if (i < response.length) {
           this.chatMessages.update(msgs => {
             const newMsgs = [...msgs];
-            const lastMsg = newMsgs[newMsgs.length - 1];
-            if (lastMsg.role === 'assistant') {
-              newMsgs[newMsgs.length - 1] = { ...lastMsg, content: lastMsg.content + response[i] };
-            }
+            const lastMsg = newMsgs.at(-1);
+            if (lastMsg?.role !== 'assistant') return newMsgs;
+            newMsgs[newMsgs.length - 1] = { ...lastMsg, content: lastMsg.content + response[i] };
             return newMsgs;
           });
           i++;
@@ -1791,6 +1923,7 @@ ORDER BY created_at DESC;`;
     { id: 'rating', name: 'Rating', category: 'Inputs', icon: '⭐' },
     { id: 'stepper', name: 'Stepper', category: 'Navigation', icon: '👣' },
     { id: 'file-upload', name: 'File Upload', category: 'Advanced', icon: '📤' },
+    { id: 'file-viewer', name: 'File Viewer', category: 'Advanced', icon: '👁' },
     { id: 'color-picker', name: 'Color Picker', category: 'Advanced', icon: '🎨' },
     { id: 'confetti', name: 'Confetti', category: 'Advanced', icon: '🎉' },
     { id: 'number-ticker', name: 'Number Ticker', category: 'Data Display', icon: '🔢' },
@@ -1871,7 +2004,7 @@ ORDER BY created_at DESC;`;
 
   categories = computed(() => {
     const categories = new Set(this.componentLinks.map(l => l.category));
-    return Array.from(categories).sort();
+    return Array.from(categories).sort((a, b) => a.localeCompare(b));
   });
 
   getCategoryIcon(category: string): string {
@@ -1903,7 +2036,7 @@ ORDER BY created_at DESC;`;
   }
 
   private getComponentIdFromUrl(): string {
-    const path = window.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
+    const path = globalThis.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
     return path || 'introduction';
   }
 
@@ -1947,6 +2080,37 @@ ORDER BY created_at DESC;`;
   activeStep = signal(0);
   demoColor = signal('#3b82f6');
   colorPresets = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
+
+  // File Viewer Demo
+  fileViewerFile = signal<File | null>(null);
+  fileViewerType = signal('');
+
+  onFileViewerDrop(event: DragEvent): void {
+    event.preventDefault();
+    const file = event.dataTransfer?.files[0];
+    if (file) this.fileViewerFile.set(file);
+  }
+
+  onFileViewerSelect(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (file) this.fileViewerFile.set(file);
+  }
+
+  setFileViewerDemo(type: string): void {
+    const demos: Record<string, () => File> = {
+      text: () => new File(
+        ['# Hello World\n\nThis is a **sample** text file.\n\n- Item 1\n- Item 2\n- Item 3\n\n```typescript\nconst greeting = "Hello!";\nconsole.log(greeting);\n```'],
+        'readme.md', { type: 'text/plain' }
+      ),
+      svg: () => new File(
+        ['<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200"><defs><linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#4F46E5"/><stop offset="100%" stop-color="#7C3AED"/></linearGradient></defs><rect width="200" height="200" rx="20" fill="url(#g)"/><text x="100" y="110" text-anchor="middle" fill="white" font-size="24" font-family="sans-serif">SVG</text></svg>'],
+        'logo.svg', { type: 'image/svg+xml' }
+      ),
+    };
+    const fn = demos[type];
+    if (fn) this.fileViewerFile.set(fn());
+  }
 
   // Confetti Demo
   confettiTrigger1 = signal(false);
@@ -2433,17 +2597,8 @@ ORDER BY created_at DESC;`;
     const types = ['card', 'list', 'image', 'chart'];
     const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-    // Heights from 50px to 2000px with weighted distribution
-    const getHeight = () => {
-      const rand = Math.random();
-      if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);      // 40% small (50-150px)
-      if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);     // 30% medium (150-350px)
-      if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);     // 20% large (350-750px)
-      return 750 + Math.floor(Math.random() * 1250);                     // 10% extra large (750-2000px)
-    };
-
     for (let i = 0; i < this.ITEMS_PER_PAGE * 2; i++) {
-      const height = getHeight();
+      const height = this.getVirtualScrollItemHeight();
       const type = types[Math.floor(Math.random() * types.length)];
       const color = colors[Math.floor(Math.random() * colors.length)];
       const id = i + 1;
@@ -2500,18 +2655,10 @@ ORDER BY created_at DESC;`;
       const types = ['card', 'list', 'image', 'chart'];
       const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-      const getHeight = () => {
-        const rand = Math.random();
-        if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);
-        if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);
-        if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);
-        return 750 + Math.floor(Math.random() * 1250);
-      };
-
       const startId = currentItems.length + 1;
 
       for (let i = 0; i < this.ITEMS_PER_PAGE; i++) {
-        const height = getHeight();
+        const height = this.getVirtualScrollItemHeight();
         const type = types[Math.floor(Math.random() * types.length)];
         const color = colors[Math.floor(Math.random() * colors.length)];
         const id = startId + i;
@@ -2566,16 +2713,8 @@ ORDER BY created_at DESC;`;
       const types = ['card', 'list', 'image', 'chart'];
       const colors = ['#ef4444', '#f97316', '#eab308', '#22c55e', '#3b82f6', '#8b5cf6', '#ec4899'];
 
-      const getHeight = () => {
-        const rand = Math.random();
-        if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);
-        if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);
-        if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);
-        return 750 + Math.floor(Math.random() * 1250);
-      };
-
       for (let i = 0; i < this.ITEMS_PER_PAGE; i++) {
-        const height = getHeight();
+        const height = this.getVirtualScrollItemHeight();
         const type = types[Math.floor(Math.random() * types.length)];
         const color = colors[Math.floor(Math.random() * colors.length)];
         const id = -(this.virtualScrollPageTop * this.ITEMS_PER_PAGE + i + 1);
@@ -2618,11 +2757,35 @@ ORDER BY created_at DESC;`;
     this.virtualScrollProgress.set(state.scrollProgress);
   }
 
+  private getVirtualScrollItemHeight(): number {
+    const rand = Math.random();
+    if (rand < 0.4) return 50 + Math.floor(Math.random() * 100);
+    if (rand < 0.7) return 150 + Math.floor(Math.random() * 200);
+    if (rand < 0.9) return 350 + Math.floor(Math.random() * 400);
+    return 750 + Math.floor(Math.random() * 1250);
+  }
+
   scrollVirtualToTop() {
     this.virtualScrollRef()?.scrollToTop();
   }
 
   scrollVirtualToBottom() {
     this.virtualScrollRef()?.scrollToBottom();
+  }
+
+  private generateDeepTree(breadth: number, depth: number, prefix = 'node'): TreeNode[] {
+    if (depth === 0) return [];
+    const nodes: TreeNode[] = [];
+    for (let i = 0; i < breadth; i++) {
+      const key = `${prefix}-${i}`;
+      const children = depth > 1 ? this.generateDeepTree(breadth, depth - 1, key) : undefined;
+      nodes.push({
+        key,
+        label: key,
+        icon: children ? '📁' : '📄',
+        children,
+      });
+    }
+    return nodes;
   }
 }

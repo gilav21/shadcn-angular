@@ -2,7 +2,6 @@ import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ChatMessageComponent, ChatInputComponent } from './chat.component';
-import { provideNoopAnimations } from '@angular/platform-browser/animations';
 
 @Component({
     imports: [ChatMessageComponent],
@@ -120,8 +119,7 @@ describe('Chat Components', () => {
 
         beforeEach(async () => {
             await TestBed.configureTestingModule({
-                imports: [ChatInputComponent],
-                providers: [provideNoopAnimations()]
+                imports: [ChatInputComponent]
             }).compileComponents();
 
             fixture = TestBed.createComponent(ChatInputComponent);

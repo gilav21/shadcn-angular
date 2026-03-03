@@ -65,7 +65,7 @@ export class IconComponent {
   @Input() name: string = '';
   @Input() class: string = '';
 
-  private sanitizer = inject(DomSanitizer);
+  private readonly sanitizer = inject(DomSanitizer);
 
   svgContent = computed(() => {
     const iconName = this.name || '';

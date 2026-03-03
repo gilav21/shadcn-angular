@@ -6,7 +6,7 @@ import {
     ResizablePanelComponent,
     ResizableHandleComponent
 } from './resizable.component';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 @Component({
     template: `

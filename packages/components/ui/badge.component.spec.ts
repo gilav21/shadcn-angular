@@ -21,7 +21,7 @@ describe('BadgeComponent', () => {
     });
 
     it('should have data-slot="badge"', () => {
-        expect(fixture.nativeElement.getAttribute('data-slot')).toBe('badge');
+        expect(fixture.nativeElement.dataset['slot']).toBe('badge');
     });
 
     it('should apply base classes', () => {

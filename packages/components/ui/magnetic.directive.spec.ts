@@ -36,7 +36,7 @@ describe('UiMagneticDirective', () => {
         host = fixture.componentInstance;
         fixture.detectChanges();
 
-        magnetEl = fixture.nativeElement.querySelector('[uiMagnetic]') as HTMLElement;
+        magnetEl = (fixture.nativeElement as HTMLElement).querySelector('[uiMagnetic]') as HTMLElement;
 
         Object.defineProperty(magnetEl, 'getBoundingClientRect', {
             value: () => ({ left: 0, top: 0, width: 100, height: 50 }),
@@ -70,10 +70,10 @@ describe('UiMagneticDirective', () => {
         magnetEl.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, clientY: 25, bubbles: true }));
 
         const transform = directive.transform();
-        const match = transform.match(/translate\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/);
+        const match = /translate\((-?\d+\.?\d*)px,\s*(-?\d+\.?\d*)px\)/.exec(transform);
         expect(match).toBeTruthy();
 
-        const pullX = parseFloat(match![1]);
+        const pullX = Number.parseFloat(match![1]);
         const centerX = 50;
         const distX = 60 - centerX;
         expect(Math.abs(pullX - distX * 0.5)).toBeLessThan(0.01);

@@ -132,7 +132,7 @@ describe('Popover Integration', () => {
         await fixture.whenStable();
 
         const content = fixture.debugElement.query(By.css('[data-slot="popover-content"]'));
-        expect(content.nativeElement.getAttribute('data-state')).toBe('open');
+        expect(content.nativeElement.dataset.state).toBe('open');
     });
 
     it('should close on close button click', async () => {

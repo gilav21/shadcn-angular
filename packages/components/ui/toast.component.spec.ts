@@ -1,4 +1,4 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ToastService, ToasterComponent, ToastComponent } from './toast.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';

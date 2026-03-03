@@ -29,10 +29,10 @@ import { cn } from '../lib/utils';
 export class NumberTickerDigitComponent {
     digit = input.required<string>();
 
-    private el = inject(ElementRef);
-    private cdr = inject(ChangeDetectorRef);
+    private readonly el = inject(ElementRef);
+    private readonly cdr = inject(ChangeDetectorRef);
     prevDigit = signal<string>('0');
-    isDigit = computed(() => /^[0-9]$/.test(this.digit()));
+    isDigit = computed(() => /^\d$/.test(this.digit()));
 
     private _lastValue = '';
     private _initialized = false;
@@ -151,7 +151,7 @@ export class NumberTickerComponent implements OnDestroy {
         }, delayMs);
     }
 
-    private _animate = (timestamp: number) => {
+    private readonly _animate = (timestamp: number) => {
         if (!this._startTime) this._startTime = timestamp;
 
         const durationMs = this.duration() * 1000;

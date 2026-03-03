@@ -9,8 +9,7 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn , prefersReducedMotion } from '../lib/utils';
 
 @Component({
     selector: 'ui-shine-border',
@@ -75,7 +74,7 @@ export class ShineBorderComponent implements AfterViewInit, OnDestroy {
         wrapper.style.borderRadius = `${this.borderRadius()}px`;
     }
 
-    private animate = () => {
+    private readonly animate = () => {
         const elapsed = performance.now() - this.startTime;
         const durationMs = this.duration() * 1000;
         const angle = ((elapsed % durationMs) / durationMs) * 360;

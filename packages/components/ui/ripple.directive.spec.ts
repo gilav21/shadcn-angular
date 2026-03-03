@@ -1,6 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
-import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { UiRippleDirective } from './ripple.directive';
 
@@ -28,7 +27,7 @@ describe('UiRippleDirective', () => {
         host = fixture.componentInstance;
         fixture.detectChanges();
 
-        button = fixture.nativeElement.querySelector('button') as HTMLButtonElement;
+        button = (fixture.nativeElement as HTMLElement).querySelector('button') as HTMLButtonElement;
 
         Object.defineProperty(button, 'getBoundingClientRect', {
             value: () => ({ left: 0, top: 0, width: 100, height: 50 }),
@@ -68,7 +67,7 @@ describe('UiRippleDirective', () => {
         button.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 25, bubbles: true }));
         fixture.detectChanges();
 
-        const ripple = button.querySelector('span') as HTMLSpanElement;
+        const ripple = button.querySelector<HTMLSpanElement>('span')!;
         const expectedDiameter = Math.max(100, 50) * 2;
         expect(ripple.style.width).toBe(`${expectedDiameter}px`);
         expect(ripple.style.height).toBe(`${expectedDiameter}px`);
@@ -114,7 +113,7 @@ describe('UiRippleDirective', () => {
         button.dispatchEvent(new MouseEvent('click', { clientX: 50, clientY: 25, bubbles: true }));
         fixture.detectChanges();
 
-        const ripple = button.querySelector('span') as HTMLSpanElement;
+        const ripple = button.querySelector<HTMLSpanElement>('span')!;
         expect(ripple.style.backgroundColor).toBe('rgba(0, 0, 255, 0.5)');
     });
 

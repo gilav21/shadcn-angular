@@ -55,7 +55,7 @@ describe('DockItemComponent', () => {
         host.active.set(false);
         fixture.detectChanges();
 
-        const indicator = fixture.debugElement.query(By.css('.bg-foreground\\/50'));
+        const indicator = fixture.debugElement.query(By.css(String.raw`.bg-foreground\/50`));
         expect(indicator).toBeFalsy();
     });
 
@@ -64,7 +64,7 @@ describe('DockItemComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const indicator = fixture.debugElement.query(By.css('.bg-foreground\\/50'));
+        const indicator = fixture.debugElement.query(By.css(String.raw`.bg-foreground\/50`));
         expect(indicator).toBeTruthy();
     });
 

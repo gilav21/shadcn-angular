@@ -1,18 +1,15 @@
 import { TestBed } from '@angular/core/testing';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
-import { DomSanitizer } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('RichTextSanitizerService Security Audit', () => {
     let service: RichTextSanitizerService;
-    let domSanitizer: DomSanitizer;
 
     beforeEach(() => {
         TestBed.configureTestingModule({
             providers: [RichTextSanitizerService]
         });
         service = TestBed.inject(RichTextSanitizerService);
-        domSanitizer = TestBed.inject(DomSanitizer);
     });
 
     // Helper to bypass Angular's trustHTML for input, simulating raw input
@@ -131,7 +128,7 @@ describe('RichTextSanitizerService Security Audit', () => {
 
     describe('Base64 Image Magic Byte Validation', () => {
         it('should keep img with valid PNG base64 content', () => {
-            const pngBytes = String.fromCharCode(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00);
+            const pngBytes = String.fromCodePoint(0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00);
             const dataUrl = `data:image/png;base64,${btoa(pngBytes)}`;
             const input = `<img src="${dataUrl}">`;
             const output = sanitize(input);
@@ -147,7 +144,7 @@ describe('RichTextSanitizerService Security Audit', () => {
         });
 
         it('should strip img with fake PNG base64 (EXE content)', () => {
-            const exeBytes = String.fromCharCode(0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00);
+            const exeBytes = String.fromCodePoint(0x4D, 0x5A, 0x90, 0x00, 0x03, 0x00);
             const dataUrl = `data:image/png;base64,${btoa(exeBytes)}`;
             const input = `<img src="${dataUrl}">`;
             const output = sanitize(input);
@@ -169,7 +166,7 @@ describe('RichTextSanitizerService Security Audit', () => {
             const input = `<img src="${dataUrl}">`;
             const output = sanitize(input);
             if (output.includes('data:image/svg+xml')) {
-                const srcMatch = output.match(/src="([^"]+)"/);
+                const srcMatch = new RegExp(/src="([^"]+)"/).exec(output);
                 if (srcMatch) {
                     const base64Part = srcMatch[1].split(',')[1];
                     const decoded = atob(base64Part);
@@ -185,7 +182,7 @@ describe('RichTextSanitizerService Security Audit', () => {
             const input = `<img src="${dataUrl}">`;
             const output = sanitize(input);
             if (output.includes('data:image/svg+xml')) {
-                const srcMatch = output.match(/src="([^"]+)"/);
+                const srcMatch = new RegExp(/src="([^"]+)"/).exec(output);
                 if (srcMatch) {
                     const base64Part = srcMatch[1].split(',')[1];
                     const decoded = atob(base64Part);

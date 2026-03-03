@@ -146,7 +146,7 @@ export class AccordionItemComponent {
   title = input<string | undefined>(undefined);
   content = input<string | undefined>(undefined);
 
-  private accordion = inject(ACCORDION, { optional: true });
+  private readonly accordion = inject(ACCORDION, { optional: true });
 
   isOpen = computed(() => {
     return this.accordion?.isOpen(this.value()) ?? false;
@@ -201,8 +201,8 @@ export class AccordionItemComponent {
 export class AccordionTriggerComponent {
   class = input('');
 
-  private accordion = inject(ACCORDION, { optional: true });
-  private item = inject(AccordionItemComponent, { optional: true });
+  private readonly accordion = inject(ACCORDION, { optional: true });
+  private readonly item = inject(AccordionItemComponent, { optional: true });
 
   isOpen = computed(() => {
     const val = this.item?.value();
@@ -258,8 +258,8 @@ export class AccordionTriggerComponent {
 export class AccordionContentComponent {
   class = input('');
 
-  private accordion = inject(ACCORDION, { optional: true });
-  private item = inject(AccordionItemComponent, { optional: true });
+  private readonly accordion = inject(ACCORDION, { optional: true });
+  private readonly item = inject(AccordionItemComponent, { optional: true });
 
   isOpen = computed(() => {
     const val = this.item?.value();

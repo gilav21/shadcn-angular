@@ -23,8 +23,8 @@ import { cn, getClippingRect } from '../lib/utils';
 })
 export class HoverCardComponent {
     open = signal(false);
-    private openDelay = 200;
-    private closeDelay = 300;
+    private readonly openDelay = 200;
+    private readonly closeDelay = 300;
     private openTimeout?: ReturnType<typeof setTimeout>;
     private closeTimeout?: ReturnType<typeof setTimeout>;
 
@@ -73,7 +73,7 @@ export class HoverCardComponent {
     host: { class: 'contents' },
 })
 export class HoverCardTriggerComponent {
-    private hoverCard = inject(HoverCardComponent, { optional: true });
+    private readonly hoverCard = inject(HoverCardComponent, { optional: true });
 
     onMouseEnter() {
         this.hoverCard?.show();
@@ -113,7 +113,7 @@ export class HoverCardTriggerComponent {
     host: { class: 'contents' },
 })
 export class HoverCardContentComponent implements AfterViewInit {
-    hoverCard = inject(HoverCardComponent, { optional: true });
+    readonly hoverCard = inject(HoverCardComponent, { optional: true });
 
     class = input('');
     align = input<'start' | 'center' | 'end'>('center');
@@ -123,7 +123,7 @@ export class HoverCardContentComponent implements AfterViewInit {
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
-    private adjustedPosition = signal<{
+    private readonly adjustedPosition = signal<{
         offsetX: number;
         offsetY: number;
         actualSide: 'top' | 'bottom';

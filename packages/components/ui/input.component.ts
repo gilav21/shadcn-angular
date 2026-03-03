@@ -82,7 +82,7 @@ export class InputComponent implements ControlValueAccessor {
     private onChange: (value: string) => void = () => { };
     onTouched: () => void = () => { };
 
-    private formDisabled = signal(false);
+    private readonly formDisabled = signal(false);
 
     isDisabled = computed(() => this.disabled() || this.formDisabled());
 

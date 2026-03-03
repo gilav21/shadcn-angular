@@ -76,7 +76,7 @@ export class CollapsibleComponent {
     host: { class: 'contents' },
 })
 export class CollapsibleTriggerComponent {
-    collapsible = inject(CollapsibleComponent, { optional: true });
+    readonly collapsible = inject(CollapsibleComponent, { optional: true });
 
     onClick() {
         this.collapsible?.toggle();
@@ -100,7 +100,7 @@ export class CollapsibleTriggerComponent {
     host: { class: 'contents' },
 })
 export class CollapsibleContentComponent {
-    collapsible = inject(CollapsibleComponent, { optional: true });
+    readonly collapsible = inject(CollapsibleComponent, { optional: true });
     class = input('');
 
     classes = computed(() =>

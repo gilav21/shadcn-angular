@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Component, DebugElement, signal } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { SplitButtonComponent, SplitButtonItem, SplitButtonPrimaryComponent, SplitButtonMenuComponent, SplitButtonItemComponent } from './split-button.component';
+import { SplitButtonComponent, SplitButtonPrimaryComponent, SplitButtonMenuComponent, SplitButtonItemComponent } from './split-button.component';
 import { ButtonComponent, ButtonVariant } from './button.component';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
@@ -125,7 +125,6 @@ describe('SplitButtonComponent', () => {
 
             const items = fixture.debugElement.queryAll(By.css('[role="menuitem"]'));
             const firstItem = items[0].nativeElement;
-            const secondItem = items[1].nativeElement; // Disabled one
 
             firstItem.focus();
             expect(document.activeElement).toBe(firstItem);

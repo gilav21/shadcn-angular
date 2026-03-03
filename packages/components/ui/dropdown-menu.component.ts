@@ -106,9 +106,9 @@ export class DropdownMenuService {
     },
 })
 export class DropdownMenuComponent implements OnDestroy {
-    private el = inject(ElementRef);
-    private document = inject(DOCUMENT);
-    private service = inject(DropdownMenuService);
+    private readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
+    private readonly service = inject(DropdownMenuService);
 
     items = input<DropdownItem[]>([]);
     open = model(false);
@@ -118,7 +118,7 @@ export class DropdownMenuComponent implements OnDestroy {
         this.service.registerRoot(this.el.nativeElement);
     }
 
-    private clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent) => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.hide();
         }
@@ -157,15 +157,15 @@ export class DropdownMenuComponent implements OnDestroy {
     host: { class: 'contents' },
 })
 export class DropdownMenuTriggerComponent {
-    private menu = inject(DropdownMenuComponent, { optional: true });
-    private service = inject(DropdownMenuService);
-    private el = inject(ElementRef);
+    private readonly menu = inject(DropdownMenuComponent, { optional: true });
+    private readonly service = inject(DropdownMenuService);
+    private readonly el = inject(ElementRef);
 
     @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
 
     constructor() {
         setTimeout(() => {
-            const triggerButton = this.el.nativeElement.querySelector('[data-slot="dropdown-trigger"]') as HTMLElement;
+            const triggerButton = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[data-slot="dropdown-trigger"]');
             if (triggerButton) {
                 this.service.registerTrigger(triggerButton);
             }
@@ -203,10 +203,10 @@ export class DropdownMenuTriggerComponent {
     host: { class: 'contents' },
 })
 export class DropdownMenuContentComponent {
-    menu = inject(DropdownMenuComponent, { optional: true });
-    service = inject(DropdownMenuService);
-    el = inject(ElementRef);
-    private document = inject(DOCUMENT);
+    readonly menu = inject(DropdownMenuComponent, { optional: true });
+    readonly service = inject(DropdownMenuService);
+    readonly el = inject(ElementRef);
+    private readonly document = inject(DOCUMENT);
     class = input('');
     align = input<'start' | 'center' | 'end'>('start');
 
@@ -234,7 +234,7 @@ export class DropdownMenuContentComponent {
     }
 
     focusFirstItem() {
-        const item = this.el.nativeElement.querySelector('[role="menuitem"]:not([data-disabled])') as HTMLElement;
+        const item = (this.el.nativeElement as HTMLElement).querySelector<HTMLElement>('[role="menuitem"]:not([data-disabled])');
         item?.focus();
     }
 
@@ -255,7 +255,7 @@ export class DropdownMenuContentComponent {
             if (items.length === 0) return;
 
             const firstItem = items[0];
-            const lastItem = items[items.length - 1];
+            const lastItem = items.at(-1)!;
             const activeElement = this.document.activeElement as HTMLElement;
 
             if (event.shiftKey) {
@@ -264,13 +264,11 @@ export class DropdownMenuContentComponent {
                 } else {
                     this.focusPrevItem(activeElement);
                 }
-            } else {
-                if (activeElement === lastItem) {
+            } else if (activeElement === lastItem) {
                     firstItem.focus();
                 } else {
                     this.focusNextItem(activeElement);
                 }
-            }
         }
     }
 
@@ -289,7 +287,7 @@ export class DropdownMenuContentComponent {
     }
 
     getFocusableItems(): HTMLElement[] {
-        return Array.from(this.el.nativeElement.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        return Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
     }
 }
 
@@ -318,7 +316,7 @@ export class DropdownMenuItemComponent {
     disabled = input(false, { transform: booleanAttribute });
     shortcut = input('');
 
-    private menu = inject(DropdownMenuComponent, { optional: true });
+    private readonly menu = inject(DropdownMenuComponent, { optional: true });
 
     classes = computed(() =>
         cn(
@@ -433,9 +431,9 @@ export class DropdownMenuSubTriggerComponent {
     disabled = input(false, { transform: booleanAttribute });
     inset = input(false, { transform: booleanAttribute });
 
-    sub = inject(DropdownMenuSubComponent);
-    service = inject(DropdownMenuService);
-    el = inject(ElementRef);
+    readonly sub = inject(DropdownMenuSubComponent);
+    readonly service = inject(DropdownMenuService);
+    readonly el = inject(ElementRef);
 
     @ViewChild('trigger') triggerEl!: ElementRef<HTMLElement>;
 
@@ -501,9 +499,9 @@ export class DropdownMenuSubTriggerComponent {
 })
 export class DropdownMenuSubContentComponent {
     class = input('');
-    sub = inject(DropdownMenuSubComponent);
-    service = inject(DropdownMenuService);
-    el = inject(ElementRef);
+    readonly sub = inject(DropdownMenuSubComponent);
+    readonly service = inject(DropdownMenuService);
+    readonly el = inject(ElementRef);
 
     constructor() {
         this.sub.registerContent(this);
@@ -517,7 +515,7 @@ export class DropdownMenuSubContentComponent {
     ));
 
     focusFirst() {
-        const items = Array.from(this.el.nativeElement.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        const items = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         items[0]?.focus();
     }
 
@@ -550,16 +548,16 @@ export class DropdownMenuSubContentComponent {
     }
 
     focusNextItem(currentItem: HTMLElement) {
-        const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
-        const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
+        const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
         const nextIndex = (index + 1) % items.length;
         items[nextIndex]?.focus();
     }
 
     focusPrevItem(currentItem: HTMLElement) {
-        const div = (currentItem.closest('[role="menu"]') || currentItem) as HTMLElement;
-        const items = Array.from(div.querySelectorAll('[role="menuitem"]:not([data-disabled])')) as HTMLElement[];
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
+        const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
         const prevIndex = (index - 1 + items.length) % items.length;
         items[prevIndex]?.focus();

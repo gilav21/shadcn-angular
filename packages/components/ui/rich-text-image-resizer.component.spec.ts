@@ -173,7 +173,7 @@ describe('RichTextImageResizerComponent', () => {
             const mockEvent = { preventDefault: () => {}, stopPropagation: () => {} } as any;
             component.onAlignClick(mockEvent, 'right');
 
-            expect(img.getAttribute('data-align')).toBe('right');
+            expect(img.dataset['align']).toBe('right');
         });
 
         it('should apply alignment styles to the target image', () => {
@@ -204,7 +204,7 @@ describe('RichTextImageResizerComponent', () => {
     describe('currentAlignment', () => {
         it('should read data-align attribute from target element', () => {
             const img = document.createElement('img');
-            img.setAttribute('data-align', 'left');
+            img.dataset['align'] = 'left';
             fixture.componentRef.setInput('target', img);
             fixture.detectChanges();
 
@@ -221,7 +221,7 @@ describe('RichTextImageResizerComponent', () => {
 
         it('should return center when target has data-align set to center', () => {
             const img = document.createElement('img');
-            img.setAttribute('data-align', 'center');
+            img.dataset['align'] = 'center';
             fixture.componentRef.setInput('target', img);
             fixture.detectChanges();
 
@@ -230,7 +230,7 @@ describe('RichTextImageResizerComponent', () => {
 
         it('should return right when target has data-align set to right', () => {
             const img = document.createElement('img');
-            img.setAttribute('data-align', 'right');
+            img.dataset['align'] = 'right';
             fixture.componentRef.setInput('target', img);
             fixture.detectChanges();
 
