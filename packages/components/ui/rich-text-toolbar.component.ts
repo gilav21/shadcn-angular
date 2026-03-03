@@ -204,7 +204,7 @@ const ICONS: Record<string, string> = {
         @if (item === 'separator') {
           <ui-separator orientation="vertical" class="mx-1 h-6" />
         } @else if (item === 'link') {
-          <ui-popover [open]="openPopover() === 'link'" (openChange)="$event ? openPopoverPanel('link') : closePopoverPanel('link')">
+          <ui-popover [open]="openPopover() === 'link'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('link') : closePopoverPanel('link')">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -248,7 +248,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'image') {
-          <ui-popover [open]="openPopover() === 'image'" (openChange)="$event ? openPopoverPanel('image') : closePopoverPanel('image')">
+          <ui-popover [open]="openPopover() === 'image'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('image') : closePopoverPanel('image')">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -291,7 +291,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'emoji') {
-          <ui-emoji-picker [closeOnSelect]="false" (emojiSelect)="onEmojiSelect($event)">
+          <ui-emoji-picker [closeOnSelect]="false" [closeOnScroll]="true" (emojiSelect)="onEmojiSelect($event)">
             <ui-emoji-picker-trigger>
               <button
                 type="button"
@@ -305,7 +305,7 @@ const ICONS: Record<string, string> = {
             <ui-emoji-picker-content strategy="fixed" />
           </ui-emoji-picker>
         } @else if (item === 'fontColor') {
-          <ui-popover [open]="openPopover() === 'fontColor'" (openChange)="$event ? openPopoverPanel('fontColor') : closePopoverPanel('fontColor')">
+          <ui-popover [open]="openPopover() === 'fontColor'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('fontColor') : closePopoverPanel('fontColor')">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -336,7 +336,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'fontSize') {
-          <ui-popover [open]="openPopover() === 'fontSize'" (openChange)="$event ? openPopoverPanel('fontSize') : closePopoverPanel('fontSize')">
+          <ui-popover [open]="openPopover() === 'fontSize'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('fontSize') : closePopoverPanel('fontSize')">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -363,7 +363,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'backgroundColor') {
-          <ui-popover [open]="openPopover() === 'backgroundColor'" (openChange)="$event ? openPopoverPanel('backgroundColor') : closePopoverPanel('backgroundColor')">
+          <ui-popover [open]="openPopover() === 'backgroundColor'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('backgroundColor') : closePopoverPanel('backgroundColor')">
             <ui-popover-trigger>
               <button
                 type="button"
@@ -394,7 +394,7 @@ const ICONS: Record<string, string> = {
             </ui-popover-content>
           </ui-popover>
         } @else if (item === 'table') {
-          <ui-popover [open]="openPopover() === 'table'" (openChange)="$event ? openPopoverPanel('table') : closePopoverPanel('table')">
+          <ui-popover [open]="openPopover() === 'table'" [closeOnScroll]="true" (openChange)="$event ? openPopoverPanel('table') : closePopoverPanel('table')">
             <ui-popover-trigger>
               <button type="button" [class]="buttonClasses(item)" [title]="getTooltip(item)" [disabled]="interactionDisabled()">
                 <span [innerHTML]="getIcon('table')"></span>

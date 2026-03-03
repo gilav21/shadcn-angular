@@ -237,9 +237,15 @@ export class RichTextImageResizerComponent implements OnDestroy {
         const tRect = t.getBoundingClientRect();
         const cRect = c.getBoundingClientRect();
 
+        if (tRect.bottom < cRect.top || tRect.top > cRect.bottom ||
+            tRect.right < cRect.left || tRect.left > cRect.right) {
+            this.visible.set(false);
+            return;
+        }
+
         this.rect.set({
-            top: tRect.top - cRect.top + c.scrollTop,
-            left: tRect.left - cRect.left + c.scrollLeft,
+            top: tRect.top - cRect.top,
+            left: tRect.left - cRect.left,
             width: tRect.width,
             height: tRect.height
         });

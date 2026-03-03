@@ -1828,6 +1828,27 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             }
             queueMicrotask(() => this.scrollSelectedSlashCommandIntoView());
         });
+
+        effect(() => {
+            const visible = this.showFloatingToolbar();
+            this.removeFloatingScrollListener();
+            if (visible) {
+                setTimeout(() => {
+                    const handler = () => this.showFloatingToolbar.set(false);
+                    globalThis.window.addEventListener('scroll', handler, { capture: true, passive: true });
+                    this.floatingScrollCleanup = () => globalThis.window.removeEventListener('scroll', handler, { capture: true });
+                }, 0);
+            }
+        });
+    }
+
+    private floatingScrollCleanup: (() => void) | null = null;
+
+    private removeFloatingScrollListener(): void {
+        if (this.floatingScrollCleanup) {
+            this.floatingScrollCleanup();
+            this.floatingScrollCleanup = null;
+        }
     }
 
     ngOnInit() {
@@ -3668,8 +3689,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             const imgRect = entry.imgElement.getBoundingClientRect();
             entries.push({
                 id,
-                top: imgRect.top - containerRect.top + container.scrollTop,
-                left: imgRect.left - containerRect.left + container.scrollLeft,
+                top: imgRect.top - containerRect.top,
+                left: imgRect.left - containerRect.left,
                 width: Math.max(imgRect.width, 120),
                 height: Math.max(imgRect.height, 80),
             });
@@ -6289,5 +6310,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
         this.closeTableContextMenu();
+        this.removeFloatingScrollListener();
     }
 }

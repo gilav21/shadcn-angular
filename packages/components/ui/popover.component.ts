@@ -12,6 +12,7 @@ import {
     effect,
     ViewChild,
     model,
+    DestroyRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn, getClippingRect } from '../lib/utils';
@@ -28,8 +29,10 @@ type PopoverAlign = 'start' | 'center' | 'end';
 export class PopoverComponent implements OnDestroy {
     private readonly el = inject(ElementRef);
     private readonly document = inject(DOCUMENT);
+    private readonly destroyRef = inject(DestroyRef);
 
     open = model<boolean>(false);
+    closeOnScroll = input(false);
     openChange = output<boolean>();
 
     private readonly clickListener = (event: MouseEvent) => {
@@ -38,12 +41,43 @@ export class PopoverComponent implements OnDestroy {
         }
     };
 
+    private scrollCleanup: (() => void) | null = null;
+
     constructor() {
         this.document.addEventListener('click', this.clickListener);
+
+        effect(() => {
+            const isOpen = this.open();
+            const shouldClose = this.closeOnScroll();
+
+            this.removeScrollListener();
+
+            if (isOpen && shouldClose) {
+                setTimeout(() => {
+                    const el = this.el.nativeElement;
+                    const handler = (e: Event) => {
+                        if (e.target instanceof Node && el.contains(e.target)) return;
+                        this.hide();
+                    };
+                    globalThis.window.addEventListener('scroll', handler, { capture: true, passive: true });
+                    this.scrollCleanup = () => globalThis.window.removeEventListener('scroll', handler, { capture: true });
+                }, 0);
+            }
+        });
+
+        this.destroyRef.onDestroy(() => this.removeScrollListener());
+    }
+
+    private removeScrollListener(): void {
+        if (this.scrollCleanup) {
+            this.scrollCleanup();
+            this.scrollCleanup = null;
+        }
     }
 
     ngOnDestroy() {
         this.document.removeEventListener('click', this.clickListener);
+        this.removeScrollListener();
     }
 
     toggle() {

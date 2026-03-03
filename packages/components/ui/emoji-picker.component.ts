@@ -12,6 +12,7 @@ import {
     ViewChild,
     AfterViewInit,
     OnDestroy,
+    DestroyRef,
     effect,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
@@ -267,9 +268,45 @@ const EMOJI_CATEGORIES: EmojiCategory[] = [
     },
 })
 export class EmojiPickerComponent {
+    private readonly el = inject(ElementRef);
+    private readonly destroyRef = inject(DestroyRef);
+
     open = signal(false);
     closeOnSelect = input(true);
+    closeOnScroll = input(false);
     emojiSelect = output<string>();
+
+    private scrollCleanup: (() => void) | null = null;
+
+    constructor() {
+        effect(() => {
+            const isOpen = this.open();
+            const shouldClose = this.closeOnScroll();
+
+            this.removeScrollListener();
+
+            if (isOpen && shouldClose) {
+                setTimeout(() => {
+                    const el = this.el.nativeElement;
+                    const handler = (e: Event) => {
+                        if (e.target instanceof Node && el.contains(e.target)) return;
+                        this.hide();
+                    };
+                    globalThis.window.addEventListener('scroll', handler, { capture: true, passive: true });
+                    this.scrollCleanup = () => globalThis.window.removeEventListener('scroll', handler, { capture: true });
+                }, 0);
+            }
+        });
+
+        this.destroyRef.onDestroy(() => this.removeScrollListener());
+    }
+
+    private removeScrollListener(): void {
+        if (this.scrollCleanup) {
+            this.scrollCleanup();
+            this.scrollCleanup = null;
+        }
+    }
 
     toggle() {
         this.open.update(v => !v);
