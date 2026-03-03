@@ -219,13 +219,17 @@ export class RichTextPasteNormalizerService {
     private readonly relevantCssProperties = new Set([
         'color', 'background-color', 'background',
         'font-size', 'font-weight', 'font-style',
-        'text-decoration', 'text-align',
-        'font-family', 'line-height', 'text-indent',
-        'letter-spacing', 'vertical-align',
-        'margin-left', 'margin-right', 'margin-top', 'margin-bottom',
+        'text-decoration', 'text-decoration-style', 'text-decoration-color',
+        'text-align', 'text-transform', 'text-indent',
+        'font-family', 'font-variant', 'line-height', 'letter-spacing', 'word-spacing',
+        'vertical-align',
+        'margin', 'margin-left', 'margin-right', 'margin-top', 'margin-bottom',
         'border', 'border-top', 'border-bottom', 'border-left', 'border-right',
+        'border-width', 'border-style', 'border-color',
+        'border-collapse', 'border-spacing',
         'padding', 'padding-top', 'padding-bottom', 'padding-left', 'padding-right',
-        'text-transform', 'font-variant',
+        'list-style-type', 'table-layout',
+        'width', 'height',
     ]);
 
     private parseCssBlock(cssText: string, rules: Map<string, Map<string, string>>): void {
@@ -505,6 +509,14 @@ export class RichTextPasteNormalizerService {
         ['threedshadow', '#a0a0a0'],
     ]);
 
+    private isSimpleColorValue(value: string): boolean {
+        const v = value.trim().toLowerCase();
+        if (v.startsWith('#')) return true;
+        if (v.startsWith('rgb')) return true;
+        if (/^[a-z]+$/.test(v) && v !== 'none' && v !== 'inherit' && v !== 'initial' && v !== 'unset') return true;
+        return false;
+    }
+
     private isSystemColorValue(value: string): boolean {
         const lower = value.toLowerCase();
         return lower === 'auto' || this.systemColorMap.has(lower);
@@ -526,7 +538,11 @@ export class RichTextPasteNormalizerService {
                 if (prop.startsWith('mso-')) {
                     this.mapMsoProperty(prop, value, mapped, el);
                 } else if (!prop.startsWith('-')) {
-                    if ((prop === 'color' || prop === 'background-color') && this.isSystemColorValue(value)) {
+                    if (prop === 'background' && this.isSimpleColorValue(value)) {
+                        if (!mapped.has('background-color')) {
+                            mapped.set('background-color', value);
+                        }
+                    } else if ((prop === 'color' || prop === 'background-color') && this.isSystemColorValue(value)) {
                         const resolved = this.mapSystemColor(value);
                         if (resolved) mapped.set(prop, resolved);
                     } else {
