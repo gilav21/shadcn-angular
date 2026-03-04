@@ -1346,6 +1346,7 @@ export class AppComponent {
   serverSort = signal<SortState>({ column: 'email', direction: 'asc' });
   serverPagination = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
   serverFilter = signal('');
+  serverColumnFilters = signal<Record<string, unknown>>({});
 
   onServerSort(sort: SortState) {
     this.serverSort.set(sort);
@@ -1359,7 +1360,13 @@ export class AppComponent {
 
   onServerFilter(filter: string) {
     this.serverFilter.set(filter);
-    this.serverPagination.update(p => ({ ...p, pageIndex: 0 })); // Reset to first page
+    this.serverPagination.update(p => ({ ...p, pageIndex: 0 }));
+    this.loadServerData();
+  }
+
+  onServerColumnFilters(filters: Record<string, unknown>) {
+    this.serverColumnFilters.set(filters);
+    this.serverPagination.update(p => ({ ...p, pageIndex: 0 }));
     this.loadServerData();
   }
 
@@ -1375,11 +1382,22 @@ export class AppComponent {
     of(null).pipe(delay(1000)).subscribe(() => {
       let filtered = allData;
 
-      // 1. Filter
+      // 1a. Global filter
       if (filter) {
         filtered = filtered.filter(row =>
           Object.values(row).some(val => String(val).toLowerCase().includes(filter))
         );
+      }
+
+      // 1b. Column filters
+      const colFilters = this.serverColumnFilters();
+      for (const key of Object.keys(colFilters)) {
+        const val = colFilters[key];
+        if (val === null || val === undefined || val === '') continue;
+        const col = this.paymentColumns.find(c => c.accessorKey === key);
+        if (col?.filterFn) {
+          filtered = filtered.filter(row => col.filterFn!(row, val));
+        }
       }
 
       // 2. Sort

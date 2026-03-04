@@ -3847,7 +3847,7 @@
             <ui-data-table #serverGrid [data]="serverData()" [columns]="paymentColumns" [total]="serverTotal()"
               [localSorting]="false" [localPagination]="false" [localFiltering]="false"
               (sortChange)="onServerSort($event)" (pageChange)="onServerPage($event)"
-              (filterChange)="onServerFilter($event)" />
+              (filterChange)="onServerFilter($event)" (columnFiltersChange)="onServerColumnFilters($event)" />
           </div>
           <div class="text-xs text-muted-foreground">
             "Export All" passes the full dataset inline: <code
