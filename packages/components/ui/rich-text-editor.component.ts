@@ -2948,18 +2948,19 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         const mentionTargets = this.getMentionElementsInSelection();
 
-        this.execEditorCommand('fontName', family);
+        this.execEditorCommand('fontSize', '7');
         if (this.editorDiv?.nativeElement) {
-            const fontElements = this.editorDiv.nativeElement.querySelectorAll('font[face]');
-            for (const font of fontElements) {
+            const fontElements = this.editorDiv.nativeElement.querySelectorAll('font[size="7"]');
+
+            fontElements.forEach((font: Element) => {
                 const el = font as HTMLElement;
                 const span = this.document.createElement('span');
-                span.style.fontFamily = el.getAttribute('face') ?? family;
+                span.style.fontFamily = family;
                 while (el.firstChild) {
                     span.appendChild(el.firstChild);
                 }
                 el.parentNode?.replaceChild(span, el);
-            }
+            });
         }
 
         this.setMentionStyle(mentionTargets, 'fontFamily', family);
