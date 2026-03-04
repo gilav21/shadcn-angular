@@ -4,6 +4,7 @@ import { isValidImageMagicBytes } from './image-validator';
 export type DocxVertAlign = 'superscript' | 'subscript';
 export type DocxBreakType = 'page' | 'column' | 'textWrapping';
 export type DocxListType = 'bullet' | 'numbered';
+type FieldState = 'none' | 'begin' | 'separate';
 
 export interface DocxRunStyle {
     readonly bold?: boolean;
@@ -205,12 +206,7 @@ function getChildNS(parent: Element, ns: string, localName: string): Element | n
 }
 
 function getAllChildrenNS(parent: Element, ns: string, localName: string): Element[] {
-    const nodeList = parent.getElementsByTagNameNS(ns, localName);
-    const result: Element[] = [];
-    for (let i = 0; i < nodeList.length; i++) {
-        result.push(nodeList[i]);
-    }
-    return result;
+    return Array.from(parent.getElementsByTagNameNS(ns, localName));
 }
 
 function getAttrVal(element: Element, ns: string, localName: string): string | null {
@@ -227,9 +223,9 @@ function parseRelationships(files: Map<string, Uint8Array>): Map<string, string>
     const rels = doc.getElementsByTagName('Relationship');
     const map = new Map<string, string>();
 
-    for (let i = 0; i < rels.length; i++) {
-        const id = rels[i].getAttribute('Id') ?? '';
-        const target = rels[i].getAttribute('Target') ?? '';
+    for (const rel of Array.from(rels)) {
+        const id = rel.getAttribute('Id') ?? '';
+        const target = rel.getAttribute('Target') ?? '';
         map.set(id, target);
     }
 
@@ -698,47 +694,78 @@ function parseRunChildren(
     const runs: DocxRun[] = [];
     const images: DocxImage[] = [];
 
-    for (let i = 0; i < run.childNodes.length; i++) {
-        const child = run.childNodes[i];
-        if (!(child instanceof Element)) continue;
-
-        const localName = child.localName;
-        if (localName === 't') {
-            const text = child.textContent ?? '';
-            if (text) runs.push({ text, style });
-        } else if (localName === 'delText') {
-            const text = child.textContent ?? '';
-            if (text) runs.push({ text, style });
-        } else if (localName === 'br') {
-            const breakType = parseBreakType(child);
-            runs.push({ text: '\n', style, breakType });
-        } else if (localName === 'tab') {
-            runs.push({ text: '\t', style });
-        } else if (localName === 'sym') {
-            const symRun = parseSymbol(child, style);
-            if (symRun) runs.push(symRun);
-        } else if (localName === 'noBreakHyphen') {
-            runs.push({ text: '\u2011', style });
-        } else if (localName === 'softHyphen') {
-            runs.push({ text: '\u00AD', style });
-        } else if (localName === 'drawing' || localName === 'pict') {
-            const img = extractImageFromDrawing(child, relationships, files);
-            if (img) images.push(img);
-        } else if (localName === 'footnoteReference' || localName === 'endnoteReference') {
-            const noteId = getAttrVal(child, NS_W, 'id');
-            if (noteId) {
-                const marker = localName === 'footnoteReference' ? `[${noteId}]` : `{${noteId}}`;
-                runs.push({ text: marker, style: { ...style, vertAlign: 'superscript' } });
-            }
-        } else if (localName === 'commentReference') {
-            const commentId = getAttrVal(child, NS_W, 'id');
-            if (commentId) {
-                runs.push({ text: `*${commentId}`, style: { ...style, vertAlign: 'superscript' } });
-            }
+    for (const child of Array.from(run.childNodes)) {
+        if (child instanceof Element) {
+            parseRunChildElement(child, style, runs, images, relationships, files);
         }
     }
 
     return { runs, images };
+}
+
+const SIMPLE_RUN_CHARS: Record<string, string> = {
+    tab: '\t',
+    noBreakHyphen: '\u2011',
+    softHyphen: '\u00AD',
+};
+
+function parseRunChildElement(
+    child: Element,
+    style: DocxRunStyle,
+    runs: DocxRun[],
+    images: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+): void {
+    const localName = child.localName;
+
+    if (localName === 't' || localName === 'delText') {
+        const text = child.textContent ?? '';
+        if (text) runs.push({ text, style });
+        return;
+    }
+    if (localName === 'br') {
+        runs.push({ text: '\n', style, breakType: parseBreakType(child) });
+        return;
+    }
+    const simpleChar = SIMPLE_RUN_CHARS[localName];
+    if (simpleChar) {
+        runs.push({ text: simpleChar, style });
+        return;
+    }
+    if (localName === 'sym') {
+        const symRun = parseSymbol(child, style);
+        if (symRun) runs.push(symRun);
+        return;
+    }
+    if (localName === 'drawing' || localName === 'pict') {
+        const img = extractImageFromDrawing(child, relationships, files);
+        if (img) images.push(img);
+        return;
+    }
+    if (localName === 'footnoteReference' || localName === 'endnoteReference') {
+        parseNoteReference(child, localName, style, runs);
+        return;
+    }
+    if (localName === 'commentReference') {
+        const commentId = getAttrVal(child, NS_W, 'id');
+        if (commentId) {
+            runs.push({ text: `*${commentId}`, style: { ...style, vertAlign: 'superscript' } });
+        }
+    }
+}
+
+function parseNoteReference(
+    child: Element,
+    localName: string,
+    style: DocxRunStyle,
+    runs: DocxRun[],
+): void {
+    const noteId = getAttrVal(child, NS_W, 'id');
+    if (noteId) {
+        const marker = localName === 'footnoteReference' ? `[${noteId}]` : `{${noteId}}`;
+        runs.push({ text: marker, style: { ...style, vertAlign: 'superscript' } });
+    }
 }
 
 function parseBreakType(br: Element): DocxBreakType | undefined {
@@ -811,38 +838,63 @@ function collectDirectChildRuns(
 ): { runs: DocxRun[]; images: DocxImage[] } {
     const allRuns: DocxRun[] = [];
     const allImages: DocxImage[] = [];
-    let fieldState: 'none' | 'begin' | 'separate' = 'none';
+    let fieldState: FieldState = 'none';
 
-    for (let i = 0; i < para.childNodes.length; i++) {
-        const child = para.childNodes[i];
+    for (const child of Array.from(para.childNodes)) {
         if (!(child instanceof Element)) continue;
-
-        if (child.localName === 'r' && child.namespaceURI === NS_W) {
-            const fldCharResult = checkFieldChar(child);
-            if (fldCharResult === 'begin') { fieldState = 'begin'; continue; }
-            if (fldCharResult === 'separate') { fieldState = 'separate'; continue; }
-            if (fldCharResult === 'end') { fieldState = 'none'; continue; }
-
-            if (fieldState === 'begin') continue;
-            if (fieldState === 'separate') {
-                const { runs, images } = parseRun(child, relationships, files, themeColors);
-                allRuns.push(...runs);
-                allImages.push(...images);
-                continue;
-            }
-        }
-
-        if (fieldState === 'begin') continue;
-
-        collectChildElement(child, allRuns, allImages, relationships, files, themeColors);
+        fieldState = processDirectChild(child, fieldState, allRuns, allImages, relationships, files, themeColors);
     }
 
     return { runs: allRuns, images: allImages };
 }
 
+function processDirectChild(
+    child: Element,
+    fieldState: FieldState,
+    allRuns: DocxRun[],
+    allImages: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
+): FieldState {
+    if (child.localName === 'r' && child.namespaceURI === NS_W) {
+        return processRunInField(child, fieldState, allRuns, allImages, relationships, files, themeColors);
+    }
+
+    if (fieldState !== 'begin') {
+        collectChildElement(child, allRuns, allImages, relationships, files, themeColors);
+    }
+    return fieldState;
+}
+
+function processRunInField(
+    child: Element,
+    fieldState: FieldState,
+    allRuns: DocxRun[],
+    allImages: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    themeColors?: ThemeColorMap,
+): FieldState {
+    const fldCharResult = checkFieldChar(child);
+    if (fldCharResult === 'begin') return 'begin';
+    if (fldCharResult === 'separate') return 'separate';
+    if (fldCharResult === 'end') return 'none';
+
+    if (fieldState === 'begin') return fieldState;
+    if (fieldState === 'separate') {
+        const { runs, images } = parseRun(child, relationships, files, themeColors);
+        allRuns.push(...runs);
+        allImages.push(...images);
+        return fieldState;
+    }
+
+    collectChildElement(child, allRuns, allImages, relationships, files, themeColors);
+    return fieldState;
+}
+
 function checkFieldChar(run: Element): 'begin' | 'separate' | 'end' | null {
-    for (let i = 0; i < run.childNodes.length; i++) {
-        const child = run.childNodes[i];
+    for (const child of Array.from(run.childNodes)) {
         if (child instanceof Element && child.localName === 'fldChar') {
             const fldCharType = getAttrVal(child, NS_W, 'fldCharType');
             if (fldCharType === 'begin') return 'begin';
@@ -923,8 +975,7 @@ function collectTrackChangeRuns(
     isInserted: boolean,
     themeColors?: ThemeColorMap,
 ): void {
-    for (let i = 0; i < element.childNodes.length; i++) {
-        const child = element.childNodes[i];
+    for (const child of Array.from(element.childNodes)) {
         if (!(child instanceof Element)) continue;
 
         if (child.localName === 'r') {
@@ -995,19 +1046,19 @@ function buildParagraphFromStyle(
         type: 'paragraph',
         runs,
         style: sr.style,
-        ...(sr.listLevel !== undefined ? { listLevel: sr.listLevel } : {}),
-        ...(sr.listType !== undefined ? { listType: sr.listType } : {}),
-        ...(sr.rtl !== undefined ? { rtl: sr.rtl } : {}),
-        ...(sr.alignment !== undefined ? { alignment: sr.alignment } : {}),
-        ...(sr.spacingBefore !== undefined ? { spacingBefore: sr.spacingBefore } : {}),
-        ...(sr.spacingAfter !== undefined ? { spacingAfter: sr.spacingAfter } : {}),
-        ...(sr.lineSpacing !== undefined ? { lineSpacing: sr.lineSpacing } : {}),
-        ...(sr.indentLeft !== undefined ? { indentLeft: sr.indentLeft } : {}),
-        ...(sr.indentRight !== undefined ? { indentRight: sr.indentRight } : {}),
-        ...(sr.indentHanging !== undefined ? { indentHanging: sr.indentHanging } : {}),
-        ...(sr.indentFirstLine !== undefined ? { indentFirstLine: sr.indentFirstLine } : {}),
-        ...(sr.shading !== undefined ? { shading: sr.shading } : {}),
-        ...(sr.borders !== undefined ? { borders: sr.borders } : {}),
+        ...(sr.listLevel === undefined ? {} : { listLevel: sr.listLevel }),
+        ...(sr.listType === undefined ? {} : { listType: sr.listType }),
+        ...(sr.rtl === undefined ? {} : { rtl: sr.rtl }),
+        ...(sr.alignment === undefined ? {} : { alignment: sr.alignment }),
+        ...(sr.spacingBefore === undefined ? {} : { spacingBefore: sr.spacingBefore }),
+        ...(sr.spacingAfter === undefined ? {} : { spacingAfter: sr.spacingAfter }),
+        ...(sr.lineSpacing === undefined ? {} : { lineSpacing: sr.lineSpacing }),
+        ...(sr.indentLeft === undefined ? {} : { indentLeft: sr.indentLeft }),
+        ...(sr.indentRight === undefined ? {} : { indentRight: sr.indentRight }),
+        ...(sr.indentHanging === undefined ? {} : { indentHanging: sr.indentHanging }),
+        ...(sr.indentFirstLine === undefined ? {} : { indentFirstLine: sr.indentFirstLine }),
+        ...(sr.shading === undefined ? {} : { shading: sr.shading }),
+        ...(sr.borders === undefined ? {} : { borders: sr.borders }),
     };
     return paragraph;
 }
@@ -1082,11 +1133,12 @@ function buildCellStyle(tcPr: Element): DocxTableCellStyle | undefined {
 
 function parseCellMargins(tcMar: Element): DocxTableCellStyle['paddings'] {
     const paddings: { top?: number; bottom?: number; left?: number; right?: number } = {};
+    const sideToNs: Record<string, string> = { left: 'start', right: 'end' };
     for (const side of ['top', 'bottom', 'left', 'right'] as const) {
-        const el = getChildNS(tcMar, NS_W, side === 'left' ? 'start' : side === 'right' ? 'end' : side);
-        const fallback = el ?? getChildNS(tcMar, NS_W, side);
-        if (fallback) {
-            const w = getAttrVal(fallback, NS_W, 'w');
+        const nsName = sideToNs[side] ?? side;
+        const el = getChildNS(tcMar, NS_W, nsName) ?? getChildNS(tcMar, NS_W, side);
+        if (el) {
+            const w = getAttrVal(el, NS_W, 'w');
             if (w) paddings[side] = Number.parseInt(w, 10) / TWIPS_PER_PT;
         }
     }
@@ -1108,18 +1160,12 @@ function parseTableBorderSet(borderParent: Element): DocxTableCellStyle['borders
 }
 
 function parseTableBorderElement(el: Element): DocxTableBorder {
-    const style = getAttrVal(el, NS_W, 'val') ?? 'single';
-    const colorVal = getAttrVal(el, NS_W, 'color');
-    const color = colorVal && colorVal !== 'auto' ? `#${colorVal}` : '#000000';
-    const sizeVal = getAttrVal(el, NS_W, 'sz');
-    const size = sizeVal ? Number.parseInt(sizeVal, 10) / 8 : 1;
-    return { style, color, size };
+    return parseSingleBorder(el);
 }
 
 function getDirectChildElements(parent: Element, ns: string, localName: string): Element[] {
     const result: Element[] = [];
-    for (let i = 0; i < parent.childNodes.length; i++) {
-        const child = parent.childNodes[i];
+    for (const child of Array.from(parent.childNodes)) {
         if (child instanceof Element && child.namespaceURI === ns && child.localName === localName) {
             result.push(child);
         }
@@ -1138,8 +1184,7 @@ function parseTableCell(
     const { colSpan, rowSpan, cellStyle } = parseTableCellStyle(tcPr);
 
     const elements: (DocxParagraph | DocxTable)[] = [];
-    for (let i = 0; i < tc.childNodes.length; i++) {
-        const child = tc.childNodes[i];
+    for (const child of Array.from(tc.childNodes)) {
         if (!(child instanceof Element)) continue;
 
         if (child.localName === 'p' && child.namespaceURI === NS_W) {
@@ -1290,8 +1335,7 @@ function parseBodyElements(
 ): DocxElement[] {
     const elements: DocxElement[] = [];
 
-    for (let i = 0; i < body.childNodes.length; i++) {
-        const child = body.childNodes[i];
+    for (const child of Array.from(body.childNodes)) {
         if (!(child instanceof Element)) continue;
 
         parseBodyChild(child, elements, relationships, files, numberingMap, themeColors);
@@ -1312,8 +1356,7 @@ function parseBodyChild(
 
     if (localName === 'p') {
         const { paragraph, images } = parseParagraph(child, relationships, files, numberingMap, themeColors);
-        elements.push(...images);
-        elements.push(paragraph);
+        elements.push(...images, paragraph);
     } else if (localName === 'tbl') {
         elements.push(parseTable(child, relationships, files, numberingMap, themeColors));
     } else if (localName === 'sdt' || localName === 'customXml' || localName === 'smartTag') {
@@ -1540,25 +1583,36 @@ function extractParagraphStyleProps(pPr: Element | undefined): {
         if (val) result.alignment = val;
     }
 
-    const spacing = getChildNS(pPr, NS_W, 'spacing');
-    if (spacing) {
-        const before = getAttrVal(spacing, NS_W, 'before');
-        if (before) result.spacingBefore = Number.parseInt(before, 10) / TWIPS_PER_PT;
-        const after = getAttrVal(spacing, NS_W, 'after');
-        if (after) result.spacingAfter = Number.parseInt(after, 10) / TWIPS_PER_PT;
-    }
-
-    const ind = getChildNS(pPr, NS_W, 'ind');
-    if (ind) {
-        const left = getAttrVal(ind, NS_W, 'left') ?? getAttrVal(ind, NS_W, 'start');
-        if (left) result.indentLeft = Number.parseInt(left, 10) / TWIPS_PER_PT;
-        const right = getAttrVal(ind, NS_W, 'right') ?? getAttrVal(ind, NS_W, 'end');
-        if (right) result.indentRight = Number.parseInt(right, 10) / TWIPS_PER_PT;
-        const firstLine = getAttrVal(ind, NS_W, 'firstLine');
-        if (firstLine) result.indentFirstLine = Number.parseInt(firstLine, 10) / TWIPS_PER_PT;
-    }
+    extractSpacingProps(pPr, result);
+    extractIndentProps(pPr, result);
 
     return result;
+}
+
+function extractSpacingProps(
+    pPr: Element,
+    result: { spacingBefore?: number; spacingAfter?: number },
+): void {
+    const spacing = getChildNS(pPr, NS_W, 'spacing');
+    if (!spacing) return;
+    const before = getAttrVal(spacing, NS_W, 'before');
+    if (before) result.spacingBefore = Number.parseInt(before, 10) / TWIPS_PER_PT;
+    const after = getAttrVal(spacing, NS_W, 'after');
+    if (after) result.spacingAfter = Number.parseInt(after, 10) / TWIPS_PER_PT;
+}
+
+function extractIndentProps(
+    pPr: Element,
+    result: { indentLeft?: number; indentRight?: number; indentFirstLine?: number },
+): void {
+    const ind = getChildNS(pPr, NS_W, 'ind');
+    if (!ind) return;
+    const left = getAttrVal(ind, NS_W, 'left') ?? getAttrVal(ind, NS_W, 'start');
+    if (left) result.indentLeft = Number.parseInt(left, 10) / TWIPS_PER_PT;
+    const right = getAttrVal(ind, NS_W, 'right') ?? getAttrVal(ind, NS_W, 'end');
+    if (right) result.indentRight = Number.parseInt(right, 10) / TWIPS_PER_PT;
+    const firstLine = getAttrVal(ind, NS_W, 'firstLine');
+    if (firstLine) result.indentFirstLine = Number.parseInt(firstLine, 10) / TWIPS_PER_PT;
 }
 
 function parseComments(
@@ -1688,7 +1742,7 @@ function applyStyleToTable(table: DocxTable, styleMap: StyleMap): DocxTable {
                 ...cell,
                 elements: cell.elements.map(el => {
                     if (el.type === 'paragraph') return applyStyleToParagraph(el, styleMap);
-                    if (el.type === 'table') return applyStyleToTable(el as DocxTable, styleMap);
+                    if (el.type === 'table') return applyStyleToTable(el, styleMap);
                     return el;
                 }),
             })),

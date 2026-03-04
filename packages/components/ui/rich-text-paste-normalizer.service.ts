@@ -816,6 +816,9 @@ export class RichTextPasteNormalizerService {
             const color = font.getAttribute('color');
             if (color) styles.push(`color: ${color}`);
 
+            const face = font.getAttribute('face');
+            if (face) styles.push(`font-family: ${face}`);
+
             const size = font.getAttribute('size');
             if (size) {
                 const sizeMap: Record<string, string> = {

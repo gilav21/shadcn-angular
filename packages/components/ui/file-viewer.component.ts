@@ -576,7 +576,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const length = Math.min(bytes.length, 256);
         let text = '';
         for (let i = offset; i < length; i++) {
-            text += String.fromCharCode(bytes[i]);
+            text += String.fromCodePoint(bytes[i]);
         }
         const trimmed = text.trimStart().toLowerCase();
         return trimmed.startsWith('<svg') || trimmed.startsWith('<?xml');
@@ -710,15 +710,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (run.breakType === 'page') return '<hr class="my-8 border-t-2 border-dashed border-muted-foreground/30" />';
         if (run.anchorId) return `<a id="${this.escapeHtml(run.anchorId)}"></a>`;
 
-        let text = this.escapeHtml(run.text);
-        if (run.style.bold) text = `<strong>${text}</strong>`;
-        if (run.style.italic) text = `<em>${text}</em>`;
-        if (run.style.underline) text = `<u>${text}</u>`;
-        if (run.style.strikethrough || run.style.doubleStrikethrough) text = `<s>${text}</s>`;
-        if (run.style.vertAlign === 'superscript') text = `<sup>${text}</sup>`;
-        if (run.style.vertAlign === 'subscript') text = `<sub>${text}</sub>`;
-        if (run.isInserted) text = `<ins class="bg-green-100 dark:bg-green-900/30">${text}</ins>`;
-        if (run.isDeleted) text = `<del class="bg-red-100 dark:bg-red-900/30 text-muted-foreground">${text}</del>`;
+        let text = this.wrapRunInlineFormatting(this.escapeHtml(run.text), run);
 
         const styles = this.buildRunStyles(run.style);
         const dirAttr = run.style.rtl ? ' dir="rtl"' : '';
@@ -731,6 +723,25 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             text = `<a href="${this.escapeHtml(run.href)}" target="_blank" rel="noopener noreferrer">${text}</a>`;
         }
 
+        return text;
+    }
+
+    private wrapRunInlineFormatting(text: string, run: {
+        isInserted?: boolean; isDeleted?: boolean;
+        style: {
+            bold?: boolean; italic?: boolean; underline?: boolean;
+            strikethrough?: boolean; doubleStrikethrough?: boolean;
+            vertAlign?: string;
+        };
+    }): string {
+        if (run.style.bold) text = `<strong>${text}</strong>`;
+        if (run.style.italic) text = `<em>${text}</em>`;
+        if (run.style.underline) text = `<u>${text}</u>`;
+        if (run.style.strikethrough || run.style.doubleStrikethrough) text = `<s>${text}</s>`;
+        if (run.style.vertAlign === 'superscript') text = `<sup>${text}</sup>`;
+        if (run.style.vertAlign === 'subscript') text = `<sub>${text}</sub>`;
+        if (run.isInserted) text = `<ins class="bg-green-100 dark:bg-green-900/30">${text}</ins>`;
+        if (run.isDeleted) text = `<del class="bg-red-100 dark:bg-red-900/30 text-muted-foreground">${text}</del>`;
         return text;
     }
 
@@ -960,28 +971,40 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const parts: string[] = [];
         if (cellStyle.backgroundColor) parts.push(`background-color:${cellStyle.backgroundColor}`);
         if (cellStyle.verticalAlign) parts.push(`vertical-align:${this.mapVerticalAlign(cellStyle.verticalAlign)}`);
-        if (cellStyle.width) {
-            if (cellStyle.widthUnit === 'pct') {
-                parts.push(`width:${cellStyle.width / 50}%`);
-            } else {
-                parts.push(`width:${cellStyle.width / TWIPS_PER_PT}pt`);
-            }
-        }
-        if (cellStyle.borders) {
-            const b = cellStyle.borders;
-            if (b.top) parts.push(`border-top:${b.top.size}pt solid ${b.top.color}`);
-            if (b.bottom) parts.push(`border-bottom:${b.bottom.size}pt solid ${b.bottom.color}`);
-            if (b.left) parts.push(`border-left:${b.left.size}pt solid ${b.left.color}`);
-            if (b.right) parts.push(`border-right:${b.right.size}pt solid ${b.right.color}`);
-        }
-        if (cellStyle.paddings) {
-            const p = cellStyle.paddings;
-            if (p.top) parts.push(`padding-top:${p.top}pt`);
-            if (p.bottom) parts.push(`padding-bottom:${p.bottom}pt`);
-            if (p.left) parts.push(`padding-left:${p.left}pt`);
-            if (p.right) parts.push(`padding-right:${p.right}pt`);
-        }
+        this.appendCellWidth(cellStyle, parts);
+        this.appendCellBorders(cellStyle.borders, parts);
+        this.appendCellPaddings(cellStyle.paddings, parts);
         return parts.length > 0 ? ` style="${parts.join(';')}"` : '';
+    }
+
+    private appendCellWidth(cellStyle: { width?: number; widthUnit?: string }, parts: string[]): void {
+        if (!cellStyle.width) return;
+        if (cellStyle.widthUnit === 'pct') {
+            parts.push(`width:${cellStyle.width / 50}%`);
+        } else {
+            parts.push(`width:${cellStyle.width / TWIPS_PER_PT}pt`);
+        }
+    }
+
+    private appendCellBorders(borders: {
+        top?: { size: number; color: string }; bottom?: { size: number; color: string };
+        left?: { size: number; color: string }; right?: { size: number; color: string };
+    } | undefined, parts: string[]): void {
+        if (!borders) return;
+        if (borders.top) parts.push(`border-top:${borders.top.size}pt solid ${borders.top.color}`);
+        if (borders.bottom) parts.push(`border-bottom:${borders.bottom.size}pt solid ${borders.bottom.color}`);
+        if (borders.left) parts.push(`border-left:${borders.left.size}pt solid ${borders.left.color}`);
+        if (borders.right) parts.push(`border-right:${borders.right.size}pt solid ${borders.right.color}`);
+    }
+
+    private appendCellPaddings(paddings: {
+        top?: number; bottom?: number; left?: number; right?: number;
+    } | undefined, parts: string[]): void {
+        if (!paddings) return;
+        if (paddings.top) parts.push(`padding-top:${paddings.top}pt`);
+        if (paddings.bottom) parts.push(`padding-bottom:${paddings.bottom}pt`);
+        if (paddings.left) parts.push(`padding-left:${paddings.left}pt`);
+        if (paddings.right) parts.push(`padding-right:${paddings.right}pt`);
     }
 
     private mapVerticalAlign(val: string): string {
@@ -1083,9 +1106,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const bgStyles = ['position:relative', 'width:100%', 'height:100%'];
         bgStyles.push(`background-color:${slide.backgroundColor ?? '#fff'}`);
         if (slide.backgroundImage) {
-            bgStyles.push(`background-image:url(${slide.backgroundImage})`);
-            bgStyles.push('background-size:cover');
-            bgStyles.push('background-position:center');
+            bgStyles.push(`background-image:url(${slide.backgroundImage})`, 'background-size:cover', 'background-position:center');
         }
         let html = `<div style="${bgStyles.join(';')}">`;
         for (const el of slide.elements) {
@@ -1159,12 +1180,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private renderSlideRun(run: PptxTextRun): string {
-        let text = this.escapeHtml(run.text);
-        if (run.bold) text = `<strong>${text}</strong>`;
-        if (run.italic) text = `<em>${text}</em>`;
-        if (run.strikethrough) text = `<s>${text}</s>`;
-        if (run.baseline && run.baseline > 0) text = `<sup>${text}</sup>`;
-        if (run.baseline && run.baseline < 0) text = `<sub>${text}</sub>`;
+        let text = this.wrapSlideRunFormatting(this.escapeHtml(run.text), run);
 
         const styles: string[] = [];
         if (run.fontSize) styles.push(`font-size:${run.fontSize}pt`);
@@ -1173,18 +1189,9 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.applyRunFillStyles(run, styles);
         this.applyRunDecorationStyles(run, styles);
         this.applyRunTextEffects(run, styles);
+        this.applySlideRunUnderline(run, styles);
+        this.applySlideRunHyperlinkDefaults(run, styles);
 
-        // Underline: use CSS if underlineStyle, else <u> tag
-        if (run.underlineStyle) {
-            styles.push(...this.buildUnderlineCss(run.underlineStyle));
-        } else if (run.underline) {
-            text = `<u>${text}</u>`;
-        }
-
-        // Hyperlink default styling
-        if (run.isHyperlink && !run.color && !run.gradientFill && !run.noFill) {
-            styles.push('color:#0563C1');
-        }
         if (run.isHyperlink && !run.underline && !run.underlineStyle) {
             text = `<u>${text}</u>`;
         }
@@ -1197,24 +1204,43 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         return text;
     }
 
+    private wrapSlideRunFormatting(text: string, run: PptxTextRun): string {
+        if (run.bold) text = `<strong>${text}</strong>`;
+        if (run.italic) text = `<em>${text}</em>`;
+        if (run.strikethrough) text = `<s>${text}</s>`;
+        if (run.baseline && run.baseline > 0) text = `<sup>${text}</sup>`;
+        if (run.baseline && run.baseline < 0) text = `<sub>${text}</sub>`;
+        if (run.underline && !run.underlineStyle) text = `<u>${text}</u>`;
+        return text;
+    }
+
+    private applySlideRunUnderline(run: PptxTextRun, styles: string[]): void {
+        if (run.underlineStyle) {
+            styles.push(...this.buildUnderlineCss(run.underlineStyle));
+        }
+    }
+
+    private applySlideRunHyperlinkDefaults(run: PptxTextRun, styles: string[]): void {
+        if (run.isHyperlink && !run.color && !run.gradientFill && !run.noFill) {
+            styles.push('color:#0563C1');
+        }
+    }
+
     private applyRunFillStyles(run: PptxTextRun, styles: string[]): void {
         if (run.noFill) {
             styles.push('color:transparent');
             return;
         }
         if (run.gradientFill) {
-            styles.push(`background:${this.buildGradientCss(run.gradientFill)}`);
-            styles.push('-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
+            styles.push(`background:${this.buildGradientCss(run.gradientFill)}`, '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
             return;
         }
         if (run.imageFill) {
-            styles.push(`background-image:url(${run.imageFill})`);
-            styles.push('background-size:cover', '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
+            styles.push(`background-image:url(${run.imageFill})`, 'background-size:cover', '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
             return;
         }
         if (run.patternFill) {
-            styles.push(this.buildPatternCss(run.patternFill));
-            styles.push('-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
+            styles.push(this.buildPatternCss(run.patternFill), '-webkit-background-clip:text', 'background-clip:text', 'color:transparent');
             return;
         }
         if (run.color) styles.push(`color:${run.color}`);
@@ -1362,8 +1388,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         if (shape.gradientFill) {
             styles.push(`background:${this.buildGradientCss(shape.gradientFill)}`);
         } else if (shape.imageFill) {
-            styles.push(`background-image:url(${shape.imageFill})`);
-            styles.push('background-size:cover');
+            styles.push(`background-image:url(${shape.imageFill})`, 'background-size:cover');
         } else if (shape.patternFill) {
             styles.push(this.buildPatternCss(shape.patternFill));
         } else if (shape.fillColor) {
@@ -1694,7 +1719,8 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         for (let i = 1; i < parts.length; i++) {
             if (tabs && tabs.length >= i) {
                 const tab = tabs[i - 1];
-                const align = tab.alignment === 'r' ? 'right' : tab.alignment === 'ctr' ? 'center' : 'left';
+                const alignMap: Record<string, string> = { r: 'right', ctr: 'center' };
+                const align = alignMap[tab.alignment ?? ''] ?? 'left';
                 result += `<span style="display:inline-block;min-width:${tab.position}px;text-align:${align}"></span>`;
             } else {
                 const tabWidth = defaultTabSize ?? 48;
@@ -1719,7 +1745,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.textContent.set(new TextDecoder().decode(bytes));
     }
 
-    private processMedia(bytes: Uint8Array, mimeType: string): void {
+    private processMedia(bytes: Uint8Array, mimeType = 'application/octet-stream'): void {
         const effectiveMime = mimeType || 'application/octet-stream';
         const blob = new Blob([bytes as BlobPart], { type: effectiveMime });
         const url = URL.createObjectURL(blob);

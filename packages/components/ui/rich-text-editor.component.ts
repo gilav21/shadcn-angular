@@ -2349,13 +2349,15 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     }
 
     onEditorDragOver(event: DragEvent): void {
-        if (!this.images() || (!this.canUseUploadSource() && !this.canUseUrlSource()) || this.disabled() || this.readonly()) {
-            return;
-        }
-        const hasImage = Array.from(event.dataTransfer?.files ?? []).some(file => file.type.startsWith('image/'));
-        if (!hasImage) {
-            return;
-        }
+        if (this.disabled() || this.readonly()) return;
+
+        const hasFiles = event.dataTransfer?.types?.includes('Files') ?? false;
+        if (!hasFiles) return;
+
+        const canAcceptImage = this.images() && (this.canUseUploadSource() || this.canUseUrlSource());
+        const canAcceptDocument = this.canDropDocumentFile() && this.hasSupportedDocumentFile(event.dataTransfer);
+        if (!canAcceptImage && !canAcceptDocument) return;
+
         event.preventDefault();
         this.dragOver.set(true);
     }
@@ -2374,17 +2376,26 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     async onEditorDrop(event: DragEvent): Promise<void> {
         this.dragOver.set(false);
-        if (!this.images() || (!this.canUseUploadSource() && !this.canUseUrlSource()) || this.disabled() || this.readonly()) {
+        if (this.disabled() || this.readonly()) return;
+
+        const files = Array.from(event.dataTransfer?.files ?? []);
+
+        const imageFile = this.images() && (this.canUseUploadSource() || this.canUseUrlSource())
+            ? files.find(file => file.type.startsWith('image/'))
+            : undefined;
+        if (imageFile) {
+            event.preventDefault();
+            await this.insertImageFile(imageFile);
             return;
         }
 
-        const imageFile = Array.from(event.dataTransfer?.files ?? []).find(file => file.type.startsWith('image/'));
-        if (!imageFile) {
-            return;
+        const documentFile = this.canDropDocumentFile()
+            ? files.find(file => file.type === 'application/pdf' || file.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' || file.name.endsWith('.pdf') || file.name.endsWith('.docx'))
+            : undefined;
+        if (documentFile) {
+            event.preventDefault();
+            await this.onFileImport(documentFile);
         }
-
-        event.preventDefault();
-        await this.insertImageFile(imageFile);
     }
 
     onFocus(): void {
@@ -2882,6 +2893,21 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         setTimeout(() => this.fileImportErrorMessage.set(''), 4000);
     }
 
+    private canDropDocumentFile(): boolean {
+        return this.toolbarItems().includes('importFile');
+    }
+
+    private hasSupportedDocumentFile(dataTransfer: DataTransfer | null): boolean {
+        if (!dataTransfer?.items) return true;
+        for (const item of Array.from(dataTransfer.items)) {
+            if (item.kind !== 'file') continue;
+            if (item.type === 'application/pdf' || item.type === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
+                return true;
+            }
+        }
+        return false;
+    }
+
     onEmojiInsert(emoji: string): void {
         this.flushPendingHistoryPush();
         this.restoreSelection();
@@ -2948,20 +2974,18 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
         const mentionTargets = this.getMentionElementsInSelection();
 
-        const selection = this.document.getSelection();
-        if (selection && selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            if (!range.collapsed) {
-                const fragment = range.extractContents();
-                const wrapper = this.document.createElement('span');
-                wrapper.style.fontFamily = family;
-                wrapper.appendChild(fragment);
-                range.insertNode(wrapper);
+        this.execEditorCommand('fontName', family);
 
-                selection.removeAllRanges();
-                const newRange = this.document.createRange();
-                newRange.selectNodeContents(wrapper);
-                selection.addRange(newRange);
+        if (this.editorDiv?.nativeElement) {
+            const fontElements = this.editorDiv.nativeElement.querySelectorAll(`font[face="${CSS.escape(family)}"]`);
+            for (const font of Array.from(fontElements)) {
+                const el = font as HTMLElement;
+                const span = this.document.createElement('span');
+                span.style.fontFamily = family;
+                while (el.firstChild) {
+                    span.appendChild(el.firstChild);
+                }
+                el.parentNode?.replaceChild(span, el);
             }
         }
 

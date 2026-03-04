@@ -59,6 +59,7 @@ export * from './speed-dial.component';
 export * from './autocomplete.component';
 export * from './highlight.pipe';
 export * from './rich-text-editor.component';
+export * from './rich-text-toolbar.component';
 export * from './rich-text-command-registry.service';
 export * from './rich-text-mention.component';
 export * from './rich-text-locales';
