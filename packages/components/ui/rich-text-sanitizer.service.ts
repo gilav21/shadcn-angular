@@ -147,7 +147,7 @@ export class RichTextSanitizerService {
         // Process all child nodes of body
         this.processNodes(doc.body, cleanContainer);
 
-        return cleanContainer.innerHTML;
+        return this.normalizeStyleQuotes(cleanContainer.innerHTML);
     }
 
     /**
@@ -479,5 +479,20 @@ export class RichTextSanitizerService {
         }
 
         return safeStyles.join('; ');
+    }
+
+    /**
+     * Replace &quot; entities with single quotes inside style attribute values.
+     * Browsers serialize CSS quoted strings (e.g. font-family: "Comic Sans MS")
+     * with double quotes, which become &quot; in innerHTML. This produces
+     * valid but problematic HTML. Single quotes are equally valid in CSS and
+     * don't require HTML entity encoding inside double-quoted attributes.
+     */
+    private normalizeStyleQuotes(html: string): string {
+        return html.replaceAll(
+            /style="([^"]*)"/g,
+            (_match: string, styleContent: string) =>
+                `style="${styleContent.replaceAll('&quot;', "'")}"`,
+        );
     }
 }
