@@ -1470,12 +1470,12 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             };
 
             const result = component.getSubRowComponentInputs(col, treeRow);
-            expect(result.label).toBe('Alice');
-            expect(result._subRowContext).toBeDefined();
-            expect(result._subRowContext.depth).toBe(2);
-            expect(result._subRowContext.parentId).toBe('1-1');
-            expect(result._subRowContext.isLeaf).toBe(true);
-            expect(result._subRowContext.path).toEqual(['1', '1-1', '1-1-1']);
+            expect(result['label']).toBe('Alice');
+            expect(result['_subRowContext']).toBeDefined();
+            expect(result['_subRowContext'].depth).toBe(2);
+            expect(result['_subRowContext'].parentId).toBe('1-1');
+            expect(result['_subRowContext'].isLeaf).toBe(true);
+            expect(result['_subRowContext'].path).toEqual(['1', '1-1', '1-1-1']);
         });
     });
 

@@ -2,6 +2,7 @@
 import { Command } from 'commander';
 import { init } from './commands/init.js';
 import { add } from './commands/add.js';
+import { help } from './commands/help.js';
 
 const program = new Command();
 
@@ -29,5 +30,10 @@ program
     .option('--remote', 'Force remote fetch from GitHub registry')
     .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
     .action(add);
+
+program
+    .command('help')
+    .description('Show detailed usage information')
+    .action(help);
 
 program.parse();

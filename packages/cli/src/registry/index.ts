@@ -1,11 +1,17 @@
 // Component Registry - Defines available components and their file mappings
 // Actual component files are stored in packages/components/ui/
 
+export interface OptionalDependency {
+  readonly name: string;
+  readonly description: string;
+}
+
 export interface ComponentDefinition {
   name: string;
   files: string[]; // Relative paths to component files
   peerFiles?: string[]; // Files to update only if they already exist in the user's project
   dependencies?: string[]; // Other components this depends on
+  optionalDependencies?: readonly OptionalDependency[]; // Companion components offered during install
   npmDependencies?: string[]; // NPM packages this depends on
   libFiles?: string[]; // Lib utility files this component requires (e.g. 'xlsx.ts')
   shortcutDefinitions?: {
@@ -162,6 +168,9 @@ export const registry: Record<string, ComponentDefinition> = {
       'icon',
     ],
     libFiles: ['xlsx.ts'],
+    optionalDependencies: [
+      { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
+    ],
   },
   dialog: {
     name: 'dialog',
@@ -359,6 +368,9 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'tree',
     files: ['tree.component.ts'],
     dependencies: ['icon'],
+    optionalDependencies: [
+      { name: 'context-menu', description: 'Enables right-click context menus on tree nodes' },
+    ],
   },
   'speed-dial': {
     name: 'speed-dial',

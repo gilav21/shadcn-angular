@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import prompts from 'prompts';
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
-import { getConfig } from '../utils/config.js';
+import { getConfig, type Config } from '../utils/config.js';
 import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
@@ -33,24 +33,25 @@ interface ConflictCheckResult {
 // Path & URL helpers
 // ---------------------------------------------------------------------------
 
+function validateBranch(branch: string): void {
+    if (!/^[\w.\-/]+$/.test(branch)) {
+        throw new Error(`Invalid branch name: ${branch}`);
+    }
+}
+
 function getRegistryBaseUrl(branch: string) {
+    validateBranch(branch);
     return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components/ui`;
 }
 
 function getLibRegistryBaseUrl(branch: string) {
+    validateBranch(branch);
     return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components/lib`;
 }
 
 function getLocalComponentsDir(): string | null {
-    const fromDist = path.resolve(__dirname, '../../../components/ui');
-    if (fs.existsSync(fromDist)) {
-        return fromDist;
-    }
-    const fromSrc = path.resolve(__dirname, '../../../components/ui');
-    if (fs.existsSync(fromSrc)) {
-        return fromSrc;
-    }
-    return null;
+    const localPath = path.resolve(__dirname, '../../../components/ui');
+    return fs.existsSync(localPath) ? localPath : null;
 }
 
 function getLocalLibDir(): string | null {
@@ -129,7 +130,7 @@ async function fetchLibContent(file: string, options: AddOptions): Promise<strin
 
 async function fetchAndTransform(file: string, options: AddOptions, utilsAlias: string): Promise<string> {
     let content = await fetchComponentContent(file, options);
-    content = content.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/');
+    content = content.replaceAll(/(\.\.\/)+lib\//, utilsAlias + '/');
     return content;
 }
 
@@ -168,7 +169,7 @@ function validateComponents(names: ComponentName[]): void {
     }
 }
 
-function resolveDependencies(names: ComponentName[]): Set<ComponentName> {
+export function resolveDependencies(names: ComponentName[]): Set<ComponentName> {
     const all = new Set<ComponentName>();
     const walk = (name: ComponentName) => {
         if (all.has(name)) return;
@@ -177,6 +178,52 @@ function resolveDependencies(names: ComponentName[]): Set<ComponentName> {
     };
     names.forEach(walk);
     return all;
+}
+
+// ---------------------------------------------------------------------------
+// Optional dependency prompt
+// ---------------------------------------------------------------------------
+
+interface OptionalChoice {
+    readonly name: string;
+    readonly description: string;
+    readonly requestedBy: string;
+}
+
+export async function promptOptionalDependencies(
+    resolved: Set<ComponentName>,
+    options: AddOptions,
+): Promise<ComponentName[]> {
+    const seen = new Set<string>();
+    const choices: OptionalChoice[] = [];
+
+    for (const name of resolved) {
+        const component = registry[name];
+        if (!component.optionalDependencies) continue;
+
+        for (const opt of component.optionalDependencies) {
+            if (resolved.has(opt.name) || seen.has(opt.name)) continue;
+            seen.add(opt.name);
+            choices.push({ name: opt.name, description: opt.description, requestedBy: name });
+        }
+    }
+
+    if (choices.length === 0) return [];
+    if (options.yes) return [];
+    if (options.all) return choices.map(c => c.name);
+
+    const { selected } = await prompts({
+        type: 'multiselect',
+        name: 'selected',
+        message: 'Optional companion components available:',
+        choices: choices.map(c => ({
+            title: c.name + ' ' + chalk.dim('- ' + c.description + ' (for ' + c.requestedBy + ')'),
+            value: c.name,
+        })),
+        hint: '- Space to select, Enter to confirm (or press Enter to skip)',
+    });
+
+    return selected || [];
 }
 
 // ---------------------------------------------------------------------------
@@ -329,8 +376,9 @@ async function writeComponentFiles(
 
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
-        } catch (err: any) {
-            spinner.warn(`Could not add ${file}: ${err.message}`);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            spinner.warn(`Could not add ${file}: ${message}`);
             success = false;
         }
     }
@@ -359,8 +407,9 @@ async function writePeerFiles(
 
             await fs.writeFile(targetPath, content);
             spinner.text = `Updated peer file ${file}`;
-        } catch (err: any) {
-            spinner.warn(`Could not update peer file ${file}: ${err.message}`);
+        } catch (err: unknown) {
+            const message = err instanceof Error ? err.message : String(err);
+            spinner.warn(`Could not update peer file ${file}: ${message}`);
         }
     }
 }
@@ -385,8 +434,9 @@ async function installLibFiles(
             try {
                 const content = await fetchLibContent(libFile, options);
                 await fs.writeFile(targetPath, content);
-            } catch (err: any) {
-                console.warn(chalk.yellow(`Could not install lib file ${libFile}: ${err.message}`));
+            } catch (err: unknown) {
+                const message = err instanceof Error ? err.message : String(err);
+                console.warn(chalk.yellow(`Could not install lib file ${libFile}: ${message}`));
             }
         }
     }
@@ -416,7 +466,7 @@ async function installNpmDependencies(
 async function ensureShortcutService(
     targetDir: string,
     cwd: string,
-    config: any,
+    config: Config,
     options: AddOptions,
 ): Promise<void> {
     const entries = collectInstalledShortcutEntries(targetDir);
@@ -469,7 +519,11 @@ export async function add(components: string[], options: AddOptions) {
 
     validateComponents(componentsToAdd);
 
-    const allComponents = resolveDependencies(componentsToAdd);
+    const resolvedComponents = resolveDependencies(componentsToAdd);
+    const optionalChoices = await promptOptionalDependencies(resolvedComponents, options);
+    const allComponents = optionalChoices.length > 0
+        ? resolveDependencies([...resolvedComponents, ...optionalChoices])
+        : resolvedComponents;
     const uiBasePath = options.path ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const targetDir = resolveProjectPath(cwd, uiBasePath);
     const utilsAlias = config.aliases.utils;
