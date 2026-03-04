@@ -3556,14 +3556,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.canUseUrlSource()) {
             try {
                 const fileDataUrl = await this.readFileAsDataUrl(file);
-                const safeSrc = this.sanitizer.sanitizeImageSrc(fileDataUrl);
-                if (!safeSrc) {
+                if (!fileDataUrl.toLowerCase().startsWith('data:image/')) {
                     this.imageUploadError.emit('Pasted image is not allowed by sanitizer policy.');
                     return;
                 }
-                this.insertImageAtSelection(safeSrc, file.name);
+                this.insertImageAtSelection(fileDataUrl, file.name);
                 this.pushHistory();
-                this.imageUploadComplete.emit(safeSrc);
+                this.imageUploadComplete.emit(fileDataUrl);
                 return;
             } catch {
                 this.imageUploadError.emit('Could not read image file.');
