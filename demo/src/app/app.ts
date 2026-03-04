@@ -251,6 +251,8 @@ import {
   DataTableColumnState,
   DataTableLoadingVisibility,
   ColumnResizeEvent,
+  DataTableMultiselectFilterComponent,
+  multiselectFilterFn,
   SortState,
   PaginationState,
   SubRowSelectionMode,
@@ -1083,7 +1085,21 @@ export class AppComponent {
     { accessorKey: 'id', header: 'ID', enableSorting: true, sticky: true, width: '100px' },
     { accessorKey: 'email', header: 'Email', enableSorting: true, width: 'auto' },
     { accessorKey: 'amount', header: 'Amount', enableSorting: true, width: '150px' },
-    { accessorKey: 'status', header: 'Status', enableSorting: true, width: '150px' },
+    {
+      accessorKey: 'status',
+      header: 'Status',
+      enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableMultiselectFilterComponent,
+      filterComponentInputs: {
+        options: ['pending', 'processing', 'success', 'failed'],
+        placeholder: 'Filter status...',
+        title: 'Status',
+      },
+      filterFn: (row: Payment, filterValue: unknown) =>
+        multiselectFilterFn(row, filterValue as string[] | null, (r: Payment) => r.status),
+      width: '150px',
+    },
     { accessorKey: 'clientName', header: 'Client Name', width: 'auto' },
     { accessorKey: 'role', header: 'Role', width: '150px' },
   ];

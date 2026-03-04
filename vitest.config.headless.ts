@@ -18,6 +18,9 @@ export default defineConfig(({ mode }) => ({
 			tsconfig: 'tsconfig.json',
 		}),
 	],
+	optimizeDeps: {
+		exclude: ['npm-run-path'],
+	},
 	test: {
 		globals: true,
 		setupFiles: ['packages/test-setup.headless.ts'],
@@ -26,6 +29,7 @@ export default defineConfig(({ mode }) => ({
 			'packages/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
 			'demo/src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}',
 		],
+		exclude: ['**/node_modules/**', '**/dist/**'],
 		reporters: ['default'],
 	},
 }));

@@ -149,6 +149,7 @@ export const registry: Record<string, ComponentDefinition> = {
       'data-table/data-table.component.ts',
       'data-table/data-table-column-header.component.ts',
       'data-table/data-table-pagination.component.ts',
+      'data-table/data-table-multiselect-filter.component.ts',
       'data-table/data-table.types.ts',
       'data-table/data-table.utils.ts',
       'data-table/index.ts',
@@ -166,6 +167,8 @@ export const registry: Record<string, ComponentDefinition> = {
       'popover',
       'component-outlet',
       'icon',
+      'command',
+      'badge',
     ],
     libFiles: ['xlsx.ts'],
     optionalDependencies: [

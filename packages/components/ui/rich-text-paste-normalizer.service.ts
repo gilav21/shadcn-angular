@@ -538,7 +538,9 @@ export class RichTextPasteNormalizerService {
                 if (prop.startsWith('mso-')) {
                     this.mapMsoProperty(prop, value, mapped, el);
                 } else if (!prop.startsWith('-')) {
-                    if (prop === 'background' && this.isSimpleColorValue(value)) {
+                    if (prop === 'font-family') {
+                        continue;
+                    } else if (prop === 'background' && this.isSimpleColorValue(value)) {
                         if (!mapped.has('background-color')) {
                             mapped.set('background-color', value);
                         }
@@ -711,7 +713,7 @@ export class RichTextPasteNormalizerService {
                 }
             }
 
-            const stripProps = ['white-space', 'orphans', 'widows'];
+            const stripProps = ['font-family', 'white-space', 'orphans', 'widows'];
             for (const prop of stripProps) {
                 styles.delete(prop);
             }

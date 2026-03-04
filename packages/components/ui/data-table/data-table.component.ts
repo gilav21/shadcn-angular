@@ -244,9 +244,9 @@ import {
                                   </svg>
                                 </button>
                               </ui-popover-trigger>
-                              <ui-popover-content class="w-80">
-                                <div 
-                                  [uiComponentOutlet]="col.filterComponent" 
+                              <ui-popover-content class="w-80" strategy="fixed" align="end">
+                                <div
+                                  [uiComponentOutlet]="col.filterComponent"
                                   [inputs]="getFilterInputs(col)"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
@@ -260,7 +260,7 @@ import {
                           @if (col.enableFiltering && col.filterComponent) {
                             <ui-popover>
                               <ui-popover-trigger>
-                                <button 
+                                <button
                                   class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
                                   [attr.aria-label]="'Filter ' + col.header"
                                 >
@@ -269,7 +269,7 @@ import {
                                   </svg>
                                 </button>
                               </ui-popover-trigger>
-                              <ui-popover-content class="w-80">
+                              <ui-popover-content class="w-80" strategy="fixed" align="end">
                                 <div 
                                   [uiComponentOutlet]="col.filterComponent" 
                                   [inputs]="getFilterInputs(col)"

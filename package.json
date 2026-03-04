@@ -18,6 +18,7 @@
         "storybook": "npm run docs:json && ng run demo:storybook",
         "build-storybook": "npm run docs:json && ng run demo:build-storybook",
         "test-visual": "vitest --browser=chromium",
+        "test:cli": "vitest --config vitest.config.cli.ts",
         "docs:json": "compodoc -p tsconfig.json -e json -d ."
     },
     "keywords": [

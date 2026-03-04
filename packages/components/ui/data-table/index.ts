@@ -3,3 +3,4 @@ export * from './data-table.utils';
 export * from './data-table-column-header.component';
 export * from './data-table-pagination.component';
 export * from './data-table.component';
+export * from './data-table-multiselect-filter.component';

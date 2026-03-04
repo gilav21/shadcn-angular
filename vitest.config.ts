@@ -7,11 +7,15 @@ export default defineConfig(({ mode }) => ({
     plugins: [angular({
         tsconfig: 'tsconfig.json'
     })],
+    optimizeDeps: {
+        exclude: ['npm-run-path'],
+    },
     test: {
         globals: true,
         setupFiles: ['packages/test-setup.ts'],
         // environment: 'jsdom',
         include: ['packages/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}', 'demo/src/**/*.{test,spec}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'],
+        exclude: ['**/node_modules/**', '**/dist/**', 'packages/cli/**'],
         reporters: ['default'],
         // Vitest browser config
         browser: {
