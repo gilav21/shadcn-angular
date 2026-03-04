@@ -367,6 +367,37 @@ describe('RichTextSanitizerService', () => {
         });
     });
 
+    describe('font-family style quote normalization', () => {
+        it('should use single quotes for font-family names with spaces', () => {
+            const html = '<span style="font-family: &quot;Comic Sans MS&quot;">Text</span>';
+            const result = service.sanitize(html);
+            expect(result).toContain("font-family: 'Comic Sans MS'");
+            expect(result).not.toContain('&quot;');
+        });
+
+        it('should handle multiple quoted font families', () => {
+            const html = '<span style="font-family: &quot;Times New Roman&quot;">Text</span>';
+            const result = service.sanitize(html);
+            expect(result).toContain("font-family: 'Times New Roman'");
+            expect(result).not.toContain('&quot;');
+        });
+
+        it('should preserve unquoted font-family names', () => {
+            const html = '<span style="font-family: Arial">Text</span>';
+            const result = service.sanitize(html);
+            expect(result).toContain('font-family: Arial');
+        });
+
+        it('should handle font-family with other styles', () => {
+            const html = '<span style="font-family: &quot;Comic Sans MS&quot;; color: red; font-size: 14px">Text</span>';
+            const result = service.sanitize(html);
+            expect(result).toContain("font-family: 'Comic Sans MS'");
+            expect(result).toContain('color: red');
+            expect(result).toContain('font-size: 14px');
+            expect(result).not.toContain('&quot;');
+        });
+    });
+
     describe('complex XSS vectors', () => {
         it('should handle SVG XSS vectors', () => {
             const html = '<svg onload="alert(1)"><script>evil()</script></svg>';
