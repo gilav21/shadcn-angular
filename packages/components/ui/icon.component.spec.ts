@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IconComponent, DEFAULT_ICONS, ICONS } from './icon.component';
+import { IconComponent, DEFAULT_ICONS, ICONS, SOLID_SUPPORTED_ICONS } from './icon.component';
 import { provideIcons } from './icon.token';
 
 @Component({
@@ -226,7 +226,8 @@ describe('IconComponent weight input', () => {
         template: `
             <ui-icon name="check" weight="light"></ui-icon>
             <ui-icon name="check" weight="regular"></ui-icon>
-            <ui-icon name="check" weight="solid"></ui-icon>
+            <ui-icon name="check" weight="thick"></ui-icon>
+            <ui-icon name="heart" weight="solid"></ui-icon>
             <ui-icon name="check"></ui-icon>
         `,
         imports: [IconComponent],
@@ -258,18 +259,60 @@ describe('IconComponent weight input', () => {
         expect(svg.getAttribute('stroke')).toBe('currentColor');
     });
 
-    it('should set fill to currentColor and stroke to none for solid weight', () => {
+    it('should set stroke-width to 2.5 for thick weight', () => {
         const svg = fixture.debugElement.queryAll(By.css('svg'))[2].nativeElement;
+        expect(svg.getAttribute('stroke-width')).toBe('2.5');
+        expect(svg.getAttribute('fill')).toBe('none');
+        expect(svg.getAttribute('stroke')).toBe('currentColor');
+    });
+
+    it('should set fill to currentColor and stroke to none for solid weight on supported icon', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[3].nativeElement;
         expect(svg.getAttribute('stroke-width')).toBe('0');
         expect(svg.getAttribute('fill')).toBe('currentColor');
         expect(svg.getAttribute('stroke')).toBe('none');
     });
 
     it('should default to regular weight', () => {
-        const svg = fixture.debugElement.queryAll(By.css('svg'))[3].nativeElement;
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[4].nativeElement;
         expect(svg.getAttribute('stroke-width')).toBe('2');
         expect(svg.getAttribute('fill')).toBe('none');
         expect(svg.getAttribute('stroke')).toBe('currentColor');
+    });
+});
+
+describe('IconComponent solid fallback for unsupported icons', () => {
+    @Component({
+        template: `
+            <ui-icon name="settings" weight="solid"></ui-icon>
+            <ui-icon name="external-link" weight="solid"></ui-icon>
+        `,
+        imports: [IconComponent],
+    })
+    class SolidFallbackHostComponent {}
+
+    let fixture: ComponentFixture<SolidFallbackHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SolidFallbackHostComponent, IconComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SolidFallbackHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should fall back to regular weight for icons not in solid allowlist', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[0].nativeElement;
+        expect(svg.getAttribute('stroke-width')).toBe('2');
+        expect(svg.getAttribute('fill')).toBe('none');
+        expect(svg.getAttribute('stroke')).toBe('currentColor');
+    });
+
+    it('should export SOLID_SUPPORTED_ICONS set', () => {
+        expect(SOLID_SUPPORTED_ICONS).toBeInstanceOf(Set);
+        expect(SOLID_SUPPORTED_ICONS.has('heart')).toBe(true);
+        expect(SOLID_SUPPORTED_ICONS.has('settings')).toBe(false);
     });
 });
 
@@ -279,7 +322,7 @@ describe('IconComponent color inputs', () => {
             <ui-icon name="check" color="red"></ui-icon>
             <ui-icon name="check" fillColor="blue"></ui-icon>
             <ui-icon name="check" color="red" fillColor="blue"></ui-icon>
-            <ui-icon name="check" weight="solid" color="green"></ui-icon>
+            <ui-icon name="heart" weight="solid" color="green"></ui-icon>
         `,
         imports: [IconComponent],
     })
@@ -317,5 +360,45 @@ describe('IconComponent color inputs', () => {
         expect(svg.style.color).toBe('green');
         expect(svg.getAttribute('fill')).toBe('currentColor');
         expect(svg.getAttribute('stroke')).toBe('none');
+    });
+});
+
+describe('IconComponent strokeWidth input', () => {
+    @Component({
+        template: `
+            <ui-icon name="check" [strokeWidth]="1.2"></ui-icon>
+            <ui-icon name="check" [strokeWidth]="3.5"></ui-icon>
+            <ui-icon name="check" weight="thick" [strokeWidth]="0.8"></ui-icon>
+            <ui-icon name="check"></ui-icon>
+        `,
+        imports: [IconComponent],
+    })
+    class StrokeWidthHostComponent {}
+
+    let fixture: ComponentFixture<StrokeWidthHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [StrokeWidthHostComponent, IconComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(StrokeWidthHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should use custom strokeWidth when provided', () => {
+        const svgs = fixture.debugElement.queryAll(By.css('svg'));
+        expect(svgs[0].nativeElement.getAttribute('stroke-width')).toBe('1.2');
+        expect(svgs[1].nativeElement.getAttribute('stroke-width')).toBe('3.5');
+    });
+
+    it('should override weight-derived strokeWidth', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[2].nativeElement;
+        expect(svg.getAttribute('stroke-width')).toBe('0.8');
+    });
+
+    it('should use weight-derived strokeWidth when strokeWidth is not set', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[3].nativeElement;
+        expect(svg.getAttribute('stroke-width')).toBe('2');
     });
 });

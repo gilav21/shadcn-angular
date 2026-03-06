@@ -315,6 +315,8 @@ import {
   KanbanHistoryState,
   IconComponent,
   DEFAULT_ICONS,
+  IconSize,
+  SOLID_SUPPORTED_ICONS,
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -840,18 +842,133 @@ export class AppComponent {
 
   readonly iconNames = Object.keys(DEFAULT_ICONS);
   readonly iconCategories: ReadonlyArray<{ readonly label: string; readonly icons: readonly string[] }> = [
-    { label: 'Arrows & Navigation', icons: ['arrow-up', 'arrow-down', 'arrow-left', 'arrow-right', 'arrow-up-right', 'arrow-down-left', 'move-up', 'move-down'] },
-    { label: 'Chevrons', icons: ['chevron-up', 'chevron-down', 'chevron-left', 'chevron-right', 'chevrons-up-down', 'chevrons-left', 'chevrons-right'] },
-    { label: 'Actions', icons: ['check', 'x', 'plus', 'minus', 'search', 'filter', 'more-horizontal', 'more-vertical', 'grip-vertical'] },
-    { label: 'Common UI', icons: ['menu', 'sidebar', 'external-link', 'copy', 'clipboard', 'maximize-2', 'minimize-2'] },
-    { label: 'File & Document', icons: ['file', 'file-text', 'file-plus', 'folder', 'folder-open', 'image'] },
-    { label: 'Communication', icons: ['mail', 'message-square', 'message-circle', 'send', 'bell', 'phone'] },
-    { label: 'Users', icons: ['user', 'users', 'user-plus', 'user-minus', 'user-check'] },
-    { label: 'Status', icons: ['alert-circle', 'alert-triangle', 'info', 'help-circle', 'check-circle', 'x-circle', 'ban'] },
-    { label: 'Shapes', icons: ['star', 'heart', 'bookmark', 'flag', 'circle', 'circle-dot'] },
-    { label: 'Security', icons: ['lock', 'unlock', 'shield', 'shield-check', 'eye', 'eye-off', 'key'] },
-    { label: 'Misc', icons: ['home', 'globe', 'map-pin', 'terminal', 'code', 'settings', 'save', 'palette', 'sparkles', 'rocket', 'zap'] },
+    { label: 'Arrows & Navigation', icons: ['arrow-up', 'arrow-down', 'arrow-left', 'arrow-right', 'arrow-up-right', 'arrow-down-left', 'arrow-up-left', 'arrow-down-right', 'arrow-big-up', 'arrow-big-down', 'arrow-big-left', 'arrow-big-right', 'arrow-up-down', 'arrow-left-right', 'move-up', 'move-down', 'move-left', 'move-right', 'move-diagonal', 'corner-up-left', 'corner-up-right', 'corner-down-left', 'corner-down-right', 'navigation'] },
+    { label: 'Chevrons', icons: ['chevron-up', 'chevron-down', 'chevron-left', 'chevron-right', 'chevrons-up', 'chevrons-down', 'chevrons-left', 'chevrons-right', 'chevrons-up-down'] },
+    { label: 'Actions', icons: ['check', 'x', 'plus', 'minus', 'search', 'filter', 'list-filter', 'sort-asc', 'sort-desc', 'more-horizontal', 'more-vertical', 'ellipsis', 'grip-vertical', 'grip-horizontal', 'undo', 'redo', 'scissors', 'clipboard-paste', 'scan', 'qr-code'] },
+    { label: 'Common UI', icons: ['menu', 'sidebar', 'panel-left', 'panel-right', 'panel-top', 'panel-bottom', 'external-link', 'copy', 'clipboard', 'clipboard-check', 'maximize', 'minimize'] },
+    { label: 'Circles', icons: ['circle', 'circle-dot', 'circle-dashed', 'circle-off', 'circle-check', 'circle-x', 'circle-alert', 'circle-plus', 'circle-minus', 'circle-pause', 'circle-play', 'circle-stop', 'circle-arrow-up', 'circle-arrow-down', 'circle-arrow-left', 'circle-arrow-right', 'circle-ellipsis', 'circle-user', 'circle-help'] },
+    { label: 'Squares', icons: ['square', 'square-dashed', 'square-check', 'square-x', 'square-plus', 'square-minus', 'square-arrow-up-right', 'square-pen'] },
+    { label: 'Badges', icons: ['badge-check', 'badge-info', 'badge-alert', 'badge-x', 'badge-plus', 'badge-minus', 'badge-dollar-sign', 'badge-percent'] },
+    { label: 'File & Document', icons: ['file', 'file-text', 'file-plus', 'file-code', 'file-image', 'file-archive', 'file-json', 'file-terminal', 'folder', 'folder-open', 'folder-plus', 'folder-search', 'folder-lock', 'folder-tree', 'image', 'archive'] },
+    { label: 'Communication', icons: ['mail', 'mail-open', 'inbox', 'message-square', 'message-circle', 'message-circle-more', 'messages-square', 'message-square-plus', 'send', 'bell', 'bell-ring', 'bell-off', 'bell-plus', 'bell-minus', 'phone', 'at-sign', 'at-sign-2', 'reply', 'forward', 'video', 'megaphone', 'megaphone-off'] },
+    { label: 'Users & People', icons: ['user', 'users', 'user-plus', 'user-minus', 'user-check', 'user-x', 'user-round', 'user-cog', 'users-round', 'contact', 'baby', 'person-standing'] },
+    { label: 'Media & Devices', icons: ['play', 'pause', 'skip-forward', 'skip-back', 'fast-forward', 'rewind', 'volume', 'volume-1', 'volume-2', 'volume-x', 'mic', 'camera', 'radio', 'radio-tower', 'headphones', 'headset', 'music', 'music-2', 'music-3', 'clapperboard', 'tv', 'monitor', 'smartphone', 'tablet', 'laptop', 'projector'] },
+    { label: 'Devices & Hardware', icons: ['watch', 'mouse', 'keyboard', 'gamepad-2', 'printer-check', 'cpu', 'server', 'hard-drive'] },
+    { label: 'Status & Feedback', icons: ['alert-triangle', 'info', 'ban', 'siren', 'siren-alert', 'hourglass', 'timer', 'alarm-clock', 'gauge', 'infinity'] },
+    { label: 'Edit & Tools', icons: ['pencil', 'pencil-line', 'trash', 'trash-2', 'wrench', 'settings', 'settings-2', 'key', 'key-round', 'bug', 'test-tube', 'flask', 'paintbrush', 'brush', 'eraser', 'stamp'] },
+    { label: 'Data & Content', icons: ['calendar', 'calendar-days', 'calendar-check', 'clock', 'credit-card', 'dollar-sign', 'tag', 'hash', 'database', 'table'] },
+    { label: 'Charts & Analytics', icons: ['activity', 'bar-chart', 'bar-chart-2', 'pie-chart', 'trending-up', 'trending-down', 'signal'] },
+    { label: 'Transfer & IO', icons: ['download', 'upload', 'share', 'share-2', 'link', 'unlink'] },
+    { label: 'Layout & Alignment', icons: ['layout-template', 'layout-dashboard', 'grid-3x3', 'grid-2x2', 'columns-2', 'columns-3', 'rows-2', 'rows-3', 'align-start-vertical', 'align-end-vertical', 'align-start-horizontal', 'align-end-horizontal', 'align-center-vertical', 'align-center-horizontal', 'space-between', 'distribute-vertical', 'distribute-horizontal'] },
+    { label: 'Shapes & Objects', icons: ['star', 'star-half', 'star-off', 'heart', 'heart-crack', 'heart-handshake', 'bookmark', 'bookmark-plus', 'flag', 'box', 'box-select', 'layers', 'triangle', 'hexagon', 'pentagon', 'diamond', 'octagon', 'crown', 'crown-simple', 'gem', 'target', 'crosshair', 'sticker'] },
+    { label: 'Security & Privacy', icons: ['lock', 'lock-keyhole', 'unlock', 'shield', 'shield-check', 'shield-alert', 'shield-off', 'shield-question', 'eye', 'eye-off', 'fingerprint', 'scan-face', 'scan-eye', 'accessibility'] },
+    { label: 'Loading & Progress', icons: ['loader', 'loader-2', 'refresh-cw', 'rotate-cw', 'rotate-ccw', 'repeat', 'repeat-1', 'flip-horizontal', 'flip-vertical'] },
+    { label: 'Weather & Nature', icons: ['sun', 'sunrise', 'sunset', 'moon', 'cloud', 'cloud-sun', 'cloud-fog', 'cloud-rain', 'cloud-drizzle', 'cloud-snow', 'cloud-lightning', 'rainbow', 'tornado', 'zap', 'wind', 'thermometer', 'thermometer-sun', 'umbrella', 'umbrella-off', 'snowflake', 'droplet', 'flame', 'leaf', 'sprout', 'mountain', 'tent'] },
+    { label: 'Social & Emoji', icons: ['smile', 'frown', 'thumbs-up', 'thumbs-down'] },
+    { label: 'Rich Text', icons: ['bold', 'italic', 'underline', 'strikethrough', 'type', 'heading', 'list', 'list-ordered', 'list-checks', 'list-tree', 'list-collapse', 'align-left', 'align-center', 'align-right', 'align-justify', 'indent-increase', 'indent-decrease', 'quote', 'subscript', 'superscript', 'spell-check', 'case-upper', 'case-lower', 'wrap-text', 'pilcrow', 'text-cursor', 'book', 'book-marked', 'book-open', 'notebook', 'newspaper'] },
+    { label: 'Dev & Code', icons: ['code', 'code-xml', 'braces', 'brackets', 'regex', 'variable', 'terminal', 'git-branch', 'git-commit', 'git-merge', 'git-pull-request', 'git-compare', 'git-fork', 'webhook', 'container', 'plug', 'cable', 'wifi', 'wifi-off', 'bluetooth', 'battery', 'battery-charging', 'battery-low'] },
+    { label: 'Commerce', icons: ['shopping-cart', 'shopping-bag', 'shopping-basket', 'receipt', 'receipt-text', 'wallet', 'coins', 'banknote', 'percent', 'package', 'ticket', 'barcode'] },
+    { label: 'Transport', icons: ['car', 'truck', 'bus', 'train', 'bike', 'ship', 'plane', 'plane-takeoff', 'plane-landing', 'fuel'] },
+    { label: 'Buildings', icons: ['building', 'building-2', 'church', 'factory', 'landmark', 'hotel', 'warehouse', 'store'] },
+    { label: 'Travel & Maps', icons: ['map', 'map-pin', 'map-pinned', 'milestone', 'signpost', 'route', 'compass', 'globe', 'earth'] },
+    { label: 'Science & Math', icons: ['atom', 'beaker', 'microscope', 'dna', 'sigma', 'omega', 'calculator', 'binary'] },
+    { label: 'Animals', icons: ['cat', 'dog', 'bird', 'fish', 'rabbit', 'turtle', 'paw-print', 'bone'] },
+    { label: 'Food & Drink', icons: ['coffee', 'wine', 'beer', 'pizza', 'apple', 'cherry', 'cake', 'utensils'] },
+    { label: 'Health', icons: ['heart-pulse', 'stethoscope', 'pill', 'syringe'] },
+    { label: 'Education & Photography', icons: ['graduation-cap', 'aperture', 'image-plus', 'focus', 'rss', 'podcast'] },
+    { label: 'Awards & Sports', icons: ['trophy', 'gift', 'award', 'medal', 'dumbbell'] },
+    { label: 'Misc', icons: ['home', 'mouse-pointer-click', 'pointer', 'hand', 'shuffle', 'log-in', 'log-out', 'power', 'save', 'printer', 'palette', 'sparkles', 'wand', 'rocket', 'lightbulb', 'languages', 'pin', 'anchor', 'telescope', 'lamp', 'lamp-desk'] },
   ];
+
+  readonly iconSearchQuery = signal('');
+  readonly selectedIconName = signal<string | null>(null);
+  readonly iconExplorerStrokeWidth = signal(2);
+  readonly iconExplorerSolid = signal(false);
+  readonly iconExplorerSize = signal<IconSize>('lg');
+  readonly iconExplorerColor = signal('');
+  readonly iconExplorerFillColor = signal('');
+  readonly iconSizeOptions: readonly IconSize[] = ['xs', 'sm', 'md', 'lg', 'xl'];
+  readonly strokeWidthPresets: readonly { label: string; value: number }[] = [
+    { label: 'Light', value: 1.5 },
+    { label: 'Regular', value: 2 },
+    { label: 'Thick', value: 2.5 },
+  ];
+  private readonly strokeWidthSlider = viewChild<SliderComponent>('strokeWidthSlider');
+
+  private readonly iconSheet = viewChild<SheetComponent>('iconSheet');
+
+  readonly filteredIconCategories = computed(() => {
+    const query = this.iconSearchQuery().toLowerCase().trim();
+    if (!query) return this.iconCategories;
+    return this.iconCategories
+      .map(cat => ({
+        ...cat,
+        icons: cat.icons.filter(icon => icon.includes(query)),
+      }))
+      .filter(cat => cat.icons.length > 0);
+  });
+
+  readonly categorizedIconNames = computed(() => {
+    const all = new Set<string>();
+    for (const cat of this.iconCategories) {
+      for (const icon of cat.icons) {
+        all.add(icon);
+      }
+    }
+    return all;
+  });
+
+  readonly uncategorizedFilteredIcons = computed(() => {
+    const categorized = this.categorizedIconNames();
+    const query = this.iconSearchQuery().toLowerCase().trim();
+    return this.iconNames.filter(name =>
+      !categorized.has(name) && (!query || name.includes(query))
+    );
+  });
+
+  readonly selectedIconSupportsSolid = computed(() => {
+    const name = this.selectedIconName();
+    return name ? SOLID_SUPPORTED_ICONS.has(name) : false;
+  });
+
+  readonly iconExplorerCode = computed(() => {
+    const name = this.selectedIconName();
+    if (!name) return '';
+    const parts = [`name="${name}"`];
+    const sw = this.iconExplorerStrokeWidth();
+    const solid = this.iconExplorerSolid();
+    const s = this.iconExplorerSize();
+    const c = this.iconExplorerColor();
+    const fc = this.iconExplorerFillColor();
+    if (solid) parts.push(`weight="solid"`);
+    if (!solid && sw !== 2) parts.push(`[strokeWidth]="${sw}"`);
+    if (s !== 'md') parts.push(`size="${s}"`);
+    if (c) parts.push(`color="${c}"`);
+    if (fc) parts.push(`fillColor="${fc}"`);
+    return `<ui-icon ${parts.join(' ')} />`;
+  });
+
+  selectIcon(name: string): void {
+    this.selectedIconName.set(name);
+    this.iconExplorerStrokeWidth.set(2);
+    this.iconExplorerSolid.set(false);
+    this.iconExplorerSize.set('lg');
+    this.iconExplorerColor.set('');
+    this.iconExplorerFillColor.set('');
+    const slider = this.strokeWidthSlider();
+    if (slider) slider.value.set(2);
+    this.iconSheet()?.show();
+  }
+
+  onStrokeWidthChange(value: number): void {
+    this.iconExplorerStrokeWidth.set(Math.round(value * 10) / 10);
+  }
+
+  setStrokeWidthPreset(value: number): void {
+    this.iconExplorerStrokeWidth.set(value);
+    const slider = this.strokeWidthSlider();
+    if (slider) slider.value.set(value);
+  }
 
   selectOptions = ['Apple', 'Banana', 'Blueberry', 'Grapes', 'Pineapple'];
   radioOptions = ['Default', 'Comfortable', 'Compact'];

@@ -25,7 +25,10 @@ const meta: Meta<IconComponent> = {
         },
         weight: {
             control: 'select',
-            options: ['light', 'regular', 'solid'],
+            options: ['light', 'regular', 'thick', 'solid'],
+        },
+        strokeWidth: {
+            control: { type: 'range', min: 0.5, max: 4, step: 0.1 },
         },
         color: {
             control: 'color',
@@ -47,7 +50,7 @@ export const Default: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-icon [name]="name" [size]="size" [weight]="weight" [color]="color" [fillColor]="fillColor"></ui-icon>`,
+        template: `<ui-icon [name]="name" [size]="size" [weight]="weight" [strokeWidth]="strokeWidth" [color]="color" [fillColor]="fillColor"></ui-icon>`,
     }),
 };
 
@@ -159,6 +162,10 @@ export const Weights: Story = {
                             <div class="flex flex-col items-center gap-2">
                                 <ui-icon [name]="icon" weight="regular" size="lg"></ui-icon>
                                 <span class="text-[10px] text-muted-foreground">regular</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                <ui-icon [name]="icon" weight="thick" size="lg"></ui-icon>
+                                <span class="text-[10px] text-muted-foreground">thick</span>
                             </div>
                             <div class="flex flex-col items-center gap-2">
                                 <ui-icon [name]="icon" weight="solid" size="lg"></ui-icon>
