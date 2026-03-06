@@ -313,6 +313,8 @@ import {
   KanbanCardAddEvent,
   KanbanColumnDeleteEvent,
   KanbanHistoryState,
+  IconComponent,
+  DEFAULT_ICONS,
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -822,7 +824,8 @@ class OpsTicketDetailComponent {
     KanbanCardComponent,
     KanbanColumnHeaderComponent,
     KanbanCardContentComponent,
-    ...ContextMenuIntegrations
+    ...ContextMenuIntegrations,
+    IconComponent,
   ],
 
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -834,6 +837,21 @@ class OpsTicketDetailComponent {
 })
 export class AppComponent {
   themes = CODE_BLOCK_THEMES;
+
+  readonly iconNames = Object.keys(DEFAULT_ICONS);
+  readonly iconCategories: ReadonlyArray<{ readonly label: string; readonly icons: readonly string[] }> = [
+    { label: 'Arrows & Navigation', icons: ['arrow-up', 'arrow-down', 'arrow-left', 'arrow-right', 'arrow-up-right', 'arrow-down-left', 'move-up', 'move-down'] },
+    { label: 'Chevrons', icons: ['chevron-up', 'chevron-down', 'chevron-left', 'chevron-right', 'chevrons-up-down', 'chevrons-left', 'chevrons-right'] },
+    { label: 'Actions', icons: ['check', 'x', 'plus', 'minus', 'search', 'filter', 'more-horizontal', 'more-vertical', 'grip-vertical'] },
+    { label: 'Common UI', icons: ['menu', 'sidebar', 'external-link', 'copy', 'clipboard', 'maximize-2', 'minimize-2'] },
+    { label: 'File & Document', icons: ['file', 'file-text', 'file-plus', 'folder', 'folder-open', 'image'] },
+    { label: 'Communication', icons: ['mail', 'message-square', 'message-circle', 'send', 'bell', 'phone'] },
+    { label: 'Users', icons: ['user', 'users', 'user-plus', 'user-minus', 'user-check'] },
+    { label: 'Status', icons: ['alert-circle', 'alert-triangle', 'info', 'help-circle', 'check-circle', 'x-circle', 'ban'] },
+    { label: 'Shapes', icons: ['star', 'heart', 'bookmark', 'flag', 'circle', 'circle-dot'] },
+    { label: 'Security', icons: ['lock', 'unlock', 'shield', 'shield-check', 'eye', 'eye-off', 'key'] },
+    { label: 'Misc', icons: ['home', 'globe', 'map-pin', 'terminal', 'code', 'settings', 'save', 'palette', 'sparkles', 'rocket', 'zap'] },
+  ];
 
   selectOptions = ['Apple', 'Banana', 'Blueberry', 'Grapes', 'Pineapple'];
   radioOptions = ['Default', 'Comfortable', 'Compact'];
@@ -2034,6 +2052,7 @@ ORDER BY created_at DESC;`;
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
     { id: 'animations', name: 'Animations', category: 'Advanced', icon: '🎬' },
     { id: 'kanban', name: 'Kanban Board', category: 'Advanced', icon: '📋' },
+    { id: 'icon', name: 'Icon', category: 'Data Display', icon: '🎯' },
   ];
 
   categories = computed(() => {
