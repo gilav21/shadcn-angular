@@ -219,6 +219,8 @@ export type IconName = DefaultIconName | (string & Record<never, never>);
 
 export type IconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | (string & Record<never, never>);
 
+export type IconWeight = 'light' | 'regular' | 'solid';
+
 const SIZE_MAP: Record<string, string> = {
     xs: '12',
     sm: '16',
@@ -237,14 +239,15 @@ const SIZE_MAP: Record<string, string> = {
             [attr.width]="resolvedSize()"
             [attr.height]="resolvedSize()"
             viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
+            [attr.fill]="resolvedFill()"
+            [attr.stroke]="resolvedStroke()"
+            [attr.stroke-width]="resolvedStrokeWidth()"
             stroke-linecap="round"
             stroke-linejoin="round"
             [class]="classes()"
             [innerHTML]="svgContent()"
             [attr.data-slot]="'icon'"
+            [style.color]="color() || null"
         ></svg>
     `,
     styles: [`:host { display: inline-flex; }`],
@@ -253,6 +256,9 @@ export class IconComponent {
     readonly name = input<IconName>('');
     readonly class = input('');
     readonly size = input<IconSize>('md');
+    readonly weight = input<IconWeight>('regular');
+    readonly color = input<string>();
+    readonly fillColor = input<string>();
 
     private readonly sanitizer = inject(DomSanitizer);
     private readonly customIcons = inject(UI_CUSTOM_ICONS, { optional: true });
@@ -266,6 +272,23 @@ export class IconComponent {
         const s = this.size();
         return SIZE_MAP[s] ?? s;
     });
+
+    readonly resolvedStrokeWidth = computed(() => {
+        const w = this.weight();
+        if (w === 'light') return '1.5';
+        if (w === 'solid') return '0';
+        return '2';
+    });
+
+    readonly resolvedFill = computed(() => {
+        const fc = this.fillColor();
+        if (fc) return fc;
+        return this.weight() === 'solid' ? 'currentColor' : 'none';
+    });
+
+    readonly resolvedStroke = computed(() =>
+        this.weight() === 'solid' ? 'none' : 'currentColor',
+    );
 
     readonly svgContent = computed(() => {
         const iconName = this.name();

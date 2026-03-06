@@ -220,3 +220,102 @@ describe('IconComponent without custom icons provider', () => {
         expect(() => fixture.detectChanges()).not.toThrow();
     });
 });
+
+describe('IconComponent weight input', () => {
+    @Component({
+        template: `
+            <ui-icon name="check" weight="light"></ui-icon>
+            <ui-icon name="check" weight="regular"></ui-icon>
+            <ui-icon name="check" weight="solid"></ui-icon>
+            <ui-icon name="check"></ui-icon>
+        `,
+        imports: [IconComponent],
+    })
+    class WeightHostComponent {}
+
+    let fixture: ComponentFixture<WeightHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [WeightHostComponent, IconComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(WeightHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should set stroke-width to 1.5 for light weight', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[0].nativeElement;
+        expect(svg.getAttribute('stroke-width')).toBe('1.5');
+        expect(svg.getAttribute('fill')).toBe('none');
+        expect(svg.getAttribute('stroke')).toBe('currentColor');
+    });
+
+    it('should set stroke-width to 2 for regular weight', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[1].nativeElement;
+        expect(svg.getAttribute('stroke-width')).toBe('2');
+        expect(svg.getAttribute('fill')).toBe('none');
+        expect(svg.getAttribute('stroke')).toBe('currentColor');
+    });
+
+    it('should set fill to currentColor and stroke to none for solid weight', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[2].nativeElement;
+        expect(svg.getAttribute('stroke-width')).toBe('0');
+        expect(svg.getAttribute('fill')).toBe('currentColor');
+        expect(svg.getAttribute('stroke')).toBe('none');
+    });
+
+    it('should default to regular weight', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[3].nativeElement;
+        expect(svg.getAttribute('stroke-width')).toBe('2');
+        expect(svg.getAttribute('fill')).toBe('none');
+        expect(svg.getAttribute('stroke')).toBe('currentColor');
+    });
+});
+
+describe('IconComponent color inputs', () => {
+    @Component({
+        template: `
+            <ui-icon name="check" color="red"></ui-icon>
+            <ui-icon name="check" fillColor="blue"></ui-icon>
+            <ui-icon name="check" color="red" fillColor="blue"></ui-icon>
+            <ui-icon name="check" weight="solid" color="green"></ui-icon>
+        `,
+        imports: [IconComponent],
+    })
+    class ColorHostComponent {}
+
+    let fixture: ComponentFixture<ColorHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [ColorHostComponent, IconComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(ColorHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should apply color as CSS color style', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[0].nativeElement;
+        expect(svg.style.color).toBe('red');
+    });
+
+    it('should apply fillColor as SVG fill attribute', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[1].nativeElement;
+        expect(svg.getAttribute('fill')).toBe('blue');
+    });
+
+    it('should apply both color and fillColor independently', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[2].nativeElement;
+        expect(svg.style.color).toBe('red');
+        expect(svg.getAttribute('fill')).toBe('blue');
+    });
+
+    it('should use currentColor fill for solid weight with color input', () => {
+        const svg = fixture.debugElement.queryAll(By.css('svg'))[3].nativeElement;
+        expect(svg.style.color).toBe('green');
+        expect(svg.getAttribute('fill')).toBe('currentColor');
+        expect(svg.getAttribute('stroke')).toBe('none');
+    });
+});

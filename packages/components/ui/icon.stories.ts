@@ -23,6 +23,16 @@ const meta: Meta<IconComponent> = {
             control: 'select',
             options: ['xs', 'sm', 'md', 'lg', 'xl'],
         },
+        weight: {
+            control: 'select',
+            options: ['light', 'regular', 'solid'],
+        },
+        color: {
+            control: 'color',
+        },
+        fillColor: {
+            control: 'color',
+        },
     },
 };
 
@@ -33,10 +43,11 @@ export const Default: Story = {
     args: {
         name: 'check',
         size: 'md',
+        weight: 'regular',
     },
     render: (args) => ({
         props: args,
-        template: `<ui-icon [name]="name" [size]="size"></ui-icon>`,
+        template: `<ui-icon [name]="name" [size]="size" [weight]="weight" [color]="color" [fillColor]="fillColor"></ui-icon>`,
     }),
 };
 
@@ -127,6 +138,84 @@ export const CommonActions: Story = {
                 <div class="flex flex-col items-center gap-1">
                     <ui-icon name="settings"></ui-icon>
                     <span class="text-xs text-muted-foreground">Settings</span>
+                </div>
+            </div>
+        `,
+    }),
+};
+
+export const Weights: Story = {
+    render: () => ({
+        template: `
+            <div class="space-y-6">
+                @for (icon of icons; track icon) {
+                    <div class="flex items-center gap-8">
+                        <span class="text-sm text-muted-foreground w-24">{{ icon }}</span>
+                        <div class="flex items-center gap-6">
+                            <div class="flex flex-col items-center gap-2">
+                                <ui-icon [name]="icon" weight="light" size="lg"></ui-icon>
+                                <span class="text-[10px] text-muted-foreground">light</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                <ui-icon [name]="icon" weight="regular" size="lg"></ui-icon>
+                                <span class="text-[10px] text-muted-foreground">regular</span>
+                            </div>
+                            <div class="flex flex-col items-center gap-2">
+                                <ui-icon [name]="icon" weight="solid" size="lg"></ui-icon>
+                                <span class="text-[10px] text-muted-foreground">solid</span>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        `,
+        props: {
+            icons: ['heart', 'star', 'check', 'home', 'settings', 'bookmark', 'bell', 'shield'],
+        },
+    }),
+};
+
+export const Colors: Story = {
+    render: () => ({
+        template: `
+            <div class="space-y-8">
+                <div>
+                    <h3 class="text-sm font-medium mb-3">Stroke color via color input</h3>
+                    <div class="flex items-center gap-4">
+                        <ui-icon name="heart" color="red" size="lg"></ui-icon>
+                        <ui-icon name="star" color="#f59e0b" size="lg"></ui-icon>
+                        <ui-icon name="check" color="green" size="lg"></ui-icon>
+                        <ui-icon name="bell" color="blue" size="lg"></ui-icon>
+                        <ui-icon name="shield" color="purple" size="lg"></ui-icon>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium mb-3">Solid + color</h3>
+                    <div class="flex items-center gap-4">
+                        <ui-icon name="heart" weight="solid" color="red" size="lg"></ui-icon>
+                        <ui-icon name="star" weight="solid" color="#f59e0b" size="lg"></ui-icon>
+                        <ui-icon name="check-circle" weight="solid" color="green" size="lg"></ui-icon>
+                        <ui-icon name="bell" weight="solid" color="blue" size="lg"></ui-icon>
+                        <ui-icon name="shield" weight="solid" color="purple" size="lg"></ui-icon>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium mb-3">Stroke + fill (dual color)</h3>
+                    <div class="flex items-center gap-4">
+                        <ui-icon name="heart" color="red" fillColor="pink" size="lg"></ui-icon>
+                        <ui-icon name="star" color="#b45309" fillColor="#fef3c7" size="lg"></ui-icon>
+                        <ui-icon name="bookmark" color="blue" fillColor="#dbeafe" size="lg"></ui-icon>
+                        <ui-icon name="shield" color="green" fillColor="#dcfce7" size="lg"></ui-icon>
+                    </div>
+                </div>
+                <div>
+                    <h3 class="text-sm font-medium mb-3">Using Tailwind classes</h3>
+                    <div class="flex items-center gap-4">
+                        <ui-icon name="heart" class="text-red-500" size="lg"></ui-icon>
+                        <ui-icon name="star" class="text-yellow-500" size="lg"></ui-icon>
+                        <ui-icon name="check" class="text-green-500" size="lg"></ui-icon>
+                        <ui-icon name="bell" class="text-blue-500" size="lg"></ui-icon>
+                    </div>
                 </div>
             </div>
         `,
