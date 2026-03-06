@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { IconComponent, ICONS } from './icon.component';
+import { IconComponent, DEFAULT_ICONS, ICONS } from './icon.component';
+import { provideIcons } from './icon.token';
 
 @Component({
     template: `
@@ -10,16 +11,16 @@ import { IconComponent, ICONS } from './icon.component';
         <ui-icon name="arrow-up"></ui-icon>
         <ui-icon name="nonexistent"></ui-icon>
     `,
-    imports: [IconComponent]
+    imports: [IconComponent],
 })
-class TestHostComponent { }
+class TestHostComponent {}
 
 describe('IconComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [TestHostComponent, IconComponent]
+            imports: [TestHostComponent, IconComponent],
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
@@ -31,11 +32,12 @@ describe('IconComponent', () => {
         expect(icons.length).toBe(3);
     });
 
-    it('should render SVG element', () => {
+    it('should render SVG element with correct attributes', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
         expect(svg).toBeTruthy();
         expect(svg.nativeElement.getAttribute('xmlns')).toBe('http://www.w3.org/2000/svg');
         expect(svg.nativeElement.getAttribute('viewBox')).toBe('0 0 24 24');
+        expect(svg.nativeElement.getAttribute('data-slot')).toBe('icon');
     });
 
     it('should render SVG content for known icon', () => {
@@ -52,7 +54,9 @@ describe('IconComponent', () => {
 
     it('should apply custom class input', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
-        expect(svg.nativeElement.className.baseVal || svg.nativeElement.getAttribute('class')).toContain('custom-icon-class');
+        expect(
+            svg.nativeElement.className.baseVal || svg.nativeElement.getAttribute('class'),
+        ).toContain('custom-icon-class');
     });
 
     it('should render empty SVG for unknown icon name', () => {
@@ -61,10 +65,158 @@ describe('IconComponent', () => {
         expect(unknownSvg.nativeElement.classList.contains('ui-icon-nonexistent')).toBe(true);
     });
 
-    it('should export ICONS constant with expected keys', () => {
-        expect(ICONS['check']).toBeDefined();
-        expect(ICONS['arrow-up']).toBeDefined();
-        expect(ICONS['x']).toBeDefined();
-        expect(ICONS['calendar']).toBeDefined();
+    it('should export DEFAULT_ICONS constant with expected keys', () => {
+        expect(DEFAULT_ICONS['check']).toBeDefined();
+        expect(DEFAULT_ICONS['arrow-up']).toBeDefined();
+        expect(DEFAULT_ICONS['x']).toBeDefined();
+        expect(DEFAULT_ICONS['calendar']).toBeDefined();
+    });
+
+    it('should export ICONS as backward-compatible alias', () => {
+        expect(ICONS).toBe(DEFAULT_ICONS);
+    });
+});
+
+describe('IconComponent with size input', () => {
+    @Component({
+        template: `
+            <ui-icon name="check" size="sm"></ui-icon>
+            <ui-icon name="check" size="lg"></ui-icon>
+            <ui-icon name="check" size="40"></ui-icon>
+        `,
+        imports: [IconComponent],
+    })
+    class SizeHostComponent {}
+
+    let fixture: ComponentFixture<SizeHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SizeHostComponent, IconComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SizeHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should resolve named sizes to pixel values', () => {
+        const svgs = fixture.debugElement.queryAll(By.css('svg'));
+        expect(svgs[0].nativeElement.getAttribute('width')).toBe('16');
+        expect(svgs[0].nativeElement.getAttribute('height')).toBe('16');
+        expect(svgs[1].nativeElement.getAttribute('width')).toBe('32');
+        expect(svgs[1].nativeElement.getAttribute('height')).toBe('32');
+    });
+
+    it('should pass through custom size values', () => {
+        const svgs = fixture.debugElement.queryAll(By.css('svg'));
+        expect(svgs[2].nativeElement.getAttribute('width')).toBe('40');
+        expect(svgs[2].nativeElement.getAttribute('height')).toBe('40');
+    });
+
+    it('should default to md size (24)', () => {
+        @Component({
+            template: `<ui-icon name="check"></ui-icon>`,
+            imports: [IconComponent],
+        })
+        class DefaultSizeComponent {}
+
+        const defaultFixture = TestBed.createComponent(DefaultSizeComponent);
+        defaultFixture.detectChanges();
+
+        const svg = defaultFixture.debugElement.query(By.css('svg'));
+        expect(svg.nativeElement.getAttribute('width')).toBe('24');
+        expect(svg.nativeElement.getAttribute('height')).toBe('24');
+    });
+});
+
+describe('IconComponent with custom icons via provideIcons', () => {
+    @Component({
+        template: `<ui-icon name="my-custom-icon"></ui-icon>`,
+        imports: [IconComponent],
+    })
+    class CustomIconHostComponent {}
+
+    let fixture: ComponentFixture<CustomIconHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [CustomIconHostComponent, IconComponent],
+            providers: [
+                provideIcons({
+                    'my-custom-icon': '<path d="M0 0L24 24" />',
+                }),
+            ],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(CustomIconHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should render custom icon SVG content', () => {
+        const svg = fixture.debugElement.query(By.css('svg'));
+        expect(svg.nativeElement.innerHTML).toContain('M0 0L24 24');
+    });
+
+    it('should apply ui-icon class with custom icon name', () => {
+        const svg = fixture.debugElement.query(By.css('svg'));
+        expect(svg.nativeElement.classList.contains('ui-icon-my-custom-icon')).toBe(true);
+    });
+});
+
+describe('IconComponent custom icons override built-in', () => {
+    const customCheckPath = '<circle cx="12" cy="12" r="10" />';
+
+    @Component({
+        template: `<ui-icon name="check"></ui-icon>`,
+        imports: [IconComponent],
+    })
+    class OverrideHostComponent {}
+
+    let fixture: ComponentFixture<OverrideHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [OverrideHostComponent, IconComponent],
+            providers: [
+                provideIcons({ check: customCheckPath }),
+            ],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(OverrideHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should use the custom check icon instead of built-in', () => {
+        const svg = fixture.debugElement.query(By.css('svg'));
+        expect(svg.nativeElement.innerHTML).toContain('r="10"');
+        expect(svg.nativeElement.innerHTML).not.toContain('M20 6');
+    });
+});
+
+describe('IconComponent without custom icons provider', () => {
+    @Component({
+        template: `<ui-icon name="check"></ui-icon>`,
+        imports: [IconComponent],
+    })
+    class NoProviderHostComponent {}
+
+    let fixture: ComponentFixture<NoProviderHostComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [NoProviderHostComponent, IconComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(NoProviderHostComponent);
+        fixture.detectChanges();
+    });
+
+    it('should work with only built-in icons', () => {
+        const svg = fixture.debugElement.query(By.css('svg'));
+        expect(svg.nativeElement.innerHTML).toContain('path');
+    });
+
+    it('should not throw when UI_CUSTOM_ICONS is not provided', () => {
+        expect(() => fixture.detectChanges()).not.toThrow();
     });
 });
