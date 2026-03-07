@@ -35,10 +35,17 @@ export class PopoverComponent implements OnDestroy {
     closeOnScroll = input(false);
     openChange = output<boolean>();
 
+    private portalEl: HTMLElement | null = null;
+
+    registerPortal(el: HTMLElement | null) {
+        this.portalEl = el;
+    }
+
     private readonly clickListener = (event: MouseEvent) => {
-        if (!this.el.nativeElement.contains(event.target)) {
-            this.hide();
-        }
+        const target = event.target as Node;
+        if (this.el.nativeElement.contains(target)) return;
+        if (this.portalEl?.contains(target)) return;
+        this.hide();
     };
 
     private scrollCleanup: (() => void) | null = null;
@@ -56,7 +63,9 @@ export class PopoverComponent implements OnDestroy {
                 setTimeout(() => {
                     const el = this.el.nativeElement;
                     const handler = (e: Event) => {
-                        if (e.target instanceof Node && el.contains(e.target)) return;
+                        if (!(e.target instanceof Node)) return;
+                        if (el.contains(e.target)) return;
+                        if (this.portalEl?.contains(e.target)) return;
                         this.hide();
                     };
                     globalThis.window.addEventListener('scroll', handler, { capture: true, passive: true });
@@ -139,8 +148,9 @@ export class PopoverTriggerComponent {
   `,
     host: { class: 'contents' },
 })
-export class PopoverContentComponent implements AfterViewInit {
+export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     readonly popover = inject(PopoverComponent, { optional: true });
+    private readonly document = inject(DOCUMENT);
 
     class = input('');
     align = input<PopoverAlign>('center');
@@ -151,6 +161,8 @@ export class PopoverContentComponent implements AfterViewInit {
     strategy = input<'absolute' | 'fixed'>('absolute');
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
+
+    private portalHost: HTMLElement | null = null;
 
     private readonly adjustedPosition = signal<{
         side: PopoverSide;
@@ -169,16 +181,44 @@ export class PopoverContentComponent implements AfterViewInit {
                     offsetY: 0,
                 });
                 requestAnimationFrame(() => {
+                    this.portalToBody();
                     requestAnimationFrame(() => {
                         this.calculatePosition();
                     });
                 });
+            } else {
+                this.removePortal();
             }
         });
     }
 
     ngAfterViewInit() {
+        this.portalToBody();
         this.calculatePosition();
+    }
+
+    ngOnDestroy() {
+        this.removePortal();
+    }
+
+    private portalToBody() {
+        if (this.strategy() !== 'fixed') return;
+        const el = this.contentEl?.nativeElement;
+        if (!el) return;
+        if (!this.portalHost) {
+            this.portalHost = this.document.createElement('div');
+            this.portalHost.dataset['popoverPortal'] = 'true';
+            this.portalHost.style.cssText = 'display:contents';
+            this.document.body.appendChild(this.portalHost);
+            this.popover?.registerPortal(this.portalHost);
+        }
+        this.portalHost.appendChild(el);
+    }
+
+    private removePortal() {
+        this.popover?.registerPortal(null);
+        this.portalHost?.remove();
+        this.portalHost = null;
     }
 
     private calculatePosition() {
@@ -201,11 +241,19 @@ export class PopoverContentComponent implements AfterViewInit {
 
     private adjustFixedPosition(el: HTMLElement) {
         const rect = el.getBoundingClientRect();
-        if (rect.right > globalThis.window.innerWidth) {
-            el.style.left = `${globalThis.window.innerWidth - rect.width - 8}px`;
+        const vw = globalThis.window.innerWidth;
+        const vh = globalThis.window.innerHeight;
+        const needsHorizontalFix = rect.right > vw || rect.left < 0;
+        const needsVerticalFix = rect.bottom > vh || rect.top < 0;
+
+        if (needsHorizontalFix) {
+            const clampedLeft = Math.max(8, Math.min(rect.left, vw - rect.width - 8));
+            el.style.left = `${clampedLeft}px`;
+            el.style.transform = 'none';
         }
-        if (rect.bottom > globalThis.window.innerHeight) {
-            el.style.top = `${globalThis.window.innerHeight - rect.height - 8}px`;
+        if (needsVerticalFix) {
+            const clampedTop = Math.max(8, Math.min(rect.top, vh - rect.height - 8));
+            el.style.top = `${clampedTop}px`;
         }
     }
 

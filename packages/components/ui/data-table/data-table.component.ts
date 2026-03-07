@@ -233,9 +233,9 @@ import {
                             (sortMeta)="onSortChange(col.accessorKey, $event.direction, $event.multi)"
                           />
                           @if (col.enableFiltering && col.filterComponent) {
-                            <ui-popover>
+                            <ui-popover [closeOnScroll]="true">
                               <ui-popover-trigger>
-                                <button 
+                                <button
                                   class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
                                   [attr.aria-label]="'Filter ' + col.header"
                                 >
