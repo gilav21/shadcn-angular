@@ -317,6 +317,11 @@ import {
   DEFAULT_ICONS,
   IconSize,
   SOLID_SUPPORTED_ICONS,
+  DataTableDateFilterComponent,
+  DataTableDateRangeFilterComponent,
+  dateFilterFn,
+  dateRangeFilterFn,
+  DateRange,
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -1576,6 +1581,7 @@ export class AppComponent {
   opsTotal = signal(0);
   opsLoading = signal(false);
   opsFilter = signal('');
+  opsColumnFilters = signal<Record<string, unknown>>({});
   opsPagination = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
   opsSort = signal<SortState>({ column: '', direction: null });
   opsMultiSort = signal<SortState[]>([]);
@@ -1636,6 +1642,10 @@ export class AppComponent {
       header: 'Updated',
       width: '160px',
       enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableDateRangeFilterComponent,
+      filterFn: (row: OpsTicket, filterValue: unknown): boolean =>
+        dateRangeFilterFn(row, filterValue as DateRange | null, r => r.updatedAt),
       sortFn: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
     },
     {
@@ -1643,6 +1653,10 @@ export class AppComponent {
       header: 'Created',
       width: '160px',
       enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableDateFilterComponent,
+      filterFn: (row: OpsTicket, filterValue: unknown): boolean =>
+        dateFilterFn(row, filterValue as Date | null, r => r.createdAt),
       sortFn: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     { accessorKey: 'summary', header: 'Summary', width: 'auto', enableSorting: false, enableGlobalFilter: false },
@@ -1665,6 +1679,12 @@ export class AppComponent {
 
   onOpsMultiSort(sorts: SortState[]) {
     this.opsMultiSort.set(sorts);
+    this.loadOpsData();
+  }
+
+  onOpsColumnFilters(filters: Record<string, unknown>) {
+    this.opsColumnFilters.set(filters);
+    this.opsPagination.update(p => ({ ...p, pageIndex: 0 }));
     this.loadOpsData();
   }
 
@@ -1746,6 +1766,7 @@ export class AppComponent {
     const source = this.opsSource();
     const filter = this.opsFilter().toLowerCase();
     const sorts = this.resolveOpsSorts();
+    const colFilters = this.opsColumnFilters();
 
     let rows = source;
 
@@ -1756,6 +1777,15 @@ export class AppComponent {
           .toLowerCase()
           .includes(filter)
       );
+    }
+
+    for (const key of Object.keys(colFilters)) {
+      const filterValue = colFilters[key];
+      if (filterValue === null || filterValue === undefined || filterValue === '') continue;
+      const col = this.opsColumns.find(c => c.accessorKey === key);
+      if (col?.filterFn) {
+        rows = rows.filter(row => col.filterFn!(row, filterValue));
+      }
     }
 
     if (sorts.length > 0) {

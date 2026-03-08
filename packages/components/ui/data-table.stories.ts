@@ -5,6 +5,8 @@ import { Component, ChangeDetectionStrategy, output, input, signal } from '@angu
 import { InputComponent } from './input.component';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from './context-menu.component';
 import { ContextMenuIntegrations } from './context-menu-integrations';
+import { DataTableDateFilterComponent, DataTableDateRangeFilterComponent, dateFilterFn, dateRangeFilterFn } from './data-table/data-table-date-filter.component';
+import { DateRange } from './calendar.component';
 
 // Filter component for stories
 @Component({
@@ -829,6 +831,106 @@ export const WithRowActionsContextMenuOnly: Story = {
     args: {
         data: sampleData,
         columns: columns,
+        showPagination: true,
+    },
+};
+
+interface Order {
+    id: string;
+    customer: string;
+    createdAt: Date;
+    amount: number;
+}
+
+type OrderStory = StoryObj<DataTableComponent<Order>>;
+
+const orderData: Order[] = Array.from({ length: 20 }, (_, i) => ({
+    id: `ORD-${String(i + 1).padStart(3, '0')}`,
+    customer: ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'][i % 5],
+    createdAt: new Date(Date.now() - i * 1000 * 60 * 60 * 24),
+    amount: Math.round((50 + Math.random() * 450) * 100) / 100,
+}));
+
+export const WithDateFilter: OrderStory = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: orderData,
+        columns: [
+            { accessorKey: 'id', header: 'Order ID', width: '120px' },
+            { accessorKey: 'customer', header: 'Customer', enableSorting: true },
+            {
+                accessorKey: 'createdAt',
+                header: 'Created',
+                enableSorting: true,
+                enableFiltering: true,
+                filterComponent: DataTableDateFilterComponent,
+                filterComponentInputs: { title: 'Filter by date' },
+                filterFn: (row: Order, filterValue: unknown) =>
+                    dateFilterFn(row, filterValue as Date | null, (r) => r.createdAt),
+                cell: (row: Order) => row.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            },
+            {
+                accessorKey: 'amount',
+                header: 'Amount',
+                enableSorting: true,
+                cell: (row: Order) => `$${row.amount.toFixed(2)}`,
+            },
+        ] as ColumnDef<Order>[],
+        showToolbar: true,
+        showPagination: true,
+    },
+};
+
+export const WithDateRangeFilter: OrderStory = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: orderData,
+        columns: [
+            { accessorKey: 'id', header: 'Order ID', width: '120px' },
+            { accessorKey: 'customer', header: 'Customer', enableSorting: true },
+            {
+                accessorKey: 'createdAt',
+                header: 'Created',
+                enableSorting: true,
+                enableFiltering: true,
+                filterComponent: DataTableDateRangeFilterComponent,
+                filterComponentInputs: { title: 'Date range' },
+                filterFn: (row: Order, filterValue: unknown) =>
+                    dateRangeFilterFn(row, filterValue as DateRange | null, (r) => r.createdAt),
+                cell: (row: Order) => row.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            },
+            {
+                accessorKey: 'amount',
+                header: 'Amount',
+                enableSorting: true,
+                cell: (row: Order) => `$${row.amount.toFixed(2)}`,
+            },
+        ] as ColumnDef<Order>[],
+        showToolbar: true,
         showPagination: true,
     },
 };

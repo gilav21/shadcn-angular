@@ -3908,7 +3908,8 @@
               [rowDetailComponent]="opsDetailComponent" [rowDetailComponentInputs]="opsDetailInputs"
               [enableMultiSort]="true" [localSorting]="false" [localPagination]="false" [localFiltering]="false"
               (sortChange)="onOpsSort($event)" (multiSortChange)="onOpsMultiSort($event)"
-              (pageChange)="onOpsPage($event)" (filterChange)="onOpsFilter($event)" [(columnOrder)]="opsColumnOrder"
+              (pageChange)="onOpsPage($event)" (filterChange)="onOpsFilter($event)"
+              (columnFiltersChange)="onOpsColumnFilters($event)" [(columnOrder)]="opsColumnOrder"
               [(columnVisibility)]="opsColumnVisibility" [(expandedRows)]="opsExpandedRows"
               [uiDataTableContextMenu]="opsContextMenu" [exportDataProvider]="opsExportProvider" />
           </div>
