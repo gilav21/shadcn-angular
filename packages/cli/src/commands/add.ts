@@ -12,7 +12,7 @@ import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-interface AddOptions {
+export interface AddOptions {
     yes?: boolean;
     overwrite?: boolean;
     all?: boolean;
@@ -77,7 +77,7 @@ function aliasToProjectPath(aliasOrPath: string): string {
         : aliasOrPath;
 }
 
-function normalizeContent(str: string): string {
+export function normalizeContent(str: string): string {
     return str.replaceAll('\r\n', '\n').trim();
 }
 
@@ -128,9 +128,9 @@ async function fetchLibContent(file: string, options: AddOptions): Promise<strin
     return response.text();
 }
 
-async function fetchAndTransform(file: string, options: AddOptions, utilsAlias: string): Promise<string> {
+export async function fetchAndTransform(file: string, options: AddOptions, utilsAlias: string): Promise<string> {
     let content = await fetchComponentContent(file, options);
-    content = content.replaceAll(/(\.\.\/)+lib\//, utilsAlias + '/');
+    content = content.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/');
     return content;
 }
 
@@ -230,7 +230,7 @@ export async function promptOptionalDependencies(
 // Conflict detection
 // ---------------------------------------------------------------------------
 
-async function checkFileConflict(
+export async function checkFileConflict(
     file: string,
     targetDir: string,
     options: AddOptions,
@@ -263,21 +263,18 @@ async function checkPeerFiles(
     utilsAlias: string,
     contentCache: Map<string, string>,
     peerFilesToUpdate: Set<string>,
-): Promise<boolean> {
-    if (!component.peerFiles) return false;
+): Promise<void> {
+    if (!component.peerFiles) return;
 
-    let hasChanges = false;
     for (const file of component.peerFiles) {
         const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache);
         if (status === 'changed') {
-            hasChanges = true;
             peerFilesToUpdate.add(file);
         }
     }
-    return hasChanges;
 }
 
-async function classifyComponent(
+export async function classifyComponent(
     name: ComponentName,
     targetDir: string,
     options: AddOptions,
@@ -286,26 +283,25 @@ async function classifyComponent(
     peerFilesToUpdate: Set<string>,
 ): Promise<'install' | 'skip' | 'conflict'> {
     const component = registry[name];
-    let hasChanges = false;
+    let ownFilesChanged = false;
     let isFullyPresent = true;
 
     for (const file of component.files) {
         const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache);
         if (status === 'missing') isFullyPresent = false;
-        if (status === 'changed') hasChanges = true;
+        if (status === 'changed') ownFilesChanged = true;
     }
 
-    const peerChanged = await checkPeerFiles(
+    await checkPeerFiles(
         component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate,
     );
-    if (peerChanged) hasChanges = true;
 
-    if (isFullyPresent && !hasChanges) return 'skip';
-    if (hasChanges) return 'conflict';
+    if (isFullyPresent && !ownFilesChanged) return 'skip';
+    if (ownFilesChanged) return 'conflict';
     return 'install';
 }
 
-async function detectConflicts(
+export async function detectConflicts(
     allComponents: Set<ComponentName>,
     targetDir: string,
     options: AddOptions,
@@ -538,9 +534,30 @@ export async function add(components: string[], options: AddOptions) {
     const toOverwrite = await promptOverwrite(conflicting, options);
     const finalComponents = [...toInstall, ...toOverwrite];
 
+    // Remove peer files that belong only to declined components
+    const declined = conflicting.filter(c => !toOverwrite.includes(c));
+    for (const name of declined) {
+        const component = registry[name];
+        if (!component.peerFiles) continue;
+        for (const file of component.peerFiles) {
+            const stillNeeded = finalComponents.some(fc =>
+                registry[fc].peerFiles?.includes(file),
+            );
+            if (!stillNeeded) {
+                peerFilesToUpdate.delete(file);
+            }
+        }
+    }
+
     if (finalComponents.length === 0) {
-        if (toSkip.length > 0) {
-            console.log(chalk.green(`\nAll components are up to date! (${toSkip.length} skipped)`));
+        if (toSkip.length > 0 || declined.length > 0) {
+            if (toSkip.length > 0) {
+                console.log(chalk.green(`\nAll components are up to date! (${toSkip.length} skipped)`));
+            }
+            if (declined.length > 0) {
+                console.log('\n' + chalk.dim('Components skipped (kept local changes):'));
+                declined.forEach(name => console.log(chalk.dim('  - ') + chalk.yellow(name)));
+            }
         } else {
             console.log(chalk.dim('\nNo components to install.'));
         }
@@ -550,6 +567,7 @@ export async function add(components: string[], options: AddOptions) {
     // Install component files
     const spinner = ora('Installing components...').start();
     let successCount = 0;
+    const finalComponentSet = new Set(finalComponents);
 
     try {
         await fs.ensureDir(targetDir);
@@ -580,13 +598,18 @@ export async function add(components: string[], options: AddOptions) {
 
         // Post-install: lib files, npm deps, shortcuts
         const libDir = resolveProjectPath(cwd, aliasToProjectPath(utilsAlias));
-        await installLibFiles(allComponents, cwd, libDir, options);
+        await installLibFiles(finalComponentSet, cwd, libDir, options);
         await installNpmDependencies(finalComponents, cwd);
         await ensureShortcutService(targetDir, cwd, config, options);
 
         if (toSkip.length > 0) {
             console.log('\n' + chalk.dim('Components skipped (up to date):'));
             toSkip.forEach(name => console.log(chalk.dim('  - ') + chalk.gray(name)));
+        }
+
+        if (declined.length > 0) {
+            console.log('\n' + chalk.dim('Components skipped (kept local changes):'));
+            declined.forEach(name => console.log(chalk.dim('  - ') + chalk.yellow(name)));
         }
 
         console.log('');

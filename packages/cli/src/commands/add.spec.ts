@@ -1,6 +1,445 @@
-import { describe, it, expect, vi } from 'vitest';
-import { resolveDependencies, promptOptionalDependencies } from './add.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import {
+  resolveDependencies,
+  promptOptionalDependencies,
+  normalizeContent,
+  fetchAndTransform,
+  checkFileConflict,
+  classifyComponent,
+  detectConflicts,
+  type AddOptions,
+} from './add.js';
 import { registry, type ComponentName, type ComponentDefinition } from '../registry/index.js';
+import fs from 'fs-extra';
+
+// ---------------------------------------------------------------------------
+// Module-level mocks
+// ---------------------------------------------------------------------------
+
+vi.mock('fs-extra', () => ({
+  default: {
+    existsSync: vi.fn(() => false),
+    pathExists: vi.fn(() => Promise.resolve(false)),
+    readFile: vi.fn(() => Promise.resolve('')),
+    writeFile: vi.fn(() => Promise.resolve()),
+    ensureDir: vi.fn(() => Promise.resolve()),
+  },
+}));
+
+vi.mock('prompts', () => ({
+  default: vi.fn(),
+}));
+
+const mockedFs = vi.mocked(fs);
+
+// ---------------------------------------------------------------------------
+// normalizeContent
+// ---------------------------------------------------------------------------
+
+describe('normalizeContent', () => {
+  it('trims whitespace from both ends', () => {
+    expect(normalizeContent('  hello  ')).toBe('hello');
+  });
+
+  it('converts CRLF to LF', () => {
+    expect(normalizeContent('line1\r\nline2\r\n')).toBe('line1\nline2');
+  });
+
+  it('handles mixed line endings', () => {
+    expect(normalizeContent('a\r\nb\nc\r\n')).toBe('a\nb\nc');
+  });
+
+  it('returns empty string for whitespace-only input', () => {
+    expect(normalizeContent('   \r\n  ')).toBe('');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// fetchAndTransform
+// ---------------------------------------------------------------------------
+
+describe('fetchAndTransform', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockedFs.existsSync.mockReturnValue(false);
+  });
+
+  it('replaces single-level relative lib imports with alias', async () => {
+    const mockContent = "import { cn } from '../lib/utils';";
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(mockContent, { status: 200 }),
+    );
+
+    const result = await fetchAndTransform('button/button.ts', { branch: 'master', remote: true }, '@/components/lib');
+    expect(result).toBe("import { cn } from '@/components/lib/utils';");
+  });
+
+  it('replaces multi-level relative lib imports with alias', async () => {
+    const mockContent = "import { cn } from '../../lib/utils';";
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(mockContent, { status: 200 }),
+    );
+
+    const result = await fetchAndTransform('deep/nested/comp.ts', { branch: 'master', remote: true }, '@/components/lib');
+    expect(result).toBe("import { cn } from '@/components/lib/utils';");
+  });
+
+  it('replaces all occurrences in a file (global regex)', async () => {
+    const mockContent = [
+      "import { cn } from '../lib/utils';",
+      "import { foo } from '../lib/helpers';",
+    ].join('\n');
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(mockContent, { status: 200 }),
+    );
+
+    const result = await fetchAndTransform('comp.ts', { branch: 'master', remote: true }, '@/lib');
+    expect(result).toBe([
+      "import { cn } from '@/lib/utils';",
+      "import { foo } from '@/lib/helpers';",
+    ].join('\n'));
+  });
+
+  it('does not throw with replaceAll and regex (the original bug)', async () => {
+    const mockContent = "import { cn } from '../lib/utils';";
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(mockContent, { status: 200 }),
+    );
+
+    await expect(
+      fetchAndTransform('comp.ts', { branch: 'master', remote: true }, '@/lib'),
+    ).resolves.not.toThrow();
+  });
+
+  it('leaves content unchanged when no lib imports exist', async () => {
+    const mockContent = "import { Component } from '@angular/core';";
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(mockContent, { status: 200 }),
+    );
+
+    const result = await fetchAndTransform('comp.ts', { branch: 'master', remote: true }, '@/lib');
+    expect(result).toBe("import { Component } from '@angular/core';");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// checkFileConflict
+// ---------------------------------------------------------------------------
+
+describe('checkFileConflict', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockedFs.existsSync.mockReturnValue(false);
+  });
+
+  it('returns "missing" when file does not exist on disk', async () => {
+    mockedFs.pathExists.mockResolvedValue(false as never);
+    const cache = new Map<string, string>();
+
+    const result = await checkFileConflict(
+      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+    );
+    expect(result).toBe('missing');
+  });
+
+  it('returns "identical" when local and remote content match', async () => {
+    const content = "import { cn } from '@/lib/utils';\nexport class Button {}";
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue(content as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(content.replaceAll('@/lib/', '../lib/'), { status: 200 }),
+    );
+    const cache = new Map<string, string>();
+
+    const result = await checkFileConflict(
+      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+    );
+    expect(result).toBe('identical');
+  });
+
+  it('returns "changed" when local and remote content differ', async () => {
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue('// local modified version' as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('// remote original version', { status: 200 }),
+    );
+    const cache = new Map<string, string>();
+
+    const result = await checkFileConflict(
+      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+    );
+    expect(result).toBe('changed');
+  });
+
+  it('populates the content cache on successful fetch', async () => {
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue('// local' as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('// remote', { status: 200 }),
+    );
+    const cache = new Map<string, string>();
+
+    await checkFileConflict(
+      'button/button.ts', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache,
+    );
+    expect(cache.has('button/button.ts')).toBe(true);
+    expect(cache.get('button/button.ts')).toBe('// remote');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// classifyComponent — peer-file decoupling
+// ---------------------------------------------------------------------------
+
+describe('classifyComponent', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockedFs.existsSync.mockReturnValue(false);
+  });
+
+  it('returns "install" when component files are missing', async () => {
+    mockedFs.pathExists.mockResolvedValue(false as never);
+    const cache = new Map<string, string>();
+    const peerFiles = new Set<string>();
+
+    const result = await classifyComponent(
+      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
+    );
+    expect(result).toBe('install');
+  });
+
+  it('returns "skip" when all component files are present and identical', async () => {
+    const content = '// badge content';
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue(content as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(content, { status: 200 }),
+    );
+    const cache = new Map<string, string>();
+    const peerFiles = new Set<string>();
+
+    const result = await classifyComponent(
+      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
+    );
+    expect(result).toBe('skip');
+  });
+
+  it('returns "conflict" when own files have changed', async () => {
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue('// modified locally' as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('// original remote', { status: 200 }),
+    );
+    const cache = new Map<string, string>();
+    const peerFiles = new Set<string>();
+
+    const result = await classifyComponent(
+      'badge', '/project/ui', { branch: 'master', remote: true }, '@/lib', cache, peerFiles,
+    );
+    expect(result).toBe('conflict');
+  });
+
+  it('does NOT return "conflict" when only peer files have changed', async () => {
+    const componentWithPeers = Object.entries(registry).find(
+      ([, def]) => def.peerFiles && def.peerFiles.length > 0,
+    );
+
+    if (!componentWithPeers) {
+      return;
+    }
+
+    const [name, def] = componentWithPeers;
+    let readCallCount = 0;
+
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockImplementation((() => {
+      readCallCount++;
+      if (readCallCount <= def.files.length) {
+        return Promise.resolve('// identical content');
+      }
+      return Promise.resolve('// modified peer file');
+    }) as never);
+
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('// identical content', { status: 200 })),
+    );
+
+    const cache = new Map<string, string>();
+    const peerFilesToUpdate = new Set<string>();
+
+    const result = await classifyComponent(
+      name as ComponentName, '/project/ui', { branch: 'master', remote: true }, '@/lib',
+      cache, peerFilesToUpdate,
+    );
+
+    expect(result).toBe('skip');
+    expect(peerFilesToUpdate.size).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// detectConflicts
+// ---------------------------------------------------------------------------
+
+describe('detectConflicts', () => {
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockedFs.existsSync.mockReturnValue(false);
+  });
+
+  it('classifies missing components as toInstall', async () => {
+    mockedFs.pathExists.mockResolvedValue(false as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('// content', { status: 200 }),
+    );
+
+    const components = new Set<ComponentName>(['badge']);
+    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
+
+    expect(result.toInstall).toContain('badge');
+    expect(result.conflicting).not.toContain('badge');
+    expect(result.toSkip).not.toContain('badge');
+  });
+
+  it('classifies identical components as toSkip', async () => {
+    const content = '// badge content';
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue(content as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(content, { status: 200 }),
+    );
+
+    const components = new Set<ComponentName>(['badge']);
+    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
+
+    expect(result.toSkip).toContain('badge');
+    expect(result.toInstall).not.toContain('badge');
+    expect(result.conflicting).not.toContain('badge');
+  });
+
+  it('classifies changed components as conflicting', async () => {
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue('// modified locally' as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('// remote content', { status: 200 }),
+    );
+
+    const components = new Set<ComponentName>(['badge']);
+    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
+
+    expect(result.conflicting).toContain('badge');
+    expect(result.toInstall).not.toContain('badge');
+    expect(result.toSkip).not.toContain('badge');
+  });
+
+  it('populates contentCache for files it checks', async () => {
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue('// local' as never);
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response('// remote', { status: 200 }),
+    );
+
+    const components = new Set<ComponentName>(['badge']);
+    const result = await detectConflicts(components, '/project/ui', { branch: 'master', remote: true }, '@/lib');
+
+    expect(result.contentCache.size).toBeGreaterThan(0);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Peer file filtering after overwrite selection
+// ---------------------------------------------------------------------------
+
+describe('peer file filtering logic', () => {
+  it('removes peer files of declined components from peerFilesToUpdate', () => {
+    const peerFilesToUpdate = new Set(['shared/peer-a.ts', 'shared/peer-b.ts', 'shared/peer-c.ts']);
+    const conflicting: string[] = ['compA', 'compB'];
+    const toOverwrite: string[] = ['compA'];
+    const finalComponents: string[] = ['compA'];
+
+    const mockPeerFiles: Record<string, string[] | undefined> = {
+      compA: ['shared/peer-a.ts'],
+      compB: ['shared/peer-b.ts', 'shared/peer-c.ts'],
+    };
+
+    const declined = conflicting.filter(c => !toOverwrite.includes(c));
+
+    for (const name of declined) {
+      const peerFiles = mockPeerFiles[name];
+      if (!peerFiles) continue;
+      for (const file of peerFiles) {
+        const stillNeeded = finalComponents.some(fc =>
+          mockPeerFiles[fc]?.includes(file),
+        );
+        if (!stillNeeded) {
+          peerFilesToUpdate.delete(file);
+        }
+      }
+    }
+
+    expect(peerFilesToUpdate.has('shared/peer-a.ts')).toBe(true);
+    expect(peerFilesToUpdate.has('shared/peer-b.ts')).toBe(false);
+    expect(peerFilesToUpdate.has('shared/peer-c.ts')).toBe(false);
+  });
+
+  it('keeps shared peer files when another final component still needs them', () => {
+    const peerFilesToUpdate = new Set(['shared/common.ts']);
+    const conflicting: string[] = ['compA', 'compB'];
+    const toOverwrite: string[] = ['compA'];
+    const finalComponents: string[] = ['compA'];
+
+    const mockPeerFiles: Record<string, string[] | undefined> = {
+      compA: ['shared/common.ts'],
+      compB: ['shared/common.ts'],
+    };
+
+    const declined = conflicting.filter(c => !toOverwrite.includes(c));
+
+    for (const name of declined) {
+      const peerFiles = mockPeerFiles[name];
+      if (!peerFiles) continue;
+      for (const file of peerFiles) {
+        const stillNeeded = finalComponents.some(fc =>
+          mockPeerFiles[fc]?.includes(file),
+        );
+        if (!stillNeeded) {
+          peerFilesToUpdate.delete(file);
+        }
+      }
+    }
+
+    expect(peerFilesToUpdate.has('shared/common.ts')).toBe(true);
+  });
+
+  it('removes all peer files when all components are declined', () => {
+    const peerFilesToUpdate = new Set(['shared/peer-a.ts', 'shared/peer-b.ts']);
+    const conflicting: string[] = ['compA', 'compB'];
+    const toOverwrite: string[] = [];
+    const finalComponents: string[] = [];
+
+    const mockPeerFiles: Record<string, string[] | undefined> = {
+      compA: ['shared/peer-a.ts'],
+      compB: ['shared/peer-b.ts'],
+    };
+
+    const declined = conflicting.filter(c => !toOverwrite.includes(c));
+
+    for (const name of declined) {
+      const peerFiles = mockPeerFiles[name];
+      if (!peerFiles) continue;
+      for (const file of peerFiles) {
+        const stillNeeded = finalComponents.some(fc =>
+          mockPeerFiles[fc]?.includes(file),
+        );
+        if (!stillNeeded) {
+          peerFilesToUpdate.delete(file);
+        }
+      }
+    }
+
+    expect(peerFilesToUpdate.size).toBe(0);
+  });
+});
 
 // ---------------------------------------------------------------------------
 // resolveDependencies
@@ -14,14 +453,12 @@ describe('resolveDependencies', () => {
   });
 
   it('includes transitive dependencies', () => {
-    // button depends on ripple
     const result = resolveDependencies(['button']);
     expect(result).toContain('button');
     expect(result).toContain('ripple');
   });
 
   it('resolves deep transitive chains', () => {
-    // date-picker -> calendar -> button -> ripple, calendar -> select
     const result = resolveDependencies(['date-picker']);
     expect(result).toContain('date-picker');
     expect(result).toContain('calendar');
@@ -31,14 +468,12 @@ describe('resolveDependencies', () => {
   });
 
   it('deduplicates shared dependencies across multiple inputs', () => {
-    // Both button-group and speed-dial depend on button
     const result = resolveDependencies(['button-group', 'speed-dial']);
     expect(result).toContain('button-group');
     expect(result).toContain('speed-dial');
     expect(result).toContain('button');
     expect(result).toContain('ripple');
 
-    // Count how many times button appears — should be exactly once (it's a Set)
     const asArray = [...result];
     expect(asArray.filter((n: string) => n === 'button')).toHaveLength(1);
   });
@@ -58,10 +493,6 @@ describe('resolveDependencies', () => {
 // ---------------------------------------------------------------------------
 // promptOptionalDependencies
 // ---------------------------------------------------------------------------
-
-vi.mock('prompts', () => ({
-  default: vi.fn(),
-}));
 
 describe('promptOptionalDependencies', () => {
   it('returns empty array when no components have optional deps', async () => {
@@ -83,14 +514,12 @@ describe('promptOptionalDependencies', () => {
   });
 
   it('filters out optional deps already in the resolved set', async () => {
-    // context-menu is already resolved, so it should not be offered
     const resolved = new Set<ComponentName>(['data-table', 'context-menu', 'table', 'input', 'button', 'ripple', 'checkbox', 'select', 'pagination', 'popover', 'component-outlet', 'icon']);
     const result = await promptOptionalDependencies(resolved, { all: true, branch: 'master' });
     expect(result).not.toContain('context-menu');
   });
 
   it('deduplicates optional deps across components', async () => {
-    // Both data-table and tree have context-menu as optional
     const resolved = new Set<ComponentName>(['data-table', 'tree', 'table', 'input', 'button', 'ripple', 'checkbox', 'select', 'pagination', 'popover', 'component-outlet', 'icon']);
     const result = await promptOptionalDependencies(resolved, { all: true, branch: 'master' });
     const contextMenuCount = result.filter((n: string) => n === 'context-menu').length;
