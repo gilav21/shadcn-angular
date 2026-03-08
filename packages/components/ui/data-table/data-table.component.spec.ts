@@ -1024,6 +1024,49 @@ describe('DataTableComponent', () => {
 
             expect(component.paginationState().pageIndex).toBe(0);
         });
+
+        it('should report active filter via isColumnFilterActive', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+            };
+
+            expect(component.isColumnFilterActive(col)).toBe(false);
+
+            component.onColumnFilterChange('role', 'Admin');
+            fixture.detectChanges();
+
+            expect(component.isColumnFilterActive(col)).toBe(true);
+        });
+
+        it('should report inactive filter for empty values', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+            };
+
+            component.onColumnFilterChange('role', '');
+            expect(component.isColumnFilterActive(col)).toBe(false);
+
+            component.onColumnFilterChange('role', null);
+            expect(component.isColumnFilterActive(col)).toBe(false);
+        });
+
+        it('should report inactive filter for empty DateRange', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+            };
+
+            component.onColumnFilterChange('role', { start: null, end: null });
+            expect(component.isColumnFilterActive(col)).toBe(false);
+
+            component.onColumnFilterChange('role', { start: new Date(), end: null });
+            expect(component.isColumnFilterActive(col)).toBe(true);
+        });
     });
 
     describe('getFilterInputs', () => {

@@ -33,6 +33,7 @@ import { DataTablePaginationComponent } from './data-table-pagination.component'
 import { UiComponentOutletDirective } from '../component-outlet.directive';
 import { ContextMenuComponent, ContextMenuItem } from '../context-menu.component';
 import { ButtonComponent } from '../button.component';
+import { IconComponent } from '../icon.component';
 import {
   ColumnDef,
   SortState,
@@ -70,6 +71,7 @@ import {
     UiComponentOutletDirective,
     ContextMenuComponent,
     ButtonComponent,
+    IconComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -184,15 +186,9 @@ import {
                             (click)="isAllSubRowsExpanded() ? collapseAllSubRows() : expandAllSubRows(-1)"
                           >
                             @if (isAllSubRowsExpanded()) {
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="17 11 12 6 7 11"/>
-                                <polyline points="17 18 12 13 7 18"/>
-                              </svg>
+                              <ui-icon name="chevrons-up" size="xs" />
                             } @else {
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="7 13 12 18 17 13"/>
-                                <polyline points="7 6 12 11 17 6"/>
-                              </svg>
+                              <ui-icon name="chevrons-down" size="xs" />
                             }
                           </button>
                           @if (col.enableSorting !== false) {
@@ -215,15 +211,9 @@ import {
                           (click)="toggleAllExpanded()"
                         >
                           @if (isAllExpanded()) {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                              <polyline points="17 11 12 6 7 11"/>
-                              <polyline points="17 18 12 13 7 18"/>
-                            </svg>
+                            <ui-icon name="chevrons-up" size="xs" />
                           } @else {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                              <polyline points="7 13 12 18 17 13"/>
-                              <polyline points="7 6 12 11 17 6"/>
-                            </svg>
+                            <ui-icon name="chevrons-down" size="xs" />
                           }
                         </button>
                       } @else if (col.accessorKey === '_actions') {
@@ -243,12 +233,15 @@ import {
                             <ui-popover [closeOnScroll]="true">
                               <ui-popover-trigger>
                                 <button
-                                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  [class.text-primary]="isColumnFilterActive(col)"
                                   [attr.aria-label]="'Filter ' + col.header"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
-                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                                  </svg>
+                                  @if (isColumnFilterActive(col)) {
+                                    <ui-icon name="filter" size="sm" weight="solid" />
+                                  } @else {
+                                    <ui-icon name="filter" size="sm" />
+                                  }
                                 </button>
                               </ui-popover-trigger>
                               <ui-popover-content class="w-80" strategy="fixed" align="end">
@@ -268,17 +261,20 @@ import {
                             <ui-popover>
                               <ui-popover-trigger>
                                 <button
-                                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  [class.text-primary]="isColumnFilterActive(col)"
                                   [attr.aria-label]="'Filter ' + col.header"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
-                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                                  </svg>
+                                  @if (isColumnFilterActive(col)) {
+                                    <ui-icon name="filter" size="sm" weight="solid" />
+                                  } @else {
+                                    <ui-icon name="filter" size="sm" />
+                                  }
                                 </button>
                               </ui-popover-trigger>
                               <ui-popover-content class="w-80" strategy="fixed" align="end">
-                                <div 
-                                  [uiComponentOutlet]="col.filterComponent" 
+                                <div
+                                  [uiComponentOutlet]="col.filterComponent"
                                   [inputs]="getFilterInputs(col)"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
@@ -348,9 +344,7 @@ import {
                                 [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'"
                                 (click)="toggleSubRowExpanded(treeRow.row, $event)"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded">
-                                  <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
+                                <ui-icon name="chevron-right" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded" />
                               </button>
                             } @else {
                               <span class="inline-block h-6 w-6 shrink-0"></span>
@@ -380,18 +374,14 @@ import {
                             (click)="toggleRowExpanded(treeRow.row, $event)"
                           >
                             @if (isRowExpanded(treeRow.row)) {
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="18 15 12 9 6 15"></polyline>
-                              </svg>
+                              <ui-icon name="chevron-up" size="xs" />
                             } @else {
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                              </svg>
+                              <ui-icon name="chevron-down" size="xs" />
                             }
                           </button>
                         } @else if (col.accessorKey === '_actions') {
                           <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, treeRow.row, i)">
-                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                            <ui-icon name="more-vertical" size="sm" />
                           </ui-button>
                         } @else if (col.component) {
                           <div
@@ -441,9 +431,7 @@ import {
                       <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
                     } @else {
                       <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 h-10 w-10 opacity-20">
-                          <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                        </svg>
+                        <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
                         <p>No results found.</p>
                       </div>
                     }
@@ -480,18 +468,14 @@ import {
                           (click)="toggleRowExpanded(row, $event)"
                         >
                           @if (isRowExpanded(row)) {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <polyline points="18 15 12 9 6 15"></polyline>
-                            </svg>
+                            <ui-icon name="chevron-up" size="xs" />
                           } @else {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
+                            <ui-icon name="chevron-down" size="xs" />
                           }
                         </button>
                       } @else if (col.accessorKey === '_actions') {
                         <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, row, i)">
-                          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
+                          <ui-icon name="more-vertical" size="sm" />
                         </ui-button>
                       } @else if (col.component) {
                         <div
@@ -541,9 +525,7 @@ import {
                     <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
                   } @else {
                     <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 h-10 w-10 opacity-20">
-                        <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                      </svg>
+                      <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
                       <p>No results found.</p>
                     </div>
                   }
@@ -1588,6 +1570,11 @@ export class DataTableComponent<T> {
       ...col.filterComponentOutputs,
       filterChange: (value: any) => this.onColumnFilterChange(col.accessorKey, value)
     };
+  }
+
+  isColumnFilterActive(col: ColumnDef<T>): boolean {
+    const value = this.columnFilters()[col.accessorKey as string];
+    return !this.isFilterValueEmpty(value);
   }
 
   isFilterValueEmpty(value: unknown): boolean {
