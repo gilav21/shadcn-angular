@@ -1591,7 +1591,12 @@ export class DataTableComponent<T> {
   }
 
   isFilterValueEmpty(value: unknown): boolean {
-    return value === undefined || value === null || value === '';
+    if (value === undefined || value === null || value === '') return true;
+    if (typeof value === 'object' && 'start' in value && 'end' in value) {
+      const range = value as { start: unknown; end: unknown };
+      return range.start === null && range.end === null;
+    }
+    return false;
   }
 
   private compareByColumn(a: T, b: T, column: ColumnDef<T>): number {
