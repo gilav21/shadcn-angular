@@ -74,6 +74,36 @@ describe('DataTableDateFilterComponent', () => {
     await fixture.whenStable();
     expect(component.selectedValue()).toEqual(date);
   });
+
+  it('should render English labels by default', () => {
+    const buttons = fixture.nativeElement.querySelectorAll('button');
+    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    expect(texts).toContain('Today');
+    expect(texts).toContain('Clear');
+  });
+
+  it('should render Hebrew labels when locale is "he"', () => {
+    fixture.componentRef.setInput('locale', 'he');
+    fixture.detectChanges();
+    const buttons = fixture.nativeElement.querySelectorAll('button');
+    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    expect(texts).toContain('היום');
+    expect(texts).toContain('נקה');
+  });
+
+  it('should set dir="rtl" when locale is RTL', () => {
+    fixture.componentRef.setInput('locale', 'he');
+    fixture.detectChanges();
+    const root = fixture.nativeElement.querySelector('[data-slot="date-filter"]');
+    expect(root.getAttribute('dir')).toBe('rtl');
+  });
+
+  it('should set dir="ltr" for LTR locales', () => {
+    fixture.componentRef.setInput('locale', 'de');
+    fixture.detectChanges();
+    const root = fixture.nativeElement.querySelector('[data-slot="date-filter"]');
+    expect(root.getAttribute('dir')).toBe('ltr');
+  });
 });
 
 describe('DataTableDateRangeFilterComponent', () => {
@@ -156,6 +186,42 @@ describe('DataTableDateRangeFilterComponent', () => {
     fixture.detectChanges();
     await fixture.whenStable();
     expect(component.selectedValue()).toEqual(range);
+  });
+
+  it('should render localized preset labels for Hebrew', () => {
+    fixture.componentRef.setInput('locale', 'he');
+    fixture.detectChanges();
+    const presets = component.effectivePresets();
+    const labels = presets.map(p => p.label);
+    expect(labels).toContain('היום');
+    expect(labels).toContain('7 ימים אחרונים');
+    expect(labels).toContain('30 ימים אחרונים');
+    expect(labels).toContain('החודש הנוכחי');
+    expect(labels).not.toContain('Today');
+  });
+
+  it('should render localized clear label for Hebrew', () => {
+    fixture.componentRef.setInput('locale', 'he');
+    fixture.detectChanges();
+    const buttons = fixture.nativeElement.querySelectorAll('button');
+    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    expect(texts).toContain('נקה');
+    expect(texts).not.toContain('Clear');
+  });
+
+  it('should still use custom presets over locale defaults', () => {
+    fixture.componentRef.setInput('locale', 'he');
+    const custom = [{ label: 'Custom', range: { start: new Date(), end: new Date() } }];
+    fixture.componentRef.setInput('presets', custom);
+    fixture.detectChanges();
+    expect(component.effectivePresets()).toEqual(custom);
+  });
+
+  it('should set dir="rtl" when locale is RTL', () => {
+    fixture.componentRef.setInput('locale', 'ar');
+    fixture.detectChanges();
+    const root = fixture.nativeElement.querySelector('[data-slot="date-range-filter"]');
+    expect(root.getAttribute('dir')).toBe('rtl');
   });
 });
 

@@ -1257,6 +1257,56 @@ export class AppComponent {
     { accessorKey: 'role', header: 'Role', width: '150px' },
   ];
 
+  hebrewRtlData = signal([
+    { id: 'INV-001', customer: 'אלון כהן', amount: 1250, status: 'הושלם', date: '2024-06-15' },
+    { id: 'INV-002', customer: 'מיכל לוי', amount: 890, status: 'ממתין', date: '2024-06-14' },
+    { id: 'INV-003', customer: 'יוסי אברהם', amount: 2340, status: 'הושלם', date: '2024-06-10' },
+    { id: 'INV-004', customer: 'רונית דוד', amount: 560, status: 'בוטל', date: '2024-05-28' },
+    { id: 'INV-005', customer: 'נועם שרון', amount: 3100, status: 'ממתין', date: '2024-06-01' },
+    { id: 'INV-006', customer: 'עדי בן-ארי', amount: 1780, status: 'הושלם', date: '2024-05-20' },
+    { id: 'INV-007', customer: 'גלית פרידמן', amount: 420, status: 'ממתין', date: '2024-06-12' },
+    { id: 'INV-008', customer: 'אורי מזרחי', amount: 5200, status: 'הושלם', date: '2024-06-08' },
+  ]);
+
+  hebrewRtlColumns: ColumnDef<{ id: string; customer: string; amount: number; status: string; date: string }>[] = [
+    { accessorKey: 'id', header: 'מספר חשבונית', width: '140px', enableSorting: true },
+    { accessorKey: 'customer', header: 'לקוח', width: 'auto', enableSorting: true },
+    {
+      accessorKey: 'amount',
+      header: 'סכום',
+      width: '120px',
+      enableSorting: true,
+      cell: (row) => `₪${row.amount.toLocaleString('he-IL')}`,
+    },
+    {
+      accessorKey: 'status',
+      header: 'סטטוס',
+      width: '130px',
+      enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableMultiselectFilterComponent,
+      filterComponentInputs: {
+        options: ['הושלם', 'ממתין', 'בוטל'],
+        placeholder: 'סנן סטטוס...',
+        title: 'סטטוס',
+      },
+      filterFn: (row: { status: string }, filterValue: unknown) =>
+        multiselectFilterFn(row, filterValue as string[] | null, (r: { status: string }) => r.status),
+    },
+    {
+      accessorKey: 'date',
+      header: 'תאריך',
+      width: '160px',
+      enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableDateFilterComponent,
+      filterComponentInputs: { locale: 'he' },
+      filterFn: (row: { date: string }, filterValue: unknown) =>
+        dateFilterFn(row, filterValue as Date | null, (r: { date: string }) => r.date),
+      sortFn: (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    },
+  ];
+
   resizableColumns: ColumnDef<Payment>[] = [
     { accessorKey: 'id', header: 'ID', enableSorting: true, width: '80px', minWidth: '60px' },
     { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px', minWidth: '100px' },

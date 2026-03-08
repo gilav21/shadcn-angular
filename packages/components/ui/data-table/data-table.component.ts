@@ -336,7 +336,7 @@ import {
                             ariaLabel="Select row"
                           />
                         } @else if (col._isTreeExpanderHost) {
-                          <div class="flex items-center gap-1 min-w-0" [style.padding-left.px]="treeRow.depth * subRowIndentSize()">
+                          <div class="flex items-center gap-1 min-w-0" [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()">
                             @if (!treeRow.isLeaf) {
                               <button
                                 type="button"
@@ -344,7 +344,7 @@ import {
                                 [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'"
                                 (click)="toggleSubRowExpanded(treeRow.row, $event)"
                               >
-                                <ui-icon name="chevron-right" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded" />
+                                <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded && !isRtl()" [class.-rotate-90]="treeRow.isExpanded && isRtl()" />
                               </button>
                             } @else {
                               <span class="inline-block h-6 w-6 shrink-0"></span>

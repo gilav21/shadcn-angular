@@ -5,6 +5,11 @@ export interface CalendarLocale {
     prevMonthLabel?: string;
     nextMonthLabel?: string;
     rtl?: boolean;
+    todayLabel?: string;
+    clearLabel?: string;
+    last7DaysLabel?: string;
+    last30DaysLabel?: string;
+    thisMonthLabel?: string;
 }
 
 export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
@@ -15,6 +20,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: 'Previous month',
         nextMonthLabel: 'Next month',
         rtl: false,
+        todayLabel: 'Today',
+        clearLabel: 'Clear',
+        last7DaysLabel: 'Last 7 days',
+        last30DaysLabel: 'Last 30 days',
+        thisMonthLabel: 'This month',
     },
     he: {
         monthNames: ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'],
@@ -23,6 +33,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: 'החודש הקודם',
         nextMonthLabel: 'החודש הבא',
         rtl: true,
+        todayLabel: 'היום',
+        clearLabel: 'נקה',
+        last7DaysLabel: '7 ימים אחרונים',
+        last30DaysLabel: '30 ימים אחרונים',
+        thisMonthLabel: 'החודש הנוכחי',
     },
     ar: {
         monthNames: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
@@ -31,6 +46,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: 'الشهر السابق',
         nextMonthLabel: 'الشهر التالي',
         rtl: true,
+        todayLabel: 'اليوم',
+        clearLabel: 'مسح',
+        last7DaysLabel: 'آخر 7 أيام',
+        last30DaysLabel: 'آخر 30 يومًا',
+        thisMonthLabel: 'هذا الشهر',
     },
     de: {
         monthNames: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
@@ -39,6 +59,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: 'Vorheriger Monat',
         nextMonthLabel: 'Nächster Monat',
         rtl: false,
+        todayLabel: 'Heute',
+        clearLabel: 'Löschen',
+        last7DaysLabel: 'Letzte 7 Tage',
+        last30DaysLabel: 'Letzte 30 Tage',
+        thisMonthLabel: 'Dieser Monat',
     },
     fr: {
         monthNames: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
@@ -47,6 +72,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: 'Mois précédent',
         nextMonthLabel: 'Mois suivant',
         rtl: false,
+        todayLabel: 'Aujourd\'hui',
+        clearLabel: 'Effacer',
+        last7DaysLabel: '7 derniers jours',
+        last30DaysLabel: '30 derniers jours',
+        thisMonthLabel: 'Ce mois-ci',
     },
     es: {
         monthNames: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
@@ -55,6 +85,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: 'Mes anterior',
         nextMonthLabel: 'Mes siguiente',
         rtl: false,
+        todayLabel: 'Hoy',
+        clearLabel: 'Borrar',
+        last7DaysLabel: 'Últimos 7 días',
+        last30DaysLabel: 'Últimos 30 días',
+        thisMonthLabel: 'Este mes',
     },
     ja: {
         monthNames: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
@@ -63,6 +98,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: '前月',
         nextMonthLabel: '翌月',
         rtl: false,
+        todayLabel: '今日',
+        clearLabel: 'クリア',
+        last7DaysLabel: '過去7日間',
+        last30DaysLabel: '過去30日間',
+        thisMonthLabel: '今月',
     },
     zh: {
         monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
@@ -71,6 +111,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: '上个月',
         nextMonthLabel: '下个月',
         rtl: false,
+        todayLabel: '今天',
+        clearLabel: '清除',
+        last7DaysLabel: '最近7天',
+        last30DaysLabel: '最近30天',
+        thisMonthLabel: '本月',
     },
     ru: {
         monthNames: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
@@ -79,6 +124,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: 'Предыдущий месяц',
         nextMonthLabel: 'Следующий месяц',
         rtl: false,
+        todayLabel: 'Сегодня',
+        clearLabel: 'Очистить',
+        last7DaysLabel: 'Последние 7 дней',
+        last30DaysLabel: 'Последние 30 дней',
+        thisMonthLabel: 'Этот месяц',
     },
     pt: {
         monthNames: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
@@ -87,5 +137,10 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         prevMonthLabel: 'Mês anterior',
         nextMonthLabel: 'Próximo mês',
         rtl: false,
+        todayLabel: 'Hoje',
+        clearLabel: 'Limpar',
+        last7DaysLabel: 'Últimos 7 dias',
+        last30DaysLabel: 'Últimos 30 dias',
+        thisMonthLabel: 'Este mês',
     },
 };

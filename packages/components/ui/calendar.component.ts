@@ -286,8 +286,8 @@ export class CalendarComponent {
       isSelected && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground z-10',
       isInRange && !isSelected && 'bg-accent/80 text-accent-foreground rounded-none',
 
-      this.isRangeStart(day) && 'rounded-r-none',
-      this.isRangeEnd(day) && 'rounded-l-none',
+      this.isRangeStart(day) && 'rounded-e-none',
+      this.isRangeEnd(day) && 'rounded-s-none',
 
       day.getMonth() !== this.currentMonth() && 'opacity-50 pointer-events-none'
     );

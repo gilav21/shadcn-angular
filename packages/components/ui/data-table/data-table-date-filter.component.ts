@@ -10,6 +10,7 @@ import {
 import { cn } from '../../lib/utils';
 import { CalendarComponent, DateRange } from '../calendar.component';
 import { ButtonComponent } from '../button.component';
+import { CALENDAR_LOCALES, CalendarLocale } from '../calendar-locales';
 
 function toDate(value: unknown): Date | null {
   if (value instanceof Date) return value;
@@ -34,7 +35,7 @@ export interface DateRangePreset {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CalendarComponent, ButtonComponent],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'date-filter'">
+    <div [class]="classes()" [attr.data-slot]="'date-filter'" [dir]="isRtl() ? 'rtl' : 'ltr'">
       @if (title()) {
         <div class="flex items-center justify-between px-3 pb-2">
           <span class="text-sm font-medium">{{ title() }}</span>
@@ -42,10 +43,10 @@ export interface DateRangePreset {
       }
       <div class="flex items-center gap-1 px-3 pb-2">
         <ui-button variant="outline" size="sm" class="h-7 text-xs" (clicked)="selectToday()">
-          Today
+          {{ todayLabel() }}
         </ui-button>
         <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clear()">
-          Clear
+          {{ clearLabel() }}
         </ui-button>
       </div>
       <ui-calendar
@@ -71,6 +72,13 @@ export class DataTableDateFilterComponent {
 
   private readonly _selected = signal<Date | null>(null);
   readonly selectedValue = this._selected.asReadonly();
+
+  private readonly activeLocale = computed((): CalendarLocale =>
+    CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES['en']
+  );
+  readonly isRtl = computed(() => this.activeLocale().rtl === true);
+  readonly todayLabel = computed(() => this.activeLocale().todayLabel ?? 'Today');
+  readonly clearLabel = computed(() => this.activeLocale().clearLabel ?? 'Clear');
 
   constructor() {
     effect(() => {
@@ -109,7 +117,7 @@ export class DataTableDateFilterComponent {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [CalendarComponent, ButtonComponent],
   template: `
-    <div [class]="classes()" [attr.data-slot]="'date-range-filter'">
+    <div [class]="classes()" [attr.data-slot]="'date-range-filter'" [dir]="isRtl() ? 'rtl' : 'ltr'">
       @if (title()) {
         <div class="flex items-center justify-between px-3 pb-2">
           <span class="text-sm font-medium">{{ title() }}</span>
@@ -122,7 +130,7 @@ export class DataTableDateFilterComponent {
           </ui-button>
         }
         <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clear()">
-          Clear
+          {{ clearLabel() }}
         </ui-button>
       </div>
       <ui-calendar
@@ -150,6 +158,12 @@ export class DataTableDateRangeFilterComponent {
   private readonly _selected = signal<DateRange>({ start: null, end: null });
   readonly selectedValue = this._selected.asReadonly();
 
+  private readonly activeLocale = computed((): CalendarLocale =>
+    CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES['en']
+  );
+  readonly isRtl = computed(() => this.activeLocale().rtl === true);
+  readonly clearLabel = computed(() => this.activeLocale().clearLabel ?? 'Clear');
+
   constructor() {
     effect(() => {
       const sel = this.selected();
@@ -169,7 +183,7 @@ export class DataTableDateRangeFilterComponent {
   readonly effectivePresets = computed(() => {
     const custom = this.presets();
     if (custom.length > 0) return custom;
-    return buildDefaultPresets();
+    return buildDefaultPresets(this.activeLocale());
   });
 
   onRangeSelect(value: unknown): void {
@@ -193,31 +207,31 @@ export class DataTableDateRangeFilterComponent {
   }
 }
 
-function buildDefaultPresets(): DateRangePreset[] {
+function buildDefaultPresets(locale: CalendarLocale): DateRangePreset[] {
   const today = new Date();
   const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate());
 
   return [
     {
-      label: 'Today',
+      label: locale.todayLabel ?? 'Today',
       range: { start: todayOnly, end: todayOnly },
     },
     {
-      label: 'Last 7 days',
+      label: locale.last7DaysLabel ?? 'Last 7 days',
       range: {
         start: new Date(todayOnly.getFullYear(), todayOnly.getMonth(), todayOnly.getDate() - 6),
         end: todayOnly,
       },
     },
     {
-      label: 'Last 30 days',
+      label: locale.last30DaysLabel ?? 'Last 30 days',
       range: {
         start: new Date(todayOnly.getFullYear(), todayOnly.getMonth(), todayOnly.getDate() - 29),
         end: todayOnly,
       },
     },
     {
-      label: 'This month',
+      label: locale.thisMonthLabel ?? 'This month',
       range: {
         start: new Date(todayOnly.getFullYear(), todayOnly.getMonth(), 1),
         end: todayOnly,
