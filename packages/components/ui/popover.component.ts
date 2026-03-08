@@ -164,7 +164,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private portalHost: HTMLElement | null = null;
-    private readonly portalReady = signal(false);
+    public readonly portalReady = signal(false);
 
     private readonly adjustedPosition = signal<{
         side: PopoverSide;
