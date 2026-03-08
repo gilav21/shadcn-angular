@@ -130,7 +130,7 @@ async function fetchLibContent(file: string, options: AddOptions): Promise<strin
 
 async function fetchAndTransform(file: string, options: AddOptions, utilsAlias: string): Promise<string> {
     let content = await fetchComponentContent(file, options);
-    content = content.replaceAll(/(\.\.\/)+lib\//, utilsAlias + '/');
+    content = content.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/');
     return content;
 }
 
