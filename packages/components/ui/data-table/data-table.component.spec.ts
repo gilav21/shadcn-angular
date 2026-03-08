@@ -1,7 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef, PaginationState, FlattenedTreeRow } from './data-table.types';
+import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
+import { ContextMenuItem } from '../context-menu.component';
 import { buildTreeFromFlat } from './data-table.utils';
 import { By } from '@angular/platform-browser';
 
@@ -1501,6 +1502,136 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             expect(hostCol).toBeTruthy();
             expect(hostCol!.accessorKey).toBe('name');
             expect(hostCol!.treeExpander).toBe(true);
+        });
+    });
+
+    describe('Row Actions', () => {
+        const rowActionsFn = (ctx: RowActionContext<TestData>): ContextMenuItem[] => [
+            { label: 'View', click: () => {} },
+            { type: 'separator' },
+            { label: 'Delete', disabled: ctx.row.role === 'Admin', click: () => {} },
+        ];
+
+        it('should add _actions column when rowActions is provided', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            const cols = component.enhancedColumns();
+            const actionsCol = cols.find(c => c.accessorKey === '_actions');
+            expect(actionsCol).toBeTruthy();
+            expect(actionsCol!.enableSorting).toBe(false);
+            expect(actionsCol!.enableHiding).toBe(false);
+        });
+
+        it('should not add _actions column when rowActions is undefined', () => {
+            fixture.detectChanges();
+
+            const cols = component.enhancedColumns();
+            const actionsCol = cols.find(c => c.accessorKey === '_actions');
+            expect(actionsCol).toBeUndefined();
+        });
+
+        it('should hide _actions column when showRowActionsColumn is false', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('showRowActionsColumn', false);
+            fixture.detectChanges();
+
+            const cols = component.enhancedColumns();
+            const actionsCol = cols.find(c => c.accessorKey === '_actions');
+            expect(actionsCol).toBeUndefined();
+        });
+
+        it('should resolve showActionsColumn to true by default when rowActions is set', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            expect(component.resolvedShowActionsColumn()).toBe(true);
+        });
+
+        it('should resolve showContextMenu to true by default when rowActions is set', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            expect(component.resolvedShowContextMenu()).toBe(true);
+        });
+
+        it('should resolve showActionsColumn to false when explicitly set', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('showRowActionsColumn', false);
+            fixture.detectChanges();
+
+            expect(component.resolvedShowActionsColumn()).toBe(false);
+        });
+
+        it('should resolve showContextMenu to false when explicitly set', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('showRowActionsContextMenu', false);
+            fixture.detectChanges();
+
+            expect(component.resolvedShowContextMenu()).toBe(false);
+        });
+
+        it('should build correct RowActionContext', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('enableRowSelection', true);
+            fixture.detectChanges();
+
+            const actions = component.getRowActions(TEST_DATA[0], 0);
+            expect(actions.length).toBe(3);
+            expect(actions[0].label).toBe('View');
+            expect(actions[1].type).toBe('separator');
+            expect(actions[2].label).toBe('Delete');
+            expect(actions[2].disabled).toBe(true);
+        });
+
+        it('should pass selected state in RowActionContext', () => {
+            let capturedCtx: RowActionContext<TestData> | undefined;
+            const capturingActions = (ctx: RowActionContext<TestData>): ContextMenuItem[] => {
+                capturedCtx = ctx;
+                return [{ label: 'Test' }];
+            };
+
+            fixture.componentRef.setInput('rowActions', capturingActions);
+            fixture.componentRef.setInput('enableRowSelection', true);
+            component.rowSelection.set({ '1': true });
+            fixture.detectChanges();
+
+            component.getRowActions(TEST_DATA[0], 0);
+            expect(capturedCtx).toBeTruthy();
+            expect(capturedCtx!.selected).toBe(true);
+            expect(capturedCtx!.index).toBe(0);
+            expect(capturedCtx!.row).toBe(TEST_DATA[0]);
+
+            component.getRowActions(TEST_DATA[1], 1);
+            expect(capturedCtx!.selected).toBe(false);
+        });
+
+        it('should render dropdown trigger buttons when actions column is enabled', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
+            expect(buttons.length).toBeGreaterThan(0);
+            expect(buttons.length).toBe(component.processedData().length);
+        });
+
+        it('should not render dropdown trigger buttons when showRowActionsColumn is false', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('showRowActionsColumn', false);
+            fixture.detectChanges();
+
+            const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
+            expect(buttons.length).toBe(0);
+        });
+
+        it('should exclude _actions column from global filter columns', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            component.onFilterChange('View');
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(0);
         });
     });
 });

@@ -106,3 +106,13 @@ export interface FlattenedTreeRow<T> {
     childCount: number;
     isExpanded: boolean;
 }
+
+export interface RowActionContext<T> {
+    row: T;
+    index: number;
+    selected: boolean;
+    depth?: number;
+    isLeaf?: boolean;
+    parentRow?: T | null;
+    isExpanded?: boolean;
+}
