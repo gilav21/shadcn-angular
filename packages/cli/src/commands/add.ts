@@ -538,6 +538,21 @@ export async function add(components: string[], options: AddOptions) {
     const toOverwrite = await promptOverwrite(conflicting, options);
     const finalComponents = [...toInstall, ...toOverwrite];
 
+    // Remove peer files that belong only to declined components
+    const declined = conflicting.filter(c => !toOverwrite.includes(c));
+    for (const name of declined) {
+        const component = registry[name];
+        if (!component.peerFiles) continue;
+        for (const file of component.peerFiles) {
+            const stillNeeded = finalComponents.some(fc =>
+                registry[fc].peerFiles?.includes(file),
+            );
+            if (!stillNeeded) {
+                peerFilesToUpdate.delete(file);
+            }
+        }
+    }
+
     if (finalComponents.length === 0) {
         if (toSkip.length > 0) {
             console.log(chalk.green(`\nAll components are up to date! (${toSkip.length} skipped)`));
