@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CalendarComponent, DateRange } from './calendar.component';
+import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
 import { ButtonComponent } from './button.component';
 import {
     SelectComponent,
@@ -165,8 +165,6 @@ describe('CalendarComponent', () => {
 
         it('should emit time change', () => {
             fixture.componentRef.setInput('showTimeSelect', true);
-            // Model input 'selected' is also an input() but model().
-            // Set it via setInput as well to initialize
             fixture.componentRef.setInput('selected', new Date(2023, 0, 1, 10, 0));
             fixture.detectChanges();
 
@@ -185,6 +183,142 @@ describe('CalendarComponent', () => {
             const val = spy.mock.calls[0][0] as Date;
             expect(val.getHours()).toBe(12);
             expect(val.getMinutes()).toBe(30);
+        });
+
+        it('should still show single time input when timeMode defaults to single', () => {
+            fixture.componentRef.setInput('showTimeSelect', true);
+            fixture.detectChanges();
+
+            const singleInput = fixture.debugElement.query(By.css('input#time'));
+            expect(singleInput).toBeTruthy();
+
+            const startInput = fixture.debugElement.query(By.css('input#start-time'));
+            expect(startInput).toBeFalsy();
+        });
+    });
+
+    describe('Time Range Selection', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('showTimeSelect', true);
+            fixture.componentRef.setInput('timeMode', 'range');
+            fixture.detectChanges();
+        });
+
+        it('should show two time inputs when timeMode is range', () => {
+            const startInput = fixture.debugElement.query(By.css('input#start-time'));
+            const endInput = fixture.debugElement.query(By.css('input#end-time'));
+
+            expect(startInput).toBeTruthy();
+            expect(endInput).toBeTruthy();
+
+            const singleInput = fixture.debugElement.query(By.css('input#time'));
+            expect(singleInput).toBeFalsy();
+        });
+
+        it('should display correct start and end labels', () => {
+            const startLabel = fixture.debugElement.query(By.css('label[for="start-time"]'));
+            const endLabel = fixture.debugElement.query(By.css('label[for="end-time"]'));
+
+            expect(startLabel.nativeElement.textContent).toContain('Start time');
+            expect(endLabel.nativeElement.textContent).toContain('End time');
+        });
+
+        it('should display localized labels for Arabic', () => {
+            fixture.componentRef.setInput('locale', 'ar');
+            fixture.detectChanges();
+
+            const startLabel = fixture.debugElement.query(By.css('label[for="start-time"]'));
+            const endLabel = fixture.debugElement.query(By.css('label[for="end-time"]'));
+
+            expect(startLabel.nativeElement.textContent).toContain('وقت البداية');
+            expect(endLabel.nativeElement.textContent).toContain('وقت النهاية');
+        });
+
+        it('should emit time range changes for start time', () => {
+            const startInput = fixture.debugElement.query(By.css('input#start-time'));
+            const inputEl = startInput.nativeElement as HTMLInputElement;
+
+            inputEl.value = '09:00';
+            inputEl.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+
+            const range = component.selectedTimeRange() as TimeRange;
+            expect(range.start).toBe('09:00');
+        });
+
+        it('should emit time range changes for end time', () => {
+            const endInput = fixture.debugElement.query(By.css('input#end-time'));
+            const inputEl = endInput.nativeElement as HTMLInputElement;
+
+            inputEl.value = '17:00';
+            inputEl.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+
+            const range = component.selectedTimeRange() as TimeRange;
+            expect(range.end).toBe('17:00');
+        });
+
+        it('should bind start/end times to DateRange in range date mode', () => {
+            fixture.componentRef.setInput('mode', 'range');
+            const startDate = new Date(2023, 0, 10, 9, 0);
+            const endDate = new Date(2023, 0, 15, 17, 0);
+            fixture.componentRef.setInput('selected', { start: startDate, end: endDate });
+            fixture.detectChanges();
+
+            const startInput = fixture.debugElement.query(By.css('input#start-time'));
+            const endInput = fixture.debugElement.query(By.css('input#end-time'));
+
+            expect((startInput.nativeElement as HTMLInputElement).value).toBe('09:00');
+            expect((endInput.nativeElement as HTMLInputElement).value).toBe('17:00');
+        });
+
+        it('should update DateRange start date time when start time changes in range mode', () => {
+            fixture.componentRef.setInput('mode', 'range');
+            const startDate = new Date(2023, 0, 10, 9, 0);
+            const endDate = new Date(2023, 0, 15, 17, 0);
+            fixture.componentRef.setInput('selected', { start: startDate, end: endDate });
+            fixture.detectChanges();
+
+            const spy = vi.spyOn(component.selectedChange, 'emit');
+
+            const startInput = fixture.debugElement.query(By.css('input#start-time'));
+            const inputEl = startInput.nativeElement as HTMLInputElement;
+            inputEl.value = '10:30';
+            inputEl.dispatchEvent(new Event('change'));
+            fixture.detectChanges();
+
+            expect(spy).toHaveBeenCalled();
+            const val = spy.mock.calls[0][0] as DateRange;
+            expect(val.start?.getHours()).toBe(10);
+            expect(val.start?.getMinutes()).toBe(30);
+            expect(val.end?.getHours()).toBe(17);
+        });
+
+        it('should preserve times when selecting new dates in range mode', () => {
+            fixture.componentRef.setInput('mode', 'range');
+            fixture.componentRef.setInput('selectedTimeRange', { start: '09:00', end: '17:00' });
+            fixture.detectChanges();
+
+            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const buttons = fixture.debugElement.queryAll(By.css('ui-button'));
+            const day10 = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '10');
+            const day15 = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '15');
+
+            if (day10 && day15) {
+                day10.nativeElement.click();
+                fixture.detectChanges();
+
+                const startVal = spy.mock.calls[0][0] as DateRange;
+                expect(startVal.start?.getHours()).toBe(9);
+                expect(startVal.start?.getMinutes()).toBe(0);
+
+                day15.nativeElement.click();
+                fixture.detectChanges();
+
+                const endVal = spy.mock.lastCall![0] as DateRange;
+                expect(endVal.end?.getHours()).toBe(17);
+                expect(endVal.end?.getMinutes()).toBe(0);
+            }
         });
     });
 });

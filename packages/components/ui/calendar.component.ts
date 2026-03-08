@@ -21,10 +21,16 @@ import {
 } from './select.component';
 
 export type CalendarMode = 'single' | 'range' | 'multi';
+export type CalendarTimeMode = 'single' | 'range';
 
 export interface DateRange {
   start: Date | null;
   end: Date | null;
+}
+
+export interface TimeRange {
+  start: string;
+  end: string;
 }
 
 @Component({
@@ -133,22 +139,59 @@ export interface DateRange {
 
       @if (showTimeSelect()) {
         <div class="mt-4 border-t pt-4">
-            <div class="flex flex-col gap-2">
-                <label class="text-sm font-medium" for="time">{{ timeLabel() }}</label>
+          @if (timeMode() === 'range') {
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-medium" for="start-time">{{ startTimeLabel() }}</label>
                 <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
-                    <input 
-                        type="time"
-                        [dir]="rtl() ? 'rtl' : 'ltr'"
-                        class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
-                        [value]="selectedTimeString()"
-                        (change)="updateTime($event)"
-                        id="time"
-                    />
-                    <div class="flex items-center justify-center px-3 py-2 ltr:border-l rtl:border-r border-input bg-muted/50 text-muted-foreground">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-                    </div>
+                  <input
+                    type="time"
+                    [dir]="rtl() ? 'rtl' : 'ltr'"
+                    class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
+                    [value]="startTimeString()"
+                    (change)="updateStartTime($event)"
+                    id="start-time"
+                  />
+                  <div class="flex items-center justify-center px-3 py-2 ltr:border-l rtl:border-r border-input bg-muted/50 text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
                 </div>
+              </div>
+              <div class="flex flex-col gap-2">
+                <label class="text-sm font-medium" for="end-time">{{ endTimeLabel() }}</label>
+                <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
+                  <input
+                    type="time"
+                    [dir]="rtl() ? 'rtl' : 'ltr'"
+                    class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
+                    [value]="endTimeString()"
+                    (change)="updateEndTime($event)"
+                    id="end-time"
+                  />
+                  <div class="flex items-center justify-center px-3 py-2 ltr:border-l rtl:border-r border-input bg-muted/50 text-muted-foreground">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                </div>
+              </div>
             </div>
+          } @else {
+            <div class="flex flex-col gap-2">
+              <label class="text-sm font-medium" for="time">{{ timeLabel() }}</label>
+              <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
+                <input
+                  type="time"
+                  [dir]="rtl() ? 'rtl' : 'ltr'"
+                  class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
+                  [value]="selectedTimeString()"
+                  (change)="updateTime($event)"
+                  id="time"
+                />
+                <div class="flex items-center justify-center px-3 py-2 ltr:border-l rtl:border-r border-input bg-muted/50 text-muted-foreground">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+              </div>
+            </div>
+          }
         </div>
       }
     </div>
@@ -161,10 +204,12 @@ export class CalendarComponent {
   showMonthSelect = input(false);
   showYearSelect = input(false);
   showTimeSelect = input(false);
+  timeMode = input<CalendarTimeMode>('single');
   weekStartsOn = input<0 | 1 | 2 | 3 | 4 | 5 | 6>(0); // 0 = Sunday, 1 = Monday, etc.
   rtl = model<boolean>(false);
   locale = input<string>('en');
   selected = model<Date | DateRange | Date[] | string | string[] | null>(null);
+  selectedTimeRange = model<TimeRange>({ start: '', end: '' });
 
   selectedChange = output<Date | DateRange | Date[] | string | string[] | null>();
 
@@ -205,11 +250,13 @@ export class CalendarComponent {
     return CALENDAR_LOCALES[key] ?? CALENDAR_LOCALES['en'];
   });
 
-  dayNames = computed(() => this.activeLocale().dayNames);
-  monthNames = computed(() => this.activeLocale().monthNames);
-  timeLabel = computed(() => this.activeLocale().timeLabel ?? 'Time');
-  prevMonthLabel = computed(() => this.activeLocale().prevMonthLabel ?? 'Previous month');
-  nextMonthLabel = computed(() => this.activeLocale().nextMonthLabel ?? 'Next month');
+  readonly dayNames = computed(() => this.activeLocale().dayNames);
+  readonly monthNames = computed(() => this.activeLocale().monthNames);
+  readonly timeLabel = computed(() => this.activeLocale().timeLabel ?? 'Time');
+  readonly startTimeLabel = computed(() => this.activeLocale().startTimeLabel ?? 'Start time');
+  readonly endTimeLabel = computed(() => this.activeLocale().endTimeLabel ?? 'End time');
+  readonly prevMonthLabel = computed(() => this.activeLocale().prevMonthLabel ?? 'Previous month');
+  readonly nextMonthLabel = computed(() => this.activeLocale().nextMonthLabel ?? 'Next month');
 
   orderedDayNames = computed(() => {
     const start = this.weekStartsOn();
@@ -267,9 +314,36 @@ export class CalendarComponent {
     const parsed = this.parseDate(val as any);
     if (!parsed) return '';
 
-    const hours = parsed.getHours().toString().padStart(2, '0');
-    const minutes = parsed.getMinutes().toString().padStart(2, '0');
-    return `${hours}:${minutes}`;
+    return this.formatTimeFromDate(parsed);
+  });
+
+  readonly startTimeString = computed(() => {
+    const val = this.selected();
+    const mode = this.mode();
+
+    if (mode === 'range') {
+      const range = val as DateRange | null;
+      return this.formatTimeFromDate(range?.start ?? null) || this.selectedTimeRange().start;
+    }
+
+    if (mode === 'single') {
+      const parsed = this.parseDate(val as Date | string | null);
+      return this.formatTimeFromDate(parsed) || this.selectedTimeRange().start;
+    }
+
+    return this.selectedTimeRange().start;
+  });
+
+  readonly endTimeString = computed(() => {
+    const val = this.selected();
+    const mode = this.mode();
+
+    if (mode === 'range') {
+      const range = val as DateRange | null;
+      return this.formatTimeFromDate(range?.end ?? null) || this.selectedTimeRange().end;
+    }
+
+    return this.selectedTimeRange().end;
   });
 
   getDayClasses(day: Date): string {
@@ -365,38 +439,53 @@ export class CalendarComponent {
 
   selectDay(day: Date) {
     const mode = this.mode();
-    let newVal: any;
+    let newVal: Date | DateRange | Date[];
     const currentSelected = this.selected();
-
-    if (mode === 'single' && currentSelected) {
-      const currentD = this.parseDate(currentSelected as any);
-      if (currentD) {
-        day.setHours(currentD.getHours(), currentD.getMinutes());
-      }
-    }
+    const isTimeRange = this.showTimeSelect() && this.timeMode() === 'range';
 
     if (mode === 'single') {
+      if (isTimeRange) {
+        this.applyTimeStringToDate(day, this.selectedTimeRange().start);
+      } else if (currentSelected) {
+        const currentD = this.parseDate(currentSelected as Date | string);
+        if (currentD) {
+          day.setHours(currentD.getHours(), currentD.getMinutes());
+        }
+      }
       newVal = day;
     } else if (mode === 'multi') {
-      const current = (currentSelected as (Date | string)[]) || [];
+      const current = (currentSelected as (Date | string)[]) ?? [];
       const parsedCurrent = current.map(v => this.parseDate(v)).filter(Boolean) as Date[];
       const exists = parsedCurrent.some(d => this.isSameDay(d, day));
 
       if (exists) {
         newVal = parsedCurrent.filter(d => !this.isSameDay(d, day));
       } else {
+        if (isTimeRange) {
+          this.applyTimeStringToDate(day, this.selectedTimeRange().start);
+        }
         newVal = [...parsedCurrent, day];
       }
-    } else if (mode === 'range') {
-      const current = (currentSelected as DateRange) || { start: null, end: null };
+    } else {
+      const current = (currentSelected as DateRange) ?? { start: null, end: null };
 
       if (!current.start || (current.start && current.end)) {
+        if (isTimeRange) {
+          this.applyTimeStringToDate(day, this.selectedTimeRange().start);
+        }
         newVal = { start: day, end: null };
       } else if (day < current.start) {
-          newVal = { start: day, end: current.start };
-        } else {
-          newVal = { start: current.start, end: day };
+        if (isTimeRange) {
+          this.applyTimeStringToDate(day, this.selectedTimeRange().start);
+          this.applyTimeStringToDate(current.start, this.selectedTimeRange().end);
         }
+        newVal = { start: day, end: current.start };
+      } else {
+        if (isTimeRange) {
+          this.applyTimeStringToDate(day, this.selectedTimeRange().end);
+        }
+        newVal = { start: current.start, end: day };
+      }
     }
 
     this.selected.set(newVal);
@@ -405,7 +494,7 @@ export class CalendarComponent {
 
   updateTime(event: Event) {
     const input = event.target as HTMLInputElement;
-    const val = input.value; // "HH:MM"
+    const val = input.value;
     if (!val) return;
 
     const [hours, minutes] = val.split(':').map(Number);
@@ -429,6 +518,76 @@ export class CalendarComponent {
 
     this.selected.set(new Date(date));
     this.selectedChange.emit(new Date(date));
+  }
+
+  updateStartTime(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const val = input.value;
+    if (!val) return;
+
+    const currentRange = this.selectedTimeRange();
+    this.selectedTimeRange.set({ ...currentRange, start: val });
+
+    const [hours, minutes] = val.split(':').map(Number);
+    const mode = this.mode();
+    const currentSel = this.selected();
+
+    if (mode === 'range') {
+      const range = (currentSel as DateRange) ?? { start: null, end: null };
+      if (range.start) {
+        const newStart = new Date(range.start);
+        newStart.setHours(hours, minutes);
+        const newRange = { ...range, start: newStart };
+        this.selected.set(newRange);
+        this.selectedChange.emit(newRange);
+      }
+      return;
+    }
+
+    if (mode === 'single') {
+      const parsed = this.parseDate(currentSel as Date | string | null);
+      const date = parsed ? new Date(parsed) : new Date(this.viewDate());
+      date.setHours(hours, minutes);
+      this.selected.set(new Date(date));
+      this.selectedChange.emit(new Date(date));
+    }
+  }
+
+  updateEndTime(event: Event) {
+    const input = event.target as HTMLInputElement;
+    const val = input.value;
+    if (!val) return;
+
+    const currentRange = this.selectedTimeRange();
+    this.selectedTimeRange.set({ ...currentRange, end: val });
+
+    const [hours, minutes] = val.split(':').map(Number);
+    const mode = this.mode();
+    const currentSel = this.selected();
+
+    if (mode === 'range') {
+      const range = (currentSel as DateRange) ?? { start: null, end: null };
+      if (range.end) {
+        const newEnd = new Date(range.end);
+        newEnd.setHours(hours, minutes);
+        const newRange = { ...range, end: newEnd };
+        this.selected.set(newRange);
+        this.selectedChange.emit(newRange);
+      }
+    }
+  }
+
+  private formatTimeFromDate(date: Date | null): string {
+    if (!date) return '';
+    const hours = date.getHours().toString().padStart(2, '0');
+    const minutes = date.getMinutes().toString().padStart(2, '0');
+    return `${hours}:${minutes}`;
+  }
+
+  private applyTimeStringToDate(date: Date, timeStr: string): void {
+    if (!timeStr) return;
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    date.setHours(hours, minutes);
   }
 
   previousMonth() {
