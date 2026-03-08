@@ -151,7 +151,6 @@ import {
               @for (col of enhancedColumns(); track col.accessorKey) {
                 <ui-table-head 
                   [class]="getHeaderClass(col)"
-                  [class.overflow-visible]="col.enableFiltering && col.filterComponent"
                   [class.cursor-grab]="isColumnDraggable(col)"
                   [class.cursor-grabbing]="isDraggingColumn(col)"
                   [class.opacity-70]="isDraggingColumn(col)"

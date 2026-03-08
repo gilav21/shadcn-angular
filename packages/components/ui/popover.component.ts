@@ -139,6 +139,7 @@ export class PopoverTriggerComponent {
         #contentEl
         [class]="classes()"
         [style]="positionStyles()"
+        [style.visibility]="strategy() === 'fixed' && !portalReady() ? 'hidden' : null"
         [attr.data-state]="popover?.open() ? 'open' : 'closed'"
         [attr.data-slot]="'popover-content'"
       >
@@ -163,6 +164,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private portalHost: HTMLElement | null = null;
+    private readonly portalReady = signal(false);
 
     private readonly adjustedPosition = signal<{
         side: PopoverSide;
@@ -174,37 +176,52 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     constructor() {
         effect(() => {
             if (this.popover?.open()) {
+                if (this.strategy() === 'fixed') {
+                    this.portalReady.set(false);
+                }
                 this.adjustedPosition.set({
                     side: this.side(),
                     align: this.align(),
                     offsetX: 0,
                     offsetY: 0,
                 });
-                requestAnimationFrame(() => {
-                    this.portalToBody();
-                    requestAnimationFrame(() => {
-                        this.calculatePosition();
-                    });
-                });
+                requestAnimationFrame(() => this.portalAndPosition(0));
             } else {
+                this.portalReady.set(false);
                 this.removePortal();
             }
         });
     }
 
     ngAfterViewInit() {
-        this.portalToBody();
+        const portaled = this.portalToBody();
         this.calculatePosition();
+        if (portaled) {
+            this.portalReady.set(true);
+        }
+    }
+
+    private portalAndPosition(attempt: number) {
+        if (!this.popover?.open()) return;
+        const portaled = this.portalToBody();
+        if (!portaled && this.strategy() === 'fixed' && attempt < 10) {
+            requestAnimationFrame(() => this.portalAndPosition(attempt + 1));
+            return;
+        }
+        this.calculatePosition();
+        if (this.strategy() !== 'fixed' || portaled) {
+            this.portalReady.set(true);
+        }
     }
 
     ngOnDestroy() {
         this.removePortal();
     }
 
-    private portalToBody() {
-        if (this.strategy() !== 'fixed') return;
+    private portalToBody(): boolean {
+        if (this.strategy() !== 'fixed') return false;
         const el = this.contentEl?.nativeElement;
-        if (!el) return;
+        if (!el) return false;
         if (!this.portalHost) {
             this.portalHost = this.document.createElement('div');
             this.portalHost.dataset['popoverPortal'] = 'true';
@@ -213,6 +230,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
             this.popover?.registerPortal(this.portalHost);
         }
         this.portalHost.appendChild(el);
+        return true;
     }
 
     private removePortal() {
