@@ -1,0 +1,299 @@
+<section class="space-y-4">
+  <h2 id="data-table" class="text-2xl font-semibold scroll-m-20">Data Table (Client-Side)</h2>
+  <p class="text-muted-foreground">
+    A powerful table component with sorting, filtering, and pagination.
+  </p>
+
+  <div class="flex items-center gap-2 mb-2">
+    <ui-button variant="outline" size="sm" (click)="clientTable.exportToCsv('payments')" (keydown.enter)="clientTable.exportToCsv('payments')">
+      Export CSV
+    </ui-button>
+    <ui-button variant="outline" size="sm" (click)="clientTable.exportToExcel('payments')" (keydown.enter)="clientTable.exportToExcel('payments')">
+      Export Excel
+    </ui-button>
+  </div>
+  <div class="rounded-md border h-[600px] overflow-auto relative">
+    <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
+      [(rowSelection)]="selection" [rowActions]="paymentRowActions" />
+  </div>
+  <div class="text-sm text-muted-foreground">
+    Selected {{ selectionCount() }} rows. Click a cell then press Ctrl+C to copy its value.
+  </div>
+</section>
+
+<!-- Resizable Columns Section -->
+<section class="space-y-4">
+  <h2 id="data-table-resizable" class="text-2xl font-semibold scroll-m-20">Data Table (Resizable Columns)</h2>
+  <p class="text-muted-foreground">
+    Drag the right edge of column headers to resize columns. Minimum width is enforced.
+  </p>
+
+  <div class="rounded-md border h-[600px] overflow-auto relative">
+    <ui-data-table [data]="payments()" [columns]="resizableColumns" [enableColumnResize]="true"
+      (columnResize)="onColumnResize($event)" />
+  </div>
+</section>
+
+<!-- Server-Side Data Table Section -->
+<section class="space-y-4">
+  <h2 class="text-2xl font-semibold scroll-m-20">Data Table (Server-Side)</h2>
+  <p class="text-muted-foreground">
+    Simulated server-side sorting, filtering, and pagination with 1s delay.
+  </p>
+
+  <div class="flex items-center gap-2 mb-2">
+    <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-all', payments())" (keydown.enter)="serverGrid.exportToExcel('payments-all', payments())">
+      Export All (inline data)
+    </ui-button>
+    <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-page')" (keydown.enter)="serverGrid.exportToExcel('payments-page')">
+      Export Current Page
+    </ui-button>
+  </div>
+  <div class="rounded-md border relative">
+    @if (serverLoading()) {
+    <div class="absolute inset-0 bg-background/50 z-10 flex items-center justify-center">
+      <ui-spinner class="h-8 w-8 text-primary" />
+    </div>
+    }
+
+    <ui-data-table #serverGrid [data]="serverData()" [columns]="paymentColumns" [total]="serverTotal()"
+      [localSorting]="false" [localPagination]="false" [localFiltering]="false"
+      (sortChange)="onServerSort($event)" (pageChange)="onServerPage($event)"
+      (filterChange)="onServerFilter($event)" (columnFiltersChange)="onServerColumnFilters($event)" />
+  </div>
+  <div class="text-xs text-muted-foreground">
+    "Export All" passes the full dataset inline: <code
+      class="text-xs bg-muted px-1 rounded">exportToExcel('file', allData)</code>.
+    "Export Current Page" exports only what's loaded (default behavior).
+  </div>
+</section>
+
+<section class="space-y-4">
+  <h2 class="text-2xl font-semibold scroll-m-20">Data Table (Operations Console)</h2>
+  <p class="text-muted-foreground">
+    Realistic incident operations grid using server-mode pagination/filter/sort, multi-sort (Shift+Click),
+    right/left pinning, row expansion, layout persistence, and trigger-aware custom loaders.
+  </p>
+  <p class="text-xs text-muted-foreground">
+    Drag column headers to reorder them. The Ticket column remains fixed.
+  </p>
+
+  <div class="flex flex-wrap items-center gap-3 rounded-md border p-3">
+    <ui-button size="sm" variant="outline" (click)="refreshOpsData()" (keydown.enter)="refreshOpsData()">Refresh</ui-button>
+    <ui-button size="sm" variant="outline" (click)="applyOpsCompactPreset()" (keydown.enter)="applyOpsCompactPreset()">Apply Compact Layout</ui-button>
+    <ui-button size="sm" variant="outline" (click)="moveOpsPriorityToFront()" (keydown.enter)="moveOpsPriorityToFront()">Move Priority Next</ui-button>
+    <ui-button size="sm" variant="outline" (click)="saveOpsLayout()" (keydown.enter)="saveOpsLayout()">Save Layout</ui-button>
+    <ui-button size="sm" variant="outline" (click)="restoreOpsLayout()" (keydown.enter)="restoreOpsLayout()">Restore Layout</ui-button>
+    <ui-button size="sm" variant="outline" (click)="opsGrid.exportToCsv('incidents')" (keydown.enter)="opsGrid.exportToCsv('incidents')">Export CSV</ui-button>
+    <ui-button size="sm" variant="outline" (click)="opsGrid.exportToExcel('incidents')" (keydown.enter)="opsGrid.exportToExcel('incidents')">Export Excel</ui-button>
+
+    <div class="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
+      <span>Loader triggers:</span>
+      <div class="flex items-center gap-2">
+        <ui-checkbox [checked]="opsLoadingVisibility().initial !== false"
+          (checkedChange)="toggleOpsLoaderTrigger('initial', $event)" ariaLabel="Toggle initial loader" />
+        initial
+      </div>
+      <div class="flex items-center gap-2">
+        <ui-checkbox [checked]="opsLoadingVisibility().pagination !== false"
+          (checkedChange)="toggleOpsLoaderTrigger('pagination', $event)" ariaLabel="Toggle pagination loader" />
+        pagination
+      </div>
+      <div class="flex items-center gap-2">
+        <ui-checkbox [checked]="opsLoadingVisibility().sorting !== false"
+          (checkedChange)="toggleOpsLoaderTrigger('sorting', $event)" ariaLabel="Toggle sorting loader" />
+        sorting
+      </div>
+      <div class="flex items-center gap-2">
+        <ui-checkbox [checked]="opsLoadingVisibility().filtering !== false"
+          (checkedChange)="toggleOpsLoaderTrigger('filtering', $event)" ariaLabel="Toggle filtering loader" />
+        filtering
+      </div>
+    </div>
+  </div>
+
+  <div class="rounded-md border h-[680px] overflow-auto relative">
+    <ui-data-table #opsGrid [data]="opsData()" [columns]="opsColumns" [total]="opsTotal()"
+      [loading]="opsLoading()" [loadingVisibility]="opsLoadingVisibility()"
+      [loaderComponent]="opsLoaderComponent" [loaderComponentInputs]="{ total: opsTotal() }"
+      [enableColumnResize]="true" [enableColumnReorder]="true" [enableRowExpansion]="true"
+      [rowDetailComponent]="opsDetailComponent" [rowDetailComponentInputs]="opsDetailInputs"
+      [enableMultiSort]="true" [localSorting]="false" [localPagination]="false" [localFiltering]="false"
+      (sortChange)="onOpsSort($event)" (multiSortChange)="onOpsMultiSort($event)"
+      (pageChange)="onOpsPage($event)" (filterChange)="onOpsFilter($event)"
+      (columnFiltersChange)="onOpsColumnFilters($event)" [(columnOrder)]="opsColumnOrder"
+      [(columnVisibility)]="opsColumnVisibility" [(expandedRows)]="opsExpandedRows"
+      [uiDataTableContextMenu]="opsContextMenu" [exportDataProvider]="opsExportProvider" />
+  </div>
+
+  <ui-context-menu #opsContextMenu>
+    <ui-context-menu-content class="w-56">
+      <ui-context-menu-item (click)="opsGrid.copyCellToClipboard()" (keydown.enter)="opsGrid.copyCellToClipboard()">
+        Copy Cell
+        <ui-context-menu-shortcut>&#8984;C</ui-context-menu-shortcut>
+      </ui-context-menu-item>
+      <ui-context-menu-separator />
+      <ui-context-menu-item (click)="opsGrid.exportToCsv('incidents')" (keydown.enter)="opsGrid.exportToCsv('incidents')">
+        Export CSV
+      </ui-context-menu-item>
+      <ui-context-menu-item (click)="opsGrid.exportToExcel('incidents')" (keydown.enter)="opsGrid.exportToExcel('incidents')">
+        Export Excel
+      </ui-context-menu-item>
+    </ui-context-menu-content>
+  </ui-context-menu>
+
+  <div class="text-xs text-muted-foreground">
+    Showing {{ opsData().length }} of {{ opsTotal() }} incidents.
+    Export uses <code class="text-xs bg-muted px-1 rounded">exportDataProvider</code> to fetch all {{ opsTotal()
+    }} rows server-side.
+    Shift+Click headers to multi-sort. Click a cell then Ctrl+C to copy.
+  </div>
+</section>
+
+<!-- Hebrew RTL Demo Section -->
+<section class="space-y-4">
+  <h2 id="data-table-rtl" class="text-2xl font-semibold scroll-m-20">Data Table (Hebrew RTL)</h2>
+  <p class="text-muted-foreground">
+    Full RTL layout with Hebrew locale. Column headers, filter labels, date picker presets, and sort indicators
+    are all rendered right-to-left. The date filter uses <code class="text-xs bg-muted px-1 rounded">locale="he"</code> via <code class="text-xs bg-muted px-1 rounded">filterComponentInputs</code>.
+  </p>
+
+  <div dir="rtl" class="rounded-md border overflow-auto relative">
+    <ui-data-table
+      [data]="hebrewRtlData()"
+      [columns]="hebrewRtlColumns"
+      [enableColumnResize]="true"
+      [enableMultiSort]="true"
+      [showPagination]="true"
+      locale="he"
+    />
+  </div>
+</section>
+
+<!-- Custom Cells Demo Section -->
+<section class="space-y-4">
+  <h2 id="data-table-custom" class="text-2xl font-semibold scroll-m-20">Data Table (Custom Cell Components)</h2>
+  <p class="text-muted-foreground">
+    Demonstrating dynamic component rendering with custom cell components. Each column specifies a component
+    type and inputs.
+  </p>
+
+  <div class="rounded-md border h-[600px] overflow-auto relative">
+    <ui-data-table [data]="payments()" [columns]="customCellsColumns" />
+  </div>
+</section>
+
+<!-- Sub-Rows (Tree Data) Section -->
+<section class="space-y-4">
+  <h2 id="data-table-tree" class="text-2xl font-semibold scroll-m-20">Data Table (Sub-Rows / Tree Data)</h2>
+  <p class="text-muted-foreground">
+    Hierarchical rows where children share the same columns as parents. Supports nested expand/collapse,
+    cascading selection, tree-aware filtering, and recursive sorting.
+  </p>
+
+  <div class="flex flex-wrap items-center gap-3 rounded-md border p-3">
+    <ui-button size="sm" variant="outline" (click)="treeTable.expandAllSubRows(-1)" (keydown.enter)="treeTable.expandAllSubRows(-1)">Expand All</ui-button>
+    <ui-button size="sm" variant="outline" (click)="treeTable.collapseAllSubRows()" (keydown.enter)="treeTable.collapseAllSubRows()">Collapse All</ui-button>
+    <ui-button size="sm" variant="outline" (click)="treeTable.expandAllSubRows(1)" (keydown.enter)="treeTable.expandAllSubRows(1)">Expand Level 1</ui-button>
+
+    <div class="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
+      <span class="flex items-center gap-2">
+        Selection mode:
+      </span>
+      <select class="rounded-md border bg-background px-2 py-1 text-xs" [value]="treeSelectionMode()" (change)="treeSelectionMode.set($any($event.target).value)">
+        <option value="self">self</option>
+        <option value="descendants">descendants</option>
+        <option value="filteredDescendants">filteredDescendants</option>
+      </select>
+
+      <span class="flex items-center gap-2">
+        Filter mode:
+      </span>
+      <select class="rounded-md border bg-background px-2 py-1 text-xs" [value]="treeFilterMode()" (change)="treeFilterMode.set($any($event.target).value)">
+        <option value="includeParentOnChildMatch">includeParentOnChildMatch</option>
+        <option value="includeChildren">includeChildren</option>
+        <option value="excludeChildren">excludeChildren</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="rounded-md border h-[600px] overflow-auto relative">
+    <ui-data-table #treeTable
+      [data]="orgTreeData"
+      [columns]="orgTreeColumns"
+      [enableSubRows]="true"
+      [enableRowSelection]="true"
+      [subRowDefaultExpanded]="1"
+      [subRowSelectionMode]="treeSelectionMode()"
+      [subRowFilterMode]="treeFilterMode()"
+      [enableSubRowSorting]="true"
+      [enableRowExpansion]="true"
+      [rowDetailTemplate]="treeDetailTpl"
+      [enableColumnResize]="true"
+      [uiDataTableContextMenu]="treeContextMenu"
+      (rowContextMenu)="onTreeTableContextMenu($event)"
+    />
+  </div>
+
+  <ng-template #treeDetailTpl let-row>
+    <div class="p-4 text-sm text-muted-foreground">
+      <span class="font-medium text-foreground">{{ row.name }}</span> &mdash;
+      {{ row.role }} &middot; {{ row.headcount }} people &middot; Budget: ${{ row.budget | number:'1.0-0' }}
+    </div>
+  </ng-template>
+
+  <ui-context-menu #treeContextMenu>
+    <ui-context-menu-content class="w-64">
+      @if (treeContextMenu.data(); as ctx) {
+        <ui-context-menu-label>
+          {{ ctx.row?.name || 'Unknown' }}
+          <span class="ml-1 text-xs text-muted-foreground">(depth {{ ctx.depth }})</span>
+        </ui-context-menu-label>
+        <ui-context-menu-separator />
+        @if (!ctx.isLeaf) {
+          <ui-context-menu-item (click)="treeTable.expandSubRow(ctx.row)" (keydown.enter)="treeTable.expandSubRow(ctx.row)">
+            Expand
+          </ui-context-menu-item>
+          <ui-context-menu-item (click)="treeTable.collapseSubRow(ctx.row)" (keydown.enter)="treeTable.collapseSubRow(ctx.row)">
+            Collapse
+          </ui-context-menu-item>
+          <ui-context-menu-item (click)="treeTable.selectChildren(ctx.row)" (keydown.enter)="treeTable.selectChildren(ctx.row)">
+            Select All Children
+          </ui-context-menu-item>
+          <ui-context-menu-item (click)="treeTable.deselectChildren(ctx.row)" (keydown.enter)="treeTable.deselectChildren(ctx.row)">
+            Deselect All Children
+          </ui-context-menu-item>
+          <ui-context-menu-separator />
+        }
+        @if (ctx.depth === 0) {
+          <ui-context-menu-item (click)="treeTable.expandAllSubRows(-1)" (keydown.enter)="treeTable.expandAllSubRows(-1)">
+            Expand Entire Tree
+          </ui-context-menu-item>
+          <ui-context-menu-item (click)="treeTable.collapseAllSubRows()" (keydown.enter)="treeTable.collapseAllSubRows()">
+            Collapse Entire Tree
+          </ui-context-menu-item>
+          <ui-context-menu-separator />
+        }
+        <ui-context-menu-item (click)="treeTable.copyCellToClipboard()" (keydown.enter)="treeTable.copyCellToClipboard()">
+          Copy Cell
+          <ui-context-menu-shortcut>Ctrl+C</ui-context-menu-shortcut>
+        </ui-context-menu-item>
+        <ui-context-menu-item (click)="onTreeTableAction('view', ctx)" (keydown.enter)="onTreeTableAction('view', ctx)">
+          View Details
+        </ui-context-menu-item>
+      }
+    </ui-context-menu-content>
+  </ui-context-menu>
+
+  <div class="text-xs text-muted-foreground">
+    Right-click any row for a depth-aware context menu.
+    Click the chevron to expand sub-rows. Use the checkboxes to test cascading selection.
+    Filter text to see tree-aware filtering (try "Alice" or "Backend").
+    Click the detail-row expander to see detail panels coexisting with sub-rows.
+  </div>
+</section>
+
+<!-- Footer -->
+<div class="text-center text-muted-foreground text-sm pt-8">
+  Built with Angular and Tailwind CSS. Open source.
+</div>

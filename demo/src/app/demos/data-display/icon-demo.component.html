@@ -1,0 +1,386 @@
+<section class="space-y-8">
+  <div>
+    <h2 id="icon" class="text-2xl font-semibold scroll-m-20">Icon</h2>
+    <p class="text-muted-foreground mt-1">SVG icon component with 140+ built-in Lucide icons, extensible via DI, with weight and color control.</p>
+  </div>
+
+  <!-- Sizes -->
+  <div class="space-y-4">
+    <h3 class="text-lg font-medium">Sizes</h3>
+    <p class="text-sm text-muted-foreground">Use the <code class="text-xs bg-muted px-1 py-0.5 rounded">size</code> input with preset names or custom pixel values.</p>
+    <div class="flex items-end gap-6">
+      <div class="flex flex-col items-center gap-2">
+        <ui-icon name="star" size="xs"></ui-icon>
+        <span class="text-[10px] text-muted-foreground">xs (12px)</span>
+      </div>
+      <div class="flex flex-col items-center gap-2">
+        <ui-icon name="star" size="sm"></ui-icon>
+        <span class="text-[10px] text-muted-foreground">sm (16px)</span>
+      </div>
+      <div class="flex flex-col items-center gap-2">
+        <ui-icon name="star" size="md"></ui-icon>
+        <span class="text-[10px] text-muted-foreground">md (24px)</span>
+      </div>
+      <div class="flex flex-col items-center gap-2">
+        <ui-icon name="star" size="lg"></ui-icon>
+        <span class="text-[10px] text-muted-foreground">lg (32px)</span>
+      </div>
+      <div class="flex flex-col items-center gap-2">
+        <ui-icon name="star" size="xl"></ui-icon>
+        <span class="text-[10px] text-muted-foreground">xl (48px)</span>
+      </div>
+    </div>
+  </div>
+
+  <ui-separator />
+
+  <!-- Weights -->
+  <div class="space-y-4">
+    <h3 class="text-lg font-medium">Weights</h3>
+    <p class="text-sm text-muted-foreground">
+      <code class="text-xs bg-muted px-1 py-0.5 rounded">light</code> (thin strokes),
+      <code class="text-xs bg-muted px-1 py-0.5 rounded">regular</code> (default),
+      <code class="text-xs bg-muted px-1 py-0.5 rounded">thick</code> (bold strokes), and
+      <code class="text-xs bg-muted px-1 py-0.5 rounded">solid</code> (filled &mdash; only supported icons, others fall back to regular).
+    </p>
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      @for (icon of ['heart', 'star', 'bookmark', 'shield', 'bell', 'home', 'settings', 'check-circle']; track icon) {
+      <div class="flex items-center gap-6 p-3 rounded-lg border">
+        <span class="text-sm text-muted-foreground w-24 shrink-0">{{ icon }}</span>
+        <div class="flex items-center gap-4">
+          <div class="flex flex-col items-center gap-1">
+            <ui-icon [name]="icon" weight="light" size="lg"></ui-icon>
+            <span class="text-[10px] text-muted-foreground">light</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <ui-icon [name]="icon" weight="regular" size="lg"></ui-icon>
+            <span class="text-[10px] text-muted-foreground">regular</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <ui-icon [name]="icon" weight="thick" size="lg"></ui-icon>
+            <span class="text-[10px] text-muted-foreground">thick</span>
+          </div>
+          <div class="flex flex-col items-center gap-1">
+            <ui-icon [name]="icon" weight="solid" size="lg"></ui-icon>
+            <span class="text-[10px] text-muted-foreground">solid</span>
+          </div>
+        </div>
+      </div>
+      }
+    </div>
+  </div>
+
+  <ui-separator />
+
+  <!-- Colors -->
+  <div class="space-y-6">
+    <h3 class="text-lg font-medium">Colors</h3>
+
+    <div class="space-y-3">
+      <h4 class="text-sm font-medium">Stroke color via <code class="text-xs bg-muted px-1 py-0.5 rounded">color</code> input</h4>
+      <div class="flex items-center gap-4">
+        <ui-icon name="heart" color="red" size="lg"></ui-icon>
+        <ui-icon name="star" color="#f59e0b" size="lg"></ui-icon>
+        <ui-icon name="check" color="green" size="lg"></ui-icon>
+        <ui-icon name="bell" color="blue" size="lg"></ui-icon>
+        <ui-icon name="shield" color="purple" size="lg"></ui-icon>
+        <ui-icon name="zap" color="orange" size="lg"></ui-icon>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <h4 class="text-sm font-medium">Solid weight + color</h4>
+      <div class="flex items-center gap-4">
+        <ui-icon name="heart" weight="solid" color="red" size="lg"></ui-icon>
+        <ui-icon name="star" weight="solid" color="#f59e0b" size="lg"></ui-icon>
+        <ui-icon name="check-circle" weight="solid" color="green" size="lg"></ui-icon>
+        <ui-icon name="bell" weight="solid" color="blue" size="lg"></ui-icon>
+        <ui-icon name="shield" weight="solid" color="purple" size="lg"></ui-icon>
+        <ui-icon name="bookmark" weight="solid" color="orange" size="lg"></ui-icon>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <h4 class="text-sm font-medium">Dual color: stroke + fill via <code class="text-xs bg-muted px-1 py-0.5 rounded">fillColor</code></h4>
+      <div class="flex items-center gap-4">
+        <ui-icon name="heart" color="#dc2626" fillColor="#fecaca" size="lg"></ui-icon>
+        <ui-icon name="star" color="#b45309" fillColor="#fef3c7" size="lg"></ui-icon>
+        <ui-icon name="bookmark" color="#2563eb" fillColor="#dbeafe" size="lg"></ui-icon>
+        <ui-icon name="shield" color="#16a34a" fillColor="#dcfce7" size="lg"></ui-icon>
+        <ui-icon name="bell" color="#9333ea" fillColor="#f3e8ff" size="lg"></ui-icon>
+        <ui-icon name="flag" color="#dc2626" fillColor="#fee2e2" size="lg"></ui-icon>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <h4 class="text-sm font-medium">Using Tailwind classes</h4>
+      <div class="flex items-center gap-4">
+        <ui-icon name="heart" class="text-red-500" size="lg"></ui-icon>
+        <ui-icon name="star" class="text-yellow-500" size="lg"></ui-icon>
+        <ui-icon name="check" class="text-green-500" size="lg"></ui-icon>
+        <ui-icon name="bell" class="text-blue-500" size="lg"></ui-icon>
+        <ui-icon name="shield" class="text-purple-500" size="lg"></ui-icon>
+      </div>
+    </div>
+  </div>
+
+  <ui-separator />
+
+  <!-- Real-world usage patterns -->
+  <div class="space-y-4">
+    <h3 class="text-lg font-medium">Usage Patterns</h3>
+
+    <div class="space-y-3">
+      <h4 class="text-sm font-medium">Action toolbar</h4>
+      <div class="flex items-center gap-1 p-2 rounded-lg border w-fit">
+        <ui-button variant="ghost" size="icon"><ui-icon name="pencil" size="sm"></ui-icon></ui-button>
+        <ui-button variant="ghost" size="icon"><ui-icon name="copy" size="sm"></ui-icon></ui-button>
+        <ui-button variant="ghost" size="icon"><ui-icon name="download" size="sm"></ui-icon></ui-button>
+        <ui-separator orientation="vertical" class="h-6 mx-1" />
+        <ui-button variant="ghost" size="icon"><ui-icon name="trash-2" size="sm" color="red"></ui-icon></ui-button>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <h4 class="text-sm font-medium">Status indicators</h4>
+      <div class="flex flex-col gap-2">
+        <div class="flex items-center gap-2">
+          <ui-icon name="check-circle" weight="solid" color="#16a34a" size="sm"></ui-icon>
+          <span class="text-sm">Build passed</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <ui-icon name="alert-circle" weight="solid" color="#f59e0b" size="sm"></ui-icon>
+          <span class="text-sm">2 warnings</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <ui-icon name="x-circle" weight="solid" color="#dc2626" size="sm"></ui-icon>
+          <span class="text-sm">Deploy failed</span>
+        </div>
+        <div class="flex items-center gap-2">
+          <ui-icon name="info" color="#2563eb" size="sm"></ui-icon>
+          <span class="text-sm">Scheduled for tomorrow</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="space-y-3">
+      <h4 class="text-sm font-medium">Feature cards</h4>
+      <div class="grid grid-cols-3 gap-4">
+        <div class="flex flex-col items-center gap-3 p-6 rounded-lg border text-center">
+          <div class="p-3 rounded-full bg-blue-50 dark:bg-blue-950">
+            <ui-icon name="shield-check" color="#2563eb" size="lg"></ui-icon>
+          </div>
+          <div>
+            <p class="text-sm font-medium">Secure</p>
+            <p class="text-xs text-muted-foreground">End-to-end encryption</p>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-3 p-6 rounded-lg border text-center">
+          <div class="p-3 rounded-full bg-green-50 dark:bg-green-950">
+            <ui-icon name="zap" color="#16a34a" size="lg"></ui-icon>
+          </div>
+          <div>
+            <p class="text-sm font-medium">Fast</p>
+            <p class="text-xs text-muted-foreground">Sub-millisecond response</p>
+          </div>
+        </div>
+        <div class="flex flex-col items-center gap-3 p-6 rounded-lg border text-center">
+          <div class="p-3 rounded-full bg-purple-50 dark:bg-purple-950">
+            <ui-icon name="globe" color="#9333ea" size="lg"></ui-icon>
+          </div>
+          <div>
+            <p class="text-sm font-medium">Global</p>
+            <p class="text-xs text-muted-foreground">Edge network worldwide</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <ui-separator />
+
+  <!-- Icon Explorer -->
+  <div class="space-y-4">
+    <div class="flex items-center justify-between">
+      <h3 class="text-lg font-medium">Icon Explorer</h3>
+      <span class="text-sm text-muted-foreground">{{ iconNames.length }} icons</span>
+    </div>
+    <p class="text-sm text-muted-foreground">Click any icon to configure it. Extend via <code class="text-xs bg-muted px-1 py-0.5 rounded">provideIcons()</code>.</p>
+
+    <ui-input placeholder="Search icons..." [ngModel]="iconSearchQuery()" (ngModelChange)="iconSearchQuery.set($event)" />
+
+    @if (iconSearchQuery()) {
+      <p class="text-xs text-muted-foreground">
+        Showing results for "{{ iconSearchQuery() }}"
+      </p>
+    }
+
+    @for (cat of filteredIconCategories(); track cat.label) {
+    <div class="space-y-2">
+      <h4 class="text-sm font-medium text-muted-foreground">{{ cat.label }}</h4>
+      <div class="grid grid-cols-4 sm:grid-cols-6 lg:grid-cols-8 gap-2">
+        @for (icon of cat.icons; track icon) {
+        <button
+          type="button"
+          class="flex flex-col items-center gap-2 p-3 rounded-lg border transition-colors cursor-pointer hover:bg-muted/50"
+          [class.ring-2]="selectedIconName() === icon"
+          [class.ring-primary]="selectedIconName() === icon"
+          (click)="selectIcon(icon)">
+          <ui-icon [name]="icon" size="md"></ui-icon>
+          <span class="text-[10px] text-muted-foreground text-center leading-tight truncate w-full">{{ icon }}</span>
+        </button>
+        }
+      </div>
+    </div>
+    }
+
+    @if (uncategorizedFilteredIcons().length > 0) {
+    <div class="space-y-2">
+      <h4 class="text-sm font-medium text-muted-foreground">Other</h4>
+      <div class="grid grid-cols-6 sm:grid-cols-8 lg:grid-cols-10 gap-2">
+        @for (icon of uncategorizedFilteredIcons(); track icon) {
+        <button
+          type="button"
+          class="flex flex-col items-center gap-1.5 p-2 rounded-lg border transition-colors cursor-pointer hover:bg-muted/50"
+          [class.ring-2]="selectedIconName() === icon"
+          [class.ring-primary]="selectedIconName() === icon"
+          (click)="selectIcon(icon)">
+          <ui-icon [name]="icon" size="sm"></ui-icon>
+          <span class="text-[9px] text-muted-foreground text-center leading-tight truncate w-full">{{ icon }}</span>
+        </button>
+        }
+      </div>
+    </div>
+    }
+  </div>
+
+  <!-- Icon Explorer Sheet -->
+  <ui-sheet #iconSheet>
+    <ui-sheet-content side="right" class="w-[340px] sm:w-[400px]">
+      <ui-sheet-header>
+        <ui-sheet-title>{{ selectedIconName() }}</ui-sheet-title>
+        <ui-sheet-description>Configure and preview this icon</ui-sheet-description>
+      </ui-sheet-header>
+      <div class="space-y-6 py-4 px-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
+        @if (selectedIconName()) {
+          <!-- Live Preview -->
+          <div class="flex items-center justify-center p-8 rounded-lg border bg-muted/30">
+            <ui-icon
+              [name]="selectedIconName()!"
+              [weight]="iconExplorerSolid() ? 'solid' : 'regular'"
+              [strokeWidth]="iconExplorerSolid() ? undefined : iconExplorerStrokeWidth()"
+              [size]="iconExplorerSize()"
+              [color]="iconExplorerColor() || undefined"
+              [fillColor]="iconExplorerFillColor() || undefined"
+            ></ui-icon>
+          </div>
+
+          <!-- Stroke Width -->
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">Stroke Width</label>
+              <span class="text-xs text-muted-foreground tabular-nums">{{ iconExplorerStrokeWidth().toFixed(1) }}</span>
+            </div>
+            <ui-slider
+              #strokeWidthSlider
+              [min]="0.5"
+              [max]="4"
+              [step]="0.1"
+              [defaultValue]="2"
+              [disabled]="iconExplorerSolid()"
+              (valueChange)="onStrokeWidthChange($event)"
+            ></ui-slider>
+            <div class="flex gap-2 mt-2.5">
+              @for (preset of strokeWidthPresets; track preset.label) {
+                <ui-button
+                  size="sm"
+                  [variant]="!iconExplorerSolid() && iconExplorerStrokeWidth() === preset.value ? 'default' : 'outline'"
+                  [disabled]="iconExplorerSolid()"
+                  (click)="setStrokeWidthPreset(preset.value)">
+                  {{ preset.label }}
+                </ui-button>
+              }
+            </div>
+          </div>
+
+          <!-- Solid Fill Toggle -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between">
+              <label class="text-sm font-medium">Solid Fill</label>
+              @if (!selectedIconSupportsSolid()) {
+                <span class="text-xs text-muted-foreground">Not available for this icon</span>
+              }
+            </div>
+            <ui-button
+              size="sm"
+              [variant]="iconExplorerSolid() ? 'default' : 'outline'"
+              [disabled]="!selectedIconSupportsSolid()"
+              (click)="iconExplorerSolid.set(!iconExplorerSolid())">
+              {{ iconExplorerSolid() ? 'Solid On' : 'Solid Off' }}
+            </ui-button>
+          </div>
+
+          <!-- Size -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Size</label>
+            <div class="flex flex-wrap gap-2">
+              @for (s of iconSizeOptions; track s) {
+                <ui-button
+                  size="sm"
+                  [variant]="iconExplorerSize() === s ? 'default' : 'outline'"
+                  (click)="iconExplorerSize.set(s)">
+                  {{ s }}
+                </ui-button>
+              }
+            </div>
+          </div>
+
+          <!-- Color -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Color</label>
+            <ui-input placeholder="e.g. red, #3b82f6" [ngModel]="iconExplorerColor()" (ngModelChange)="iconExplorerColor.set($event)" />
+          </div>
+
+          <!-- Fill Color -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Fill Color</label>
+            <ui-input placeholder="e.g. pink, #fef3c7" [ngModel]="iconExplorerFillColor()" (ngModelChange)="iconExplorerFillColor.set($event)" />
+          </div>
+
+          <ui-separator />
+
+          <!-- Generated Code -->
+          <div class="space-y-2">
+            <label class="text-sm font-medium">Code</label>
+            <ui-code-block language="html" [code]="iconExplorerCode()"></ui-code-block>
+          </div>
+        }
+      </div>
+    </ui-sheet-content>
+  </ui-sheet>
+
+  <ui-separator />
+
+  <!-- Copy-paste examples -->
+  <div class="space-y-4">
+    <h3 class="text-lg font-medium">Copy-Paste Ready</h3>
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div class="space-y-2">
+        <h4 class="text-sm font-medium">Basic usage</h4>
+        <ui-code-block language="html" [code]="'<ui-icon name=&quot;check&quot; />'"></ui-code-block>
+      </div>
+      <div class="space-y-2">
+        <h4 class="text-sm font-medium">With size & weight</h4>
+        <ui-code-block language="html" [code]="'<ui-icon name=&quot;heart&quot; size=&quot;lg&quot; weight=&quot;solid&quot; />'"></ui-code-block>
+      </div>
+      <div class="space-y-2">
+        <h4 class="text-sm font-medium">With colors</h4>
+        <ui-code-block language="html" [code]="'<ui-icon name=&quot;star&quot; color=&quot;#f59e0b&quot; fillColor=&quot;#fef3c7&quot; />'"></ui-code-block>
+      </div>
+      <div class="space-y-2">
+        <h4 class="text-sm font-medium">Custom icons via DI</h4>
+        <ui-code-block language="typescript" [code]="'provideIcons({ github: \'<path d=&quot;...&quot; />\' })'"></ui-code-block>
+      </div>
+    </div>
+  </div>
+</section>
