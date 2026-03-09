@@ -3778,35 +3778,11 @@
           </div>
           <div class="rounded-md border h-[600px] overflow-auto relative">
             <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
-              [(rowSelection)]="selection" [uiDataTableContextMenu]="tableContextMenu" />
+              [(rowSelection)]="selection" [rowActions]="paymentRowActions" />
           </div>
           <div class="text-sm text-muted-foreground">
             Selected {{ selectionCount() }} rows. Click a cell then press Ctrl+C to copy its value.
           </div>
-
-          <ui-context-menu #tableContextMenu>
-            <ui-context-menu-content class="w-64">
-              <ui-context-menu-item (click)="clientTable.copyCellToClipboard()" (keydown.enter)="clientTable.copyCellToClipboard()">
-                Copy Cell
-                <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-separator />
-              <ui-context-menu-item (click)="onContextMenuAction('view', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('view', tableContextMenu.data())">
-                View Details
-                <ui-context-menu-shortcut>⌘V</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-item (click)="onContextMenuAction('edit', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('edit', tableContextMenu.data())">
-                Edit Payment
-                <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-separator />
-              <ui-context-menu-item variant="destructive"
-                (click)="onContextMenuAction('delete', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('delete', tableContextMenu.data())">
-                Delete
-                <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-            </ui-context-menu-content>
-          </ui-context-menu>
         </section>
 
         <!-- Server-Side Data Table Section -->

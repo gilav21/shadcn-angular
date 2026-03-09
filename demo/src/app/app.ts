@@ -322,6 +322,8 @@ import {
   dateFilterFn,
   dateRangeFilterFn,
   DateRange,
+  RowActionContext,
+  ContextMenuItem,
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -1320,11 +1322,34 @@ export class AppComponent {
     console.log('Column resized:', event);
   }
 
-  onContextMenuAction(action: string, row: any) {
+  readonly paymentRowActions = (ctx: RowActionContext<Payment>): ContextMenuItem[] => [
+    {
+      label: `View ${ctx.row.email}`,
+      icon: 'eye',
+      shortcut: '⌘V',
+      click: () => this.toastService.toast({ title: 'View', description: `Viewing payment ${ctx.row.id}` }),
+    },
+    {
+      label: 'Edit Payment',
+      icon: 'pencil',
+      shortcut: '⌘E',
+      click: () => this.toastService.toast({ title: 'Edit', description: `Editing payment ${ctx.row.id}` }),
+    },
+    { type: 'separator' },
+    {
+      label: 'Delete',
+      icon: 'trash',
+      shortcut: '⌘⌫',
+      click: () => this.toastService.toast({ title: 'Delete', description: `Deleted payment ${ctx.row.id}`, variant: 'destructive' }),
+    },
+  ];
+
+  onContextMenuAction(action: string, row: unknown) {
+    const rowData = row as Payment | undefined;
     console.log(`Context Menu Action: ${action}`, row);
     this.toastService.toast({
       title: 'Context Menu Action',
-      description: `Action: ${action} on row ${row?.id}`,
+      description: `Action: ${action} on row ${rowData?.id}`,
       variant: 'default',
     });
   }

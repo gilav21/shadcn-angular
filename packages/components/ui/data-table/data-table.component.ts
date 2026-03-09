@@ -2255,7 +2255,8 @@ export class DataTableComponent<T> {
     const context = this.buildRowActionContext(row, index);
     this.activeContextMenuItems.set(actionsFn(context));
 
-    const button = event.currentTarget as HTMLElement;
+    const target = event.target as HTMLElement;
+    const button = target.closest('button') ?? target;
     const rect = button.getBoundingClientRect();
     contextMenu.show(rect.right, rect.bottom, context);
   }
