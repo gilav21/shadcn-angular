@@ -1,10 +1,12 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table/data-table.component';
-import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility } from './data-table/data-table.types';
+import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext } from './data-table/data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { InputComponent } from './input.component';
-import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent } from './context-menu.component';
+import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from './context-menu.component';
 import { ContextMenuIntegrations } from './context-menu-integrations';
+import { DataTableDateFilterComponent, DataTableDateRangeFilterComponent, dateFilterFn, dateRangeFilterFn } from './data-table/data-table-date-filter.component';
+import { DateRange } from './calendar.component';
 
 // Filter component for stories
 @Component({
@@ -729,4 +731,206 @@ export const EnterpriseOperationsConsole: Story = {
             imports: [EnterpriseOpsTableStoryComponent],
         },
     }),
+};
+
+export const WithRowActions: Story = {
+    render: (args) => ({
+        props: {
+            ...args,
+            rowActions: (ctx: RowActionContext<User>): ContextMenuItem[] => [
+                {
+                    label: `View ${ctx.row.name}`,
+                    click: () => alert(`View: ${ctx.row.name} (index: ${ctx.index}, selected: ${ctx.selected})`),
+                },
+                {
+                    label: 'Edit',
+                    click: () => alert(`Edit: ${ctx.row.name}`),
+                },
+                { type: 'separator' },
+                {
+                    label: 'Delete',
+                    disabled: ctx.row.role === 'Admin',
+                    click: () => alert(`Delete: ${ctx.row.name}`),
+                },
+            ],
+        },
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="text-sm text-muted-foreground mb-2">Right-click a row or click the "..." button for actions. Admin users cannot be deleted.</p>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [enableRowSelection]="enableRowSelection"
+                    [rowActions]="rowActions"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: columns,
+        showToolbar: true,
+        showPagination: true,
+        enableRowSelection: true,
+    },
+};
+
+export const WithRowActionsColumnOnly: Story = {
+    render: (args) => ({
+        props: {
+            ...args,
+            rowActions: (ctx: RowActionContext<User>): ContextMenuItem[] => [
+                { label: 'View', click: () => alert(`View: ${ctx.row.name}`) },
+                { label: 'Edit', click: () => alert(`Edit: ${ctx.row.name}`) },
+            ],
+        },
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="text-sm text-muted-foreground mb-2">Only the action column (no context menu on right-click).</p>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showPagination]="showPagination"
+                    [rowActions]="rowActions"
+                    [showRowActionsContextMenu]="false"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: columns,
+        showPagination: true,
+    },
+};
+
+export const WithRowActionsContextMenuOnly: Story = {
+    render: (args) => ({
+        props: {
+            ...args,
+            rowActions: (ctx: RowActionContext<User>): ContextMenuItem[] => [
+                { label: 'View', click: () => alert(`View: ${ctx.row.name}`) },
+                { label: 'Edit', click: () => alert(`Edit: ${ctx.row.name}`) },
+            ],
+        },
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="text-sm text-muted-foreground mb-2">Only context menu on right-click (no action column).</p>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showPagination]="showPagination"
+                    [rowActions]="rowActions"
+                    [showRowActionsColumn]="false"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData,
+        columns: columns,
+        showPagination: true,
+    },
+};
+
+interface Order {
+    id: string;
+    customer: string;
+    createdAt: Date;
+    amount: number;
+}
+
+type OrderStory = StoryObj<DataTableComponent<Order>>;
+
+const orderData: Order[] = Array.from({ length: 20 }, (_, i) => ({
+    id: `ORD-${String(i + 1).padStart(3, '0')}`,
+    customer: ['Alice', 'Bob', 'Charlie', 'Diana', 'Eve'][i % 5],
+    createdAt: new Date(Date.now() - i * 1000 * 60 * 60 * 24),
+    amount: Math.round((50 + Math.random() * 450) * 100) / 100,
+}));
+
+export const WithDateFilter: OrderStory = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: orderData,
+        columns: [
+            { accessorKey: 'id', header: 'Order ID', width: '120px' },
+            { accessorKey: 'customer', header: 'Customer', enableSorting: true },
+            {
+                accessorKey: 'createdAt',
+                header: 'Created',
+                enableSorting: true,
+                enableFiltering: true,
+                filterComponent: DataTableDateFilterComponent,
+                filterComponentInputs: { title: 'Filter by date' },
+                filterFn: (row: Order, filterValue: unknown) =>
+                    dateFilterFn(row, filterValue as Date | null, (r) => r.createdAt),
+                cell: (row: Order) => row.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            },
+            {
+                accessorKey: 'amount',
+                header: 'Amount',
+                enableSorting: true,
+                cell: (row: Order) => `$${row.amount.toFixed(2)}`,
+            },
+        ] as ColumnDef<Order>[],
+        showToolbar: true,
+        showPagination: true,
+    },
+};
+
+export const WithDateRangeFilter: OrderStory = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: orderData,
+        columns: [
+            { accessorKey: 'id', header: 'Order ID', width: '120px' },
+            { accessorKey: 'customer', header: 'Customer', enableSorting: true },
+            {
+                accessorKey: 'createdAt',
+                header: 'Created',
+                enableSorting: true,
+                enableFiltering: true,
+                filterComponent: DataTableDateRangeFilterComponent,
+                filterComponentInputs: { title: 'Date range' },
+                filterFn: (row: Order, filterValue: unknown) =>
+                    dateRangeFilterFn(row, filterValue as DateRange | null, (r) => r.createdAt),
+                cell: (row: Order) => row.createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
+            },
+            {
+                accessorKey: 'amount',
+                header: 'Amount',
+                enableSorting: true,
+                cell: (row: Order) => `$${row.amount.toFixed(2)}`,
+            },
+        ] as ColumnDef<Order>[],
+        showToolbar: true,
+        showPagination: true,
+    },
 };

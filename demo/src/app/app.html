@@ -2338,6 +2338,16 @@
             </div>
 
             <div class="space-y-2">
+              <h3 class="font-medium">Date & Time Range</h3>
+              <ui-calendar mode="single" [showTimeSelect]="true" timeMode="range" class="rounded-md border shadow" />
+            </div>
+
+            <div class="space-y-2">
+              <h3 class="font-medium">Range with Time Range</h3>
+              <ui-calendar mode="range" [showTimeSelect]="true" timeMode="range" class="rounded-md border shadow" />
+            </div>
+
+            <div class="space-y-2">
               <h3 class="font-medium">Start Mon (String)</h3>
               <ui-calendar mode="single" [weekStartsOn]="1" selected="2024-01-01" class="rounded-md border shadow" />
             </div>
@@ -2354,6 +2364,7 @@
             <div class="space-y-2">
               <p class="text-sm font-medium">Hebrew (RTL)</p>
               <ui-calendar locale="he" [showMonthSelect]="true" [showYearSelect]="true" [showTimeSelect]="true"
+                timeMode="range"
                 class="rounded-md border shadow"></ui-calendar>
             </div>
 
@@ -3778,35 +3789,11 @@
           </div>
           <div class="rounded-md border h-[600px] overflow-auto relative">
             <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
-              [(rowSelection)]="selection" [uiDataTableContextMenu]="tableContextMenu" />
+              [(rowSelection)]="selection" [rowActions]="paymentRowActions" />
           </div>
           <div class="text-sm text-muted-foreground">
             Selected {{ selectionCount() }} rows. Click a cell then press Ctrl+C to copy its value.
           </div>
-
-          <ui-context-menu #tableContextMenu>
-            <ui-context-menu-content class="w-64">
-              <ui-context-menu-item (click)="clientTable.copyCellToClipboard()" (keydown.enter)="clientTable.copyCellToClipboard()">
-                Copy Cell
-                <ui-context-menu-shortcut>⌘C</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-separator />
-              <ui-context-menu-item (click)="onContextMenuAction('view', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('view', tableContextMenu.data())">
-                View Details
-                <ui-context-menu-shortcut>⌘V</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-item (click)="onContextMenuAction('edit', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('edit', tableContextMenu.data())">
-                Edit Payment
-                <ui-context-menu-shortcut>⌘E</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-              <ui-context-menu-separator />
-              <ui-context-menu-item variant="destructive"
-                (click)="onContextMenuAction('delete', tableContextMenu.data())" (keydown.enter)="onContextMenuAction('delete', tableContextMenu.data())">
-                Delete
-                <ui-context-menu-shortcut>⌘⌫</ui-context-menu-shortcut>
-              </ui-context-menu-item>
-            </ui-context-menu-content>
-          </ui-context-menu>
         </section>
 
         <!-- Server-Side Data Table Section -->
@@ -3908,7 +3895,8 @@
               [rowDetailComponent]="opsDetailComponent" [rowDetailComponentInputs]="opsDetailInputs"
               [enableMultiSort]="true" [localSorting]="false" [localPagination]="false" [localFiltering]="false"
               (sortChange)="onOpsSort($event)" (multiSortChange)="onOpsMultiSort($event)"
-              (pageChange)="onOpsPage($event)" (filterChange)="onOpsFilter($event)" [(columnOrder)]="opsColumnOrder"
+              (pageChange)="onOpsPage($event)" (filterChange)="onOpsFilter($event)"
+              (columnFiltersChange)="onOpsColumnFilters($event)" [(columnOrder)]="opsColumnOrder"
               [(columnVisibility)]="opsColumnVisibility" [(expandedRows)]="opsExpandedRows"
               [uiDataTableContextMenu]="opsContextMenu" [exportDataProvider]="opsExportProvider" />
           </div>
@@ -3934,6 +3922,26 @@
             Export uses <code class="text-xs bg-muted px-1 rounded">exportDataProvider</code> to fetch all {{ opsTotal()
             }} rows server-side.
             Shift+Click headers to multi-sort. Click a cell then Ctrl+C to copy.
+          </div>
+        </section>
+
+        <!-- Hebrew RTL Demo Section -->
+        <section class="space-y-4">
+          <h2 id="data-table-rtl" class="text-2xl font-semibold scroll-m-20">Data Table (Hebrew RTL)</h2>
+          <p class="text-muted-foreground">
+            Full RTL layout with Hebrew locale. Column headers, filter labels, date picker presets, and sort indicators
+            are all rendered right-to-left. The date filter uses <code class="text-xs bg-muted px-1 rounded">locale="he"</code> via <code class="text-xs bg-muted px-1 rounded">filterComponentInputs</code>.
+          </p>
+
+          <div dir="rtl" class="rounded-md border overflow-auto relative">
+            <ui-data-table
+              [data]="hebrewRtlData()"
+              [columns]="hebrewRtlColumns"
+              [enableColumnResize]="true"
+              [enableMultiSort]="true"
+              [showPagination]="true"
+              locale="he"
+            />
           </div>
         </section>
 

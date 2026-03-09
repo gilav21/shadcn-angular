@@ -27,19 +27,19 @@ import { cn } from '../../lib/utils';
         <ui-button
           variant="ghost"
           size="sm"
-          class="-ml-3 h-8 data-[state=open]:bg-accent"
+          class="-ms-3 h-8 data-[state=open]:bg-accent"
           (click)="toggleSort($event)"
         >
           <span>{{ title() }}</span>
           @if (direction() === 'desc') {
-            <ui-icon name="arrow-down" class="ml-2 h-4 w-4" />
+            <ui-icon name="arrow-down" class="ms-2 h-4 w-4" />
           } @else if (direction() === 'asc') {
-            <ui-icon name="arrow-up" class="ml-2 h-4 w-4" />
+            <ui-icon name="arrow-up" class="ms-2 h-4 w-4" />
           } @else {
-            <ui-icon name="chevrons-up-down" class="ml-2 h-4 w-4" />
+            <ui-icon name="chevrons-up-down" class="ms-2 h-4 w-4" />
           }
           @if (sortIndex() !== null) {
-            <span class="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] leading-none">
+            <span class="ms-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] leading-none">
               {{ (sortIndex() ?? 0) + 1 }}
             </span>
           }
@@ -59,7 +59,7 @@ export class DataTableColumnHeaderComponent {
   sort = output<SortDirection>();
   sortMeta = output<{ direction: SortDirection; multi: boolean }>();
 
-  containerClasses = computed(() => cn('flex items-center space-x-2', this.class()));
+  containerClasses = computed(() => cn('flex items-center gap-x-2', this.class()));
 
   toggleSort(event: MouseEvent) {
     const current = this.direction();

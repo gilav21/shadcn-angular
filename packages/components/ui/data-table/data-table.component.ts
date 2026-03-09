@@ -6,6 +6,7 @@ import {
   output,
   model,
   signal,
+  viewChild,
   ChangeDetectionStrategy,
   Type,
   TemplateRef,
@@ -15,6 +16,7 @@ import {
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
+import { CALENDAR_LOCALES, CalendarLocale } from '../calendar-locales';
 import { generateXlsx } from '../../lib/xlsx';
 import {
   TableComponent,
@@ -30,6 +32,9 @@ import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } fr
 import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
 import { DataTablePaginationComponent } from './data-table-pagination.component';
 import { UiComponentOutletDirective } from '../component-outlet.directive';
+import { ContextMenuComponent, ContextMenuItem } from '../context-menu.component';
+import { ButtonComponent } from '../button.component';
+import { IconComponent } from '../icon.component';
 import {
   ColumnDef,
   SortState,
@@ -44,6 +49,7 @@ import {
   SubRowFilterMode,
   FlattenedTreeRow,
   SubRowContext,
+  RowActionContext,
 } from './data-table.types';
 @Component({
   selector: 'ui-data-table',
@@ -64,6 +70,9 @@ import {
     DataTableColumnHeaderComponent,
     DataTablePaginationComponent,
     UiComponentOutletDirective,
+    ContextMenuComponent,
+    ButtonComponent,
+    IconComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
@@ -75,7 +84,7 @@ import {
         <div class="flex items-center justify-between flex-none">
           <div class="flex flex-1 items-center space-x-2">
             <ui-input
-              placeholder="Filter..."
+              [placeholder]="filterPlaceholder()"
               [ngModel]="globalFilter()"
               (ngModelChange)="onFilterChange($event)"
               class="h-8 w-[150px] lg:w-[250px]"
@@ -89,7 +98,7 @@ import {
                   class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                   aria-label="Toggle columns"
                 >
-                  Columns
+                  {{ columnsLabel() }}
                 </button>
               </ui-popover-trigger>
               <ui-popover-content class="w-56 p-2">
@@ -111,7 +120,7 @@ import {
         </div>
       }
 
-      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" (keydown)="onTableKeydown($event)" (click)="onTableClick()" tabindex="0">
+      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" (keydown)="onTableKeydown($event)" (click)="onTableClick()" (contextmenu)="onRowContextMenu($event)" tabindex="0">
         @if (isLoaderVisible()) {
           <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
             @if (loaderTemplate()) {
@@ -145,7 +154,6 @@ import {
               @for (col of enhancedColumns(); track col.accessorKey) {
                 <ui-table-head 
                   [class]="getHeaderClass(col)"
-                  [class.overflow-visible]="col.enableFiltering && col.filterComponent"
                   [class.cursor-grab]="isColumnDraggable(col)"
                   [class.cursor-grabbing]="isDraggingColumn(col)"
                   [class.opacity-70]="isDraggingColumn(col)"
@@ -179,15 +187,9 @@ import {
                             (click)="isAllSubRowsExpanded() ? collapseAllSubRows() : expandAllSubRows(-1)"
                           >
                             @if (isAllSubRowsExpanded()) {
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="17 11 12 6 7 11"/>
-                                <polyline points="17 18 12 13 7 18"/>
-                              </svg>
+                              <ui-icon name="chevrons-up" size="xs" />
                             } @else {
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                                <polyline points="7 13 12 18 17 13"/>
-                                <polyline points="7 6 12 11 17 6"/>
-                              </svg>
+                              <ui-icon name="chevrons-down" size="xs" />
                             }
                           </button>
                           @if (col.enableSorting !== false) {
@@ -210,17 +212,13 @@ import {
                           (click)="toggleAllExpanded()"
                         >
                           @if (isAllExpanded()) {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                              <polyline points="17 11 12 6 7 11"/>
-                              <polyline points="17 18 12 13 7 18"/>
-                            </svg>
+                            <ui-icon name="chevrons-up" size="xs" />
                           } @else {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                              <polyline points="7 13 12 18 17 13"/>
-                              <polyline points="7 6 12 11 17 6"/>
-                            </svg>
+                            <ui-icon name="chevrons-down" size="xs" />
                           }
                         </button>
+                      } @else if (col.accessorKey === '_actions') {
+                        <span class="sr-only">Actions</span>
                       } @else if (col.headerTemplate) {
                         <ng-container *ngTemplateOutlet="col.headerTemplate; context: { $implicit: col }"></ng-container>
                       } @else if (col.enableSorting !== false) {
@@ -236,12 +234,15 @@ import {
                             <ui-popover [closeOnScroll]="true">
                               <ui-popover-trigger>
                                 <button
-                                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  [class.text-primary]="isColumnFilterActive(col)"
                                   [attr.aria-label]="'Filter ' + col.header"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
-                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                                  </svg>
+                                  @if (isColumnFilterActive(col)) {
+                                    <ui-icon name="filter" size="sm" weight="solid" />
+                                  } @else {
+                                    <ui-icon name="filter" size="sm" />
+                                  }
                                 </button>
                               </ui-popover-trigger>
                               <ui-popover-content class="w-80" strategy="fixed" align="end">
@@ -261,17 +262,20 @@ import {
                             <ui-popover>
                               <ui-popover-trigger>
                                 <button
-                                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  [class.text-primary]="isColumnFilterActive(col)"
                                   [attr.aria-label]="'Filter ' + col.header"
                                 >
-                                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-filter" aria-hidden="true">
-                                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/>
-                                  </svg>
+                                  @if (isColumnFilterActive(col)) {
+                                    <ui-icon name="filter" size="sm" weight="solid" />
+                                  } @else {
+                                    <ui-icon name="filter" size="sm" />
+                                  }
                                 </button>
                               </ui-popover-trigger>
                               <ui-popover-content class="w-80" strategy="fixed" align="end">
-                                <div 
-                                  [uiComponentOutlet]="col.filterComponent" 
+                                <div
+                                  [uiComponentOutlet]="col.filterComponent"
                                   [inputs]="getFilterInputs(col)"
                                   [outputs]="getFilterOutputs(col)"
                                 ></div>
@@ -333,7 +337,7 @@ import {
                             ariaLabel="Select row"
                           />
                         } @else if (col._isTreeExpanderHost) {
-                          <div class="flex items-center gap-1 min-w-0" [style.padding-left.px]="treeRow.depth * subRowIndentSize()">
+                          <div class="flex items-center gap-1 min-w-0" [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()">
                             @if (!treeRow.isLeaf) {
                               <button
                                 type="button"
@@ -341,9 +345,7 @@ import {
                                 [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'"
                                 (click)="toggleSubRowExpanded(treeRow.row, $event)"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded">
-                                  <polyline points="9 18 15 12 9 6"></polyline>
-                                </svg>
+                                <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded && !isRtl()" [class.-rotate-90]="treeRow.isExpanded && isRtl()" />
                               </button>
                             } @else {
                               <span class="inline-block h-6 w-6 shrink-0"></span>
@@ -373,15 +375,15 @@ import {
                             (click)="toggleRowExpanded(treeRow.row, $event)"
                           >
                             @if (isRowExpanded(treeRow.row)) {
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="18 15 12 9 6 15"></polyline>
-                              </svg>
+                              <ui-icon name="chevron-up" size="xs" />
                             } @else {
-                              <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                <polyline points="6 9 12 15 18 9"></polyline>
-                              </svg>
+                              <ui-icon name="chevron-down" size="xs" />
                             }
                           </button>
+                        } @else if (col.accessorKey === '_actions') {
+                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, treeRow.row, i)">
+                            <ui-icon name="more-vertical" size="sm" />
+                          </ui-button>
                         } @else if (col.component) {
                           <div
                             [uiComponentOutlet]="col.component"
@@ -430,10 +432,8 @@ import {
                       <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
                     } @else {
                       <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 h-10 w-10 opacity-20">
-                          <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                        </svg>
-                        <p>No results found.</p>
+                        <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
+                        <p>{{ noResultsLabel() }}</p>
                       </div>
                     }
                   </ui-table-cell>
@@ -469,15 +469,15 @@ import {
                           (click)="toggleRowExpanded(row, $event)"
                         >
                           @if (isRowExpanded(row)) {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <polyline points="18 15 12 9 6 15"></polyline>
-                            </svg>
+                            <ui-icon name="chevron-up" size="xs" />
                           } @else {
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                              <polyline points="6 9 12 15 18 9"></polyline>
-                            </svg>
+                            <ui-icon name="chevron-down" size="xs" />
                           }
                         </button>
+                      } @else if (col.accessorKey === '_actions') {
+                        <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, row, i)">
+                          <ui-icon name="more-vertical" size="sm" />
+                        </ui-button>
                       } @else if (col.component) {
                         <div
                           [uiComponentOutlet]="col.component"
@@ -526,10 +526,8 @@ import {
                     <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
                   } @else {
                     <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mb-4 h-10 w-10 opacity-20">
-                        <circle cx="12" cy="12" r="10"/><line x1="4.93" y1="4.93" x2="19.07" y2="19.07"/>
-                      </svg>
-                      <p>No results found.</p>
+                      <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
+                      <p>{{ noResultsLabel() }}</p>
                     </div>
                   }
                 </ui-table-cell>
@@ -555,10 +553,17 @@ import {
           [state]="paginationState()"
           [pageSizeOptions]="pageSizeOptions()"
           [showPageSizeSelector]="showPageSizeSelector()"
+          [rowsPerPageLabel]="rowsPerPageLabel()"
+          [pageLabel]="pageLabel()"
+          [ofLabel]="ofLabel()"
           (paginationChange)="onPaginationChange($event)"
         />
       }
     </div>
+    @if (rowActions()) {
+      <ui-context-menu #rowActionsContextMenu [items]="activeContextMenuItems()">
+      </ui-context-menu>
+    }
   `,
 })
 export class DataTableComponent<T> {
@@ -631,6 +636,37 @@ export class DataTableComponent<T> {
   emptyStateComponent = input<Type<unknown>>();
   emptyStateComponentInputs = input<Record<string, unknown>>({});
 
+  locale = input('en');
+
+  private readonly activeLocale = computed((): CalendarLocale =>
+    CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES['en']
+  );
+  readonly filterPlaceholder = computed(() => this.activeLocale().filterPlaceholder ?? 'Filter...');
+  readonly columnsLabel = computed(() => this.activeLocale().columnsLabel ?? 'Columns');
+  readonly noResultsLabel = computed(() => this.activeLocale().noResultsLabel ?? 'No results found.');
+  readonly rowsPerPageLabel = computed(() => this.activeLocale().rowsPerPageLabel ?? 'Rows per page');
+  readonly pageLabel = computed(() => this.activeLocale().pageLabel ?? 'Page');
+  readonly ofLabel = computed(() => this.activeLocale().ofLabel ?? 'of');
+
+  readonly rowActions = input<((context: RowActionContext<T>) => ContextMenuItem[]) | undefined>(undefined);
+  readonly showRowActionsColumn = input<boolean | undefined>(undefined);
+  readonly showRowActionsContextMenu = input<boolean | undefined>(undefined);
+
+  readonly resolvedShowActionsColumn = computed(() => {
+    const explicit = this.showRowActionsColumn();
+    if (explicit !== undefined) return explicit;
+    return !!this.rowActions();
+  });
+
+  readonly resolvedShowContextMenu = computed(() => {
+    const explicit = this.showRowActionsContextMenu();
+    if (explicit !== undefined) return explicit;
+    return !!this.rowActions();
+  });
+
+  private readonly internalContextMenu = viewChild<ContextMenuComponent>('rowActionsContextMenu');
+  readonly activeContextMenuItems = signal<ContextMenuItem[]>([]);
+
   exporting = signal(false);
   globalFilter = model('');
   columnFilters = model<Record<string, any>>({});
@@ -658,7 +694,7 @@ export class DataTableComponent<T> {
 
     const globalFilterValue = this.globalFilter().toLowerCase();
     if (globalFilterValue) {
-      const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+      const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions');
       const globalFilterFn = this.globalFilterFn();
       if (globalFilterFn) {
         data = data.filter(row => globalFilterFn(row, globalFilterValue, columns));
@@ -751,7 +787,7 @@ export class DataTableComponent<T> {
     const globalFilterValue = this.globalFilter().toLowerCase();
     const colFilters = this.columnFilters();
     const columns = this.enhancedColumns().filter(col =>
-      col.accessorKey !== '_selection' && col.accessorKey !== '_expander'
+      col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions'
     );
     const hasGlobalFilter = !!globalFilterValue;
     const hasColumnFilters = Object.keys(colFilters).some(k => !this.isFilterValueEmpty(colFilters[k]));
@@ -1076,7 +1112,7 @@ export class DataTableComponent<T> {
         }
       } else {
         const firstDataIdx = computedCols.findIndex(c =>
-          c.accessorKey !== '_selection' && c.accessorKey !== '_expander'
+          c.accessorKey !== '_selection' && c.accessorKey !== '_expander' && c.accessorKey !== '_actions'
         );
         if (firstDataIdx !== -1) {
           computedCols[firstDataIdx] = { ...computedCols[firstDataIdx], _isTreeExpanderHost: true };
@@ -1093,6 +1129,18 @@ export class DataTableComponent<T> {
         enableSorting: false,
       };
       computedCols = [expanderCol, ...computedCols];
+    }
+
+    if (this.resolvedShowActionsColumn()) {
+      const actionsCol: ColumnDef<T> = {
+        accessorKey: '_actions',
+        header: '',
+        width: '50px',
+        enableSorting: false,
+        enableHiding: false,
+        enableReordering: false,
+      };
+      computedCols = [...computedCols, actionsCol];
     }
 
     let currentLeft = 0;
@@ -1540,8 +1588,18 @@ export class DataTableComponent<T> {
     };
   }
 
+  isColumnFilterActive(col: ColumnDef<T>): boolean {
+    const value = this.columnFilters()[col.accessorKey as string];
+    return !this.isFilterValueEmpty(value);
+  }
+
   isFilterValueEmpty(value: unknown): boolean {
-    return value === undefined || value === null || value === '';
+    if (value === undefined || value === null || value === '') return true;
+    if (typeof value === 'object' && 'start' in value && 'end' in value) {
+      const range = value as { start: unknown; end: unknown };
+      return range.start === null && range.end === null;
+    }
+    return false;
   }
 
   private compareByColumn(a: T, b: T, column: ColumnDef<T>): number {
@@ -1605,8 +1663,8 @@ export class DataTableComponent<T> {
     const onlyFiltered = options?.onlyFiltered !== false;
 
     const columns = onlyVisible
-      ? this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander')
-      : this.columns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+      ? this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions')
+      : this.columns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions');
 
     const rows = customRows ?? (onlyFiltered ? this.filteredData() : this.data());
     const result: string[][] = [];
@@ -1678,14 +1736,14 @@ export class DataTableComponent<T> {
 
   async copyRowToClipboard(row: T): Promise<void> {
     if (!this.enableCopy()) return;
-    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions');
     const values = columns.map(col => this.getCellStringValue(row, col));
     await navigator.clipboard.writeText(values.join('\t'));
   }
 
   async copySelectedToClipboard(): Promise<void> {
     if (!this.enableCopy()) return;
-    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander');
+    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions');
     const selectedIds = this.rowSelection();
     const rows = this.filteredData().filter(row => selectedIds[this.getRowId()(row)]);
     if (rows.length === 0) return;
@@ -1708,7 +1766,7 @@ export class DataTableComponent<T> {
 
   onCellClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
     const key = String(col.accessorKey);
-    if (key === '_selection' || key === '_expander') return;
+    if (key === '_selection' || key === '_expander' || key === '_actions') return;
     event.stopPropagation();
     this.focusedCell.set({ rowIndex, columnKey: key });
   }
@@ -2113,7 +2171,7 @@ export class DataTableComponent<T> {
 
   private isColumnReorderable(col: ColumnDef<T>): boolean {
     const key = String(col.accessorKey);
-    if (key === '_selection' || key === '_expander') {
+    if (key === '_selection' || key === '_expander' || key === '_actions') {
       return false;
     }
     return col.enableReordering !== false;
@@ -2138,6 +2196,69 @@ export class DataTableComponent<T> {
 
   getRenderedTreeRowAt(index: number): FlattenedTreeRow<T> | undefined {
     return this.processedTreeRows()[index];
+  }
+
+  private buildRowActionContext(row: T, index: number): RowActionContext<T> {
+    const selected = !!this.rowSelection()[this.getRowId()(row)];
+    const context: RowActionContext<T> = { row, index, selected };
+
+    if (this.enableSubRows()) {
+      const treeRow = this.getRenderedTreeRowAt(index);
+      if (treeRow) {
+        context.depth = treeRow.depth;
+        context.isLeaf = treeRow.isLeaf;
+        context.parentRow = treeRow.parentRow;
+        context.isExpanded = treeRow.isExpanded;
+      }
+    }
+
+    return context;
+  }
+
+  getRowActions(row: T, index: number): ContextMenuItem[] {
+    const actionsFn = this.rowActions();
+    if (!actionsFn) return [];
+    return actionsFn(this.buildRowActionContext(row, index));
+  }
+
+  onRowContextMenu(event: MouseEvent): void {
+    const contextMenu = this.internalContextMenu();
+    if (!this.resolvedShowContextMenu() || !contextMenu) return;
+
+    const target = event.target as HTMLElement;
+    const rowEl = target.closest<HTMLElement>('[data-row-index]');
+    if (!rowEl) return;
+
+    event.preventDefault();
+
+    const index = Number.parseInt(rowEl.dataset['rowIndex'] ?? '0', 10);
+    const row = this.getRenderedRowAt(index);
+    if (!row) return;
+
+    const actionsFn = this.rowActions();
+    if (!actionsFn) return;
+
+    const context = this.buildRowActionContext(row, index);
+    this.activeContextMenuItems.set(actionsFn(context));
+    contextMenu.show(event.clientX, event.clientY, context);
+  }
+
+  onActionsButtonClick(event: MouseEvent, row: T, index: number): void {
+    event.stopPropagation();
+
+    const contextMenu = this.internalContextMenu();
+    if (!contextMenu) return;
+
+    const actionsFn = this.rowActions();
+    if (!actionsFn) return;
+
+    const context = this.buildRowActionContext(row, index);
+    this.activeContextMenuItems.set(actionsFn(context));
+
+    const target = event.target as HTMLElement;
+    const button = target.closest('button') ?? target;
+    const rect = button.getBoundingClientRect();
+    contextMenu.show(rect.right, rect.bottom, context);
   }
 
   private resizingColumn: any = null;

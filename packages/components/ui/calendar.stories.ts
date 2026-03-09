@@ -21,6 +21,10 @@ const meta: Meta<CalendarComponent> = {
         showMonthSelect: { control: 'boolean' },
         showYearSelect: { control: 'boolean' },
         showTimeSelect: { control: 'boolean' },
+        timeMode: {
+            control: 'select',
+            options: ['single', 'range'],
+        },
         weekStartsOn: {
             control: 'select',
             options: [0, 1, 2, 3, 4, 5, 6],
@@ -40,6 +44,7 @@ const meta: Meta<CalendarComponent> = {
         showMonthSelect: true,
         showYearSelect: true,
         showTimeSelect: false,
+        timeMode: 'single',
         weekStartsOn: 0,
         locale: 'en',
     },
@@ -101,7 +106,40 @@ export const WithTimeSelect: Story = {
 
         return {
             props: { ...args, rtl },
-            template: `<ui-calendar [mode]="mode" [showMonthSelect]="showMonthSelect" [showYearSelect]="showYearSelect" [showTimeSelect]="showTimeSelect" [weekStartsOn]="weekStartsOn" [locale]="locale" class="rounded-md border shadow"></ui-calendar>`,
+            template: `<ui-calendar [mode]="mode" [showMonthSelect]="showMonthSelect" [showYearSelect]="showYearSelect" [showTimeSelect]="showTimeSelect" [timeMode]="timeMode" [weekStartsOn]="weekStartsOn" [locale]="locale" class="rounded-md border shadow"></ui-calendar>`,
+        };
+    },
+};
+
+export const WithTimeRange: Story = {
+    args: {
+        showTimeSelect: true,
+        timeMode: 'range',
+    },
+    render: (args) => {
+        const localeData = CALENDAR_LOCALES[args.locale ?? 'en'];
+        const rtl = localeData?.rtl ?? false;
+
+        return {
+            props: { ...args, rtl },
+            template: `<ui-calendar [mode]="mode" [showMonthSelect]="showMonthSelect" [showYearSelect]="showYearSelect" [showTimeSelect]="showTimeSelect" [timeMode]="timeMode" [weekStartsOn]="weekStartsOn" [locale]="locale" class="rounded-md border shadow"></ui-calendar>`,
+        };
+    },
+};
+
+export const RangeModeWithTimeRange: Story = {
+    args: {
+        mode: 'range',
+        showTimeSelect: true,
+        timeMode: 'range',
+    },
+    render: (args) => {
+        const localeData = CALENDAR_LOCALES[args.locale ?? 'en'];
+        const rtl = localeData?.rtl ?? false;
+
+        return {
+            props: { ...args, rtl },
+            template: `<ui-calendar [mode]="mode" [showMonthSelect]="showMonthSelect" [showYearSelect]="showYearSelect" [showTimeSelect]="showTimeSelect" [timeMode]="timeMode" [weekStartsOn]="weekStartsOn" [locale]="locale" class="rounded-md border shadow"></ui-calendar>`,
         };
     },
 };

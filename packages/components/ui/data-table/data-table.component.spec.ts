@@ -1,8 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef, PaginationState, FlattenedTreeRow } from './data-table.types';
+import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
+import { ContextMenuItem } from '../context-menu.component';
 import { buildTreeFromFlat } from './data-table.utils';
+import { dateFilterFn, dateRangeFilterFn } from './data-table-date-filter.component';
+import { DateRange } from '../calendar.component';
 import { By } from '@angular/platform-browser';
 
 interface TestData {
@@ -926,6 +929,146 @@ describe('DataTableComponent', () => {
         });
     });
 
+    describe('getFilterOutputs and column filter integration', () => {
+        it('should wire filterChange output to onColumnFilterChange', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+            };
+
+            const outputs = component.getFilterOutputs(col);
+            expect(outputs['filterChange']).toBeDefined();
+
+            outputs['filterChange']('Admin');
+            fixture.detectChanges();
+
+            expect(component.columnFilters()).toEqual({ role: 'Admin' });
+        });
+
+        it('should emit columnFiltersChange when a filter component fires', () => {
+            const emitted: Record<string, unknown>[] = [];
+            component.columnFilters.subscribe(val => emitted.push(val));
+
+            component.onColumnFilterChange('role', 'User');
+            fixture.detectChanges();
+
+            expect(emitted.length).toBeGreaterThan(0);
+            expect(emitted[emitted.length - 1]).toEqual({ role: 'User' });
+        });
+
+        it('should apply custom filterFn for column filters during local filtering', () => {
+            const columns: ColumnDef<TestData>[] = [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'name', header: 'Name' },
+                {
+                    accessorKey: 'role',
+                    header: 'Role',
+                    enableFiltering: true,
+                    filterFn: (_row: TestData, filterValue: unknown): boolean => {
+                        const roles = filterValue as string[];
+                        return roles.includes(_row.role);
+                    },
+                },
+            ];
+
+            fixture.componentRef.setInput('columns', columns);
+            fixture.componentRef.setInput('columnFilters', { role: ['Manager'] });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()[0].name).toBe('Eve');
+        });
+
+        it('should not apply column filters locally when localFiltering is false', () => {
+            const columns: ColumnDef<TestData>[] = [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'name', header: 'Name' },
+                {
+                    accessorKey: 'role',
+                    header: 'Role',
+                    enableFiltering: true,
+                    filterFn: (_row: TestData, filterValue: unknown): boolean => {
+                        const roles = filterValue as string[];
+                        return roles.includes(_row.role);
+                    },
+                },
+            ];
+
+            fixture.componentRef.setInput('columns', columns);
+            fixture.componentRef.setInput('localFiltering', false);
+            fixture.componentRef.setInput('columnFilters', { role: ['Admin'] });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(TEST_DATA.length);
+        });
+
+        it('should merge custom filterComponentOutputs with filterChange', () => {
+            const customHandler = vi.fn();
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+                filterComponentOutputs: { customOutput: customHandler },
+            };
+
+            const outputs = component.getFilterOutputs(col);
+            expect(outputs['customOutput']).toBe(customHandler);
+            expect(outputs['filterChange']).toBeDefined();
+        });
+
+        it('should reset pagination when column filter changes', () => {
+            component.paginationState.set({ pageIndex: 3, pageSize: 10 });
+            component.onColumnFilterChange('role', 'Admin');
+            fixture.detectChanges();
+
+            expect(component.paginationState().pageIndex).toBe(0);
+        });
+
+        it('should report active filter via isColumnFilterActive', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+            };
+
+            expect(component.isColumnFilterActive(col)).toBe(false);
+
+            component.onColumnFilterChange('role', 'Admin');
+            fixture.detectChanges();
+
+            expect(component.isColumnFilterActive(col)).toBe(true);
+        });
+
+        it('should report inactive filter for empty values', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+            };
+
+            component.onColumnFilterChange('role', '');
+            expect(component.isColumnFilterActive(col)).toBe(false);
+
+            component.onColumnFilterChange('role', null);
+            expect(component.isColumnFilterActive(col)).toBe(false);
+        });
+
+        it('should report inactive filter for empty DateRange', () => {
+            const col: ColumnDef<TestData> = {
+                accessorKey: 'role',
+                header: 'Role',
+                enableFiltering: true,
+            };
+
+            component.onColumnFilterChange('role', { start: null, end: null });
+            expect(component.isColumnFilterActive(col)).toBe(false);
+
+            component.onColumnFilterChange('role', { start: new Date(), end: null });
+            expect(component.isColumnFilterActive(col)).toBe(true);
+        });
+    });
+
     describe('getFilterInputs', () => {
         it('should return static filterComponentInputs as-is', () => {
             const col: ColumnDef<TestData> = {
@@ -1503,6 +1646,136 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             expect(hostCol!.treeExpander).toBe(true);
         });
     });
+
+    describe('Row Actions', () => {
+        const rowActionsFn = (ctx: RowActionContext<TestData>): ContextMenuItem[] => [
+            { label: 'View', click: () => {} },
+            { type: 'separator' },
+            { label: 'Delete', disabled: ctx.row.role === 'Admin', click: () => {} },
+        ];
+
+        it('should add _actions column when rowActions is provided', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            const cols = component.enhancedColumns();
+            const actionsCol = cols.find(c => c.accessorKey === '_actions');
+            expect(actionsCol).toBeTruthy();
+            expect(actionsCol!.enableSorting).toBe(false);
+            expect(actionsCol!.enableHiding).toBe(false);
+        });
+
+        it('should not add _actions column when rowActions is undefined', () => {
+            fixture.detectChanges();
+
+            const cols = component.enhancedColumns();
+            const actionsCol = cols.find(c => c.accessorKey === '_actions');
+            expect(actionsCol).toBeUndefined();
+        });
+
+        it('should hide _actions column when showRowActionsColumn is false', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('showRowActionsColumn', false);
+            fixture.detectChanges();
+
+            const cols = component.enhancedColumns();
+            const actionsCol = cols.find(c => c.accessorKey === '_actions');
+            expect(actionsCol).toBeUndefined();
+        });
+
+        it('should resolve showActionsColumn to true by default when rowActions is set', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            expect(component.resolvedShowActionsColumn()).toBe(true);
+        });
+
+        it('should resolve showContextMenu to true by default when rowActions is set', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            expect(component.resolvedShowContextMenu()).toBe(true);
+        });
+
+        it('should resolve showActionsColumn to false when explicitly set', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('showRowActionsColumn', false);
+            fixture.detectChanges();
+
+            expect(component.resolvedShowActionsColumn()).toBe(false);
+        });
+
+        it('should resolve showContextMenu to false when explicitly set', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('showRowActionsContextMenu', false);
+            fixture.detectChanges();
+
+            expect(component.resolvedShowContextMenu()).toBe(false);
+        });
+
+        it('should build correct RowActionContext', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('enableRowSelection', true);
+            fixture.detectChanges();
+
+            const actions = component.getRowActions(TEST_DATA[0], 0);
+            expect(actions.length).toBe(3);
+            expect(actions[0].label).toBe('View');
+            expect(actions[1].type).toBe('separator');
+            expect(actions[2].label).toBe('Delete');
+            expect(actions[2].disabled).toBe(true);
+        });
+
+        it('should pass selected state in RowActionContext', () => {
+            let capturedCtx: RowActionContext<TestData> | undefined;
+            const capturingActions = (ctx: RowActionContext<TestData>): ContextMenuItem[] => {
+                capturedCtx = ctx;
+                return [{ label: 'Test' }];
+            };
+
+            fixture.componentRef.setInput('rowActions', capturingActions);
+            fixture.componentRef.setInput('enableRowSelection', true);
+            component.rowSelection.set({ '1': true });
+            fixture.detectChanges();
+
+            component.getRowActions(TEST_DATA[0], 0);
+            expect(capturedCtx).toBeTruthy();
+            expect(capturedCtx!.selected).toBe(true);
+            expect(capturedCtx!.index).toBe(0);
+            expect(capturedCtx!.row).toBe(TEST_DATA[0]);
+
+            component.getRowActions(TEST_DATA[1], 1);
+            expect(capturedCtx!.selected).toBe(false);
+        });
+
+        it('should render dropdown trigger buttons when actions column is enabled', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
+            expect(buttons.length).toBeGreaterThan(0);
+            expect(buttons.length).toBe(component.processedData().length);
+        });
+
+        it('should not render dropdown trigger buttons when showRowActionsColumn is false', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.componentRef.setInput('showRowActionsColumn', false);
+            fixture.detectChanges();
+
+            const buttons = fixture.debugElement.queryAll(By.css('[aria-label="Row actions"]'));
+            expect(buttons.length).toBe(0);
+        });
+
+        it('should exclude _actions column from global filter columns', () => {
+            fixture.componentRef.setInput('rowActions', rowActionsFn);
+            fixture.detectChanges();
+
+            component.onFilterChange('View');
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(0);
+        });
+    });
 });
 
 describe('buildTreeFromFlat', () => {
@@ -1563,5 +1836,176 @@ describe('buildTreeFromFlat', () => {
         expect(tree.length).toBe(1);
         expect(tree[0].name).toBe('Alone');
         expect(tree[0].children).toBeUndefined();
+    });
+});
+
+interface DateTestData {
+    id: string;
+    name: string;
+    createdAt: string;
+}
+
+const DATE_TEST_DATA: DateTestData[] = [
+    { id: '1', name: 'Alpha', createdAt: '2024-03-01T10:00:00Z' },
+    { id: '2', name: 'Beta', createdAt: '2024-03-15T14:30:00Z' },
+    { id: '3', name: 'Gamma', createdAt: '2024-04-01T09:00:00Z' },
+    { id: '4', name: 'Delta', createdAt: '2024-04-15T16:45:00Z' },
+    { id: '5', name: 'Epsilon', createdAt: '2024-05-01T08:00:00Z' },
+];
+
+describe('DataTableComponent - Date filter integration', () => {
+    let component: DataTableComponent<DateTestData>;
+    let fixture: ComponentFixture<DataTableComponent<DateTestData>>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataTableComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataTableComponent<DateTestData>);
+        component = fixture.componentInstance;
+    });
+
+    describe('single date filter (dateFilterFn)', () => {
+        const columns: ColumnDef<DateTestData>[] = [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name' },
+            {
+                accessorKey: 'createdAt',
+                header: 'Created',
+                enableFiltering: true,
+                filterFn: (row: DateTestData, filterValue: unknown): boolean =>
+                    dateFilterFn(row, filterValue as Date | null, r => r.createdAt),
+            },
+        ];
+
+        beforeEach(() => {
+            fixture.componentRef.setInput('data', DATE_TEST_DATA);
+            fixture.componentRef.setInput('columns', columns);
+            fixture.detectChanges();
+        });
+
+        it('should show all rows when no date filter is set', () => {
+            expect(component.filteredData().length).toBe(5);
+        });
+
+        it('should filter to exact date match', () => {
+            fixture.componentRef.setInput('columnFilters', { createdAt: new Date(2024, 2, 15) });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()[0].name).toBe('Beta');
+        });
+
+        it('should return no rows when date does not match any row', () => {
+            fixture.componentRef.setInput('columnFilters', { createdAt: new Date(2024, 0, 1) });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(0);
+        });
+
+        it('should show all rows when filter is cleared to null', () => {
+            fixture.componentRef.setInput('columnFilters', { createdAt: new Date(2024, 2, 15) });
+            fixture.detectChanges();
+            expect(component.filteredData().length).toBe(1);
+
+            fixture.componentRef.setInput('columnFilters', { createdAt: null });
+            fixture.detectChanges();
+            expect(component.filteredData().length).toBe(5);
+        });
+
+        it('should update filter via onColumnFilterChange', () => {
+            component.onColumnFilterChange('createdAt', new Date(2024, 3, 1));
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()[0].name).toBe('Gamma');
+        });
+    });
+
+    describe('date range filter (dateRangeFilterFn)', () => {
+        const columns: ColumnDef<DateTestData>[] = [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name' },
+            {
+                accessorKey: 'createdAt',
+                header: 'Created',
+                enableFiltering: true,
+                filterFn: (row: DateTestData, filterValue: unknown): boolean =>
+                    dateRangeFilterFn(row, filterValue as DateRange | null, r => r.createdAt),
+            },
+        ];
+
+        beforeEach(() => {
+            fixture.componentRef.setInput('data', DATE_TEST_DATA);
+            fixture.componentRef.setInput('columns', columns);
+            fixture.detectChanges();
+        });
+
+        it('should show all rows when no range filter is set', () => {
+            expect(component.filteredData().length).toBe(5);
+        });
+
+        it('should filter rows within date range inclusively', () => {
+            const range: DateRange = {
+                start: new Date(2024, 2, 10),
+                end: new Date(2024, 3, 10),
+            };
+            fixture.componentRef.setInput('columnFilters', { createdAt: range });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(2);
+            expect(component.filteredData().map(r => r.name)).toEqual(['Beta', 'Gamma']);
+        });
+
+        it('should include boundary dates', () => {
+            const range: DateRange = {
+                start: new Date(2024, 2, 15),
+                end: new Date(2024, 4, 1),
+            };
+            fixture.componentRef.setInput('columnFilters', { createdAt: range });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(4);
+            expect(component.filteredData().map(r => r.name)).toEqual(['Beta', 'Gamma', 'Delta', 'Epsilon']);
+        });
+
+        it('should show all rows when range has null start and end', () => {
+            const range: DateRange = { start: null, end: null };
+            fixture.componentRef.setInput('columnFilters', { createdAt: range });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(5);
+        });
+
+        it('should filter with only start date (open-ended range)', () => {
+            const range: DateRange = { start: new Date(2024, 3, 10), end: null };
+            fixture.componentRef.setInput('columnFilters', { createdAt: range });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(2);
+            expect(component.filteredData().map(r => r.name)).toEqual(['Delta', 'Epsilon']);
+        });
+
+        it('should filter with only end date (open-ended range)', () => {
+            const range: DateRange = { start: null, end: new Date(2024, 2, 10) };
+            fixture.componentRef.setInput('columnFilters', { createdAt: range });
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(1);
+            expect(component.filteredData()[0].name).toBe('Alpha');
+        });
+
+        it('should update filter via onColumnFilterChange', () => {
+            const range: DateRange = {
+                start: new Date(2024, 3, 1),
+                end: new Date(2024, 3, 30),
+            };
+            component.onColumnFilterChange('createdAt', range);
+            fixture.detectChanges();
+
+            expect(component.filteredData().length).toBe(2);
+            expect(component.filteredData().map(r => r.name)).toEqual(['Gamma', 'Delta']);
+        });
     });
 });

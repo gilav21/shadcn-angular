@@ -317,6 +317,13 @@ import {
   DEFAULT_ICONS,
   IconSize,
   SOLID_SUPPORTED_ICONS,
+  DataTableDateFilterComponent,
+  DataTableDateRangeFilterComponent,
+  dateFilterFn,
+  dateRangeFilterFn,
+  DateRange,
+  RowActionContext,
+  ContextMenuItem,
 } from '../../../packages/components/ui';
 import {
   MetricWidgetComponent,
@@ -1252,6 +1259,56 @@ export class AppComponent {
     { accessorKey: 'role', header: 'Role', width: '150px' },
   ];
 
+  hebrewRtlData = signal([
+    { id: 'INV-001', customer: 'אלון כהן', amount: 1250, status: 'הושלם', date: '2024-06-15' },
+    { id: 'INV-002', customer: 'מיכל לוי', amount: 890, status: 'ממתין', date: '2024-06-14' },
+    { id: 'INV-003', customer: 'יוסי אברהם', amount: 2340, status: 'הושלם', date: '2024-06-10' },
+    { id: 'INV-004', customer: 'רונית דוד', amount: 560, status: 'בוטל', date: '2024-05-28' },
+    { id: 'INV-005', customer: 'נועם שרון', amount: 3100, status: 'ממתין', date: '2024-06-01' },
+    { id: 'INV-006', customer: 'עדי בן-ארי', amount: 1780, status: 'הושלם', date: '2024-05-20' },
+    { id: 'INV-007', customer: 'גלית פרידמן', amount: 420, status: 'ממתין', date: '2024-06-12' },
+    { id: 'INV-008', customer: 'אורי מזרחי', amount: 5200, status: 'הושלם', date: '2024-06-08' },
+  ]);
+
+  hebrewRtlColumns: ColumnDef<{ id: string; customer: string; amount: number; status: string; date: string }>[] = [
+    { accessorKey: 'id', header: 'מספר חשבונית', width: '140px', enableSorting: true },
+    { accessorKey: 'customer', header: 'לקוח', width: 'auto', enableSorting: true },
+    {
+      accessorKey: 'amount',
+      header: 'סכום',
+      width: '120px',
+      enableSorting: true,
+      cell: (row) => `₪${row.amount.toLocaleString('he-IL')}`,
+    },
+    {
+      accessorKey: 'status',
+      header: 'סטטוס',
+      width: '130px',
+      enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableMultiselectFilterComponent,
+      filterComponentInputs: {
+        options: ['הושלם', 'ממתין', 'בוטל'],
+        placeholder: 'סנן סטטוס...',
+        title: 'סטטוס',
+      },
+      filterFn: (row: { status: string }, filterValue: unknown) =>
+        multiselectFilterFn(row, filterValue as string[] | null, (r: { status: string }) => r.status),
+    },
+    {
+      accessorKey: 'date',
+      header: 'תאריך',
+      width: '160px',
+      enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableDateFilterComponent,
+      filterComponentInputs: { locale: 'he' },
+      filterFn: (row: { date: string }, filterValue: unknown) =>
+        dateFilterFn(row, filterValue as Date | null, (r: { date: string }) => r.date),
+      sortFn: (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
+    },
+  ];
+
   resizableColumns: ColumnDef<Payment>[] = [
     { accessorKey: 'id', header: 'ID', enableSorting: true, width: '80px', minWidth: '60px' },
     { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px', minWidth: '100px' },
@@ -1265,11 +1322,34 @@ export class AppComponent {
     console.log('Column resized:', event);
   }
 
-  onContextMenuAction(action: string, row: any) {
+  readonly paymentRowActions = (ctx: RowActionContext<Payment>): ContextMenuItem[] => [
+    {
+      label: `View ${ctx.row.email}`,
+      icon: 'eye',
+      shortcut: '⌘V',
+      click: () => this.toastService.toast({ title: 'View', description: `Viewing payment ${ctx.row.id}` }),
+    },
+    {
+      label: 'Edit Payment',
+      icon: 'pencil',
+      shortcut: '⌘E',
+      click: () => this.toastService.toast({ title: 'Edit', description: `Editing payment ${ctx.row.id}` }),
+    },
+    { type: 'separator' },
+    {
+      label: 'Delete',
+      icon: 'trash',
+      shortcut: '⌘⌫',
+      click: () => this.toastService.toast({ title: 'Delete', description: `Deleted payment ${ctx.row.id}`, variant: 'destructive' }),
+    },
+  ];
+
+  onContextMenuAction(action: string, row: unknown) {
+    const rowData = row as Payment | undefined;
     console.log(`Context Menu Action: ${action}`, row);
     this.toastService.toast({
       title: 'Context Menu Action',
-      description: `Action: ${action} on row ${row?.id}`,
+      description: `Action: ${action} on row ${rowData?.id}`,
       variant: 'default',
     });
   }
@@ -1576,6 +1656,7 @@ export class AppComponent {
   opsTotal = signal(0);
   opsLoading = signal(false);
   opsFilter = signal('');
+  opsColumnFilters = signal<Record<string, unknown>>({});
   opsPagination = signal<PaginationState>({ pageIndex: 0, pageSize: 10 });
   opsSort = signal<SortState>({ column: '', direction: null });
   opsMultiSort = signal<SortState[]>([]);
@@ -1636,6 +1717,10 @@ export class AppComponent {
       header: 'Updated',
       width: '160px',
       enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableDateRangeFilterComponent,
+      filterFn: (row: OpsTicket, filterValue: unknown): boolean =>
+        dateRangeFilterFn(row, filterValue as DateRange | null, r => r.updatedAt),
       sortFn: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
     },
     {
@@ -1643,6 +1728,10 @@ export class AppComponent {
       header: 'Created',
       width: '160px',
       enableSorting: true,
+      enableFiltering: true,
+      filterComponent: DataTableDateFilterComponent,
+      filterFn: (row: OpsTicket, filterValue: unknown): boolean =>
+        dateFilterFn(row, filterValue as Date | null, r => r.createdAt),
       sortFn: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     { accessorKey: 'summary', header: 'Summary', width: 'auto', enableSorting: false, enableGlobalFilter: false },
@@ -1665,6 +1754,12 @@ export class AppComponent {
 
   onOpsMultiSort(sorts: SortState[]) {
     this.opsMultiSort.set(sorts);
+    this.loadOpsData();
+  }
+
+  onOpsColumnFilters(filters: Record<string, unknown>) {
+    this.opsColumnFilters.set(filters);
+    this.opsPagination.update(p => ({ ...p, pageIndex: 0 }));
     this.loadOpsData();
   }
 
@@ -1746,6 +1841,7 @@ export class AppComponent {
     const source = this.opsSource();
     const filter = this.opsFilter().toLowerCase();
     const sorts = this.resolveOpsSorts();
+    const colFilters = this.opsColumnFilters();
 
     let rows = source;
 
@@ -1756,6 +1852,15 @@ export class AppComponent {
           .toLowerCase()
           .includes(filter)
       );
+    }
+
+    for (const key of Object.keys(colFilters)) {
+      const filterValue = colFilters[key];
+      if (filterValue === null || filterValue === undefined || filterValue === '') continue;
+      const col = this.opsColumns.find(c => c.accessorKey === key);
+      if (col?.filterFn) {
+        rows = rows.filter(row => col.filterFn!(row, filterValue));
+      }
     }
 
     if (sorts.length > 0) {

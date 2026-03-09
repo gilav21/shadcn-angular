@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../lib/utils';
-import { CalendarComponent, DateRange } from './calendar.component';
+import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
 
 /**
  * DatePickerComponent - A date selection component combining Popover and Calendar
@@ -201,16 +201,21 @@ export class DatePickerComponent implements ControlValueAccessor {
       </button>
       
       @if (isOpen()) {
-        <div 
+        <div
           class="absolute left-0 top-full z-50 mt-1 rounded-md border bg-popover p-0 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
           (click)="$event.stopPropagation()"
         >
           <ui-calendar
             mode="range"
             [selected]="rangeValue()"
+            [showTimeSelect]="showTime()"
+            timeMode="range"
+            [selectedTimeRange]="timeRange()"
             [showMonthSelect]="true"
             [showYearSelect]="true"
+            [locale]="locale()"
             (selectedChange)="onRangeSelect($event)"
+            (selectedTimeRangeChange)="onTimeRangeChange($event)"
           />
         </div>
       }
@@ -225,11 +230,14 @@ export class DateRangePickerComponent implements ControlValueAccessor {
   class = input('');
   placeholder = input('Pick a date range');
   disabled = input(false);
+  showTime = input(false);
   locale = input('en');
 
   isOpen = signal(false);
   rangeValue = signal<DateRange>({ start: null, end: null });
+  timeRange = signal<TimeRange>({ start: '', end: '' });
   rangeChange = output<DateRange>();
+  timeRangeChange = output<TimeRange>();
 
   private onChange: (value: DateRange) => void = () => { };
   private onTouched: () => void = () => { };
@@ -255,10 +263,15 @@ export class DateRangePickerComponent implements ControlValueAccessor {
       this.onChange(range);
       this.onTouched();
 
-      if (range.start && range.end) {
+      if (range.start && range.end && !this.showTime()) {
         this.isOpen.set(false);
       }
     }
+  }
+
+  onTimeRangeChange(range: TimeRange) {
+    this.timeRange.set(range);
+    this.timeRangeChange.emit(range);
   }
 
   onDocumentClick(event: MouseEvent) {
@@ -272,11 +285,11 @@ export class DateRangePickerComponent implements ControlValueAccessor {
     const options: Intl.DateTimeFormatOptions = {
       month: 'short',
       day: 'numeric',
-      year: 'numeric'
+      year: 'numeric',
+      ...(this.showTime() ? { hour: '2-digit', minute: '2-digit' } : {})
     };
     return date.toLocaleDateString(this.locale(), options);
   }
-
 
   writeValue(value: DateRange | null): void {
     if (value) {
