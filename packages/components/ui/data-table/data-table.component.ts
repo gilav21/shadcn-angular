@@ -16,6 +16,7 @@ import {
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
+import { CALENDAR_LOCALES, CalendarLocale } from '../calendar-locales';
 import { generateXlsx } from '../../lib/xlsx';
 import {
   TableComponent,
@@ -83,7 +84,7 @@ import {
         <div class="flex items-center justify-between flex-none">
           <div class="flex flex-1 items-center space-x-2">
             <ui-input
-              placeholder="Filter..."
+              [placeholder]="filterPlaceholder()"
               [ngModel]="globalFilter()"
               (ngModelChange)="onFilterChange($event)"
               class="h-8 w-[150px] lg:w-[250px]"
@@ -97,7 +98,7 @@ import {
                   class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
                   aria-label="Toggle columns"
                 >
-                  Columns
+                  {{ columnsLabel() }}
                 </button>
               </ui-popover-trigger>
               <ui-popover-content class="w-56 p-2">
@@ -432,7 +433,7 @@ import {
                     } @else {
                       <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
                         <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
-                        <p>No results found.</p>
+                        <p>{{ noResultsLabel() }}</p>
                       </div>
                     }
                   </ui-table-cell>
@@ -526,7 +527,7 @@ import {
                   } @else {
                     <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
                       <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
-                      <p>No results found.</p>
+                      <p>{{ noResultsLabel() }}</p>
                     </div>
                   }
                 </ui-table-cell>
@@ -552,6 +553,9 @@ import {
           [state]="paginationState()"
           [pageSizeOptions]="pageSizeOptions()"
           [showPageSizeSelector]="showPageSizeSelector()"
+          [rowsPerPageLabel]="rowsPerPageLabel()"
+          [pageLabel]="pageLabel()"
+          [ofLabel]="ofLabel()"
           (paginationChange)="onPaginationChange($event)"
         />
       }
@@ -631,6 +635,18 @@ export class DataTableComponent<T> {
 
   emptyStateComponent = input<Type<unknown>>();
   emptyStateComponentInputs = input<Record<string, unknown>>({});
+
+  locale = input('en');
+
+  private readonly activeLocale = computed((): CalendarLocale =>
+    CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES['en']
+  );
+  readonly filterPlaceholder = computed(() => this.activeLocale().filterPlaceholder ?? 'Filter...');
+  readonly columnsLabel = computed(() => this.activeLocale().columnsLabel ?? 'Columns');
+  readonly noResultsLabel = computed(() => this.activeLocale().noResultsLabel ?? 'No results found.');
+  readonly rowsPerPageLabel = computed(() => this.activeLocale().rowsPerPageLabel ?? 'Rows per page');
+  readonly pageLabel = computed(() => this.activeLocale().pageLabel ?? 'Page');
+  readonly ofLabel = computed(() => this.activeLocale().ofLabel ?? 'of');
 
   readonly rowActions = input<((context: RowActionContext<T>) => ContextMenuItem[]) | undefined>(undefined);
   readonly showRowActionsColumn = input<boolean | undefined>(undefined);

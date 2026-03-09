@@ -52,7 +52,7 @@ import { isRtl } from '../../lib/utils';
         <div class="flex items-center space-x-6 lg:space-x-8">
         @if (showPageSizeSelector()) {
         <div class="flex items-center space-x-2">
-          <p class="text-sm font-medium">Rows per page</p>
+          <p class="text-sm font-medium">{{ rowsPerPageLabel() }}</p>
           <ui-select
             [ngModel]="pageSizeString()"
             (ngModelChange)="onPageSizeChange($event)">
@@ -96,7 +96,7 @@ import { isRtl } from '../../lib/utils';
               </ui-pagination-item>
               
               <div class="flex w-[100px] items-center justify-center text-sm font-medium">
-                Page {{ currentPage() }} of {{ totalPages() }}
+                {{ pageLabel() }} {{ currentPage() }} {{ ofLabel() }} {{ totalPages() }}
               </div>
 
               <ui-pagination-item>
@@ -139,6 +139,9 @@ export class DataTablePaginationComponent {
   state = input.required<PaginationState>();
   pageSizeOptions = input<number[]>([10, 20, 30, 40, 50]);
   showPageSizeSelector = input(true);
+  rowsPerPageLabel = input('Rows per page');
+  pageLabel = input('Page');
+  ofLabel = input('of');
 
   paginationChange = output<PaginationState>();
 

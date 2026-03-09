@@ -10,6 +10,12 @@ export interface CalendarLocale {
     last7DaysLabel?: string;
     last30DaysLabel?: string;
     thisMonthLabel?: string;
+    filterPlaceholder?: string;
+    columnsLabel?: string;
+    noResultsLabel?: string;
+    rowsPerPageLabel?: string;
+    pageLabel?: string;
+    ofLabel?: string;
 }
 
 export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
@@ -25,6 +31,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Last 7 days',
         last30DaysLabel: 'Last 30 days',
         thisMonthLabel: 'This month',
+        filterPlaceholder: 'Filter...',
+        columnsLabel: 'Columns',
+        noResultsLabel: 'No results found.',
+        rowsPerPageLabel: 'Rows per page',
+        pageLabel: 'Page',
+        ofLabel: 'of',
     },
     he: {
         monthNames: ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'],
@@ -38,6 +50,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: '7 ימים אחרונים',
         last30DaysLabel: '30 ימים אחרונים',
         thisMonthLabel: 'החודש הנוכחי',
+        filterPlaceholder: '...סינון',
+        columnsLabel: 'עמודות',
+        noResultsLabel: 'לא נמצאו תוצאות.',
+        rowsPerPageLabel: 'שורות בעמוד',
+        pageLabel: 'עמוד',
+        ofLabel: 'מתוך',
     },
     ar: {
         monthNames: ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'],
@@ -51,6 +69,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'آخر 7 أيام',
         last30DaysLabel: 'آخر 30 يومًا',
         thisMonthLabel: 'هذا الشهر',
+        filterPlaceholder: '...تصفية',
+        columnsLabel: 'الأعمدة',
+        noResultsLabel: 'لم يتم العثور على نتائج.',
+        rowsPerPageLabel: 'صفوف في الصفحة',
+        pageLabel: 'صفحة',
+        ofLabel: 'من',
     },
     de: {
         monthNames: ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'],
@@ -64,6 +88,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Letzte 7 Tage',
         last30DaysLabel: 'Letzte 30 Tage',
         thisMonthLabel: 'Dieser Monat',
+        filterPlaceholder: 'Filtern...',
+        columnsLabel: 'Spalten',
+        noResultsLabel: 'Keine Ergebnisse gefunden.',
+        rowsPerPageLabel: 'Zeilen pro Seite',
+        pageLabel: 'Seite',
+        ofLabel: 'von',
     },
     fr: {
         monthNames: ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'],
@@ -77,6 +107,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: '7 derniers jours',
         last30DaysLabel: '30 derniers jours',
         thisMonthLabel: 'Ce mois-ci',
+        filterPlaceholder: 'Filtrer...',
+        columnsLabel: 'Colonnes',
+        noResultsLabel: 'Aucun résultat trouvé.',
+        rowsPerPageLabel: 'Lignes par page',
+        pageLabel: 'Page',
+        ofLabel: 'sur',
     },
     es: {
         monthNames: ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'],
@@ -90,6 +126,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Últimos 7 días',
         last30DaysLabel: 'Últimos 30 días',
         thisMonthLabel: 'Este mes',
+        filterPlaceholder: 'Filtrar...',
+        columnsLabel: 'Columnas',
+        noResultsLabel: 'No se encontraron resultados.',
+        rowsPerPageLabel: 'Filas por página',
+        pageLabel: 'Página',
+        ofLabel: 'de',
     },
     ja: {
         monthNames: ['1月', '2月', '3月', '4月', '5月', '6月', '7月', '8月', '9月', '10月', '11月', '12月'],
@@ -103,6 +145,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: '過去7日間',
         last30DaysLabel: '過去30日間',
         thisMonthLabel: '今月',
+        filterPlaceholder: 'フィルター...',
+        columnsLabel: '列',
+        noResultsLabel: '結果が見つかりません。',
+        rowsPerPageLabel: 'ページあたりの行数',
+        pageLabel: 'ページ',
+        ofLabel: '/',
     },
     zh: {
         monthNames: ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'],
@@ -116,6 +164,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: '最近7天',
         last30DaysLabel: '最近30天',
         thisMonthLabel: '本月',
+        filterPlaceholder: '筛选...',
+        columnsLabel: '列',
+        noResultsLabel: '未找到结果。',
+        rowsPerPageLabel: '每页行数',
+        pageLabel: '第',
+        ofLabel: '/ 共',
     },
     ru: {
         monthNames: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'],
@@ -129,6 +183,12 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Последние 7 дней',
         last30DaysLabel: 'Последние 30 дней',
         thisMonthLabel: 'Этот месяц',
+        filterPlaceholder: 'Фильтр...',
+        columnsLabel: 'Столбцы',
+        noResultsLabel: 'Результаты не найдены.',
+        rowsPerPageLabel: 'Строк на странице',
+        pageLabel: 'Страница',
+        ofLabel: 'из',
     },
     pt: {
         monthNames: ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'],
@@ -142,5 +202,11 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Últimos 7 dias',
         last30DaysLabel: 'Últimos 30 dias',
         thisMonthLabel: 'Este mês',
+        filterPlaceholder: 'Filtrar...',
+        columnsLabel: 'Colunas',
+        noResultsLabel: 'Nenhum resultado encontrado.',
+        rowsPerPageLabel: 'Linhas por página',
+        pageLabel: 'Página',
+        ofLabel: 'de',
     },
 };
