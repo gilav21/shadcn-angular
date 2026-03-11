@@ -1,6 +1,9 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, DestroyRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed } from '@angular/core';
 import { TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { filter, map, startWith } from 'rxjs';
 import {
   ButtonComponent,
   SeparatorComponent,
@@ -32,108 +35,18 @@ import {
   SidebarInsetComponent,
   ToasterComponent,
   ShortcutBindingService,
-
   ShortcutBindingsDialogComponent,
   RICH_TEXT_SHORTCUT_DEFINITIONS,
   IconComponent,
 } from '../../../packages/components/ui';
 
-import {
-  AlertDemoComponent,
-  ProgressDemoComponent,
-  SkeletonDemoComponent,
-  SpinnerDemoComponent,
-  ToastDemoComponent,
-  ButtonDemoComponent,
-  InputDemoComponent,
-  CheckboxDemoComponent,
-  RadioGroupDemoComponent,
-  TextareaDemoComponent,
-  ToggleDemoComponent,
-  SwitchDemoComponent,
-  ToggleGroupDemoComponent,
-  SliderDemoComponent,
-  SelectDemoComponent,
-  InputOtpDemoComponent,
-  CalendarDemoComponent,
-  DatePickerDemoComponent,
-  InputMaskDemoComponent,
-  SplitButtonDemoComponent,
-  ChipListDemoComponent,
-  RatingDemoComponent,
-  ButtonGroupDemoComponent,
-  InputGroupDemoComponent,
-  FieldDemoComponent,
-  NativeSelectDemoComponent,
-  LabelDemoComponent,
-  AutocompleteDemoComponent,
-  TreeSelectDemoComponent,
-  FormDemoComponent,
-  DialogDemoComponent,
-  TooltipDemoComponent,
-  DropdownMenuDemoComponent,
-  PopoverDemoComponent,
-  SheetDemoComponent,
-  AlertDialogDemoComponent,
-  ContextMenuDemoComponent,
-  DrawerDemoComponent,
-  HoverCardDemoComponent,
-  CommandDemoComponent,
-  SpeedDialDemoComponent,
-  TabsDemoComponent,
-  StepperDemoComponent,
-  PaginationDemoComponent,
-  MenubarDemoComponent,
-  NavigationMenuDemoComponent,
-  ScrollAreaDemoComponent,
-  AspectRatioDemoComponent,
-  ResizableDemoComponent,
-  SidebarDemoComponent,
-  BentoGridDemoComponent,
-  PageBuilderDemoComponent,
-  PageRendererDemoComponent,
-  VirtualScrollDemoComponent,
-  ChartsDemoComponent,
-  CardDemoComponent,
-  BadgeDemoComponent,
-  AvatarDemoComponent,
-  TableDemoComponent,
-  AccordionDemoComponent,
-  CollapsibleDemoComponent,
-  BreadcrumbDemoComponent,
-  CarouselDemoComponent,
-  CodeBlockDemoComponent,
-  TreeDemoComponent,
-  TreeViewDemoComponent,
-  TimelineDemoComponent,
-  EmptyDemoComponent,
-  KbdDemoComponent,
-  SeparatorDemoComponent,
-  NumberTickerDemoComponent,
-  DataTableDemoComponent,
-  IconDemoComponent,
-  EmojiPickerDemoComponent,
-  RichTextEditorDemoComponent,
-  FileUploadDemoComponent,
-  FileViewerDemoComponent,
-  ColorPickerDemoComponent,
-  ConfettiDemoComponent,
-  ChatDemoComponent,
-  StreamingTextDemoComponent,
-  SparklesDemoComponent,
-  TextRevealDemoComponent,
-  DockDemoComponent,
-  AnimationsDemoComponent,
-  KanbanDemoComponent,
-} from './demos';
-
 export type ComponentCategory = 'Inputs' | 'Data Display' | 'Feedback' | 'Overlay' | 'Navigation' | 'Layout' | 'Charts' | 'Advanced';
 
 export interface ComponentNavItem {
-  id: string;
-  name: string;
-  category: ComponentCategory;
-  icon: string;
+  readonly id: string;
+  readonly name: string;
+  readonly category: ComponentCategory;
+  readonly icon: string;
 }
 
 @Component({
@@ -141,6 +54,7 @@ export interface ComponentNavItem {
   imports: [
     TitleCasePipe,
     FormsModule,
+    RouterOutlet,
     ButtonComponent,
     SeparatorComponent,
     SelectComponent,
@@ -171,92 +85,6 @@ export interface ComponentNavItem {
     SidebarInsetComponent,
     ToasterComponent,
     IconComponent,
-    AlertDemoComponent,
-    ProgressDemoComponent,
-    SkeletonDemoComponent,
-    SpinnerDemoComponent,
-    ToastDemoComponent,
-    ButtonDemoComponent,
-    InputDemoComponent,
-    CheckboxDemoComponent,
-    RadioGroupDemoComponent,
-    TextareaDemoComponent,
-    ToggleDemoComponent,
-    SwitchDemoComponent,
-    ToggleGroupDemoComponent,
-    SliderDemoComponent,
-    SelectDemoComponent,
-    InputOtpDemoComponent,
-    CalendarDemoComponent,
-    DatePickerDemoComponent,
-    InputMaskDemoComponent,
-    SplitButtonDemoComponent,
-    ChipListDemoComponent,
-    RatingDemoComponent,
-    ButtonGroupDemoComponent,
-    InputGroupDemoComponent,
-    FieldDemoComponent,
-    NativeSelectDemoComponent,
-    LabelDemoComponent,
-    AutocompleteDemoComponent,
-    TreeSelectDemoComponent,
-    FormDemoComponent,
-    DialogDemoComponent,
-    TooltipDemoComponent,
-    DropdownMenuDemoComponent,
-    PopoverDemoComponent,
-    SheetDemoComponent,
-    AlertDialogDemoComponent,
-    ContextMenuDemoComponent,
-    DrawerDemoComponent,
-    HoverCardDemoComponent,
-    CommandDemoComponent,
-    SpeedDialDemoComponent,
-    TabsDemoComponent,
-    StepperDemoComponent,
-    PaginationDemoComponent,
-    MenubarDemoComponent,
-    NavigationMenuDemoComponent,
-    ScrollAreaDemoComponent,
-    AspectRatioDemoComponent,
-    ResizableDemoComponent,
-    SidebarDemoComponent,
-    BentoGridDemoComponent,
-    PageBuilderDemoComponent,
-    PageRendererDemoComponent,
-    VirtualScrollDemoComponent,
-    ChartsDemoComponent,
-    CardDemoComponent,
-    BadgeDemoComponent,
-    AvatarDemoComponent,
-    TableDemoComponent,
-    AccordionDemoComponent,
-    CollapsibleDemoComponent,
-    BreadcrumbDemoComponent,
-    CarouselDemoComponent,
-    CodeBlockDemoComponent,
-    TreeDemoComponent,
-    TreeViewDemoComponent,
-    TimelineDemoComponent,
-    EmptyDemoComponent,
-    KbdDemoComponent,
-    SeparatorDemoComponent,
-    NumberTickerDemoComponent,
-    DataTableDemoComponent,
-    IconDemoComponent,
-    EmojiPickerDemoComponent,
-    RichTextEditorDemoComponent,
-    FileUploadDemoComponent,
-    FileViewerDemoComponent,
-    ColorPickerDemoComponent,
-    ConfettiDemoComponent,
-    ChatDemoComponent,
-    StreamingTextDemoComponent,
-    SparklesDemoComponent,
-    TextRevealDemoComponent,
-    DockDemoComponent,
-    AnimationsDemoComponent,
-    KanbanDemoComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
@@ -267,13 +95,22 @@ export interface ComponentNavItem {
 })
 export class AppComponent {
   private readonly shortcutBindings = inject(ShortcutBindingService);
+  private readonly router = inject(Router);
 
   readonly isDark = signal(false);
   readonly isRtl = signal(false);
   readonly showCommandDialog = signal(false);
   readonly showShortcutBindingsDialog = signal(false);
   readonly sidebarCollapseMode = signal<'icon' | 'hidden'>('icon');
-  readonly activeComponent = signal(this.getComponentIdFromUrl());
+
+  readonly activeComponent = toSignal(
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+      map(e => e.urlAfterRedirects.replace(/^\/+/, '') || 'introduction'),
+      startWith(this.router.url.replace(/^\/+/, '') || 'introduction')
+    ),
+    { initialValue: 'introduction' }
+  );
 
   readonly componentLinks: readonly ComponentNavItem[] = [
     { id: 'emoji-picker', name: 'Emoji Picker', category: 'Advanced', icon: '😀' },
@@ -386,15 +223,13 @@ export class AppComponent {
     this.shortcutBindings.defineShortcuts('command-dialog', COMMAND_DIALOG_SHORTCUT_DEFINITIONS);
     this.shortcutBindings.defineShortcuts('rich-text-editor', RICH_TEXT_SHORTCUT_DEFINITIONS);
 
-    this.updateDocumentTitle(this.activeComponent());
-    const destroyRef = inject(DestroyRef);
-    const onPopState = () => {
-      const id = this.getComponentIdFromUrl();
-      this.activeComponent.set(id);
-      this.updateDocumentTitle(id);
-    };
-    globalThis.addEventListener('popstate', onPopState);
-    destroyRef.onDestroy(() => globalThis.removeEventListener('popstate', onPopState));
+    this.router.events.pipe(
+      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+    ).subscribe(e => {
+      const path = e.urlAfterRedirects.replace(/^\/+/, '');
+      const link = this.componentLinks.find(l => l.id === path);
+      document.title = link ? `${link.name} - shadcn-angular` : 'shadcn-angular';
+    });
   }
 
   onKeydown(e: KeyboardEvent) {
@@ -416,23 +251,11 @@ export class AppComponent {
   }
 
   navTo(id: string) {
-    this.activeComponent.set(id);
     this.showCommandDialog.set(false);
-    history.pushState(null, '', id === 'introduction' ? '/' : `/${id}`);
-    this.updateDocumentTitle(id);
+    this.router.navigate([id === 'introduction' ? '/' : `/${id}`]);
   }
 
   getLinksByCategory(category: string) {
     return this.linksByCategory().get(category) ?? [];
-  }
-
-  private getComponentIdFromUrl(): string {
-    const path = globalThis.location.pathname.replace(/^\/+/, '').replace(/\/+$/, '');
-    return path || 'introduction';
-  }
-
-  private updateDocumentTitle(id: string) {
-    const link = this.componentLinks.find(l => l.id === id);
-    document.title = link ? `${link.name} - shadcn-angular` : 'shadcn-angular';
   }
 }

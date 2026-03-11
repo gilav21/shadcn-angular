@@ -71,102 +71,7 @@
     </header>
     <div class="flex-1 overflow-y-auto p-4 md:p-8">
       <div class="mx-auto w-full space-y-12">
-        @switch (activeComponent()) {
-        @case ('emoji-picker') { <app-emoji-picker-demo /> }
-        @case ('rich-text-editor') { <app-rich-text-editor-demo /> }
-        @case ('autocomplete') { <app-autocomplete-demo /> }
-        @case ('timeline') { <app-timeline-demo /> }
-        @case ('tree-view') { <app-tree-view-demo /> }
-        @case ('rating') { <app-rating-demo /> }
-        @case ('stepper') { <app-stepper-demo /> }
-        @case ('file-upload') { <app-file-upload-demo /> }
-        @case ('file-viewer') { <app-file-viewer-demo /> }
-        @case ('color-picker') { <app-color-picker-demo /> }
-        @case ('confetti') { <app-confetti-demo /> }
-        @case ('number-ticker') { <app-number-ticker-demo /> }
-        @case ('charts') { <app-charts-demo /> }
-        @case ('buttons') { <app-buttons-demo /> }
-        @case ('chat') { <app-chat-demo /> }
-        @case ('streaming-text') { <app-streaming-text-demo /> }
-        @case ('form') { <app-form-demo /> }
-        @case ('input') { <app-input-demo /> }
-        @case ('input-mask') { <app-input-mask-demo /> }
-        @case ('split-button') { <app-split-button-demo /> }
-        @case ('chip-list') { <app-chip-list-demo /> }
-        @case ('card') { <app-card-demo /> }
-        @case ('badge') { <app-badge-demo /> }
-        @case ('checkbox') { <app-checkbox-demo /> }
-        @case ('radio-group') { <app-radio-group-demo /> }
-        @case ('textarea') { <app-textarea-demo /> }
-        @case ('skeleton') { <app-skeleton-demo /> }
-        @case ('tabs') { <app-tabs-demo /> }
-        @case ('accordion') { <app-accordion-demo /> }
-        @case ('progress') { <app-progress-demo /> }
-        @case ('alert') { <app-alert-demo /> }
-        @case ('avatar') { <app-avatar-demo /> }
-        @case ('dialog') { <app-dialog-demo /> }
-        @case ('tooltip') { <app-tooltip-demo /> }
-        @case ('dropdown-menu') { <app-dropdown-menu-demo /> }
-        @case ('select') { <app-select-demo /> }
-        @case ('popover') { <app-popover-demo /> }
-        @case ('sparkles') { <app-sparkles-demo /> }
-        @case ('text-reveal') { <app-text-reveal-demo /> }
-        @case ('code-block') { <app-code-block-demo /> }
-        @case ('sheet') { <app-sheet-demo /> }
-        @case ('alert-dialog') { <app-alert-dialog-demo /> }
-        @case ('slider') { <app-slider-demo /> }
-        @case ('collapsible') { <app-collapsible-demo /> }
-        @case ('toggle') { <app-toggle-demo /> }
-        @case ('switch') { <app-switch-demo /> }
-        @case ('toggle-group') { <app-toggle-group-demo /> }
-        @case ('scroll-area') { <app-scroll-area-demo /> }
-        @case ('table') { <app-table-demo /> }
-        @case ('breadcrumb') { <app-breadcrumb-demo /> }
-        @case ('hover-card') { <app-hover-card-demo /> }
-        @case ('context-menu') { <app-context-menu-demo /> }
-        @case ('drawer') { <app-drawer-demo /> }
-        @case ('aspect-ratio') { <app-aspect-ratio-demo /> }
-        @case ('toast') { <app-toast-demo /> }
-        @case ('resizable') { <app-resizable-demo /> }
-        @case ('pagination') { <app-pagination-demo /> }
-        @case ('input-otp') { <app-input-otp-demo /> }
-        @case ('calendar') { <app-calendar-demo /> }
-        @case ('command') { <app-command-demo /> }
-        @case ('menubar') { <app-menubar-demo /> }
-        @case ('carousel') { <app-carousel-demo /> }
-        @case ('navigation-menu') { <app-navigation-menu-demo /> }
-        @case ('date-picker') { <app-date-picker-demo /> }
-        @case ('sidebar') { <app-sidebar-demo /> }
-        @case ('spinner') { <app-spinner-demo /> }
-        @case ('empty') { <app-empty-demo /> }
-        @case ('kbd') { <app-kbd-demo /> }
-        @case ('button-group') { <app-button-group-demo /> }
-        @case ('input-group') { <app-input-group-demo /> }
-        @case ('field') { <app-field-demo /> }
-        @case ('native-select') { <app-native-select-demo /> }
-        @case ('speed-dial') { <app-speed-dial-demo /> }
-        @case ('data-table') { <app-data-table-demo /> }
-        @case ('separator') { <app-separator-demo /> }
-        @case ('label') { <app-label-demo /> }
-        @case ('tree-select') { <app-tree-select-demo /> }
-        @case ('tree') { <app-tree-demo /> }
-        @case ('dock') { <app-dock-demo /> }
-        @case ('bento-grid') { <app-bento-grid-demo /> }
-        @case ('page-builder') { <app-page-builder-demo /> }
-        @case ('page-renderer') { <app-page-renderer-demo /> }
-        @case ('virtual-scroll') { <app-virtual-scroll-demo /> }
-        @case ('animations') { <app-animations-demo /> }
-        @case ('kanban') { <app-kanban-demo /> }
-        @case ('icon') { <app-icon-demo /> }
-        @default {
-          <div class="flex flex-col items-center justify-center py-20 text-center">
-            <h1 class="text-4xl font-bold mb-4">shadcn-angular</h1>
-            <p class="text-muted-foreground text-lg max-w-md">
-              Select a component from the sidebar to explore demos and examples.
-            </p>
-          </div>
-        }
-        }
+        <router-outlet />
       </div>
     </div>
   </ui-sidebar-inset>
@@ -181,7 +86,7 @@
       @for (category of categories(); track category) {
       <ui-command-group [heading]="category">
         @for (link of getLinksByCategory(category); track link.id) {
-        <ui-command-item (selected)="navTo(link.id)">
+        <ui-command-item [value]="link.id" (select)="navTo(link.id)">
           <span class="mr-2">{{ link.icon }}</span>
           {{ link.name }}
         </ui-command-item>
