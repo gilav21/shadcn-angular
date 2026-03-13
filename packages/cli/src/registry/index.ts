@@ -103,6 +103,7 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'command',
     files: ['command.component.ts'],
     dependencies: ['dialog'],
+    libFiles: ['shortcut-binding.service.ts'],
     shortcutDefinitions: [
       {
         exportName: 'COMMAND_DIALOG_SHORTCUT_DEFINITIONS',
@@ -228,6 +229,24 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'file-upload',
     files: ['file-upload.component.ts'],
     dependencies: ['button', 'progress'],
+  },
+  'file-viewer': {
+    name: 'file-viewer',
+    files: ['file-viewer.component.ts'],
+    dependencies: ['spinner'],
+    libFiles: [
+      'file-type-detector.ts',
+      'inflate.ts',
+      'zip-reader.ts',
+      'image-validator.ts',
+      'ole2-reader.ts',
+      'pptx-parser.ts',
+      'xlsx-reader.ts',
+      'docx-parser.ts',
+      'doc-enhanced-parser.ts',
+      'ppt-parser.ts',
+      'svg-sanitizer.ts',
+    ],
   },
   'hover-card': {
     name: 'hover-card',
@@ -414,7 +433,16 @@ export const registry: Record<string, ComponentDefinition> = {
       'dialog',
       'scroll-area',
     ],
-    libFiles: ['pdf-parser.ts', 'image-validator.ts', 'svg-sanitizer.ts'],
+    libFiles: [
+      'pdf-parser.ts',
+      'image-validator.ts',
+      'svg-sanitizer.ts',
+      'shortcut-binding.service.ts',
+      'docx-parser.ts',
+      'docx-to-editor-html.ts',
+      'zip-reader.ts',
+      'inflate.ts',
+    ],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
@@ -592,6 +620,7 @@ export const registry: Record<string, ComponentDefinition> = {
   kanban: {
     name: 'kanban',
     files: ['kanban.component.ts', 'kanban-locales.ts'],
+    libFiles: ['shortcut-binding.service.ts'],
     dependencies: [
       'badge', 'avatar', 'scroll-area', 'separator',
       'button', 'input', 'textarea', 'label',
