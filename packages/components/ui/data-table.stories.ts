@@ -1,7 +1,8 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
 import { DataTableComponent } from './data-table/data-table.component';
-import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext } from './data-table/data-table.types';
+import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, VirtualAutoThreshold } from './data-table/data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import { InputComponent } from './input.component';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from './context-menu.component';
 import { ContextMenuIntegrations } from './context-menu-integrations';
@@ -933,4 +934,152 @@ export const WithDateRangeFilter: OrderStory = {
         showToolbar: true,
         showPagination: true,
     },
+};
+
+// --- Virtual Scroll Performance Story ---
+
+@Component({
+    selector: 'app-virtual-status-cell',
+    template: `
+        <div class="flex items-center gap-2">
+            <div class="h-2 w-2 rounded-full"
+                 [class.bg-green-500]="status() === 'active'"
+                 [class.bg-red-500]="status() === 'inactive'"
+                 [class.bg-yellow-500]="status() === 'pending'">
+            </div>
+            <span class="text-xs">{{ status() }}</span>
+        </div>
+    `,
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class VirtualStatusCellComponent {
+    readonly status = input<string>('active');
+}
+
+@Component({
+    selector: 'app-virtual-toggle-cell',
+    template: `
+        <label class="flex items-center gap-1 cursor-pointer">
+            <input type="checkbox" [checked]="enabled()" (change)="onToggle()" class="h-3 w-3" />
+            <span class="text-xs">{{ enabled() ? 'On' : 'Off' }}</span>
+        </label>
+    `,
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class VirtualToggleCellComponent {
+    readonly enabled = input(false);
+    readonly toggled = output<boolean>();
+    private readonly state = signal(false);
+
+    onToggle() {
+        this.state.update(v => !v);
+        this.toggled.emit(this.state());
+    }
+}
+
+interface VirtualRow {
+    id: number;
+    name: string;
+    [key: string]: unknown;
+}
+
+function generateVirtualData(rowCount: number, colCount: number): VirtualRow[] {
+    const statuses = ['active', 'inactive', 'pending'];
+    const data: VirtualRow[] = [];
+    for (let r = 0; r < rowCount; r++) {
+        const row: VirtualRow = {
+            id: r + 1,
+            name: `Row ${r + 1}`,
+        };
+        for (let c = 0; c < colCount; c++) {
+            row[`col${c}`] = `R${r + 1}C${c}`;
+        }
+        row['status'] = statuses[r % 3];
+        row['enabled'] = r % 2 === 0;
+        data.push(row);
+    }
+    return data;
+}
+
+function generateVirtualColumns(colCount: number): ColumnDef<VirtualRow>[] {
+    const cols: ColumnDef<VirtualRow>[] = [
+        { accessorKey: 'id', header: 'ID', width: '80px', sticky: true },
+        { accessorKey: 'name', header: 'Name', width: '150px', sticky: true },
+    ];
+
+    for (let c = 0; c < colCount; c++) {
+        if (c < 25) {
+            cols.push({
+                accessorKey: `col${c}`,
+                header: `Status ${c}`,
+                width: '120px',
+                component: VirtualStatusCellComponent,
+                componentInputs: (row: VirtualRow) => ({ status: row['status'] }),
+            });
+        } else if (c < 50) {
+            cols.push({
+                accessorKey: `col${c}`,
+                header: `Toggle ${c}`,
+                width: '100px',
+                component: VirtualToggleCellComponent,
+                componentInputs: (row: VirtualRow) => ({ enabled: row['enabled'] }),
+            });
+        } else if (c < 55) {
+            cols.push({
+                accessorKey: `col${c}`,
+                header: `Image ${c}`,
+                width: '80px',
+                cell: (_row: VirtualRow) => '🖼️',
+            });
+        } else {
+            cols.push({
+                accessorKey: `col${c}`,
+                header: `Col ${c}`,
+                width: `${80 + (c % 5) * 20}px`,
+                cell: (row: VirtualRow) => String(row[`col${c}`] ?? ''),
+            });
+        }
+    }
+
+    return cols;
+}
+
+const virtualData = generateVirtualData(10000, 100);
+const virtualColumns = generateVirtualColumns(100);
+
+type VirtualStory = StoryObj<DataTableComponent<VirtualRow>>;
+
+export const VirtualScrollPerformance: VirtualStory = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[700px] w-full p-4">
+                <h3 class="mb-2 text-sm text-muted-foreground">10,000 rows × 100+ columns (50 stateful components) — Virtual Scroll</h3>
+                <ui-data-table
+                    [data]="data"
+                    [columns]="columns"
+                    [showToolbar]="showToolbar"
+                    [showPagination]="showPagination"
+                    [enableVirtualScroll]="enableVirtualScroll"
+                    [virtualRowHeight]="virtualRowHeight"
+                    [virtualRowBuffer]="virtualRowBuffer"
+                    [virtualColumnBuffer]="virtualColumnBuffer"
+                    [virtualRecycleComponents]="virtualRecycleComponents"
+                    [virtualAutoThreshold]="virtualAutoThreshold"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: virtualData,
+        columns: virtualColumns as ColumnDef<VirtualRow>[],
+        showToolbar: true,
+        showPagination: false,
+        enableVirtualScroll: true,
+        virtualRowHeight: 40,
+        virtualRowBuffer: 5,
+        virtualColumnBuffer: 3,
+        virtualRecycleComponents: false,
+        virtualAutoThreshold: { rows: 500, columns: 20 },
+    } as Record<string, unknown>,
 };

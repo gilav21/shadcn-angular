@@ -7,11 +7,14 @@ import {
   model,
   signal,
   viewChild,
+  viewChildren,
   ChangeDetectionStrategy,
   Type,
   TemplateRef,
   ElementRef,
   inject,
+  AfterViewInit,
+  OnDestroy,
 } from '@angular/core';
 import { CommonModule, DOCUMENT } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -50,7 +53,14 @@ import {
   FlattenedTreeRow,
   SubRowContext,
   RowActionContext,
+  VirtualAutoThreshold,
 } from './data-table.types';
+import {
+  computeRowRange,
+  computeColumnRange,
+  computeVariableRowRange,
+} from './data-table.utils';
+import { ComponentPoolService } from './component-pool.service';
 @Component({
   selector: 'ui-data-table',
   imports: [
@@ -75,6 +85,7 @@ import {
     IconComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  providers: [ComponentPoolService],
   host: {
     class: 'block h-full w-full',
   },
@@ -120,7 +131,7 @@ import {
         </div>
       }
 
-      <div class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" (keydown)="onTableKeydown($event)" (click)="onTableClick()" (contextmenu)="onRowContextMenu($event)" tabindex="0">
+      <div #scrollContainer class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" [class.contain-strict]="isVirtualScrollActive()" [class.will-change-scroll]="isVirtualScrollActive()" (keydown)="onTableKeydown($event)" (click)="onTableClick()" (contextmenu)="onRowContextMenu($event)" (scroll)="isVirtualScrollActive() ? onVirtualScroll($event) : null" tabindex="0">
         @if (isLoaderVisible()) {
           <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
             @if (loaderTemplate()) {
@@ -310,7 +321,280 @@ import {
             </ui-table-row>
           </ui-table-header>
           <ui-table-body>
-            @if (enableSubRows()) {
+            @if (isVirtualScrollActive()) {
+              <div [style.height.px]="virtualPaddingTop()" class="flex-shrink-0"></div>
+              @if (enableSubRows()) {
+                @for (treeRow of virtualVisibleTreeRows(); track getRowId()(treeRow.row); let i = $index) {
+                  <ui-table-row
+                    #virtualRow
+                    [attr.data-state]="isRowSelected(treeRow.row) ? 'selected' : null"
+                    [attr.data-row-index]="getVirtualRowIndex(i)"
+                    [attr.data-row-id]="getRowId()(treeRow.row)"
+                    [attr.data-virtual-row-index]="getVirtualRowIndex(i)"
+                    [attr.data-depth]="treeRow.depth"
+                    [attr.aria-level]="treeRow.depth + 1"
+                    [attr.aria-expanded]="treeRow.isLeaf ? null : treeRow.isExpanded"
+                    [style.height.px]="virtualVariableRowHeight() ? null : virtualRowHeight()"
+                    class="border-0"
+                  >
+                    @for (col of pinnedLeftColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i), treeRow.depth)"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getTreeCellStyle(col, treeRow.depth)"
+                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                      >
+                        @if (col.accessorKey === '_selection') {
+                          <ui-checkbox
+                            [checked]="isRowSelected(treeRow.row)"
+                            [indeterminate]="isSubRowSelectionIndeterminate(treeRow.row)"
+                            (checkedChange)="toggleRowWithCascade(treeRow.row)"
+                            ariaLabel="Select row"
+                          />
+                        } @else if (col._isTreeExpanderHost) {
+                          <div class="flex items-center gap-1 min-w-0" [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()">
+                            @if (!treeRow.isLeaf) {
+                              <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'" (click)="toggleSubRowExpanded(treeRow.row, $event)">
+                                <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded && !isRtl()" [class.-rotate-90]="treeRow.isExpanded && isRtl()" />
+                              </button>
+                            } @else {
+                              <span class="inline-block h-6 w-6 shrink-0"></span>
+                            }
+                            <span class="truncate">
+                              @if (col.component) {
+                                <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                              } @else if (col.template) {
+                                <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
+                              } @else if (col.cell) {
+                                {{ col.cell(treeRow.row) }}
+                              } @else {
+                                {{ getCellValue(treeRow.row, col.accessorKey, col) }}
+                              }
+                            </span>
+                          </div>
+                        } @else if (col.component) {
+                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                        } @else if (col.template) {
+                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
+                        } @else if (col.cell) {
+                          {{ col.cell(treeRow.row) }}
+                        } @else {
+                          {{ getCellValue(treeRow.row, col.accessorKey, col) }}
+                        }
+                      </ui-table-cell>
+                    }
+                    <div [style.min-width.px]="virtualPaddingLeft()" class="flex-shrink-0"></div>
+                    @for (col of virtualVisibleMiddleColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i), treeRow.depth)"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getTreeCellStyle(col, treeRow.depth)"
+                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                      >
+                        @if (col._isTreeExpanderHost) {
+                          <div class="flex items-center gap-1 min-w-0" [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()">
+                            @if (!treeRow.isLeaf) {
+                              <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'" (click)="toggleSubRowExpanded(treeRow.row, $event)">
+                                <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded && !isRtl()" [class.-rotate-90]="treeRow.isExpanded && isRtl()" />
+                              </button>
+                            } @else {
+                              <span class="inline-block h-6 w-6 shrink-0"></span>
+                            }
+                            <span class="truncate">
+                              @if (col.component) {
+                                <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                              } @else if (col.template) {
+                                <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
+                              } @else if (col.cell) {
+                                {{ col.cell(treeRow.row) }}
+                              } @else {
+                                {{ getCellValue(treeRow.row, col.accessorKey, col) }}
+                              }
+                            </span>
+                          </div>
+                        } @else if (col.accessorKey === '_expander') {
+                          <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="isRowExpanded(treeRow.row) ? 'Collapse row' : 'Expand row'" [attr.aria-expanded]="isRowExpanded(treeRow.row)" (click)="toggleRowExpanded(treeRow.row, $event)">
+                            @if (isRowExpanded(treeRow.row)) {
+                              <ui-icon name="chevron-up" size="xs" />
+                            } @else {
+                              <ui-icon name="chevron-down" size="xs" />
+                            }
+                          </button>
+                        } @else if (col.accessorKey === '_actions') {
+                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, treeRow.row, getVirtualRowIndex(i))">
+                            <ui-icon name="more-vertical" size="sm" />
+                          </ui-button>
+                        } @else if (col.component) {
+                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                        } @else if (col.template) {
+                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
+                        } @else if (col.cell) {
+                          {{ col.cell(treeRow.row) }}
+                        } @else {
+                          {{ getCellValue(treeRow.row, col.accessorKey, col) }}
+                        }
+                      </ui-table-cell>
+                    }
+                    <div [style.min-width.px]="virtualPaddingRight()" class="flex-shrink-0"></div>
+                    @for (col of pinnedRightColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i), treeRow.depth)"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getTreeCellStyle(col, treeRow.depth)"
+                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                      >
+                        @if (col.accessorKey === '_actions') {
+                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, treeRow.row, getVirtualRowIndex(i))">
+                            <ui-icon name="more-vertical" size="sm" />
+                          </ui-button>
+                        } @else if (col.component) {
+                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                        } @else if (col.template) {
+                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row }"></ng-container>
+                        } @else if (col.cell) {
+                          {{ col.cell(treeRow.row) }}
+                        } @else {
+                          {{ getCellValue(treeRow.row, col.accessorKey, col) }}
+                        }
+                      </ui-table-cell>
+                    }
+                  </ui-table-row>
+                }
+              } @else {
+                @for (row of virtualVisibleRows(); track getRowId()(row); let i = $index) {
+                  <ui-table-row
+                    #virtualRow
+                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [attr.data-row-index]="getVirtualRowIndex(i)"
+                    [attr.data-row-id]="getRowId()(row)"
+                    [attr.data-virtual-row-index]="getVirtualRowIndex(i)"
+                    [style.height.px]="virtualVariableRowHeight() ? null : virtualRowHeight()"
+                    class="border-0"
+                  >
+                    @for (col of pinnedLeftColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i))"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getCellStyle(col)"
+                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                      >
+                        @if (col.accessorKey === '_selection') {
+                          <ui-checkbox
+                            [checked]="isRowSelected(row)"
+                            (checkedChange)="toggleRow(row)"
+                            ariaLabel="Select row"
+                          />
+                        } @else if (col.accessorKey === '_expander') {
+                          <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'" [attr.aria-expanded]="isRowExpanded(row)" (click)="toggleRowExpanded(row, $event)">
+                            @if (isRowExpanded(row)) {
+                              <ui-icon name="chevron-up" size="xs" />
+                            } @else {
+                              <ui-icon name="chevron-down" size="xs" />
+                            }
+                          </button>
+                        } @else if (col.component) {
+                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : {}" [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                        } @else if (col.template) {
+                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
+                        } @else if (col.cell) {
+                          {{ col.cell(row) }}
+                        } @else {
+                          {{ getCellValue(row, col.accessorKey, col) }}
+                        }
+                      </ui-table-cell>
+                    }
+                    <div [style.min-width.px]="virtualPaddingLeft()" class="flex-shrink-0"></div>
+                    @for (col of virtualVisibleMiddleColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i))"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getCellStyle(col)"
+                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                      >
+                        @if (col.accessorKey === '_selection') {
+                          <ui-checkbox
+                            [checked]="isRowSelected(row)"
+                            (checkedChange)="toggleRow(row)"
+                            ariaLabel="Select row"
+                          />
+                        } @else if (col.accessorKey === '_expander') {
+                          <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'" [attr.aria-expanded]="isRowExpanded(row)" (click)="toggleRowExpanded(row, $event)">
+                            @if (isRowExpanded(row)) {
+                              <ui-icon name="chevron-up" size="xs" />
+                            } @else {
+                              <ui-icon name="chevron-down" size="xs" />
+                            }
+                          </button>
+                        } @else if (col.accessorKey === '_actions') {
+                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, row, getVirtualRowIndex(i))">
+                            <ui-icon name="more-vertical" size="sm" />
+                          </ui-button>
+                        } @else if (col.component) {
+                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : {}" [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                        } @else if (col.template) {
+                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
+                        } @else if (col.cell) {
+                          {{ col.cell(row) }}
+                        } @else {
+                          {{ getCellValue(row, col.accessorKey, col) }}
+                        }
+                      </ui-table-cell>
+                    }
+                    <div [style.min-width.px]="virtualPaddingRight()" class="flex-shrink-0"></div>
+                    @for (col of pinnedRightColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i))"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getCellStyle(col)"
+                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                      >
+                        @if (col.accessorKey === '_actions') {
+                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, row, getVirtualRowIndex(i))">
+                            <ui-icon name="more-vertical" size="sm" />
+                          </ui-button>
+                        } @else if (col.component) {
+                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : {}" [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                        } @else if (col.template) {
+                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
+                        } @else if (col.cell) {
+                          {{ col.cell(row) }}
+                        } @else {
+                          {{ getCellValue(row, col.accessorKey, col) }}
+                        }
+                      </ui-table-cell>
+                    }
+                  </ui-table-row>
+                  @if (enableRowExpansion() && isRowExpanded(row)) {
+                    <ui-table-row class="border-0 bg-muted/20">
+                      <ui-table-cell class="flex-1 border-b" style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;">
+                        @if (rowDetailTemplate()) {
+                          <ng-container *ngTemplateOutlet="rowDetailTemplate(); context: { $implicit: row, row: row }"></ng-container>
+                        } @else if (rowDetailComponent()) {
+                          <div [uiComponentOutlet]="rowDetailComponent()" [inputs]="getRowDetailComponentInputs(row)"></div>
+                        } @else {
+                          <pre class="text-xs text-muted-foreground whitespace-pre-wrap">{{ row | json }}</pre>
+                        }
+                      </ui-table-cell>
+                    </ui-table-row>
+                  }
+                }
+              }
+              @if (virtualTotalRows() === 0) {
+                <ui-table-row class="hover:bg-transparent justify-center w-full">
+                  <ui-table-cell class="h-96 text-center w-full p-0 border-none justify-center">
+                    @if (emptyStateComponent()) {
+                      <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
+                    } @else {
+                      <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
+                        <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
+                        <p>{{ noResultsLabel() }}</p>
+                      </div>
+                    }
+                  </ui-table-cell>
+                </ui-table-row>
+              }
+              <div [style.height.px]="virtualPaddingBottom()" class="flex-shrink-0"></div>
+            } @else if (enableSubRows()) {
               @if (processedTreeRows().length > 0) {
                 @for (treeRow of processedTreeRows(); track getRowId()(treeRow.row); let i = $index) {
                   <ui-table-row
@@ -566,7 +850,7 @@ import {
     }
   `,
 })
-export class DataTableComponent<T> {
+export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private readonly _document = inject(DOCUMENT);
   private readonly _el = inject(ElementRef);
   isRtl() {
@@ -637,6 +921,151 @@ export class DataTableComponent<T> {
   emptyStateComponentInputs = input<Record<string, unknown>>({});
 
   locale = input('en');
+
+  enableVirtualScroll = input<boolean | 'auto'>('auto');
+  virtualRowHeight = input(40);
+  virtualRowBuffer = input(5);
+  virtualColumnBuffer = input(3);
+  virtualVariableRowHeight = input(false);
+  virtualRecycleComponents = input(false);
+  virtualAutoThreshold = input<VirtualAutoThreshold>({ rows: 500, columns: 20 });
+
+  private readonly virtualScrollTop = signal(0);
+  private readonly virtualScrollLeft = signal(0);
+  private readonly viewportHeight = signal(0);
+  private readonly viewportWidth = signal(0);
+  private readonly rowHeightCache = new Map<number, number>();
+  private readonly chunkCorrections = new Map<number, number>();
+  private readonly CHUNK_SIZE = 500;
+  private readonly measurementVersion = signal(0);
+  private rafId = 0;
+  private viewportObserver?: ResizeObserver;
+  private rowResizeObserver?: ResizeObserver;
+
+  readonly scrollContainerRef = viewChild<ElementRef<HTMLElement>>('scrollContainer');
+  readonly virtualRowElements = viewChildren('virtualRow', { read: ElementRef });
+
+  readonly isVirtualScrollActive = computed(() => {
+    const mode = this.enableVirtualScroll();
+    if (mode === true) return true;
+    if (mode === false) return false;
+    const threshold = this.virtualAutoThreshold();
+    const totalRows = this.virtualTotalRows();
+    const nonPinnedColCount = this.scrollableColumns().length;
+    return totalRows > threshold.rows || nonPinnedColCount > threshold.columns;
+  });
+
+  private readonly virtualTotalRows = computed(() => {
+    if (this.enableSubRows()) {
+      return this.processedTreeRows().length;
+    }
+    return this.processedData().length;
+  });
+
+  readonly pinnedLeftColumns = computed(() => {
+    return this.enhancedColumns().filter(c =>
+      c.sticky === true || c.pin === 'left'
+    );
+  });
+
+  readonly pinnedRightColumns = computed(() => {
+    return this.enhancedColumns().filter(c => c.pin === 'right');
+  });
+
+  readonly scrollableColumns = computed(() => {
+    return this.enhancedColumns().filter(c =>
+      !c.sticky && c.pin !== 'left' && c.pin !== 'right'
+    );
+  });
+
+  private readonly scrollableColumnWidths = computed(() => {
+    const cols = this.scrollableColumns();
+    const widths = this.columnWidths();
+    return cols.map(col => {
+      const key = String(col.accessorKey);
+      const w = widths[key] || col._width || col.width || '150px';
+      return Number.parseInt(String(w), 10) || 150;
+    });
+  });
+
+  readonly virtualRowRange = computed(() => {
+    if (!this.isVirtualScrollActive()) {
+      return { start: 0, end: this.virtualTotalRows() };
+    }
+    const totalRows = this.virtualTotalRows();
+    const buffer = this.virtualRowBuffer();
+
+    if (this.virtualVariableRowHeight()) {
+      this.measurementVersion();
+      const getHeight = (index: number): number =>
+        this.rowHeightCache.get(index) ?? this.virtualRowHeight();
+      const range = computeVariableRowRange(
+        this.virtualScrollTop(), this.viewportHeight(),
+        getHeight, totalRows, buffer
+      );
+      return { start: range.start, end: range.end };
+    }
+
+    return computeRowRange(
+      this.virtualScrollTop(), this.viewportHeight(),
+      this.virtualRowHeight(), totalRows, buffer
+    );
+  });
+
+  readonly virtualColumnRange = computed(() => {
+    if (!this.isVirtualScrollActive()) {
+      return { start: 0, end: this.scrollableColumns().length, paddingLeft: 0, paddingRight: 0 };
+    }
+    return computeColumnRange(
+      this.virtualScrollLeft(), this.viewportWidth(),
+      this.scrollableColumnWidths(), this.virtualColumnBuffer()
+    );
+  });
+
+  readonly virtualVisibleRows = computed((): T[] => {
+    const { start, end } = this.virtualRowRange();
+    return this.processedData().slice(start, end);
+  });
+
+  readonly virtualVisibleTreeRows = computed((): FlattenedTreeRow<T>[] => {
+    const { start, end } = this.virtualRowRange();
+    return this.processedTreeRows().slice(start, end);
+  });
+
+  readonly virtualVisibleMiddleColumns = computed(() => {
+    const { start, end } = this.virtualColumnRange();
+    return this.scrollableColumns().slice(start, end);
+  });
+
+  readonly virtualPaddingTop = computed(() => {
+    const { start } = this.virtualRowRange();
+    if (this.virtualVariableRowHeight()) {
+      this.measurementVersion();
+      let top = 0;
+      for (let i = 0; i < start; i++) {
+        top += this.rowHeightCache.get(i) ?? this.virtualRowHeight();
+      }
+      return top;
+    }
+    return start * this.virtualRowHeight();
+  });
+
+  readonly virtualPaddingBottom = computed(() => {
+    const { end } = this.virtualRowRange();
+    const total = this.virtualTotalRows();
+    if (this.virtualVariableRowHeight()) {
+      this.measurementVersion();
+      let bottom = 0;
+      for (let i = end; i < total; i++) {
+        bottom += this.rowHeightCache.get(i) ?? this.virtualRowHeight();
+      }
+      return bottom;
+    }
+    return (total - end) * this.virtualRowHeight();
+  });
+
+  readonly virtualPaddingLeft = computed(() => this.virtualColumnRange().paddingLeft);
+  readonly virtualPaddingRight = computed(() => this.virtualColumnRange().paddingRight);
 
   private readonly activeLocale = computed((): CalendarLocale =>
     CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES['en']
@@ -1017,6 +1446,96 @@ export class DataTableComponent<T> {
         });
       }
     });
+
+    this.rowResizeObserver = new ResizeObserver(entries => {
+      this.handleRowResizes(entries);
+    });
+
+    effect(() => {
+      if (!this.isVirtualScrollActive() || !this.virtualVariableRowHeight()) return;
+      const els = this.virtualRowElements();
+      for (const el of els) {
+        this.rowResizeObserver!.observe(el.nativeElement);
+      }
+    });
+  }
+
+  ngAfterViewInit() {
+    this.setupViewportObserver();
+  }
+
+  ngOnDestroy() {
+    cancelAnimationFrame(this.rafId);
+    this.viewportObserver?.disconnect();
+    this.rowResizeObserver?.disconnect();
+  }
+
+  private setupViewportObserver() {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+
+    this.viewportHeight.set(container.clientHeight);
+    this.viewportWidth.set(container.clientWidth);
+
+    this.viewportObserver = new ResizeObserver(entries => {
+      for (const entry of entries) {
+        const el = entry.target as HTMLElement;
+        this.viewportHeight.set(el.clientHeight);
+        this.viewportWidth.set(el.clientWidth);
+      }
+    });
+    this.viewportObserver.observe(container);
+  }
+
+  onVirtualScroll(event: Event) {
+    const el = event.target as HTMLElement;
+    cancelAnimationFrame(this.rafId);
+    this.rafId = requestAnimationFrame(() => {
+      this.virtualScrollTop.set(el.scrollTop);
+      this.virtualScrollLeft.set(el.scrollLeft);
+    });
+  }
+
+  private handleRowResizes(entries: ResizeObserverEntry[]) {
+    let scrollAdjustment = 0;
+    const firstVisible = this.virtualRowRange().start;
+
+    for (const entry of entries) {
+      const el = entry.target as HTMLElement;
+      const indexStr = el.dataset['virtualRowIndex'];
+      if (indexStr === undefined) continue;
+
+      const index = Number.parseInt(indexStr, 10);
+      const newHeight = entry.borderBoxSize[0].blockSize;
+      const oldHeight = this.rowHeightCache.get(index) ?? this.virtualRowHeight();
+      const diff = newHeight - oldHeight;
+
+      if (Math.abs(diff) < 0.5) continue;
+
+      this.rowHeightCache.set(index, newHeight);
+
+      const chunkIdx = Math.floor(index / this.CHUNK_SIZE);
+      const currentCorrection = this.chunkCorrections.get(chunkIdx) ?? 0;
+      this.chunkCorrections.set(chunkIdx, currentCorrection + diff);
+
+      if (index < firstVisible) {
+        scrollAdjustment += diff;
+      }
+    }
+
+    if (scrollAdjustment !== 0) {
+      const container = this.scrollContainerRef()?.nativeElement;
+      if (container) {
+        container.scrollTop += scrollAdjustment;
+        this.virtualScrollTop.set(container.scrollTop);
+      }
+    }
+
+    this.measurementVersion.update(v => v + 1);
+  }
+
+  getVirtualRowIndex(localIndex: number): number {
+    return this.virtualRowRange().start + localIndex;
   }
 
   activeSorts = computed(() => {

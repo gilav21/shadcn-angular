@@ -531,6 +531,114 @@ class OpsTicketDetailComponent {
   ticket = input<OpsTicket | undefined>(undefined);
 }
 
+// --- Virtual Scroll Demo Cell Components ---
+
+@Component({
+  selector: 'app-vdemo-status-cell',
+  template: `
+    <div class="flex items-center gap-2">
+      <div class="h-2 w-2 rounded-full"
+           [class.bg-green-500]="status() === 'active'"
+           [class.bg-red-500]="status() === 'inactive'"
+           [class.bg-yellow-500]="status() === 'pending'">
+      </div>
+      <span class="text-xs">{{ status() }}</span>
+    </div>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class VDemoStatusCellComponent {
+  readonly status = input<string>('active');
+}
+
+@Component({
+  selector: 'app-vdemo-toggle-cell',
+  template: `
+    <label class="flex items-center gap-1 cursor-pointer">
+      <input type="checkbox" [checked]="enabled()" (change)="onToggle()" class="h-3 w-3" />
+      <span class="text-xs">{{ enabled() ? 'On' : 'Off' }}</span>
+    </label>
+  `,
+  changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class VDemoToggleCellComponent {
+  readonly enabled = input(false);
+  readonly toggled = output<boolean>();
+  private readonly state = signal(false);
+
+  onToggle() {
+    this.state.update(v => !v);
+    this.toggled.emit(this.state());
+  }
+}
+
+interface VDemoRow {
+  id: number;
+  name: string;
+  [key: string]: unknown;
+}
+
+function generateVDemoData(rowCount: number, colCount: number): VDemoRow[] {
+  const statuses = ['active', 'inactive', 'pending'];
+  const data: VDemoRow[] = [];
+  for (let r = 0; r < rowCount; r++) {
+    const row: VDemoRow = { id: r + 1, name: `Row ${r + 1}` };
+    for (let c = 0; c < colCount; c++) {
+      row[`col${c}`] = `R${r + 1}C${c}`;
+    }
+    row['status'] = statuses[r % 3];
+    row['enabled'] = r % 2 === 0;
+    data.push(row);
+  }
+  return data;
+}
+
+function generateVDemoColumns(colCount: number): ColumnDef<VDemoRow>[] {
+  const cols: ColumnDef<VDemoRow>[] = [
+    { accessorKey: 'id', header: 'ID', width: '80px', sticky: true },
+    { accessorKey: 'name', header: 'Name', width: '150px', sticky: true },
+  ];
+
+  for (let c = 0; c < colCount; c++) {
+    if (c < 25) {
+      cols.push({
+        accessorKey: `col${c}`,
+        header: `Status ${c}`,
+        width: '120px',
+        component: VDemoStatusCellComponent,
+        componentInputs: (row: VDemoRow) => ({ status: row['status'] }),
+      });
+    } else if (c < 50) {
+      cols.push({
+        accessorKey: `col${c}`,
+        header: `Toggle ${c}`,
+        width: '100px',
+        component: VDemoToggleCellComponent,
+        componentInputs: (row: VDemoRow) => ({ enabled: row['enabled'] }),
+      });
+    } else if (c < 55) {
+      cols.push({
+        accessorKey: `col${c}`,
+        header: `Img ${c}`,
+        width: '80px',
+        cell: () => '🖼️',
+      });
+    } else {
+      cols.push({
+        accessorKey: `col${c}`,
+        header: `Col ${c}`,
+        width: `${80 + (c % 5) * 20}px`,
+        cell: (row: VDemoRow) => String(row[`col${c}`] ?? ''),
+      });
+    }
+  }
+
+  return cols;
+}
+
+const VDEMO_DATA = generateVDemoData(10000, 100);
+const VDEMO_COLUMNS = generateVDemoColumns(100);
+
 @Component({
   selector: 'app-root',
   imports: [
@@ -1228,6 +1336,11 @@ export class AppComponent {
     'Fig',
     'Grape',
   ]);
+
+  // Virtual Scroll Demo
+  virtualDemoData = VDEMO_DATA;
+  virtualDemoColumns = VDEMO_COLUMNS as ColumnDef<VDemoRow>[];
+  virtualRecycleEnabled = signal(false);
 
   // Data Table Demo Data
   payments = signal<Payment[]>([]);
