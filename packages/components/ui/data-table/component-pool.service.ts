@@ -7,13 +7,16 @@ export class ComponentPoolService implements OnDestroy {
 
     acquire<T>(componentType: Type<T>): ComponentRef<T> | null {
         const instances = this.pool.get(componentType);
-        if (instances && instances.length > 0) {
-            return instances.pop() as ComponentRef<T>;
+        if (!instances) return null;
+        while (instances.length > 0) {
+            const ref = instances.pop() as ComponentRef<T>;
+            if (!ref.hostView.destroyed) return ref;
         }
         return null;
     }
 
     release(componentType: Type<unknown>, ref: ComponentRef<unknown>): void {
+        if (ref.hostView.destroyed) return;
         let instances = this.pool.get(componentType);
         if (!instances) {
             instances = [];
@@ -29,7 +32,9 @@ export class ComponentPoolService implements OnDestroy {
     clear(): void {
         this.pool.forEach(instances => {
             for (const ref of instances) {
-                ref.destroy();
+                if (!ref.hostView.destroyed) {
+                    ref.destroy();
+                }
             }
         });
         this.pool.clear();

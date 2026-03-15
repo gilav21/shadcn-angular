@@ -18,11 +18,11 @@ import { ComponentPoolService } from './data-table/component-pool.service';
     standalone: true
 })
 export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy {
-    component = input.required<any>({ alias: 'uiComponentOutlet' });
-    inputs = input<Record<string, any>>({});
-    outputs = input<Record<string, (event: any) => void>>({});
-    recycle = input(false);
-    initialized = output<ComponentRef<any>>();
+    readonly component = input.required<any>({ alias: 'uiComponentOutlet' });
+    readonly inputs = input<Record<string, any>>({});
+    readonly outputs = input<Record<string, (event: any) => void>>({});
+    readonly recycle = input(false);
+    readonly initialized = output<ComponentRef<any>>();
 
     private componentRef: ComponentRef<any> | null = null;
     private subscriptions: Subscription[] = [];
@@ -48,8 +48,9 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
     ngOnDestroy() {
         this.unsubscribeAll();
         if (this.recycle() && this.pool && this.componentRef) {
-            this.detachFromContainer(this.componentRef);
-            this.pool.release(this.component(), this.componentRef);
+            if (this.detachFromContainer(this.componentRef)) {
+                this.pool.release(this.component(), this.componentRef);
+            }
             this.componentRef = null;
         }
     }
@@ -57,8 +58,9 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
     private renderComponent() {
         if (this.componentRef) {
             if (this.recycle() && this.pool) {
-                this.detachFromContainer(this.componentRef);
-                this.pool.release(this.component(), this.componentRef);
+                if (this.detachFromContainer(this.componentRef)) {
+                    this.pool.release(this.component(), this.componentRef);
+                }
             }
             this.componentRef = null;
         }
@@ -74,6 +76,8 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
                 this.componentRef = recycled;
                 this.updateInputs();
                 this.subscribeToOutputs();
+                recycled.changeDetectorRef.reattach();
+                recycled.changeDetectorRef.detectChanges();
                 this.initialized.emit(this.componentRef);
                 return;
             }
@@ -124,11 +128,13 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         }
     }
 
-    private detachFromContainer(ref: ComponentRef<any>) {
+    private detachFromContainer(ref: ComponentRef<unknown>): boolean {
         const idx = this.viewContainerRef.indexOf(ref.hostView);
         if (idx >= 0) {
             this.viewContainerRef.detach(idx);
+            return true;
         }
+        return false;
     }
 
     private unsubscribeAll() {
