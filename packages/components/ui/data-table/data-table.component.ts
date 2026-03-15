@@ -930,6 +930,16 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   virtualRecycleComponents = input(false);
   virtualAutoThreshold = input<VirtualAutoThreshold>({ rows: 500, columns: 20 });
 
+  private readonly componentPool = inject(ComponentPoolService);
+
+  get recycleStats(): { recycled: number; created: number; poolSize: number } {
+    return {
+      recycled: this.componentPool.recycleCount,
+      created: this.componentPool.createCount,
+      poolSize: this.componentPool.poolSize,
+    };
+  }
+
   private readonly virtualScrollTop = signal(0);
   private readonly virtualScrollLeft = signal(0);
   private readonly viewportHeight = signal(0);

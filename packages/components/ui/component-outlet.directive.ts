@@ -84,6 +84,9 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         }
 
         this.componentRef = this.viewContainerRef.createComponent(componentType);
+        if (this.recycle() && this.pool) {
+            this.pool.trackCreation();
+        }
         this.updateInputs();
         this.subscribeToOutputs();
         this.initialized.emit(this.componentRef);

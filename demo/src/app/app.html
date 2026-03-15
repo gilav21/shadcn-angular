@@ -4081,6 +4081,7 @@
 
           <div class="rounded-md border h-[600px] relative">
             <ui-data-table
+              #virtualTable
               [data]="virtualDemoData"
               [columns]="virtualDemoColumns"
               [enableVirtualScroll]="true"
@@ -4098,6 +4099,13 @@
           <div class="text-xs text-muted-foreground">
             10,000 rows × 100+ columns. 50 columns use stateful cell components (status badges and toggles).
             Virtual scroll is auto-enabled. Only ~50 rows × ~15 columns are in the DOM at any time.
+            @if (virtualRecycleEnabled()) {
+              <span class="ml-2 font-mono text-primary">
+                Recycled: {{ virtualTable.recycleStats.recycled }} |
+                Created: {{ virtualTable.recycleStats.created }} |
+                Pool: {{ virtualTable.recycleStats.poolSize }}
+              </span>
+            }
           </div>
         </section>
 
