@@ -31,6 +31,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
     readonly initialized = output<ComponentRef<any>>();
 
     private componentRef: ComponentRef<any> | null = null;
+    private currentComponentType: any = null;
     private subscriptions: Subscription[] = [];
     private managedExternally = false;
     private readonly viewContainerRef = inject(ViewContainerRef);
@@ -62,8 +63,9 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         if (this.recycle() && this.pool && this.componentRef && this.managedExternally) {
             this.removeFromDom(this.componentRef);
             this.appRef.detachView(this.componentRef.hostView);
-            this.pool.release(this.component(), this.componentRef);
+            this.pool.release(this.currentComponentType, this.componentRef);
             this.componentRef = null;
+            this.currentComponentType = null;
             return;
         }
         if (this.componentRef && this.managedExternally) {
@@ -79,13 +81,14 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
             if (this.recycle() && this.pool && this.managedExternally) {
                 this.removeFromDom(this.componentRef);
                 this.appRef.detachView(this.componentRef.hostView);
-                this.pool.release(this.component(), this.componentRef);
+                this.pool.release(this.currentComponentType, this.componentRef);
             } else if (this.managedExternally) {
                 this.removeFromDom(this.componentRef);
                 this.appRef.detachView(this.componentRef.hostView);
                 this.componentRef.destroy();
             }
             this.componentRef = null;
+            this.currentComponentType = null;
             this.managedExternally = false;
         }
         this.viewContainerRef.clear();
@@ -99,6 +102,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
                 this.appRef.attachView(recycled.hostView);
                 this.appendToDom(recycled);
                 this.componentRef = recycled;
+                this.currentComponentType = componentType;
                 this.managedExternally = true;
                 this.updateInputs();
                 this.subscribeToOutputs();
@@ -114,6 +118,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
             this.appRef.attachView(ref.hostView);
             this.appendToDom(ref);
             this.componentRef = ref;
+            this.currentComponentType = componentType;
             this.managedExternally = true;
             this.pool.trackCreation();
             this.updateInputs();
@@ -124,6 +129,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         }
 
         this.componentRef = this.viewContainerRef.createComponent(componentType);
+        this.currentComponentType = componentType;
         this.managedExternally = false;
         this.updateInputs();
         this.subscribeToOutputs();
