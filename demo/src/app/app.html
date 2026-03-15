@@ -4094,6 +4094,16 @@
                 <ui-separator orientation="vertical" class="h-6" />
 
                 <div class="flex items-center gap-2">
+                  <ui-label>Variable Row Heights</ui-label>
+                  <ui-switch
+                    [checked]="virtualVariableRows()"
+                    (checkedChange)="virtualVariableRows.set($event)"
+                  />
+                </div>
+
+                <ui-separator orientation="vertical" class="h-6" />
+
+                <div class="flex items-center gap-2">
                   <ui-label>Recycle Components</ui-label>
                   <ui-switch
                     [checked]="virtualRecycleEnabled()"
@@ -4124,6 +4134,7 @@
               [columns]="virtualDemoColumns()"
               [enableVirtualScroll]="true"
               [virtualRowHeight]="40"
+              [virtualVariableRowHeight]="virtualVariableRows()"
               [virtualRowBuffer]="5"
               [virtualColumnBuffer]="3"
               [virtualRecycleComponents]="virtualRecycleEnabled()"
@@ -4139,7 +4150,10 @@
             @if (virtualCellMode() === 'light') {
               <p><strong>Light mode:</strong> Each cell has ~4 DOM nodes (dot + text or checkbox + text). Creation is near-instant — recycling has minimal impact on FPS.</p>
             } @else {
-              <p><strong>Heavy mode:</strong> Each cell has ~25 DOM nodes (SVG sparkline, gradient fill, trend icon, progress bar, formatted values). Recycling avoids expensive DOM allocation and signal wiring, resulting in smoother scrolling.</p>
+              <p><strong>Heavy mode:</strong> Each cell has ~60+ DOM nodes (2 SVG sparklines with gradients, 8-bar chart, trend icons, progress bar, computed stats). Recycling avoids expensive DOM allocation and signal wiring.</p>
+            }
+            @if (virtualVariableRows()) {
+              <p><strong>Variable rows:</strong> Each row has a random height between 40px and 1000px. The virtual scroller uses ResizeObserver to measure actual heights and recalculates positions dynamically.</p>
             }
           </div>
         </section>
