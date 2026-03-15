@@ -3,7 +3,7 @@ import { Injectable, ComponentRef, Type, OnDestroy } from '@angular/core';
 @Injectable()
 export class ComponentPoolService implements OnDestroy {
     private readonly pool = new Map<Type<unknown>, ComponentRef<unknown>[]>();
-    private readonly maxPoolSize = 50;
+    private readonly maxPoolSize = 200;
 
     private _recycleCount = 0;
     private _createCount = 0;

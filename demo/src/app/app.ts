@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, input, viewChild, DestroyRef, output } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, input, viewChild, DestroyRef, output, OnDestroy } from '@angular/core';
 import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
 import { FormsModule , FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { delay, of } from 'rxjs';
@@ -570,11 +570,179 @@ class VDemoToggleCellComponent {
   }
 }
 
+type MetricFormat = 'currency' | 'percent' | 'number';
+
+@Component({
+  selector: 'app-vdemo-rich-metric-cell',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="flex flex-col gap-0.5 p-1 min-w-[100px]">
+      <div class="flex items-center justify-between">
+        <span class="text-xs font-medium truncate">{{ label() }}</span>
+        <span class="text-[10px] font-semibold" [class]="deltaClass()">
+          {{ deltaPrefix() }}{{ delta() }}%
+        </span>
+      </div>
+      <div class="flex items-center gap-1">
+        <span class="text-sm font-bold">{{ formattedValue() }}</span>
+        <svg class="w-3 h-3" viewBox="0 0 12 12" fill="none">
+          @if (delta() >= 0) {
+            <path d="M6 2L10 8H2L6 2Z" [attr.fill]="trendColor()" />
+          } @else {
+            <path d="M6 10L2 4H10L6 10Z" [attr.fill]="trendColor()" />
+          }
+        </svg>
+      </div>
+      <svg class="w-full h-3" [attr.viewBox]="sparklineViewBox" preserveAspectRatio="none">
+        <defs>
+          <linearGradient [attr.id]="gradientId()" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" [attr.stop-color]="trendColor()" stop-opacity="0.3" />
+            <stop offset="100%" [attr.stop-color]="trendColor()" stop-opacity="0" />
+          </linearGradient>
+        </defs>
+        <polygon [attr.points]="areaPoints()" [attr.fill]="'url(#' + gradientId() + ')'" />
+        <polyline [attr.points]="linePoints()" fill="none" [attr.stroke]="trendColor()" stroke-width="1.5" />
+      </svg>
+      <div class="w-full bg-muted rounded-full h-1">
+        <div class="h-1 rounded-full" [class]="progressBarClass()" [style.width.%]="progressPercent()"></div>
+      </div>
+      <div class="flex justify-between text-[9px] text-muted-foreground">
+        <span>{{ formattedValue() }}</span>
+        <span>/ {{ formattedTarget() }}</span>
+      </div>
+    </div>
+  `,
+})
+class VDemoRichMetricCellComponent {
+  readonly value = input(0);
+  readonly delta = input(0);
+  readonly target = input(100);
+  readonly sparklineData = input<number[]>([]);
+  readonly label = input('Metric');
+  readonly format = input<MetricFormat>('number');
+
+  private static nextId = 0;
+  private readonly instanceId = VDemoRichMetricCellComponent.nextId++;
+
+  readonly gradientId = computed(() => `sparkGrad${this.instanceId}`);
+  readonly sparklineViewBox = '0 0 60 12';
+
+  readonly formattedValue = computed(() => this.formatNumber(this.value()));
+  readonly formattedTarget = computed(() => this.formatNumber(this.target()));
+
+  readonly deltaPrefix = computed(() => (this.delta() >= 0 ? '+' : ''));
+
+  readonly trendColor = computed(() => (this.delta() >= 0 ? '#22c55e' : '#ef4444'));
+
+  readonly deltaClass = computed(() =>
+    this.delta() >= 0 ? 'text-green-600' : 'text-red-600'
+  );
+
+  readonly progressPercent = computed(() => {
+    const t = this.target();
+    if (t <= 0) return 0;
+    return Math.min(100, Math.round((this.value() / t) * 100));
+  });
+
+  readonly progressBarClass = computed(() =>
+    this.delta() >= 0 ? 'bg-green-500' : 'bg-red-500'
+  );
+
+  readonly linePoints = computed(() => {
+    const data = this.sparklineData();
+    if (data.length === 0) return '';
+    const max = Math.max(...data);
+    const min = Math.min(...data);
+    const range = max - min || 1;
+    const step = 60 / (data.length - 1 || 1);
+    return data
+      .map((v, i) => `${i * step},${12 - ((v - min) / range) * 10}`)
+      .join(' ');
+  });
+
+  readonly areaPoints = computed(() => {
+    const data = this.sparklineData();
+    if (data.length === 0) return '';
+    const max = Math.max(...data);
+    const min = Math.min(...data);
+    const range = max - min || 1;
+    const step = 60 / (data.length - 1 || 1);
+    const line = data
+      .map((v, i) => `${i * step},${12 - ((v - min) / range) * 10}`)
+      .join(' ');
+    return `0,12 ${line} 60,12`;
+  });
+
+  private formatNumber(n: number): string {
+    const fmt = this.format();
+    if (fmt === 'currency') return `$${n.toLocaleString()}`;
+    if (fmt === 'percent') return `${n}%`;
+    return n.toLocaleString();
+  }
+}
+
+@Component({
+  selector: 'app-fps-meter',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  template: `
+    <div class="flex items-center gap-3 font-mono text-xs">
+      <span class="flex items-center gap-1">
+        <span class="font-medium">FPS:</span>
+        <span [class]="fpsClass()">{{ fps() }}</span>
+      </span>
+      <span class="text-muted-foreground">|</span>
+      <span class="flex items-center gap-1">
+        <span class="font-medium">Frame:</span>
+        <span>{{ frameTime() }}ms</span>
+      </span>
+    </div>
+  `,
+})
+class FpsMeterComponent implements OnDestroy {
+  readonly fps = signal(60);
+  readonly frameTime = signal(0);
+
+  private rafId = 0;
+  private frames = 0;
+  private lastTime = performance.now();
+  private lastFrameTime = performance.now();
+
+  readonly fpsClass = computed(() => {
+    const f = this.fps();
+    if (f >= 50) return 'text-green-500 font-bold';
+    if (f >= 30) return 'text-yellow-500 font-bold';
+    return 'text-red-500 font-bold';
+  });
+
+  constructor() {
+    this.rafId = requestAnimationFrame((t) => this.tick(t));
+  }
+
+  private tick(now: number): void {
+    this.frameTime.set(Math.round(now - this.lastFrameTime));
+    this.lastFrameTime = now;
+    this.frames++;
+    if (now - this.lastTime >= 1000) {
+      this.fps.set(this.frames);
+      this.frames = 0;
+      this.lastTime = now;
+    }
+    this.rafId = requestAnimationFrame((t) => this.tick(t));
+  }
+
+  ngOnDestroy(): void {
+    cancelAnimationFrame(this.rafId);
+  }
+}
+
 interface VDemoRow {
   id: number;
   name: string;
   [key: string]: unknown;
 }
+
+const METRIC_LABELS = ['Revenue', 'Users', 'Latency', 'Errors', 'Throughput', 'Conversion', 'Retention', 'Churn'];
+const METRIC_FORMATS: MetricFormat[] = ['currency', 'percent', 'number'];
 
 function generateVDemoData(rowCount: number, colCount: number): VDemoRow[] {
   const statuses = ['active', 'inactive', 'pending'];
@@ -586,37 +754,60 @@ function generateVDemoData(rowCount: number, colCount: number): VDemoRow[] {
     }
     row['status'] = statuses[r % 3];
     row['enabled'] = r % 2 === 0;
+    row['metricValue'] = Math.round(Math.random() * 10000);
+    row['metricDelta'] = Math.round((Math.random() * 40 - 20) * 10) / 10;
+    row['metricTarget'] = Math.round(Math.random() * 12000);
+    row['sparklineData'] = Array.from({ length: 7 }, () => Math.round(Math.random() * 100));
+    row['metricLabel'] = METRIC_LABELS[(r + Math.floor(r / 8)) % METRIC_LABELS.length];
+    row['metricFormat'] = METRIC_FORMATS[r % 3];
     data.push(row);
   }
   return data;
 }
 
-function generateVDemoColumns(colCount: number): ColumnDef<VDemoRow>[] {
+function generateVDemoColumns(colCount: number, heavyMode: boolean): ColumnDef<VDemoRow>[] {
   const cols: ColumnDef<VDemoRow>[] = [
     { accessorKey: 'id', header: 'ID', width: '80px', sticky: true },
     { accessorKey: 'name', header: 'Name', width: '150px', sticky: true },
   ];
 
   for (let c = 0; c < colCount; c++) {
-    if (c < 25) {
-      cols.push({
-        accessorKey: `col${c}`,
-        header: `Status ${c}`,
-        width: '120px',
-        component: VDemoStatusCellComponent,
-        componentInputs: (row: VDemoRow) => ({ status: row['status'] }),
-      });
-    } else if (c < 50) {
-      cols.push({
-        accessorKey: `col${c}`,
-        header: `Toggle ${c}`,
-        width: '100px',
-        component: VDemoToggleCellComponent,
-        componentInputs: (row: VDemoRow) => ({ enabled: row['enabled'] }),
-        componentOutputs: (row: VDemoRow) => ({
-          toggled: (val: boolean) => { row['enabled'] = val; },
-        }),
-      });
+    if (c < 50) {
+      if (heavyMode) {
+        cols.push({
+          accessorKey: `col${c}`,
+          header: `Metric ${c}`,
+          width: '140px',
+          component: VDemoRichMetricCellComponent,
+          componentInputs: (row: VDemoRow) => ({
+            value: row['metricValue'] as number,
+            delta: row['metricDelta'] as number,
+            target: row['metricTarget'] as number,
+            sparklineData: row['sparklineData'] as number[],
+            label: row['metricLabel'] as string,
+            format: row['metricFormat'] as MetricFormat,
+          }),
+        });
+      } else if (c < 25) {
+        cols.push({
+          accessorKey: `col${c}`,
+          header: `Status ${c}`,
+          width: '120px',
+          component: VDemoStatusCellComponent,
+          componentInputs: (row: VDemoRow) => ({ status: row['status'] }),
+        });
+      } else {
+        cols.push({
+          accessorKey: `col${c}`,
+          header: `Toggle ${c}`,
+          width: '100px',
+          component: VDemoToggleCellComponent,
+          componentInputs: (row: VDemoRow) => ({ enabled: row['enabled'] }),
+          componentOutputs: (row: VDemoRow) => ({
+            toggled: (val: boolean) => { row['enabled'] = val; },
+          }),
+        });
+      }
     } else if (c < 55) {
       cols.push({
         accessorKey: `col${c}`,
@@ -638,7 +829,6 @@ function generateVDemoColumns(colCount: number): ColumnDef<VDemoRow>[] {
 }
 
 const VDEMO_DATA = generateVDemoData(10000, 100);
-const VDEMO_COLUMNS = generateVDemoColumns(100);
 
 @Component({
   selector: 'app-root',
@@ -898,6 +1088,7 @@ const VDEMO_COLUMNS = generateVDemoColumns(100);
     ColumnRangeChartComponent,
     BarRaceChartComponent,
     DataTableComponent,
+    FpsMeterComponent,
     ChatMessageComponent,
     ChatListComponent,
     ChatInputComponent,
@@ -1339,9 +1530,12 @@ export class AppComponent {
   ]);
 
   // Virtual Scroll Demo
-  virtualDemoData = VDEMO_DATA;
-  virtualDemoColumns = VDEMO_COLUMNS as ColumnDef<VDemoRow>[];
-  virtualRecycleEnabled = signal(false);
+  readonly virtualDemoData = VDEMO_DATA;
+  readonly virtualCellMode = signal<'light' | 'heavy'>('light');
+  readonly virtualDemoColumns = computed(() =>
+    generateVDemoColumns(100, this.virtualCellMode() === 'heavy') as ColumnDef<VDemoRow>[]
+  );
+  readonly virtualRecycleEnabled = signal(false);
 
   // Data Table Demo Data
   payments = signal<Payment[]>([]);
