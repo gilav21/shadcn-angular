@@ -564,11 +564,9 @@ class VDemoStatusCellComponent {
 class VDemoToggleCellComponent {
   readonly enabled = input(false);
   readonly toggled = output<boolean>();
-  private readonly state = signal(false);
 
   onToggle() {
-    this.state.update(v => !v);
-    this.toggled.emit(this.state());
+    this.toggled.emit(!this.enabled());
   }
 }
 
@@ -615,6 +613,9 @@ function generateVDemoColumns(colCount: number): ColumnDef<VDemoRow>[] {
         width: '100px',
         component: VDemoToggleCellComponent,
         componentInputs: (row: VDemoRow) => ({ enabled: row['enabled'] }),
+        componentOutputs: (row: VDemoRow) => ({
+          toggled: (val: boolean) => { row['enabled'] = val; },
+        }),
       });
     } else if (c < 55) {
       cols.push({
