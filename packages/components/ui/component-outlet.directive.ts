@@ -8,7 +8,13 @@ import {
     OnChanges,
     OnDestroy,
     SimpleChanges,
-    ComponentRef
+    ComponentRef,
+    Renderer2,
+    ElementRef,
+    ApplicationRef,
+    createComponent,
+    EnvironmentInjector,
+    Injector
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { ComponentPoolService } from './data-table/component-pool.service';
@@ -26,8 +32,14 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
 
     private componentRef: ComponentRef<any> | null = null;
     private subscriptions: Subscription[] = [];
+    private managedExternally = false;
     private readonly viewContainerRef = inject(ViewContainerRef);
     private readonly pool = inject(ComponentPoolService, { optional: true });
+    private readonly renderer = inject(Renderer2);
+    private readonly elementRef = inject(ElementRef);
+    private readonly appRef = inject(ApplicationRef);
+    private readonly envInjector = inject(EnvironmentInjector);
+    private readonly injector = inject(Injector);
 
     ngOnInit() {
         this.renderComponent();
@@ -47,22 +59,34 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
 
     ngOnDestroy() {
         this.unsubscribeAll();
-        if (this.recycle() && this.pool && this.componentRef) {
-            if (this.detachFromContainer(this.componentRef)) {
-                this.pool.release(this.component(), this.componentRef);
-            }
+        if (this.recycle() && this.pool && this.componentRef && this.managedExternally) {
+            this.removeFromDom(this.componentRef);
+            this.appRef.detachView(this.componentRef.hostView);
+            this.pool.release(this.component(), this.componentRef);
+            this.componentRef = null;
+            return;
+        }
+        if (this.componentRef && this.managedExternally) {
+            this.removeFromDom(this.componentRef);
+            this.appRef.detachView(this.componentRef.hostView);
+            this.componentRef.destroy();
             this.componentRef = null;
         }
     }
 
     private renderComponent() {
         if (this.componentRef) {
-            if (this.recycle() && this.pool) {
-                if (this.detachFromContainer(this.componentRef)) {
-                    this.pool.release(this.component(), this.componentRef);
-                }
+            if (this.recycle() && this.pool && this.managedExternally) {
+                this.removeFromDom(this.componentRef);
+                this.appRef.detachView(this.componentRef.hostView);
+                this.pool.release(this.component(), this.componentRef);
+            } else if (this.managedExternally) {
+                this.removeFromDom(this.componentRef);
+                this.appRef.detachView(this.componentRef.hostView);
+                this.componentRef.destroy();
             }
             this.componentRef = null;
+            this.managedExternally = false;
         }
         this.viewContainerRef.clear();
 
@@ -72,24 +96,51 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         if (this.recycle() && this.pool) {
             const recycled = this.pool.acquire(componentType);
             if (recycled) {
-                this.viewContainerRef.insert(recycled.hostView);
+                this.appRef.attachView(recycled.hostView);
+                this.appendToDom(recycled);
                 this.componentRef = recycled;
+                this.managedExternally = true;
                 this.updateInputs();
                 this.subscribeToOutputs();
-                recycled.changeDetectorRef.reattach();
                 recycled.changeDetectorRef.detectChanges();
                 this.initialized.emit(this.componentRef);
                 return;
             }
+
+            const ref = createComponent(componentType, {
+                environmentInjector: this.envInjector,
+                elementInjector: this.injector,
+            });
+            this.appRef.attachView(ref.hostView);
+            this.appendToDom(ref);
+            this.componentRef = ref;
+            this.managedExternally = true;
+            this.pool.trackCreation();
+            this.updateInputs();
+            this.subscribeToOutputs();
+            ref.changeDetectorRef.detectChanges();
+            this.initialized.emit(this.componentRef);
+            return;
         }
 
         this.componentRef = this.viewContainerRef.createComponent(componentType);
-        if (this.recycle() && this.pool) {
-            this.pool.trackCreation();
-        }
+        this.managedExternally = false;
         this.updateInputs();
         this.subscribeToOutputs();
         this.initialized.emit(this.componentRef);
+    }
+
+    private appendToDom(ref: ComponentRef<unknown>): void {
+        const hostEl = this.elementRef.nativeElement;
+        const compEl = ref.location.nativeElement;
+        this.renderer.appendChild(hostEl, compEl);
+    }
+
+    private removeFromDom(ref: ComponentRef<unknown>): void {
+        const compEl = ref.location.nativeElement;
+        if (compEl.parentNode) {
+            this.renderer.removeChild(compEl.parentNode, compEl);
+        }
     }
 
     private updateInputs() {
@@ -129,15 +180,6 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
                 console.error(`Failed to subscribe to output '${outputName}':`, err);
             }
         }
-    }
-
-    private detachFromContainer(ref: ComponentRef<unknown>): boolean {
-        const idx = this.viewContainerRef.indexOf(ref.hostView);
-        if (idx >= 0) {
-            this.viewContainerRef.detach(idx);
-            return true;
-        }
-        return false;
     }
 
     private unsubscribeAll() {
