@@ -48,6 +48,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
     ngOnDestroy() {
         this.unsubscribeAll();
         if (this.recycle() && this.pool && this.componentRef) {
+            this.detachFromContainer(this.componentRef);
             this.pool.release(this.component(), this.componentRef);
             this.componentRef = null;
         }
@@ -56,6 +57,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
     private renderComponent() {
         if (this.componentRef) {
             if (this.recycle() && this.pool) {
+                this.detachFromContainer(this.componentRef);
                 this.pool.release(this.component(), this.componentRef);
             }
             this.componentRef = null;
@@ -119,6 +121,13 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
             } catch (err) {
                 console.error(`Failed to subscribe to output '${outputName}':`, err);
             }
+        }
+    }
+
+    private detachFromContainer(ref: ComponentRef<any>) {
+        const idx = this.viewContainerRef.indexOf(ref.hostView);
+        if (idx >= 0) {
+            this.viewContainerRef.detach(idx);
         }
     }
 

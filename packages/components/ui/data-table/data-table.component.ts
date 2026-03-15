@@ -957,9 +957,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private readonly virtualTotalRows = computed(() => {
     if (this.enableSubRows()) {
-      return this.processedTreeRows().length;
+      return this.visibleTreeRows().length;
     }
-    return this.processedData().length;
+    return this.sortedData().length;
   });
 
   readonly pinnedLeftColumns = computed(() => {
@@ -1024,12 +1024,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   readonly virtualVisibleRows = computed((): T[] => {
     const { start, end } = this.virtualRowRange();
-    return this.processedData().slice(start, end);
+    return this.sortedData().slice(start, end);
   });
 
   readonly virtualVisibleTreeRows = computed((): FlattenedTreeRow<T>[] => {
     const { start, end } = this.virtualRowRange();
-    return this.processedTreeRows().slice(start, end);
+    return this.visibleTreeRows().slice(start, end);
   });
 
   readonly virtualVisibleMiddleColumns = computed(() => {
