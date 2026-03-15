@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed, input, viewChild, DestroyRef } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, input, viewChild, DestroyRef, output } from '@angular/core';
 import { JsonPipe, TitleCasePipe, CommonModule } from '@angular/common';
 import { FormsModule , FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { delay, of } from 'rxjs';

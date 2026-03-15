@@ -965,7 +965,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return totalRows > threshold.rows || nonPinnedColCount > threshold.columns;
   });
 
-  private readonly virtualTotalRows = computed(() => {
+  readonly virtualTotalRows = computed(() => {
     if (this.enableSubRows()) {
       return this.visibleTreeRows().length;
     }
