@@ -324,7 +324,7 @@ import { ComponentPoolService } from './component-pool.service';
             @if (isVirtualScrollActive()) {
               <div [style.height.px]="virtualPaddingTop()" class="flex-shrink-0"></div>
               @if (enableSubRows()) {
-                @for (treeRow of virtualVisibleTreeRows(); track $index; let i = $index) {
+                @for (treeRow of virtualVisibleTreeRows(); track getRowId()(treeRow.row); let i = $index) {
                   <ui-table-row
                     #virtualRow
                     [attr.data-state]="isRowSelected(treeRow.row) ? 'selected' : null"
@@ -461,7 +461,7 @@ import { ComponentPoolService } from './component-pool.service';
                   </ui-table-row>
                 }
               } @else {
-                @for (row of virtualVisibleRows(); track $index; let i = $index) {
+                @for (row of virtualVisibleRows(); track getRowId()(row); let i = $index) {
                   <ui-table-row
                     #virtualRow
                     [attr.data-state]="isRowSelected(row) ? 'selected' : null"
@@ -1500,29 +1500,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     });
   }
 
-  private findAnchorRow(scrollTop: number): { row: number; top: number } {
-    const totalRows = this.virtualTotalRows();
-    const defaultH = this.virtualRowHeight();
-    let cumulative = 0;
-    for (let i = 0; i < totalRows; i++) {
-      const h = this.rowHeightCache.get(i) ?? defaultH;
-      if (cumulative + h > scrollTop) {
-        return { row: i, top: cumulative };
-      }
-      cumulative += h;
-    }
-    return { row: totalRows, top: cumulative };
-  }
-
   private handleRowResizes(entries: ResizeObserverEntry[]) {
-    const container = this.scrollContainerRef()?.nativeElement;
-    if (!container) return;
+    let scrollAdjustment = 0;
+    const firstVisible = this.virtualRowRange().start;
 
-    const currentScrollTop = container.scrollTop;
-    const anchor = this.findAnchorRow(currentScrollTop);
-    const anchorOffset = currentScrollTop - anchor.top;
-
-    let hasChanges = false;
     for (const entry of entries) {
       const el = entry.target as HTMLElement;
       const indexStr = el.dataset['virtualRowIndex'];
@@ -1531,29 +1512,30 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const index = Number.parseInt(indexStr, 10);
       const newHeight = entry.borderBoxSize[0].blockSize;
       const oldHeight = this.rowHeightCache.get(index) ?? this.virtualRowHeight();
-      if (Math.abs(newHeight - oldHeight) < 0.5) continue;
+      const diff = newHeight - oldHeight;
+
+      if (Math.abs(diff) < 0.5) continue;
 
       this.rowHeightCache.set(index, newHeight);
-      hasChanges = true;
+
+      if (index <= firstVisible) {
+        scrollAdjustment += diff;
+      }
     }
 
-    if (!hasChanges) return;
-
-    const defaultH = this.virtualRowHeight();
-    let newAnchorTop = 0;
-    for (let i = 0; i < anchor.row; i++) {
-      newAnchorTop += this.rowHeightCache.get(i) ?? defaultH;
+    if (scrollAdjustment !== 0) {
+      const container = this.scrollContainerRef()?.nativeElement;
+      if (container) {
+        this.suppressScrollEvents = true;
+        container.scrollTop += scrollAdjustment;
+        this.virtualScrollTop.set(container.scrollTop);
+        requestAnimationFrame(() => {
+          this.suppressScrollEvents = false;
+        });
+      }
     }
-    const newScrollTop = newAnchorTop + anchorOffset;
 
-    this.suppressScrollEvents = true;
-    container.scrollTop = newScrollTop;
-    this.virtualScrollTop.set(newScrollTop);
     this.measurementVersion.update(v => v + 1);
-
-    requestAnimationFrame(() => {
-      this.suppressScrollEvents = false;
-    });
   }
 
   getVirtualRowIndex(localIndex: number): number {
