@@ -1518,7 +1518,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
       this.rowHeightCache.set(index, newHeight);
 
-      if (index <= firstVisible) {
+      if (index < firstVisible) {
         scrollAdjustment += diff;
       }
     }
