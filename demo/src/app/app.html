@@ -4087,7 +4087,7 @@
                     (valueChange)="$event && virtualCellMode.set($event === 'heavy' ? 'heavy' : 'light')"
                   >
                     <ui-toggle-group-item value="light">Light (~4 nodes)</ui-toggle-group-item>
-                    <ui-toggle-group-item value="heavy">Heavy (~25 nodes)</ui-toggle-group-item>
+                    <ui-toggle-group-item value="heavy">Heavy (~60+ nodes)</ui-toggle-group-item>
                   </ui-toggle-group>
                 </div>
 
@@ -4148,9 +4148,9 @@
           <div class="mt-2 text-xs text-muted-foreground space-y-1">
             <p>10,000 rows × 100+ columns. 50 columns use stateful cell components. Only ~50 rows × ~15 columns are in the DOM at any time.</p>
             @if (virtualCellMode() === 'light') {
-              <p><strong>Light mode:</strong> Each cell has ~4 DOM nodes (dot + text or checkbox + text). Creation is near-instant — recycling has minimal impact on FPS.</p>
+              <p><strong>Light mode:</strong> Each cell has ~4 DOM nodes (dot + text or checkbox + text). Virtual scroll uses track-by-index for true DOM reuse — components survive scrolling and just update inputs.</p>
             } @else {
-              <p><strong>Heavy mode:</strong> Each cell has ~60+ DOM nodes (2 SVG sparklines with gradients, 8-bar chart, trend icons, progress bar, computed stats). Recycling avoids expensive DOM allocation and signal wiring.</p>
+              <p><strong>Heavy mode:</strong> Each cell has ~60+ DOM nodes (2 SVG sparklines with gradients, 8-bar chart, trend icons, progress bar, computed stats). Track-by-index keeps components alive during scroll — only inputs are updated, no destroy/create cycle.</p>
             }
             @if (virtualVariableRows()) {
               <p><strong>Variable rows:</strong> Each row has a random height between 40px and 1000px. The virtual scroller uses ResizeObserver to measure actual heights and recalculates positions dynamically.</p>
