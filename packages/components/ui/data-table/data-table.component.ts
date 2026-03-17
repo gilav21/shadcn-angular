@@ -59,8 +59,12 @@ import {
   computeRowRange,
   computeColumnRange,
   computeVariableRowRange,
+  buildPrefixSums,
 } from './data-table.utils';
 import { ComponentPoolService } from './component-pool.service';
+
+const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
+
 @Component({
   selector: 'ui-data-table',
   imports: [
@@ -171,7 +175,7 @@ import { ComponentPoolService } from './component-pool.service';
                   [class.relative]="isDropTargetColumn(col)"
                   [attr.data-column-id]="String(col.accessorKey)"
                   [attr.draggable]="isColumnDraggable(col) ? 'true' : null"
-                  [style]="getCellStyle(col, true)"
+                  [style]="getHeaderCellStyle(col)"
                   (dragstart)="onColumnDragStart($event, col)"
                   (dragover)="onColumnDragOver($event, col)"
                   (drop)="onColumnDrop($event, col)"
@@ -362,7 +366,7 @@ import { ComponentPoolService } from './component-pool.service';
                             }
                             <span class="truncate">
                               @if (col.component) {
-                                <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                                <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
                               } @else if (col.template) {
                                 <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
                               } @else if (col.cell) {
@@ -373,7 +377,7 @@ import { ComponentPoolService } from './component-pool.service';
                             </span>
                           </div>
                         } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
                         } @else if (col.template) {
                           <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
                         } @else if (col.cell) {
@@ -402,7 +406,7 @@ import { ComponentPoolService } from './component-pool.service';
                             }
                             <span class="truncate">
                               @if (col.component) {
-                                <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                                <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
                               } @else if (col.template) {
                                 <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
                               } @else if (col.cell) {
@@ -425,7 +429,7 @@ import { ComponentPoolService } from './component-pool.service';
                             <ui-icon name="more-vertical" size="sm" />
                           </ui-button>
                         } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
                         } @else if (col.template) {
                           <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
                         } @else if (col.cell) {
@@ -448,7 +452,7 @@ import { ComponentPoolService } from './component-pool.service';
                             <ui-icon name="more-vertical" size="sm" />
                           </ui-button>
                         } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
                         } @else if (col.template) {
                           <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row }"></ng-container>
                         } @else if (col.cell) {
@@ -493,7 +497,7 @@ import { ComponentPoolService } from './component-pool.service';
                             }
                           </button>
                         } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : {}" [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : EMPTY_RECORD" [outputs]="col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
                         } @else if (col.template) {
                           <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
                         } @else if (col.cell) {
@@ -530,7 +534,7 @@ import { ComponentPoolService } from './component-pool.service';
                             <ui-icon name="more-vertical" size="sm" />
                           </ui-button>
                         } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : {}" [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : EMPTY_RECORD" [outputs]="col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
                         } @else if (col.template) {
                           <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
                         } @else if (col.cell) {
@@ -553,7 +557,7 @@ import { ComponentPoolService } from './component-pool.service';
                             <ui-icon name="more-vertical" size="sm" />
                           </ui-button>
                         } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : {}" [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}" [recycle]="virtualRecycleComponents()"></div>
+                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : EMPTY_RECORD" [outputs]="col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
                         } @else if (col.template) {
                           <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
                         } @else if (col.cell) {
@@ -639,7 +643,7 @@ import { ComponentPoolService } from './component-pool.service';
                                 <div
                                   [uiComponentOutlet]="col.component"
                                   [inputs]="getSubRowComponentInputs(col, treeRow)"
-                                  [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}"
+                                  [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD"
                                 ></div>
                               } @else if (col.template) {
                                 <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
@@ -672,7 +676,7 @@ import { ComponentPoolService } from './component-pool.service';
                           <div
                             [uiComponentOutlet]="col.component"
                             [inputs]="getSubRowComponentInputs(col, treeRow)"
-                            [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : {}"
+                            [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD"
                           ></div>
                         } @else if (col.template) {
                           <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
@@ -765,8 +769,8 @@ import { ComponentPoolService } from './component-pool.service';
                       } @else if (col.component) {
                         <div
                           [uiComponentOutlet]="col.component"
-                          [inputs]="col.componentInputs ? col.componentInputs(row) : {}"
-                          [outputs]="col.componentOutputs ? col.componentOutputs(row) : {}"
+                          [inputs]="col.componentInputs ? col.componentInputs(row) : EMPTY_RECORD"
+                          [outputs]="col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD"
                         ></div>
                       } @else if (col.template) {
                         <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
@@ -851,6 +855,7 @@ import { ComponentPoolService } from './component-pool.service';
   `,
 })
 export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
+  protected readonly EMPTY_RECORD = EMPTY_RECORD;
   private readonly _document = inject(DOCUMENT);
   private readonly _el = inject(ElementRef);
   isRtl() {
@@ -998,6 +1003,17 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     });
   });
 
+  private readonly _prefixSums = computed(() => {
+    if (!this.virtualVariableRowHeight()) return undefined;
+    this.measurementVersion();
+    const totalRows = this.virtualTotalRows();
+    const defaultHeight = this.virtualRowHeight();
+    return buildPrefixSums(
+      (index: number) => this.rowHeightCache.get(index) ?? defaultHeight,
+      totalRows
+    );
+  });
+
   readonly virtualRowRange = computed(() => {
     if (!this.isVirtualScrollActive()) {
       const total = this.virtualTotalRows();
@@ -1007,12 +1023,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const buffer = this.virtualRowBuffer();
 
     if (this.virtualVariableRowHeight()) {
-      this.measurementVersion();
+      const defaultHeight = this.virtualRowHeight();
       const getHeight = (index: number): number =>
-        this.rowHeightCache.get(index) ?? this.virtualRowHeight();
+        this.rowHeightCache.get(index) ?? defaultHeight;
       return computeVariableRowRange(
         this.virtualScrollTop(), this.viewportHeight(),
-        getHeight, totalRows, buffer
+        getHeight, totalRows, buffer, this._prefixSums()
       );
     }
 
@@ -1554,18 +1570,24 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return [sort];
   });
 
+  private readonly _sortLookup = computed(() => {
+    const map = new Map<string, { readonly direction: SortDirection; readonly index: number }>();
+    const sorts = this.activeSorts();
+    for (let i = 0; i < sorts.length; i++) {
+      map.set(String(sorts[i].column), { direction: sorts[i].direction, index: i });
+    }
+    return map;
+  });
+
   getSortDirection(columnKey: string | keyof T): SortDirection {
-    const activeSort = this.activeSorts().find(sort => sort.column === String(columnKey));
-    return activeSort?.direction ?? null;
+    return this._sortLookup().get(String(columnKey))?.direction ?? null;
   }
 
   getSortIndex(columnKey: string | keyof T): number | null {
     if (!this.enableMultiSort()) {
       return null;
     }
-
-    const index = this.activeSorts().findIndex(sort => sort.column === String(columnKey));
-    return index === -1 ? null : index;
+    return this._sortLookup().get(String(columnKey))?.index ?? null;
   }
 
   onSortChange(columnKey: string | keyof T, direction: SortDirection, multi = false) {
@@ -1727,68 +1749,131 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.columns().filter(col => col.accessorKey !== '_selection' && col.enableHiding !== false)
   );
 
+  private readonly _baseCellClass = computed(() => ({
+    normal: cn('whitespace-nowrap overflow-hidden text-ellipsis', 'bg-background',
+      this.showRowBorders() && 'border-b', this.showColumnBorders() && 'border-r'),
+    tree: cn('whitespace-nowrap overflow-hidden text-ellipsis',
+      this.showRowBorders() && 'border-b', this.showColumnBorders() && 'border-r'),
+  }));
+
+  private readonly _headerClassMap = computed(() => {
+    const showColBorders = this.showColumnBorders();
+    const enableResize = this.enableColumnResize();
+    const map = new Map<string, string>();
+    for (const col of this.enhancedColumns()) {
+      map.set(String(col.accessorKey), cn(
+        'sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis',
+        col.sticky ? 'z-30' : 'z-20',
+        showColBorders && 'border-r',
+        enableResize && col._width !== 'auto' && 'relative'
+      ));
+    }
+    return map;
+  });
+
+  private readonly _fillerHeaderClass = computed(() => cn(
+    'sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis',
+    'z-20',
+    this.showColumnBorders() && 'border-r',
+  ));
+
   getHeaderClass(col: any) {
-    return cn(
-      'sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis',
-      col.sticky ? 'z-30' : 'z-20',
-      this.showColumnBorders() && 'border-r',
-      this.enableColumnResize() && col._width !== 'auto' && 'relative'
-    );
+    return this._headerClassMap().get(String(col.accessorKey)) ?? this._fillerHeaderClass();
   }
 
   getCellClass(col: any, rowIndex?: number, treeDepth?: number) {
+    const base = treeDepth === undefined ? this._baseCellClass().normal : this._baseCellClass().tree;
     const focused = this.focusedCell();
-    const isFocused = rowIndex !== undefined && focused !== null
-      && focused.rowIndex === rowIndex && focused.columnKey === String(col.accessorKey);
-    return cn(
-      'whitespace-nowrap overflow-hidden text-ellipsis',
-      treeDepth === undefined && 'bg-background',
-      this.showRowBorders() && 'border-b',
-      this.showColumnBorders() && 'border-r',
-      isFocused && 'ring-1 ring-ring/40 ring-inset'
-    );
+    if (rowIndex !== undefined && focused !== null
+      && focused.rowIndex === rowIndex && focused.columnKey === String(col.accessorKey)) {
+      return base + ' ring-1 ring-ring/40 ring-inset';
+    }
+    return base;
   }
 
-  getCellStyle(col: any, isHeader = false) {
+  private readonly _cellStyleMap = computed(() => {
+    const map = new Map<string, Record<string, string>>();
+    for (const col of this.enhancedColumns()) {
+      map.set(String(col.accessorKey), this._buildCellStyle(col, false));
+    }
+    return map;
+  });
+
+  private readonly _headerCellStyleMap = computed(() => {
+    const map = new Map<string, Record<string, string>>();
+    for (const col of this.enhancedColumns()) {
+      map.set(String(col.accessorKey), this._buildCellStyle(col, true));
+    }
+    return map;
+  });
+
+  private readonly _treeCellStyleCache = computed(() => {
+    const maxDepth = 10;
+    const map = new Map<string, Record<string, string>>();
+    for (const col of this.enhancedColumns()) {
+      const base = this._buildCellStyle(col, false);
+      for (let d = 0; d <= maxDepth; d++) {
+        const bg = d > 0
+          ? `color-mix(in srgb, var(--border) ${Math.min(d * 20, 80)}%, var(--background))`
+          : 'var(--background)';
+        map.set(`${String(col.accessorKey)}_${d}`, { ...base, 'background-color': bg });
+      }
+    }
+    return map;
+  });
+
+  private _buildCellStyle(col: any, isHeader: boolean): Record<string, string> {
     const width = col._width;
     const isAuto = width === 'auto';
 
-    const style: any = {
+    const style: Record<string, string> = {
       width: isAuto ? '0px' : width,
-      minWidth: isAuto ? '0px' : width,
-      maxWidth: isAuto ? 'none' : width,
-      flexShrink: isAuto ? '1' : '0',
-      flexGrow: isAuto ? '1' : '0',
-      flexBasis: isAuto ? '0px' : 'auto'
+      'min-width': isAuto ? '0px' : width,
+      'max-width': isAuto ? 'none' : width,
+      'flex-shrink': isAuto ? '1' : '0',
+      'flex-grow': isAuto ? '1' : '0',
+      'flex-basis': isAuto ? '0px' : 'auto'
     };
 
     if (col._pin === 'right') {
-      style.position = 'sticky';
-      style.right = `${col._stickyRight}px`;
-      style.zIndex = isHeader ? '30' : '10';
+      style['position'] = 'sticky';
+      style['right'] = `${col._stickyRight}px`;
+      style['z-index'] = isHeader ? '30' : '10';
     } else if (col.sticky || col._pin === 'left') {
-      style.position = 'sticky';
-      style.left = `${col._stickyLeft}px`;
-      style.zIndex = isHeader ? '30' : '10';
+      style['position'] = 'sticky';
+      style['left'] = `${col._stickyLeft}px`;
+      style['z-index'] = isHeader ? '30' : '10';
     }
 
     if (isHeader) {
-      style.position = 'sticky';
-      style.top = '0';
-      style.zIndex = col.sticky ? '30' : '20';
+      style['position'] = 'sticky';
+      style['top'] = '0';
+      style['z-index'] = col.sticky ? '30' : '20';
     }
 
     return style;
   }
 
+  getHeaderCellStyle(col: any) {
+    return this._headerCellStyleMap().get(String(col.accessorKey)) ?? this._buildCellStyle(col, true);
+  }
+
+  getCellStyle(col: any) {
+    return this._cellStyleMap().get(String(col.accessorKey)) ?? this._buildCellStyle(col, false);
+  }
+
   getTreeCellStyle(col: any, depth: number) {
-    const style = this.getCellStyle(col);
-    if (depth > 0) {
-      style['background-color'] = `color-mix(in srgb, var(--border) ${Math.min(depth * 20, 80)}%, var(--background))`;
-    } else {
-      style['background-color'] = 'var(--background)';
-    }
-    return style;
+    const clampedDepth = Math.min(depth, 10);
+    return this._treeCellStyleCache().get(`${String(col.accessorKey)}_${clampedDepth}`)
+      ?? this._buildTreeCellStyleFallback(col, depth);
+  }
+
+  private _buildTreeCellStyleFallback(col: any, depth: number): Record<string, string> {
+    const base = this._buildCellStyle(col, false);
+    const bg = depth > 0
+      ? `color-mix(in srgb, var(--border) ${Math.min(depth * 20, 80)}%, var(--background))`
+      : 'var(--background)';
+    return { ...base, 'background-color': bg };
   }
 
   isRowSelected(row: T): boolean {
@@ -2496,23 +2581,31 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.rowSelection.set(next);
   }
 
-  isSubRowSelectionIndeterminate(row: T): boolean {
-    if (this.subRowSelectionMode() === 'self') return false;
-    const id = this.getRowId()(row);
+  private readonly _indeterminateRows = computed(() => {
+    const result = new Set<string>();
+    if (this.subRowSelectionMode() === 'self') return result;
+    if (!this.enableSubRows()) return result;
     const index = this.treeIndex();
-    const descendantIds = index.descendants.get(id) ?? [];
-    if (descendantIds.length === 0) return false;
-
     const selected = this.rowSelection();
-    let selectedCount = 0;
-    for (const did of descendantIds) {
-      if (selected[did]) selectedCount++;
+    for (const [id, descendantIds] of index.descendants) {
+      if (descendantIds.length === 0) continue;
+      let count = 0;
+      for (const did of descendantIds) {
+        if (selected[did]) count++;
+      }
+      if (count > 0 && count < descendantIds.length) {
+        result.add(id);
+      }
     }
-    return selectedCount > 0 && selectedCount < descendantIds.length;
+    return result;
+  });
+
+  isSubRowSelectionIndeterminate(row: T): boolean {
+    return this._indeterminateRows().has(this.getRowId()(row));
   }
 
   getSubRowComponentInputs(col: ColumnDef<T>, treeRow: FlattenedTreeRow<T>): Record<string, any> {
-    const base = col.componentInputs ? col.componentInputs(treeRow.row) : {};
+    const base = col.componentInputs ? col.componentInputs(treeRow.row) : EMPTY_RECORD;
     const context: SubRowContext<T> = {
       row: treeRow.row,
       parentRow: treeRow.parentRow,

@@ -91,17 +91,86 @@ export function computeColumnRange(
     };
 }
 
+export function buildPrefixSums(
+    getRowHeight: (index: number) => number,
+    totalRows: number
+): Float64Array {
+    const sums = new Float64Array(totalRows + 1);
+    for (let i = 0; i < totalRows; i++) {
+        sums[i + 1] = sums[i] + getRowHeight(i);
+    }
+    return sums;
+}
+
+function binarySearchPrefix(prefixSums: Float64Array, target: number, totalRows: number): number {
+    let lo = 0;
+    let hi = totalRows;
+    while (lo < hi) {
+        const mid = (lo + hi) >>> 1;
+        if (prefixSums[mid + 1] <= target) {
+            lo = mid + 1;
+        } else {
+            hi = mid;
+        }
+    }
+    return Math.min(lo, totalRows);
+}
+
 export function computeVariableRowRange(
+    scrollTop: number,
+    viewportHeight: number,
+    getRowHeight: (index: number) => number,
+    totalRows: number,
+    buffer: number,
+    prefixSums?: Float64Array
+): VariableRowRange {
+    if (totalRows === 0) {
+        return { start: 0, end: 0, paddingTop: 0, paddingBottom: 0 };
+    }
+
+    if (prefixSums && prefixSums.length === totalRows + 1) {
+        return computeVariableRowRangeFromPrefixSums(scrollTop, viewportHeight, prefixSums, totalRows, buffer);
+    }
+
+    return computeVariableRowRangeLinear(scrollTop, viewportHeight, getRowHeight, totalRows, buffer);
+}
+
+function computeVariableRowRangeFromPrefixSums(
+    scrollTop: number,
+    viewportHeight: number,
+    prefixSums: Float64Array,
+    totalRows: number,
+    buffer: number
+): VariableRowRange {
+    const startRow = binarySearchPrefix(prefixSums, scrollTop, totalRows);
+
+    let endRow = startRow;
+    const scrollBottom = scrollTop + viewportHeight;
+    if (startRow < totalRows) {
+        endRow = binarySearchPrefix(prefixSums, scrollBottom, totalRows);
+        if (prefixSums[endRow] < scrollBottom && endRow < totalRows) {
+            endRow++;
+        }
+    }
+
+    const bufferedStart = Math.max(0, startRow - buffer);
+    const bufferedEnd = Math.min(totalRows, endRow + buffer);
+
+    return {
+        start: bufferedStart,
+        end: bufferedEnd,
+        paddingTop: prefixSums[bufferedStart],
+        paddingBottom: prefixSums[totalRows] - prefixSums[bufferedEnd],
+    };
+}
+
+function computeVariableRowRangeLinear(
     scrollTop: number,
     viewportHeight: number,
     getRowHeight: (index: number) => number,
     totalRows: number,
     buffer: number
 ): VariableRowRange {
-    if (totalRows === 0) {
-        return { start: 0, end: 0, paddingTop: 0, paddingBottom: 0 };
-    }
-
     let offset = 0;
     let startRow = 0;
     for (let i = 0; i < totalRows; i++) {
