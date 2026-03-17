@@ -116,3 +116,26 @@ export interface RowActionContext<T> {
     parentRow?: T | null;
     isExpanded?: boolean;
 }
+
+export interface VirtualRenderRange {
+    rowStart: number;
+    rowEnd: number;
+    colStart: number;
+    colEnd: number;
+}
+
+export interface VirtualAutoThreshold {
+    rows: number;
+    columns: number;
+}
+
+export interface VirtualScrollState2D {
+    rowStart: number;
+    rowEnd: number;
+    columnStart: number;
+    columnEnd: number;
+    totalRows: number;
+    totalColumns: number;
+    scrollTop: number;
+    scrollLeft: number;
+}
