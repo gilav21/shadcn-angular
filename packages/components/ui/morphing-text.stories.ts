@@ -14,9 +14,13 @@ const meta: Meta<MorphingTextComponent> = {
         interval: {
             control: 'number',
         },
+        texts: {
+            control: 'object',
+        },
     },
     args: {
         interval: 3000,
+        texts: ['Innovation', 'Technology', 'Future'],
     },
 };
 

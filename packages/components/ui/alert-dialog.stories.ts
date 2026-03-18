@@ -12,7 +12,7 @@ import {
 } from './alert-dialog.component';
 import { ButtonComponent } from './button.component';
 
-const meta: Meta<AlertDialogComponent> = {
+const meta: Meta<AlertDialogComponent & { title: string; description: string; actionText: string; cancelText: string }> = {
   title: 'UI/AlertDialog',
   component: AlertDialogComponent,
   tags: ['autodocs'],
@@ -32,6 +32,18 @@ const meta: Meta<AlertDialogComponent> = {
       ],
     }),
   ],
+  argTypes: {
+    title: { control: 'text' },
+    description: { control: 'text' },
+    actionText: { control: 'text' },
+    cancelText: { control: 'text' },
+  },
+  args: {
+    title: 'Are you absolutely sure?',
+    description: 'This action cannot be undone.',
+    actionText: 'Continue',
+    cancelText: 'Cancel',
+  },
 };
 
 export default meta;
@@ -62,17 +74,18 @@ export const Default: Story = {
 };
 
 export const SimpleMode: Story = {
-  render: () => ({
+  render: (args) => ({
+    props: args,
     template: `
       <ui-alert-dialog>
         <ui-alert-dialog-trigger>
           <ui-button variant="destructive">Delete Account (Simple)</ui-button>
         </ui-alert-dialog-trigger>
         <ui-alert-dialog-content
-          title="Are you absolutely sure?"
-          description="This action cannot be undone. This will permanently delete your account and remove your data from our servers."
-          actionText="Delete"
-          cancelText="Cancel"
+          [title]="title"
+          [description]="description"
+          [actionText]="actionText"
+          [cancelText]="cancelText"
         />
       </ui-alert-dialog>
     `,

@@ -16,9 +16,13 @@ const meta: Meta<SwitchComponent> = {
         disabled: {
             control: 'boolean',
         },
+        label: {
+            control: 'text',
+        },
     },
     args: {
         disabled: false,
+        label: '',
     },
 };
 
@@ -30,7 +34,7 @@ export const Default: Story = {
         props: args,
         template: `
       <div class="flex items-center gap-2">
-        <ui-switch id="airplane-mode" [elementId]="'airplane-mode'" [disabled]="disabled" ariaLabel="Airplane Mode"></ui-switch>
+        <ui-switch id="airplane-mode" [elementId]="'airplane-mode'" [disabled]="disabled" [label]="label" ariaLabel="Airplane Mode"></ui-switch>
         <ui-label for="airplane-mode">Airplane Mode</ui-label>
       </div>
     `,

@@ -12,14 +12,17 @@ const meta: Meta<SplitButtonComponent> = {
         },
         size: {
             control: 'select',
-            options: ['default', 'sm', 'lg', 'icon'],
+            options: ['default', 'sm', 'lg', 'icon', 'icon-sm', 'icon-lg'],
         },
         disabled: {
             control: 'boolean'
-        }
+        },
+        label: {
+            control: 'text',
+        },
     },
     args: {
-        label: 'Actions',
+        label: 'Save',
         items: [
             { label: 'Edit', value: 'edit' },
             { label: 'Duplicate', value: 'duplicate' },

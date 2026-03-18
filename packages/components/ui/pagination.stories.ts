@@ -27,8 +27,15 @@ const meta: Meta<PaginationComponent> = {
     }),
   ],
   argTypes: {
+    currentPage: { control: 'number' },
+    totalPages: { control: 'number' },
+    siblingCount: { control: 'number' },
   },
-  args: {},
+  args: {
+    currentPage: 1,
+    totalPages: 10,
+    siblingCount: 1,
+  },
 };
 
 export default meta;
@@ -61,5 +68,12 @@ export const Default: Story = {
         </ui-pagination-content>
       </ui-pagination>
     `,
+  }),
+};
+
+export const DataDriven: Story = {
+  render: (args) => ({
+    props: args,
+    template: `<ui-pagination [currentPage]="currentPage" [totalPages]="totalPages" [siblingCount]="siblingCount"></ui-pagination>`,
   }),
 };

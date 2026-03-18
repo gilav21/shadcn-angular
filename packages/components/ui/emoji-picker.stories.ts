@@ -127,6 +127,14 @@ const meta: Meta<EmojiPickerComponent> = {
             ],
         }),
     ],
+    argTypes: {
+        closeOnSelect: { control: 'boolean' },
+        closeOnScroll: { control: 'boolean' },
+    },
+    args: {
+        closeOnSelect: true,
+        closeOnScroll: false,
+    },
 };
 
 export default meta;
@@ -147,5 +155,29 @@ export const CustomTrigger: Story = {
 export const ReactionBar: Story = {
     render: () => ({
         template: `<emoji-reaction-bar-demo />`,
+    }),
+};
+
+export const WithControls: Story = {
+    render: (args) => ({
+        props: { ...args, selectedEmoji: '' },
+        template: `
+            <div class="flex flex-col items-start gap-4">
+                <ui-emoji-picker [closeOnSelect]="closeOnSelect" [closeOnScroll]="closeOnScroll" (emojiSelect)="selectedEmoji = $event">
+                    <ui-emoji-picker-trigger>
+                        <ui-button variant="outline" class="gap-2">
+                            <span class="text-lg">{{ selectedEmoji || '😀' }}</span>
+                            Pick an Emoji
+                        </ui-button>
+                    </ui-emoji-picker-trigger>
+                    <ui-emoji-picker-content />
+                </ui-emoji-picker>
+                @if (selectedEmoji) {
+                    <div class="text-sm text-muted-foreground">
+                        Selected: <span class="text-2xl">{{ selectedEmoji }}</span>
+                    </div>
+                }
+            </div>
+        `,
     }),
 };

@@ -26,16 +26,24 @@ const meta: Meta = {
         }),
     ],
     tags: ['autodocs'],
+    argTypes: {
+        orientation: { control: 'select', options: ['horizontal', 'vertical'] },
+        linear: { control: 'boolean' },
+    },
+    args: {
+        orientation: 'horizontal',
+        linear: false,
+    },
 };
 
 export default meta;
 type Story = StoryObj;
 
 export const Default: Story = {
-    render: () => ({
-        props: { activeStep: signal(0) },
+    render: (args) => ({
+        props: { ...args, activeStep: signal(0) },
         template: `
-            <ui-stepper [(activeStep)]="activeStep">
+            <ui-stepper [(activeStep)]="activeStep" [orientation]="orientation" [linear]="linear">
                 <ui-stepper-item value="step-1">
                     <ui-stepper-trigger>
                         <ui-stepper-title>Account</ui-stepper-title>

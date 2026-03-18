@@ -22,9 +22,14 @@ const meta: Meta<InputGroupComponent> = {
     ],
     argTypes: {
         disabled: { control: 'boolean' },
+        variant: {
+            control: 'select',
+            options: ['outline', 'underline', 'ghost'],
+        },
     },
     args: {
         disabled: false,
+        variant: 'outline',
     },
 };
 
@@ -36,23 +41,23 @@ export const Default: Story = {
         props: args,
         template: `
       <div class="flex flex-col gap-4 w-[300px]">
-        <ui-input-group [disabled]="disabled">
+        <ui-input-group [disabled]="disabled" [variant]="variant">
           <ui-input-group-addon>@</ui-input-group-addon>
           <ui-input placeholder="Username" />
         </ui-input-group>
 
-        <ui-input-group [disabled]="disabled">
+        <ui-input-group [disabled]="disabled" [variant]="variant">
           <ui-input placeholder="Recipient's username" />
           <ui-input-group-addon>@example.com</ui-input-group-addon>
         </ui-input-group>
 
-        <ui-input-group [disabled]="disabled">
+        <ui-input-group [disabled]="disabled" [variant]="variant">
           <ui-input-group-addon>$</ui-input-group-addon>
           <ui-input placeholder="Amount" type="number" />
           <ui-input-group-addon>.00</ui-input-group-addon>
         </ui-input-group>
 
-         <ui-input-group [disabled]="disabled">
+         <ui-input-group [disabled]="disabled" [variant]="variant">
           <ui-input-group-addon>https://</ui-input-group-addon>
           <ui-input placeholder="example.com/users/" />
         </ui-input-group>

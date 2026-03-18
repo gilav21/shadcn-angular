@@ -12,7 +12,7 @@ import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
 import { LabelComponent } from './label.component';
 
-const meta: Meta<DialogComponent & { rtl: boolean }> = {
+const meta: Meta<DialogComponent & { rtl: boolean; title: string; description: string }> = {
   title: 'UI/Dialog',
   component: DialogComponent,
   tags: ['autodocs'],
@@ -37,9 +37,13 @@ const meta: Meta<DialogComponent & { rtl: boolean }> = {
       control: 'boolean',
       description: 'Enable right-to-left layout',
     },
+    title: { control: 'text' },
+    description: { control: 'text' },
   },
   args: {
     rtl: false,
+    title: 'Are you absolutely sure?',
+    description: 'This action cannot be undone.',
   },
 };
 
@@ -92,8 +96,8 @@ export const SimpleMode: Story = {
           <ui-button variant="outline">Edit Profile (Simple)</ui-button>
         </ui-dialog-trigger>
         <ui-dialog-content
-          title="Edit profile"
-          description="Make changes to your profile here. Click save when you're done."
+          [title]="title"
+          [description]="description"
           class="sm:max-w-[425px]"
         >
           <div class="grid gap-4 py-4">

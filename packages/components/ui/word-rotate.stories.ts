@@ -15,9 +15,13 @@ const meta: Meta<WordRotateComponent> = {
         duration: {
             control: 'number',
         },
+        words: {
+            control: 'object',
+        },
     },
     args: {
         duration: 2000,
+        words: ['Developer', 'Designer', 'Creator'],
     },
 };
 

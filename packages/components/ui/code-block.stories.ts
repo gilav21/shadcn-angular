@@ -1,29 +1,5 @@
-import { Meta, StoryObj } from '@storybook/angular';
-import { moduleMetadata } from '@storybook/angular';
+import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { CodeBlockComponent, CODE_BLOCK_THEMES } from './code-block.component';
-
-const meta: Meta<CodeBlockComponent> = {
-    title: 'UI/CodeBlock',
-    component: CodeBlockComponent,
-    tags: ['autodocs'],
-    decorators: [
-        moduleMetadata({
-            imports: [CodeBlockComponent],
-        }),
-    ],
-    argTypes: {
-        language: {
-            control: 'select',
-            options: ['typescript', 'javascript', 'python', 'java', 'html', 'css', 'json', 'bash', 'csharp', 'yaml'],
-        },
-    },
-    args: {
-        language: 'typescript',
-    },
-};
-
-export default meta;
-type Story = StoryObj<CodeBlockComponent>;
 
 const typescriptCode = `import { Component, input, computed } from '@angular/core';
 
@@ -65,6 +41,42 @@ const jsonCode = `{
   }
 }`;
 
+const meta: Meta<CodeBlockComponent> = {
+    title: 'UI/CodeBlock',
+    component: CodeBlockComponent,
+    tags: ['autodocs'],
+    decorators: [
+        moduleMetadata({
+            imports: [CodeBlockComponent],
+        }),
+    ],
+    argTypes: {
+        language: {
+            control: 'select',
+            options: ['typescript', 'javascript', 'python', 'java', 'html', 'css', 'json', 'bash', 'csharp', 'yaml'],
+        },
+        code: { control: 'text' },
+        theme: {
+            control: 'select',
+            options: ['default', 'dracula', 'github', 'monokai'],
+            mapping: {
+                default: null,
+                dracula: CODE_BLOCK_THEMES['dracula'],
+                github: CODE_BLOCK_THEMES['github'],
+                monokai: CODE_BLOCK_THEMES['monokai'],
+            },
+        },
+    },
+    args: {
+        language: 'typescript',
+        code: typescriptCode,
+        theme: null,
+    },
+};
+
+export default meta;
+type Story = StoryObj<CodeBlockComponent>;
+
 export const Default: Story = {
     args: {
         code: typescriptCode,
@@ -72,7 +84,7 @@ export const Default: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-code-block [code]="code" [language]="language" />`,
+        template: `<ui-code-block [code]="code" [language]="language" [theme]="theme" />`,
     }),
 };
 

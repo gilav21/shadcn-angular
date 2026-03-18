@@ -8,7 +8,7 @@ import { ButtonComponent } from './button.component';
 import { AvatarComponent, AvatarImageComponent, AvatarFallbackComponent } from './avatar.component';
 import { moduleMetadata } from '@storybook/angular';
 
-const meta: Meta<HoverCardComponent> = {
+const meta: Meta<HoverCardComponent & { align: string; side: string; title: string; description: string }> = {
     title: 'UI/HoverCard',
     component: HoverCardComponent,
     tags: ['autodocs'],
@@ -25,6 +25,18 @@ const meta: Meta<HoverCardComponent> = {
             ],
         }),
     ],
+    argTypes: {
+        align: { control: 'select', options: ['start', 'center', 'end'] },
+        side: { control: 'select', options: ['top', 'bottom'] },
+        title: { control: 'text' },
+        description: { control: 'text' },
+    },
+    args: {
+        align: 'center',
+        side: 'bottom',
+        title: '@angular',
+        description: 'The modern web developer\'s platform.',
+    },
 };
 
 export default meta;
@@ -65,15 +77,18 @@ export const Default: Story = {
 };
 
 export const SimpleMode: Story = {
-    render: () => ({
+    render: (args) => ({
+        props: args,
         template: `
       <ui-hover-card>
         <ui-hover-card-trigger>
           <ui-button variant="link">@angular</ui-button>
         </ui-hover-card-trigger>
         <ui-hover-card-content
-          title="@angular"
-          description="The modern web developer's platform."
+          [align]="align"
+          [side]="side"
+          [title]="title"
+          [description]="description"
         />
       </ui-hover-card>
     `,

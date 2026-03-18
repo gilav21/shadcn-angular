@@ -9,7 +9,7 @@ import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
 import { LabelComponent } from './label.component';
 
-const meta: Meta<PopoverComponent> = {
+const meta: Meta<PopoverComponent & { align: string; side: string; sideOffset: number }> = {
   title: 'UI/Popover',
   component: PopoverComponent,
   tags: ['autodocs'],
@@ -26,19 +26,30 @@ const meta: Meta<PopoverComponent> = {
       ],
     }),
   ],
+  argTypes: {
+    align: { control: 'select', options: ['start', 'center', 'end'] },
+    side: { control: 'select', options: ['top', 'bottom', 'left', 'right'] },
+    sideOffset: { control: 'number' },
+  },
+  args: {
+    align: 'center',
+    side: 'bottom',
+    sideOffset: 4,
+  },
 };
 
 export default meta;
 type Story = StoryObj<PopoverComponent>;
 
 export const Default: Story = {
-  render: () => ({
+  render: (args) => ({
+    props: args,
     template: `
       <ui-popover>
         <ui-popover-trigger>
           <ui-button variant="outline">Open Popover</ui-button>
         </ui-popover-trigger>
-        <ui-popover-content class="w-80">
+        <ui-popover-content class="w-80" [align]="align" [side]="side" [sideOffset]="sideOffset">
           <div class="grid gap-4">
             <div class="space-y-2">
               <h4 class="font-medium leading-none">Dimensions</h4>

@@ -9,17 +9,31 @@ const meta: Meta = {
             imports: [UiMagneticDirective],
         }),
     ],
+    argTypes: {
+        uiMagneticStrength: { control: 'number' },
+        uiMagneticRadius: { control: 'number' },
+        uiMagneticSmoothing: { control: 'number' },
+    },
+    args: {
+        uiMagneticStrength: 0.3,
+        uiMagneticRadius: 200,
+        uiMagneticSmoothing: 150,
+    },
 };
 
 export default meta;
 type Story = StoryObj;
 
 export const Default: Story = {
-    render: () => ({
+    render: (args) => ({
+        props: args,
         template: `
             <div class="flex items-center justify-center p-24 min-h-56">
                 <button
                     uiMagnetic
+                    [uiMagneticStrength]="uiMagneticStrength"
+                    [uiMagneticRadius]="uiMagneticRadius"
+                    [uiMagneticSmoothing]="uiMagneticSmoothing"
                     class="px-8 py-4 bg-primary text-primary-foreground rounded-xl font-semibold text-base hover:bg-primary/90 transition-colors shadow-lg"
                 >
                     Hover Near Me

@@ -13,7 +13,7 @@ import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
 import { LabelComponent } from './label.component';
 
-const meta: Meta<SheetComponent> = {
+const meta: Meta<SheetComponent & { side: string; title: string; description: string }> = {
   title: 'UI/Sheet',
   component: SheetComponent,
   tags: ['autodocs'],
@@ -35,9 +35,15 @@ const meta: Meta<SheetComponent> = {
     }),
   ],
   argTypes: {
-
+    side: { control: 'select', options: ['top', 'bottom', 'left', 'right'] },
+    title: { control: 'text' },
+    description: { control: 'text' },
   },
-  args: {},
+  args: {
+    side: 'right',
+    title: 'Edit profile',
+    description: 'Make changes to your profile here. Click save when you\'re done.',
+  },
 };
 
 export default meta;
@@ -92,9 +98,9 @@ export const SimpleMode: Story = {
           <ui-button variant="outline">Open Sheet (Simple)</ui-button>
         </ui-sheet-trigger>
         <ui-sheet-content
-          side="right"
-          title="Edit profile"
-          description="Make changes to your profile here. Click save when you're done."
+          [side]="side"
+          [title]="title"
+          [description]="description"
         >
           <div class="grid gap-4 py-4">
             <div class="grid grid-cols-4 items-center gap-4">

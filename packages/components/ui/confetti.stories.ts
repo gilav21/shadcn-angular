@@ -51,11 +51,25 @@ class ConfettiSideCannonsDemoComponent {
 
 const meta: Meta = {
     title: 'UI/Confetti',
+    tags: ['autodocs'],
     decorators: [
         moduleMetadata({
-            imports: [ConfettiDemoComponent, ConfettiSideCannonsDemoComponent],
+            imports: [
+                ConfettiDemoComponent,
+                ConfettiSideCannonsDemoComponent,
+                UiConfettiDirective,
+                ButtonComponent,
+            ],
         }),
     ],
+    argTypes: {
+        particleCount: { control: 'number' },
+        spread: { control: 'number' },
+    },
+    args: {
+        particleCount: 50,
+        spread: 45,
+    },
 };
 
 export default meta;
@@ -70,5 +84,28 @@ export const Default: Story = {
 export const SideCannons: Story = {
     render: () => ({
         template: `<confetti-side-cannons-demo />`,
+    }),
+};
+
+export const WithControls: Story = {
+    render: (args) => ({
+        props: {
+            ...args,
+            trigger: false,
+            get options() {
+                return { particleCount: args['particleCount'], spread: args['spread'] };
+            },
+            fire() {
+                this['trigger'] = false;
+                setTimeout(() => {
+                    this['trigger'] = true;
+                });
+            },
+        },
+        template: `
+            <div uiConfetti [manualTrigger]="trigger" [options]="options" style="width: 400px; height: 300px; display: flex; align-items: center; justify-content: center; border: 1px dashed hsl(var(--border)); border-radius: 8px;">
+                <ui-button (click)="fire()">Fire Confetti</ui-button>
+            </div>
+        `,
     }),
 };

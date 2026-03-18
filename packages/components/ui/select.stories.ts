@@ -52,10 +52,12 @@ const meta: Meta<SelectComponent<unknown>> = {
   argTypes: {
     disabled: { control: 'boolean' },
     position: { control: 'radio', options: ['popper', 'item-aligned'] },
+    placeholder: { control: 'text' },
   },
   args: {
     disabled: false,
     position: 'popper',
+    placeholder: 'Select an option',
   },
 };
 
@@ -74,7 +76,7 @@ export const TemplateDriven: Story = {
       <div class="flex justify-center items-center h-[300px]">
         <ui-select [disabled]="disabled" class="w-[180px] h-fit" [position]="position">
           <ui-select-trigger ariaLabel="Select a fruit">
-            <ui-select-value placeholder="Select a fruit" />
+            <ui-select-value [placeholder]="placeholder" />
           </ui-select-trigger>
           <ui-select-content>
             <ui-select-group>
@@ -260,7 +262,7 @@ export const Default: Story = {
       <div class="flex justify-center items-center h-[300px]">
         <ui-select [disabled]="disabled" class="w-[180px] h-fit" [position]="position">
           <ui-select-trigger ariaLabel="Select a fruit">
-            <ui-select-value placeholder="Select a fruit" />
+            <ui-select-value [placeholder]="placeholder" />
           </ui-select-trigger>
           <ui-select-content>
             <ui-select-group>

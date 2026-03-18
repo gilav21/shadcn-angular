@@ -16,11 +16,16 @@ const meta: Meta<TextareaComponent> = {
         placeholder: { control: 'text' },
         disabled: { control: 'boolean' },
         rows: { control: 'number' },
+        variant: {
+            control: 'select',
+            options: ['outline', 'underline', 'ghost'],
+        },
     },
     args: {
         placeholder: 'Type your message here.',
         disabled: false,
         rows: 4,
+        variant: 'outline',
     },
 };
 
@@ -30,7 +35,7 @@ type Story = StoryObj<TextareaComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-textarea [placeholder]="placeholder" [disabled]="disabled" [rows]="rows"></ui-textarea>`,
+        template: `<ui-textarea [placeholder]="placeholder" [disabled]="disabled" [rows]="rows" [variant]="variant"></ui-textarea>`,
     }),
 };
 
@@ -40,7 +45,7 @@ export const WithLabel: Story = {
         template: `
       <div class="grid w-full gap-1.5">
         <ui-label for="message">Your message</ui-label>
-        <ui-textarea id="message" [placeholder]="placeholder" [rows]="rows"></ui-textarea>
+        <ui-textarea id="message" [placeholder]="placeholder" [rows]="rows" [variant]="variant"></ui-textarea>
         <p class="text-sm text-muted-foreground">
           Your message will be copied to the support team.
         </p>
