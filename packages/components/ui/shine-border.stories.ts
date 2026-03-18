@@ -20,11 +20,15 @@ const meta: Meta<ShineBorderComponent> = {
         borderRadius: {
             control: 'number',
         },
+        colors: {
+            control: 'object',
+        },
     },
     args: {
         duration: 3,
         borderWidth: 2,
         borderRadius: 8,
+        colors: ['#A07CFE', '#FE8FB5', '#FFBE7B'],
     },
 };
 
@@ -32,10 +36,11 @@ export default meta;
 type Story = StoryObj<ShineBorderComponent>;
 
 export const Default: Story = {
-    render: () => ({
+    render: (args) => ({
+        props: args,
         template: `
             <div class="flex items-center justify-center p-12">
-                <ui-shine-border>
+                <ui-shine-border [colors]="colors" [duration]="duration" [borderWidth]="borderWidth" [borderRadius]="borderRadius">
                     <div class="px-8 py-6 bg-background rounded-[6px]">
                         <h3 class="text-xl font-semibold">Shine Border Card</h3>
                         <p class="text-muted-foreground mt-1 text-sm">

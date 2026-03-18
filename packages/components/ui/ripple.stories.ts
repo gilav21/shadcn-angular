@@ -9,17 +9,31 @@ const meta: Meta = {
             imports: [UiRippleDirective],
         }),
     ],
+    argTypes: {
+        uiRippleColor: { control: 'text' },
+        uiRippleDuration: { control: 'number' },
+        uiRippleDisabled: { control: 'boolean' },
+    },
+    args: {
+        uiRippleColor: 'color-mix(in srgb, currentColor 35%, transparent)',
+        uiRippleDuration: 600,
+        uiRippleDisabled: false,
+    },
 };
 
 export default meta;
 type Story = StoryObj;
 
 export const Default: Story = {
-    render: () => ({
+    render: (args) => ({
+        props: args,
         template: `
             <div class="flex items-center justify-center p-12">
                 <button
                     uiRipple
+                    [uiRippleColor]="uiRippleColor"
+                    [uiRippleDuration]="uiRippleDuration"
+                    [uiRippleDisabled]="uiRippleDisabled"
                     class="px-6 py-3 bg-primary text-primary-foreground rounded-lg font-medium text-sm hover:bg-primary/90 transition-colors"
                 >
                     Click for Ripple Effect

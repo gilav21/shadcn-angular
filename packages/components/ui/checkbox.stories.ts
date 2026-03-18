@@ -15,9 +15,17 @@ const meta: Meta<CheckboxComponent> = {
     disabled: {
       control: 'boolean',
     },
+    indeterminate: {
+      control: 'boolean',
+    },
+    label: {
+      control: 'text',
+    },
   },
   args: {
     disabled: false,
+    indeterminate: false,
+    label: '',
   },
 };
 
@@ -29,7 +37,7 @@ export const Default: Story = {
     props: args,
     template: `
       <div class="flex items-center space-x-2">
-        <ui-checkbox id="terms" [elementId]="'terms'" [disabled]="disabled"></ui-checkbox>
+        <ui-checkbox id="terms" [elementId]="'terms'" [disabled]="disabled" [indeterminate]="indeterminate" [label]="label"></ui-checkbox>
         <label
           for="terms"
           class="pl-2 text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"

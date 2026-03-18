@@ -12,15 +12,27 @@ const meta: Meta<ButtonComponent> = {
         },
         size: {
             control: 'select',
-            options: ['default', 'sm', 'lg', 'icon'],
+            options: ['default', 'sm', 'lg', 'icon', 'icon-sm', 'icon-lg'],
         },
         disabled: {
             control: 'boolean',
+        },
+        label: {
+            control: 'text',
+        },
+        ripple: {
+            control: 'boolean',
+        },
+        rippleColor: {
+            control: 'text',
         },
     },
     args: {
         variant: 'default',
         size: 'default',
+        label: '',
+        ripple: false,
+        rippleColor: 'color-mix(in srgb, currentColor 35%, transparent)',
     },
 };
 
@@ -30,7 +42,7 @@ type Story = StoryObj<ButtonComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Button</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled" [label]="label" [ripple]="ripple" [rippleColor]="rippleColor">Button</ui-button>`,
     }),
 };
 
@@ -40,7 +52,7 @@ export const Destructive: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Destructive</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled" [label]="label" [ripple]="ripple" [rippleColor]="rippleColor">Destructive</ui-button>`,
     }),
 };
 
@@ -50,7 +62,7 @@ export const Outline: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Outline</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled" [label]="label" [ripple]="ripple" [rippleColor]="rippleColor">Outline</ui-button>`,
     }),
 };
 
@@ -60,7 +72,7 @@ export const Secondary: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Secondary</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled" [label]="label" [ripple]="ripple" [rippleColor]="rippleColor">Secondary</ui-button>`,
     }),
 };
 
@@ -70,7 +82,7 @@ export const Ghost: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Ghost</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled" [label]="label" [ripple]="ripple" [rippleColor]="rippleColor">Ghost</ui-button>`,
     }),
 };
 
@@ -80,6 +92,6 @@ export const Link: Story = {
     },
     render: (args) => ({
         props: args,
-        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled">Link</ui-button>`,
+        template: `<ui-button [variant]="variant" [size]="size" [disabled]="disabled" [label]="label" [ripple]="ripple" [rippleColor]="rippleColor">Link</ui-button>`,
     }),
 };

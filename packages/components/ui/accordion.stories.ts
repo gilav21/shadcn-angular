@@ -68,3 +68,18 @@ export const Default: Story = {
     `,
   }),
 };
+
+export const SimpleMode: Story = {
+  render: (args) => ({
+    props: args,
+    template: `
+      <div [dir]="rtl ? 'rtl' : 'ltr'">
+      <ui-accordion [type]="type" class="w-full">
+        <ui-accordion-item value="item-1" title="Is it accessible?" content="Yes. It adheres to the WAI-ARIA design pattern." />
+        <ui-accordion-item value="item-2" title="Is it styled?" content="Yes. It comes with default styles that match the other components." />
+        <ui-accordion-item value="item-3" title="Is it animated?" content="Yes. It's animated by default, but you can disable it if you prefer." />
+      </ui-accordion>
+      </div>
+    `,
+  }),
+};

@@ -18,10 +18,14 @@ const meta: Meta<MeteorsComponent> = {
             control: 'select',
             options: ['slow', 'medium', 'fast'],
         },
+        color: {
+            control: 'text',
+        },
     },
     args: {
         count: 20,
         speed: 'medium',
+        color: 'white',
     },
 };
 
@@ -37,7 +41,7 @@ export const Default: Story = {
         props: args,
         template: `
             <div class="relative h-96 w-full rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center">
-                <ui-meteors [count]="count" [speed]="speed" />
+                <ui-meteors [count]="count" [speed]="speed" [color]="color" />
                 <div class="relative z-10 text-center">
                     <h2 class="text-3xl font-bold text-white">Meteor Shower</h2>
                     <p class="text-slate-400 mt-2">Animated background effect</p>
@@ -56,7 +60,7 @@ export const HighCount: Story = {
         props: args,
         template: `
             <div class="relative h-96 w-full rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center">
-                <ui-meteors [count]="count" [speed]="speed" />
+                <ui-meteors [count]="count" [speed]="speed" [color]="color" />
                 <div class="relative z-10 text-center px-6">
                     <h2 class="text-3xl font-bold text-white">{{ count }} Meteors</h2>
                     <p class="text-slate-400 mt-2">High density meteor shower</p>
@@ -75,7 +79,7 @@ export const FastSpeed: Story = {
         props: args,
         template: `
             <div class="relative h-96 w-full rounded-xl overflow-hidden bg-slate-950 flex items-center justify-center">
-                <ui-meteors [count]="count" [speed]="speed" />
+                <ui-meteors [count]="count" [speed]="speed" [color]="color" />
                 <div class="relative z-10 text-center">
                     <h2 class="text-3xl font-bold text-white">Fast Meteors</h2>
                     <p class="text-slate-400 mt-2">Speed: fast</p>

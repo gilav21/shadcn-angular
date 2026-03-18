@@ -19,10 +19,14 @@ const meta: Meta<GradientTextComponent> = {
             control: 'select',
             options: ['to right', 'to left', 'to bottom', 'to top'],
         },
+        colors: {
+            control: 'object',
+        },
     },
     args: {
         speed: 3,
         direction: 'to right',
+        colors: ['#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4'],
     },
 };
 
@@ -30,10 +34,11 @@ export default meta;
 type Story = StoryObj<GradientTextComponent>;
 
 export const Default: Story = {
-    render: () => ({
+    render: (args) => ({
+        props: args,
         template: `
             <h1 class="text-5xl font-black">
-                <ui-gradient-text>Gradient Text</ui-gradient-text>
+                <ui-gradient-text [colors]="colors" [speed]="speed" [direction]="direction">Gradient Text</ui-gradient-text>
             </h1>
         `,
     }),

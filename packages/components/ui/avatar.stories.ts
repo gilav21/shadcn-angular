@@ -10,6 +10,16 @@ const meta: Meta<AvatarComponent> = {
             imports: [AvatarComponent, AvatarImageComponent, AvatarFallbackComponent],
         }),
     ],
+    argTypes: {
+        src: { control: 'text' },
+        alt: { control: 'text' },
+        fallback: { control: 'text' },
+    },
+    args: {
+        src: 'https://github.com/shadcn.png',
+        alt: '@shadcn',
+        fallback: 'CN',
+    },
 };
 
 export default meta;
@@ -34,5 +44,12 @@ export const Fallback: Story = {
         <ui-avatar-fallback>CN</ui-avatar-fallback>
       </ui-avatar>
     `,
+    }),
+};
+
+export const SimpleMode: Story = {
+    render: (args) => ({
+        props: args,
+        template: `<ui-avatar [src]="src" [alt]="alt" [fallback]="fallback" />`,
     }),
 };

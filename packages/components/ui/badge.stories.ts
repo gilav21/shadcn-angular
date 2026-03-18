@@ -10,9 +10,13 @@ const meta: Meta<BadgeComponent> = {
             control: 'select',
             options: ['default', 'secondary', 'destructive', 'outline'],
         },
+        label: {
+            control: 'text',
+        },
     },
     args: {
         variant: 'default',
+        label: 'Badge',
     },
 };
 
@@ -22,7 +26,7 @@ type Story = StoryObj<BadgeComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<ui-badge [variant]="variant">Badge</ui-badge>`,
+        template: `<ui-badge [variant]="variant" [label]="label">Badge</ui-badge>`,
     }),
 };
 

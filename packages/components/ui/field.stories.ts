@@ -32,15 +32,22 @@ const meta: Meta<FieldComponent> = {
             ],
         }),
     ],
+    argTypes: {
+        orientation: { control: 'select', options: ['vertical', 'horizontal'] },
+    },
+    args: {
+        orientation: 'vertical',
+    },
 };
 
 export default meta;
 type Story = StoryObj<FieldComponent>;
 
 export const Default: Story = {
-    render: () => ({
+    render: (args) => ({
+        props: args,
         template: `
-            <ui-field>
+            <ui-field [orientation]="orientation">
                 <ui-field-label for="email">Email</ui-field-label>
                 <ui-input id="email" placeholder="you@example.com" />
                 <ui-field-description>We will never share your email with anyone.</ui-field-description>

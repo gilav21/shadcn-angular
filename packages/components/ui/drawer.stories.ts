@@ -11,7 +11,7 @@ import {
 } from './drawer.component';
 import { ButtonComponent } from './button.component';
 
-const meta: Meta<DrawerComponent> = {
+const meta: Meta<DrawerComponent & { title: string; description: string }> = {
   title: 'UI/Drawer',
   component: DrawerComponent,
   tags: ['autodocs'],
@@ -35,9 +35,13 @@ const meta: Meta<DrawerComponent> = {
       control: 'radio',
       options: ['top', 'right', 'bottom', 'left'],
     },
+    title: { control: 'text' },
+    description: { control: 'text' },
   },
   args: {
-    direction: 'bottom'
+    direction: 'bottom',
+    title: 'Move Goal',
+    description: 'Set your daily activity goal.',
   },
 };
 
@@ -92,8 +96,8 @@ export const SimpleMode: Story = {
           <ui-button variant="outline">Open Drawer (Simple)</ui-button>
         </ui-drawer-trigger>
         <ui-drawer-content
-          title="Move Goal"
-          description="Set your daily activity goal."
+          [title]="title"
+          [description]="description"
         >
           <div class="mx-auto w-full max-w-sm">
             <div class="p-4 pb-0">

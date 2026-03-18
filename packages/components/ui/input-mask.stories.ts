@@ -3,23 +3,37 @@ import { InputMaskDirective } from './input-mask.directive';
 
 const meta: Meta = {
     title: 'UI/InputMask',
+    tags: ['autodocs'],
     decorators: [
         moduleMetadata({
             imports: [InputMaskDirective],
         }),
     ],
+    argTypes: {
+        mask: { control: 'text' },
+        slotChar: { control: 'text' },
+        showMaskTyped: { control: 'boolean' },
+    },
+    args: {
+        mask: '(000) 000-0000',
+        slotChar: '_',
+        showMaskTyped: false,
+    },
 };
 
 export default meta;
 type Story = StoryObj;
 
 export const PhoneNumber: Story = {
-    render: () => ({
+    render: (args) => ({
+        props: args,
         template: `
             <div class="space-y-2" style="max-width: 300px;">
                 <label class="text-sm font-medium">Phone Number</label>
                 <input
-                    uiInputMask="(000) 000-0000"
+                    [uiInputMask]="mask"
+                    [slotChar]="slotChar"
+                    [showMaskTyped]="showMaskTyped"
                     placeholder="(___) ___-____"
                     class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                 />
