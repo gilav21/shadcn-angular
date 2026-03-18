@@ -1,0 +1,111 @@
+import { Routes } from '@angular/router';
+
+export const DEMO_ROUTES: Routes = [
+  // Default / Introduction
+  { path: '', loadComponent: () => import('./demos/introduction.component').then(m => m.IntroductionComponent) },
+
+  // Feedback
+  { path: 'alert', loadComponent: () => import('./demos/feedback/alert-demo.component').then(m => m.AlertDemoComponent) },
+  { path: 'progress', loadComponent: () => import('./demos/feedback/progress-demo.component').then(m => m.ProgressDemoComponent) },
+  { path: 'skeleton', loadComponent: () => import('./demos/feedback/skeleton-demo.component').then(m => m.SkeletonDemoComponent) },
+  { path: 'spinner', loadComponent: () => import('./demos/feedback/spinner-demo.component').then(m => m.SpinnerDemoComponent) },
+  { path: 'toast', loadComponent: () => import('./demos/feedback/toast-demo.component').then(m => m.ToastDemoComponent) },
+
+  // Inputs
+  { path: 'buttons', loadComponent: () => import('./demos/inputs/button-demo.component').then(m => m.ButtonDemoComponent) },
+  { path: 'input', loadComponent: () => import('./demos/inputs/input-demo.component').then(m => m.InputDemoComponent) },
+  { path: 'checkbox', loadComponent: () => import('./demos/inputs/checkbox-demo.component').then(m => m.CheckboxDemoComponent) },
+  { path: 'radio-group', loadComponent: () => import('./demos/inputs/radio-group-demo.component').then(m => m.RadioGroupDemoComponent) },
+  { path: 'textarea', loadComponent: () => import('./demos/inputs/textarea-demo.component').then(m => m.TextareaDemoComponent) },
+  { path: 'toggle', loadComponent: () => import('./demos/inputs/toggle-demo.component').then(m => m.ToggleDemoComponent) },
+  { path: 'switch', loadComponent: () => import('./demos/inputs/switch-demo.component').then(m => m.SwitchDemoComponent) },
+  { path: 'toggle-group', loadComponent: () => import('./demos/inputs/toggle-group-demo.component').then(m => m.ToggleGroupDemoComponent) },
+  { path: 'slider', loadComponent: () => import('./demos/inputs/slider-demo.component').then(m => m.SliderDemoComponent) },
+  { path: 'select', loadComponent: () => import('./demos/inputs/select-demo.component').then(m => m.SelectDemoComponent) },
+  { path: 'input-otp', loadComponent: () => import('./demos/inputs/input-otp-demo.component').then(m => m.InputOtpDemoComponent) },
+  { path: 'calendar', loadComponent: () => import('./demos/inputs/calendar-demo.component').then(m => m.CalendarDemoComponent) },
+  { path: 'date-picker', loadComponent: () => import('./demos/inputs/date-picker-demo.component').then(m => m.DatePickerDemoComponent) },
+  { path: 'input-mask', loadComponent: () => import('./demos/inputs/input-mask-demo.component').then(m => m.InputMaskDemoComponent) },
+  { path: 'split-button', loadComponent: () => import('./demos/inputs/split-button-demo.component').then(m => m.SplitButtonDemoComponent) },
+  { path: 'chip-list', loadComponent: () => import('./demos/inputs/chip-list-demo.component').then(m => m.ChipListDemoComponent) },
+  { path: 'rating', loadComponent: () => import('./demos/inputs/rating-demo.component').then(m => m.RatingDemoComponent) },
+  { path: 'button-group', loadComponent: () => import('./demos/inputs/button-group-demo.component').then(m => m.ButtonGroupDemoComponent) },
+  { path: 'input-group', loadComponent: () => import('./demos/inputs/input-group-demo.component').then(m => m.InputGroupDemoComponent) },
+  { path: 'field', loadComponent: () => import('./demos/inputs/field-demo.component').then(m => m.FieldDemoComponent) },
+  { path: 'native-select', loadComponent: () => import('./demos/inputs/native-select-demo.component').then(m => m.NativeSelectDemoComponent) },
+  { path: 'label', loadComponent: () => import('./demos/inputs/label-demo.component').then(m => m.LabelDemoComponent) },
+  { path: 'autocomplete', loadComponent: () => import('./demos/inputs/autocomplete-demo.component').then(m => m.AutocompleteDemoComponent) },
+  { path: 'tree-select', loadComponent: () => import('./demos/inputs/tree-select-demo.component').then(m => m.TreeSelectDemoComponent) },
+  { path: 'form', loadComponent: () => import('./demos/inputs/form-demo.component').then(m => m.FormDemoComponent) },
+
+  // Overlay
+  { path: 'dialog', loadComponent: () => import('./demos/overlay/dialog-demo.component').then(m => m.DialogDemoComponent) },
+  { path: 'tooltip', loadComponent: () => import('./demos/overlay/tooltip-demo.component').then(m => m.TooltipDemoComponent) },
+  { path: 'dropdown-menu', loadComponent: () => import('./demos/overlay/dropdown-menu-demo.component').then(m => m.DropdownMenuDemoComponent) },
+  { path: 'popover', loadComponent: () => import('./demos/overlay/popover-demo.component').then(m => m.PopoverDemoComponent) },
+  { path: 'sheet', loadComponent: () => import('./demos/overlay/sheet-demo.component').then(m => m.SheetDemoComponent) },
+  { path: 'alert-dialog', loadComponent: () => import('./demos/overlay/alert-dialog-demo.component').then(m => m.AlertDialogDemoComponent) },
+  { path: 'context-menu', loadComponent: () => import('./demos/overlay/context-menu-demo.component').then(m => m.ContextMenuDemoComponent) },
+  { path: 'drawer', loadComponent: () => import('./demos/overlay/drawer-demo.component').then(m => m.DrawerDemoComponent) },
+  { path: 'hover-card', loadComponent: () => import('./demos/overlay/hover-card-demo.component').then(m => m.HoverCardDemoComponent) },
+  { path: 'command', loadComponent: () => import('./demos/overlay/command-demo.component').then(m => m.CommandDemoComponent) },
+  { path: 'speed-dial', loadComponent: () => import('./demos/overlay/speed-dial-demo.component').then(m => m.SpeedDialDemoComponent) },
+
+  // Navigation
+  { path: 'tabs', loadComponent: () => import('./demos/navigation/tabs-demo.component').then(m => m.TabsDemoComponent) },
+  { path: 'stepper', loadComponent: () => import('./demos/navigation/stepper-demo.component').then(m => m.StepperDemoComponent) },
+  { path: 'pagination', loadComponent: () => import('./demos/navigation/pagination-demo.component').then(m => m.PaginationDemoComponent) },
+  { path: 'menubar', loadComponent: () => import('./demos/navigation/menubar-demo.component').then(m => m.MenubarDemoComponent) },
+  { path: 'navigation-menu', loadComponent: () => import('./demos/navigation/navigation-menu-demo.component').then(m => m.NavigationMenuDemoComponent) },
+
+  // Layout
+  { path: 'scroll-area', loadComponent: () => import('./demos/layout/scroll-area-demo.component').then(m => m.ScrollAreaDemoComponent) },
+  { path: 'aspect-ratio', loadComponent: () => import('./demos/layout/aspect-ratio-demo.component').then(m => m.AspectRatioDemoComponent) },
+  { path: 'resizable', loadComponent: () => import('./demos/layout/resizable-demo.component').then(m => m.ResizableDemoComponent) },
+  { path: 'sidebar', loadComponent: () => import('./demos/layout/sidebar-demo.component').then(m => m.SidebarDemoComponent) },
+  { path: 'bento-grid', loadComponent: () => import('./demos/layout/bento-grid-demo.component').then(m => m.BentoGridDemoComponent) },
+  { path: 'page-builder', loadComponent: () => import('./demos/layout/page-builder-demo.component').then(m => m.PageBuilderDemoComponent) },
+  { path: 'page-renderer', loadComponent: () => import('./demos/layout/page-renderer-demo.component').then(m => m.PageRendererDemoComponent) },
+  { path: 'virtual-scroll', loadComponent: () => import('./demos/layout/virtual-scroll-demo.component').then(m => m.VirtualScrollDemoComponent) },
+
+  // Charts
+  { path: 'charts', loadComponent: () => import('./demos/charts/charts-demo.component').then(m => m.ChartsDemoComponent) },
+
+  // Data Display
+  { path: 'card', loadComponent: () => import('./demos/data-display/card-demo.component').then(m => m.CardDemoComponent) },
+  { path: 'badge', loadComponent: () => import('./demos/data-display/badge-demo.component').then(m => m.BadgeDemoComponent) },
+  { path: 'avatar', loadComponent: () => import('./demos/data-display/avatar-demo.component').then(m => m.AvatarDemoComponent) },
+  { path: 'table', loadComponent: () => import('./demos/data-display/table-demo.component').then(m => m.TableDemoComponent) },
+  { path: 'accordion', loadComponent: () => import('./demos/data-display/accordion-demo.component').then(m => m.AccordionDemoComponent) },
+  { path: 'collapsible', loadComponent: () => import('./demos/data-display/collapsible-demo.component').then(m => m.CollapsibleDemoComponent) },
+  { path: 'breadcrumb', loadComponent: () => import('./demos/data-display/breadcrumb-demo.component').then(m => m.BreadcrumbDemoComponent) },
+  { path: 'carousel', loadComponent: () => import('./demos/data-display/carousel-demo.component').then(m => m.CarouselDemoComponent) },
+  { path: 'code-block', loadComponent: () => import('./demos/data-display/code-block-demo.component').then(m => m.CodeBlockDemoComponent) },
+  { path: 'tree', loadComponent: () => import('./demos/data-display/tree-demo.component').then(m => m.TreeDemoComponent) },
+  { path: 'tree-view', loadComponent: () => import('./demos/data-display/tree-view-demo.component').then(m => m.TreeViewDemoComponent) },
+  { path: 'timeline', loadComponent: () => import('./demos/data-display/timeline-demo.component').then(m => m.TimelineDemoComponent) },
+  { path: 'empty', loadComponent: () => import('./demos/data-display/empty-demo.component').then(m => m.EmptyDemoComponent) },
+  { path: 'kbd', loadComponent: () => import('./demos/data-display/kbd-demo.component').then(m => m.KbdDemoComponent) },
+  { path: 'separator', loadComponent: () => import('./demos/data-display/separator-demo.component').then(m => m.SeparatorDemoComponent) },
+  { path: 'number-ticker', loadComponent: () => import('./demos/data-display/number-ticker-demo.component').then(m => m.NumberTickerDemoComponent) },
+  { path: 'data-table', loadComponent: () => import('./demos/data-display/data-table-demo.component').then(m => m.DataTableDemoComponent) },
+  { path: 'icon', loadComponent: () => import('./demos/data-display/icon-demo.component').then(m => m.IconDemoComponent) },
+
+  // Advanced
+  { path: 'emoji-picker', loadComponent: () => import('./demos/advanced/emoji-picker-demo.component').then(m => m.EmojiPickerDemoComponent) },
+  { path: 'rich-text-editor', loadComponent: () => import('./demos/advanced/rich-text-editor-demo.component').then(m => m.RichTextEditorDemoComponent) },
+  { path: 'file-upload', loadComponent: () => import('./demos/advanced/file-upload-demo.component').then(m => m.FileUploadDemoComponent) },
+  { path: 'file-viewer', loadComponent: () => import('./demos/advanced/file-viewer-demo.component').then(m => m.FileViewerDemoComponent) },
+  { path: 'color-picker', loadComponent: () => import('./demos/advanced/color-picker-demo.component').then(m => m.ColorPickerDemoComponent) },
+  { path: 'confetti', loadComponent: () => import('./demos/advanced/confetti-demo.component').then(m => m.ConfettiDemoComponent) },
+  { path: 'chat', loadComponent: () => import('./demos/advanced/chat-demo.component').then(m => m.ChatDemoComponent) },
+  { path: 'streaming-text', loadComponent: () => import('./demos/advanced/streaming-text-demo.component').then(m => m.StreamingTextDemoComponent) },
+  { path: 'sparkles', loadComponent: () => import('./demos/advanced/sparkles-demo.component').then(m => m.SparklesDemoComponent) },
+  { path: 'text-reveal', loadComponent: () => import('./demos/advanced/text-reveal-demo.component').then(m => m.TextRevealDemoComponent) },
+  { path: 'dock', loadComponent: () => import('./demos/advanced/dock-demo.component').then(m => m.DockDemoComponent) },
+  { path: 'animations', loadComponent: () => import('./demos/advanced/animations-demo.component').then(m => m.AnimationsDemoComponent) },
+  { path: 'kanban', loadComponent: () => import('./demos/advanced/kanban-demo.component').then(m => m.KanbanDemoComponent) },
+
+  // Wildcard
+  { path: '**', redirectTo: '' },
+];

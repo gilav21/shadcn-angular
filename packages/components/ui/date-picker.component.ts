@@ -7,10 +7,54 @@ import {
   signal,
   forwardRef,
   effect,
+  ElementRef,
+  ViewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { cn } from '../lib/utils';
+import { cn, getClippingRect } from '../lib/utils';
 import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
+
+type PopupPosition = { offsetX: number; actualSide: 'top' | 'bottom' };
+
+const DEFAULT_POPUP_POSITION: PopupPosition = { offsetX: 0, actualSide: 'bottom' };
+
+function calculatePopupPosition(element: HTMLElement): PopupPosition {
+  const rect = element.getBoundingClientRect();
+  const boundary = getClippingRect(element);
+
+  let offsetX = 0;
+  let actualSide: 'top' | 'bottom' = 'bottom';
+
+  if (rect.right > boundary.right) {
+    offsetX = boundary.right - rect.right - 8;
+  } else if (rect.left < boundary.left) {
+    offsetX = boundary.left - rect.left + 8;
+  }
+
+  if (rect.bottom > boundary.bottom) {
+    actualSide = 'top';
+  }
+
+  return { offsetX, actualSide };
+}
+
+function computePopupClasses(position: PopupPosition): string {
+  const sideClasses = {
+    top: 'bottom-full mb-1',
+    bottom: 'top-full mt-1',
+  };
+  return cn(
+    'absolute ltr:left-0 rtl:right-0 z-50 rounded-md border bg-popover p-0 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95',
+    sideClasses[position.actualSide]
+  );
+}
+
+function computePopupStyles(position: PopupPosition): string {
+  if (position.offsetX !== 0) {
+    return `transform: translateX(${position.offsetX}px);`;
+  }
+  return '';
+}
 
 /**
  * DatePickerComponent - A date selection component combining Popover and Calendar
@@ -54,8 +98,10 @@ import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
       </button>
       
       @if (isOpen()) {
-        <div 
-          class="absolute ltr:left-0 rtl:right-0 top-full z-50 mt-1 rounded-md border bg-popover p-0 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+        <div
+          #popupEl
+          [class]="popupClasses()"
+          [style]="popupStyles()"
           (click)="$event.stopPropagation()"
         >
           <ui-calendar
@@ -77,18 +123,22 @@ import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
   },
 })
 export class DatePickerComponent implements ControlValueAccessor {
-  class = input('');
-  placeholder = input('Pick a date');
-  disabled = input(false);
-  showTime = input(false);
-  locale = input('en');
-  date = input<Date | null>(null);
-  dateChange = output<Date | null>();
+  readonly class = input('');
+  readonly placeholder = input('Pick a date');
+  readonly disabled = input(false);
+  readonly showTime = input(false);
+  readonly locale = input('en');
+  readonly date = input<Date | null>(null);
+  readonly dateChange = output<Date | null>();
 
-  isOpen = signal(false);
-  internalValue = signal<Date | null>(null);
+  readonly isOpen = signal(false);
+  readonly internalValue = signal<Date | null>(null);
   private onChange: (value: Date | null) => void = () => { };
   private onTouched: () => void = () => { };
+
+  @ViewChild('popupEl') popupEl?: ElementRef<HTMLElement>;
+
+  private readonly adjustedPosition = signal<PopupPosition>({ ...DEFAULT_POPUP_POSITION });
 
   constructor() {
     effect(() => {
@@ -97,15 +147,34 @@ export class DatePickerComponent implements ControlValueAccessor {
         this.internalValue.set(dateInput);
       }
     });
+    effect(() => {
+      if (this.isOpen()) {
+        this.adjustedPosition.set({ offsetX: 0, actualSide: 'bottom' });
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            this.calculatePosition();
+          });
+        });
+      }
+    });
   }
 
-  buttonClasses = computed(() => cn(
+  readonly buttonClasses = computed(() => cn(
     'inline-flex h-10 w-[240px] items-center justify-start rounded-md border border-input bg-background px-4 py-2 text-sm font-normal ring-offset-background',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     'disabled:cursor-not-allowed disabled:opacity-50',
     this.class()
   ));
+
+  readonly popupClasses = computed(() => computePopupClasses(this.adjustedPosition()));
+
+  readonly popupStyles = computed(() => computePopupStyles(this.adjustedPosition()));
+
+  private calculatePosition() {
+    if (!this.popupEl?.nativeElement) return;
+    this.adjustedPosition.set(calculatePopupPosition(this.popupEl.nativeElement));
+  }
 
   toggleOpen() {
     if (!this.disabled()) {
@@ -202,7 +271,9 @@ export class DatePickerComponent implements ControlValueAccessor {
       
       @if (isOpen()) {
         <div
-          class="absolute left-0 top-full z-50 mt-1 rounded-md border bg-popover p-0 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          #popupEl
+          [class]="popupClasses()"
+          [style]="popupStyles()"
           (click)="$event.stopPropagation()"
         >
           <ui-calendar
@@ -227,28 +298,54 @@ export class DatePickerComponent implements ControlValueAccessor {
   },
 })
 export class DateRangePickerComponent implements ControlValueAccessor {
-  class = input('');
-  placeholder = input('Pick a date range');
-  disabled = input(false);
-  showTime = input(false);
-  locale = input('en');
+  readonly class = input('');
+  readonly placeholder = input('Pick a date range');
+  readonly disabled = input(false);
+  readonly showTime = input(false);
+  readonly locale = input('en');
 
-  isOpen = signal(false);
-  rangeValue = signal<DateRange>({ start: null, end: null });
-  timeRange = signal<TimeRange>({ start: '', end: '' });
-  rangeChange = output<DateRange>();
-  timeRangeChange = output<TimeRange>();
+  readonly isOpen = signal(false);
+  readonly rangeValue = signal<DateRange>({ start: null, end: null });
+  readonly timeRange = signal<TimeRange>({ start: '', end: '' });
+  readonly rangeChange = output<DateRange>();
+  readonly timeRangeChange = output<TimeRange>();
 
   private onChange: (value: DateRange) => void = () => { };
   private onTouched: () => void = () => { };
 
-  buttonClasses = computed(() => cn(
+  @ViewChild('popupEl') popupEl?: ElementRef<HTMLElement>;
+
+  private readonly adjustedPosition = signal<PopupPosition>({ ...DEFAULT_POPUP_POSITION });
+
+  constructor() {
+    effect(() => {
+      if (this.isOpen()) {
+        this.adjustedPosition.set({ offsetX: 0, actualSide: 'bottom' });
+        requestAnimationFrame(() => {
+          requestAnimationFrame(() => {
+            this.calculatePosition();
+          });
+        });
+      }
+    });
+  }
+
+  readonly buttonClasses = computed(() => cn(
     'inline-flex h-10 w-[300px] items-center justify-start rounded-md border border-input bg-background px-4 py-2 text-sm font-normal ring-offset-background',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     'disabled:cursor-not-allowed disabled:opacity-50',
     this.class()
   ));
+
+  readonly popupClasses = computed(() => computePopupClasses(this.adjustedPosition()));
+
+  readonly popupStyles = computed(() => computePopupStyles(this.adjustedPosition()));
+
+  private calculatePosition() {
+    if (!this.popupEl?.nativeElement) return;
+    this.adjustedPosition.set(calculatePopupPosition(this.popupEl.nativeElement));
+  }
 
   toggleOpen() {
     if (this.disabled()) return;
