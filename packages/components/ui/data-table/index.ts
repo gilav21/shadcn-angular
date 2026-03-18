@@ -5,3 +5,4 @@ export * from './data-table-pagination.component';
 export * from './data-table.component';
 export * from './data-table-multiselect-filter.component';
 export * from './data-table-date-filter.component';
+export * from './component-pool.service';
