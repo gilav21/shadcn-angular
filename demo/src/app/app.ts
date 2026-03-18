@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal, inject, computed } from '@angular/core';
+import { Component, ChangeDetectionStrategy, signal, inject, computed, input, OnDestroy, output } from '@angular/core';
 import { TitleCasePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
@@ -38,6 +38,7 @@ import {
   ShortcutBindingsDialogComponent,
   RICH_TEXT_SHORTCUT_DEFINITIONS,
   IconComponent,
+  ColumnDef,
 } from '../../../packages/components/ui';
 
 export type ComponentCategory = 'Inputs' | 'Data Display' | 'Feedback' | 'Overlay' | 'Navigation' | 'Layout' | 'Charts' | 'Advanced';
