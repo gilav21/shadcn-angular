@@ -12,18 +12,6 @@
         ]
       }
     ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python -c \"import sys,json; cmd=json.load(sys.stdin).get('tool_input',{}).get('command',''); exit(0 if cmd.startswith('git commit') else 1)\" && npx tsx packages/cli/scripts/sync-registry.ts --fix && git add packages/cli/src/registry/index.ts || true",
-            "timeout": 60,
-            "statusMessage": "Syncing registry..."
-          }
-        ]
-      }
-    ]
+    "PreToolUse": []
   }
 }
