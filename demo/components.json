@@ -1,5 +1,4 @@
 {
-    "$schema": "https://shadcn-angular.dev/schema.json",
     "style": "default",
     "tailwind": {
         "css": "src/styles.scss",

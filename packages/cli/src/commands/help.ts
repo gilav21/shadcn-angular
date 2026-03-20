@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { registry } from '../registry/index.js';
+import { registry, getComponentNames } from '../registry/index.js';
 
 type Category = 'UI' | 'Charts' | 'Layout / Page Building' | 'Animation' | 'Kanban';
 
@@ -17,8 +17,8 @@ const KANBAN_COMPONENTS = new Set(['kanban']);
 const LAYOUT_COMPONENTS = new Set(['bento-grid', 'page-builder']);
 
 function categorize(name: string): Category {
-  const def = registry[name];
-  if (!def) return 'UI';
+  if (!(name in registry)) return 'UI';
+  const def = registry[name as keyof typeof registry];
 
   const hasChartFile = def.files.some(f => f.startsWith('charts/'));
   if (hasChartFile) return 'Charts';
@@ -37,14 +37,14 @@ function buildComponentsByCategory(): Map<Category, readonly string[]> {
     groups.set(cat, []);
   }
 
-  for (const name of Object.keys(registry)) {
+  for (const name of getComponentNames()) {
     const cat = categorize(name);
     const list = groups.get(cat);
     if (list) list.push(name);
   }
 
   for (const list of groups.values()) {
-    list.sort();
+    list.sort((a, b) => a.localeCompare(b));
   }
 
   return groups;
@@ -71,16 +71,25 @@ function buildCommandsSection(): string[] {
     '  ' + chalk.cyan('init') + '   Initialize shadcn-angular in your project',
     '    ' + chalk.gray('-y, --yes') + '            Skip confirmation prompt',
     '    ' + chalk.gray('-d, --defaults') + '       Use default configuration',
+    '    ' + chalk.gray('--remote') + '             Force remote fetch from GitHub registry',
     '    ' + chalk.gray('-b, --branch') + ' <branch> GitHub branch to fetch from ' + branchDefault,
     '',
     '  ' + chalk.cyan('add') + '    Add component(s) to your project',
     '    ' + chalk.gray('[components...]') + '       One or more component names',
-    '    ' + chalk.gray('-y, --yes') + '            Skip confirmation prompt',
+    '    ' + chalk.gray('-y, --yes') + '            Skip prompts and overwrite conflicts',
     '    ' + chalk.gray('-o, --overwrite') + '      Overwrite existing files',
     '    ' + chalk.gray('-a, --all') + '            Add all available components',
     '    ' + chalk.gray('-p, --path') + ' <path>     Custom install path',
     '    ' + chalk.gray('--remote') + '             Force remote fetch from GitHub registry',
+    '    ' + chalk.gray('--dry-run') + '            Show what would be installed without changes',
     '    ' + chalk.gray('-b, --branch') + ' <branch> GitHub branch to fetch from ' + branchDefault,
+    '',
+    '  ' + chalk.cyan('diff') + '   Show differences between local and remote versions',
+    '    ' + chalk.gray('[components...]') + '       Components to diff (all installed if omitted)',
+    '    ' + chalk.gray('--remote') + '             Force remote fetch from GitHub registry',
+    '    ' + chalk.gray('-b, --branch') + ' <branch> GitHub branch to fetch from ' + branchDefault,
+    '',
+    '  ' + chalk.cyan('list') + '   List all components and their install status',
     '',
     '  ' + chalk.cyan('help') + '   Show this reference',
     '',

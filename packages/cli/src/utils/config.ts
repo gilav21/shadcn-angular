@@ -2,8 +2,8 @@ import fs from 'fs-extra';
 import path from 'node:path';
 
 export interface Config {
-    $schema: string;
     style: 'default';
+    registry?: string;
     tailwind: {
         css: string;
         baseColor: 'neutral' | 'slate' | 'stone' | 'gray' | 'zinc';
@@ -19,7 +19,6 @@ export interface Config {
 
 export function getDefaultConfig(): Config {
     return {
-        $schema: 'https://shadcn-angular.dev/schema.json',
         style: 'default',
         tailwind: {
             css: 'src/styles.scss',
@@ -35,6 +34,21 @@ export function getDefaultConfig(): Config {
     };
 }
 
+function validateConfig(data: unknown): data is Config {
+    if (!data || typeof data !== 'object') return false;
+    const obj = data as Record<string, unknown>;
+
+    if (!obj['tailwind'] || typeof obj['tailwind'] !== 'object') return false;
+    const tw = obj['tailwind'] as Record<string, unknown>;
+    if (typeof tw['css'] !== 'string' || typeof tw['baseColor'] !== 'string') return false;
+
+    if (!obj['aliases'] || typeof obj['aliases'] !== 'object') return false;
+    const aliases = obj['aliases'] as Record<string, unknown>;
+    if (typeof aliases['components'] !== 'string' || typeof aliases['utils'] !== 'string' || typeof aliases['ui'] !== 'string') return false;
+
+    return true;
+}
+
 export async function getConfig(cwd: string): Promise<Config | null> {
     const configPath = path.join(cwd, 'components.json');
 
@@ -43,7 +57,12 @@ export async function getConfig(cwd: string): Promise<Config | null> {
     }
 
     try {
-        return await fs.readJson(configPath);
+        const data: unknown = await fs.readJson(configPath);
+        if (!validateConfig(data)) {
+            console.error('Error: components.json is missing required fields (tailwind.css, tailwind.baseColor, aliases.components, aliases.utils, aliases.ui).');
+            return null;
+        }
+        return data;
     } catch {
         return null;
     }

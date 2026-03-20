@@ -7,25 +7,25 @@ export interface OptionalDependency {
 }
 
 export interface ComponentDefinition {
-  name: string;
-  files: string[]; // Relative paths to component files
-  peerFiles?: string[]; // Files to update only if they already exist in the user's project
-  dependencies?: string[]; // Other components this depends on
-  optionalDependencies?: readonly OptionalDependency[]; // Companion components offered during install
-  npmDependencies?: string[]; // NPM packages this depends on
-  libFiles?: string[]; // Lib utility files this component requires (e.g. 'xlsx.ts')
-  shortcutDefinitions?: {
-    exportName: string;
-    componentName: string;
-    sourceFile: string;
+  readonly name: string;
+  readonly files: readonly string[];
+  readonly peerFiles?: readonly string[];
+  readonly dependencies?: readonly string[];
+  readonly optionalDependencies?: readonly OptionalDependency[];
+  readonly npmDependencies?: readonly string[];
+  readonly libFiles?: readonly string[];
+  readonly shortcutDefinitions?: readonly {
+    readonly exportName: string;
+    readonly componentName: string;
+    readonly sourceFile: string;
   }[];
 }
 
-export type ComponentName = keyof typeof registry;
+function defineRegistry<T extends Record<string, ComponentDefinition>>(reg: T): { readonly [K in keyof T]: ComponentDefinition } {
+    return reg;
+}
 
-// Registry maps component names to their file definitions
-// Files are relative to the components/ui directory
-export const registry: Record<string, ComponentDefinition> = {
+export const registry = defineRegistry({
   accordion: {
     name: 'accordion',
     files: ['accordion.component.ts'],
@@ -33,7 +33,7 @@ export const registry: Record<string, ComponentDefinition> = {
   autocomplete: {
     name: 'autocomplete',
     files: ['autocomplete.component.ts', 'highlight.pipe.ts'],
-    dependencies: ['popover', 'command', 'badge'],
+    dependencies: ['badge', 'command', 'popover'],
   },
   alert: {
     name: 'alert',
@@ -66,12 +66,11 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   'button-group': {
     name: 'button-group',
-    files: ['button-group.component.ts'],
-    dependencies: ['button']
+    files: ['button-group.component.ts']
   },
   calendar: {
     name: 'calendar',
-    files: ['calendar.component.ts', 'calendar-locales.ts'],
+    files: ['calendar-locales.ts', 'calendar.component.ts'],
     dependencies: ['button', 'select'],
   },
   card: {
@@ -93,7 +92,7 @@ export const registry: Record<string, ComponentDefinition> = {
   'color-picker': {
     name: 'color-picker',
     files: ['color-picker.component.ts'],
-    dependencies: ['popover', 'input', 'tabs'],
+    dependencies: ['input', 'popover', 'tabs'],
   },
   confetti: {
     name: 'confetti',
@@ -114,7 +113,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   'context-menu': {
     name: 'context-menu',
-    files: ['context-menu.component.ts', 'context-menu-integrations.ts'],
+    files: ['context-menu.component.ts'],
   },
   'date-picker': {
     name: 'date-picker',
@@ -124,7 +123,7 @@ export const registry: Record<string, ComponentDefinition> = {
   chat: {
     name: 'chat',
     files: ['chat.component.ts'],
-    dependencies: ['avatar', 'button', 'textarea', 'scroll-area'],
+    dependencies: ['avatar', 'button', 'scroll-area', 'textarea'],
   },
   'streaming-text': {
     name: 'streaming-text',
@@ -138,7 +137,7 @@ export const registry: Record<string, ComponentDefinition> = {
   'code-block': {
     name: 'code-block',
     files: ['code-block.component.ts'],
-    dependencies: ['button', 'scroll-area'],
+    dependencies: ['button'],
   },
   'text-reveal': {
     name: 'text-reveal',
@@ -146,31 +145,11 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   'data-table': {
     name: 'data-table',
-    files: [
-      'data-table/data-table.component.ts',
-      'data-table/data-table-column-header.component.ts',
-      'data-table/data-table-pagination.component.ts',
-      'data-table/data-table-multiselect-filter.component.ts',
-      'data-table/data-table.types.ts',
-      'data-table/data-table.utils.ts',
-      'data-table/index.ts',
-    ],
+    files: ['calendar-locales.ts', 'data-table/component-pool.service.ts', 'data-table/data-table-column-header.component.ts', 'data-table/data-table-date-filter.component.ts', 'data-table/data-table-multiselect-filter.component.ts', 'data-table/data-table-pagination.component.ts', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts'],
     peerFiles: [
       'context-menu-integrations.ts',
     ],
-    dependencies: [
-      'table',
-      'input',
-      'button',
-      'checkbox',
-      'select',
-      'pagination',
-      'popover',
-      'component-outlet',
-      'icon',
-      'command',
-      'badge',
-    ],
+    dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'table'],
     libFiles: ['xlsx.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
@@ -182,18 +161,12 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   dock: {
     name: 'dock',
-    files: [
-      'dock.component.ts',
-      'dock-item.component.ts',
-      'dock-icon.component.ts',
-      'dock-label.component.ts',
-    ],
-    dependencies: ['icon'],
+    files: ['dock-icon.component.ts', 'dock-item.component.ts', 'dock-label.component.ts', 'dock.component.ts'],
   },
   'tree-select': {
     name: 'tree-select',
     files: ['tree-select.component.ts'],
-    dependencies: ['popover', 'tree', 'icon'],
+    dependencies: ['popover', 'tree'],
   },
   'virtual-scroll': {
     name: 'virtual-scroll',
@@ -222,7 +195,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   icon: {
     name: 'icon',
-    files: ['icon.component.ts'],
+    files: ['icon.component.ts', 'icon.token.ts'],
   },
 
   'file-upload': {
@@ -234,19 +207,7 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'file-viewer',
     files: ['file-viewer.component.ts'],
     dependencies: ['spinner'],
-    libFiles: [
-      'file-type-detector.ts',
-      'inflate.ts',
-      'zip-reader.ts',
-      'image-validator.ts',
-      'ole2-reader.ts',
-      'pptx-parser.ts',
-      'xlsx-reader.ts',
-      'docx-parser.ts',
-      'doc-enhanced-parser.ts',
-      'ppt-parser.ts',
-      'svg-sanitizer.ts',
-    ],
+    libFiles: ['doc-enhanced-parser.ts', 'docx-parser.ts', 'file-type-detector.ts', 'image-validator.ts', 'inflate.ts', 'ole2-reader.ts', 'ppt-parser.ts', 'pptx-parser.ts', 'svg-sanitizer.ts', 'xlsx-reader.ts', 'zip-reader.ts'],
   },
   'hover-card': {
     name: 'hover-card',
@@ -254,12 +215,11 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   input: {
     name: 'input',
-    files: ['input.component.ts', 'input-group.token.ts'],
+    files: ['input-group.token.ts', 'input.component.ts'],
   },
   'input-group': {
     name: 'input-group',
     files: ['input-group.component.ts', 'input-group.token.ts'],
-    dependencies: ['input'],
   },
   'input-otp': {
     name: 'input-otp',
@@ -332,7 +292,7 @@ export const registry: Record<string, ComponentDefinition> = {
   sidebar: {
     name: 'sidebar',
     files: ['sidebar.component.ts'],
-    dependencies: ['scroll-area', 'tooltip', 'icon'],
+    dependencies: ['scroll-area', 'tooltip'],
   },
   skeleton: {
     name: 'skeleton',
@@ -364,7 +324,7 @@ export const registry: Record<string, ComponentDefinition> = {
   },
   textarea: {
     name: 'textarea',
-    files: ['textarea.component.ts', 'input-group.token.ts'],
+    files: ['input-group.token.ts', 'textarea.component.ts'],
   },
   timeline: {
     name: 'timeline',
@@ -389,60 +349,29 @@ export const registry: Record<string, ComponentDefinition> = {
   tree: {
     name: 'tree',
     files: ['tree.component.ts'],
-    dependencies: ['icon'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on tree nodes' },
     ],
   },
   'speed-dial': {
     name: 'speed-dial',
-    files: ['speed-dial.component.ts'],
-    dependencies: ['button']
+    files: ['speed-dial.component.ts']
   },
   'chip-list': {
     name: 'chip-list',
-    files: ['chip-list.component.ts'],
-    dependencies: ['badge', 'button', 'input', 'input-group'],
+    files: ['chip-list.component.ts', 'input-group.token.ts'],
+    dependencies: ['badge', 'button', 'input'],
   },
   'emoji-picker': {
     name: 'emoji-picker',
-    files: ['emoji-picker.component.ts', 'emoji-data.ts'],
+    files: ['emoji-data.ts', 'emoji-picker.component.ts'],
     dependencies: ['input', 'scroll-area', 'tooltip'],
   },
   'rich-text-editor': {
     name: 'rich-text-editor',
-    files: [
-      'rich-text-editor.component.ts',
-      'rich-text-toolbar.component.ts',
-      'rich-text-sanitizer.service.ts',
-      'rich-text-markdown.service.ts',
-      'rich-text-paste-normalizer.service.ts',
-      'rich-text-command-registry.service.ts',
-      'rich-text-mention.component.ts',
-      'rich-text-image-resizer.component.ts',
-      'rich-text-locales.ts',
-    ],
-    dependencies: [
-      'button',
-      'separator',
-      'popover',
-      'emoji-picker',
-      'autocomplete',
-      'select',
-      'input',
-      'dialog',
-      'scroll-area',
-    ],
-    libFiles: [
-      'pdf-parser.ts',
-      'image-validator.ts',
-      'svg-sanitizer.ts',
-      'shortcut-binding.service.ts',
-      'docx-parser.ts',
-      'docx-to-editor-html.ts',
-      'zip-reader.ts',
-      'inflate.ts',
-    ],
+    files: ['rich-text-command-registry.service.ts', 'rich-text-editor.component.ts', 'rich-text-image-resizer.component.ts', 'rich-text-locales.ts', 'rich-text-markdown.service.ts', 'rich-text-mention.component.ts', 'rich-text-paste-normalizer.service.ts', 'rich-text-sanitizer.service.ts', 'rich-text-toolbar.component.ts'],
+    dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
+    libFiles: ['docx-parser.ts', 'docx-to-editor-html.ts', 'image-validator.ts', 'inflate.ts', 'pdf-parser.ts', 'shortcut-binding.service.ts', 'svg-sanitizer.ts', 'zip-reader.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
@@ -454,102 +383,54 @@ export const registry: Record<string, ComponentDefinition> = {
   // Chart Components
   'pie-chart': {
     name: 'pie-chart',
-    files: [
-      'charts/pie-chart.component.ts',
-      'charts/chart.types.ts',
-      'charts/chart.utils.ts',
-    ],
+    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/pie-chart.component.ts'],
   },
   'pie-chart-drilldown': {
     name: 'pie-chart-drilldown',
-    files: [
-      'charts/pie-chart-drilldown.component.ts',
-      'charts/chart.types.ts',
-      'charts/chart.utils.ts',
-    ],
+    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/pie-chart-drilldown.component.ts'],
   },
   'bar-chart': {
     name: 'bar-chart',
-    files: [
-      'charts/bar-chart.component.ts',
-      'charts/chart.types.ts',
-      'charts/chart.utils.ts',
-    ],
+    files: ['charts/bar-chart.component.ts', 'charts/chart.types.ts', 'charts/chart.utils.ts'],
   },
   'bar-chart-drilldown': {
     name: 'bar-chart-drilldown',
-    files: [
-      'charts/bar-chart-drilldown.component.ts',
-      'charts/chart.types.ts',
-      'charts/chart.utils.ts',
-    ],
+    files: ['charts/bar-chart-drilldown.component.ts', 'charts/chart.types.ts', 'charts/chart.utils.ts'],
   },
   'stacked-bar-chart': {
     name: 'stacked-bar-chart',
-    files: [
-      'charts/stacked-bar-chart.component.ts',
-      'charts/chart.types.ts',
-      'charts/chart.utils.ts',
-    ],
+    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/stacked-bar-chart.component.ts'],
   },
   'column-range-chart': {
     name: 'column-range-chart',
-    files: [
-      'charts/column-range-chart.component.ts',
-      'charts/chart.types.ts',
-      'charts/chart.utils.ts',
-    ],
+    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/column-range-chart.component.ts'],
   },
   'bar-race-chart': {
     name: 'bar-race-chart',
-    files: [
-      'charts/bar-race-chart.component.ts',
-      'charts/chart.types.ts',
-      'charts/chart.utils.ts',
-    ],
+    files: ['charts/bar-race-chart.component.ts', 'charts/chart.types.ts', 'charts/chart.utils.ts'],
   },
   'org-chart': {
     name: 'org-chart',
-    files: [
-      'charts/org-chart.component.ts',
-      'charts/chart.types.ts',
-      'charts/chart.utils.ts',
-    ],
+    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/org-chart.component.ts'],
   },
   'bento-grid': {
     name: 'bento-grid',
-    dependencies: ['context-menu', 'component-outlet', 'icon'],
-    files: [
-      'bento-grid.component.ts',
-    ],
+    dependencies: ['component-outlet', 'context-menu'],
+    files: ['bento-grid.component.ts'],
   },
   'page-builder': {
     name: 'page-builder',
-    dependencies: [
-      'bento-grid',
-      'button',
-      'input',
-      'label',
-      'select',
-      'switch',
-      'slider',
-      'icon'
-    ],
-    files: [
-      'page-builder/page-builder.component.ts',
-      'page-builder/page-builder.types.ts',
-      'page-builder/property-editor.component.ts',
-      'page-builder/page-renderer.component.ts'
-    ],
+    dependencies: ['bento-grid', 'icon', 'select', 'switch'],
+    files: ['page-builder/page-builder.component.ts', 'page-builder/page-builder.types.ts', 'page-builder/property-editor.component.ts'],
   },
   'component-outlet': {
     name: 'component-outlet',
-    files: ['component-outlet.directive.ts'],
+    files: ['component-outlet.directive.ts', 'data-table/component-pool.service.ts'],
   },
   'split-button': {
     name: 'split-button',
     files: ['split-button.component.ts'],
-    dependencies: ['button', 'dropdown-menu'],
+    dependencies: ['button'],
   },
   // Animations
   'gradient-text': {
@@ -616,16 +497,26 @@ export const registry: Record<string, ComponentDefinition> = {
     name: 'particles',
     files: ['particles.component.ts'],
   },
-  // Kanban
   kanban: {
     name: 'kanban',
-    files: ['kanban.component.ts', 'kanban-locales.ts'],
+    files: ['kanban-locales.ts', 'kanban.component.ts'],
     libFiles: ['shortcut-binding.service.ts'],
-    dependencies: [
-      'badge', 'avatar', 'scroll-area', 'separator',
-      'button', 'input', 'textarea', 'label',
-      'chip-list', 'autocomplete',
-      'dialog', 'alert-dialog', 'context-menu',
-    ],
+    dependencies: ['alert-dialog', 'autocomplete', 'avatar', 'badge', 'button', 'chip-list', 'context-menu', 'dialog', 'input', 'label', 'scroll-area', 'separator', 'textarea'],
   },
-};
+  'shortcut-bindings-dialog': {
+    name: 'shortcut-bindings-dialog',
+    files: ['shortcut-bindings-dialog.component.ts'],
+    libFiles: ['shortcut-binding.service.ts'],
+    dependencies: ['accordion', 'badge', 'button', 'dialog', 'scroll-area'],
+  },
+});
+
+export type ComponentName = keyof typeof registry;
+
+export function isComponentName(name: string): name is ComponentName {
+    return name in registry;
+}
+
+export function getComponentNames(): ComponentName[] {
+    return Object.keys(registry) as ComponentName[];
+}

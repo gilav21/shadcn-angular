@@ -7,9 +7,8 @@ import {
   checkFileConflict,
   classifyComponent,
   detectConflicts,
-  type AddOptions,
 } from './add.js';
-import { registry, type ComponentName, type ComponentDefinition } from '../registry/index.js';
+import { registry, type ComponentName } from '../registry/index.js';
 import fs from 'fs-extra';
 
 // ---------------------------------------------------------------------------
@@ -353,22 +352,22 @@ describe('detectConflicts', () => {
 describe('peer file filtering logic', () => {
   it('removes peer files of declined components from peerFilesToUpdate', () => {
     const peerFilesToUpdate = new Set(['shared/peer-a.ts', 'shared/peer-b.ts', 'shared/peer-c.ts']);
-    const conflicting: string[] = ['compA', 'compB'];
-    const toOverwrite: string[] = ['compA'];
-    const finalComponents: string[] = ['compA'];
+    const conflicting = new Set(['compA', 'compB']);
+    const toOverwrite = new Set(['compA']);
+    const finalComponents = new Set(['compA']);
 
     const mockPeerFiles: Record<string, string[] | undefined> = {
       compA: ['shared/peer-a.ts'],
       compB: ['shared/peer-b.ts', 'shared/peer-c.ts'],
     };
 
-    const declined = conflicting.filter(c => !toOverwrite.includes(c));
+    const declined = [...conflicting].filter(c => !toOverwrite.has(c));
 
     for (const name of declined) {
       const peerFiles = mockPeerFiles[name];
       if (!peerFiles) continue;
       for (const file of peerFiles) {
-        const stillNeeded = finalComponents.some(fc =>
+        const stillNeeded = [...finalComponents].some(fc =>
           mockPeerFiles[fc]?.includes(file),
         );
         if (!stillNeeded) {
@@ -384,22 +383,22 @@ describe('peer file filtering logic', () => {
 
   it('keeps shared peer files when another final component still needs them', () => {
     const peerFilesToUpdate = new Set(['shared/common.ts']);
-    const conflicting: string[] = ['compA', 'compB'];
-    const toOverwrite: string[] = ['compA'];
-    const finalComponents: string[] = ['compA'];
+    const conflicting = new Set(['compA', 'compB']);
+    const toOverwrite = new Set(['compA']);
+    const finalComponents = new Set(['compA']);
 
     const mockPeerFiles: Record<string, string[] | undefined> = {
       compA: ['shared/common.ts'],
       compB: ['shared/common.ts'],
     };
 
-    const declined = conflicting.filter(c => !toOverwrite.includes(c));
+    const declined = [...conflicting].filter(c => !toOverwrite.has(c));
 
     for (const name of declined) {
       const peerFiles = mockPeerFiles[name];
       if (!peerFiles) continue;
       for (const file of peerFiles) {
-        const stillNeeded = finalComponents.some(fc =>
+        const stillNeeded = [...finalComponents].some(fc =>
           mockPeerFiles[fc]?.includes(file),
         );
         if (!stillNeeded) {
@@ -413,27 +412,18 @@ describe('peer file filtering logic', () => {
 
   it('removes all peer files when all components are declined', () => {
     const peerFilesToUpdate = new Set(['shared/peer-a.ts', 'shared/peer-b.ts']);
-    const conflicting: string[] = ['compA', 'compB'];
-    const toOverwrite: string[] = [];
-    const finalComponents: string[] = [];
+    const declined = ['compA', 'compB'];
 
     const mockPeerFiles: Record<string, string[] | undefined> = {
       compA: ['shared/peer-a.ts'],
       compB: ['shared/peer-b.ts'],
     };
 
-    const declined = conflicting.filter(c => !toOverwrite.includes(c));
-
     for (const name of declined) {
       const peerFiles = mockPeerFiles[name];
       if (!peerFiles) continue;
       for (const file of peerFiles) {
-        const stillNeeded = finalComponents.some(fc =>
-          mockPeerFiles[fc]?.includes(file),
-        );
-        if (!stillNeeded) {
-          peerFilesToUpdate.delete(file);
-        }
+        peerFilesToUpdate.delete(file);
       }
     }
 
@@ -468,9 +458,9 @@ describe('resolveDependencies', () => {
   });
 
   it('deduplicates shared dependencies across multiple inputs', () => {
-    const result = resolveDependencies(['button-group', 'speed-dial']);
-    expect(result).toContain('button-group');
-    expect(result).toContain('speed-dial');
+    const result = resolveDependencies(['date-picker', 'sparkles']);
+    expect(result).toContain('date-picker');
+    expect(result).toContain('sparkles');
     expect(result).toContain('button');
     expect(result).toContain('ripple');
 
@@ -547,25 +537,25 @@ describe('registry optional dependencies', () => {
   });
 
   it('every optional dependency name is a valid registry key', () => {
-    for (const [componentName, definition] of Object.entries(registry) as [string, ComponentDefinition][]) {
+    for (const [componentName, definition] of Object.entries(registry)) {
       if (!definition.optionalDependencies) continue;
       for (const opt of definition.optionalDependencies) {
         expect(
-          registry[opt.name],
+          opt.name in registry,
           `Optional dep "${opt.name}" in "${componentName}" is not a valid registry key`,
-        ).toBeDefined();
+        ).toBe(true);
       }
     }
   });
 
   it('every dependency name is a valid registry key', () => {
-    for (const [componentName, definition] of Object.entries(registry) as [string, ComponentDefinition][]) {
+    for (const [componentName, definition] of Object.entries(registry)) {
       if (!definition.dependencies) continue;
       for (const dep of definition.dependencies) {
         expect(
-          registry[dep],
+          dep in registry,
           `Dependency "${dep}" in "${componentName}" is not a valid registry key`,
-        ).toBeDefined();
+        ).toBe(true);
       }
     }
   });

@@ -1,6 +1,5 @@
 import fs from 'fs-extra';
 import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import prompts from 'prompts';
 import chalk from 'chalk';
 import ora from 'ora';
@@ -9,31 +8,28 @@ import { getStylesTemplate } from '../templates/styles.js';
 import { getUtilsTemplate } from '../templates/utils.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
+import {
+    getLibRegistryBaseUrl,
+    getLocalLibDir,
+    resolveProjectPath,
+    aliasToProjectPath,
+} from '../utils/paths.js';
 
-function getLibRegistryBaseUrl(branch: string) {
-    return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/components/lib`;
-}
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const onCancel = () => {
+    console.log(chalk.dim('\nCancelled.'));
+    process.exit(0);
+};
 
-function getLocalLibDir(): string | null {
-    const fromDist = path.resolve(__dirname, '../../../components/lib');
-    if (fs.existsSync(fromDist)) {
-        return fromDist;
-    }
-    return null;
-}
-
-async function fetchLibFileContent(file: string, branch: string): Promise<string> {
+async function fetchLibFileContent(file: string, branch: string, remote?: boolean, registry?: string): Promise<string> {
     const localLibDir = getLocalLibDir();
-    if (localLibDir) {
+    if (localLibDir && !remote) {
         const localPath = path.join(localLibDir, file);
         if (await fs.pathExists(localPath)) {
             return fs.readFile(localPath, 'utf-8');
         }
     }
 
-    const url = `${getLibRegistryBaseUrl(branch)}/${file}`;
+    const url = `${getLibRegistryBaseUrl(branch, registry)}/${file}`;
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
@@ -44,154 +40,103 @@ async function fetchLibFileContent(file: string, branch: string): Promise<string
 interface InitOptions {
     yes?: boolean;
     defaults?: boolean;
+    remote?: boolean;
     branch: string;
+    registry?: string;
 }
 
-function resolveProjectPath(cwd: string, inputPath: string): string {
-    const resolved = path.resolve(cwd, inputPath);
-    const relative = path.relative(cwd, resolved);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
-        throw new Error(`Path must stay inside the project directory: ${inputPath}`);
-    }
-    return resolved;
+interface InitConfig {
+    readonly config: Config;
+    readonly createShortcutRegistry: boolean;
 }
 
 function resolveAliasOrPath(cwd: string, aliasOrPath: string): string {
-    const normalized = aliasOrPath.startsWith('@/')
-        ? path.join('src', aliasOrPath.slice(2))
-        : aliasOrPath;
-    return resolveProjectPath(cwd, normalized);
+    return resolveProjectPath(cwd, aliasToProjectPath(aliasOrPath));
 }
 
-export async function init(options: InitOptions) {
-    console.log(chalk.bold('\n🎨 Welcome to shadcn-angular!\n'));
+function toAlias(inputPath: string): string {
+    return inputPath.startsWith('src/')
+        ? '@/' + inputPath.slice(4)
+        : inputPath;
+}
 
-    const cwd = process.cwd();
+async function promptForConfig(): Promise<InitConfig> {
+    const THEME_COLORS: Record<string, string> = {
+        zinc: '#71717a', slate: '#64748b', stone: '#78716c',
+        gray: '#6b7280', neutral: '#737373', red: '#ef4444',
+        rose: '#f43f5e', orange: '#f97316', green: '#22c55e',
+        blue: '#3b82f6', yellow: '#eab308', violet: '#8b5cf6',
+        amber: '#d97706',
+    };
 
-    // Check if this is an Angular project
-    const angularJsonPath = path.join(cwd, 'angular.json');
-    if (!await fs.pathExists(angularJsonPath)) {
-        console.log(chalk.red('Error: This does not appear to be an Angular project.'));
-        console.log(chalk.dim('Please run this command in the root of your Angular project.'));
-        process.exit(1);
-    }
+    const colorSwatch = (value: string, label: string) =>
+        `${chalk.hex(THEME_COLORS[value])('██')} ${label}`;
 
-    // Check if already initialized
-    const componentsJsonPath = path.join(cwd, 'components.json');
-    if (await fs.pathExists(componentsJsonPath)) {
-        const overwrite = options.yes
-            ? true
-            : (await prompts({
-                type: 'confirm',
-                name: 'overwrite',
-                message: 'components.json already exists. Overwrite?',
-                initial: false,
-            })).overwrite;
-        if (!overwrite) {
-            console.log(chalk.dim('Initialization cancelled.'));
-            return;
-        }
-    }
+    const themeChoices = [
+        'Zinc', 'Slate', 'Stone', 'Gray', 'Neutral',
+        'Red', 'Rose', 'Orange', 'Green', 'Blue',
+        'Yellow', 'Violet', 'Amber',
+    ].map(label => {
+        const value = label.toLowerCase();
+        return { title: colorSwatch(value, label), value };
+    });
 
-    let config: Config;
-    let createShortcutRegistry = true;
+    const baseColorChoices = ['Neutral', 'Slate', 'Stone', 'Gray', 'Zinc'].map(label => {
+        const value = label.toLowerCase();
+        return { title: colorSwatch(value, label), value };
+    });
 
-    if (options.defaults || options.yes) {
-        config = getDefaultConfig();
-    } else {
-        const THEME_COLORS: Record<string, string> = {
-            zinc: '#71717a',
-            slate: '#64748b',
-            stone: '#78716c',
-            gray: '#6b7280',
-            neutral: '#737373',
-            red: '#ef4444',
-            rose: '#f43f5e',
-            orange: '#f97316', // bright orange
-            green: '#22c55e',
-            blue: '#3b82f6',
-            yellow: '#eab308',
-            violet: '#8b5cf6',
-            amber: '#d97706', // warm amber for preview
-        };
-
-        const themeChoices = [
-            { title: 'Zinc', value: 'zinc' },
-            { title: 'Slate', value: 'slate' },
-            { title: 'Stone', value: 'stone' },
-            { title: 'Gray', value: 'gray' },
-            { title: 'Neutral', value: 'neutral' },
-            { title: 'Red', value: 'red' },
-            { title: 'Rose', value: 'rose' },
-            { title: 'Orange', value: 'orange' },
-            { title: 'Green', value: 'green' },
-            { title: 'Blue', value: 'blue' },
-            { title: 'Yellow', value: 'yellow' },
-            { title: 'Violet', value: 'violet' },
-            { title: 'Amber', value: 'amber' },
-        ].map(c => ({
-            ...c,
-            title: `${chalk.hex(THEME_COLORS[c.value])('██')} ${c.title}`
-        }));
-
-        const baseColorChoices = [
-            { title: 'Neutral', value: 'neutral' },
-            { title: 'Slate', value: 'slate' },
-            { title: 'Stone', value: 'stone' },
-            { title: 'Gray', value: 'gray' },
-            { title: 'Zinc', value: 'zinc' },
-        ].map(c => ({
-            ...c,
-            title: `${chalk.hex(THEME_COLORS[c.value])('██')} ${c.title}`
-        }));
-
-        const responses = await prompts([
-
-            {
-                type: 'select',
-                name: 'baseColor',
-                message: 'Which color would you like to use as base color?',
-                choices: baseColorChoices,
-                initial: 0,
+    const responses = await prompts([
+        {
+            type: 'select',
+            name: 'baseColor',
+            message: 'Which color would you like to use as base color?',
+            choices: baseColorChoices,
+            initial: 0,
+        },
+        {
+            type: 'select',
+            name: 'theme',
+            message: 'Which color would you like to use for the main theme?',
+            choices: themeChoices,
+            initial: (prev: string) => {
+                const index = themeChoices.findIndex(c => c.value === prev);
+                return index === -1 ? 0 : index;
             },
-            {
-                type: 'select',
-                name: 'theme',
-                message: 'Which color would you like to use for the main theme?',
-                choices: themeChoices,
-                initial: (prev: string) => {
-                    const index = themeChoices.findIndex(c => c.value === prev);
-                    return index === -1 ? 0 : index;
-                },
-            },
-            {
-                type: 'text',
-                name: 'componentsPath',
-                message: 'Where would you like to install components?',
-                initial: 'src/components/ui',
-            },
-            {
-                type: 'text',
-                name: 'utilsPath',
-                message: 'Where would you like to install utils?',
-                initial: 'src/components/lib',
-            },
-            {
-                type: 'text',
-                name: 'globalCss',
-                message: 'Where is your global styles file?',
-                initial: 'src/styles.scss',
-            },
-            {
-                type: 'confirm',
-                name: 'createShortcutRegistry',
-                message: 'Would you like to create a shortcut registry scaffold?',
-                initial: true,
-            },
-        ]);
+        },
+        {
+            type: 'text',
+            name: 'componentsPath',
+            message: 'Where would you like to install components?',
+            initial: 'src/components/ui',
+        },
+        {
+            type: 'text',
+            name: 'utilsPath',
+            message: 'Where would you like to install utils?',
+            initial: 'src/components/lib',
+        },
+        {
+            type: 'text',
+            name: 'globalCss',
+            message: 'Where is your global styles file?',
+            initial: 'src/styles.scss',
+        },
+        {
+            type: 'confirm',
+            name: 'createShortcutRegistry',
+            message: 'Would you like to create a shortcut registry scaffold?',
+            initial: true,
+        },
+    ], { onCancel });
 
-        config = {
-            $schema: 'https://shadcn-angular.dev/schema.json',
+    const componentsAlias = toAlias(responses.componentsPath);
+    const uiAlias = componentsAlias.endsWith('/ui')
+        ? componentsAlias
+        : componentsAlias + '/ui';
+
+    return {
+        config: {
             style: 'default',
             tailwind: {
                 css: responses.globalCss,
@@ -200,110 +145,180 @@ export async function init(options: InitOptions) {
                 cssVariables: true,
             },
             aliases: {
-                components: responses.componentsPath.replace('src/', '@/'), // Basic heuristic
-                utils: responses.utilsPath.replace('src/', '@/').replace('.ts', ''),
-                ui: responses.componentsPath.replace('src/', '@/'),
+                components: componentsAlias.replace(/\/ui$/, ''),
+                utils: toAlias(responses.utilsPath),
+                ui: uiAlias,
             },
+        },
+        createShortcutRegistry: responses.createShortcutRegistry ?? true,
+    };
+}
+
+async function installMissingDeps(cwd: string): Promise<void> {
+    const allDependencies = [
+        'clsx', 'tailwind-merge', 'class-variance-authority',
+        'tailwindcss', 'postcss', '@tailwindcss/postcss',
+    ];
+
+    const packageJsonPath = path.join(cwd, 'package.json');
+    let missingDeps = allDependencies;
+    if (await fs.pathExists(packageJsonPath)) {
+        const packageJson = await fs.readJson(packageJsonPath) as {
+            dependencies?: Record<string, string>;
+            devDependencies?: Record<string, string>;
         };
-        createShortcutRegistry = responses.createShortcutRegistry ?? true;
+        const installed = { ...packageJson.dependencies, ...packageJson.devDependencies };
+        missingDeps = allDependencies.filter(dep => !installed[dep]);
+    }
+
+    if (missingDeps.length > 0) {
+        await installPackages(missingDeps, { cwd });
+    }
+}
+
+async function setupPostcss(cwd: string): Promise<void> {
+    const postcssConfigFiles = [
+        '.postcssrc.json', '.postcssrc.js', '.postcssrc.yaml',
+        'postcss.config.js', 'postcss.config.cjs', 'postcss.config.mjs',
+    ];
+    const existing = (await Promise.all(
+        postcssConfigFiles.map(async f => await fs.pathExists(path.join(cwd, f)) ? f : null)
+    )).filter(Boolean);
+
+    if (existing.length === 0) {
+        await fs.writeJson(path.join(cwd, '.postcssrc.json'), {
+            plugins: { '@tailwindcss/postcss': {} },
+        }, { spaces: 4 });
+        return;
+    }
+
+    if (!existing.includes('.postcssrc.json')) {
+        console.log(chalk.yellow(`  Existing PostCSS config found (${existing[0]}). Skipping .postcssrc.json creation.`));
+        console.log(chalk.dim('  Make sure @tailwindcss/postcss is configured in your PostCSS config.'));
+    }
+}
+
+async function autoConfigureTsconfig(cwd: string, spinner: ReturnType<typeof ora>): Promise<void> {
+    const tsconfigPath = path.join(cwd, 'tsconfig.json');
+    if (!await fs.pathExists(tsconfigPath)) return;
+
+    try {
+        const raw = await fs.readFile(tsconfigPath, 'utf-8');
+        const stripped = raw
+            .replaceAll(/\/\/.*$/gm, '')
+            .replaceAll(/\/\*[\s\S]*?\*\//g, '');
+        const tsconfig = JSON.parse(stripped) as {
+            compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
+        };
+
+        const compilerOptions = tsconfig.compilerOptions ??= {};
+        const paths = compilerOptions.paths ??= {};
+
+        if (paths['@/*']) return;
+
+        if (!compilerOptions.baseUrl) {
+            compilerOptions.baseUrl = '.';
+        }
+        paths['@/*'] = ['./src/*'];
+
+        await fs.writeJson(tsconfigPath, tsconfig, { spaces: 2 });
+        spinner.text = 'Configured tsconfig.json paths';
+    } catch {
+        console.log(chalk.dim('  Could not auto-configure tsconfig.json — please add "@/*": ["./src/*"] to paths manually.'));
+    }
+}
+
+export async function init(options: InitOptions) {
+    console.log(chalk.bold('\n🎨 Welcome to shadcn-angular!\n'));
+
+    const cwd = process.cwd();
+
+    const angularJsonPath = path.join(cwd, 'angular.json');
+    if (!await fs.pathExists(angularJsonPath)) {
+        console.log(chalk.red('Error: This does not appear to be an Angular project.'));
+        console.log(chalk.dim('Please run this command in the root of your Angular project.'));
+        process.exit(1);
+    }
+
+    const componentsJsonPath = path.join(cwd, 'components.json');
+
+    if (await fs.pathExists(componentsJsonPath)) {
+        const overwrite = options.yes
+            ? true
+            : (await prompts({
+                type: 'confirm',
+                name: 'overwrite',
+                message: 'components.json already exists. Overwrite?',
+                initial: false,
+            }, { onCancel })).overwrite;
+        if (!overwrite) {
+            console.log(chalk.dim('Initialization cancelled.'));
+            return;
+        }
+    }
+
+    const { config, createShortcutRegistry } = options.defaults || options.yes
+        ? { config: getDefaultConfig(), createShortcutRegistry: true }
+        : await promptForConfig();
+
+    if (options.registry) {
+        config.registry = options.registry;
     }
 
     const spinner = ora('Initializing project...').start();
 
     try {
-        // Write components.json
         await fs.writeJson(componentsJsonPath, config, { spaces: 2 });
         spinner.text = 'Created components.json';
 
-        // Create utils directory and file
-        // Resolve path from the config alias, assuming @/ maps to src/ logic for file creation if not provided directly
-        // But we have the 'responses' object from CLI prompt only in the else block above!
-        // So we should rely on config to reconstruct the path, or better yet, if we are in 'defaults' mode, check what config is.
-        // If config came from defaults, aliases are set.
-        // We can reverse-map alias to path: @/ -> src/
-
         const libDir = resolveAliasOrPath(cwd, config.aliases.utils);
-
         await fs.ensureDir(libDir);
         await fs.writeFile(path.join(libDir, 'utils.ts'), getUtilsTemplate());
         spinner.text = 'Created utils.ts';
 
-        const shortcutServicePath = path.join(libDir, 'shortcut-binding.service.ts');
-        const shortcutServiceContent = await fetchLibFileContent('shortcut-binding.service.ts', options.branch);
-        await fs.writeFile(shortcutServicePath, shortcutServiceContent);
-        spinner.text = 'Created shortcut-binding.service.ts';
-
         if (createShortcutRegistry) {
+            const content = await fetchLibFileContent('shortcut-binding.service.ts', options.branch, options.remote, options.registry);
+            await fs.writeFile(path.join(libDir, 'shortcut-binding.service.ts'), content);
+            spinner.text = 'Created shortcut-binding.service.ts';
+
             await writeShortcutRegistryIndex(cwd, config, []);
             spinner.text = 'Created shortcut-registry.index.ts';
         }
 
-        // Create tailwind.css file in the same directory as the global styles
         const userStylesPath = resolveProjectPath(cwd, config.tailwind.css);
         const stylesDir = path.dirname(userStylesPath);
-        const tailwindCssPath = path.join(stylesDir, 'tailwind.css');
 
-        // Write the tailwind.css file with all Tailwind directives
         await fs.ensureDir(stylesDir);
-        await fs.writeFile(tailwindCssPath, getStylesTemplate(config.tailwind.baseColor, config.tailwind.theme));
+        await fs.writeFile(path.join(stylesDir, 'tailwind.css'), getStylesTemplate(config.tailwind.baseColor, config.tailwind.theme));
         spinner.text = 'Created tailwind.css';
 
-        // Add import to the user's global styles file if not already present
         let userStyles = await fs.pathExists(userStylesPath)
             ? await fs.readFile(userStylesPath, 'utf-8')
             : '';
 
-        const tailwindImport = '@import "./tailwind.css";';
         if (!userStyles.includes('tailwind.css')) {
-            // Add import at the top of the file
-            userStyles = tailwindImport + '\n\n' + userStyles;
+            userStyles = '@import "./tailwind.css";\n\n' + userStyles;
             await fs.writeFile(userStylesPath, userStyles);
             spinner.text = 'Added tailwind.css import to styles';
         }
 
-        // Create components/ui directory
         const uiDir = resolveAliasOrPath(cwd, config.aliases.ui);
         await fs.ensureDir(uiDir);
         spinner.text = 'Created components directory';
 
-        // Install dependencies
         spinner.text = 'Installing dependencies...';
-        const dependencies = [
-            'clsx',
-            'tailwind-merge',
-            'class-variance-authority',
-            'tailwindcss',
-            'postcss',
-            '@tailwindcss/postcss'
-        ];
-        await installPackages(dependencies, { cwd });
+        await installMissingDeps(cwd);
 
-        // Setup PostCSS - create .postcssrc.json which is the preferred format for Angular
         spinner.text = 'Configuring PostCSS...';
-        const postcssrcPath = path.join(cwd, '.postcssrc.json');
+        await setupPostcss(cwd);
 
-        if (!await fs.pathExists(postcssrcPath)) {
-            const configContent = {
-                plugins: {
-                    '@tailwindcss/postcss': {}
-                }
-            };
-            await fs.writeJson(postcssrcPath, configContent, { spaces: 4 });
-        }
-
+        await autoConfigureTsconfig(cwd, spinner);
 
         spinner.succeed(chalk.green('Project initialized successfully!'));
 
         console.log('\n' + chalk.bold('Next steps:'));
         console.log(chalk.dim('  1. Add components: ') + chalk.cyan('npx @gilav21/shadcn-angular add button'));
         console.log(chalk.dim('  2. Import and use in your templates'));
-        console.log(chalk.dim('  3. Update your ') + chalk.bold('tsconfig.json') + chalk.dim(' paths:'));
-        console.log(chalk.dim('    "compilerOptions": {'));
-        console.log(chalk.dim('      "baseUrl": ".",'));
-        console.log(chalk.dim('      "paths": {'));
-        console.log(chalk.dim('        "@/*": ["./src/*"]'));
-        console.log(chalk.dim('      }'));
-        console.log(chalk.dim('    }'));
         console.log('');
 
     } catch (error) {

@@ -1,26 +1,12 @@
 import fs from 'fs-extra';
 import path from 'node:path';
 import type { Config } from './config.js';
+import { resolveProjectPath, aliasToProjectPath } from './paths.js';
 
 export interface ShortcutRegistryEntry {
     exportName: string;
     componentName: string;
     sourceFile: string;
-}
-
-function aliasToProjectPath(aliasOrPath: string): string {
-    return aliasOrPath.startsWith('@/')
-        ? path.join('src', aliasOrPath.slice(2))
-        : aliasOrPath;
-}
-
-function resolveProjectPath(cwd: string, inputPath: string): string {
-    const resolved = path.resolve(cwd, inputPath);
-    const relative = path.relative(cwd, resolved);
-    if (relative.startsWith('..') || path.isAbsolute(relative)) {
-        throw new Error(`Path must stay inside the project directory: ${inputPath}`);
-    }
-    return resolved;
 }
 
 function getShortcutRegistryIndexPath(cwd: string, config: Config): string {
