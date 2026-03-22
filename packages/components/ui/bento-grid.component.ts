@@ -57,11 +57,11 @@ export interface DashboardItem {
     }
 })
 export class BentoGridItemComponent {
-    class = input<string>('');
-    span = input<number>(1);
-    rowSpan = input<number>(1);
+    readonly class = input<string>('');
+    readonly span = input<number>(1);
+    readonly rowSpan = input<number>(1);
 
-    classes = computed(() => cn(
+    readonly classes = computed(() => cn(
         'group/bento row-span-1 flex flex-col justify-between space-y-4 rounded-xl border bg-white p-4 shadow-input shadow-none transition duration-200 hover:shadow-xl dark:border-white/[0.2] dark:bg-black dark:shadow-none overflow-hidden',
         this.class()
     ));
@@ -827,19 +827,24 @@ export class BentoGridComponent {
     }
 
 
-    resizingItemId = signal<string | null>(null);
-    resizeHandleType = input<'corners' | 'edges' | 'both'>('both');
-    resizeDirection = signal<ResizeDirection | null>(null);
-    initialResizeState: {
-        x: number, y: number,
-        w: number, h: number,
-        cols: number, rows: number,
-        itemX: number, itemY: number,
-        colStep: number, rowStep: number
+    readonly resizingItemId = signal<string | null>(null);
+    readonly resizeHandleType = input<'corners' | 'edges' | 'both'>('both');
+    readonly resizeDirection = signal<ResizeDirection | null>(null);
+    private initialResizeState: {
+        readonly x: number;
+        readonly y: number;
+        readonly w: number;
+        readonly h: number;
+        readonly cols: number;
+        readonly rows: number;
+        readonly itemX: number;
+        readonly itemY: number;
+        readonly colStep: number;
+        readonly rowStep: number;
     } | null = null;
-    resizePreview = signal<{ id: string, cols: number, rows: number, x: number, y: number } | null>(null);
-    dropPreview = signal<{ x: number, y: number, cols: number, rows: number } | null>(null);
-    dragOffset = signal<{ x: number, y: number } | null>(null);
+    readonly resizePreview = signal<{ id: string; cols: number; rows: number; x: number; y: number } | null>(null);
+    readonly dropPreview = signal<{ x: number; y: number; cols: number; rows: number } | null>(null);
+    readonly dragOffset = signal<{ x: number; y: number } | null>(null);
 
     private handleResizeMove(clientX: number, clientY: number) {
         if (!this.resizingItemId() || !this.initialResizeState || !this.resizeDirection()) return;
@@ -894,18 +899,7 @@ export class BentoGridComponent {
         const colsDiff = Math.round(deltaX / state.colStep);
         const rowsDiff = Math.round(deltaY / state.rowStep);
 
-        let newCols = state.cols;
-        let newRows = state.rows;
-        let newX = state.itemX;
-        let newY = state.itemY;
-
-        const result = this.applyResizeDirection(direction, colsDiff, rowsDiff, state);
-        newCols = result.cols;
-        newRows = result.rows;
-        newX = result.x;
-        newY = result.y;
-
-        return { cols: newCols, rows: newRows, x: newX, y: newY };
+        return this.applyResizeDirection(direction, colsDiff, rowsDiff, state);
     }
 
     private applyResizeDirection(
