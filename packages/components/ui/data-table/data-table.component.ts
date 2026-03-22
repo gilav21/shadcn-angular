@@ -348,7 +348,7 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
     <ng-template #emptyStateTpl>
       <ui-table-row class="hover:bg-transparent justify-center w-full">
         <ui-table-cell
-          class="h-96 text-center w-full p-0 border-none justify-center"
+          class="h-48 sm:h-96 text-center w-full p-0 border-none justify-center"
         >
           @if (emptyStateComponent()) {
             <ng-container
@@ -369,13 +369,13 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
 
     <div class="flex flex-col w-full h-full space-y-4">
       @if (showToolbar()) {
-        <div class="flex items-center justify-between flex-none">
+        <div class="flex flex-wrap items-center justify-between gap-2 flex-none">
           <div class="flex flex-1 items-center space-x-2">
             <ui-input
               [placeholder]="filterPlaceholder()"
               [ngModel]="globalFilter()"
               (ngModelChange)="onFilterChange($event)"
-              class="h-8 w-[150px] lg:w-[250px]"
+              class="h-8 w-full sm:w-[150px] lg:w-[250px]"
             />
           </div>
           @if (showColumnVisibilityToggle() && hideableColumns().length > 0) {

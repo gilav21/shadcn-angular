@@ -200,7 +200,7 @@ export class NavigationMenuContentComponent {
   classes = computed(() => cn(
     'left-0 top-full mt-1.5',
     'absolute',
-    'min-w-[200px]',
+    'min-w-[200px] max-w-[calc(100vw-2rem)]',
     'rounded-md border bg-popover p-4 text-popover-foreground shadow-lg',
     'animate-in fade-in-0 zoom-in-95',
     this.class()

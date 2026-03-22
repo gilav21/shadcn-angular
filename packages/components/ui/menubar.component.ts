@@ -248,7 +248,7 @@ export class MenubarContentComponent {
   readonly el = inject(ElementRef);
 
   classes = computed(() => cn(
-    'absolute top-full z-50 mt-1 min-w-[12rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+    'absolute top-full z-50 mt-1 min-w-[12rem] max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
     'animate-in fade-in-0 zoom-in-95',
     'ltr:left-0 rtl:right-0',
     this.class()

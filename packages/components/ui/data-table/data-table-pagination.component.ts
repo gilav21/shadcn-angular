@@ -46,13 +46,13 @@ import { isRtl } from '../../lib/utils';
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="flex items-center justify-between px-2">
+    <div class="flex flex-wrap items-center justify-between gap-y-2 px-2">
       <div class="flex-1 text-sm text-muted-foreground">
       </div>
-        <div class="flex items-center space-x-6 lg:space-x-8">
+        <div class="flex items-center space-x-2 sm:space-x-6 lg:space-x-8">
         @if (showPageSizeSelector()) {
         <div class="flex items-center space-x-2">
-          <p class="text-sm font-medium">{{ rowsPerPageLabel() }}</p>
+          <p class="hidden sm:inline text-sm font-medium">{{ rowsPerPageLabel() }}</p>
           <ui-select
             [ngModel]="pageSizeString()"
             (ngModelChange)="onPageSizeChange($event)">
@@ -95,7 +95,7 @@ import { isRtl } from '../../lib/utils';
                 </ui-pagination-link>
               </ui-pagination-item>
               
-              <div class="flex w-[100px] items-center justify-center text-sm font-medium">
+              <div class="flex w-auto min-w-[80px] sm:min-w-[100px] items-center justify-center text-sm font-medium">
                 {{ pageLabel() }} {{ currentPage() }} {{ ofLabel() }} {{ totalPages() }}
               </div>
 

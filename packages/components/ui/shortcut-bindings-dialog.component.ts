@@ -48,7 +48,7 @@ interface ShortcutDialogGroup {
     ],
     template: `
     <ui-dialog [(open)]="open">
-      <ui-dialog-content class="max-w-4xl p-0 overflow-hidden">
+      <ui-dialog-content class="max-w-[calc(100vw-2rem)] sm:max-w-4xl p-0 overflow-hidden">
         <ui-dialog-header class="px-5 pt-5 pb-4 border-b">
           <ui-dialog-title>Keyboard Shortcuts</ui-dialog-title>
           <ui-dialog-description>
@@ -72,7 +72,7 @@ interface ShortcutDialogGroup {
           }
         </ui-dialog-header>
 
-        <ui-scroll-area [class]="'h-[70vh] px-5 py-4'">
+        <ui-scroll-area [class]="'h-[60vh] sm:h-[70vh] px-3 sm:px-5 py-3 sm:py-4'">
           <div class="space-y-3 pr-3">
             <ui-accordion type="multiple" class="flex flex-col gap-2" [openValues]="searchActive() ? openGroupValues() : null">
               @for (group of groupedBindings(); track group.componentName) {

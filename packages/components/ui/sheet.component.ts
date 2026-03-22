@@ -17,7 +17,7 @@ import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const sheetVariants = cva(
-    'fixed z-50 gap-4 bg-background p-6 shadow-lg transition ease-in-out',
+    'fixed z-50 gap-4 bg-background p-4 sm:p-6 shadow-lg transition ease-in-out',
     {
         variants: {
             side: {

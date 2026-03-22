@@ -119,7 +119,7 @@ export class AlertDialogContentComponent implements AfterViewInit {
 
     classes = computed(() =>
         cn(
-            'fixed z-50 grid w-full max-w-lg gap-4 border bg-background p-6 shadow-lg duration-200 sm:rounded-lg',
+            'fixed z-50 grid w-full max-w-[calc(100vw-2rem)] sm:max-w-lg gap-3 sm:gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 sm:rounded-lg',
             this.class()
         )
     );
