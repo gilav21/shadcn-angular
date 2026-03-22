@@ -11,6 +11,7 @@ import {
   AfterContentInit,
 } from '@angular/core';
 import { cn } from '../lib/utils';
+import { isTouchDevice } from '../lib/touch';
 
 /** A child link within a navigation menu dropdown */
 export interface NavigationMenuChild {
@@ -101,11 +102,13 @@ export class NavigationMenuItemComponent {
   ));
 
   onMouseEnter() {
+    if (isTouchDevice()) return;
     this.service.cancelClose();
     this.service.setActive(this.id);
   }
 
   onMouseLeave() {
+    if (isTouchDevice()) return;
     this.service.scheduleClose();
   }
 

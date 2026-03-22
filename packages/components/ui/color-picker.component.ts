@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
+import { onPointerDrag } from '../lib/touch';
 import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
 import { InputComponent } from './input.component';
 import { TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent } from './tabs.component';
@@ -87,8 +88,10 @@ interface RGB {
           <div
             #colorArea
             class="relative h-32 w-full cursor-crosshair rounded-md"
+            style="touch-action: none"
             [style.background]="areaBackground()"
             (mousedown)="onAreaMouseDown($event)"
+            (touchstart)="onAreaTouchStart($event)"
           >
             <div
               class="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm"
@@ -249,6 +252,7 @@ export class ColorPickerComponent implements ControlValueAccessor {
     private onTouched: () => void = () => { };
     private readonly formDisabled = signal(false);
     private isDragging = false;
+    private dragCleanup: (() => void) | null = null;
 
     hasTrigger = signal(false);
 
@@ -282,32 +286,40 @@ export class ColorPickerComponent implements ControlValueAccessor {
 
     onAreaMouseDown(event: MouseEvent) {
         if (this.isDisabled()) return;
-        this.isDragging = true;
-        this.updateFromAreaPosition(event);
-
-        const onMouseMove = (e: MouseEvent) => {
-            if (this.isDragging) {
-                this.updateFromAreaPosition(e);
-            }
-        };
-
-        const onMouseUp = () => {
-            this.isDragging = false;
-            document.removeEventListener('mousemove', onMouseMove);
-            document.removeEventListener('mouseup', onMouseUp);
-        };
-
-        document.addEventListener('mousemove', onMouseMove);
-        document.addEventListener('mouseup', onMouseUp);
+        this.startAreaDrag(event.clientX, event.clientY);
     }
 
-    private updateFromAreaPosition(event: MouseEvent) {
+    onAreaTouchStart(event: TouchEvent) {
+        if (this.isDisabled()) return;
+        if (event.touches.length === 0) return;
+        event.preventDefault();
+        this.startAreaDrag(event.touches[0].clientX, event.touches[0].clientY);
+    }
+
+    private startAreaDrag(clientX: number, clientY: number) {
+        this.isDragging = true;
+        this.updateFromAreaPosition(clientX, clientY);
+
+        this.dragCleanup = onPointerDrag(
+            (moveX, moveY) => {
+                if (this.isDragging) {
+                    this.updateFromAreaPosition(moveX, moveY);
+                }
+            },
+            () => {
+                this.isDragging = false;
+                this.dragCleanup = null;
+            },
+        );
+    }
+
+    private updateFromAreaPosition(clientX: number, clientY: number) {
         const area = this.colorArea()?.nativeElement;
         if (!area) return;
 
         const rect = area.getBoundingClientRect();
-        const x = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width));
-        const y = Math.max(0, Math.min(1, (event.clientY - rect.top) / rect.height));
+        const x = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+        const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
 
         this.saturation.set(Math.round(x * 100));
         this.lightness.set(Math.round((1 - y) * 50));

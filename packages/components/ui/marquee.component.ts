@@ -21,6 +21,8 @@ import { cn, prefersReducedMotion } from '../lib/utils';
             [attr.data-slot]="'marquee'"
             (mouseenter)="onMouseEnter()"
             (mouseleave)="onMouseLeave()"
+            (touchstart)="onMouseEnter()"
+            (touchend)="onMouseLeave()"
         >
             <div #track [style.gap.px]="gap()">
                 <div class="shrink-0" [style.display]="'flex'" [style.gap.px]="gap()" #segment>

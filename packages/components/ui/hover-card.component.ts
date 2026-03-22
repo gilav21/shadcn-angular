@@ -9,8 +9,11 @@ import {
     effect,
     ViewChild,
     AfterViewInit,
+    DestroyRef,
+    NgZone,
 } from '@angular/core';
 import { cn, getClippingRect } from '../lib/utils';
+import { isTouchDevice } from '../lib/touch';
 
 @Component({
     selector: 'ui-hover-card',
@@ -22,11 +25,22 @@ import { cn, getClippingRect } from '../lib/utils';
     },
 })
 export class HoverCardComponent {
-    open = signal(false);
+    readonly open = signal(false);
+    readonly touchOpen = signal(false);
     private readonly openDelay = 200;
     private readonly closeDelay = 300;
     private openTimeout?: ReturnType<typeof setTimeout>;
     private closeTimeout?: ReturnType<typeof setTimeout>;
+    private readonly el = inject(ElementRef<HTMLElement>);
+    private readonly zone = inject(NgZone);
+    private readonly destroyRef = inject(DestroyRef);
+    private clickOutsideCleanup?: () => void;
+
+    constructor() {
+        this.destroyRef.onDestroy(() => {
+            this.removeClickOutsideListener();
+        });
+    }
 
     show() {
         if (this.closeTimeout) {
@@ -48,11 +62,60 @@ export class HoverCardComponent {
         }, this.closeDelay);
     }
 
+    toggle() {
+        if (this.open()) {
+            this.close();
+        } else {
+            this.openImmediate();
+        }
+    }
+
     cancelClose() {
         if (this.closeTimeout) {
             clearTimeout(this.closeTimeout);
             this.closeTimeout = undefined;
         }
+    }
+
+    private openImmediate() {
+        if (this.closeTimeout) {
+            clearTimeout(this.closeTimeout);
+            this.closeTimeout = undefined;
+        }
+        this.open.set(true);
+        this.touchOpen.set(true);
+        this.addClickOutsideListener();
+    }
+
+    private close() {
+        if (this.openTimeout) {
+            clearTimeout(this.openTimeout);
+            this.openTimeout = undefined;
+        }
+        this.open.set(false);
+        this.touchOpen.set(false);
+        this.removeClickOutsideListener();
+    }
+
+    private addClickOutsideListener() {
+        this.removeClickOutsideListener();
+        const handler = (event: MouseEvent | TouchEvent) => {
+            const target = event.target as Node;
+            if (!this.el.nativeElement.contains(target)) {
+                this.zone.run(() => this.close());
+            }
+        };
+        globalThis.document?.addEventListener('click', handler, true);
+        globalThis.document?.addEventListener('touchend', handler, true);
+        this.clickOutsideCleanup = () => {
+            globalThis.document?.removeEventListener('click', handler, true);
+            globalThis.document?.removeEventListener('touchend', handler, true);
+        };
+    }
+
+    private removeClickOutsideListener() {
+        this.clickOutsideCleanup?.();
+        this.clickOutsideCleanup = undefined;
     }
 }
 
@@ -60,11 +123,12 @@ export class HoverCardComponent {
     selector: 'ui-hover-card-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span 
-      (mouseenter)="onMouseEnter()" 
+    <span
+      (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
       (focus)="onMouseEnter()"
       (blur)="onMouseLeave()"
+      (click)="onClick($event)"
       [attr.data-slot]="'hover-card-trigger'"
     >
       <ng-content />
@@ -76,11 +140,19 @@ export class HoverCardTriggerComponent {
     private readonly hoverCard = inject(HoverCardComponent, { optional: true });
 
     onMouseEnter() {
+        if (isTouchDevice()) return;
         this.hoverCard?.show();
     }
 
     onMouseLeave() {
+        if (isTouchDevice()) return;
         this.hoverCard?.hide();
+    }
+
+    onClick(event: MouseEvent) {
+        if (!isTouchDevice()) return;
+        event.preventDefault();
+        this.hoverCard?.toggle();
     }
 }
 

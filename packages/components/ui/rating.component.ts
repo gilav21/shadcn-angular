@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../lib/utils';
+import { isTouchDevice } from '../lib/touch';
 
 @Component({
   selector: 'ui-rating',
@@ -28,6 +29,7 @@ import { cn, isRtl } from '../lib/utils';
       [attr.data-slot]="'rating'"
       [attr.data-readonly]="readonly() || null"
       [attr.data-disabled]="isDisabled() || null"
+      style="touch-action: none"
       role="slider"
       [attr.aria-valuenow]="value()"
       [attr.aria-valuemin]="0"
@@ -36,6 +38,8 @@ import { cn, isRtl } from '../lib/utils';
       [attr.tabindex]="isDisabled() || readonly() ? -1 : 0"
       (keydown)="onKeydown($event)"
       (mouseleave)="onMouseLeave()"
+      (touchmove)="onTouchMove($event)"
+      (touchend)="onTouchEnd($event)"
     >
       @for (star of stars(); track star.index) {
         <button
@@ -180,6 +184,7 @@ export class RatingComponent implements ControlValueAccessor {
   }
 
   onStarHover(event: MouseEvent, index: number) {
+    if (isTouchDevice()) return;
     if (this.isDisabled() || this.readonly()) return;
 
     if (this.precision() === 0.5) {
@@ -195,7 +200,32 @@ export class RatingComponent implements ControlValueAccessor {
   }
 
   onMouseLeave() {
+    if (isTouchDevice()) return;
     this.hoverValue.set(null);
+  }
+
+  onTouchMove(event: TouchEvent) {
+    if (this.isDisabled() || this.readonly()) return;
+    event.preventDefault();
+
+    const touch = event.touches[0];
+    const ratingValue = this.getRatingFromPoint(touch.clientX, touch.clientY);
+    if (ratingValue !== null) {
+      this.hoverValue.set(ratingValue);
+    }
+  }
+
+  onTouchEnd(event: TouchEvent) {
+    if (this.isDisabled() || this.readonly()) return;
+    event.preventDefault();
+
+    const currentHover = this.hoverValue();
+    this.hoverValue.set(null);
+
+    if (currentHover !== null) {
+      const finalValue = this.value() === currentHover ? 0 : currentHover;
+      this.setValue(finalValue);
+    }
   }
 
   onStarClick(event: MouseEvent, index: number) {
@@ -250,6 +280,25 @@ export class RatingComponent implements ControlValueAccessor {
     }
 
     this.setValue(newValue);
+  }
+
+  private getRatingFromPoint(clientX: number, clientY: number): number | null {
+    const container = this.el.nativeElement.querySelector('[data-slot="rating"]') as HTMLElement | null;
+    if (!container) return null;
+
+    const buttons = container.querySelectorAll('button');
+    for (let i = 0; i < buttons.length; i++) {
+      const rect = buttons[i].getBoundingClientRect();
+      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+        if (this.precision() === 0.5) {
+          const x = clientX - rect.left;
+          const isFirstHalf = this.isRtl() ? x > rect.width / 2 : x < rect.width / 2;
+          return i + (isFirstHalf ? 0.5 : 1);
+        }
+        return i + 1;
+      }
+    }
+    return null;
   }
 
   private setValue(val: number) {
