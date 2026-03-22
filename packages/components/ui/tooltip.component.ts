@@ -7,11 +7,15 @@ import {
     signal,
     inject,
     ElementRef,
+    NgZone,
     OnDestroy,
     Renderer2,
     forwardRef,
 } from '@angular/core';
 import { cn } from '../lib/utils';
+import { isTouchDevice } from '../lib/touch';
+
+const TOUCH_AUTO_DISMISS_MS = 2500;
 
 @Component({
     selector: 'ui-tooltip',
@@ -47,6 +51,7 @@ export class TooltipComponent {
     <span
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
+      (touchstart)="onTouchStart($event)"
       (focus)="onFocus()"
       (blur)="onBlur()"
       [attr.data-slot]="'tooltip-trigger'"
@@ -56,23 +61,31 @@ export class TooltipComponent {
   `,
     host: { class: 'contents' },
 })
-export class TooltipTriggerComponent {
+export class TooltipTriggerComponent implements OnDestroy {
     private readonly tooltip = inject(TooltipComponent, { optional: true });
-    private timeoutId: ReturnType<typeof setTimeout> | null = null;
+    private readonly zone = inject(NgZone);
+    private delayTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    private dismissTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    private readonly removeDismissListener = signal<(() => void) | null>(null);
 
     onMouseEnter() {
+        if (isTouchDevice()) return;
         const delay = this.tooltip?.delayDuration() ?? 200;
-        this.timeoutId = setTimeout(() => {
+        this.delayTimeoutId = setTimeout(() => {
             this.tooltip?.show();
         }, delay);
     }
 
     onMouseLeave() {
-        if (this.timeoutId) {
-            clearTimeout(this.timeoutId);
-            this.timeoutId = null;
-        }
+        if (isTouchDevice()) return;
+        this.clearDelayTimeout();
         this.tooltip?.hide();
+    }
+
+    onTouchStart(event: TouchEvent) {
+        if (!isTouchDevice()) return;
+        event.preventDefault();
+        this.toggleTouch();
     }
 
     onFocus() {
@@ -81,6 +94,62 @@ export class TooltipTriggerComponent {
 
     onBlur() {
         this.tooltip?.hide();
+    }
+
+    ngOnDestroy() {
+        this.clearDelayTimeout();
+        this.clearDismiss();
+    }
+
+    private toggleTouch() {
+        if (this.tooltip?.open()) {
+            this.dismissTouch();
+            return;
+        }
+        this.tooltip?.show();
+        this.scheduleDismiss();
+    }
+
+    private scheduleDismiss() {
+        this.clearDismiss();
+
+        this.dismissTimeoutId = setTimeout(() => {
+            this.dismissTouch();
+        }, TOUCH_AUTO_DISMISS_MS);
+
+        this.zone.runOutsideAngular(() => {
+            const handler = () => {
+                this.zone.run(() => this.dismissTouch());
+            };
+            document.addEventListener('touchstart', handler, { once: true });
+            this.removeDismissListener.set(() => {
+                document.removeEventListener('touchstart', handler);
+            });
+        });
+    }
+
+    private dismissTouch() {
+        this.clearDismiss();
+        this.tooltip?.hide();
+    }
+
+    private clearDelayTimeout() {
+        if (this.delayTimeoutId) {
+            clearTimeout(this.delayTimeoutId);
+            this.delayTimeoutId = null;
+        }
+    }
+
+    private clearDismiss() {
+        if (this.dismissTimeoutId) {
+            clearTimeout(this.dismissTimeoutId);
+            this.dismissTimeoutId = null;
+        }
+        const removeListener = this.removeDismissListener();
+        if (removeListener) {
+            removeListener();
+            this.removeDismissListener.set(null);
+        }
     }
 }
 
@@ -121,6 +190,7 @@ export class TooltipContentComponent {
     host: {
         '(mouseenter)': 'onMouseEnter()',
         '(mouseleave)': 'onMouseLeave()',
+        '(touchstart)': 'onTouchStart($event)',
     },
 })
 export class TooltipDirective implements OnDestroy {
@@ -130,23 +200,80 @@ export class TooltipDirective implements OnDestroy {
 
     private readonly el = inject(ElementRef);
     private readonly renderer = inject(Renderer2);
+    private readonly zone = inject(NgZone);
     private tooltipElement: HTMLElement | null = null;
-    private timeoutId: ReturnType<typeof setTimeout> | null = null;
+    private delayTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    private dismissTimeoutId: ReturnType<typeof setTimeout> | null = null;
+    private removeDismissListener: (() => void) | null = null;
 
     onMouseEnter() {
-        if (this.tooltipDisabled()) return;
+        if (this.tooltipDisabled() || isTouchDevice()) return;
 
-        this.timeoutId = setTimeout(() => {
+        this.delayTimeoutId = setTimeout(() => {
             this.showTooltip();
         }, 200);
     }
 
     onMouseLeave() {
-        if (this.timeoutId) {
-            clearTimeout(this.timeoutId);
-            this.timeoutId = null;
-        }
+        if (isTouchDevice()) return;
+        this.clearDelayTimeout();
         this.hideTooltip();
+    }
+
+    onTouchStart(event: TouchEvent) {
+        if (this.tooltipDisabled() || !isTouchDevice()) return;
+        event.preventDefault();
+        this.toggleTouch();
+    }
+
+    private toggleTouch() {
+        if (this.tooltipElement) {
+            this.dismissTouch();
+            return;
+        }
+        this.showTooltip();
+        this.scheduleDismiss();
+    }
+
+    private scheduleDismiss() {
+        this.clearDismiss();
+
+        this.dismissTimeoutId = setTimeout(() => {
+            this.dismissTouch();
+        }, TOUCH_AUTO_DISMISS_MS);
+
+        this.zone.runOutsideAngular(() => {
+            const handler = () => {
+                this.zone.run(() => this.dismissTouch());
+            };
+            document.addEventListener('touchstart', handler, { once: true });
+            this.removeDismissListener = () => {
+                document.removeEventListener('touchstart', handler);
+            };
+        });
+    }
+
+    private dismissTouch() {
+        this.clearDismiss();
+        this.hideTooltip();
+    }
+
+    private clearDelayTimeout() {
+        if (this.delayTimeoutId) {
+            clearTimeout(this.delayTimeoutId);
+            this.delayTimeoutId = null;
+        }
+    }
+
+    private clearDismiss() {
+        if (this.dismissTimeoutId) {
+            clearTimeout(this.dismissTimeoutId);
+            this.dismissTimeoutId = null;
+        }
+        if (this.removeDismissListener) {
+            this.removeDismissListener();
+            this.removeDismissListener = null;
+        }
     }
 
     private showTooltip() {
@@ -234,9 +361,8 @@ export class TooltipDirective implements OnDestroy {
     }
 
     ngOnDestroy() {
+        this.clearDelayTimeout();
+        this.clearDismiss();
         this.hideTooltip();
-        if (this.timeoutId) {
-            clearTimeout(this.timeoutId);
-        }
     }
 }

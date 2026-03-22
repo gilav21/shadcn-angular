@@ -8,6 +8,7 @@ import {
     inject,
     ElementRef,
     OnDestroy,
+    AfterViewInit,
     forwardRef,
     InjectionToken,
     ViewChild,
@@ -19,6 +20,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { cn, isRtl } from '../lib/utils';
+import { onLongPress } from '../lib/touch';
 
 export interface ContextMenuItem {
     label?: string;
@@ -146,7 +148,8 @@ export class ContextMenuComponent implements OnDestroy {
     selector: 'ui-context-menu-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span 
+    <span
+        #triggerSpan
         class="contents"
         (contextmenu)="onContextMenu($event)"
         [attr.data-slot]="'context-menu-trigger'"
@@ -156,8 +159,26 @@ export class ContextMenuComponent implements OnDestroy {
   `,
     host: { class: 'contents' },
 })
-export class ContextMenuTriggerComponent {
+export class ContextMenuTriggerComponent implements AfterViewInit, OnDestroy {
     private readonly contextMenu = inject(CONTEXT_MENU, { optional: true });
+
+    @ViewChild('triggerSpan', { static: true }) private readonly triggerSpan!: ElementRef<HTMLElement>;
+
+    private cleanupLongPress: (() => void) | null = null;
+
+    ngAfterViewInit() {
+        this.cleanupLongPress = onLongPress(this.triggerSpan.nativeElement, (event: TouchEvent) => {
+            event.preventDefault();
+            const touch = event.touches[0] ?? event.changedTouches[0];
+            if (touch) {
+                this.contextMenu?.show(touch.clientX, touch.clientY);
+            }
+        });
+    }
+
+    ngOnDestroy() {
+        this.cleanupLongPress?.();
+    }
 
     onContextMenu(event: MouseEvent) {
         event.preventDefault();
@@ -698,8 +719,26 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         '(click)': 'onClick($event)',
     },
 })
-export class ContextMenuTriggerDirective {
-    uiContextMenuTrigger = input.required<ContextMenuComponent>();
+export class ContextMenuTriggerDirective implements AfterViewInit, OnDestroy {
+    readonly uiContextMenuTrigger = input.required<ContextMenuComponent>();
+
+    private readonly el = inject(ElementRef);
+    private cleanupLongPress: (() => void) | null = null;
+
+    ngAfterViewInit() {
+        this.cleanupLongPress = onLongPress(this.el.nativeElement as HTMLElement, (event: TouchEvent) => {
+            event.preventDefault();
+            const touch = event.touches[0] ?? event.changedTouches[0];
+            const contextMenu = this.uiContextMenuTrigger();
+            if (touch && contextMenu) {
+                contextMenu.show(touch.clientX, touch.clientY);
+            }
+        });
+    }
+
+    ngOnDestroy() {
+        this.cleanupLongPress?.();
+    }
 
     onContextMenu(event: MouseEvent) {
         event.preventDefault();

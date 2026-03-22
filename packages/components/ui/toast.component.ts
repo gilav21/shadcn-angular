@@ -160,7 +160,7 @@ export class ToasterComponent {
     };
 
     return cn(
-      'fixed z-[100] flex flex-col gap-2 p-4 w-full max-w-[420px]',
+      'fixed z-[100] flex flex-col gap-2 p-4 w-full max-w-[calc(100vw-2rem)] sm:max-w-[420px]',
       verticalClasses[v],
       horizontalClasses[h]
     );

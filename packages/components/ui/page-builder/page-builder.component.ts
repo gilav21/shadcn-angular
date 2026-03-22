@@ -39,7 +39,7 @@ import { IconComponent } from '../icon.component';
     template: `
         <div [class]="classes()" [attr.data-slot]="'page-builder'" class="h-screen bg-background overflow-hidden flex">
             <!-- Sidebar -->
-            <aside class="w-80 border-r bg-card flex flex-col border-r-border h-full">
+            <aside class="w-full md:w-80 border-r bg-card flex flex-col border-r-border h-full">
                 <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
                     <ui-icon name="box" class="h-4 w-4 text-muted-foreground"></ui-icon>
                     Components

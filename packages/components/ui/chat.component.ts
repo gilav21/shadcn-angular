@@ -78,7 +78,7 @@ export class ChatMessageComponent implements AfterContentInit {
   ));
 
   bubbleClasses = computed(() => cn(
-    'relative rounded-lg px-4 py-2 text-sm max-w-[80%]',
+    'relative rounded-lg px-4 py-2 text-sm max-w-[85%] sm:max-w-[75%] md:max-w-[65%]',
     this.role() === 'user' && 'bg-primary text-primary-foreground',
     this.role() === 'assistant' && 'bg-muted border',
     this.role() === 'system' && 'bg-transparent text-xs text-muted-foreground text-center italic',

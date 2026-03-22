@@ -16,6 +16,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT, NgTemplateOutlet } from '@angular/common';
 import { cn, isRtl } from '../lib/utils';
+import { isTouchDevice } from '../lib/touch';
 
 export interface DropdownItem {
     label?: string;
@@ -415,8 +416,8 @@ export class DropdownMenuSubComponent {
       tabindex="0"
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
-      (mouseenter)="sub.enter()"
-      (mouseleave)="sub.leave()"
+      (mouseenter)="onMouseEnter()"
+      (mouseleave)="onMouseLeave()"
       (keydown)="onKeydown($event)"
       (click)="onClick()"
     >
@@ -449,7 +450,24 @@ export class DropdownMenuSubTriggerComponent {
         this.class()
     ));
 
-    onClick() { }
+    onMouseEnter() {
+        if (isTouchDevice()) return;
+        this.sub.enter();
+    }
+
+    onMouseLeave() {
+        if (isTouchDevice()) return;
+        this.sub.leave();
+    }
+
+    onClick() {
+        if (!isTouchDevice()) return;
+        if (this.sub.isOpen()) {
+            this.sub.leave();
+        } else {
+            this.sub.enter();
+        }
+    }
 
     focus() {
         this.triggerEl?.nativeElement.focus();
@@ -487,8 +505,8 @@ export class DropdownMenuSubTriggerComponent {
       <div 
         [class]="classes()" 
         role="menu"
-        (mouseenter)="sub.enter()"
-        (mouseleave)="sub.leave()"
+        (mouseenter)="onMouseEnter()"
+        (mouseleave)="onMouseLeave()"
         (keydown)="onKeydown($event)"
       >
         <ng-content />
@@ -505,6 +523,16 @@ export class DropdownMenuSubContentComponent {
 
     constructor() {
         this.sub.registerContent(this);
+    }
+
+    onMouseEnter() {
+        if (isTouchDevice()) return;
+        this.sub.enter();
+    }
+
+    onMouseLeave() {
+        if (isTouchDevice()) return;
+        this.sub.leave();
     }
 
     classes = computed(() => cn(

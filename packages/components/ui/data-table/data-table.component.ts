@@ -348,7 +348,7 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
     <ng-template #emptyStateTpl>
       <ui-table-row class="hover:bg-transparent justify-center w-full">
         <ui-table-cell
-          class="h-96 text-center w-full p-0 border-none justify-center"
+          class="h-48 sm:h-96 text-center w-full p-0 border-none justify-center"
         >
           @if (emptyStateComponent()) {
             <ng-container
@@ -369,13 +369,13 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
 
     <div class="flex flex-col w-full h-full space-y-4">
       @if (showToolbar()) {
-        <div class="flex items-center justify-between flex-none">
+        <div class="flex flex-wrap items-center justify-between gap-2 flex-none">
           <div class="flex flex-1 items-center space-x-2">
             <ui-input
               [placeholder]="filterPlaceholder()"
               [ngModel]="globalFilter()"
               (ngModelChange)="onFilterChange($event)"
-              class="h-8 w-[150px] lg:w-[250px]"
+              class="h-8 w-full sm:w-[150px] lg:w-[250px]"
             />
           </div>
           @if (showColumnVisibilityToggle() && hideableColumns().length > 0) {
@@ -803,6 +803,9 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
                       >
                         <ng-container
                           *ngTemplateOutlet="
@@ -842,6 +845,9 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
                       >
                         <ng-container
                           *ngTemplateOutlet="
@@ -877,6 +883,9 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                         "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
                         "
                       >
                         <ng-container
@@ -942,6 +951,9 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
                       >
                         <ng-container
                           *ngTemplateOutlet="
@@ -975,6 +987,9 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
                       >
                         <ng-container
                           *ngTemplateOutlet="
@@ -1004,6 +1019,9 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                         "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
                         "
                       >
                         <ng-container
@@ -1091,6 +1109,7 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                         [style]="getTreeCellStyle(col, treeRow.depth)"
                         (click)="onCellClick(i, col, $event)"
                         (dblclick)="onCellDblClick(i, col, $event)"
+                        (touchend)="onCellTouchEnd($event, i, col)"
                       >
                         <ng-container
                           *ngTemplateOutlet="
@@ -1186,7 +1205,7 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                     class="border-0"
                   >
                     @for (col of enhancedColumns(); track col.accessorKey) {
-                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)">
+                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)" (touchend)="onCellTouchEnd($event, i, col)">
                         <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: col, row: row, rowIndex: i, treeRow: null, recycle: false }"></ng-container>
                       </ui-table-cell>
                     }
@@ -3307,6 +3326,35 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       return;
     event.stopPropagation();
     this.startEditing(rowIndex, key);
+  }
+
+  private readonly DOUBLE_TAP_MAX_DELAY = 300;
+  private _lastTapTime = 0;
+  private _lastTapRowIndex = -1;
+  private _lastTapColumnKey = "";
+
+  onCellTouchEnd(
+    event: TouchEvent,
+    rowIndex: number,
+    col: ColumnDef<T>
+  ): void {
+    const key = String(col.accessorKey);
+    if (key === "_selection" || key === "_expander" || key === "_actions")
+      return;
+    const now = Date.now();
+    const isSameCell =
+      this._lastTapRowIndex === rowIndex && this._lastTapColumnKey === key;
+    if (isSameCell && now - this._lastTapTime < this.DOUBLE_TAP_MAX_DELAY) {
+      event.preventDefault();
+      this.startEditing(rowIndex, key);
+      this._lastTapTime = 0;
+      this._lastTapRowIndex = -1;
+      this._lastTapColumnKey = "";
+    } else {
+      this._lastTapTime = now;
+      this._lastTapRowIndex = rowIndex;
+      this._lastTapColumnKey = key;
+    }
   }
 
   private readonly navigableColumnKeys = computed(() => {

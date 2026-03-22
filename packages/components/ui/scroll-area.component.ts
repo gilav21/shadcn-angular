@@ -10,6 +10,7 @@ import {
   signal,
 } from '@angular/core';
 import { cn } from '../lib/utils';
+import { onPointerDrag } from '../lib/touch';
 
 @Component({
   selector: 'ui-scroll-area',
@@ -41,7 +42,8 @@ import { cn } from '../lib/utils';
             [attr.data-slot]="'scroll-area-thumb'"
             [style.height.%]="thumbHeightPercent()"
             [style.top.%]="scrollTopPercent()"
-            (mousedown)="onThumbMouseDown($event, 'vertical')"
+            (mousedown)="onThumbDragStart($event, 'vertical')"
+            (touchstart)="onThumbDragStart($event, 'vertical')"
           ></div>
         </div>
       }
@@ -57,7 +59,8 @@ import { cn } from '../lib/utils';
             [attr.data-slot]="'scroll-area-thumb'"
             [style.width.%]="thumbWidthPercent()"
             [style.left.%]="scrollLeftPercent()"
-            (mousedown)="onThumbMouseDown($event, 'horizontal')"
+            (mousedown)="onThumbDragStart($event, 'horizontal')"
+            (touchstart)="onThumbDragStart($event, 'horizontal')"
           ></div>
         </div>
       }
@@ -84,6 +87,7 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
   private readonly clientWidth = signal(0);
 
   private resizeObserver?: ResizeObserver;
+  private dragCleanup?: () => void;
 
   rootClasses = computed(() => cn('relative overflow-hidden', this.class()));
 
@@ -169,6 +173,7 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     this.resizeObserver?.disconnect();
+    this.dragCleanup?.();
   }
 
   onScroll() {
@@ -187,35 +192,39 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  onThumbMouseDown(event: MouseEvent, orientation: 'vertical' | 'horizontal') {
+  onThumbDragStart(event: MouseEvent | TouchEvent, orientation: 'vertical' | 'horizontal') {
     event.preventDefault();
     const viewport = this.viewportRef?.nativeElement;
     if (!viewport) return;
 
-    const startY = event.clientY;
-    const startX = event.clientX;
+    const { clientX: startX, clientY: startY } = this.getPointerCoords(event);
     const startScrollTop = viewport.scrollTop;
     const startScrollLeft = viewport.scrollLeft;
 
-    const onMouseMove = (e: MouseEvent) => {
-      if (orientation === 'vertical') {
-        const deltaY = e.clientY - startY;
-        const scrollRatio = viewport.scrollHeight / viewport.clientHeight;
-        viewport.scrollTop = startScrollTop + deltaY * scrollRatio;
-      } else {
-        const deltaX = e.clientX - startX;
-        const scrollRatio = viewport.scrollWidth / viewport.clientWidth;
-        viewport.scrollLeft = startScrollLeft + deltaX * scrollRatio;
-      }
-    };
+    this.dragCleanup = onPointerDrag(
+      (clientX, clientY) => {
+        if (orientation === 'vertical') {
+          const deltaY = clientY - startY;
+          const scrollRatio = viewport.scrollHeight / viewport.clientHeight;
+          viewport.scrollTop = startScrollTop + deltaY * scrollRatio;
+        } else {
+          const deltaX = clientX - startX;
+          const scrollRatio = viewport.scrollWidth / viewport.clientWidth;
+          viewport.scrollLeft = startScrollLeft + deltaX * scrollRatio;
+        }
+      },
+      () => {
+        this.dragCleanup = undefined;
+      },
+    );
+  }
 
-    const onMouseUp = () => {
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onMouseUp);
-    };
-
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onMouseUp);
+  private getPointerCoords(event: MouseEvent | TouchEvent): { readonly clientX: number; readonly clientY: number } {
+    if ('touches' in event && event.touches.length > 0) {
+      return { clientX: event.touches[0].clientX, clientY: event.touches[0].clientY };
+    }
+    const mouseEvent = event as MouseEvent;
+    return { clientX: mouseEvent.clientX, clientY: mouseEvent.clientY };
   }
 
   scrollToBottom() {

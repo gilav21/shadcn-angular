@@ -928,7 +928,7 @@ export class KanbanColumnComponent implements AfterContentInit {
     });
 
     classes = computed(() => cn(
-        'bg-muted/50 rounded-lg border flex flex-col min-w-[280px] max-w-[350px] w-[300px]',
+        'bg-muted/50 rounded-lg border flex flex-col w-full sm:w-[300px] min-w-0 sm:min-w-[280px] sm:max-w-[350px]',
         'transition-colors duration-200',
         this.isOverWipLimit() ? 'border-destructive/50' : '',
         this.isDragOver() ? 'border-primary/50 bg-accent/30 ring-1 ring-primary/20' : '',

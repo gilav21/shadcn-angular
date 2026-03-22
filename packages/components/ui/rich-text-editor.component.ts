@@ -1087,7 +1087,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
       @if (tableContextMenuOpen()) {
         <div
           #tableContextMenuRef
-          class="fixed z-50 min-w-[180px] max-h-[calc(100vh-1rem)] overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
+          class="fixed z-50 min-w-[180px] max-w-[calc(100vw-2rem)] max-h-[calc(100vh-1rem)] overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95"
           [style.left.px]="tableContextMenuPosition().x"
           [style.top.px]="tableContextMenuPosition().y"
           (mousedown)="$event.preventDefault()"

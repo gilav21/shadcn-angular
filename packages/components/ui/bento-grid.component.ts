@@ -20,8 +20,11 @@ import {
     ContextMenuItemComponent,
 } from './context-menu.component';
 import { UiComponentOutletDirective } from './component-outlet.directive';
+import { onPointerDrag } from '../lib/touch';
 
 
+
+export type ResizeDirection = 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w';
 
 export interface DashboardItem {
     id: string;
@@ -54,11 +57,11 @@ export interface DashboardItem {
     }
 })
 export class BentoGridItemComponent {
-    class = input<string>('');
-    span = input<number>(1);
-    rowSpan = input<number>(1);
+    readonly class = input<string>('');
+    readonly span = input<number>(1);
+    readonly rowSpan = input<number>(1);
 
-    classes = computed(() => cn(
+    readonly classes = computed(() => cn(
         'group/bento row-span-1 flex flex-col justify-between space-y-4 rounded-xl border bg-white p-4 shadow-input shadow-none transition duration-200 hover:shadow-xl dark:border-white/[0.2] dark:bg-black dark:shadow-none overflow-hidden',
         this.class()
     ));
@@ -82,8 +85,6 @@ export class BentoGridItemComponent {
          [style.grid-auto-rows]="rowHeight()"
          [style.grid-auto-columns]="columnWidth() === '1fr' ? 'auto' : columnWidth()"
          (contextmenu)="onContainerContextMenu($event, menu)"
-         (window:mousemove)="onWindowMouseMove($event)"
-         (window:mouseup)="onWindowMouseUp()"
          (dragover)="onContainerDragOver($event)"
          (drop)="onContainerDrop($event)">
          
@@ -187,6 +188,7 @@ export class BentoGridItemComponent {
             (dragend)="onDragEnd($event)"
             (dragover)="onDragOver($event, item)"
             (drop)="onDrop($event, item)"
+            (touchstart)="onTouchDragStart($event, item)"
          >
             <!-- Content Rendering Logic -->
             @if (isComponent(item.content)) {
@@ -202,7 +204,7 @@ export class BentoGridItemComponent {
 
             <!-- Resize/Action Handles (Visible in Edit Mode) -->
             @if (editable()) {
-                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <div class="absolute top-2 right-2 opacity-0 group-hover:opacity-100 touch-visible transition-opacity">
                     <button class="p-1 hover:bg-muted rounded" (click)="onContextMenu($event, item, menu)">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-more-vertical"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
                     </button>
@@ -212,37 +214,38 @@ export class BentoGridItemComponent {
                 <!-- Edge Handles -->
                 @if (resizeHandleType() === 'edges' || resizeHandleType() === 'both') {
                      <!-- Top (N) -->
-                     <div class="absolute top-0 inset-x-2 h-1 cursor-n-resize hover:bg-primary/50 transition-colors z-10" (mousedown)="onResizeStart($event, item, 'n')"></div>
+                     <div class="absolute top-0 inset-x-2 h-2 cursor-n-resize hover:bg-primary/50 touch-visible transition-colors z-10" (mousedown)="onResizeStart($event, item, 'n')" (touchstart)="onResizeStart($event, item, 'n')"></div>
                      <!-- Bottom (S) -->
-                     <div class="absolute bottom-0 inset-x-2 h-1 cursor-s-resize hover:bg-primary/50 transition-colors z-10" (mousedown)="onResizeStart($event, item, 's')"></div>
+                     <div class="absolute bottom-0 inset-x-2 h-2 cursor-s-resize hover:bg-primary/50 touch-visible transition-colors z-10" (mousedown)="onResizeStart($event, item, 's')" (touchstart)="onResizeStart($event, item, 's')"></div>
                      <!-- Left (W) -->
-                     <div class="absolute left-0 inset-y-2 w-1 cursor-w-resize hover:bg-primary/50 transition-colors z-10" (mousedown)="onResizeStart($event, item, 'w')"></div>
+                     <div class="absolute left-0 inset-y-2 w-2 cursor-w-resize hover:bg-primary/50 touch-visible transition-colors z-10" (mousedown)="onResizeStart($event, item, 'w')" (touchstart)="onResizeStart($event, item, 'w')"></div>
                      <!-- Right (E) -->
-                     <div class="absolute right-0 inset-y-2 w-1 cursor-e-resize hover:bg-primary/50 transition-colors z-10" (mousedown)="onResizeStart($event, item, 'e')"></div>
+                     <div class="absolute right-0 inset-y-2 w-2 cursor-e-resize hover:bg-primary/50 touch-visible transition-colors z-10" (mousedown)="onResizeStart($event, item, 'e')" (touchstart)="onResizeStart($event, item, 'e')"></div>
                 }
 
                 <!-- Corner Handles -->
                 @if (resizeHandleType() === 'corners' || resizeHandleType() === 'both') {
                      <!-- SE (Bottom-Right) -->
-                     <div 
-                        class="absolute bottom-1 right-1 cursor-se-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-20"
+                     <div
+                        class="absolute bottom-1 right-1 cursor-se-resize p-1 opacity-0 group-hover:opacity-100 touch-visible transition-opacity z-20"
                         (mousedown)="onResizeStart($event, item, 'se')"
+                        (touchstart)="onResizeStart($event, item, 'se')"
                      >
                          <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M21 15v6h-6"/><path d="M21 3v6h-6"/><path d="M3 21h6v-6"/><path d="M10 14L3 21"/><path d="M14 10l7-7"/></svg>
                      </div>
-                     
+
                      <!-- SW (Bottom-Left) -->
-                     <div class="absolute bottom-1 left-1 cursor-sw-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'sw')">
+                     <div class="absolute bottom-1 left-1 cursor-sw-resize p-1 opacity-0 group-hover:opacity-100 touch-visible transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'sw')" (touchstart)="onResizeStart($event, item, 'sw')">
                         <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
                      </div>
-                     
+
                      <!-- NE (Top-Right) -->
-                     <div class="absolute top-1 right-1 cursor-ne-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'ne')">
+                     <div class="absolute top-1 right-1 cursor-ne-resize p-1 opacity-0 group-hover:opacity-100 touch-visible transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'ne')" (touchstart)="onResizeStart($event, item, 'ne')">
                         <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
                      </div>
-                     
+
                      <!-- NW (Top-Left) -->
-                     <div class="absolute top-1 left-1 cursor-nw-resize p-1 opacity-0 group-hover:opacity-100 transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'nw')">
+                     <div class="absolute top-1 left-1 cursor-nw-resize p-1 opacity-0 group-hover:opacity-100 touch-visible transition-opacity z-20" (mousedown)="onResizeStart($event, item, 'nw')" (touchstart)="onResizeStart($event, item, 'nw')">
                         <div class="w-2 h-2 bg-muted-foreground/50 rounded-sm"></div>
                      </div>
                  }
@@ -268,62 +271,62 @@ export class BentoGridItemComponent {
   `],
 })
 export class BentoGridComponent {
-    class = input<string>('');
+    readonly class = input<string>('');
     // Inputs
-    items = input<DashboardItem[]>([]);
-    cols = input<number>(12);
-    rowHeight = input<string, string | number>('120px', {
+    readonly items = input<DashboardItem[]>([]);
+    readonly cols = input<number>(12);
+    readonly rowHeight = input<string, string | number>('120px', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
             if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
-    columnWidth = input<string, string | number>('1fr', {
+    readonly columnWidth = input<string, string | number>('1fr', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
             if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
-    gap = input<string, string | number>('1.5rem', {
+    readonly gap = input<string, string | number>('1.5rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
             if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
-    showBorders = input<boolean>(true);
-    borderRadius = input<string, string | number>('0.75rem', {
+    readonly showBorders = input<boolean>(true);
+    readonly borderRadius = input<string, string | number>('0.75rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
             if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
-    itemPadding = input<string, string | number>('1rem', {
+    readonly itemPadding = input<string, string | number>('1rem', {
         transform: v => {
             if (typeof v === 'number') return `${v}px`;
             if (typeof v === 'string' && !Number.isNaN(Number.parseFloat(v)) && Number.isFinite(Number(v))) return `${v}px`;
             return v;
         }
     });
-    editable = input<boolean>(true);
+    readonly editable = input<boolean>(true);
 
     // Outputs
-    itemsChange = output<DashboardItem[]>();
-    selectionChange = output<string[]>();
-    externalDrop = output<{ widgetId: string, targetId: string | null, x?: number, y?: number }>();
-    componentInit = output<{ id: string, ref: ComponentRef<any> }>();
+    readonly itemsChange = output<DashboardItem[]>();
+    readonly selectionChange = output<string[]>();
+    readonly externalDrop = output<{ widgetId: string, targetId: string | null, x?: number, y?: number }>();
+    readonly componentInit = output<{ id: string, ref: ComponentRef<unknown> }>();
 
     private readonly el = inject(ElementRef);
 
-    gridPattern = computed(() => {
+    readonly gridPattern = computed(() => {
         const color = 'currentColor';
         return `radial-gradient(circle at 1px 1px, ${color} 1px, transparent 0)`;
     });
 
-    gridBackgroundSize = computed(() => {
+    readonly gridBackgroundSize = computed(() => {
         const gap = this.gap();
         const rowHeight = this.rowHeight();
         const cols = this.cols();
@@ -368,9 +371,9 @@ export class BentoGridComponent {
 
 
 
-    draggedItemId = signal<string | null>(null);
-    dropTargetId = signal<string | null>(null);
-    selectedItemIds = signal<string[]>([]);
+    readonly draggedItemId = signal<string | null>(null);
+    readonly dropTargetId = signal<string | null>(null);
+    readonly selectedItemIds = signal<string[]>([]);
 
     constructor() {
         effect(() => {
@@ -380,7 +383,7 @@ export class BentoGridComponent {
         });
     }
 
-    selectedIds = computed(() => new Set(this.selectedItemIds()));
+    readonly selectedIds = computed(() => new Set(this.selectedItemIds()));
 
     toggleSelection(id: string, multi: boolean = true) {
         if (!this.editable()) return;
@@ -408,7 +411,7 @@ export class BentoGridComponent {
         return this.selectedIds().has(id);
     }
 
-    canMerge = computed(() => {
+    readonly canMerge = computed(() => {
         const selectedIds = this.selectedItemIds();
         if (selectedIds.length < 2) return false;
 
@@ -553,22 +556,22 @@ export class BentoGridComponent {
         }
     }
 
-    classes = computed(() => cn(
+    readonly classes = computed(() => cn(
         'grid w-full relative grid-cols-12 min-h-full',
         this.class()
     ));
 
-    gridStyles = computed(() => ({
+    readonly gridStyles = computed(() => ({
         'grid-template-columns': this.gridTemplateColumns(),
         'grid-auto-rows': this.rowHeight(),
         'gap': this.gap()
     }));
 
-    gridTemplateColumns = computed(() => `repeat(${this.cols()}, minmax(0, 1fr))`);
+    readonly gridTemplateColumns = computed(() => `repeat(${this.cols()}, minmax(0, 1fr))`);
 
-    gridGradient = computed(() => 'none');
+    readonly gridGradient = computed(() => 'none');
 
-    gridCells = computed(() => {
+    readonly gridCells = computed(() => {
         if (!this.editable()) return [];
 
         let maxRow = 8;
@@ -591,8 +594,8 @@ export class BentoGridComponent {
         return typeof content !== 'string';
     }
 
-    asComponent(content: string | Type<any>): Type<any> {
-        return content as Type<any>;
+    asComponent(content: string | Type<any>): Type<unknown> {
+        return content as Type<unknown>;
     }
 
 
@@ -626,7 +629,7 @@ export class BentoGridComponent {
         }
     }
 
-    onContainerDragLeave(event: DragEvent) {
+    onContainerDragLeave(_event: DragEvent) {
     }
 
     onDrop(event: DragEvent, targetItem: DashboardItem) {
@@ -824,83 +827,48 @@ export class BentoGridComponent {
     }
 
 
-    resizingItemId = signal<string | null>(null);
-    resizeHandleType = input<'corners' | 'edges' | 'both'>('both');
-    resizeDirection = signal<'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w' | null>(null);
-    initialResizeState: {
-        x: number, y: number,
-        w: number, h: number,
-        cols: number, rows: number,
-        itemX: number, itemY: number,
-        colStep: number, rowStep: number
+    readonly resizingItemId = signal<string | null>(null);
+    readonly resizeHandleType = input<'corners' | 'edges' | 'both'>('both');
+    readonly resizeDirection = signal<ResizeDirection | null>(null);
+    private initialResizeState: {
+        readonly x: number;
+        readonly y: number;
+        readonly w: number;
+        readonly h: number;
+        readonly cols: number;
+        readonly rows: number;
+        readonly itemX: number;
+        readonly itemY: number;
+        readonly colStep: number;
+        readonly rowStep: number;
     } | null = null;
-    resizePreview = signal<{ id: string, cols: number, rows: number, x: number, y: number } | null>(null);
-    dropPreview = signal<{ x: number, y: number, cols: number, rows: number } | null>(null);
-    dragOffset = signal<{ x: number, y: number } | null>(null);
+    readonly resizePreview = signal<{ id: string; cols: number; rows: number; x: number; y: number } | null>(null);
+    readonly dropPreview = signal<{ x: number; y: number; cols: number; rows: number } | null>(null);
+    readonly dragOffset = signal<{ x: number; y: number } | null>(null);
 
-    onWindowMouseMove(event: MouseEvent) {
+    private handleResizeMove(clientX: number, clientY: number) {
         if (!this.resizingItemId() || !this.initialResizeState || !this.resizeDirection()) return;
 
         const _isRtl = isRtl(this.el.nativeElement);
 
-        let deltaX = event.clientX - this.initialResizeState.x;
-        const deltaY = event.clientY - this.initialResizeState.y;
+        let deltaX = clientX - this.initialResizeState.x;
+        const deltaY = clientY - this.initialResizeState.y;
 
         let direction = this.resizeDirection()!;
         if (_isRtl) {
             deltaX = -deltaX;
-
-            const rtlMap: Record<string, any> = {
-                'nw': 'ne', 'ne': 'nw',
-                'sw': 'se', 'se': 'sw',
-                'w': 'e', 'e': 'w',
-                'n': 'n', 's': 's'
-            };
-            direction = rtlMap[direction] || direction;
+            direction = this.flipResizeDirectionForRtl(direction);
         }
 
-        const colsDiff = Math.round(deltaX / this.initialResizeState.colStep);
-        const rowsDiff = Math.round(deltaY / this.initialResizeState.rowStep);
+        const { cols, rows, x, y } = this.computeResizePreview(direction, deltaX, deltaY);
 
-        let newCols = this.initialResizeState.cols;
-        let newRows = this.initialResizeState.rows;
-        let newX = this.initialResizeState.itemX;
-        let newY = this.initialResizeState.itemY;
-
-        if (direction === 'se') {
-            newCols = Math.max(1, this.initialResizeState.cols + colsDiff);
-            newRows = Math.max(1, this.initialResizeState.rows + rowsDiff);
-        } else if (direction === 'sw') {
-            newCols = Math.max(1, this.initialResizeState.cols - colsDiff);
-            newX = this.initialResizeState.itemX + (this.initialResizeState.cols - newCols);
-            newRows = Math.max(1, this.initialResizeState.rows + rowsDiff);
-        } else if (direction === 'ne') {
-            newRows = Math.max(1, this.initialResizeState.rows - rowsDiff);
-            newY = this.initialResizeState.itemY + (this.initialResizeState.rows - newRows);
-            newCols = Math.max(1, this.initialResizeState.cols + colsDiff);
-        } else if (direction === 'nw') {
-            newCols = Math.max(1, this.initialResizeState.cols - colsDiff);
-            newRows = Math.max(1, this.initialResizeState.rows - rowsDiff);
-            newX = this.initialResizeState.itemX + (this.initialResizeState.cols - newCols);
-            newY = this.initialResizeState.itemY + (this.initialResizeState.rows - newRows);
-        } else if (direction === 'e') {
-            newCols = Math.max(1, this.initialResizeState.cols + colsDiff);
-        } else if (direction === 'w') {
-            newCols = Math.max(1, this.initialResizeState.cols - colsDiff);
-            newX = this.initialResizeState.itemX + (this.initialResizeState.cols - newCols);
-        } else if (direction === 's') {
-            newRows = Math.max(1, this.initialResizeState.rows + rowsDiff);
-        } else if (direction === 'n') {
-            newRows = Math.max(1, this.initialResizeState.rows - rowsDiff);
-            newY = this.initialResizeState.itemY + (this.initialResizeState.rows - newRows);
-        }
-
-        if (newCols !== this.resizePreview()?.cols || newRows !== this.resizePreview()?.rows || newX !== this.resizePreview()?.x || newY !== this.resizePreview()?.y) {
-            this.resizePreview.set({ id: this.resizingItemId()!, cols: newCols, rows: newRows, x: newX, y: newY });
+        const preview = this.resizePreview();
+        if (cols !== preview?.cols || rows !== preview?.rows || x !== preview?.x || y !== preview?.y) {
+            this.resizePreview.set({ id: this.resizingItemId()!, cols, rows, x, y });
         }
     }
 
-    onWindowMouseUp() {
+    private handleResizeEnd() {
         if (this.resizingItemId() && this.resizePreview()) {
             this.commitResize();
         }
@@ -908,6 +876,79 @@ export class BentoGridComponent {
         this.resizeDirection.set(null);
         this.initialResizeState = null;
         this.resizePreview.set(null);
+        this.resizeDragCleanup = null;
+    }
+
+    private readonly resizeDirectionRtlMap: Readonly<Record<string, ResizeDirection>> = {
+        'nw': 'ne', 'ne': 'nw',
+        'sw': 'se', 'se': 'sw',
+        'w': 'e', 'e': 'w',
+        'n': 'n', 's': 's'
+    };
+
+    private flipResizeDirectionForRtl(direction: ResizeDirection): ResizeDirection {
+        return this.resizeDirectionRtlMap[direction] ?? direction;
+    }
+
+    private computeResizePreview(
+        direction: ResizeDirection,
+        deltaX: number,
+        deltaY: number
+    ): { cols: number; rows: number; x: number; y: number } {
+        const state = this.initialResizeState!;
+        const colsDiff = Math.round(deltaX / state.colStep);
+        const rowsDiff = Math.round(deltaY / state.rowStep);
+
+        return this.applyResizeDirection(direction, colsDiff, rowsDiff, state);
+    }
+
+    private applyResizeDirection(
+        direction: ResizeDirection,
+        colsDiff: number,
+        rowsDiff: number,
+        state: NonNullable<typeof this.initialResizeState>
+    ): { cols: number; rows: number; x: number; y: number } {
+        const cols = state.cols;
+        const rows = state.rows;
+        const itemX = state.itemX;
+        const itemY = state.itemY;
+
+        switch (direction) {
+            case 'se': return this.resizeSE(cols, rows, itemX, itemY, colsDiff, rowsDiff);
+            case 'sw': return this.resizeSW(cols, rows, itemX, itemY, colsDiff, rowsDiff);
+            case 'ne': return this.resizeNE(cols, rows, itemX, itemY, colsDiff, rowsDiff);
+            case 'nw': return this.resizeNW(cols, rows, itemX, itemY, colsDiff, rowsDiff);
+            case 'e': return { cols: Math.max(1, cols + colsDiff), rows, x: itemX, y: itemY };
+            case 'w': {
+                const newCols = Math.max(1, cols - colsDiff);
+                return { cols: newCols, rows, x: itemX + (cols - newCols), y: itemY };
+            }
+            case 's': return { cols, rows: Math.max(1, rows + rowsDiff), x: itemX, y: itemY };
+            case 'n': {
+                const newRows = Math.max(1, rows - rowsDiff);
+                return { cols, rows: newRows, x: itemX, y: itemY + (rows - newRows) };
+            }
+        }
+    }
+
+    private resizeSE(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number) {
+        return { cols: Math.max(1, cols + colsDiff), rows: Math.max(1, rows + rowsDiff), x, y };
+    }
+
+    private resizeSW(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number) {
+        const newCols = Math.max(1, cols - colsDiff);
+        return { cols: newCols, rows: Math.max(1, rows + rowsDiff), x: x + (cols - newCols), y };
+    }
+
+    private resizeNE(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number) {
+        const newRows = Math.max(1, rows - rowsDiff);
+        return { cols: Math.max(1, cols + colsDiff), rows: newRows, x, y: y + (rows - newRows) };
+    }
+
+    private resizeNW(cols: number, rows: number, x: number, y: number, colsDiff: number, rowsDiff: number) {
+        const newCols = Math.max(1, cols - colsDiff);
+        const newRows = Math.max(1, rows - rowsDiff);
+        return { cols: newCols, rows: newRows, x: x + (cols - newCols), y: y + (rows - newRows) };
     }
 
     private getColWidth(containerWidth: number): number {
@@ -918,15 +959,16 @@ export class BentoGridComponent {
         return this.parseCssDimension(this.columnWidth(), containerWidth);
     }
 
-    onResizeStart(event: MouseEvent, item: DashboardItem, direction: 'nw' | 'ne' | 'sw' | 'se' | 'n' | 's' | 'e' | 'w') {
+    onResizeStart(event: MouseEvent | TouchEvent, item: DashboardItem, direction: ResizeDirection) {
         if (!this.editable()) return;
         event.preventDefault();
         event.stopPropagation();
 
+        const startClientX = event instanceof MouseEvent ? event.clientX : event.touches[0].clientX;
+        const startClientY = event instanceof MouseEvent ? event.clientY : event.touches[0].clientY;
+
         const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item')!;
         const rect = element.getBoundingClientRect();
-
-
 
         const container = element.closest<HTMLElement>('.grid');
         if (!container) return;
@@ -942,8 +984,8 @@ export class BentoGridComponent {
         this.resizingItemId.set(item.id);
         this.resizeDirection.set(direction);
         this.initialResizeState = {
-            x: event.clientX,
-            y: event.clientY,
+            x: startClientX,
+            y: startClientY,
             w: rect.width,
             h: rect.height,
             cols: item.cols,
@@ -954,7 +996,14 @@ export class BentoGridComponent {
             rowStep
         };
         this.resizePreview.set({ id: item.id, cols: item.cols, rows: item.rows, x: item.x, y: item.y });
+
+        this.resizeDragCleanup = onPointerDrag(
+            (clientX, clientY) => this.handleResizeMove(clientX, clientY),
+            () => this.handleResizeEnd()
+        );
     }
+
+    private resizeDragCleanup: (() => void) | null = null;
 
     onDragStart(event: DragEvent, item: DashboardItem) {
         if (!this.editable()) return;
@@ -975,10 +1024,89 @@ export class BentoGridComponent {
         }
     }
 
-    onDragEnd(event: DragEvent) {
+    onDragEnd(_event: DragEvent) {
         this.draggedItemId.set(null);
         this.dropPreview.set(null);
         this.dragOffset.set(null);
+    }
+
+    private touchDragCleanup: (() => void) | null = null;
+
+    onTouchDragStart(event: TouchEvent, item: DashboardItem) {
+        if (!this.editable()) return;
+        if (this.resizingItemId()) return;
+
+        const touch = event.touches[0];
+        const element = (event.target as HTMLElement).closest<HTMLElement>('.bento-item')!;
+        const rect = element.getBoundingClientRect();
+
+        this.dragOffset.set({
+            x: touch.clientX - rect.left,
+            y: touch.clientY - rect.top
+        });
+
+        this.draggedItemId.set(item.id);
+
+        this.touchDragCleanup = onPointerDrag(
+            (clientX, clientY) => this.handleTouchDragMove(clientX, clientY, item),
+            () => this.handleTouchDragEnd()
+        );
+    }
+
+    private handleTouchDragMove(clientX: number, clientY: number, item: DashboardItem) {
+        const container = this.el.nativeElement.querySelector('.grid') as HTMLElement | null;
+        if (!container) return;
+
+        const coords = this.getGridCoordinatesFromPoint(clientX, clientY, container);
+        this.dropPreview.set({ x: coords.x, y: coords.y, cols: item.cols, rows: item.rows });
+    }
+
+    private handleTouchDragEnd() {
+        const draggedId = this.draggedItemId();
+        if (draggedId) {
+            const preview = this.dropPreview();
+            if (preview) {
+                const currentItems = this.applyDropPreview(draggedId, preview);
+                if (currentItems) {
+                    this.itemsChange.emit(currentItems);
+                }
+            }
+        }
+
+        this.draggedItemId.set(null);
+        this.dropPreview.set(null);
+        this.dragOffset.set(null);
+        this.touchDragCleanup = null;
+    }
+
+    private getGridCoordinatesFromPoint(clientX: number, clientY: number, container: HTMLElement): { x: number; y: number } {
+        const rect = container.getBoundingClientRect();
+        const _isRtl = isRtl(this.el.nativeElement);
+
+        let adjustedX = clientX;
+        let adjustedY = clientY;
+
+        const offset = this.dragOffset();
+        if (offset) {
+            adjustedX -= offset.x;
+            adjustedY -= offset.y;
+        }
+
+        let x = adjustedX - rect.left;
+        if (_isRtl) {
+            x = rect.right - adjustedX;
+        }
+
+        const y = adjustedY - rect.top;
+
+        const gapNum = this.parseCssDimension(this.gap(), rect.width);
+        const rowHeightNum = this.parseCssDimension(this.rowHeight(), rect.height);
+        const colWidth = this.getColWidth(rect.width);
+
+        const gridX = Math.floor(x / (colWidth + gapNum)) + 1;
+        const gridY = Math.floor(y / (rowHeightNum + gapNum)) + 1;
+
+        return { x: Math.max(1, gridX), y: Math.max(1, gridY) };
     }
 
     private commitResize() {
