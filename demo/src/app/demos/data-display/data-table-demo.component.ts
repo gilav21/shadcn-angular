@@ -36,6 +36,9 @@ import {
   ToastService,
   ToggleGroupComponent,
   ToggleGroupItemComponent,
+  CellEditEvent,
+  RowReorderEvent,
+  columnHelper,
   dateFilterFn,
   dateRangeFilterFn,
   multiselectFilterFn,
@@ -478,7 +481,7 @@ function generateVDemoColumns(colCount: number, heavyMode: boolean, variableRows
           component: VDemoToggleCellComponent,
           componentInputs: (row: VDemoRow) => ({ enabled: row['enabled'] }),
           componentOutputs: (row: VDemoRow) => ({
-            toggled: (val: boolean) => { row['enabled'] = val; },
+            toggled: (val: unknown) => { row['enabled'] = val as boolean; },
           }),
         });
       }
@@ -783,8 +786,28 @@ export class DataTableDemoComponent {
   // Sub-Rows / Tree Data
   readonly treeSelectionMode = signal<SubRowSelectionMode>('descendants');
   readonly treeFilterMode = signal<SubRowFilterMode>('includeParentOnChildMatch');
+  readonly treeDragMode = signal<'flat' | 'tree'>('flat');
+  readonly treeDragEnabled = signal(false);
+  readonly treeDragLog = signal<string[]>([]);
 
-  readonly orgTreeData: OrgNode[] = [
+  private readonly treeTableRef = viewChild<DataTableComponent<OrgNode>>('treeTable');
+
+  onTreeRowReorder(event: RowReorderEvent<OrgNode>): void {
+    const table = this.treeTableRef();
+    if (table) {
+      this.orgTreeData.set(table.reorderData(this.orgTreeData(), event));
+    }
+
+    const position = event.position;
+    const target = event.targetRow.name;
+    if (position === 'on') {
+      this.treeDragLog.update(log => [`"${event.row.name}" → child of "${target}" (reparent)`, ...log.slice(0, 3)]);
+    } else {
+      this.treeDragLog.update(log => [`"${event.row.name}" → ${position} "${target}" (after:${event.previousId ?? 'start'}, before:${event.nextId ?? 'end'})`, ...log.slice(0, 3)]);
+    }
+  }
+
+  readonly orgTreeData = signal<OrgNode[]>([
     {
       id: 'eng', name: 'Engineering', role: 'Department', headcount: 42, budget: 2800000,
       children: [
@@ -843,7 +866,7 @@ export class DataTableDemoComponent {
     },
     { id: 'finance', name: 'Finance', role: 'Department', headcount: 8, budget: 750000 },
     { id: 'hr', name: 'Human Resources', role: 'Department', headcount: 6, budget: 520000 },
-  ];
+  ]);
 
   readonly orgTreeColumns: ColumnDef<OrgNode>[] = [
     { accessorKey: 'name', header: 'Name', enableSorting: true, width: 'auto', minWidth: '250px' },
@@ -1086,6 +1109,8 @@ export class DataTableDemoComponent {
       role: roles[Math.floor(Math.random() * roles.length)],
     }));
     this.payments.set(data);
+    this.editableData.set(data.slice(0, 8));
+    this.draggableData.set(data.slice(0, 6));
 
     this.loadServerData();
     this.createOpsDataset();
@@ -1270,4 +1295,95 @@ export class DataTableDemoComponent {
     if (value && typeof value === 'object') return JSON.stringify(value);
     return '';
   }
+
+  // ── Inline Editing Demo ──
+  readonly editableData = signal<Payment[]>([]);
+  readonly editableColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', width: '100px' },
+    {
+      accessorKey: 'clientName', header: 'Client Name', width: 'auto',
+      editable: true, editType: 'text',
+      valueSetter: (row, val) => ({ ...row, clientName: String(val) }),
+    },
+    {
+      accessorKey: 'email', header: 'Email', width: 'auto',
+      editable: true, editType: 'text',
+      valueSetter: (row, val) => ({ ...row, email: String(val) }),
+    },
+    {
+      accessorKey: 'amount', header: 'Amount', width: '120px',
+      editable: true, editType: 'number',
+      valueSetter: (row, val) => ({ ...row, amount: Number(val) }),
+      cell: (row) => `$${row.amount.toFixed(2)}`,
+    },
+    {
+      accessorKey: 'status', header: 'Status', width: '140px',
+      editable: true, editType: 'select',
+      editOptions: [
+        { label: 'Pending', value: 'pending' },
+        { label: 'Processing', value: 'processing' },
+        { label: 'Success', value: 'success' },
+        { label: 'Failed', value: 'failed' },
+      ],
+      valueSetter: (row, val) => ({ ...row, status: val as Payment['status'] }),
+    },
+  ];
+  readonly editLog = signal<string[]>([]);
+  onCellEdit(event: CellEditEvent<Payment>): void {
+    this.editLog.update(log => [`${String(event.column.accessorKey)}: "${String(event.oldValue)}" → "${String(event.newValue)}"`, ...log.slice(0, 4)]);
+  }
+
+  // ── Footer Aggregations Demo ──
+  readonly footerColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', width: '100px', footer: 'Total' },
+    { accessorKey: 'clientName', header: 'Client', width: 'auto', aggregateFn: 'count' },
+    { accessorKey: 'email', header: 'Email', width: 'auto' },
+    { accessorKey: 'amount', header: 'Amount', width: '120px', aggregateFn: 'sum', cell: (row) => `$${row.amount.toFixed(2)}` },
+    { accessorKey: 'status', header: 'Status', width: '130px' },
+  ];
+
+  // ── Column Header Menu Demo ──
+  readonly menuColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', width: '100px' },
+    { accessorKey: 'clientName', header: 'Client Name', width: 'auto' },
+    { accessorKey: 'email', header: 'Email', width: 'auto' },
+    { accessorKey: 'amount', header: 'Amount', width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` },
+    { accessorKey: 'status', header: 'Status', width: '130px' },
+    { accessorKey: 'role', header: 'Role', width: '130px' },
+  ];
+
+  // ── Row Disabling Demo ──
+  readonly disabledRowIds = signal<string[]>([]);
+  readonly isPaymentDisabled = (row: Payment): boolean => row.status === 'failed';
+
+  // ── Row Drag Demo ──
+  readonly draggableData = signal<Payment[]>([]);
+  readonly dragLog = signal<string[]>([]);
+  onRowReorder(event: RowReorderEvent<Payment>): void {
+    const data = [...this.draggableData()];
+    const [moved] = data.splice(event.fromIndex, 1);
+    data.splice(event.toIndex, 0, moved);
+    this.draggableData.set(data);
+    const afterLabel = event.previousId ?? 'start';
+    const beforeLabel = event.nextId ?? 'end';
+    this.dragLog.update(log => [`"${moved.clientName}" → after ${afterLabel}, before ${beforeLabel} (${event.position})`, ...log.slice(0, 2)]);
+  }
+
+  // ── Floating Filters Demo ──
+  readonly floatingFilterColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', width: '100px', enableFiltering: true },
+    { accessorKey: 'clientName', header: 'Client', width: 'auto', enableFiltering: true },
+    { accessorKey: 'email', header: 'Email', width: 'auto', enableFiltering: true },
+    { accessorKey: 'amount', header: 'Amount', width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` },
+    { accessorKey: 'status', header: 'Status', width: '130px', enableFiltering: true },
+  ];
+
+  // ── Column Builder Demo ──
+  readonly builderColumns = columnHelper<Payment>()
+    .accessor('id', 'ID', { width: '100px', enableSorting: true })
+    .accessor('clientName', 'Client Name', { width: 'auto', enableSorting: true })
+    .accessor('email', 'Email', { width: 'auto' })
+    .accessor('amount', 'Amount', { width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` })
+    .accessor('status', 'Status', { width: '130px' })
+    .build();
 }

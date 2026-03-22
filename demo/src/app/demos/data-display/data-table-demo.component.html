@@ -214,12 +214,35 @@
         <option value="includeChildren">includeChildren</option>
         <option value="excludeChildren">excludeChildren</option>
       </select>
+
+      <span class="flex items-center gap-1.5">
+        <ui-checkbox [checked]="treeDragEnabled()" (checkedChange)="treeDragEnabled.set($event)" ariaLabel="Enable drag" />
+        <span>Drag</span>
+      </span>
+
+      @if (treeDragEnabled()) {
+        <span class="flex items-center gap-2">
+          Drag mode:
+        </span>
+        <select class="rounded-md border bg-background px-2 py-1 text-xs" [value]="treeDragMode()" (change)="treeDragMode.set($any($event.target).value)">
+          <option value="flat">flat (same depth only)</option>
+          <option value="tree">tree (reparent allowed)</option>
+        </select>
+      }
     </div>
   </div>
 
+  @if (treeDragLog().length > 0) {
+    <div class="text-xs text-muted-foreground space-y-0.5">
+      @for (entry of treeDragLog(); track entry) {
+        <p class="font-mono">{{ entry }}</p>
+      }
+    </div>
+  }
+
   <div class="rounded-md border h-[600px] overflow-auto relative">
     <ui-data-table #treeTable
-      [data]="orgTreeData"
+      [data]="orgTreeData()"
       [columns]="orgTreeColumns"
       [enableSubRows]="true"
       [enableRowSelection]="true"
@@ -230,6 +253,9 @@
       [enableRowExpansion]="true"
       [rowDetailTemplate]="treeDetailTpl"
       [enableColumnResize]="true"
+      [enableRowDrag]="treeDragEnabled()"
+      [rowDragMode]="treeDragMode()"
+      (rowReorder)="onTreeRowReorder($event)"
       [uiDataTableContextMenu]="treeContextMenu"
       (rowContextMenu)="onTreeTableContextMenu($event)"
     />
@@ -290,6 +316,161 @@
     Click the chevron to expand sub-rows. Use the checkboxes to test cascading selection.
     Filter text to see tree-aware filtering (try "Alice" or "Backend").
     Click the detail-row expander to see detail panels coexisting with sub-rows.
+  </div>
+</section>
+
+<!-- Inline Editing Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-editing" class="text-2xl font-semibold scroll-m-20">Inline Cell Editing</h2>
+  <p class="text-muted-foreground">
+    Double-click or press Enter/F2 on a focused cell to edit. Escape cancels, Enter commits, Tab moves to the next cell.
+    Supports text, number, and select editors out of the box.
+  </p>
+  <div style="height: 400px;">
+    <ui-data-table
+      [data]="editableData()"
+      [columns]="editableColumns"
+      [showPagination]="false"
+      [showToolbar]="false"
+      (cellEdit)="onCellEdit($event)"
+    />
+  </div>
+  @if (editLog().length > 0) {
+    <div class="text-xs text-muted-foreground space-y-0.5">
+      <p class="font-medium">Edit log:</p>
+      @for (entry of editLog(); track entry) {
+        <p class="font-mono">{{ entry }}</p>
+      }
+    </div>
+  }
+</section>
+
+<!-- Footer Aggregations Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-footer" class="text-2xl font-semibold scroll-m-20">Footer Aggregations</h2>
+  <p class="text-muted-foreground">
+    Columns can define <code class="text-xs bg-muted px-1 rounded">aggregateFn</code> (sum, avg, count, min, max) or a custom <code class="text-xs bg-muted px-1 rounded">footer</code> string/function.
+    The footer row auto-appears when any column has an aggregate.
+  </p>
+  <div style="height: 400px;">
+    <ui-data-table
+      [data]="payments()"
+      [columns]="footerColumns"
+      [showFooter]="true"
+      [showToolbar]="false"
+    />
+  </div>
+</section>
+
+<!-- Column Header Menu Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-column-menu" class="text-2xl font-semibold scroll-m-20">Column Header Menu</h2>
+  <p class="text-muted-foreground">
+    Enable <code class="text-xs bg-muted px-1 rounded">enableColumnMenu</code> to show a dropdown on each header with Sort, Pin, Hide, and Show All options.
+    Hover over a column header to see the menu button.
+  </p>
+  <div style="height: 400px;">
+    <ui-data-table
+      [data]="payments()"
+      [columns]="menuColumns"
+      [enableColumnMenu]="true"
+      [enableColumnResize]="true"
+    />
+  </div>
+</section>
+
+<!-- Floating Filters Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-floating-filters" class="text-2xl font-semibold scroll-m-20">Floating Filters</h2>
+  <p class="text-muted-foreground">
+    Per-column filter inputs rendered in a second header row. Always visible, no popover needed.
+    Enable with <code class="text-xs bg-muted px-1 rounded">enableFloatingFilters</code>.
+  </p>
+  <div style="height: 400px;">
+    <ui-data-table
+      [data]="payments()"
+      [columns]="floatingFilterColumns"
+      [enableFloatingFilters]="true"
+      [showToolbar]="false"
+    />
+  </div>
+</section>
+
+<!-- Row Disabling Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-disabled" class="text-2xl font-semibold scroll-m-20">Disabled Rows</h2>
+  <p class="text-muted-foreground">
+    Rows with <code class="text-xs bg-muted px-1 rounded">status === 'failed'</code> are disabled via the <code class="text-xs bg-muted px-1 rounded">isRowDisabled</code> function.
+    Disabled rows cannot be selected, edited, or dragged. Keyboard navigation skips them.
+  </p>
+  <div style="height: 400px;">
+    <ui-data-table
+      [data]="payments()"
+      [columns]="paymentColumns"
+      [enableRowSelection]="true"
+      [isRowDisabled]="isPaymentDisabled"
+      [showToolbar]="false"
+    />
+  </div>
+</section>
+
+<!-- Row Drag & Reorder Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-drag" class="text-2xl font-semibold scroll-m-20">Row Drag &amp; Reorder</h2>
+  <p class="text-muted-foreground">
+    Drag rows to reorder. Failed rows are disabled and cannot be dragged.
+    The blue indicator shows the drop position.
+  </p>
+  <div style="height: 350px;">
+    <ui-data-table
+      [data]="draggableData()"
+      [columns]="paymentColumns"
+      [enableRowDrag]="true"
+      [isRowDisabled]="isPaymentDisabled"
+      [showPagination]="false"
+      [showToolbar]="false"
+      (rowReorder)="onRowReorder($event)"
+    />
+  </div>
+  @if (dragLog().length > 0) {
+    <div class="text-xs text-muted-foreground space-y-0.5">
+      @for (entry of dragLog(); track entry) {
+        <p class="font-mono">{{ entry }}</p>
+      }
+    </div>
+  }
+</section>
+
+<!-- Cell Range Selection Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-range" class="text-2xl font-semibold scroll-m-20">Cell Range Selection</h2>
+  <p class="text-muted-foreground">
+    Click a cell to focus it, then Shift+Click another to select a range. Ctrl+C copies the range as tab-separated text. Escape clears the range.
+  </p>
+  <div style="height: 400px;">
+    <ui-data-table
+      [data]="payments()"
+      [columns]="paymentColumns"
+      [enableCellRangeSelection]="true"
+      [enableCopy]="true"
+      [showToolbar]="false"
+    />
+  </div>
+</section>
+
+<!-- Column Builder API Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-builder" class="text-2xl font-semibold scroll-m-20">Column Builder API</h2>
+  <p class="text-muted-foreground">
+    Type-safe fluent API for defining columns:
+    <code class="text-xs bg-muted px-1 rounded">columnHelper&lt;T&gt;().accessor('name', 'Name', &#123; ... &#125;).build()</code>
+  </p>
+  <div style="height: 350px;">
+    <ui-data-table
+      [data]="payments()"
+      [columns]="builderColumns"
+      [showToolbar]="false"
+    />
   </div>
 </section>
 
@@ -369,6 +550,7 @@
       [showToolbar]="true"
       [enableRowSelection]="true"
       [enableColumnResize]="true"
+      [enableRowDrag]="true"
     />
   </div>
 

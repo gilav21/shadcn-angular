@@ -604,24 +604,452 @@ describe('DataTableComponent', () => {
     });
 
     it('should apply sticky classes correctly', () => {
-        const stickyCol = { accessorKey: 'id', header: 'ID', sticky: true, _stickyLeft: 0, _width: '50px' };
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID', sticky: true, width: '50px' },
+            { accessorKey: 'name', header: 'Name' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
 
-        // Header
-        const headerClass = component.getHeaderClass(stickyCol);
-        expect(headerClass).toContain('z-30'); // Corner priority
+        const enhancedStickyCol = component.enhancedColumns().find(c => c.accessorKey === 'id')!;
+
+        const headerClass = component.getHeaderClass(enhancedStickyCol);
+        expect(headerClass).toContain('z-30');
         expect(headerClass).toContain('sticky');
 
-        // Cell
-        const cellStyle = component.getCellStyle(stickyCol);
-        expect(cellStyle.position).toBe('sticky');
-        expect(cellStyle.left).toBe('0px');
+        const cellStyle = component.getCellStyle(enhancedStickyCol);
+        expect(cellStyle['position']).toBe('sticky');
+        expect(cellStyle['left']).toBe('0px');
     });
 
     it('should apply right pin styles correctly', () => {
-        const rightPinnedCol = { accessorKey: 'name', header: 'Name', pin: 'right', _pin: 'right', _stickyRight: 0, _width: '120px' };
-        const rightPinnedStyle = component.getCellStyle(rightPinnedCol, true);
-        expect(rightPinnedStyle.position).toBe('sticky');
-        expect(rightPinnedStyle.right).toBe('0px');
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', pin: 'right' as const, width: '120px' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        const enhancedRightCol = component.enhancedColumns().find(c => c.accessorKey === 'name')!;
+        const rightPinnedStyle = component.getCellStyle(enhancedRightCol);
+        expect(rightPinnedStyle['position']).toBe('sticky');
+        expect(rightPinnedStyle['right']).toBe('0px');
+    });
+
+    it('should debounce filter changes when filterDebounce is set', async () => {
+        fixture.componentRef.setInput('filterDebounce', 100);
+        fixture.detectChanges();
+
+        component.onFilterChange('test');
+        expect(component.globalFilter()).toBe('');
+
+        await new Promise(resolve => setTimeout(resolve, 150));
+        expect(component.globalFilter()).toBe('test');
+    });
+
+    it('should not debounce filter when filterDebounce is 0', () => {
+        fixture.componentRef.setInput('filterDebounce', 0);
+        fixture.detectChanges();
+
+        component.onFilterChange('instant');
+        expect(component.globalFilter()).toBe('instant');
+    });
+
+    it('should expose scrollToRow method', () => {
+        expect(typeof component.scrollToRow).toBe('function');
+    });
+
+    it('should expose scrollToColumn method', () => {
+        expect(typeof component.scrollToColumn).toBe('function');
+    });
+
+    it('should expose scrollToCell method', () => {
+        expect(typeof component.scrollToCell).toBe('function');
+    });
+
+    it('should navigate focus with arrow keys', () => {
+        fixture.detectChanges();
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+
+        const event = new KeyboardEvent('keydown', { key: 'ArrowRight' });
+        component.onTableKeydown(event);
+        expect(component.focusedCell()?.columnKey).toBe('name');
+
+        const downEvent = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+        component.onTableKeydown(downEvent);
+        expect(component.focusedCell()?.rowIndex).toBe(1);
+    });
+
+    it('should navigate with Tab wrapping to next row', () => {
+        fixture.detectChanges();
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'role' });
+
+        const tabEvent = new KeyboardEvent('keydown', { key: 'Tab' });
+        component.onTableKeydown(tabEvent);
+        expect(component.focusedCell()?.rowIndex).toBe(1);
+        expect(component.focusedCell()?.columnKey).toBe('id');
+    });
+
+    it('should navigate to first cell on Home', () => {
+        fixture.detectChanges();
+        component.focusedCell.set({ rowIndex: 2, columnKey: 'role' });
+
+        const homeEvent = new KeyboardEvent('keydown', { key: 'Home', ctrlKey: true });
+        component.onTableKeydown(homeEvent);
+        expect(component.focusedCell()?.rowIndex).toBe(0);
+        expect(component.focusedCell()?.columnKey).toBe('id');
+    });
+
+    it('should start editing on Enter when column is editable', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
+        const enterEvent = new KeyboardEvent('keydown', { key: 'Enter' });
+        component.onTableKeydown(enterEvent);
+        expect(component.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
+        expect(component.editValue()).toBe('Alice');
+    });
+
+    it('should not start editing when column is not editable', () => {
+        fixture.detectChanges();
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        const enterEvent = new KeyboardEvent('keydown', { key: 'Enter' });
+        component.onTableKeydown(enterEvent);
+        expect(component.editingCell()).toBeNull();
+    });
+
+    it('should commit edit and emit cellEdit event', () => {
+        const editSpy = vi.fn();
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+        component.cellEdit.subscribe(editSpy);
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Alice Updated');
+        component.commitEdit();
+
+        expect(editSpy).toHaveBeenCalledWith(expect.objectContaining({
+            oldValue: 'Alice',
+            newValue: 'Alice Updated',
+            rowIndex: 0,
+        }));
+        expect(component.editingCell()).toBeNull();
+    });
+
+    it('should cancel edit on Escape', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.startEditing(0, 'name');
+        expect(component.editingCell()).not.toBeNull();
+
+        component.cancelEdit();
+        expect(component.editingCell()).toBeNull();
+    });
+
+    it('should reject edit when validator returns false', () => {
+        const editSpy = vi.fn();
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => false },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+        component.cellEdit.subscribe(editSpy);
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Bad Value');
+        component.commitEdit();
+
+        expect(editSpy).not.toHaveBeenCalled();
+        expect(component.editingCell()).not.toBeNull();
+    });
+
+    it('should pin column via pinColumn method', () => {
+        fixture.detectChanges();
+        component.pinColumn('name', 'left');
+        fixture.detectChanges();
+
+        const nameCol = component.enhancedColumns().find(c => c.accessorKey === 'name');
+        expect(nameCol?._pin).toBe('left');
+    });
+
+    it('should unpin column via pinColumn method', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', pin: 'left' as const },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.pinColumn('name', undefined);
+        fixture.detectChanges();
+
+        const nameCol = component.enhancedColumns().find(c => c.accessorKey === 'name');
+        expect(nameCol?._pin).toBeUndefined();
+    });
+
+    it('should show all columns via showAllColumns', () => {
+        fixture.detectChanges();
+        component.setColumnVisibility('id', false);
+        component.setColumnVisibility('role', false);
+        fixture.detectChanges();
+
+        expect(component.enhancedColumns().find(c => c.accessorKey === 'id')).toBeUndefined();
+
+        component.showAllColumns();
+        fixture.detectChanges();
+
+        expect(component.enhancedColumns().find(c => c.accessorKey === 'id')).toBeDefined();
+        expect(component.enhancedColumns().find(c => c.accessorKey === 'role')).toBeDefined();
+    });
+
+    it('should compute footer aggregate sum', () => {
+        interface NumData { id: string; amount: number }
+        const numFixture = TestBed.createComponent(DataTableComponent<NumData>);
+        const numComponent = numFixture.componentInstance;
+        numFixture.componentRef.setInput('data', [
+            { id: '1', amount: 10 },
+            { id: '2', amount: 20 },
+            { id: '3', amount: 30 },
+        ]);
+        numFixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'amount', header: 'Amount', aggregateFn: 'sum' },
+        ]);
+        numFixture.componentRef.setInput('showFooter', true);
+        numFixture.detectChanges();
+
+        expect(numComponent.hasFooter()).toBe(true);
+        expect(numComponent.footerValues().get('amount')).toBe('60');
+    });
+
+    it('should compute footer aggregate avg', () => {
+        interface NumData { id: string; amount: number }
+        const numFixture = TestBed.createComponent(DataTableComponent<NumData>);
+        const numComponent = numFixture.componentInstance;
+        numFixture.componentRef.setInput('data', [
+            { id: '1', amount: 10 },
+            { id: '2', amount: 20 },
+        ]);
+        numFixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'amount', header: 'Amount', aggregateFn: 'avg' },
+        ]);
+        numFixture.componentRef.setInput('showFooter', true);
+        numFixture.detectChanges();
+
+        expect(numComponent.footerValues().get('amount')).toBe('15');
+    });
+
+    it('should use custom footer function', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', footer: (rows: TestData[]) => `${rows.length} items` },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.componentRef.setInput('showFooter', true);
+        fixture.detectChanges();
+
+        expect(component.footerValues().get('name')).toBe('5 items');
+    });
+
+    it('should detect floating filters when enableFloatingFilters and columns have enableFiltering', () => {
+        fixture.componentRef.setInput('enableFloatingFilters', true);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', enableFiltering: true },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        expect(component.hasAnyFloatingFilter()).toBe(true);
+    });
+
+    it('should not detect floating filters when disabled', () => {
+        fixture.componentRef.setInput('enableFloatingFilters', false);
+        fixture.detectChanges();
+
+        expect(component.enableFloatingFilters()).toBe(false);
+    });
+
+    it('should detect full-width rows', () => {
+        fixture.componentRef.setInput('fullWidthRow', (row: TestData) => row.role === 'Admin');
+        fixture.detectChanges();
+
+        expect(component.isFullWidthRow(TEST_DATA[0])).toBe(true);
+        expect(component.isFullWidthRow(TEST_DATA[1])).toBe(false);
+    });
+
+    it('should disable rows via isRowDisabled function', () => {
+        fixture.componentRef.setInput('isRowDisabled', (row: TestData) => row.role === 'Admin');
+        fixture.detectChanges();
+
+        expect(component.isDisabled(TEST_DATA[0])).toBe(true);
+        expect(component.isDisabled(TEST_DATA[1])).toBe(false);
+        expect(component.isDisabled(TEST_DATA[3])).toBe(true);
+    });
+
+    it('should disable rows via disabledRowIds', () => {
+        fixture.componentRef.setInput('disabledRowIds', ['2', '3']);
+        fixture.detectChanges();
+
+        expect(component.isDisabled(TEST_DATA[0])).toBe(false);
+        expect(component.isDisabled(TEST_DATA[1])).toBe(true);
+        expect(component.isDisabled(TEST_DATA[2])).toBe(true);
+    });
+
+    it('should disable rows via disabledRowIds Set', () => {
+        fixture.componentRef.setInput('disabledRowIds', new Set(['1']));
+        fixture.detectChanges();
+
+        expect(component.isDisabled(TEST_DATA[0])).toBe(true);
+        expect(component.isDisabled(TEST_DATA[1])).toBe(false);
+    });
+
+    it('should prevent selection of disabled rows via toggleRow', () => {
+        fixture.componentRef.setInput('enableRowSelection', true);
+        fixture.componentRef.setInput('isRowDisabled', (row: TestData) => row.id === '1');
+        fixture.detectChanges();
+
+        component.toggleRow(TEST_DATA[0]);
+        expect(component.isRowSelected(TEST_DATA[0])).toBe(false);
+
+        component.toggleRow(TEST_DATA[1]);
+        expect(component.isRowSelected(TEST_DATA[1])).toBe(true);
+    });
+
+    it('should skip disabled rows in toggleAll', () => {
+        fixture.componentRef.setInput('enableRowSelection', true);
+        fixture.componentRef.setInput('isRowDisabled', (row: TestData) => row.id === '2');
+        fixture.detectChanges();
+
+        component.toggleAll();
+        expect(component.isRowSelected(TEST_DATA[0])).toBe(true);
+        expect(component.isRowSelected(TEST_DATA[1])).toBe(false);
+        expect(component.isRowSelected(TEST_DATA[2])).toBe(true);
+    });
+
+    it('should not start editing on disabled rows', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.componentRef.setInput('isRowDisabled', (row: TestData) => row.id === '1');
+        fixture.detectChanges();
+
+        component.startEditing(0, 'name');
+        expect(component.editingCell()).toBeNull();
+
+        component.startEditing(1, 'name');
+        expect(component.editingCell()).not.toBeNull();
+    });
+
+    it('should skip disabled rows during keyboard navigation', () => {
+        fixture.componentRef.setInput('isRowDisabled', (row: TestData) => row.id === '2');
+        fixture.detectChanges();
+
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        const downEvent = new KeyboardEvent('keydown', { key: 'ArrowDown' });
+        component.onTableKeydown(downEvent);
+        expect(component.focusedCell()?.rowIndex).toBe(2);
+    });
+
+    it('should emit rowReorder event on row drop', () => {
+        const reorderSpy = vi.fn();
+        fixture.componentRef.setInput('enableRowDrag', true);
+        fixture.detectChanges();
+        component.rowReorder.subscribe(reorderSpy);
+
+        component.draggedRowId.set('1');
+        (component as any).dragOverIndex.set(3);
+        (component as any).dragOverPosition.set('above');
+        component.onRowDrop({ preventDefault: () => {}, stopPropagation: () => {} } as any);
+
+        expect(reorderSpy).toHaveBeenCalledWith(expect.objectContaining({
+            fromIndex: 0,
+            toIndex: 2,
+        }));
+    });
+
+    it('should prevent dragging disabled rows', () => {
+        fixture.componentRef.setInput('enableRowDrag', true);
+        fixture.componentRef.setInput('isRowDisabled', (row: TestData) => row.id === '1');
+        fixture.detectChanges();
+
+        const event = { dataTransfer: { effectAllowed: '', setData: vi.fn() } } as any;
+        component.onRowDragStart(event, TEST_DATA[0]);
+        expect(component.draggedRowId()).toBeNull();
+
+        component.onRowDragStart(event, TEST_DATA[1]);
+        expect(component.draggedRowId()).toBe('2');
+    });
+
+    it('should set cell range on shift-click', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        const shiftClickEvent = { stopPropagation: () => {}, shiftKey: true } as any;
+        component.onCellClick(2, { accessorKey: 'role', header: 'Role' } as any, shiftClickEvent);
+
+        const range = component.cellRange();
+        expect(range).toEqual({
+            startRow: 0, startCol: 'id',
+            endRow: 2, endCol: 'role',
+        });
+    });
+
+    it('should detect cells in range', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+
+        component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 2, endCol: 'name' });
+        expect(component.isCellInRange(1, 'id')).toBe(true);
+        expect(component.isCellInRange(1, 'name')).toBe(true);
+        expect(component.isCellInRange(1, 'role')).toBe(false);
+        expect(component.isCellInRange(3, 'id')).toBe(false);
+    });
+
+    it('should clear cell range on Escape', () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+
+        component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 2, endCol: 'name' });
+        const escEvent = new KeyboardEvent('keydown', { key: 'Escape' });
+        component.onTableKeydown(escEvent);
+        expect(component.cellRange()).toBeNull();
+    });
+
+    it('should expose getCellFlashClass method', () => {
+        expect(typeof component.getCellFlashClass).toBe('function');
+        expect(component.getCellFlashClass('1', 'name')).toBe('');
+    });
+
+    it('should auto-detect footer when columns have aggregateFn', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID', aggregateFn: 'count' },
+            { accessorKey: 'name', header: 'Name' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        expect(component.hasFooter()).toBe(true);
+        expect(component.footerValues().get('id')).toBe('5');
     });
 
     it('should accept initial paginationState via input in server-side mode', () => {
@@ -954,7 +1382,7 @@ describe('DataTableComponent', () => {
             fixture.detectChanges();
 
             expect(emitted.length).toBeGreaterThan(0);
-            expect(emitted[emitted.length - 1]).toEqual({ role: 'User' });
+            expect(emitted.at(-1)).toEqual({ role: 'User' });
         });
 
         it('should apply custom filterFn for column filters during local filtering', () => {
@@ -1615,10 +2043,11 @@ describe('DataTableComponent - Sub-Rows (Tree Data)', () => {
             const result = component.getSubRowComponentInputs(col, treeRow);
             expect(result['label']).toBe('Alice');
             expect(result['_subRowContext']).toBeDefined();
-            expect(result['_subRowContext'].depth).toBe(2);
-            expect(result['_subRowContext'].parentId).toBe('1-1');
-            expect(result['_subRowContext'].isLeaf).toBe(true);
-            expect(result['_subRowContext'].path).toEqual(['1', '1-1', '1-1-1']);
+            const ctx = result['_subRowContext'] as Record<string, unknown>;
+            expect(ctx['depth']).toBe(2);
+            expect(ctx['parentId']).toBe('1-1');
+            expect(ctx['isLeaf']).toBe(true);
+            expect(ctx['path']).toEqual(['1', '1-1', '1-1-1']);
         });
     });
 

@@ -15,29 +15,36 @@ import {
   inject,
   AfterViewInit,
   OnDestroy,
-} from '@angular/core';
-import { CommonModule, DOCUMENT } from '@angular/common';
-import { FormsModule } from '@angular/forms';
-import { cn, isRtl } from '../../lib/utils';
-import { CALENDAR_LOCALES, CalendarLocale } from '../calendar-locales';
-import { generateXlsx } from '../../lib/xlsx';
+} from "@angular/core";
+import { CommonModule, DOCUMENT } from "@angular/common";
+import { FormsModule } from "@angular/forms";
+import { cn, isRtl } from "../../lib/utils";
+import { CALENDAR_LOCALES, CalendarLocale } from "../calendar-locales";
+import { generateXlsx } from "../../lib/xlsx";
 import {
   TableComponent,
   TableHeaderComponent,
   TableBodyComponent,
   TableRowComponent,
   TableHeadComponent,
-  TableCellComponent
-} from '../table.component';
-import { InputComponent } from '../input.component';
-import { CheckboxComponent } from '../checkbox.component';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover.component';
-import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
-import { DataTablePaginationComponent } from './data-table-pagination.component';
-import { UiComponentOutletDirective } from '../component-outlet.directive';
-import { ContextMenuComponent, ContextMenuItem } from '../context-menu.component';
-import { ButtonComponent } from '../button.component';
-import { IconComponent } from '../icon.component';
+  TableCellComponent,
+} from "../table.component";
+import { InputComponent } from "../input.component";
+import { CheckboxComponent } from "../checkbox.component";
+import {
+  PopoverComponent,
+  PopoverTriggerComponent,
+  PopoverContentComponent,
+} from "../popover.component";
+import { DataTableColumnHeaderComponent } from "./data-table-column-header.component";
+import { DataTablePaginationComponent } from "./data-table-pagination.component";
+import { UiComponentOutletDirective } from "../component-outlet.directive";
+import {
+  ContextMenuComponent,
+  ContextMenuItem,
+} from "../context-menu.component";
+import { ButtonComponent } from "../button.component";
+import { IconComponent } from "../icon.component";
 import {
   ColumnDef,
   SortState,
@@ -54,19 +61,26 @@ import {
   SubRowContext,
   RowActionContext,
   VirtualAutoThreshold,
-} from './data-table.types';
+  CellEditEvent,
+  EditingCell,
+  RowReorderEvent,
+  RowDragPosition,
+  CellRange,
+  CellFlashDirection,
+  CellStyleColumn,
+} from "./data-table.types";
 import {
   computeRowRange,
   computeColumnRange,
   computeVariableRowRange,
   buildPrefixSums,
-} from './data-table.utils';
-import { ComponentPoolService } from './component-pool.service';
+} from "./data-table.utils";
+import { ComponentPoolService } from "./component-pool.service";
 
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
 
 @Component({
-  selector: 'ui-data-table',
+  selector: "ui-data-table",
   imports: [
     CommonModule,
     FormsModule,
@@ -91,9 +105,268 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [ComponentPoolService],
   host: {
-    class: 'block h-full w-full',
+    class: "block h-full w-full",
   },
   template: `
+    <!-- Reusable: cell content rendering (component/template/cell/default) -->
+    <ng-template
+      #cellContentTpl
+      let-col
+      let-row="row"
+      let-treeRow="treeRow"
+      let-recycle="recycle"
+    >
+      @if (col.component) {
+        <div
+          [uiComponentOutlet]="col.component"
+          [inputs]="
+            treeRow
+              ? getSubRowComponentInputs(col, treeRow)
+              : col.componentInputs
+                ? col.componentInputs(row)
+                : EMPTY_RECORD
+          "
+          [outputs]="
+            col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD
+          "
+          [recycle]="recycle"
+        ></div>
+      } @else if (col.template) {
+        @if (treeRow) {
+          <ng-container
+            *ngTemplateOutlet="
+              col.template;
+              context: {
+                $implicit: row,
+                depth: treeRow.depth,
+                parentRow: treeRow.parentRow,
+                parentId: treeRow.parentId,
+                path: treeRow.path,
+                isLeaf: treeRow.isLeaf,
+                childCount: treeRow.childCount,
+              }
+            "
+          ></ng-container>
+        } @else {
+          <ng-container
+            *ngTemplateOutlet="col.template; context: { $implicit: row }"
+          ></ng-container>
+        }
+      } @else if (col.cell) {
+        {{ col.cell(row) }}
+      } @else {
+        {{ getCellValue(row, col.accessorKey, col) }}
+      }
+    </ng-template>
+
+    <!-- Reusable: full cell rendering (special columns + content) -->
+    <ng-template
+      #cellTpl
+      let-col
+      let-row="row"
+      let-rowIndex="rowIndex"
+      let-treeRow="treeRow"
+      let-recycle="recycle"
+    >
+      @if (col.accessorKey === "_selection") {
+        <ui-checkbox
+          [checked]="isRowSelected(row)"
+          [disabled]="isDisabled(row)"
+          [indeterminate]="
+            treeRow ? isSubRowSelectionIndeterminate(row) : false
+          "
+          (checkedChange)="treeRow ? toggleRowWithCascade(row) : toggleRow(row)"
+          ariaLabel="Select row"
+        />
+      } @else if (col._isTreeExpanderHost && treeRow) {
+        <div
+          class="flex items-center gap-1 min-w-0"
+          [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()"
+        >
+          @if (!treeRow.isLeaf) {
+            <button
+              type="button"
+              class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+              [attr.aria-label]="
+                treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'
+              "
+              (click)="toggleSubRowExpanded(treeRow.row, $event)"
+            >
+              <ui-icon
+                [name]="isRtl() ? 'chevron-left' : 'chevron-right'"
+                size="xs"
+                class="transition-transform duration-200"
+                [class.rotate-90]="treeRow.isExpanded && !isRtl()"
+                [class.-rotate-90]="treeRow.isExpanded && isRtl()"
+              />
+            </button>
+          } @else {
+            <span class="inline-block h-6 w-6 shrink-0"></span>
+          }
+          <span class="truncate">
+            <ng-container
+              *ngTemplateOutlet="
+                cellContentTpl;
+                context: {
+                  $implicit: col,
+                  row: row,
+                  treeRow: treeRow,
+                  recycle: recycle,
+                }
+              "
+            ></ng-container>
+          </span>
+        </div>
+      } @else if (col.accessorKey === "_expander") {
+        <button
+          type="button"
+          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+          [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'"
+          [attr.aria-expanded]="isRowExpanded(row)"
+          (click)="toggleRowExpanded(row, $event)"
+        >
+          @if (isRowExpanded(row)) {
+            <ui-icon name="chevron-up" size="xs" />
+          } @else {
+            <ui-icon name="chevron-down" size="xs" />
+          }
+        </button>
+      } @else if (col.accessorKey === "_actions") {
+        @if (!isDisabled(row)) {
+          <ui-button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            ariaLabel="Row actions"
+            (click)="onActionsButtonClick($event, row, rowIndex)"
+          >
+            <ui-icon name="more-vertical" size="sm" />
+          </ui-button>
+        }
+      } @else if (
+        col.editable && isEditing(rowIndex, String(col.accessorKey))
+      ) {
+        <ng-container
+          *ngTemplateOutlet="
+            cellEditTpl;
+            context: { $implicit: col, row: row, rowIndex: rowIndex }
+          "
+        ></ng-container>
+      } @else {
+        <ng-container
+          *ngTemplateOutlet="
+            cellContentTpl;
+            context: {
+              $implicit: col,
+              row: row,
+              treeRow: treeRow,
+              recycle: recycle,
+            }
+          "
+        ></ng-container>
+      }
+    </ng-template>
+
+    <!-- Reusable: cell edit mode -->
+    <ng-template #cellEditTpl let-col let-row="row" let-rowIndex="rowIndex">
+      @if (col.editComponent) {
+        <div
+          [uiComponentOutlet]="col.editComponent"
+          [inputs]="{ value: editValue(), row: row, column: col }"
+          [outputs]="{
+            valueChange: onEditValueChange.bind(this),
+            commit: commitEdit.bind(this),
+            cancel: cancelEdit.bind(this),
+          }"
+        ></div>
+      } @else if (col.editTemplate) {
+        <ng-container
+          *ngTemplateOutlet="
+            col.editTemplate;
+            context: {
+              $implicit: editValue(),
+              row: row,
+              column: col,
+              setValue: onEditValueChange.bind(this),
+              commit: commitEdit.bind(this),
+              cancel: cancelEdit.bind(this),
+            }
+          "
+        ></ng-container>
+      } @else if (col.editType === "checkbox") {
+        <ui-checkbox
+          [checked]="!!editValue()"
+          (checkedChange)="onEditValueChange($event); commitEdit()"
+        />
+      } @else if (col.editType === "select" && col.editOptions) {
+        <select
+          data-edit-input
+          class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          [value]="editValue()"
+          (change)="onEditValueChange($any($event.target).value); commitEdit()"
+          (keydown)="onEditKeydown($event)"
+        >
+          @for (opt of col.editOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      } @else {
+        <input
+          data-edit-input
+          [type]="col.editType === 'number' ? 'number' : 'text'"
+          class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          [value]="editValue()"
+          (input)="onEditValueChange($any($event.target).value)"
+          (keydown)="onEditKeydown($event)"
+          (blur)="editingCell() ? commitEdit() : null"
+        />
+      }
+    </ng-template>
+
+    <!-- Reusable: row detail/expansion panel -->
+    <ng-template #rowDetailTpl let-row>
+      @if (rowDetailTemplate()) {
+        <ng-container
+          *ngTemplateOutlet="
+            rowDetailTemplate();
+            context: { $implicit: row, row: row }
+          "
+        ></ng-container>
+      } @else if (rowDetailComponent()) {
+        <div
+          [uiComponentOutlet]="rowDetailComponent()"
+          [inputs]="getRowDetailComponentInputs(row)"
+        ></div>
+      } @else {
+        <pre class="text-xs text-muted-foreground whitespace-pre-wrap">{{
+          row | json
+        }}</pre>
+      }
+    </ng-template>
+
+    <!-- Reusable: empty state -->
+    <ng-template #emptyStateTpl>
+      <ui-table-row class="hover:bg-transparent justify-center w-full">
+        <ui-table-cell
+          class="h-96 text-center w-full p-0 border-none justify-center"
+        >
+          @if (emptyStateComponent()) {
+            <ng-container
+              [uiComponentOutlet]="emptyStateComponent()"
+              [inputs]="emptyStateComponentInputs()"
+            ></ng-container>
+          } @else {
+            <div
+              class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full"
+            >
+              <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
+              <p>{{ noResultsLabel() }}</p>
+            </div>
+          }
+        </ui-table-cell>
+      </ui-table-row>
+    </ng-template>
+
     <div class="flex flex-col w-full h-full space-y-4">
       @if (showToolbar()) {
         <div class="flex items-center justify-between flex-none">
@@ -119,10 +392,14 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
               <ui-popover-content class="w-56 p-2">
                 <div class="space-y-1">
                   @for (col of hideableColumns(); track col.accessorKey) {
-                    <label class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground">
+                    <label
+                      class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                    >
                       <ui-checkbox
                         [checked]="isColumnVisible(col.accessorKey)"
-                        (checkedChange)="setColumnVisibility(col.accessorKey, $event)"
+                        (checkedChange)="
+                          setColumnVisibility(col.accessorKey, $event)
+                        "
                         [ariaLabel]="'Toggle ' + col.header + ' column'"
                       />
                       <span>{{ col.header }}</span>
@@ -135,12 +412,32 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
         </div>
       }
 
-      <div #scrollContainer class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full" [class.contain-strict]="isVirtualScrollActive()" [class.will-change-scroll]="isVirtualScrollActive()" (keydown)="onTableKeydown($event)" (click)="onTableClick()" (contextmenu)="onRowContextMenu($event)" (scroll)="isVirtualScrollActive() ? onVirtualScroll($event) : null" tabindex="0">
+      <div
+        #scrollContainer
+        class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full"
+        [class.contain-strict]="isVirtualScrollActive()"
+        [class.will-change-scroll]="isVirtualScrollActive()"
+        (keydown)="onTableKeydown($event)"
+        (click)="onTableClick()"
+        (contextmenu)="onRowContextMenu($event)"
+        (scroll)="isVirtualScrollActive() ? onVirtualScroll($event) : null"
+        (dragover)="onContainerDragOver($event)"
+        (drop)="onRowDrop($event)"
+        tabindex="0"
+      >
         @if (isLoaderVisible()) {
-          <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
+          <div
+            class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
+          >
             @if (loaderTemplate()) {
               <ng-container
-                *ngTemplateOutlet="loaderTemplate(); context: { $implicit: loadingTrigger(), trigger: loadingTrigger() }"
+                *ngTemplateOutlet="
+                  loaderTemplate();
+                  context: {
+                    $implicit: loadingTrigger(),
+                    trigger: loadingTrigger(),
+                  }
+                "
               ></ng-container>
             } @else if (loaderComponent()) {
               <ng-container
@@ -148,17 +445,27 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                 [inputs]="resolvedLoaderComponentInputs()"
               ></ng-container>
             } @else {
-              <div class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-                <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"></span>
+              <div
+                class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground"
+              >
+                <span
+                  class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"
+                ></span>
                 <span>Loading...</span>
               </div>
             }
           </div>
         }
         @if (exporting()) {
-          <div class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]">
-            <div class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground">
-              <span class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"></span>
+          <div
+            class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
+          >
+            <div
+              class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground"
+            >
+              <span
+                class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"
+              ></span>
               <span>Exporting...</span>
             </div>
           </div>
@@ -167,8 +474,9 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
           <ui-table-header class="bg-background">
             <ui-table-row>
               @for (col of enhancedColumns(); track col.accessorKey) {
-                <ui-table-head 
+                <ui-table-head
                   [class]="getHeaderClass(col)"
+                  class="group/head"
                   [class.cursor-grab]="isColumnDraggable(col)"
                   [class.cursor-grabbing]="isDraggingColumn(col)"
                   [class.opacity-70]="isDraggingColumn(col)"
@@ -182,11 +490,13 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                   (dragend)="onColumnDragEnd()"
                 >
                   @if (isDropTargetColumn(col)) {
-                    <div class="pointer-events-none absolute inset-0 z-30 border-2 border-primary/70 bg-primary/10"></div>
+                    <div
+                      class="pointer-events-none absolute inset-0 z-30 border-2 border-primary/70 bg-primary/10"
+                    ></div>
                   }
                   <div class="flex items-center w-full h-full">
                     <div class="flex-1 min-w-0">
-                      @if (col.accessorKey === '_selection') {
+                      @if (col.accessorKey === "_selection") {
                         <ui-checkbox
                           [checked]="isAllSelected()"
                           [indeterminate]="isIndeterminate()"
@@ -198,8 +508,16 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                           <button
                             type="button"
                             class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
-                            [attr.aria-label]="isAllSubRowsExpanded() ? 'Collapse all sub-rows' : 'Expand all sub-rows'"
-                            (click)="isAllSubRowsExpanded() ? collapseAllSubRows() : expandAllSubRows(-1)"
+                            [attr.aria-label]="
+                              isAllSubRowsExpanded()
+                                ? 'Collapse all sub-rows'
+                                : 'Expand all sub-rows'
+                            "
+                            (click)="
+                              isAllSubRowsExpanded()
+                                ? collapseAllSubRows()
+                                : expandAllSubRows(-1)
+                            "
                           >
                             @if (isAllSubRowsExpanded()) {
                               <ui-icon name="chevrons-up" size="xs" />
@@ -213,17 +531,27 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                               [column]="String(col.accessorKey)"
                               [direction]="getSortDirection(col.accessorKey)"
                               [sortIndex]="getSortIndex(col.accessorKey)"
-                              (sortMeta)="onSortChange(col.accessorKey, $event.direction, $event.multi)"
+                              (sortMeta)="
+                                onSortChange(
+                                  col.accessorKey,
+                                  $event.direction,
+                                  $event.multi
+                                )
+                              "
                             />
                           } @else {
                             <span>{{ col.header }}</span>
                           }
                         </div>
-                      } @else if (col.accessorKey === '_expander') {
+                      } @else if (col.accessorKey === "_expander") {
                         <button
                           type="button"
                           class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
-                          [attr.aria-label]="isAllExpanded() ? 'Collapse all rows' : 'Expand all rows'"
+                          [attr.aria-label]="
+                            isAllExpanded()
+                              ? 'Collapse all rows'
+                              : 'Expand all rows'
+                          "
                           (click)="toggleAllExpanded()"
                         >
                           @if (isAllExpanded()) {
@@ -232,10 +560,15 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                             <ui-icon name="chevrons-down" size="xs" />
                           }
                         </button>
-                      } @else if (col.accessorKey === '_actions') {
+                      } @else if (col.accessorKey === "_actions") {
                         <span class="sr-only">Actions</span>
                       } @else if (col.headerTemplate) {
-                        <ng-container *ngTemplateOutlet="col.headerTemplate; context: { $implicit: col }"></ng-container>
+                        <ng-container
+                          *ngTemplateOutlet="
+                            col.headerTemplate;
+                            context: { $implicit: col }
+                          "
+                        ></ng-container>
                       } @else if (col.enableSorting !== false) {
                         <div class="flex items-center gap-2">
                           <ui-data-table-column-header
@@ -243,24 +576,40 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                             [column]="String(col.accessorKey)"
                             [direction]="getSortDirection(col.accessorKey)"
                             [sortIndex]="getSortIndex(col.accessorKey)"
-                            (sortMeta)="onSortChange(col.accessorKey, $event.direction, $event.multi)"
+                            (sortMeta)="
+                              onSortChange(
+                                col.accessorKey,
+                                $event.direction,
+                                $event.multi
+                              )
+                            "
                           />
                           @if (col.enableFiltering && col.filterComponent) {
                             <ui-popover [closeOnScroll]="true">
                               <ui-popover-trigger>
                                 <button
                                   class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
-                                  [class.text-primary]="isColumnFilterActive(col)"
+                                  [class.text-primary]="
+                                    isColumnFilterActive(col)
+                                  "
                                   [attr.aria-label]="'Filter ' + col.header"
                                 >
                                   @if (isColumnFilterActive(col)) {
-                                    <ui-icon name="filter" size="sm" weight="solid" />
+                                    <ui-icon
+                                      name="filter"
+                                      size="sm"
+                                      weight="solid"
+                                    />
                                   } @else {
                                     <ui-icon name="filter" size="sm" />
                                   }
                                 </button>
                               </ui-popover-trigger>
-                              <ui-popover-content class="w-80" strategy="fixed" align="end">
+                              <ui-popover-content
+                                class="w-80"
+                                strategy="fixed"
+                                align="end"
+                              >
                                 <div
                                   [uiComponentOutlet]="col.filterComponent"
                                   [inputs]="getFilterInputs(col)"
@@ -278,17 +627,27 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                               <ui-popover-trigger>
                                 <button
                                   class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
-                                  [class.text-primary]="isColumnFilterActive(col)"
+                                  [class.text-primary]="
+                                    isColumnFilterActive(col)
+                                  "
                                   [attr.aria-label]="'Filter ' + col.header"
                                 >
                                   @if (isColumnFilterActive(col)) {
-                                    <ui-icon name="filter" size="sm" weight="solid" />
+                                    <ui-icon
+                                      name="filter"
+                                      size="sm"
+                                      weight="solid"
+                                    />
                                   } @else {
                                     <ui-icon name="filter" size="sm" />
                                   }
                                 </button>
                               </ui-popover-trigger>
-                              <ui-popover-content class="w-80" strategy="fixed" align="end">
+                              <ui-popover-content
+                                class="w-80"
+                                strategy="fixed"
+                                align="end"
+                              >
                                 <div
                                   [uiComponentOutlet]="col.filterComponent"
                                   [inputs]="getFilterInputs(col)"
@@ -300,9 +659,28 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                         </div>
                       }
                     </div>
+                    @if (
+                      enableColumnMenu() &&
+                      col.accessorKey !== "_selection" &&
+                      col.accessorKey !== "_expander" &&
+                      col.accessorKey !== "_actions"
+                    ) {
+                      <button
+                        type="button"
+                        class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover/head:opacity-100 hover:bg-accent hover:text-accent-foreground transition-opacity"
+                        [attr.aria-label]="'Column menu for ' + col.header"
+                        (click)="onColumnMenuClick($event, col)"
+                      >
+                        <ui-icon name="more-vertical" size="xs" />
+                      </button>
+                    }
                   </div>
-                  @if (enableColumnResize() && col.accessorKey !== '_selection' && col._width !== 'auto') {
-                    <div 
+                  @if (
+                    enableColumnResize() &&
+                    col.accessorKey !== "_selection" &&
+                    col._width !== "auto"
+                  ) {
+                    <div
                       class="absolute top-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary/70 z-40 select-none"
                       [class.right-0]="!isRtl()"
                       [class.translate-x-1/2]="!isRtl()"
@@ -317,374 +695,415 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                 </ui-table-head>
               }
               @if (!hasFlexibleColumns()) {
-                <ui-table-head 
+                <ui-table-head
                   class="flex-1 pointer-events-none"
                   [class]="getHeaderClass({ _width: 'auto' })"
                 ></ui-table-head>
               }
             </ui-table-row>
+            @if (enableFloatingFilters() && hasAnyFloatingFilter()) {
+              <ui-table-row class="border-0">
+                @for (col of enhancedColumns(); track col.accessorKey) {
+                  <ui-table-head
+                    [style]="getHeaderCellStyle(col)"
+                    class="sticky top-[var(--header-height,41px)] z-20 bg-muted/50 py-1 px-1"
+                  >
+                    @if (
+                      col.floatingFilter !== false &&
+                      col.accessorKey !== "_selection" &&
+                      col.accessorKey !== "_expander" &&
+                      col.accessorKey !== "_actions"
+                    ) {
+                      @if (col.floatingFilterComponent) {
+                        <div
+                          [uiComponentOutlet]="col.floatingFilterComponent"
+                          [inputs]="getFilterInputs(col)"
+                          [outputs]="getFilterOutputs(col)"
+                        ></div>
+                      } @else if (col.floatingFilterTemplate) {
+                        <ng-container
+                          *ngTemplateOutlet="
+                            col.floatingFilterTemplate;
+                            context: {
+                              $implicit: col,
+                              value: columnFilters()[String(col.accessorKey)],
+                              change: getFloatingFilterChange(col),
+                            }
+                          "
+                        ></ng-container>
+                      } @else if (col.enableFiltering) {
+                        <ui-input
+                          class="h-7 text-xs"
+                          [placeholder]="col.header"
+                          [ngModel]="
+                            columnFilters()[String(col.accessorKey)] || ''
+                          "
+                          (ngModelChange)="
+                            onColumnFilterChange(col.accessorKey, $event)
+                          "
+                        />
+                      }
+                    }
+                  </ui-table-head>
+                }
+                @if (!hasFlexibleColumns()) {
+                  <ui-table-head
+                    class="flex-1 pointer-events-none sticky top-[var(--header-height,41px)] z-20 bg-muted/50"
+                  ></ui-table-head>
+                }
+              </ui-table-row>
+            }
           </ui-table-header>
           <ui-table-body>
             @if (isVirtualScrollActive()) {
-              <div [style.height.px]="virtualPaddingTop()" class="flex-shrink-0"></div>
+              <div
+                [style.height.px]="virtualPaddingTop()"
+                class="flex-shrink-0"
+              ></div>
               @if (enableSubRows()) {
-                @for (treeRow of virtualVisibleTreeRows(); track getRowId()(treeRow.row); let i = $index) {
+                @for (
+                  treeRow of virtualVisibleTreeRows();
+                  track getRowId()(treeRow.row);
+                  let i = $index
+                ) {
                   <ui-table-row
                     #virtualRow
-                    [attr.data-state]="isRowSelected(treeRow.row) ? 'selected' : null"
+                    [attr.data-state]="
+                      isRowSelected(treeRow.row) ? 'selected' : null
+                    "
+                    [attr.data-disabled]="isDisabled(treeRow.row) || null"
+                    [class.opacity-50]="isDisabled(treeRow.row)"
                     [attr.data-row-index]="getVirtualRowIndex(i)"
                     [attr.data-row-id]="getRowId()(treeRow.row)"
                     [attr.data-virtual-row-index]="getVirtualRowIndex(i)"
                     [attr.data-depth]="treeRow.depth"
                     [attr.aria-level]="treeRow.depth + 1"
-                    [attr.aria-expanded]="treeRow.isLeaf ? null : treeRow.isExpanded"
-                    [style.height.px]="virtualVariableRowHeight() ? null : virtualRowHeight()"
+                    [attr.aria-expanded]="
+                      treeRow.isLeaf ? null : treeRow.isExpanded
+                    "
+                    [style.height.px]="
+                      virtualVariableRowHeight() ? null : virtualRowHeight()
+                    "
                     class="border-0"
                   >
                     @for (col of pinnedLeftColumns(); track col.accessorKey) {
                       <ui-table-cell
-                        [class]="getCellClass(col, getVirtualRowIndex(i), treeRow.depth)"
+                        [class]="
+                          getCellClass(
+                            col,
+                            getVirtualRowIndex(i),
+                            treeRow.depth
+                          )
+                        "
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getTreeCellStyle(col, treeRow.depth)"
-                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
                       >
-                        @if (col.accessorKey === '_selection') {
-                          <ui-checkbox
-                            [checked]="isRowSelected(treeRow.row)"
-                            [indeterminate]="isSubRowSelectionIndeterminate(treeRow.row)"
-                            (checkedChange)="toggleRowWithCascade(treeRow.row)"
-                            ariaLabel="Select row"
-                          />
-                        } @else if (col._isTreeExpanderHost) {
-                          <div class="flex items-center gap-1 min-w-0" [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()">
-                            @if (!treeRow.isLeaf) {
-                              <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'" (click)="toggleSubRowExpanded(treeRow.row, $event)">
-                                <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded && !isRtl()" [class.-rotate-90]="treeRow.isExpanded && isRtl()" />
-                              </button>
-                            } @else {
-                              <span class="inline-block h-6 w-6 shrink-0"></span>
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: treeRow.row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: treeRow,
+                              recycle: virtualRecycleComponents(),
                             }
-                            <span class="truncate">
-                              @if (col.component) {
-                                <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
-                              } @else if (col.template) {
-                                <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
-                              } @else if (col.cell) {
-                                {{ col.cell(treeRow.row) }}
-                              } @else {
-                                {{ getCellValue(treeRow.row, col.accessorKey, col) }}
-                              }
-                            </span>
-                          </div>
-                        } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
-                        } @else if (col.template) {
-                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
-                        } @else if (col.cell) {
-                          {{ col.cell(treeRow.row) }}
-                        } @else {
-                          {{ getCellValue(treeRow.row, col.accessorKey, col) }}
-                        }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     }
-                    <div [style.min-width.px]="virtualPaddingLeft()" class="flex-shrink-0"></div>
-                    @for (col of virtualVisibleMiddleColumns(); track col.accessorKey) {
+                    <div
+                      [style.min-width.px]="virtualPaddingLeft()"
+                      class="flex-shrink-0"
+                    ></div>
+                    @for (
+                      col of virtualVisibleMiddleColumns();
+                      track col.accessorKey
+                    ) {
                       <ui-table-cell
-                        [class]="getCellClass(col, getVirtualRowIndex(i), treeRow.depth)"
+                        [class]="
+                          getCellClass(
+                            col,
+                            getVirtualRowIndex(i),
+                            treeRow.depth
+                          )
+                        "
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getTreeCellStyle(col, treeRow.depth)"
-                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
                       >
-                        @if (col._isTreeExpanderHost) {
-                          <div class="flex items-center gap-1 min-w-0" [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()">
-                            @if (!treeRow.isLeaf) {
-                              <button type="button" class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'" (click)="toggleSubRowExpanded(treeRow.row, $event)">
-                                <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded && !isRtl()" [class.-rotate-90]="treeRow.isExpanded && isRtl()" />
-                              </button>
-                            } @else {
-                              <span class="inline-block h-6 w-6 shrink-0"></span>
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: treeRow.row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: treeRow,
+                              recycle: virtualRecycleComponents(),
                             }
-                            <span class="truncate">
-                              @if (col.component) {
-                                <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
-                              } @else if (col.template) {
-                                <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
-                              } @else if (col.cell) {
-                                {{ col.cell(treeRow.row) }}
-                              } @else {
-                                {{ getCellValue(treeRow.row, col.accessorKey, col) }}
-                              }
-                            </span>
-                          </div>
-                        } @else if (col.accessorKey === '_expander') {
-                          <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="isRowExpanded(treeRow.row) ? 'Collapse row' : 'Expand row'" [attr.aria-expanded]="isRowExpanded(treeRow.row)" (click)="toggleRowExpanded(treeRow.row, $event)">
-                            @if (isRowExpanded(treeRow.row)) {
-                              <ui-icon name="chevron-up" size="xs" />
-                            } @else {
-                              <ui-icon name="chevron-down" size="xs" />
-                            }
-                          </button>
-                        } @else if (col.accessorKey === '_actions') {
-                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, treeRow.row, getVirtualRowIndex(i))">
-                            <ui-icon name="more-vertical" size="sm" />
-                          </ui-button>
-                        } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
-                        } @else if (col.template) {
-                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
-                        } @else if (col.cell) {
-                          {{ col.cell(treeRow.row) }}
-                        } @else {
-                          {{ getCellValue(treeRow.row, col.accessorKey, col) }}
-                        }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     }
-                    <div [style.min-width.px]="virtualPaddingRight()" class="flex-shrink-0"></div>
+                    <div
+                      [style.min-width.px]="virtualPaddingRight()"
+                      class="flex-shrink-0"
+                    ></div>
                     @for (col of pinnedRightColumns(); track col.accessorKey) {
                       <ui-table-cell
-                        [class]="getCellClass(col, getVirtualRowIndex(i), treeRow.depth)"
+                        [class]="
+                          getCellClass(
+                            col,
+                            getVirtualRowIndex(i),
+                            treeRow.depth
+                          )
+                        "
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getTreeCellStyle(col, treeRow.depth)"
-                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
                       >
-                        @if (col.accessorKey === '_actions') {
-                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, treeRow.row, getVirtualRowIndex(i))">
-                            <ui-icon name="more-vertical" size="sm" />
-                          </ui-button>
-                        } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="getSubRowComponentInputs(col, treeRow)" [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
-                        } @else if (col.template) {
-                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row }"></ng-container>
-                        } @else if (col.cell) {
-                          {{ col.cell(treeRow.row) }}
-                        } @else {
-                          {{ getCellValue(treeRow.row, col.accessorKey, col) }}
-                        }
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: treeRow.row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: treeRow,
+                              recycle: virtualRecycleComponents(),
+                            }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     }
                   </ui-table-row>
                 }
               } @else {
-                @for (row of virtualVisibleRows(); track getRowId()(row); let i = $index) {
+                @for (
+                  row of virtualVisibleRows();
+                  track getRowId()(row);
+                  let i = $index
+                ) {
                   <ui-table-row
                     #virtualRow
                     [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [attr.data-disabled]="isDisabled(row) || null"
+                    [class.opacity-50]="isDisabled(row)"
+                    [class.opacity-30]="isRowBeingDragged(row)"
                     [attr.data-row-index]="getVirtualRowIndex(i)"
                     [attr.data-row-id]="getRowId()(row)"
                     [attr.data-virtual-row-index]="getVirtualRowIndex(i)"
-                    [style.height.px]="virtualVariableRowHeight() ? null : virtualRowHeight()"
-                    class="border-0"
+                    [attr.draggable]="enableRowDrag() && !isDisabled(row) ? 'true' : null"
+                    (dragstart)="onRowDragStart($event, row)"
+                    (dragover)="onRowDragOver($event, getVirtualRowIndex(i))"
+                    (drop)="onRowDrop($event)"
+                    (dragend)="onRowDragEnd()"
+                    [style.height.px]="
+                      virtualVariableRowHeight() ? null : virtualRowHeight()
+                    "
+                    class="border-0 relative"
                   >
+                    @switch (getDropEdge(getVirtualRowIndex(i))) {
+                      @case ('top') {
+                        <div class="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 bg-primary shadow-[0_0_4px_0] shadow-primary"></div>
+                      }
+                      @case ('bottom') {
+                        <div class="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-0.5 bg-primary shadow-[0_0_4px_0] shadow-primary"></div>
+                      }
+                      @case ('on') {
+                        <div class="pointer-events-none absolute inset-0 z-30 border-2 border-primary/50 rounded-sm bg-primary/5"></div>
+                      }
+                    }
                     @for (col of pinnedLeftColumns(); track col.accessorKey) {
                       <ui-table-cell
                         [class]="getCellClass(col, getVirtualRowIndex(i))"
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getCellStyle(col)"
-                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
                       >
-                        @if (col.accessorKey === '_selection') {
-                          <ui-checkbox
-                            [checked]="isRowSelected(row)"
-                            (checkedChange)="toggleRow(row)"
-                            ariaLabel="Select row"
-                          />
-                        } @else if (col.accessorKey === '_expander') {
-                          <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'" [attr.aria-expanded]="isRowExpanded(row)" (click)="toggleRowExpanded(row, $event)">
-                            @if (isRowExpanded(row)) {
-                              <ui-icon name="chevron-up" size="xs" />
-                            } @else {
-                              <ui-icon name="chevron-down" size="xs" />
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: null,
+                              recycle: virtualRecycleComponents(),
                             }
-                          </button>
-                        } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : EMPTY_RECORD" [outputs]="col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
-                        } @else if (col.template) {
-                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
-                        } @else if (col.cell) {
-                          {{ col.cell(row) }}
-                        } @else {
-                          {{ getCellValue(row, col.accessorKey, col) }}
-                        }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     }
-                    <div [style.min-width.px]="virtualPaddingLeft()" class="flex-shrink-0"></div>
-                    @for (col of virtualVisibleMiddleColumns(); track col.accessorKey) {
+                    <div
+                      [style.min-width.px]="virtualPaddingLeft()"
+                      class="flex-shrink-0"
+                    ></div>
+                    @for (
+                      col of virtualVisibleMiddleColumns();
+                      track col.accessorKey
+                    ) {
                       <ui-table-cell
                         [class]="getCellClass(col, getVirtualRowIndex(i))"
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getCellStyle(col)"
-                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
                       >
-                        @if (col.accessorKey === '_selection') {
-                          <ui-checkbox
-                            [checked]="isRowSelected(row)"
-                            (checkedChange)="toggleRow(row)"
-                            ariaLabel="Select row"
-                          />
-                        } @else if (col.accessorKey === '_expander') {
-                          <button type="button" class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground" [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'" [attr.aria-expanded]="isRowExpanded(row)" (click)="toggleRowExpanded(row, $event)">
-                            @if (isRowExpanded(row)) {
-                              <ui-icon name="chevron-up" size="xs" />
-                            } @else {
-                              <ui-icon name="chevron-down" size="xs" />
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: null,
+                              recycle: virtualRecycleComponents(),
                             }
-                          </button>
-                        } @else if (col.accessorKey === '_actions') {
-                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, row, getVirtualRowIndex(i))">
-                            <ui-icon name="more-vertical" size="sm" />
-                          </ui-button>
-                        } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : EMPTY_RECORD" [outputs]="col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
-                        } @else if (col.template) {
-                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
-                        } @else if (col.cell) {
-                          {{ col.cell(row) }}
-                        } @else {
-                          {{ getCellValue(row, col.accessorKey, col) }}
-                        }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     }
-                    <div [style.min-width.px]="virtualPaddingRight()" class="flex-shrink-0"></div>
+                    <div
+                      [style.min-width.px]="virtualPaddingRight()"
+                      class="flex-shrink-0"
+                    ></div>
                     @for (col of pinnedRightColumns(); track col.accessorKey) {
                       <ui-table-cell
                         [class]="getCellClass(col, getVirtualRowIndex(i))"
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getCellStyle(col)"
-                        (click)="onCellClick(getVirtualRowIndex(i), col, $event)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
                       >
-                        @if (col.accessorKey === '_actions') {
-                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, row, getVirtualRowIndex(i))">
-                            <ui-icon name="more-vertical" size="sm" />
-                          </ui-button>
-                        } @else if (col.component) {
-                          <div [uiComponentOutlet]="col.component" [inputs]="col.componentInputs ? col.componentInputs(row) : EMPTY_RECORD" [outputs]="col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD" [recycle]="virtualRecycleComponents()"></div>
-                        } @else if (col.template) {
-                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
-                        } @else if (col.cell) {
-                          {{ col.cell(row) }}
-                        } @else {
-                          {{ getCellValue(row, col.accessorKey, col) }}
-                        }
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: null,
+                              recycle: virtualRecycleComponents(),
+                            }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     }
                   </ui-table-row>
                   @if (enableRowExpansion() && isRowExpanded(row)) {
                     <ui-table-row class="border-0 bg-muted/20">
-                      <ui-table-cell class="flex-1 border-b" style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;">
-                        @if (rowDetailTemplate()) {
-                          <ng-container *ngTemplateOutlet="rowDetailTemplate(); context: { $implicit: row, row: row }"></ng-container>
-                        } @else if (rowDetailComponent()) {
-                          <div [uiComponentOutlet]="rowDetailComponent()" [inputs]="getRowDetailComponentInputs(row)"></div>
-                        } @else {
-                          <pre class="text-xs text-muted-foreground whitespace-pre-wrap">{{ row | json }}</pre>
-                        }
+                      <ui-table-cell
+                        class="flex-1 border-b"
+                        style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            rowDetailTpl;
+                            context: { $implicit: row }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     </ui-table-row>
                   }
                 }
               }
               @if (virtualTotalRows() === 0) {
-                <ui-table-row class="hover:bg-transparent justify-center w-full">
-                  <ui-table-cell class="h-96 text-center w-full p-0 border-none justify-center">
-                    @if (emptyStateComponent()) {
-                      <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
-                    } @else {
-                      <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
-                        <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
-                        <p>{{ noResultsLabel() }}</p>
-                      </div>
-                    }
-                  </ui-table-cell>
-                </ui-table-row>
+                <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
               }
-              <div [style.height.px]="virtualPaddingBottom()" class="flex-shrink-0"></div>
+              <div
+                [style.height.px]="virtualPaddingBottom()"
+                class="flex-shrink-0"
+              ></div>
             } @else if (enableSubRows()) {
               @if (processedTreeRows().length > 0) {
-                @for (treeRow of processedTreeRows(); track getRowId()(treeRow.row); let i = $index) {
+                @for (
+                  treeRow of processedTreeRows();
+                  track getRowId()(treeRow.row);
+                  let i = $index
+                ) {
                   <ui-table-row
                     [attr.data-state]="isRowSelected(treeRow.row) ? 'selected' : null"
+                    [attr.data-disabled]="isDisabled(treeRow.row) || null"
+                    [class.opacity-50]="isDisabled(treeRow.row)"
+                    [class.opacity-30]="isRowBeingDragged(treeRow.row)"
+                    [class.ring-2]="isRowBeingDragged(treeRow.row)"
+                    [class.ring-primary/30]="isRowBeingDragged(treeRow.row)"
+                    [class.ring-inset]="isRowBeingDragged(treeRow.row)"
+                    [class.bg-primary/5]="isRowBeingDragged(treeRow.row)"
                     [attr.data-row-index]="i"
                     [attr.data-row-id]="getRowId()(treeRow.row)"
                     [attr.data-depth]="treeRow.depth"
                     [attr.aria-level]="treeRow.depth + 1"
                     [attr.aria-expanded]="treeRow.isLeaf ? null : treeRow.isExpanded"
-                    class="border-0"
+                    [attr.draggable]="enableRowDrag() && !isDisabled(treeRow.row) ? 'true' : null"
+                    (dragstart)="onRowDragStart($event, treeRow.row)"
+                    (dragover)="onRowDragOver($event, i)"
+                    (drop)="onRowDrop($event)"
+                    (dragend)="onRowDragEnd()"
+                    class="border-0 relative"
                   >
+                    @switch (getDropEdge(i)) {
+                      @case ('top') {
+                        <div class="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 bg-primary shadow-[0_0_4px_0] shadow-primary"></div>
+                      }
+                      @case ('bottom') {
+                        <div class="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-0.5 bg-primary shadow-[0_0_4px_0] shadow-primary"></div>
+                      }
+                      @case ('on') {
+                        <div class="pointer-events-none absolute inset-0 z-30 border-2 border-primary/50 rounded-sm bg-primary/5"></div>
+                      }
+                    }
                     @for (col of enhancedColumns(); track col.accessorKey) {
                       <ui-table-cell
                         [class]="getCellClass(col, i, treeRow.depth)"
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getTreeCellStyle(col, treeRow.depth)"
                         (click)="onCellClick(i, col, $event)"
+                        (dblclick)="onCellDblClick(i, col, $event)"
                       >
-                        @if (col.accessorKey === '_selection') {
-                          <ui-checkbox
-                            [checked]="isRowSelected(treeRow.row)"
-                            [indeterminate]="isSubRowSelectionIndeterminate(treeRow.row)"
-                            (checkedChange)="toggleRowWithCascade(treeRow.row)"
-                            ariaLabel="Select row"
-                          />
-                        } @else if (col._isTreeExpanderHost) {
-                          <div class="flex items-center gap-1 min-w-0" [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()">
-                            @if (!treeRow.isLeaf) {
-                              <button
-                                type="button"
-                                class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
-                                [attr.aria-label]="treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'"
-                                (click)="toggleSubRowExpanded(treeRow.row, $event)"
-                              >
-                                <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" size="xs" class="transition-transform duration-200" [class.rotate-90]="treeRow.isExpanded && !isRtl()" [class.-rotate-90]="treeRow.isExpanded && isRtl()" />
-                              </button>
-                            } @else {
-                              <span class="inline-block h-6 w-6 shrink-0"></span>
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: treeRow.row,
+                              rowIndex: i,
+                              treeRow: treeRow,
+                              recycle: false,
                             }
-                            <span class="truncate">
-                              @if (col.component) {
-                                <div
-                                  [uiComponentOutlet]="col.component"
-                                  [inputs]="getSubRowComponentInputs(col, treeRow)"
-                                  [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD"
-                                ></div>
-                              } @else if (col.template) {
-                                <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
-                              } @else if (col.cell) {
-                                {{ col.cell(treeRow.row) }}
-                              } @else {
-                                {{ getCellValue(treeRow.row, col.accessorKey, col) }}
-                              }
-                            </span>
-                          </div>
-                        } @else if (col.accessorKey === '_expander') {
-                          <button
-                            type="button"
-                            class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
-                            [attr.aria-label]="isRowExpanded(treeRow.row) ? 'Collapse row' : 'Expand row'"
-                            [attr.aria-expanded]="isRowExpanded(treeRow.row)"
-                            (click)="toggleRowExpanded(treeRow.row, $event)"
-                          >
-                            @if (isRowExpanded(treeRow.row)) {
-                              <ui-icon name="chevron-up" size="xs" />
-                            } @else {
-                              <ui-icon name="chevron-down" size="xs" />
-                            }
-                          </button>
-                        } @else if (col.accessorKey === '_actions') {
-                          <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, treeRow.row, i)">
-                            <ui-icon name="more-vertical" size="sm" />
-                          </ui-button>
-                        } @else if (col.component) {
-                          <div
-                            [uiComponentOutlet]="col.component"
-                            [inputs]="getSubRowComponentInputs(col, treeRow)"
-                            [outputs]="col.componentOutputs ? col.componentOutputs(treeRow.row) : EMPTY_RECORD"
-                          ></div>
-                        } @else if (col.template) {
-                          <ng-container *ngTemplateOutlet="col.template; context: { $implicit: treeRow.row, depth: treeRow.depth, parentRow: treeRow.parentRow, parentId: treeRow.parentId, path: treeRow.path, isLeaf: treeRow.isLeaf, childCount: treeRow.childCount }"></ng-container>
-                        } @else if (col.cell) {
-                           {{ col.cell(treeRow.row) }}
-                        } @else {
-                          {{ getCellValue(treeRow.row, col.accessorKey, col) }}
-                        }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     }
                     @if (!hasFlexibleColumns()) {
@@ -696,130 +1115,96 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                   </ui-table-row>
                   @if (enableRowExpansion() && isRowExpanded(treeRow.row)) {
                     <ui-table-row class="border-0 bg-muted/20">
-                      <ui-table-cell class="flex-1 border-b" style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;">
-                        @if (rowDetailTemplate()) {
-                          <ng-container
-                            *ngTemplateOutlet="rowDetailTemplate(); context: { $implicit: treeRow.row, row: treeRow.row }"
-                          ></ng-container>
-                        } @else if (rowDetailComponent()) {
-                          <div
-                            [uiComponentOutlet]="rowDetailComponent()"
-                            [inputs]="getRowDetailComponentInputs(treeRow.row)"
-                          ></div>
-                        } @else {
-                          <pre class="text-xs text-muted-foreground whitespace-pre-wrap">{{ treeRow.row | json }}</pre>
-                        }
+                      <ui-table-cell
+                        class="flex-1 border-b"
+                        style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            rowDetailTpl;
+                            context: { $implicit: treeRow.row }
+                          "
+                        ></ng-container>
                       </ui-table-cell>
                     </ui-table-row>
                   }
                 }
               } @else {
-                <ui-table-row class="hover:bg-transparent justify-center w-full">
-                  <ui-table-cell class="h-96 text-center w-full p-0 border-none justify-center">
-                    @if (emptyStateComponent()) {
-                      <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
-                    } @else {
-                      <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
-                        <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
-                        <p>{{ noResultsLabel() }}</p>
-                      </div>
-                    }
-                  </ui-table-cell>
-                </ui-table-row>
+                <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
               }
             } @else if (processedData().length > 0) {
-              @for (row of processedData(); track getRowId()(row); let i = $index) {
-                <ui-table-row
-                  [attr.data-state]="isRowSelected(row) ? 'selected' : null"
-                  [attr.data-row-index]="i"
-                  [attr.data-row-id]="getRowId()(row)"
-                  class="border-0"
-                >
-                  @for (col of enhancedColumns(); track col.accessorKey) {
+              @for (
+                row of (dragPreviewData() ?? processedData());
+                track getRowId()(row);
+                let i = $index
+              ) {
+                @if (isFullWidthRow(row)) {
+                  <ui-table-row
+                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [attr.data-disabled]="isDisabled(row) || null"
+                    [class.opacity-50]="isDisabled(row)"
+                    [attr.data-row-index]="i"
+                    [attr.data-row-id]="getRowId()(row)"
+                    class="border-0"
+                  >
                     <ui-table-cell
-                      [class]="getCellClass(col, i)"
-                      [attr.data-column]="String(col.accessorKey)"
-                      [style]="getCellStyle(col)"
-                      (click)="onCellClick(i, col, $event)"
+                      class="flex-1 border-b"
+                      style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;"
                     >
-                      @if (col.accessorKey === '_selection') {
-                        <ui-checkbox
-                          [checked]="isRowSelected(row)"
-                          (checkedChange)="toggleRow(row)"
-                          ariaLabel="Select row"
-                        />
-                      } @else if (col.accessorKey === '_expander') {
-                        <button
-                          type="button"
-                          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
-                          [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'"
-                          [attr.aria-expanded]="isRowExpanded(row)"
-                          (click)="toggleRowExpanded(row, $event)"
-                        >
-                          @if (isRowExpanded(row)) {
-                            <ui-icon name="chevron-up" size="xs" />
-                          } @else {
-                            <ui-icon name="chevron-down" size="xs" />
-                          }
-                        </button>
-                      } @else if (col.accessorKey === '_actions') {
-                        <ui-button variant="ghost" size="icon" class="h-8 w-8" ariaLabel="Row actions" (click)="onActionsButtonClick($event, row, i)">
-                          <ui-icon name="more-vertical" size="sm" />
-                        </ui-button>
-                      } @else if (col.component) {
-                        <div
-                          [uiComponentOutlet]="col.component"
-                          [inputs]="col.componentInputs ? col.componentInputs(row) : EMPTY_RECORD"
-                          [outputs]="col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD"
-                        ></div>
-                      } @else if (col.template) {
-                        <ng-container *ngTemplateOutlet="col.template; context: { $implicit: row }"></ng-container>
-                      } @else if (col.cell) {
-                         {{ col.cell(row) }}
-                      } @else {
-                        {{ getCellValue(row, col.accessorKey, col) }}
-                      }
-                    </ui-table-cell>
-                  }
-                  @if (!hasFlexibleColumns()) {
-                    <ui-table-cell
-                      class="flex-1 pointer-events-none"
-                      [class]="getCellClass({ _width: 'auto' })"
-                    ></ui-table-cell>
-                  }
-                </ui-table-row>
-                @if (enableRowExpansion() && isRowExpanded(row)) {
-                  <ui-table-row class="border-0 bg-muted/20">
-                    <ui-table-cell class="flex-1 border-b" style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;">
-                      @if (rowDetailTemplate()) {
+                      @if (fullWidthRowTemplate()) {
                         <ng-container
-                          *ngTemplateOutlet="rowDetailTemplate(); context: { $implicit: row, row: row }"
+                          *ngTemplateOutlet="
+                            fullWidthRowTemplate();
+                            context: { $implicit: row, index: i }
+                          "
                         ></ng-container>
-                      } @else if (rowDetailComponent()) {
+                      } @else if (fullWidthRowComponent()) {
                         <div
-                          [uiComponentOutlet]="rowDetailComponent()"
-                          [inputs]="getRowDetailComponentInputs(row)"
+                          [uiComponentOutlet]="fullWidthRowComponent()"
+                          [inputs]="{ row: row, index: i }"
                         ></div>
-                      } @else {
-                        <pre class="text-xs text-muted-foreground whitespace-pre-wrap">{{ row | json }}</pre>
                       }
                     </ui-table-cell>
                   </ui-table-row>
+                } @else {
+                  <ui-table-row
+                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [attr.data-disabled]="isDisabled(row) || null"
+                    [class.opacity-50]="isDisabled(row)"
+                    [class.opacity-30]="isRowBeingDragged(row)"
+                    [class.ring-2]="isRowBeingDragged(row)"
+                    [class.ring-primary/30]="isRowBeingDragged(row)"
+                    [class.ring-inset]="isRowBeingDragged(row)"
+                    [class.bg-primary/5]="isRowBeingDragged(row)"
+                    [attr.data-row-index]="i"
+                    [attr.data-row-id]="getRowId()(row)"
+                    [attr.draggable]="enableRowDrag() && !isDisabled(row) ? 'true' : null"
+                    (dragstart)="onRowDragStart($event, row)"
+                    (dragover)="onRowDragOver($event, i)"
+                    (drop)="onRowDrop($event)"
+                    (dragend)="onRowDragEnd()"
+                    class="border-0"
+                  >
+                    @for (col of enhancedColumns(); track col.accessorKey) {
+                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)">
+                        <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: col, row: row, rowIndex: i, treeRow: null, recycle: false }"></ng-container>
+                      </ui-table-cell>
+                    }
+                    @if (!hasFlexibleColumns()) {
+                      <ui-table-cell class="flex-1 pointer-events-none" [class]="getCellClass({ _width: 'auto' })"></ui-table-cell>
+                    }
+                  </ui-table-row>
+                  @if (enableRowExpansion() && isRowExpanded(row)) {
+                    <ui-table-row class="border-0 bg-muted/20">
+                      <ui-table-cell class="flex-1 border-b" style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;">
+                        <ng-container *ngTemplateOutlet="rowDetailTpl; context: { $implicit: row }"></ng-container>
+                      </ui-table-cell>
+                    </ui-table-row>
+                  }
                 }
               }
             } @else {
-              <ui-table-row class="hover:bg-transparent justify-center w-full">
-                <ui-table-cell class="h-96 text-center w-full p-0 border-none justify-center">
-                  @if (emptyStateComponent()) {
-                    <ng-container [uiComponentOutlet]="emptyStateComponent()" [inputs]="emptyStateComponentInputs()"></ng-container>
-                  } @else {
-                    <div class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full">
-                      <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
-                      <p>{{ noResultsLabel() }}</p>
-                    </div>
-                  }
-                </ui-table-cell>
-              </ui-table-row>
+              <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
             }
             <ui-table-row class="h-full">
               @for (col of enhancedColumns(); track col.accessorKey) {
@@ -831,6 +1216,52 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
               }
             </ui-table-row>
           </ui-table-body>
+          @if (hasFooter()) {
+            <div
+              class="sticky bottom-0 z-20 bg-background border-t"
+              data-slot="table-footer"
+            >
+              <ui-table-row>
+                @for (col of enhancedColumns(); track col.accessorKey) {
+                  <ui-table-cell
+                    [style]="getCellStyle(col)"
+                    class="whitespace-nowrap overflow-hidden text-ellipsis text-sm font-medium text-muted-foreground"
+                  >
+                    @if (col.footerComponent) {
+                      <div
+                        [uiComponentOutlet]="col.footerComponent"
+                        [inputs]="{
+                          column: col,
+                          rows: filteredData(),
+                          value:
+                            footerValues().get(String(col.accessorKey)) || '',
+                        }"
+                      ></div>
+                    } @else if (col.footerTemplate) {
+                      <ng-container
+                        *ngTemplateOutlet="
+                          col.footerTemplate;
+                          context: {
+                            $implicit: col,
+                            rows: filteredData(),
+                            value:
+                              footerValues().get(String(col.accessorKey)) || '',
+                          }
+                        "
+                      ></ng-container>
+                    } @else {
+                      {{ footerValues().get(String(col.accessorKey)) || "" }}
+                    }
+                  </ui-table-cell>
+                }
+                @if (!hasFlexibleColumns()) {
+                  <ui-table-cell
+                    class="flex-1 pointer-events-none"
+                  ></ui-table-cell>
+                }
+              </ui-table-row>
+            </div>
+          }
         </ui-table>
       </div>
 
@@ -849,7 +1280,14 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
       }
     </div>
     @if (rowActions()) {
-      <ui-context-menu #rowActionsContextMenu [items]="activeContextMenuItems()">
+      <ui-context-menu
+        #rowActionsContextMenu
+        [items]="activeContextMenuItems()"
+      >
+      </ui-context-menu>
+    }
+    @if (enableColumnMenu()) {
+      <ui-context-menu #columnMenuContextMenu [items]="activeColumnMenuItems()">
       </ui-context-menu>
     }
   `,
@@ -863,77 +1301,114 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
   private _isRtlResize = false;
 
-  data = input.required<T[]>();
-  columns = input.required<ColumnDef<T>[]>();
+  readonly data = input.required<T[]>();
+  readonly columns = input.required<ColumnDef<T>[]>();
 
-  showToolbar = input(true);
-  showColumnVisibilityToggle = input(true);
-  showPagination = input(true);
-  showRowBorders = input(true);
-  showColumnBorders = input(true);
+  readonly showToolbar = input(true);
+  readonly showColumnVisibilityToggle = input(true);
+  readonly showPagination = input(true);
+  readonly showRowBorders = input(true);
+  readonly showColumnBorders = input(true);
 
-  localSorting = input(true);
-  localPagination = input(true);
-  localFiltering = input(true);
-  loading = input(false);
-  loadingVisibility = input<DataTableLoadingVisibility>({
+  readonly localSorting = input(true);
+  readonly localPagination = input(true);
+  readonly localFiltering = input(true);
+  readonly loading = input(false);
+  readonly loadingVisibility = input<DataTableLoadingVisibility>({
     initial: true,
     pagination: true,
     sorting: true,
     filtering: true,
   });
-  loaderTemplate = input<TemplateRef<unknown>>();
-  loaderComponent = input<Type<unknown>>();
-  loaderComponentInputs = input<Record<string, unknown>>({});
-  globalFilterFn = input<((row: T, filterValue: string, columns: ColumnDef<T>[]) => boolean) | undefined>(undefined);
-  enableMultiSort = input(false);
-  maxMultiSortColumns = input(3);
-  total = input(0);
+  readonly loaderTemplate = input<TemplateRef<unknown>>();
+  readonly loaderComponent = input<Type<unknown>>();
+  readonly loaderComponentInputs = input<Record<string, unknown>>({});
+  readonly globalFilterFn = input<
+    | ((row: T, filterValue: string, columns: ColumnDef<T>[]) => boolean)
+    | undefined
+  >(undefined);
+  readonly enableMultiSort = input(false);
+  readonly maxMultiSortColumns = input(3);
+  readonly total = input(0);
 
-  sortChange = output<SortState>();
-  multiSortChange = output<SortState[]>();
-  pageChange = output<PaginationState>();
-  filterChange = output<string>();
+  readonly sortChange = output<SortState>();
+  readonly multiSortChange = output<SortState[]>();
+  readonly pageChange = output<PaginationState>();
+  readonly filterChange = output<string>();
 
-  enableRowSelection = input(false);
-  rowSelection = model<Record<string, boolean>>({});
-  getRowId = input<(row: T) => string>((row: any) => row.id ?? String(JSON.stringify(row)));
-  enableCopy = input(true);
-  enableRowExpansion = input(false);
-  expandedRows = model<Record<string, boolean>>({});
-  rowDetailTemplate = input<TemplateRef<unknown>>();
-  rowDetailComponent = input<Type<unknown>>();
-  rowDetailComponentInputs = input<((row: T) => Record<string, unknown>) | undefined>(undefined);
+  readonly cellEdit = output<CellEditEvent<T>>();
+  readonly editingCell = signal<EditingCell | null>(null);
+  readonly editValue = signal<unknown>(null);
 
-  enableSubRows = input(false);
-  getChildren = input<(row: T) => T[] | undefined>((row: any) => row.children);
-  setChildren = input<(row: T, children: T[]) => T>((row: any, children: any[]) => ({ ...row, children }));
-  subRowDefaultExpanded = input(0);
-  subRowSelectionMode = input<SubRowSelectionMode>('self');
-  subRowFilterMode = input<SubRowFilterMode>('includeParentOnChildMatch');
-  enableSubRowSorting = input(true);
-  subRowIndentSize = input(20);
-  subRowsPaginated = input(false);
-  subRowExpandedRows = model<Record<string, boolean>>({});
+  readonly enableRowSelection = input(false);
+  readonly rowSelection = model<Record<string, boolean>>({});
+  readonly getRowId = input<(row: T) => string>(
+    (row: T) => {
+      const rec = row as Record<string, unknown>;
+      return rec['id'] != null ? String(rec['id']) : String(JSON.stringify(row));
+    },
+  );
+  readonly enableCopy = input(true);
+  readonly isRowDisabled = input<((row: T) => boolean) | undefined>(undefined);
+  readonly disabledRowIds = input<ReadonlySet<string> | readonly string[]>([]);
+  readonly enableRowExpansion = input(false);
+  readonly expandedRows = model<Record<string, boolean>>({});
+  readonly rowDetailTemplate = input<TemplateRef<unknown>>();
+  readonly rowDetailComponent = input<Type<unknown>>();
+  readonly rowDetailComponentInputs = input<
+    ((row: T) => Record<string, unknown>) | undefined
+  >(undefined);
 
-  enableColumnResize = input(false);
-  enableColumnReorder = input(false);
-  columnResize = output<ColumnResizeEvent>();
+  readonly enableSubRows = input(false);
+  readonly getChildren = input<(row: T) => T[] | undefined>((row: T) => (row as Record<string, unknown>)['children'] as T[] | undefined);
+  readonly setChildren = input<(row: T, children: T[]) => T>(
+    (row: T, children: T[]) => ({ ...row, children }),
+  );
+  readonly subRowDefaultExpanded = input(0);
+  readonly subRowSelectionMode = input<SubRowSelectionMode>("self");
+  readonly subRowFilterMode = input<SubRowFilterMode>("includeParentOnChildMatch");
+  readonly enableSubRowSorting = input(true);
+  readonly subRowIndentSize = input(20);
+  readonly subRowsPaginated = input(false);
+  readonly subRowExpandedRows = model<Record<string, boolean>>({});
 
-  exportDataProvider = input<(() => Promise<T[]>) | undefined>(undefined);
+  readonly enableColumnResize = input(false);
+  readonly enableColumnReorder = input(false);
+  readonly enableColumnMenu = input(false);
+  readonly showFooter = input<boolean | "auto">("auto");
+  readonly enableFloatingFilters = input(false);
+  readonly enableRowDrag = input(false);
+  readonly localReorder = input(true);
+  readonly rowDragMode = input<'flat' | 'tree'>('flat');
+  readonly rowDragAllowDrop = input<((dragRow: T, targetRow: T, position: RowDragPosition) => boolean) | undefined>(undefined);
+  readonly rowReorder = output<RowReorderEvent<T>>();
+  readonly enableCellFlash = input(false);
+  readonly cellFlashDuration = input(500);
+  readonly enableCellRangeSelection = input(false);
+  readonly cellRange = signal<CellRange | null>(null);
+  readonly columnResize = output<ColumnResizeEvent>();
 
-  emptyStateComponent = input<Type<unknown>>();
-  emptyStateComponentInputs = input<Record<string, unknown>>({});
+  readonly exportDataProvider = input<(() => Promise<T[]>) | undefined>(undefined);
 
-  locale = input('en');
+  readonly emptyStateComponent = input<Type<unknown>>();
+  readonly emptyStateComponentInputs = input<Record<string, unknown>>({});
+  readonly fullWidthRow = input<((row: T) => boolean) | undefined>(undefined);
+  readonly fullWidthRowTemplate = input<TemplateRef<unknown>>();
+  readonly fullWidthRowComponent = input<Type<unknown>>();
 
-  enableVirtualScroll = input<boolean | 'auto'>('auto');
-  virtualRowHeight = input(40);
-  virtualRowBuffer = input(5);
-  virtualColumnBuffer = input(3);
-  virtualVariableRowHeight = input(false);
-  virtualRecycleComponents = input(false);
-  virtualAutoThreshold = input<VirtualAutoThreshold>({ rows: 500, columns: 20 });
+  readonly locale = input("en");
+  readonly filterDebounce = input(0);
+
+  readonly enableVirtualScroll = input<boolean | "auto">("auto");
+  readonly virtualRowHeight = input(40);
+  readonly virtualRowBuffer = input(5);
+  readonly virtualColumnBuffer = input(3);
+  readonly virtualVariableRowHeight = input(false);
+  readonly virtualRecycleComponents = input(false);
+  readonly virtualAutoThreshold = input<VirtualAutoThreshold>({
+    rows: 500,
+    columns: 20,
+  });
 
   private readonly componentPool = inject(ComponentPoolService);
 
@@ -954,11 +1429,15 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private suppressScrollEvents = false;
   private observedElements = new Set<Element>();
   private rafId = 0;
+  private filterDebounceTimer: ReturnType<typeof setTimeout> | undefined;
   private viewportObserver?: ResizeObserver;
-  private rowResizeObserver?: ResizeObserver;
+  private readonly rowResizeObserver?: ResizeObserver;
 
-  readonly scrollContainerRef = viewChild<ElementRef<HTMLElement>>('scrollContainer');
-  readonly virtualRowElements = viewChildren('virtualRow', { read: ElementRef });
+  readonly scrollContainerRef =
+    viewChild<ElementRef<HTMLElement>>("scrollContainer");
+  readonly virtualRowElements = viewChildren("virtualRow", {
+    read: ElementRef,
+  });
 
   readonly isVirtualScrollActive = computed(() => {
     const mode = this.enableVirtualScroll();
@@ -978,27 +1457,27 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   });
 
   readonly pinnedLeftColumns = computed(() => {
-    return this.enhancedColumns().filter(c =>
-      c.sticky === true || c.pin === 'left'
+    return this.enhancedColumns().filter(
+      (c) => c.sticky === true || c.pin === "left",
     );
   });
 
   readonly pinnedRightColumns = computed(() => {
-    return this.enhancedColumns().filter(c => c.pin === 'right');
+    return this.enhancedColumns().filter((c) => c.pin === "right");
   });
 
   readonly scrollableColumns = computed(() => {
-    return this.enhancedColumns().filter(c =>
-      !c.sticky && c.pin !== 'left' && c.pin !== 'right'
+    return this.enhancedColumns().filter(
+      (c) => !c.sticky && c.pin !== "left" && c.pin !== "right",
     );
   });
 
   private readonly scrollableColumnWidths = computed(() => {
     const cols = this.scrollableColumns();
     const widths = this.columnWidths();
-    return cols.map(col => {
+    return cols.map((col) => {
       const key = String(col.accessorKey);
-      const w = widths[key] || col._width || col.width || '150px';
+      const w = widths[key] || col._width || col.width || "150px";
       return Number.parseInt(String(w), 10) || 150;
     });
   });
@@ -1010,7 +1489,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const defaultHeight = this.virtualRowHeight();
     return buildPrefixSums(
       (index: number) => this.rowHeightCache.get(index) ?? defaultHeight,
-      totalRows
+      totalRows,
     );
   });
 
@@ -1027,15 +1506,22 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const getHeight = (index: number): number =>
         this.rowHeightCache.get(index) ?? defaultHeight;
       return computeVariableRowRange(
-        this.virtualScrollTop(), this.viewportHeight(),
-        getHeight, totalRows, buffer, this._prefixSums()
+        this.virtualScrollTop(),
+        this.viewportHeight(),
+        getHeight,
+        totalRows,
+        buffer,
+        this._prefixSums(),
       );
     }
 
     const rowHeight = this.virtualRowHeight();
     const range = computeRowRange(
-      this.virtualScrollTop(), this.viewportHeight(),
-      rowHeight, totalRows, buffer
+      this.virtualScrollTop(),
+      this.viewportHeight(),
+      rowHeight,
+      totalRows,
+      buffer,
     );
     return {
       ...range,
@@ -1046,11 +1532,18 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   readonly virtualColumnRange = computed(() => {
     if (!this.isVirtualScrollActive()) {
-      return { start: 0, end: this.scrollableColumns().length, paddingLeft: 0, paddingRight: 0 };
+      return {
+        start: 0,
+        end: this.scrollableColumns().length,
+        paddingLeft: 0,
+        paddingRight: 0,
+      };
     }
     return computeColumnRange(
-      this.virtualScrollLeft(), this.viewportWidth(),
-      this.scrollableColumnWidths(), this.virtualColumnBuffer()
+      this.virtualScrollLeft(),
+      this.viewportWidth(),
+      this.scrollableColumnWidths(),
+      this.virtualColumnBuffer(),
     );
   });
 
@@ -1069,24 +1562,43 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this.scrollableColumns().slice(start, end);
   });
 
-  readonly virtualPaddingTop = computed(() => this.virtualRowRange().paddingTop);
-
-  readonly virtualPaddingBottom = computed(() => this.virtualRowRange().paddingBottom);
-
-  readonly virtualPaddingLeft = computed(() => this.virtualColumnRange().paddingLeft);
-  readonly virtualPaddingRight = computed(() => this.virtualColumnRange().paddingRight);
-
-  private readonly activeLocale = computed((): CalendarLocale =>
-    CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES['en']
+  readonly virtualPaddingTop = computed(
+    () => this.virtualRowRange().paddingTop,
   );
-  readonly filterPlaceholder = computed(() => this.activeLocale().filterPlaceholder ?? 'Filter...');
-  readonly columnsLabel = computed(() => this.activeLocale().columnsLabel ?? 'Columns');
-  readonly noResultsLabel = computed(() => this.activeLocale().noResultsLabel ?? 'No results found.');
-  readonly rowsPerPageLabel = computed(() => this.activeLocale().rowsPerPageLabel ?? 'Rows per page');
-  readonly pageLabel = computed(() => this.activeLocale().pageLabel ?? 'Page');
-  readonly ofLabel = computed(() => this.activeLocale().ofLabel ?? 'of');
 
-  readonly rowActions = input<((context: RowActionContext<T>) => ContextMenuItem[]) | undefined>(undefined);
+  readonly virtualPaddingBottom = computed(
+    () => this.virtualRowRange().paddingBottom,
+  );
+
+  readonly virtualPaddingLeft = computed(
+    () => this.virtualColumnRange().paddingLeft,
+  );
+  readonly virtualPaddingRight = computed(
+    () => this.virtualColumnRange().paddingRight,
+  );
+
+  private readonly activeLocale = computed(
+    (): CalendarLocale =>
+      CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES["en"],
+  );
+  readonly filterPlaceholder = computed(
+    () => this.activeLocale().filterPlaceholder ?? "Filter...",
+  );
+  readonly columnsLabel = computed(
+    () => this.activeLocale().columnsLabel ?? "Columns",
+  );
+  readonly noResultsLabel = computed(
+    () => this.activeLocale().noResultsLabel ?? "No results found.",
+  );
+  readonly rowsPerPageLabel = computed(
+    () => this.activeLocale().rowsPerPageLabel ?? "Rows per page",
+  );
+  readonly pageLabel = computed(() => this.activeLocale().pageLabel ?? "Page");
+  readonly ofLabel = computed(() => this.activeLocale().ofLabel ?? "of");
+
+  readonly rowActions = input<
+    ((context: RowActionContext<T>) => ContextMenuItem[]) | undefined
+  >(undefined);
   readonly showRowActionsColumn = input<boolean | undefined>(undefined);
   readonly showRowActionsContextMenu = input<boolean | undefined>(undefined);
 
@@ -1102,77 +1614,111 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return !!this.rowActions();
   });
 
-  private readonly internalContextMenu = viewChild<ContextMenuComponent>('rowActionsContextMenu');
+  private readonly internalContextMenu = viewChild<ContextMenuComponent>(
+    "rowActionsContextMenu",
+  );
   readonly activeContextMenuItems = signal<ContextMenuItem[]>([]);
 
-  exporting = signal(false);
-  globalFilter = model('');
-  columnFilters = model<Record<string, any>>({});
-  sortState = model<SortState>({ column: '', direction: null });
-  multiSortState = model<SortState[]>([]);
-  paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
-  pageSizeOptions = input<number[]>([10, 20, 30, 40, 50]);
-  showPageSizeSelector = input(true);
-  columnWidths = model<Record<string, string>>({});
-  columnVisibility = model<Record<string, boolean>>({});
-  columnOrder = model<string[]>([]);
-  loadingTrigger = signal<DataTableLoadingTrigger>('initial');
-  focusedCell = signal<{ rowIndex: number; columnKey: string } | null>(null);
-  draggedColumnKey = signal<string | null>(null);
-  dropTargetColumnKey = signal<string | null>(null);
-  isLoaderVisible = computed(() => this.loading() && this.shouldShowLoaderFor(this.loadingTrigger()));
-  resolvedLoaderComponentInputs = computed(() => ({
+  private readonly columnMenuContextMenu = viewChild<ContextMenuComponent>(
+    "columnMenuContextMenu",
+  );
+  readonly activeColumnMenuItems = signal<ContextMenuItem[]>([]);
+
+  readonly columnPinOverrides = signal<
+    Record<string, "left" | "right" | undefined>
+  >({});
+  readonly exporting = signal(false);
+  readonly globalFilter = model("");
+  readonly columnFilters = model<Record<string, unknown>>({});
+  readonly sortState = model<SortState>({ column: "", direction: null });
+  readonly multiSortState = model<SortState[]>([]);
+  readonly paginationState = model<PaginationState>({ pageIndex: 0, pageSize: 10 });
+  readonly pageSizeOptions = input<number[]>([10, 20, 30, 40, 50]);
+  readonly showPageSizeSelector = input(true);
+  readonly columnWidths = model<Record<string, string>>({});
+  readonly columnVisibility = model<Record<string, boolean>>({});
+  readonly columnOrder = model<string[]>([]);
+  readonly loadingTrigger = signal<DataTableLoadingTrigger>("initial");
+  readonly focusedCell = signal<{ rowIndex: number; columnKey: string } | null>(null);
+  readonly draggedColumnKey = signal<string | null>(null);
+  readonly dropTargetColumnKey = signal<string | null>(null);
+  readonly isLoaderVisible = computed(
+    () => this.loading() && this.shouldShowLoaderFor(this.loadingTrigger()),
+  );
+  readonly resolvedLoaderComponentInputs = computed(() => ({
     ...this.loaderComponentInputs(),
     trigger: this.loadingTrigger(),
   }));
 
-  filteredData = computed(() => {
+  readonly filteredData = computed(() => {
     let data = this.data();
     if (!this.localFiltering()) return data;
 
     const globalFilterValue = this.globalFilter().toLowerCase();
     if (globalFilterValue) {
-      const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions');
-      const globalFilterFn = this.globalFilterFn();
-      if (globalFilterFn) {
-        data = data.filter(row => globalFilterFn(row, globalFilterValue, columns));
-      } else {
-        const globallyFilterableColumns = columns.filter(col => col.enableGlobalFilter !== false);
-        data = data.filter((row) =>
-          globallyFilterableColumns.some((col) => {
-            const value = this.getCellValue(row, col.accessorKey, col);
-            return String(value).toLowerCase().includes(globalFilterValue);
-          })
-        );
-      }
+      data = this.applyGlobalFilterToData(data, globalFilterValue);
     }
 
+    return this.applyColumnFiltersToData(data);
+  });
+
+  private applyGlobalFilterToData(data: T[], globalFilterValue: string): T[] {
+    const columns = this.enhancedColumns().filter(
+      (col) =>
+        col.accessorKey !== "_selection" &&
+        col.accessorKey !== "_expander" &&
+        col.accessorKey !== "_actions",
+    );
+    const globalFilterFn = this.globalFilterFn();
+    if (globalFilterFn) {
+      return data.filter((row) =>
+        globalFilterFn(row, globalFilterValue, columns),
+      );
+    }
+    const globallyFilterableColumns = columns.filter(
+      (col) => col.enableGlobalFilter !== false,
+    );
+    return data.filter((row) =>
+      globallyFilterableColumns.some((col) => {
+        const value = this.getCellValue(row, col.accessorKey, col);
+        return String(value).toLowerCase().includes(globalFilterValue);
+      }),
+    );
+  }
+
+  private applyColumnFiltersToData(data: T[]): T[] {
     const colFilters = this.columnFilters();
     const columns = this.enhancedColumns();
 
-    Object.keys(colFilters).forEach(columnKey => {
+    for (const columnKey of Object.keys(colFilters)) {
       const filterValue = colFilters[columnKey];
-      if (this.isFilterValueEmpty(filterValue)) return;
+      if (this.isFilterValueEmpty(filterValue)) continue;
 
-      const column = columns.find(col => col.accessorKey === columnKey);
-      if (!column?.enableFiltering) return;
+      const column = columns.find((col) => col.accessorKey === columnKey);
+      if (!column?.enableFiltering) continue;
 
       if (column.filterFn) {
-        data = data.filter(row => column.filterFn!(row, filterValue));
+        data = data.filter((row) => column.filterFn!(row, filterValue));
       } else {
-        data = data.filter(row => {
+        data = data.filter((row) => {
           const cellValue = this.getCellValue(row, columnKey, column);
-          return String(cellValue).toLowerCase().includes(String(filterValue).toLowerCase());
+          return String(cellValue)
+            .toLowerCase()
+            .includes(String(filterValue).toLowerCase());
         });
       }
-    });
+    }
 
     return data;
-  });
+  }
 
   private readonly treeIndex = computed(() => {
     if (!this.enableSubRows()) {
-      return { children: new Map<string, string[]>(), descendants: new Map<string, string[]>(), parent: new Map<string, string>() };
+      return {
+        children: new Map<string, string[]>(),
+        descendants: new Map<string, string[]>(),
+        parent: new Map<string, string>(),
+      };
     }
     const getId = this.getRowId();
     const getChildrenFn = this.getChildren();
@@ -1216,19 +1762,28 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       getDescendants(id);
     }
 
-    return { children: childrenMap, descendants: descendantsMap, parent: parentMap };
+    return {
+      children: childrenMap,
+      descendants: descendantsMap,
+      parent: parentMap,
+    };
   });
 
-  filteredTreeData = computed<T[]>(() => {
+  readonly filteredTreeData = computed<T[]>(() => {
     if (!this.enableSubRows() || !this.localFiltering()) return this.data();
 
     const globalFilterValue = this.globalFilter().toLowerCase();
     const colFilters = this.columnFilters();
-    const columns = this.enhancedColumns().filter(col =>
-      col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions'
+    const columns = this.enhancedColumns().filter(
+      (col) =>
+        col.accessorKey !== "_selection" &&
+        col.accessorKey !== "_expander" &&
+        col.accessorKey !== "_actions",
     );
     const hasGlobalFilter = !!globalFilterValue;
-    const hasColumnFilters = Object.keys(colFilters).some(k => !this.isFilterValueEmpty(colFilters[k]));
+    const hasColumnFilters = Object.keys(colFilters).some(
+      (k) => !this.isFilterValueEmpty(colFilters[k]),
+    );
 
     if (!hasGlobalFilter && !hasColumnFilters) return this.data();
 
@@ -1241,8 +1796,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       if (globalFilterFn) {
         return globalFilterFn(row, globalFilterValue, columns);
       }
-      const globallyFilterable = columns.filter(col => col.enableGlobalFilter !== false);
-      return globallyFilterable.some(col => {
+      const globallyFilterable = columns.filter(
+        (col) => col.enableGlobalFilter !== false,
+      );
+      return globallyFilterable.some((col) => {
         const value = this.getCellValue(row, col.accessorKey, col);
         return String(value).toLowerCase().includes(globalFilterValue);
       });
@@ -1252,13 +1809,18 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       for (const columnKey of Object.keys(colFilters)) {
         const filterValue = colFilters[columnKey];
         if (this.isFilterValueEmpty(filterValue)) continue;
-        const column = columns.find(col => col.accessorKey === columnKey);
+        const column = columns.find((col) => col.accessorKey === columnKey);
         if (!column?.enableFiltering) continue;
         if (column.filterFn) {
           if (!column.filterFn(row, filterValue)) return false;
         } else {
           const cellValue = this.getCellValue(row, columnKey, column);
-          if (!String(cellValue).toLowerCase().includes(String(filterValue).toLowerCase())) return false;
+          if (
+            !String(cellValue)
+              .toLowerCase()
+              .includes(String(filterValue).toLowerCase())
+          )
+            return false;
         }
       }
       return true;
@@ -1307,15 +1869,15 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     };
 
     const filterTree = (rows: T[]): T[] => {
-      if (mode === 'excludeChildren') return rows.filter(matchesRow);
-      if (mode === 'includeChildren') return filterIncludeChildren(rows);
+      if (mode === "excludeChildren") return rows.filter(matchesRow);
+      if (mode === "includeChildren") return filterIncludeChildren(rows);
       return filterIncludeParents(rows);
     };
 
     return filterTree(this.data());
   });
 
-  sortedTreeData = computed<T[]>(() => {
+  readonly sortedTreeData = computed<T[]>(() => {
     if (!this.enableSubRows()) return [];
     const data = this.filteredTreeData();
     if (!this.localSorting() || !this.enableSubRowSorting()) return data;
@@ -1330,7 +1892,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
     const sortRows = (rows: T[]): T[] => {
       const sorted = [...rows].sort(compareFn);
-      return sorted.map(row => {
+      return sorted.map((row) => {
         const children = getChildrenFn(row);
         if (children && children.length > 0) {
           return setChildrenFn(row, sortRows(children));
@@ -1342,12 +1904,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return sortRows(data);
   });
 
-  visibleTreeRows = computed<FlattenedTreeRow<T>[]>(() => {
+  readonly visibleTreeRows = computed<FlattenedTreeRow<T>[]>(() => {
     if (!this.enableSubRows()) return [];
     return this.flattenTreeFull(this.sortedTreeData());
   });
 
-  sortedData = computed(() => {
+  readonly sortedData = computed(() => {
     if (this.enableSubRows()) return [];
     const data = [...this.filteredData()];
     if (!this.localSorting()) return data;
@@ -1358,15 +1920,15 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return data.sort(this.buildSortComparator(sorts));
   });
 
-  processedData = computed(() => {
+  readonly processedData = computed(() => {
     if (this.enableSubRows()) {
       const visible = this.visibleTreeRows();
-      if (!this.localPagination()) return visible.map(tr => tr.row);
+      if (!this.localPagination()) return visible.map((tr) => tr.row);
 
       if (this.subRowsPaginated()) {
         const { pageIndex, pageSize } = this.paginationState();
         const start = pageIndex * pageSize;
-        return visible.slice(start, start + pageSize).map(tr => tr.row);
+        return visible.slice(start, start + pageSize).map((tr) => tr.row);
       }
 
       const treeData = this.sortedTreeData();
@@ -1384,7 +1946,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return data.slice(start, start + pageSize);
   });
 
-  processedTreeRows = computed<FlattenedTreeRow<T>[]>(() => {
+  readonly processedTreeRows = computed<FlattenedTreeRow<T>[]>(() => {
     if (!this.enableSubRows()) return [];
     const visible = this.visibleTreeRows();
     if (!this.localPagination()) return visible;
@@ -1402,7 +1964,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this.flattenTreeRowsForPageFull(rootSlice);
   });
 
-  activeTotalItems = computed(() => {
+  readonly activeTotalItems = computed(() => {
     if (this.enableSubRows()) {
       if (!this.localPagination()) return this.total();
       if (this.subRowsPaginated()) {
@@ -1415,28 +1977,113 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private readonly filteredRowIds = computed(() => {
     if (this.enableSubRows()) {
-      return this.visibleTreeRows().map(tr => this.getRowId()(tr.row));
+      return this.visibleTreeRows().map((tr) => this.getRowId()(tr.row));
     }
-    return this.filteredData().map(row => this.getRowId()(row));
-  });
-  private readonly filteredSelectionCount = computed(() => {
-    const selected = this.rowSelection();
-    let count = 0;
-    this.filteredRowIds().forEach(id => {
-      if (selected[id]) {
-        count += 1;
-      }
-    });
-    return count;
+    return this.filteredData().map((row) => this.getRowId()(row));
   });
 
-  selectedRows = computed(() => {
+  readonly selectedRows = computed(() => {
     const selection = this.rowSelection();
     const getId = this.getRowId();
-    return this.data().filter(row => !!selection[getId(row)]);
+    return this.data().filter((row) => !!selection[getId(row)]);
   });
 
+  private readonly previousCellValues = new Map<string, Map<string, unknown>>();
+  readonly flashingCells = signal<Map<string, "up" | "down" | "changed">>(
+    new Map(),
+  );
+  private readonly flashTimers: ReturnType<typeof setTimeout>[] = [];
+
+  getCellFlashClass(rowId: string, columnKey: string): string {
+    const flash = this.flashingCells().get(`${rowId}:${columnKey}`);
+    if (!flash) return "";
+    if (flash === "up")
+      return "animate-[flash-up_0.5s_ease-out] bg-green-500/20";
+    if (flash === "down")
+      return "animate-[flash-down_0.5s_ease-out] bg-red-500/20";
+    return "animate-[flash-changed_0.5s_ease-out] bg-yellow-500/20";
+  }
+
+  private diffCellValues(
+    data: T[], columns: ColumnDef<T>[], getId: (row: T) => string
+  ): Map<string, CellFlashDirection> {
+    const prev = this.previousCellValues;
+    const flashes = new Map<string, CellFlashDirection>();
+
+    for (const row of data) {
+      const rowId = getId(row);
+      const prevRow = prev.get(rowId);
+      if (!prevRow) continue;
+      this.diffRowCells(row, rowId, columns, prevRow, flashes);
+    }
+    return flashes;
+  }
+
+  private diffRowCells(
+    row: T, rowId: string, columns: ColumnDef<T>[],
+    prevRow: Map<string, unknown>, flashes: Map<string, CellFlashDirection>
+  ): void {
+    for (const col of columns) {
+      if (col.enableCellFlash === false) continue;
+      const key = String(col.accessorKey);
+      if (key.startsWith('_')) continue;
+
+      const oldVal = prevRow.get(key);
+      const newVal = this.resolveColumnValue(row, col, key);
+      if (oldVal === newVal) continue;
+
+      const cellKey = `${rowId}:${key}`;
+      flashes.set(cellKey, this.classifyChange(oldVal, newVal));
+    }
+  }
+
+  private classifyChange(oldVal: unknown, newVal: unknown): CellFlashDirection {
+    const oldNum = Number(oldVal);
+    const newNum = Number(newVal);
+    if (Number.isFinite(oldNum) && Number.isFinite(newNum)) {
+      return newNum > oldNum ? 'up' : 'down';
+    }
+    return 'changed';
+  }
+
+  private resolveColumnValue(row: T, col: ColumnDef<T>, key: string): unknown {
+    return col.accessorFn ? col.accessorFn(row) : (row as Record<string, unknown>)[key];
+  }
+
+  private snapshotCellValues(data: T[], columns: ColumnDef<T>[], getId: (row: T) => string): void {
+    this.previousCellValues.clear();
+    for (const row of data) {
+      const rowId = getId(row);
+      const rowMap = new Map<string, unknown>();
+      for (const col of columns) {
+        const key = String(col.accessorKey);
+        if (key.startsWith('_')) continue;
+        rowMap.set(key, this.resolveColumnValue(row, col, key));
+      }
+      this.previousCellValues.set(rowId, rowMap);
+    }
+  }
+
   constructor() {
+    effect(() => {
+      if (!this.enableCellFlash()) return;
+      const data = this.data();
+      const getId = this.getRowId();
+      const columns = this.columns();
+      const duration = this.cellFlashDuration();
+
+      const flashes = this.diffCellValues(data, columns, getId);
+      this.snapshotCellValues(data, columns, getId);
+
+      if (flashes.size > 0) {
+        this.flashingCells.set(flashes);
+        const timer = setTimeout(() => {
+          this.flashingCells.set(new Map());
+        }, duration);
+        this.flashTimers.push(timer);
+      }
+    });
+
     effect(() => {
       if (!this.localPagination()) {
         return;
@@ -1445,7 +2092,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const { pageIndex, pageSize } = this.paginationState();
       const sanitizedPageSize = pageSize > 0 ? pageSize : 10;
       const totalItems = this.filteredData().length;
-      const maxPageIndex = Math.max(0, Math.ceil(totalItems / sanitizedPageSize) - 1);
+      const maxPageIndex = Math.max(
+        0,
+        Math.ceil(totalItems / sanitizedPageSize) - 1,
+      );
       const clampedPageIndex = Math.min(maxPageIndex, Math.max(0, pageIndex));
 
       if (sanitizedPageSize !== pageSize || clampedPageIndex !== pageIndex) {
@@ -1456,14 +2106,15 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       }
     });
 
-    this.rowResizeObserver = new ResizeObserver(entries => {
+    this.rowResizeObserver = new ResizeObserver((entries) => {
       this.handleRowResizes(entries);
     });
 
     effect(() => {
-      if (!this.isVirtualScrollActive() || !this.virtualVariableRowHeight()) return;
+      if (!this.isVirtualScrollActive() || !this.virtualVariableRowHeight())
+        return;
       const els = this.virtualRowElements();
-      const newSet = new Set(els.map(el => el.nativeElement as Element));
+      const newSet = new Set(els.map((el) => el.nativeElement as Element));
 
       for (const el of this.observedElements) {
         if (!newSet.has(el)) {
@@ -1485,6 +2136,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   ngOnDestroy() {
     cancelAnimationFrame(this.rafId);
+    clearTimeout(this.filterDebounceTimer);
+    this.flashTimers.forEach((t) => clearTimeout(t));
+    this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true } as EventListenerOptions);
+    this._document.removeEventListener('drag', this.dragEventHandler);
     this.viewportObserver?.disconnect();
     this.rowResizeObserver?.disconnect();
   }
@@ -1496,7 +2151,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.viewportHeight.set(container.clientHeight);
     this.viewportWidth.set(container.clientWidth);
 
-    this.viewportObserver = new ResizeObserver(entries => {
+    this.viewportObserver = new ResizeObserver((entries) => {
       for (const entry of entries) {
         const el = entry.target as HTMLElement;
         this.viewportHeight.set(el.clientHeight);
@@ -1522,12 +2177,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
     for (const entry of entries) {
       const el = entry.target as HTMLElement;
-      const indexStr = el.dataset['virtualRowIndex'];
+      const indexStr = el.dataset["virtualRowIndex"];
       if (indexStr === undefined) continue;
 
       const index = Number.parseInt(indexStr, 10);
       const newHeight = entry.borderBoxSize[0].blockSize;
-      const oldHeight = this.rowHeightCache.get(index) ?? this.virtualRowHeight();
+      const oldHeight =
+        this.rowHeightCache.get(index) ?? this.virtualRowHeight();
       const diff = newHeight - oldHeight;
 
       if (Math.abs(diff) < 0.5) continue;
@@ -1551,16 +2207,18 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       }
     }
 
-    this.measurementVersion.update(v => v + 1);
+    this.measurementVersion.update((v) => v + 1);
   }
 
   getVirtualRowIndex(localIndex: number): number {
     return this.virtualRowRange().start + localIndex;
   }
 
-  activeSorts = computed(() => {
+  readonly activeSorts = computed(() => {
     if (this.enableMultiSort()) {
-      return this.multiSortState().filter(sort => !!sort.column && !!sort.direction);
+      return this.multiSortState().filter(
+        (sort) => !!sort.column && !!sort.direction,
+      );
     }
 
     const sort = this.sortState();
@@ -1571,10 +2229,16 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   });
 
   private readonly _sortLookup = computed(() => {
-    const map = new Map<string, { readonly direction: SortDirection; readonly index: number }>();
+    const map = new Map<
+      string,
+      { readonly direction: SortDirection; readonly index: number }
+    >();
     const sorts = this.activeSorts();
     for (let i = 0; i < sorts.length; i++) {
-      map.set(String(sorts[i].column), { direction: sorts[i].direction, index: i });
+      map.set(String(sorts[i].column), {
+        direction: sorts[i].direction,
+        index: i,
+      });
     }
     return map;
   });
@@ -1590,18 +2254,29 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this._sortLookup().get(String(columnKey))?.index ?? null;
   }
 
-  onSortChange(columnKey: string | keyof T, direction: SortDirection, multi = false) {
-    this.loadingTrigger.set('sorting');
+  onSortChange(
+    columnKey: string | keyof T,
+    direction: SortDirection,
+    multi = false,
+  ) {
+    this.loadingTrigger.set("sorting");
     const key = String(columnKey);
     const currentPagination = this.paginationState();
     const shouldResetPage = currentPagination.pageIndex !== 0;
 
     if (this.enableMultiSort() && multi) {
-      const existing = this.multiSortState().filter(sort => sort.column !== key);
-      const next = direction ? [...existing, { column: key, direction }] : existing;
+      const existing = this.multiSortState().filter(
+        (sort) => sort.column !== key,
+      );
+      const next = direction
+        ? [...existing, { column: key, direction }]
+        : existing;
       const maxColumns = Math.max(1, this.maxMultiSortColumns());
       const trimmed = next.slice(-maxColumns);
-      const primary = trimmed[0] ?? { column: '', direction: null as SortDirection };
+      const primary = trimmed[0] ?? {
+        column: "",
+        direction: null as SortDirection,
+      };
 
       this.multiSortState.set(trimmed);
       this.sortState.set(primary);
@@ -1632,61 +2307,45 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
-  enhancedColumns = computed(() => {
-    const cols = this.columns();
-    const widths = this.columnWidths();
-    const visibleCols = this.applyColumnOrder(cols.filter(col => this.isColumnVisible(col.accessorKey)));
-    let computedCols = [...visibleCols];
+  private addSpecialColumns(visibleCols: ColumnDef<T>[]): ColumnDef<T>[] {
+    let result = [...visibleCols];
 
     if (this.enableRowSelection()) {
-      const selectionCol: ColumnDef<T> = {
-        accessorKey: '_selection',
-        header: '',
-        sticky: true,
-        width: '40px'
-      };
-      computedCols = [selectionCol, ...visibleCols];
-    }
-
-    if (this.enableSubRows()) {
-      const hasUserTreeExpander = cols.some(c => c.treeExpander);
-      if (hasUserTreeExpander) {
-        const treeIdx = computedCols.findIndex(c => c.treeExpander);
-        if (treeIdx !== -1) {
-          computedCols[treeIdx] = { ...computedCols[treeIdx], _isTreeExpanderHost: true };
-        }
-      } else {
-        const firstDataIdx = computedCols.findIndex(c =>
-          c.accessorKey !== '_selection' && c.accessorKey !== '_expander' && c.accessorKey !== '_actions'
-        );
-        if (firstDataIdx !== -1) {
-          computedCols[firstDataIdx] = { ...computedCols[firstDataIdx], _isTreeExpanderHost: true };
-        }
-      }
+      result = [{ accessorKey: '_selection', header: '', sticky: true, width: '40px' }, ...result];
     }
 
     if (this.enableRowExpansion()) {
-      const expanderCol: ColumnDef<T> = {
-        accessorKey: '_expander',
-        header: '',
-        sticky: true,
-        width: '40px',
-        enableSorting: false,
-      };
-      computedCols = [expanderCol, ...computedCols];
+      result = [{ accessorKey: '_expander', header: '', sticky: true, width: '40px', enableSorting: false }, ...result];
     }
 
     if (this.resolvedShowActionsColumn()) {
-      const actionsCol: ColumnDef<T> = {
-        accessorKey: '_actions',
-        header: '',
-        width: '50px',
-        enableSorting: false,
-        enableHiding: false,
-        enableReordering: false,
-      };
-      computedCols = [...computedCols, actionsCol];
+      result = [...result, { accessorKey: '_actions', header: '', width: '50px', enableSorting: false, enableHiding: false, enableReordering: false }];
     }
+
+    return result;
+  }
+
+  private assignTreeExpanderHost(cols: ColumnDef<T>[], allCols: ColumnDef<T>[]): void {
+    if (!this.enableSubRows()) return;
+
+    const hasUserTreeExpander = allCols.some(c => c.treeExpander);
+    const targetIdx = hasUserTreeExpander
+      ? cols.findIndex(c => c.treeExpander)
+      : cols.findIndex(c => c.accessorKey !== '_selection' && c.accessorKey !== '_expander' && c.accessorKey !== '_actions');
+
+    if (targetIdx !== -1) {
+      cols[targetIdx] = { ...cols[targetIdx], _isTreeExpanderHost: true };
+    }
+  }
+
+  readonly enhancedColumns = computed(() => {
+    const cols = this.columns();
+    const widths = this.columnWidths();
+    const visibleCols = this.applyColumnOrder(
+      cols.filter((col) => this.isColumnVisible(col.accessorKey)),
+    );
+    const computedCols = this.addSpecialColumns(visibleCols);
+    this.assignTreeExpanderHost(computedCols, cols);
 
     let currentLeft = 0;
     let currentRight = 0;
@@ -1695,33 +2354,37 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     for (let i = computedCols.length - 1; i >= 0; i -= 1) {
       const col = computedCols[i];
       const key = String(col.accessorKey);
-      const widthStr = widths[key] || col.width || '150px';
+      const widthStr = widths[key] || col.width || "150px";
       const widthVal = Number.parseInt(widthStr, 10) || 150;
-      if (col.pin === 'right') {
+      if (col.pin === "right") {
         rightOffsets.set(i, currentRight);
         currentRight += widthVal;
       }
     }
 
+    const pinOverrides = this.columnPinOverrides();
     return computedCols.map((col, index) => {
-      const isSticky = col.sticky === true;
-      const isPinnedLeft = col.pin === 'left';
-      const isPinnedRight = col.pin === 'right';
       const key = String(col.accessorKey);
-      const widthStr = widths[key] || col.width || '150px';
+      const resolvedPin = key in pinOverrides ? pinOverrides[key] : col.pin;
+      const isSticky = col.sticky === true;
+      const isPinnedLeft = resolvedPin === "left";
+      const isPinnedRight = resolvedPin === "right";
+      const widthStr = widths[key] || col.width || "150px";
       const widthVal = Number.parseInt(widthStr, 10) || 150;
       const isStickyLeft = isSticky || isPinnedLeft;
       let pin: string | undefined;
-      if (isPinnedRight) pin = 'right';
-      else if (isStickyLeft) pin = 'left';
+      if (isPinnedRight) pin = "right";
+      else if (isStickyLeft) pin = "left";
 
       const columnData = {
         ...col,
         _stickyLeft: isStickyLeft ? currentLeft : undefined,
-        _stickyRight: isPinnedRight ? rightOffsets.get(index) ?? 0 : undefined,
+        _stickyRight: isPinnedRight
+          ? (rightOffsets.get(index) ?? 0)
+          : undefined,
         _pin: pin,
         _width: widthStr,
-        _minWidth: col.minWidth || '50px'
+        _minWidth: col.minWidth || "50px",
       };
 
       if (isStickyLeft) {
@@ -1732,28 +2395,116 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     });
   });
 
-  treeExpanderColumn = computed(() => {
+  readonly treeExpanderColumn = computed(() => {
     if (!this.enableSubRows()) return null;
-    return this.enhancedColumns().find(c => c._isTreeExpanderHost) ?? null;
+    return this.enhancedColumns().find((c) => c._isTreeExpanderHost) ?? null;
   });
 
-  hasColumnFilters = computed(() => {
-    return this.enhancedColumns().some(col => col.enableFiltering);
+  readonly hasColumnFilters = computed(() => {
+    return this.enhancedColumns().some((col) => col.enableFiltering);
   });
 
-  hasFlexibleColumns = computed(() => {
-    return this.enhancedColumns().some(col => col._width === 'auto');
+  readonly hasFlexibleColumns = computed(() => {
+    return this.enhancedColumns().some((col) => col._width === "auto");
   });
 
-  hideableColumns = computed(() =>
-    this.columns().filter(col => col.accessorKey !== '_selection' && col.enableHiding !== false)
+  readonly hideableColumns = computed(() =>
+    this.columns().filter(
+      (col) => col.accessorKey !== "_selection" && col.enableHiding !== false,
+    ),
   );
 
+  readonly hasAnyFloatingFilter = computed(() => {
+    return this.enhancedColumns().some(
+      (col) =>
+        col.floatingFilter === true ||
+        col.floatingFilterComponent ||
+        col.floatingFilterTemplate ||
+        (col.enableFiltering && col.floatingFilter !== false),
+    );
+  });
+
+  getFloatingFilterChange(col: ColumnDef<T>): (value: unknown) => void {
+    return (value: unknown) =>
+      this.onColumnFilterChange(col.accessorKey, value);
+  }
+
+  isFullWidthRow(row: T): boolean {
+    const fn = this.fullWidthRow();
+    return fn ? fn(row) : false;
+  }
+
+  readonly normalizedCellRange = computed(() => {
+    const range = this.cellRange();
+    if (!range) return null;
+    const colKeys = this.navigableColumnKeys();
+    const startColIdx = colKeys.indexOf(range.startCol);
+    const endColIdx = colKeys.indexOf(range.endCol);
+    return {
+      minRow: Math.min(range.startRow, range.endRow),
+      maxRow: Math.max(range.startRow, range.endRow),
+      minCol: Math.min(startColIdx, endColIdx),
+      maxCol: Math.max(startColIdx, endColIdx),
+    };
+  });
+
+  isCellInRange(rowIndex: number, columnKey: string): boolean {
+    const range = this.normalizedCellRange();
+    if (!range) return false;
+    const colKeys = this.navigableColumnKeys();
+    const colIdx = colKeys.indexOf(columnKey);
+    return (
+      rowIndex >= range.minRow &&
+      rowIndex <= range.maxRow &&
+      colIdx >= range.minCol &&
+      colIdx <= range.maxCol
+    );
+  }
+
+  readonly hasFooter = computed(() => {
+    const mode = this.showFooter();
+    if (mode === false) return false;
+    if (mode === true) return true;
+    return this.enhancedColumns().some(
+      (col) =>
+        col.footer ||
+        col.aggregateFn ||
+        col.footerTemplate ||
+        col.footerComponent,
+    );
+  });
+
+  readonly footerValues = computed(() => {
+    if (!this.hasFooter()) return new Map<string, string>();
+    const rows = this.filteredData();
+    const map = new Map<string, string>();
+
+    for (const col of this.enhancedColumns()) {
+      const key = String(col.accessorKey);
+      if (col.footer) {
+        map.set(
+          key,
+          typeof col.footer === "function" ? col.footer(rows) : col.footer,
+        );
+      } else if (col.aggregateFn) {
+        map.set(key, this.computeAggregate(rows, col));
+      }
+    }
+    return map;
+  });
+
   private readonly _baseCellClass = computed(() => ({
-    normal: cn('whitespace-nowrap overflow-hidden text-ellipsis', 'bg-background',
-      this.showRowBorders() && 'border-b', this.showColumnBorders() && 'border-r'),
-    tree: cn('whitespace-nowrap overflow-hidden text-ellipsis',
-      this.showRowBorders() && 'border-b', this.showColumnBorders() && 'border-r'),
+    normal: cn(
+      "whitespace-nowrap overflow-hidden text-ellipsis",
+      "bg-background",
+      this.showRowBorders() && "border-b",
+      this.showColumnBorders() && "border-r",
+    ),
+    tree: cn(
+      "whitespace-nowrap overflow-hidden text-ellipsis",
+      this.showRowBorders() && "border-b",
+      this.showColumnBorders() && "border-r",
+    ),
   }));
 
   private readonly _headerClassMap = computed(() => {
@@ -1761,32 +2512,51 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const enableResize = this.enableColumnResize();
     const map = new Map<string, string>();
     for (const col of this.enhancedColumns()) {
-      map.set(String(col.accessorKey), cn(
-        'sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis',
-        col.sticky ? 'z-30' : 'z-20',
-        showColBorders && 'border-r',
-        enableResize && col._width !== 'auto' && 'relative'
-      ));
+      map.set(
+        String(col.accessorKey),
+        cn(
+          "sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis",
+          col.sticky ? "z-30" : "z-20",
+          showColBorders && "border-r",
+          enableResize && col._width !== "auto" && "relative",
+        ),
+      );
     }
     return map;
   });
 
-  private readonly _fillerHeaderClass = computed(() => cn(
-    'sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis',
-    'z-20',
-    this.showColumnBorders() && 'border-r',
-  ));
+  private readonly _fillerHeaderClass = computed(() =>
+    cn(
+      "sticky top-0 bg-background shadow-sm whitespace-nowrap overflow-hidden text-ellipsis",
+      "z-20",
+      this.showColumnBorders() && "border-r",
+    ),
+  );
 
-  getHeaderClass(col: any) {
-    return this._headerClassMap().get(String(col.accessorKey)) ?? this._fillerHeaderClass();
+  getHeaderClass(col: CellStyleColumn) {
+    return (
+      this._headerClassMap().get(String(col.accessorKey)) ??
+      this._fillerHeaderClass()
+    );
   }
 
-  getCellClass(col: any, rowIndex?: number, treeDepth?: number) {
-    const base = treeDepth === undefined ? this._baseCellClass().normal : this._baseCellClass().tree;
+  getCellClass(col: CellStyleColumn, rowIndex?: number, treeDepth?: number) {
+    const base =
+      treeDepth === undefined
+        ? this._baseCellClass().normal
+        : this._baseCellClass().tree;
+    const key = String(col.accessorKey);
     const focused = this.focusedCell();
-    if (rowIndex !== undefined && focused !== null
-      && focused.rowIndex === rowIndex && focused.columnKey === String(col.accessorKey)) {
-      return base + ' ring-1 ring-ring/40 ring-inset';
+    if (
+      rowIndex !== undefined &&
+      focused !== null &&
+      focused.rowIndex === rowIndex &&
+      focused.columnKey === key
+    ) {
+      return base + " ring-1 ring-ring/40 ring-inset";
+    }
+    if (rowIndex !== undefined && this.isCellInRange(rowIndex, key)) {
+      return base + " bg-primary/10";
     }
     return base;
   }
@@ -1813,67 +2583,97 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     for (const col of this.enhancedColumns()) {
       const base = this._buildCellStyle(col, false);
       for (let d = 0; d <= maxDepth; d++) {
-        const bg = d > 0
-          ? `color-mix(in srgb, var(--border) ${Math.min(d * 20, 80)}%, var(--background))`
-          : 'var(--background)';
-        map.set(`${String(col.accessorKey)}_${d}`, { ...base, 'background-color': bg });
+        const bg =
+          d > 0
+            ? `color-mix(in srgb, var(--border) ${Math.min(d * 20, 80)}%, var(--background))`
+            : "var(--background)";
+        map.set(`${String(col.accessorKey)}_${d}`, {
+          ...base,
+          "background-color": bg,
+        });
       }
     }
     return map;
   });
 
-  private _buildCellStyle(col: any, isHeader: boolean): Record<string, string> {
+  private _buildCellStyle(col: CellStyleColumn, isHeader: boolean): Record<string, string> {
     const width = col._width;
-    const isAuto = width === 'auto';
+    const isAuto = width === "auto";
 
     const style: Record<string, string> = {
-      width: isAuto ? '0px' : width,
-      'min-width': isAuto ? '0px' : width,
-      'max-width': isAuto ? 'none' : width,
-      'flex-shrink': isAuto ? '1' : '0',
-      'flex-grow': isAuto ? '1' : '0',
-      'flex-basis': isAuto ? '0px' : 'auto'
+      width: isAuto ? "0px" : width,
+      "min-width": isAuto ? "0px" : width,
+      "max-width": isAuto ? "none" : width,
+      "flex-shrink": isAuto ? "1" : "0",
+      "flex-grow": isAuto ? "1" : "0",
+      "flex-basis": isAuto ? "0px" : "auto",
     };
 
-    if (col._pin === 'right') {
-      style['position'] = 'sticky';
-      style['right'] = `${col._stickyRight}px`;
-      style['z-index'] = isHeader ? '30' : '10';
-    } else if (col.sticky || col._pin === 'left') {
-      style['position'] = 'sticky';
-      style['left'] = `${col._stickyLeft}px`;
-      style['z-index'] = isHeader ? '30' : '10';
+    if (col._pin === "right") {
+      style["position"] = "sticky";
+      style["right"] = `${col._stickyRight}px`;
+      style["z-index"] = isHeader ? "30" : "10";
+    } else if (col.sticky || col._pin === "left") {
+      style["position"] = "sticky";
+      style["left"] = `${col._stickyLeft}px`;
+      style["z-index"] = isHeader ? "30" : "10";
     }
 
     if (isHeader) {
-      style['position'] = 'sticky';
-      style['top'] = '0';
-      style['z-index'] = col.sticky ? '30' : '20';
+      style["position"] = "sticky";
+      style["top"] = "0";
+      style["z-index"] = col.sticky ? "30" : "20";
     }
 
     return style;
   }
 
-  getHeaderCellStyle(col: any) {
-    return this._headerCellStyleMap().get(String(col.accessorKey)) ?? this._buildCellStyle(col, true);
+  getHeaderCellStyle(col: CellStyleColumn) {
+    return (
+      this._headerCellStyleMap().get(String(col.accessorKey)) ??
+      this._buildCellStyle(col, true)
+    );
   }
 
-  getCellStyle(col: any) {
-    return this._cellStyleMap().get(String(col.accessorKey)) ?? this._buildCellStyle(col, false);
+  getCellStyle(col: CellStyleColumn) {
+    return (
+      this._cellStyleMap().get(String(col.accessorKey)) ??
+      this._buildCellStyle(col, false)
+    );
   }
 
-  getTreeCellStyle(col: any, depth: number) {
+  getTreeCellStyle(col: CellStyleColumn, depth: number) {
     const clampedDepth = Math.min(depth, 10);
-    return this._treeCellStyleCache().get(`${String(col.accessorKey)}_${clampedDepth}`)
-      ?? this._buildTreeCellStyleFallback(col, depth);
+    return (
+      this._treeCellStyleCache().get(
+        `${String(col.accessorKey)}_${clampedDepth}`,
+      ) ?? this._buildTreeCellStyleFallback(col, depth)
+    );
   }
 
-  private _buildTreeCellStyleFallback(col: any, depth: number): Record<string, string> {
+  private _buildTreeCellStyleFallback(
+    col: CellStyleColumn,
+    depth: number,
+  ): Record<string, string> {
     const base = this._buildCellStyle(col, false);
-    const bg = depth > 0
-      ? `color-mix(in srgb, var(--border) ${Math.min(depth * 20, 80)}%, var(--background))`
-      : 'var(--background)';
-    return { ...base, 'background-color': bg };
+    const bg =
+      depth > 0
+        ? `color-mix(in srgb, var(--border) ${Math.min(depth * 20, 80)}%, var(--background))`
+        : "var(--background)";
+    return { ...base, "background-color": bg };
+  }
+
+  private readonly disabledRowIdSet = computed(() => {
+    const ids = this.disabledRowIds();
+    if (ids instanceof Set) return ids;
+    return new Set(ids);
+  });
+
+  isDisabled(row: T): boolean {
+    const fn = this.isRowDisabled();
+    if (fn?.(row)) return true;
+    const id = this.getRowId()(row);
+    return this.disabledRowIdSet().has(id);
   }
 
   isRowSelected(row: T): boolean {
@@ -1882,6 +2682,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   toggleRow(row: T) {
+    if (this.isDisabled(row)) return;
     const id = this.getRowId()(row);
     const current = this.rowSelection();
     const isSelected = !!current[id];
@@ -1913,17 +2714,17 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.expandedRows.set(next);
   }
 
-  isAllExpanded = computed(() => {
+  readonly isAllExpanded = computed(() => {
     const ids = this.filteredRowIds();
     if (ids.length === 0) return false;
     const expanded = this.expandedRows();
-    return ids.every(id => !!expanded[id]);
+    return ids.every((id) => !!expanded[id]);
   });
 
-  isExpansionIndeterminate = computed(() => {
+  readonly isExpansionIndeterminate = computed(() => {
     const ids = this.filteredRowIds();
     const expanded = this.expandedRows();
-    const count = ids.filter(id => !!expanded[id]).length;
+    const count = ids.filter((id) => !!expanded[id]).length;
     return count > 0 && count < ids.length;
   });
 
@@ -1931,11 +2732,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const ids = this.filteredRowIds();
     if (this.isAllExpanded()) {
       const next = { ...this.expandedRows() };
-      ids.forEach(id => delete next[id]);
+      ids.forEach((id) => delete next[id]);
       this.expandedRows.set(next);
     } else {
       const next = { ...this.expandedRows() };
-      ids.forEach(id => next[id] = true);
+      ids.forEach((id) => (next[id] = true));
       this.expandedRows.set(next);
     }
   }
@@ -1945,50 +2746,73 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return resolver ? resolver(row) : {};
   }
 
+  private readonly selectableRowIds = computed(() => {
+    const ids = this.filteredRowIds();
+    const disabledSet = this.disabledRowIdSet();
+    const fn = this.isRowDisabled();
+    if (disabledSet.size === 0 && !fn) return ids;
+
+    const getId = this.getRowId();
+    const allRows = this.enableSubRows()
+      ? this.visibleTreeRows().map((tr) => tr.row)
+      : this.filteredData();
+    const rowById = new Map(allRows.map((row) => [getId(row), row]));
+
+    return ids.filter((id) => {
+      if (disabledSet.has(id)) return false;
+      if (fn) {
+        const row = rowById.get(id);
+        if (row && fn(row)) return false;
+      }
+      return true;
+    });
+  });
+
   toggleAll() {
     const selected = this.rowSelection();
-    const visibleIds = this.filteredRowIds();
+    const selectableIds = this.selectableRowIds();
 
     if (this.isAllSelected()) {
       const remainingSelection = { ...selected };
-      visibleIds.forEach(id => {
+      selectableIds.forEach((id) => {
         delete remainingSelection[id];
       });
       this.rowSelection.set(remainingSelection);
     } else {
       const nextSelection = { ...selected };
-      visibleIds.forEach(id => {
+      selectableIds.forEach((id) => {
         nextSelection[id] = true;
       });
       this.rowSelection.set(nextSelection);
     }
   }
 
-  isAllSelected = computed(() => {
-    const visibleCount = this.filteredRowIds().length;
-    if (visibleCount === 0) {
-      return false;
-    }
-    return this.filteredSelectionCount() === visibleCount;
+  readonly isAllSelected = computed(() => {
+    const selectableIds = this.selectableRowIds();
+    if (selectableIds.length === 0) return false;
+    const selected = this.rowSelection();
+    return selectableIds.every((id) => !!selected[id]);
   });
 
-  isIndeterminate = computed(() => {
-    const count = this.filteredSelectionCount();
-    const visibleCount = this.filteredRowIds().length;
+  readonly isIndeterminate = computed(() => {
+    const selectableIds = this.selectableRowIds();
+    const selected = this.rowSelection();
+    const count = selectableIds.filter((id) => !!selected[id]).length;
+    const visibleCount = selectableIds.length;
     return count > 0 && count < visibleCount;
   });
 
   selectRows(rows: T[]) {
     const getId = this.getRowId();
     const next = { ...this.rowSelection() };
-    rows.forEach(row => next[getId(row)] = true);
+    rows.forEach((row) => (next[getId(row)] = true));
     this.rowSelection.set(next);
   }
 
   unselectRows(rows: T[]) {
     const getId = this.getRowId();
     const next = { ...this.rowSelection() };
-    rows.forEach(row => delete next[getId(row)]);
+    rows.forEach((row) => delete next[getId(row)]);
     this.rowSelection.set(next);
   }
 
@@ -2001,9 +2825,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   onPaginationChange(state: PaginationState) {
-    this.loadingTrigger.set('pagination');
-    const totalItems = this.localPagination() ? this.filteredData().length : this.total();
-    const safePageSize = state.pageSize > 0 ? state.pageSize : this.paginationState().pageSize;
+    this.loadingTrigger.set("pagination");
+    const totalItems = this.localPagination()
+      ? this.filteredData().length
+      : this.total();
+    const safePageSize =
+      state.pageSize > 0 ? state.pageSize : this.paginationState().pageSize;
     const maxPageIndex = Math.max(0, Math.ceil(totalItems / safePageSize) - 1);
     const nextState = {
       pageIndex: Math.min(maxPageIndex, Math.max(0, state.pageIndex)),
@@ -2015,19 +2842,32 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   onFilterChange(value: string) {
-    this.loadingTrigger.set('filtering');
+    this.loadingTrigger.set("filtering");
+    const debounceMs = this.filterDebounce();
+
+    if (debounceMs > 0) {
+      clearTimeout(this.filterDebounceTimer);
+      this.filterDebounceTimer = setTimeout(() => {
+        this.applyGlobalFilter(value);
+      }, debounceMs);
+    } else {
+      this.applyGlobalFilter(value);
+    }
+  }
+
+  private applyGlobalFilter(value: string) {
     this.globalFilter.set(value);
-    this.paginationState.update(state => ({ ...state, pageIndex: 0 }));
+    this.paginationState.update((state) => ({ ...state, pageIndex: 0 }));
     this.filterChange.emit(value);
   }
 
-  onColumnFilterChange(columnKey: string | keyof T, value: any) {
-    this.loadingTrigger.set('filtering');
-    this.columnFilters.update(filters => ({
+  onColumnFilterChange(columnKey: string | keyof T, value: unknown) {
+    this.loadingTrigger.set("filtering");
+    this.columnFilters.update((filters) => ({
       ...filters,
-      [columnKey]: value
+      [columnKey]: value,
     }));
-    this.paginationState.update(state => ({ ...state, pageIndex: 0 }));
+    this.paginationState.update((state) => ({ ...state, pageIndex: 0 }));
   }
 
   isColumnVisible(columnKey: string | keyof T): boolean {
@@ -2043,13 +2883,18 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   moveColumn(columnKey: string | keyof T, targetIndex: number) {
     const key = String(columnKey);
-    const currentOrder = this.applyKeyOrder(this.columns().map(col => String(col.accessorKey)));
+    const currentOrder = this.applyKeyOrder(
+      this.columns().map((col) => String(col.accessorKey)),
+    );
     const currentIndex = currentOrder.indexOf(key);
     if (currentIndex === -1) {
       return;
     }
 
-    const boundedTarget = Math.max(0, Math.min(targetIndex, currentOrder.length - 1));
+    const boundedTarget = Math.max(
+      0,
+      Math.min(targetIndex, currentOrder.length - 1),
+    );
     const nextOrder = [...currentOrder];
     nextOrder.splice(currentIndex, 1);
     nextOrder.splice(boundedTarget, 0, key);
@@ -2078,8 +2923,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.dropTargetColumnKey.set(null);
 
     if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'move';
-      event.dataTransfer.setData('text/plain', key);
+      event.dataTransfer.effectAllowed = "move";
+      event.dataTransfer.setData("text/plain", key);
     }
   }
 
@@ -2089,7 +2934,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
 
     const targetKey = String(col.accessorKey);
-    const sourceKey = this.draggedColumnKey() ?? event.dataTransfer?.getData('text/plain') ?? '';
+    const sourceKey =
+      this.draggedColumnKey() ??
+      event.dataTransfer?.getData("text/plain") ??
+      "";
     if (!sourceKey || sourceKey === targetKey) {
       return;
     }
@@ -2099,7 +2947,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.dropTargetColumnKey.set(targetKey);
 
     if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'move';
+      event.dataTransfer.dropEffect = "move";
     }
   }
 
@@ -2113,7 +2961,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     event.stopPropagation();
 
     const targetKey = String(col.accessorKey);
-    const sourceKey = this.draggedColumnKey() ?? event.dataTransfer?.getData('text/plain') ?? '';
+    const sourceKey =
+      this.draggedColumnKey() ??
+      event.dataTransfer?.getData("text/plain") ??
+      "";
     if (!sourceKey || sourceKey === targetKey) {
       this.clearColumnDragState();
       return;
@@ -2130,7 +2981,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   getColumnState(): DataTableColumnState[] {
     const widths = this.columnWidths();
     const visibility = this.columnVisibility();
-    const order = this.applyKeyOrder(this.columns().map(col => String(col.accessorKey)));
+    const order = this.applyKeyOrder(
+      this.columns().map((col) => String(col.accessorKey)),
+    );
     const orderIndex = new Map(order.map((key, index) => [key, index]));
 
     return this.columns().map((col) => {
@@ -2183,16 +3036,17 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   getFilterInputs(col: ColumnDef<T>): Record<string, unknown> {
-    if (typeof col.filterComponentInputs === 'function') {
+    if (typeof col.filterComponentInputs === "function") {
       return col.filterComponentInputs();
     }
     return col.filterComponentInputs || {};
   }
 
-  getFilterOutputs(col: ColumnDef<T>): Record<string, (event: any) => void> {
+  getFilterOutputs(col: ColumnDef<T>): Record<string, (event: unknown) => void> {
     return {
       ...col.filterComponentOutputs,
-      filterChange: (value: any) => this.onColumnFilterChange(col.accessorKey, value)
+      filterChange: (value: unknown) =>
+        this.onColumnFilterChange(col.accessorKey, value),
     };
   }
 
@@ -2202,8 +3056,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   isFilterValueEmpty(value: unknown): boolean {
-    if (value === undefined || value === null || value === '') return true;
-    if (typeof value === 'object' && 'start' in value && 'end' in value) {
+    if (value === undefined || value === null || value === "") return true;
+    if (typeof value === "object" && "start" in value && "end" in value) {
       const range = value as { start: unknown; end: unknown };
       return range.start === null && range.end === null;
     }
@@ -2212,8 +3066,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private compareByColumn(a: T, b: T, column: ColumnDef<T>): number {
     if (column.sortFn) return column.sortFn(a, b);
-    const aVal = this.getCellValue(a, column.accessorKey, column);
-    const bVal = this.getCellValue(b, column.accessorKey, column);
+    const aVal = this.getCellValue(a, column.accessorKey, column) as string | number | boolean | null | undefined;
+    const bVal = this.getCellValue(b, column.accessorKey, column) as string | number | boolean | null | undefined;
+    if (aVal == null && bVal == null) return 0;
+    if (aVal == null) return -1;
+    if (bVal == null) return 1;
     if (aVal < bVal) return -1;
     if (aVal > bVal) return 1;
     return 0;
@@ -2222,12 +3079,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private buildSortComparator(sorts: SortState[]): (a: T, b: T) => number {
     return (a: T, b: T) => {
       for (const sort of sorts) {
-        const column = this.enhancedColumns().find(col => col.accessorKey === sort.column);
+        const column = this.enhancedColumns().find(
+          (col) => col.accessorKey === sort.column,
+        );
         if (!column || !sort.direction) continue;
 
         const result = this.compareByColumn(a, b, column);
         if (result !== 0) {
-          return sort.direction === 'asc' ? result : -result;
+          return sort.direction === "asc" ? result : -result;
         }
       }
       return 0;
@@ -2236,21 +3095,21 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   protected readonly String = String;
 
-  getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): any {
+  getCellValue(row: T, key: string | keyof T, column?: ColumnDef<T>): unknown {
     if (column?.accessorFn) {
       return column.accessorFn(row);
     }
 
-    if (typeof key === 'string' && key.includes('.')) {
-      return key.split('.').reduce<any>((value, segment) => {
+    if (typeof key === "string" && key.includes(".")) {
+      return key.split(".").reduce<unknown>((value, segment) => {
         if (value === null || value === undefined) {
           return undefined;
         }
-        return value[segment];
-      }, row as any);
+        return (value as Record<string, unknown>)[segment];
+      }, row as Record<string, unknown>);
     }
 
-    return (row as any)[key];
+    return (row as Record<string, unknown>)[key as string];
   }
 
   getCellStringValue(row: T, column: ColumnDef<T>): string {
@@ -2258,31 +3117,49 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       return column.cell(row);
     }
     const value = this.getCellValue(row, column.accessorKey, column);
-    if (value === null || value === undefined) return '';
-    if (typeof value === 'object' && typeof value.toString === 'function' && value.toString !== Object.prototype.toString) {
+    if (value === null || value === undefined) return "";
+    if (
+      typeof value === "object" &&
+      typeof value.toString === "function" &&
+      value.toString !== Object.prototype.toString
+    ) {
       return value.toString();
     }
     return String(value);
   }
 
-  getExportData(options?: DataTableExportOptions, customRows?: T[]): string[][] {
+  getExportData(
+    options?: DataTableExportOptions,
+    customRows?: T[],
+  ): string[][] {
     const includeHeaders = options?.includeHeaders !== false;
     const onlyVisible = options?.onlyVisible !== false;
     const onlyFiltered = options?.onlyFiltered !== false;
 
     const columns = onlyVisible
-      ? this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions')
-      : this.columns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions');
+      ? this.enhancedColumns().filter(
+          (col) =>
+            col.accessorKey !== "_selection" &&
+            col.accessorKey !== "_expander" &&
+            col.accessorKey !== "_actions",
+        )
+      : this.columns().filter(
+          (col) =>
+            col.accessorKey !== "_selection" &&
+            col.accessorKey !== "_expander" &&
+            col.accessorKey !== "_actions",
+        );
 
-    const rows = customRows ?? (onlyFiltered ? this.filteredData() : this.data());
+    const rows =
+      customRows ?? (onlyFiltered ? this.filteredData() : this.data());
     const result: string[][] = [];
 
     if (includeHeaders) {
-      result.push(columns.map(col => col.header));
+      result.push(columns.map((col) => col.header));
     }
 
     for (const row of rows) {
-      result.push(columns.map(col => this.getCellStringValue(row, col)));
+      result.push(columns.map((col) => this.getCellStringValue(row, col)));
     }
 
     return result;
@@ -2300,17 +3177,28 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     try {
       const rows = await this.resolveExportRows(customData);
       const data = this.getExportData(undefined, rows);
-      const csvContent = data.map(row =>
-        row.map(cell => {
-          if (cell.includes(',') || cell.includes('"') || cell.includes('\n') || cell.includes('\r')) {
-            return '"' + cell.replaceAll('"', '""') + '"';
-          }
-          return cell;
-        }).join(',')
-      ).join('\r\n');
+      const csvContent = data
+        .map((row) =>
+          row
+            .map((cell) => {
+              if (
+                cell.includes(",") ||
+                cell.includes('"') ||
+                cell.includes("\n") ||
+                cell.includes("\r")
+              ) {
+                return '"' + cell.replaceAll('"', '""') + '"';
+              }
+              return cell;
+            })
+            .join(","),
+        )
+        .join("\r\n");
 
-      const blob = new Blob(['\uFEFF' + csvContent], { type: 'text/csv;charset=utf-8;' });
-      this.downloadBlob(blob, (filename || 'export') + '.csv');
+      const blob = new Blob(["\uFEFF" + csvContent], {
+        type: "text/csv;charset=utf-8;",
+      });
+      this.downloadBlob(blob, (filename || "export") + ".csv");
     } finally {
       this.exporting.set(false);
     }
@@ -2323,9 +3211,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const data = this.getExportData(undefined, rows);
       const xlsxBytes = generateXlsx(data, { boldFirstRow: true });
       const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
-        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      this.downloadBlob(blob, (filename || 'export') + '.xlsx');
+      this.downloadBlob(blob, (filename || "export") + ".xlsx");
     } finally {
       this.exporting.set(false);
     }
@@ -2336,7 +3224,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const focused = this.focusedCell();
     if (!focused) return;
     const row = this.processedData()[focused.rowIndex];
-    const col = this.enhancedColumns().find(c => String(c.accessorKey) === focused.columnKey);
+    const col = this.enhancedColumns().find(
+      (c) => String(c.accessorKey) === focused.columnKey,
+    );
     if (row && col) {
       await navigator.clipboard.writeText(this.getCellStringValue(row, col));
     }
@@ -2344,27 +3234,41 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   async copyRowToClipboard(row: T): Promise<void> {
     if (!this.enableCopy()) return;
-    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions');
-    const values = columns.map(col => this.getCellStringValue(row, col));
-    await navigator.clipboard.writeText(values.join('\t'));
+    const columns = this.enhancedColumns().filter(
+      (col) =>
+        col.accessorKey !== "_selection" &&
+        col.accessorKey !== "_expander" &&
+        col.accessorKey !== "_actions",
+    );
+    const values = columns.map((col) => this.getCellStringValue(row, col));
+    await navigator.clipboard.writeText(values.join("\t"));
   }
 
   async copySelectedToClipboard(): Promise<void> {
     if (!this.enableCopy()) return;
-    const columns = this.enhancedColumns().filter(col => col.accessorKey !== '_selection' && col.accessorKey !== '_expander' && col.accessorKey !== '_actions');
+    const columns = this.enhancedColumns().filter(
+      (col) =>
+        col.accessorKey !== "_selection" &&
+        col.accessorKey !== "_expander" &&
+        col.accessorKey !== "_actions",
+    );
     const selectedIds = this.rowSelection();
-    const rows = this.filteredData().filter(row => selectedIds[this.getRowId()(row)]);
+    const rows = this.filteredData().filter(
+      (row) => selectedIds[this.getRowId()(row)],
+    );
     if (rows.length === 0) return;
 
-    const headerLine = columns.map(col => col.header).join('\t');
-    const dataLines = rows.map(row => columns.map(col => this.getCellStringValue(row, col)).join('\t'));
-    await navigator.clipboard.writeText([headerLine, ...dataLines].join('\n'));
+    const headerLine = columns.map((col) => col.header).join("\t");
+    const dataLines = rows.map((row) =>
+      columns.map((col) => this.getCellStringValue(row, col)).join("\t"),
+    );
+    await navigator.clipboard.writeText([headerLine, ...dataLines].join("\n"));
   }
 
   async copyAllToClipboard(): Promise<void> {
     if (!this.enableCopy()) return;
     const data = this.getExportData();
-    const text = data.map(row => row.join('\t')).join('\n');
+    const text = data.map((row) => row.join("\t")).join("\n");
     await navigator.clipboard.writeText(text);
   }
 
@@ -2374,33 +3278,370 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   onCellClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
     const key = String(col.accessorKey);
-    if (key === '_selection' || key === '_expander' || key === '_actions') return;
+    if (key === "_selection" || key === "_expander" || key === "_actions")
+      return;
     event.stopPropagation();
-    this.focusedCell.set({ rowIndex, columnKey: key });
-  }
 
-  onTableKeydown(event: KeyboardEvent): void {
-    if (!this.enableCopy()) return;
-    const isCopy = (event.ctrlKey || event.metaKey) && event.key === 'c';
-    if (!isCopy) return;
-
-    const focused = this.focusedCell();
-    if (focused) {
-      const row = this.processedData()[focused.rowIndex];
-      const col = this.enhancedColumns().find(c => String(c.accessorKey) === focused.columnKey);
-      if (row && col) {
-        event.preventDefault();
-        const value = this.getCellStringValue(row, col);
-        navigator.clipboard.writeText(value);
+    if (this.enableCellRangeSelection() && (event as MouseEvent).shiftKey) {
+      const focused = this.focusedCell();
+      if (focused) {
+        this.cellRange.set({
+          startRow: focused.rowIndex,
+          startCol: focused.columnKey,
+          endRow: rowIndex,
+          endCol: key,
+        });
         return;
       }
     }
 
+    this.focusedCell.set({ rowIndex, columnKey: key });
+    if (this.enableCellRangeSelection()) {
+      this.cellRange.set(null);
+    }
+  }
+
+  onCellDblClick(rowIndex: number, col: ColumnDef<T>, event: Event): void {
+    const key = String(col.accessorKey);
+    if (key === "_selection" || key === "_expander" || key === "_actions")
+      return;
+    event.stopPropagation();
+    this.startEditing(rowIndex, key);
+  }
+
+  private readonly navigableColumnKeys = computed(() => {
+    return this.enhancedColumns()
+      .filter(
+        (c) =>
+          c.accessorKey !== "_selection" &&
+          c.accessorKey !== "_expander" &&
+          c.accessorKey !== "_actions",
+      )
+      .map((c) => String(c.accessorKey));
+  });
+
+  private readonly totalVisibleRows = computed(() => {
+    if (this.enableSubRows()) return this.processedTreeRows().length;
+    return this.processedData().length;
+  });
+
+  onTableKeydown(event: KeyboardEvent): void {
+    if (this.handleCopyKeydown(event)) return;
+    this.handleNavigationKeydown(event);
+  }
+
+  private handleCopyKeydown(event: KeyboardEvent): boolean {
+    if (!this.enableCopy()) return false;
+    const isCopy = (event.ctrlKey || event.metaKey) && event.key === "c";
+    if (!isCopy) return false;
+
+    const range = this.normalizedCellRange();
+    if (range) {
+      event.preventDefault();
+      this.copyCellRangeToClipboard();
+      return true;
+    }
+
+    const focused = this.focusedCell();
+    if (focused) {
+      const row = this.processedData()[focused.rowIndex];
+      const col = this.enhancedColumns().find(
+        (c) => String(c.accessorKey) === focused.columnKey,
+      );
+      if (row && col) {
+        event.preventDefault();
+        navigator.clipboard.writeText(this.getCellStringValue(row, col));
+        return true;
+      }
+    }
+
     const selectedIds = this.rowSelection();
-    const hasSelection = Object.keys(selectedIds).some(id => selectedIds[id]);
-    if (hasSelection) {
+    if (Object.keys(selectedIds).some((id) => selectedIds[id])) {
       event.preventDefault();
       this.copySelectedToClipboard();
+      return true;
+    }
+    return false;
+  }
+
+  async copyCellRangeToClipboard(): Promise<void> {
+    const range = this.normalizedCellRange();
+    if (!range) return;
+
+    const colKeys = this.navigableColumnKeys();
+    const rangeCols = colKeys.slice(range.minCol, range.maxCol + 1);
+    const data = this.processedData();
+    const columns = this.enhancedColumns();
+
+    const lines: string[] = [];
+    for (let r = range.minRow; r <= range.maxRow; r++) {
+      const row = data[r];
+      if (!row) continue;
+      const values = rangeCols.map((key) => {
+        const col = columns.find((c) => String(c.accessorKey) === key);
+        return col ? this.getCellStringValue(row, col) : "";
+      });
+      lines.push(values.join("\t"));
+    }
+    await navigator.clipboard.writeText(lines.join("\n"));
+  }
+
+  private computeNextCell(
+    key: string, shiftKey: boolean, ctrlKey: boolean,
+    rowIndex: number, colIndex: number, colKeys: string[], totalRows: number
+  ): { row: number; col: number } {
+    let nextRow = rowIndex;
+    let nextCol = colIndex;
+
+    switch (key) {
+      case 'ArrowUp':
+        return { row: this.findNextEnabledRow(rowIndex, -1, totalRows), col: nextCol };
+      case 'ArrowDown':
+        return { row: this.findNextEnabledRow(rowIndex, 1, totalRows), col: nextCol };
+      case 'ArrowLeft':
+        return { row: nextRow, col: Math.max(0, nextCol - 1) };
+      case 'ArrowRight':
+        return { row: nextRow, col: Math.min(colKeys.length - 1, nextCol + 1) };
+      case 'Tab':
+        return this.computeTabTarget(shiftKey, rowIndex, colIndex, colKeys, totalRows);
+      case 'Home':
+        return { row: ctrlKey ? 0 : nextRow, col: 0 };
+      case 'End':
+        return { row: ctrlKey ? totalRows - 1 : nextRow, col: colKeys.length - 1 };
+      case 'PageUp':
+        return { row: Math.max(0, rowIndex - this.getPageSize()), col: nextCol };
+      case 'PageDown':
+        return { row: Math.min(totalRows - 1, rowIndex + this.getPageSize()), col: nextCol };
+      default:
+        return { row: nextRow, col: nextCol };
+    }
+  }
+
+  private computeTabTarget(
+    shiftKey: boolean, rowIndex: number, colIndex: number, colKeys: string[], totalRows: number
+  ): { row: number; col: number } {
+    if (shiftKey) {
+      if (colIndex > 0) return { row: rowIndex, col: colIndex - 1 };
+      if (rowIndex > 0) return { row: rowIndex - 1, col: colKeys.length - 1 };
+      return { row: rowIndex, col: colIndex };
+    }
+    if (colIndex < colKeys.length - 1) return { row: rowIndex, col: colIndex + 1 };
+    if (rowIndex < totalRows - 1) return { row: rowIndex + 1, col: 0 };
+    return { row: rowIndex, col: colIndex };
+  }
+
+  private getPageSize(): number {
+    const container = this.scrollContainerRef()?.nativeElement;
+    return container ? Math.floor(container.clientHeight / this.virtualRowHeight()) : 10;
+  }
+
+  private handleNavigationKeydown(event: KeyboardEvent): void {
+    if (this.editingCell()) return;
+
+    if (event.key === 'Escape' && this.cellRange()) {
+      event.preventDefault();
+      this.cellRange.set(null);
+      return;
+    }
+
+    if (event.key === 'Enter' || event.key === 'F2') {
+      const focused = this.focusedCell();
+      if (focused) {
+        event.preventDefault();
+        this.startEditing(focused.rowIndex, focused.columnKey);
+      }
+      return;
+    }
+
+    const navKeys = ['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Tab', 'Home', 'End', 'PageUp', 'PageDown'];
+    if (!navKeys.includes(event.key)) return;
+
+    const colKeys = this.navigableColumnKeys();
+    const totalRows = this.totalVisibleRows();
+    if (colKeys.length === 0 || totalRows === 0) return;
+
+    const focused = this.focusedCell();
+    if (!focused) {
+      if (event.key === 'ArrowDown' || event.key === 'Tab') {
+        event.preventDefault();
+        this.focusedCell.set({ rowIndex: 0, columnKey: colKeys[0] });
+        this.ensureFocusedCellVisible();
+      }
+      return;
+    }
+
+    event.preventDefault();
+    const colIndex = colKeys.indexOf(focused.columnKey);
+    const safeColIndex = colIndex === -1 ? 0 : colIndex;
+    const next = this.computeNextCell(
+      event.key, event.shiftKey, event.ctrlKey || event.metaKey,
+      focused.rowIndex, safeColIndex, colKeys, totalRows
+    );
+
+    this.focusedCell.set({ rowIndex: next.row, columnKey: colKeys[next.col] });
+    this.ensureFocusedCellVisible();
+  }
+
+  private findNextEnabledRow(
+    currentIndex: number,
+    direction: 1 | -1,
+    totalRows: number,
+  ): number {
+    const data = this.processedData();
+    let next = currentIndex + direction;
+    while (next >= 0 && next < totalRows) {
+      const row = data[next];
+      if (row && !this.isDisabled(row)) return next;
+      next += direction;
+    }
+    return currentIndex;
+  }
+
+  private ensureFocusedCellVisible(): void {
+    if (!this.isVirtualScrollActive()) return;
+    const focused = this.focusedCell();
+    if (!focused) return;
+    this.scrollToRow(focused.rowIndex);
+  }
+
+  isEditing(rowIndex: number, columnKey: string): boolean {
+    const editing = this.editingCell();
+    return (
+      editing !== null &&
+      editing.rowIndex === rowIndex &&
+      editing.columnKey === columnKey
+    );
+  }
+
+  startEditing(rowIndex: number, columnKey: string): void {
+    const col = this.enhancedColumns().find(
+      (c) => String(c.accessorKey) === columnKey,
+    );
+    if (!col?.editable) return;
+
+    const row = this.processedData()[rowIndex];
+    if (!row) return;
+    if (this.isDisabled(row)) return;
+
+    const currentValue = this.getCellValue(row, col.accessorKey, col);
+    this.editValue.set(currentValue);
+    this.editingCell.set({ rowIndex, columnKey });
+    this.focusEditInput();
+  }
+
+  private focusEditInput(): void {
+    requestAnimationFrame(() => {
+      const container = this._el.nativeElement as HTMLElement;
+      const input = container.querySelector<HTMLElement>(
+        'input[data-edit-input], select[data-edit-input]'
+      );
+      input?.focus();
+    });
+  }
+
+  commitEdit(): void {
+    const editing = this.editingCell();
+    if (!editing) return;
+
+    const col = this.enhancedColumns().find(
+      (c) => String(c.accessorKey) === editing.columnKey,
+    );
+    const row = this.processedData()[editing.rowIndex];
+    if (!col || !row) {
+      this.cancelEdit();
+      return;
+    }
+
+    const newValue = this.editValue();
+    const oldValue = this.getCellValue(row, col.accessorKey, col);
+
+    if (newValue === oldValue) {
+      this.cancelEdit();
+      return;
+    }
+
+    if (col.editValidator) {
+      const result = col.editValidator(newValue, row);
+      if (result !== true) {
+        return;
+      }
+    }
+
+    this.cellEdit.emit({
+      row,
+      column: col,
+      oldValue,
+      newValue,
+      rowIndex: editing.rowIndex,
+    });
+
+    if (col.valueSetter) {
+      const updatedRow = col.valueSetter(row, newValue);
+      const data = [...this.data()];
+      const dataIndex = data.findIndex(
+        (r) => this.getRowId()(r) === this.getRowId()(row),
+      );
+      if (dataIndex !== -1) {
+        data[dataIndex] = updatedRow;
+      }
+    }
+
+    this.editingCell.set(null);
+    this.refocusTable();
+  }
+
+  cancelEdit(): void {
+    this.editingCell.set(null);
+    this.editValue.set(null);
+    this.refocusTable();
+  }
+
+  private refocusTable(): void {
+    requestAnimationFrame(() => {
+      this.scrollContainerRef()?.nativeElement?.focus();
+    });
+  }
+
+  onEditValueChange(value: unknown): void {
+    this.editValue.set(value);
+  }
+
+  onEditKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.cancelEdit();
+      return;
+    }
+
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.commitEdit();
+      return;
+    }
+
+    if (event.key === 'Tab') {
+      event.preventDefault();
+      event.stopPropagation();
+      this.commitEdit();
+      this.advanceEditToNextCell(event.shiftKey);
+    }
+  }
+
+  private advanceEditToNextCell(shiftKey: boolean): void {
+    const colKeys = this.navigableColumnKeys();
+    const editing = this.focusedCell();
+    if (!editing) return;
+
+    const colIndex = colKeys.indexOf(editing.columnKey);
+    const totalRows = this.totalVisibleRows();
+    const next = this.computeTabTarget(shiftKey, editing.rowIndex, colIndex, colKeys, totalRows);
+
+    this.focusedCell.set({ rowIndex: next.row, columnKey: colKeys[next.col] });
+    const nextCol = this.enhancedColumns().find(c => String(c.accessorKey) === colKeys[next.col]);
+    if (nextCol?.editable) {
+      this.startEditing(next.row, colKeys[next.col]);
     }
   }
 
@@ -2415,7 +3656,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   expandSubRow(row: T) {
     const id = this.getRowId()(row);
-    this.subRowExpandedRows.update(current => ({ ...current, [id]: true }));
+    this.subRowExpandedRows.update((current) => ({ ...current, [id]: true }));
   }
 
   collapseSubRow(row: T) {
@@ -2461,7 +3702,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.subRowExpandedRows.set({});
   }
 
-  isAllSubRowsExpanded = computed(() => {
+  readonly isAllSubRowsExpanded = computed(() => {
     if (!this.enableSubRows()) return false;
     const getId = this.getRowId();
     const getChildrenFn = this.getChildren();
@@ -2473,7 +3714,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         const children = getChildrenFn(row);
         if (children && children.length > 0) {
           const id = getId(row);
-          const isExp = id in expanded ? expanded[id] : (defaultExpanded === -1 || depth < defaultExpanded);
+          const isExp =
+            id in expanded
+              ? expanded[id]
+              : defaultExpanded === -1 || depth < defaultExpanded;
           if (!isExp) return false;
           if (!check(children, depth + 1)) return false;
         }
@@ -2524,7 +3768,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const index = this.treeIndex();
     const descendantIds = index.descendants.get(id) ?? [];
     const next = { ...this.rowSelection() };
-    descendantIds.forEach(did => next[did] = true);
+    descendantIds.forEach((did) => (next[did] = true));
     this.rowSelection.set(next);
   }
 
@@ -2533,13 +3777,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const index = this.treeIndex();
     const descendantIds = index.descendants.get(id) ?? [];
     const next = { ...this.rowSelection() };
-    descendantIds.forEach(did => delete next[did]);
+    descendantIds.forEach((did) => delete next[did]);
     this.rowSelection.set(next);
   }
 
   toggleRowWithCascade(row: T) {
+    if (this.isDisabled(row)) return;
     const mode = this.subRowSelectionMode();
-    if (mode === 'self') {
+    if (mode === "self") {
       this.toggleRow(row);
       return;
     }
@@ -2555,19 +3800,19 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       next[id] = true;
     }
 
-    if (mode === 'descendants') {
+    if (mode === "descendants") {
       const descendantIds = index.descendants.get(id) ?? [];
-      descendantIds.forEach(did => {
+      descendantIds.forEach((did) => {
         if (isSelected) {
           delete next[did];
         } else {
           next[did] = true;
         }
       });
-    } else if (mode === 'filteredDescendants') {
+    } else if (mode === "filteredDescendants") {
       const visibleIds = new Set(this.filteredRowIds());
       const descendantIds = index.descendants.get(id) ?? [];
-      descendantIds.forEach(did => {
+      descendantIds.forEach((did) => {
         if (!visibleIds.has(did)) return;
         if (isSelected) {
           delete next[did];
@@ -2583,7 +3828,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private readonly _indeterminateRows = computed(() => {
     const result = new Set<string>();
-    if (this.subRowSelectionMode() === 'self') return result;
+    if (this.subRowSelectionMode() === "self") return result;
     if (!this.enableSubRows()) return result;
     const index = this.treeIndex();
     const selected = this.rowSelection();
@@ -2604,8 +3849,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this._indeterminateRows().has(this.getRowId()(row));
   }
 
-  getSubRowComponentInputs(col: ColumnDef<T>, treeRow: FlattenedTreeRow<T>): Record<string, any> {
-    const base = col.componentInputs ? col.componentInputs(treeRow.row) : EMPTY_RECORD;
+  getSubRowComponentInputs(
+    col: ColumnDef<T>,
+    treeRow: FlattenedTreeRow<T>,
+  ): Record<string, unknown> {
+    const base = col.componentInputs
+      ? col.componentInputs(treeRow.row)
+      : EMPTY_RECORD;
     const context: SubRowContext<T> = {
       row: treeRow.row,
       parentRow: treeRow.parentRow,
@@ -2623,7 +3873,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     let parentId = index.parent.get(rowId);
     while (parentId !== undefined) {
       const siblingIds = index.children.get(parentId) ?? [];
-      const allSelected = siblingIds.every(sid => !!selection[sid]);
+      const allSelected = siblingIds.every((sid) => !!selection[sid]);
       if (allSelected) {
         selection[parentId] = true;
       } else {
@@ -2664,7 +3914,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const getChildrenFn = this.getChildren();
     const result: FlattenedTreeRow<T>[] = [];
 
-    const walk = (items: T[], depth: number, parentId: string | null, parentRow: T | null, path: string[]) => {
+    const walk = (
+      items: T[],
+      depth: number,
+      parentId: string | null,
+      parentRow: T | null,
+      path: string[],
+    ) => {
       for (const row of items) {
         const id = getId(row);
         const children = getChildrenFn(row) ?? [];
@@ -2693,7 +3949,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   private flattenTreeRowsForPage(rootSlice: T[]): T[] {
-    return this.flattenTreeFull(rootSlice).map(tr => tr.row);
+    return this.flattenTreeFull(rootSlice).map((tr) => tr.row);
   }
 
   private flattenTreeRowsForPageFull(rootSlice: T[]): FlattenedTreeRow<T>[] {
@@ -2702,17 +3958,19 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private downloadBlob(blob: Blob, filename: string): void {
     const url = URL.createObjectURL(blob);
-    const a = this._document.createElement('a');
+    const a = this._document.createElement("a");
     a.href = url;
     a.download = filename;
-    a.style.display = 'none';
+    a.style.display = "none";
     this._document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
   }
 
-  private applyColumnOrder<U extends { accessorKey: string | keyof T }>(columns: U[]): U[] {
+  private applyColumnOrder<U extends { accessorKey: string | keyof T }>(
+    columns: U[],
+  ): U[] {
     const order = this.columnOrder();
     if (order.length === 0) {
       return columns;
@@ -2747,11 +4005,17 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   private reorderColumnsByKeys(sourceKey: string, targetKey: string) {
-    const columnsByKey = new Map(this.columns().map(col => [String(col.accessorKey), col]));
-    const baseOrder = this.applyKeyOrder(this.columns().map(col => String(col.accessorKey)));
+    const columnsByKey = new Map(
+      this.columns().map((col) => [String(col.accessorKey), col]),
+    );
+    const baseOrder = this.applyKeyOrder(
+      this.columns().map((col) => String(col.accessorKey)),
+    );
     const visibleReorderable = baseOrder.filter((key) => {
       const col = columnsByKey.get(key);
-      return !!col && this.isColumnReorderable(col) && this.isColumnVisible(key);
+      return (
+        !!col && this.isColumnReorderable(col) && this.isColumnVisible(key)
+      );
     });
 
     const sourceIndex = visibleReorderable.indexOf(sourceKey);
@@ -2764,9 +4028,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       return;
     }
 
-    const nextVisibleReorderable = visibleReorderable.filter(key => key !== sourceKey);
+    const nextVisibleReorderable = visibleReorderable.filter(
+      (key) => key !== sourceKey,
+    );
     const reducedTargetIndex = nextVisibleReorderable.indexOf(targetKey);
-    const insertIndex = sourceIndex < targetIndex ? reducedTargetIndex + 1 : reducedTargetIndex;
+    const insertIndex =
+      sourceIndex < targetIndex ? reducedTargetIndex + 1 : reducedTargetIndex;
 
     nextVisibleReorderable.splice(insertIndex, 0, sourceKey);
 
@@ -2787,7 +4054,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private isColumnReorderable(col: ColumnDef<T>): boolean {
     const key = String(col.accessorKey);
-    if (key === '_selection' || key === '_expander' || key === '_actions') {
+    if (key === "_selection" || key === "_expander" || key === "_actions") {
       return false;
     }
     return col.enableReordering !== false;
@@ -2800,9 +4067,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private shouldShowLoaderFor(trigger: DataTableLoadingTrigger): boolean {
     const visibility = this.loadingVisibility();
-    if (trigger === 'pagination') return visibility.pagination !== false;
-    if (trigger === 'sorting') return visibility.sorting !== false;
-    if (trigger === 'filtering') return visibility.filtering !== false;
+    if (trigger === "pagination") return visibility.pagination !== false;
+    if (trigger === "sorting") return visibility.sorting !== false;
+    if (trigger === "filtering") return visibility.filtering !== false;
     return visibility.initial !== false;
   }
 
@@ -2842,12 +4109,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (!this.resolvedShowContextMenu() || !contextMenu) return;
 
     const target = event.target as HTMLElement;
-    const rowEl = target.closest<HTMLElement>('[data-row-index]');
+    const rowEl = target.closest<HTMLElement>("[data-row-index]");
     if (!rowEl) return;
 
     event.preventDefault();
 
-    const index = Number.parseInt(rowEl.dataset['rowIndex'] ?? '0', 10);
+    const index = Number.parseInt(rowEl.dataset["rowIndex"] ?? "0", 10);
     const row = this.getRenderedRowAt(index);
     if (!row) return;
 
@@ -2872,22 +4139,465 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.activeContextMenuItems.set(actionsFn(context));
 
     const target = event.target as HTMLElement;
-    const button = target.closest('button') ?? target;
+    const button = target.closest("button") ?? target;
     const rect = button.getBoundingClientRect();
     contextMenu.show(rect.right, rect.bottom, context);
   }
 
-  private resizingColumn: any = null;
+  onColumnMenuClick(event: MouseEvent, col: ColumnDef<T>): void {
+    event.stopPropagation();
+    const contextMenu = this.columnMenuContextMenu();
+    if (!contextMenu) return;
+
+    const key = String(col.accessorKey);
+    const items = this.buildColumnMenuItems(col);
+    this.activeColumnMenuItems.set(items);
+
+    const target = event.target as HTMLElement;
+    const button = target.closest("button") ?? target;
+    const rect = button.getBoundingClientRect();
+    contextMenu.show(rect.left, rect.bottom, { columnKey: key, column: col });
+  }
+
+  private buildColumnMenuItems(col: ColumnDef<T>): ContextMenuItem[] {
+    const key = String(col.accessorKey);
+    const currentSort = this.getSortDirection(key);
+    const currentPin = this.columnPinOverrides()[key] ?? col.pin;
+
+    const sortItems = this.buildSortMenuItems(key, col, currentSort);
+    const pinItems = this.buildPinMenuItems(key, currentPin);
+    const visibilityItems: ContextMenuItem[] = [
+      ...(col.enableHiding === false ? [] : [{ label: 'Hide Column', icon: 'eye-off', click: () => this.setColumnVisibility(key, false) }]),
+      { label: 'Show All Columns', icon: 'eye', click: () => this.showAllColumns() },
+    ];
+
+    return [...sortItems, ...pinItems, ...visibilityItems];
+  }
+
+  private buildSortMenuItems(key: string, col: ColumnDef<T>, currentSort: SortDirection): ContextMenuItem[] {
+    if (col.enableSorting === false) return [];
+    const items: ContextMenuItem[] = [
+      { label: 'Sort Ascending', icon: 'arrow-up', disabled: currentSort === 'asc', click: () => this.onSortChange(key, 'asc') },
+      { label: 'Sort Descending', icon: 'arrow-down', disabled: currentSort === 'desc', click: () => this.onSortChange(key, 'desc') },
+    ];
+    if (currentSort) {
+      items.push({ label: 'Clear Sort', icon: 'x', click: () => this.onSortChange(key, null) });
+    }
+    items.push({ type: 'separator' });
+    return items;
+  }
+
+  private buildPinMenuItems(key: string, currentPin: string | undefined): ContextMenuItem[] {
+    const items: ContextMenuItem[] = [];
+    if (currentPin !== 'left') items.push({ label: 'Pin Left', icon: 'pin', click: () => this.pinColumn(key, 'left') });
+    if (currentPin !== 'right') items.push({ label: 'Pin Right', icon: 'pin', click: () => this.pinColumn(key, 'right') });
+    if (currentPin) items.push({ label: 'Unpin', icon: 'pin-off', click: () => this.pinColumn(key, undefined) });
+    items.push({ type: 'separator' });
+    return items;
+  }
+
+  pinColumn(columnKey: string, pin: "left" | "right" | undefined): void {
+    this.columnPinOverrides.update((overrides) => ({
+      ...overrides,
+      [columnKey]: pin,
+    }));
+  }
+
+  private computeAggregate(rows: T[], col: ColumnDef<T>): string {
+    const fn = col.aggregateFn;
+    if (!fn) return "";
+
+    const values = rows.map((row) =>
+      this.getCellValue(row, col.accessorKey, col),
+    );
+
+    if (typeof fn === "function") return fn(values);
+
+    const nums = values.map(Number).filter(Number.isFinite);
+    if (nums.length === 0 && fn !== "count") return "";
+
+    switch (fn) {
+      case "sum":
+        return String(nums.reduce((a, b) => a + b, 0));
+      case "avg":
+        return String(
+          Math.round((nums.reduce((a, b) => a + b, 0) / nums.length) * 100) /
+            100,
+        );
+      case "count":
+        return String(rows.length);
+      case "min":
+        return String(Math.min(...nums));
+      case "max":
+        return String(Math.max(...nums));
+      default:
+        return "";
+    }
+  }
+
+  showAllColumns(): void {
+    const next: Record<string, boolean> = {};
+    for (const col of this.columns()) {
+      next[String(col.accessorKey)] = true;
+    }
+    this.columnVisibility.set(next);
+  }
+
+  readonly draggedRowId = signal<string | null>(null);
+  private readonly dragOverIndex = signal<number | null>(null);
+  private readonly dragOverPosition = signal<RowDragPosition>('below');
+
+  readonly dragPreviewData = computed((): T[] | null => {
+    const draggedId = this.draggedRowId();
+    const overIdx = this.dragOverIndex();
+    if (!draggedId || overIdx === null) return null;
+
+    const getId = this.getRowId();
+    const data = this.processedData();
+    const fromIndex = data.findIndex(r => getId(r) === draggedId);
+    if (fromIndex === -1) return null;
+
+    const position = this.dragOverPosition();
+    if (position === 'on') return null;
+    let toIndex = position === 'above' ? overIdx : overIdx + 1;
+    if (fromIndex < toIndex) toIndex -= 1;
+    if (fromIndex === toIndex) return null;
+
+    const result = [...data];
+    const [moved] = result.splice(fromIndex, 1);
+    result.splice(toIndex, 0, moved);
+    return result;
+  });
+
+  private readonly dragWheelHandler = (e: WheelEvent) => {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+    e.preventDefault();
+    e.stopPropagation();
+    container.scrollTop += e.deltaY;
+    container.scrollLeft += e.deltaX;
+  };
+
+  private readonly dragEventHandler = (e: DragEvent) => {
+    if (!this.draggedRowId()) return;
+    this.handleDragAutoScroll(e.clientY);
+  };
+
+  onRowDragStart(event: DragEvent, row: T): void {
+    if (!this.enableRowDrag() || this.isDisabled(row) || this.loading()) return;
+    const id = this.getRowId()(row);
+    this.draggedRowId.set(id);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.effectAllowed = 'move';
+      event.dataTransfer.setData('text/plain', id);
+    }
+
+    this._document.addEventListener('wheel', this.dragWheelHandler, { capture: true, passive: false } as AddEventListenerOptions);
+    this._document.addEventListener('drag', this.dragEventHandler);
+  }
+
+  private dragAutoScrollId = 0;
+
+  private computeDragPosition(event: DragEvent): RowDragPosition {
+    const target = event.currentTarget as HTMLElement;
+    const rect = target.getBoundingClientRect();
+    const relativeY = (event.clientY - rect.top) / rect.height;
+
+    if (this.rowDragMode() === 'tree') {
+      if (relativeY < 0.25) return 'above';
+      if (relativeY > 0.75) return 'below';
+      return 'on';
+    }
+    return relativeY < 0.5 ? 'above' : 'below';
+  }
+
+  onRowDragOver(event: DragEvent, index: number): void {
+    if (!this.enableRowDrag() || !this.draggedRowId()) return;
+
+    const row = this.processedData()[index];
+    if (row && this.isDisabled(row)) return;
+
+    let position = this.computeDragPosition(event);
+
+    const draggedId = this.draggedRowId()!;
+    const getId = this.getRowId();
+
+    if (this.enableSubRows() && this.rowDragMode() === 'flat') {
+      const treeRows = this.processedTreeRows();
+      const draggedTreeRow = treeRows.find(tr => getId(tr.row) === draggedId);
+      const targetTreeRow = treeRows[index];
+      if (draggedTreeRow && targetTreeRow && draggedTreeRow.depth !== targetTreeRow.depth) {
+        if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+        this.dragOverIndex.set(-1);
+        return;
+      }
+      if (position === 'on') position = 'below';
+    }
+
+    const draggedRow = this.processedData().find(r => getId(r) === draggedId);
+    const allowDropFn = this.rowDragAllowDrop();
+    if (draggedRow && row && allowDropFn && !allowDropFn(draggedRow, row, position)) return;
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    this.dragOverIndex.set(index);
+    this.dragOverPosition.set(position);
+
+    if (event.dataTransfer) {
+      event.dataTransfer.dropEffect = 'move';
+    }
+
+    this.handleDragAutoScroll(event.clientY);
+  }
+
+  onContainerDragOver(event: DragEvent): void {
+    if (!this.enableRowDrag() || !this.draggedRowId()) return;
+    event.preventDefault();
+
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+
+    const lastIndex = this.processedData().length - 1;
+    if (lastIndex < 0) return;
+
+    const rows = container.querySelectorAll<HTMLElement>('[data-row-index]');
+    if (rows.length === 0) return;
+    const lastRow = rows[rows.length - 1];
+    const lastRowRect = lastRow.getBoundingClientRect();
+
+    if (event.clientY > lastRowRect.bottom) {
+      this.dragOverIndex.set(lastIndex);
+      this.dragOverPosition.set('below');
+    }
+
+    this.handleDragAutoScroll(event.clientY);
+  }
+
+  private handleDragAutoScroll(clientY: number): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+    const edgeZone = 40;
+    const distFromTop = clientY - rect.top;
+    const distFromBottom = rect.bottom - clientY;
+
+    cancelAnimationFrame(this.dragAutoScrollId);
+
+    if (distFromTop < edgeZone) {
+      const speed = Math.max(2, Math.round((edgeZone - distFromTop) / 3));
+      this.dragAutoScrollId = requestAnimationFrame(() => {
+        container.scrollTop -= speed;
+      });
+    } else if (distFromBottom < edgeZone) {
+      const speed = Math.max(2, Math.round((edgeZone - distFromBottom) / 3));
+      this.dragAutoScrollId = requestAnimationFrame(() => {
+        container.scrollTop += speed;
+      });
+    }
+  }
+
+  onRowDrop(event: DragEvent): void {
+    if (!this.enableRowDrag()) {
+      this.clearRowDragState();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const reorderEvent = this.buildRowReorderEvent();
+    if (!reorderEvent) {
+      this.clearRowDragState();
+      return;
+    }
+
+    this.rowReorder.emit(reorderEvent);
+    this.clearRowDragState();
+  }
+
+  reorderData(data: T[], event: RowReorderEvent<T>): T[] {
+    if (this.enableSubRows()) {
+      return this.reorderTreeData(data, event);
+    }
+    return this.reorderFlatData(data, event);
+  }
+
+  private reorderFlatData(data: T[], event: RowReorderEvent<T>): T[] {
+    const result = [...data];
+    const getId = this.getRowId();
+    const fromIdx = result.findIndex(r => getId(r) === getId(event.row));
+    if (fromIdx === -1) return data;
+
+    const [moved] = result.splice(fromIdx, 1);
+
+    let insertIdx: number;
+    if (event.previousId) {
+      insertIdx = result.findIndex(r => getId(r) === event.previousId) + 1;
+    } else if (event.nextId) {
+      insertIdx = result.findIndex(r => getId(r) === event.nextId);
+      if (insertIdx === -1) insertIdx = result.length;
+    } else {
+      insertIdx = result.length;
+    }
+
+    result.splice(Math.max(0, insertIdx), 0, moved);
+    return result;
+  }
+
+  private reorderTreeData(data: T[], event: RowReorderEvent<T>): T[] {
+    const getId = this.getRowId();
+    const getChildrenFn = this.getChildren();
+    const setChildrenFn = this.setChildren();
+    const rowId = getId(event.row);
+    const targetId = getId(event.targetRow);
+
+    const { remaining, removed } = this.removeFromTree(data, rowId, getId, getChildrenFn, setChildrenFn);
+    if (!removed) return data;
+    return this.insertIntoTree(remaining, removed, targetId, event.position, getId, getChildrenFn, setChildrenFn);
+  }
+
+  private removeFromTree(
+    nodes: T[], rowId: string, getId: (r: T) => string,
+    getChildrenFn: (r: T) => T[] | undefined, setChildrenFn: (r: T, c: T[]) => T
+  ): { remaining: T[]; removed: T | null } {
+    const idx = nodes.findIndex(n => getId(n) === rowId);
+    if (idx !== -1) {
+      return { remaining: [...nodes.slice(0, idx), ...nodes.slice(idx + 1)], removed: nodes[idx] };
+    }
+    for (let i = 0; i < nodes.length; i++) {
+      const children = getChildrenFn(nodes[i]);
+      if (children && children.length > 0) {
+        const result = this.removeFromTree(children, rowId, getId, getChildrenFn, setChildrenFn);
+        if (result.removed) {
+          const updated = [...nodes];
+          updated[i] = setChildrenFn(nodes[i], result.remaining);
+          return { remaining: updated, removed: result.removed };
+        }
+      }
+    }
+    return { remaining: nodes, removed: null };
+  }
+
+  private insertIntoTree(
+    nodes: T[], movedRow: T, targetId: string, position: RowDragPosition,
+    getId: (r: T) => string, getChildrenFn: (r: T) => T[] | undefined, setChildrenFn: (r: T, c: T[]) => T
+  ): T[] {
+    if (position === 'on') {
+      return nodes.map(n => {
+        if (getId(n) === targetId) {
+          return setChildrenFn(n, [...(getChildrenFn(n) ?? []), movedRow]);
+        }
+        const kids = getChildrenFn(n);
+        return kids?.length ? setChildrenFn(n, this.insertIntoTree(kids, movedRow, targetId, position, getId, getChildrenFn, setChildrenFn)) : n;
+      });
+    }
+
+    const result: T[] = [];
+    for (const n of nodes) {
+      if (getId(n) === targetId) {
+        if (position === 'above') result.push(movedRow, n);
+        else result.push(n, movedRow);
+      } else {
+        const kids = getChildrenFn(n);
+        result.push(kids?.length ? setChildrenFn(n, this.insertIntoTree(kids, movedRow, targetId, position, getId, getChildrenFn, setChildrenFn)) : n);
+      }
+    }
+    return result;
+  }
+
+  private buildRowReorderEvent(): RowReorderEvent<T> | null {
+    const draggedId = this.draggedRowId();
+    const overIdx = this.dragOverIndex();
+    const position = this.dragOverPosition();
+    if (!draggedId || overIdx === null) return null;
+
+    const getId = this.getRowId();
+    const data = this.processedData();
+    const fromIndex = data.findIndex(r => getId(r) === draggedId);
+    if (fromIndex === -1) return null;
+
+    const targetRow = data[overIdx];
+    if (!targetRow) return null;
+
+    const toIndex = this.computeDropIndex(overIdx, fromIndex, position);
+    const { previousId, nextId } = this.resolveDropNeighborIds(data, toIndex, fromIndex, getId);
+
+    const result: RowReorderEvent<T> = {
+      row: data[fromIndex],
+      targetRow,
+      position,
+      previousId,
+      nextId,
+      fromIndex,
+      toIndex: Math.max(0, toIndex),
+    };
+
+    if (position === 'on' && this.rowDragMode() === 'tree') {
+      result.parentId = getId(targetRow);
+    }
+
+    return result;
+  }
+
+  private computeDropIndex(overIdx: number, fromIndex: number, position: RowDragPosition): number {
+    let toIndex = position === 'above' ? overIdx : overIdx + 1;
+    if (fromIndex < toIndex) toIndex -= 1;
+    return toIndex;
+  }
+
+  private resolveDropNeighborIds(
+    data: T[], toIndex: number, fromIndex: number, getId: (row: T) => string
+  ): { previousId: string | null; nextId: string | null } {
+    const prevIdx = toIndex > fromIndex ? toIndex : toIndex - 1;
+    const nextIdx = toIndex >= fromIndex ? toIndex + 1 : toIndex;
+    const previousRow = prevIdx >= 0 ? data[prevIdx] : null;
+    const nextRow = nextIdx < data.length ? data[nextIdx] : null;
+    return {
+      previousId: previousRow ? getId(previousRow) : null,
+      nextId: nextRow ? getId(nextRow) : null,
+    };
+  }
+
+  onRowDragEnd(): void {
+    this.clearRowDragState();
+  }
+
+  private clearRowDragState(): void {
+    this.draggedRowId.set(null);
+    this.dragOverIndex.set(null);
+    cancelAnimationFrame(this.dragAutoScrollId);
+    this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true } as EventListenerOptions);
+    this._document.removeEventListener('drag', this.dragEventHandler);
+  }
+
+  isRowBeingDragged(row: T): boolean {
+    return this.draggedRowId() === this.getRowId()(row);
+  }
+
+  getDropEdge(index: number): 'top' | 'bottom' | 'on' | null {
+    const overIdx = this.dragOverIndex();
+    if (overIdx === null || !this.draggedRowId()) return null;
+    if (overIdx !== index) return null;
+    const pos = this.dragOverPosition();
+    if (pos === 'on') return 'on';
+    return pos === 'above' ? 'top' : 'bottom';
+  }
+
+  private resizingColumn: CellStyleColumn | null = null;
   private resizeStartX = 0;
   private resizeStartWidth = 0;
+  private resizeOldWidth = "150px";
 
-  onResizeStart(event: MouseEvent, col: any) {
+  onResizeStart(event: MouseEvent, col: CellStyleColumn) {
     event.preventDefault();
     event.stopPropagation();
     this.startResize(event.clientX, col);
   }
 
-  onResizeTouchStart(event: TouchEvent, col: any) {
+  onResizeTouchStart(event: TouchEvent, col: CellStyleColumn) {
     if (event.touches.length === 1) {
       event.preventDefault();
       event.stopPropagation();
@@ -2895,10 +4605,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
-  private startResize(clientX: number, col: any) {
+  private startResize(clientX: number, col: CellStyleColumn) {
+    const key = String(col.accessorKey);
     this.resizingColumn = col;
     this.resizeStartX = clientX;
     this.resizeStartWidth = Number.parseInt(col._width, 10) || 150;
+    this.resizeOldWidth = this.columnWidths()[key] || col._width || "150px";
     this._isRtlResize = this.isRtl();
 
     const onMouseMove = (e: MouseEvent) => this.onResizeMove(e.clientX);
@@ -2911,21 +4623,21 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
     const onEnd = () => {
       this.onResizeEnd();
-      document.removeEventListener('mousemove', onMouseMove);
-      document.removeEventListener('mouseup', onEnd);
-      document.removeEventListener('touchmove', onTouchMove);
-      document.removeEventListener('touchend', onEnd);
-      document.body.style.cursor = '';
-      document.body.style.userSelect = '';
+      this._document.removeEventListener("mousemove", onMouseMove);
+      this._document.removeEventListener("mouseup", onEnd);
+      this._document.removeEventListener("touchmove", onTouchMove);
+      this._document.removeEventListener("touchend", onEnd);
+      this._document.body.style.cursor = "";
+      this._document.body.style.userSelect = "";
     };
 
-    document.body.style.cursor = 'col-resize';
-    document.body.style.userSelect = 'none';
+    this._document.body.style.cursor = "col-resize";
+    this._document.body.style.userSelect = "none";
 
-    document.addEventListener('mousemove', onMouseMove);
-    document.addEventListener('mouseup', onEnd);
-    document.addEventListener('touchmove', onTouchMove, { passive: false });
-    document.addEventListener('touchend', onEnd);
+    this._document.addEventListener("mousemove", onMouseMove);
+    this._document.addEventListener("mouseup", onEnd);
+    this._document.addEventListener("touchmove", onTouchMove, { passive: false });
+    this._document.addEventListener("touchend", onEnd);
   }
 
   private onResizeMove(clientX: number) {
@@ -2933,29 +4645,65 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
     const delta = clientX - this.resizeStartX;
     const effectiveDelta = this._isRtlResize ? -delta : delta;
-    const minWidth = Number.parseInt(this.resizingColumn._minWidth, 10) || 50;
+    const minWidth = Number.parseInt(this.resizingColumn._minWidth || "50", 10) || 50;
     const newWidth = Math.max(minWidth, this.resizeStartWidth + effectiveDelta);
     const key = String(this.resizingColumn.accessorKey);
 
-    this.columnWidths.update(widths => ({
+    this.columnWidths.update((widths) => ({
       ...widths,
-      [key]: `${newWidth}px`
+      [key]: `${newWidth}px`,
     }));
   }
 
   private onResizeEnd() {
     if (this.resizingColumn) {
       const key = String(this.resizingColumn.accessorKey);
-      const oldWidth = this.columnWidths()[key] || this.resizingColumn.width || '150px';
-      const newWidth = this.columnWidths()[key] || oldWidth;
+      const newWidth = this.columnWidths()[key] || this.resizeOldWidth;
 
       this.columnResize.emit({
         columnKey: key,
-        oldWidth,
-        newWidth
+        oldWidth: this.resizeOldWidth,
+        newWidth,
       });
 
       this.resizingColumn = null;
     }
+  }
+
+  scrollToRow(index: number): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+
+    if (this.virtualVariableRowHeight()) {
+      const prefixSums = this._prefixSums();
+      if (prefixSums && index < prefixSums.length) {
+        container.scrollTop = prefixSums[index];
+        return;
+      }
+    }
+
+    container.scrollTop = index * this.virtualRowHeight();
+  }
+
+  scrollToColumn(columnKey: string): void {
+    const container = this.scrollContainerRef()?.nativeElement;
+    if (!container) return;
+
+    const cols = this.scrollableColumns();
+    const widths = this.scrollableColumnWidths();
+    const colIndex = cols.findIndex((c) => String(c.accessorKey) === columnKey);
+    if (colIndex === -1) return;
+
+    let offset = 0;
+    for (let i = 0; i < colIndex; i++) {
+      offset += widths[i];
+    }
+
+    container.scrollLeft = offset;
+  }
+
+  scrollToCell(rowIndex: number, columnKey: string): void {
+    this.scrollToRow(rowIndex);
+    this.scrollToColumn(columnKey);
   }
 }
