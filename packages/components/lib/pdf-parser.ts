@@ -298,9 +298,21 @@ class PdfReader {
         this.findXRef();
     }
 
+    private findLastStartxref(chunk: string): RegExpExecArray | null {
+        const re = /startxref\s+(\d+)/g;
+        let last: RegExpExecArray | null = null;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(chunk)) !== null) {
+            last = m;
+        }
+        return last;
+    }
+
     private findXRef(): void {
-        const lastChunk = this.text.slice(-1024);
-        const match = /startxref\s+(\d+)/.exec(lastChunk);
+        let match = this.findLastStartxref(this.text.slice(-1024));
+        if (!match) {
+            match = this.findLastStartxref(this.text.slice(-8192));
+        }
         if (!match) throw new Error('Could not find startxref in PDF');
         const xrefOffset = Number.parseInt(match[1], 10);
 
@@ -330,8 +342,9 @@ class PdfReader {
         if (dictStart === -1) return;
         const result = this.parseObjectAt(dictStart);
         if (result.obj.type !== 'dict') return;
-        this.trailer = result.obj.value as Record<string, PdfObject>;
-        const prev = this.trailer['Prev'];
+        const dict = result.obj.value as Record<string, PdfObject>;
+        this.trailer ??= dict;
+        const prev = dict['Prev'];
         if (prev?.type === 'number') {
             this.parseTraditionalXRef(prev.value as number);
         }
@@ -850,8 +863,25 @@ class PdfReader {
     getRoot(): Record<string, PdfObject> {
         const trailer = this.getTrailer();
         const rootRef = trailer['Root'];
-        if (!rootRef) return {};
-        return this.getDict(rootRef);
+        if (rootRef) return this.getDict(rootRef);
+
+        for (const [, obj] of this.parsedObjects) {
+            if (obj.type === 'dict') {
+                const dict = obj.value as Record<string, PdfObject>;
+                const typeStr = dict['Type'] ? this.getString(dict['Type']) : '';
+                if (typeStr === 'Catalog') return dict;
+            }
+        }
+        for (const [key] of this.objects) {
+            const obj = this.resolveRef({ type: 'ref', value: key });
+            if (obj.type === 'dict' || obj.type === 'stream') {
+                const dict = obj.value as Record<string, PdfObject>;
+                const typeStr = dict['Type'] ? this.getString(dict['Type']) : '';
+                if (typeStr === 'Catalog') return dict;
+            }
+        }
+
+        return {};
     }
 
     getPages(): PdfObject[] {
@@ -865,10 +895,12 @@ class PdfReader {
         const dict = this.getDict(node);
         const typeObj = dict['Type'];
         const typeName = typeObj ? this.getString(typeObj) : '';
-
-        if (typeName === 'Page') return [this.resolveDeep(node)];
-
         const kids = dict['Kids'];
+
+        if (typeName === 'Page' || (!kids && dict['Contents'])) {
+            return [this.resolveDeep(node)];
+        }
+
         if (!kids) return [];
         const pages: PdfObject[] = [];
         for (const kid of this.getArray(kids)) {
