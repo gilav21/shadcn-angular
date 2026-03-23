@@ -11,7 +11,8 @@ import {
     AfterContentInit,
     Directive,
 } from '@angular/core';
-import { DomSanitizer, type SafeHtml, type SafeResourceUrl, type SafeUrl } from '@angular/platform-browser';
+import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-browser';
+import type { PdfPageResult } from '../lib/pdf-parser';
 import { cn } from '../lib/utils';
 import { SpinnerComponent } from './spinner.component';
 import type { FileViewerType, FileTypeResult } from '../lib/file-type-detector';
@@ -144,10 +145,10 @@ const HEADING_CLASSES: Record<number, string> = {
                                     </div>
                                 }
                                 @case ('pdf') {
-                                    <iframe [src]="pdfSrc()"
-                                            class="w-full h-full border-0"
-                                            [title]="displayFilename()">
-                                    </iframe>
+                                    <div class="p-4 sm:p-6 max-w-4xl mx-auto overflow-auto h-full"
+                                         [style.zoom]="currentZoom()"
+                                         [innerHTML]="currentPdfPageHtml()">
+                                    </div>
                                 }
                                 @case ('xlsx') {
                                     <div class="flex flex-col h-full">
@@ -302,7 +303,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     readonly textContent = signal('');
     readonly imageSrc = signal<SafeUrl>('');
     readonly mediaSrc = signal<SafeUrl>('');
-    readonly pdfSrc = signal<SafeResourceUrl>('');
+    private readonly pdfPages = signal<ReadonlyArray<PdfPageResult>>([]);
     readonly downloadUrl = signal<SafeUrl>('');
 
     private readonly xlsxData = signal<{ sheets: ReadonlyArray<{ name: string; data: string[][] }>; truncated?: boolean } | null>(null);
@@ -323,12 +324,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
     readonly isPaginated = computed(() => {
         const t = this.detectedType();
-        return t === 'pptx' || t === 'ppt';
+        return t === 'pptx' || t === 'ppt' || t === 'pdf';
     });
 
     readonly isZoomable = computed(() => {
         const t = this.detectedType();
-        return t === 'image' || t === 'docx' || t === 'doc' || t === 'pptx' || t === 'ppt' || t === 'text';
+        return t === 'image' || t === 'docx' || t === 'doc' || t === 'pptx' || t === 'ppt' || t === 'text' || t === 'pdf';
     });
 
     readonly zoomPercent = computed(() => Math.round(this.currentZoom() * 100));
@@ -362,6 +363,15 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
     readonly docxHtml = computed<SafeHtml>(() => {
         return this.sanitizer.bypassSecurityTrustHtml(this.docxRenderedHtml());
+    });
+
+    readonly currentPdfPageHtml = computed<SafeHtml>(() => {
+        const pages = this.pdfPages();
+        const idx = this.currentPage() - 1;
+        if (idx >= 0 && idx < pages.length) {
+            return this.sanitizer.bypassSecurityTrustHtml(pages[idx].html);
+        }
+        return '';
     });
 
     readonly currentSlideHtml = computed<SafeHtml>(() => {
@@ -521,7 +531,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
                 await this.processImage(bytes, file);
                 break;
             case 'pdf':
-                this.processPdf(file);
+                await this.processPdf(bytes);
                 break;
             case 'xlsx':
                 await this.processXlsx(bytes);
@@ -582,10 +592,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         return trimmed.startsWith('<svg') || trimmed.startsWith('<?xml');
     }
 
-    private processPdf(file: File | Blob): void {
-        const url = URL.createObjectURL(file);
-        this.blobUrls.push(url);
-        this.pdfSrc.set(this.sanitizer.bypassSecurityTrustResourceUrl(url));
+    private async processPdf(bytes: Uint8Array): Promise<void> {
+        const { parsePdfPaged } = await import('../lib/pdf-parser');
+        const result = await parsePdfPaged(bytes.buffer as ArrayBuffer);
+        this.pdfPages.set(result.pages);
+        this.totalPages.set(result.totalPages);
+        this.currentPage.set(1);
     }
 
     private async processXlsx(bytes: Uint8Array): Promise<void> {
