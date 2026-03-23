@@ -123,7 +123,8 @@ interface RGB {
                 @for (color of presets(); track color) {
                   <button
                     type="button"
-                    class="h-6 w-6 rounded border cursor-pointer hover:scale-110 transition-transform"
+                    data-color-btn
+                    class="aspect-square w-6 rounded border cursor-pointer hover:scale-110 transition-transform"
                     [style.backgroundColor]="color"
                     [class.ring-2]="currentColor() === color"
                     [class.ring-primary]="currentColor() === color"

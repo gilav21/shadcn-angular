@@ -113,6 +113,15 @@ export class SpeedDialComponent implements OnDestroy {
     showAt(x: number, y: number) {
         if (this.disabled()) return;
 
+        const container = this.el.nativeElement.closest('[uiSpeedDialContextTrigger]') as HTMLElement | null
+            ?? this.el.nativeElement.parentElement;
+
+        if (container) {
+            const clamped = this.clampToContainer(x, y, container);
+            x = clamped.x;
+            y = clamped.y;
+        }
+
         this.open.set(false);
         this.isRepositioning.set(true);
         this.contextPosition.set({ x, y });
@@ -122,6 +131,36 @@ export class SpeedDialComponent implements OnDestroy {
             this.visibleChange.emit(true);
             this.onShow.emit();
         }, 0);
+    }
+
+    private clampToContainer(x: number, y: number, container: HTMLElement): { x: number; y: number } {
+        const r = this.radius() + 24;
+        const type = this.type();
+        const containerRect = container.getBoundingClientRect();
+        const vw = globalThis.innerWidth;
+        const vh = globalThis.innerHeight;
+
+        const absX = containerRect.left + x;
+        const absY = containerRect.top + y;
+
+        let clampedAbsX = absX;
+        let clampedAbsY = absY;
+
+        if (type === 'circle' || type === 'semi-circle' || type === 'quarter-circle') {
+            clampedAbsX = Math.max(r + 8, Math.min(clampedAbsX, vw - r - 8));
+            clampedAbsY = Math.max(r + 8, Math.min(clampedAbsY, vh - r - 8));
+        } else {
+            const dir = this.direction();
+            if (dir.includes('right')) clampedAbsX = Math.min(clampedAbsX, vw - r - 8);
+            if (dir.includes('left')) clampedAbsX = Math.max(clampedAbsX, r + 8);
+            if (dir.includes('down')) clampedAbsY = Math.min(clampedAbsY, vh - r - 8);
+            if (dir.includes('up')) clampedAbsY = Math.max(clampedAbsY, r + 8);
+        }
+
+        return {
+            x: x + (clampedAbsX - absX),
+            y: y + (clampedAbsY - absY),
+        };
     }
 
     hide() {

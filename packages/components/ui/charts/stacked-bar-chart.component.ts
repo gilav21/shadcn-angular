@@ -48,8 +48,11 @@ interface StackedSegment {
   template: `
     <div [class]="containerClasses()">
       <svg
-        [attr.width]="svgWidth()"
-        [attr.height]="svgHeight()"
+        [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
+        [attr.width]="'100%'"
+        [attr.height]="'auto'"
+        [style.max-width.px]="svgWidth()"
+        [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
         class="overflow-visible"
         role="img"
         [attr.aria-label]="chartAriaLabel()"
@@ -327,7 +330,7 @@ export class StackedBarChartComponent implements AfterViewInit {
     getChartSummary('Stacked column chart', this.categories().length, this.title())
   );
 
-  containerClasses = computed(() => cn('relative inline-block', this.class()));
+  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
 
   getTickPosition(tick: number): number {
     const maxVal = this.maxValue();

@@ -161,10 +161,9 @@ export class ResizableHandleComponent implements AfterViewInit {
     const isHorizontal = this.detectedDirection() === 'horizontal';
     const size = this.handleSize();
     if (isHorizontal) {
-      return `width: ${size}px; min-width: ${size}px;`;
-    } else {
-      return `height: ${size}px; min-height: ${size}px;`;
+      return `width: ${size}px; min-width: ${size}px; touch-action: none;`;
     }
+    return `height: ${size}px; min-height: ${size}px; touch-action: none;`;
   });
 
   classes = computed(() => {

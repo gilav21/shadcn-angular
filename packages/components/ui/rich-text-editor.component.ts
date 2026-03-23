@@ -855,6 +855,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         (click)="onEditorClick($event)"
         (mousemove)="onEditorMouseMove($event)"
         (mousedown)="onEditorMouseDown($event)"
+        (touchstart)="onEditorTouchStart($event)"
         (contextmenu)="onEditorContextMenu($event)"
         (dragover)="onEditorDragOver($event)"
         (dragleave)="onEditorDragLeave($event)"
@@ -1542,6 +1543,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     tableCellSelected = signal<HTMLTableCellElement[]>([]);
     private readonly onTableCellSelectMoveBound = this.onTableCellSelectMove.bind(this);
     private readonly onTableCellSelectUpBound = this.onTableCellSelectUp.bind(this);
+    private readonly onTableCellTouchMoveBound = this.onTableCellTouchMove.bind(this);
+    private readonly onTableCellTouchEndBound = this.onTableCellTouchEnd.bind(this);
 
     private readonly autoUploadMap = new Map<string, { subscription: Subscription; dataUrl: string }>();
     private autoUploadObserver: MutationObserver | null = null;
@@ -2910,11 +2913,19 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onEmojiInsert(emoji: string): void {
         this.flushPendingHistoryPush();
+        const editor = this.editorDiv?.nativeElement;
+        const prevInputMode = editor?.inputMode;
+        if (editor) {
+            editor.inputMode = 'none';
+        }
         this.restoreSelection();
         this.insertText(emoji);
         const selection = this.document.getSelection();
         if (selection && selection.rangeCount > 0) {
             this.savedRange = selection.getRangeAt(0).cloneRange();
+        }
+        if (editor) {
+            setTimeout(() => { editor.inputMode = prevInputMode ?? ''; }, 100);
         }
     }
 
@@ -4009,6 +4020,39 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.tableCellSelecting = false;
         this.document.removeEventListener('mousemove', this.onTableCellSelectMoveBound);
         this.document.removeEventListener('mouseup', this.onTableCellSelectUpBound);
+    }
+
+    onEditorTouchStart(event: TouchEvent): void {
+        if (this.readonly() || this.disabled()) return;
+        const target = event.target as HTMLElement;
+        const cell = target.closest<HTMLTableCellElement>('td, th');
+
+        if (cell && this.editorDiv?.nativeElement.contains(cell)) {
+            this.clearCellSelection();
+            this.tableCellSelecting = true;
+            this.tableCellSelectAnchor = cell;
+            this.document.addEventListener('touchmove', this.onTableCellTouchMoveBound, { passive: false });
+            this.document.addEventListener('touchend', this.onTableCellTouchEndBound);
+        }
+    }
+
+    private onTableCellTouchMove(event: TouchEvent): void {
+        if (!this.tableCellSelecting || !this.tableCellSelectAnchor) return;
+        const touch = event.touches[0];
+        const target = this.document.elementFromPoint(touch.clientX, touch.clientY) as HTMLElement | null;
+        if (!target) return;
+        const cell = target.closest<HTMLTableCellElement>('td, th');
+        if (!cell) return;
+        const anchorTable = this.tableCellSelectAnchor.closest('table');
+        if (!anchorTable || cell.closest('table') !== anchorTable) return;
+        event.preventDefault();
+        this.updateCellSelection(this.tableCellSelectAnchor, cell);
+    }
+
+    private onTableCellTouchEnd(): void {
+        this.tableCellSelecting = false;
+        this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);
+        this.document.removeEventListener('touchend', this.onTableCellTouchEndBound);
     }
 
     private clearCellSelection(): void {
@@ -6420,6 +6464,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         this.autoUploadErrors.set(new Map());
         this.document.removeEventListener('mousemove', this.onTableResizeMoveBound);
         this.document.removeEventListener('mouseup', this.onTableResizeUpBound);
+        this.document.removeEventListener('touchmove', this.onTableCellTouchMoveBound);
+        this.document.removeEventListener('touchend', this.onTableCellTouchEndBound);
         this.closeTableContextMenu();
         this.removeFloatingScrollListener();
     }

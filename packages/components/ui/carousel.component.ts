@@ -291,15 +291,15 @@ export class CarouselPreviousComponent {
     classes = computed(() => {
         const isHorizontal = this.carousel.orientation() === 'horizontal';
         return cn(
-            'absolute h-8 w-8 rounded-full',
+            'absolute h-8 w-8 rounded-full z-10',
             'inline-flex items-center justify-center',
-            'border border-input bg-background shadow-sm',
+            'border border-input bg-background/80 sm:bg-background shadow-sm backdrop-blur-sm sm:backdrop-blur-none',
             'hover:bg-accent hover:text-accent-foreground',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
             'disabled:pointer-events-none disabled:opacity-50',
             'transition-colors',
             isHorizontal
-                ? '-left-12 top-1/2 -translate-y-1/2'
+                ? 'left-2 sm:-left-12 top-1/2 -translate-y-1/2'
                 : '-top-12 left-1/2 -translate-x-1/2 rotate-90',
             this.class()
         );
@@ -351,15 +351,15 @@ export class CarouselNextComponent {
     classes = computed(() => {
         const isHorizontal = this.carousel.orientation() === 'horizontal';
         return cn(
-            'absolute h-8 w-8 rounded-full',
+            'absolute h-8 w-8 rounded-full z-10',
             'inline-flex items-center justify-center',
-            'border border-input bg-background shadow-sm',
+            'border border-input bg-background/80 sm:bg-background shadow-sm backdrop-blur-sm sm:backdrop-blur-none',
             'hover:bg-accent hover:text-accent-foreground',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
             'disabled:pointer-events-none disabled:opacity-50',
             'transition-colors',
             isHorizontal
-                ? '-right-12 top-1/2 -translate-y-1/2'
+                ? 'right-2 sm:-right-12 top-1/2 -translate-y-1/2'
                 : '-bottom-12 left-1/2 -translate-x-1/2 rotate-90',
             this.class()
         );

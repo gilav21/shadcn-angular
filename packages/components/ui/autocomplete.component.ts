@@ -63,8 +63,9 @@ export type AutocompleteValue<T> = T | T[] | null;
                    <ui-badge variant="secondary" class="gap-1 ltr:pr-0.5 rtl:pl-0.5">
                       {{ getDisplayValue(item) }}
                       <span
-                        class="cursor-pointer rounded-full p-0.5 hover:bg-secondary-foreground/20"
+                        class="cursor-pointer rounded-full p-0.5 hover:bg-secondary-foreground/20 inline-flex items-center"
                         role="button"
+                        data-slot="chip-remove"
                         (click)="removeItem(item, $event)"
                       >
                          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>

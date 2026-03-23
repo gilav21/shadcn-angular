@@ -68,7 +68,7 @@ export class NavigationMenuListComponent {
   class = input('');
 
   classes = computed(() => cn(
-    'group flex flex-1 list-none items-center justify-center space-x-1',
+    'group flex flex-1 list-none items-center justify-center space-x-1 overflow-x-auto scrollbar-hide',
     this.class()
   ));
 }
@@ -161,7 +161,7 @@ export class NavigationMenuTriggerComponent {
   readonly item = inject(NavigationMenuItemComponent);
 
   classes = computed(() => cn(
-    'group inline-flex h-10 w-max items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium',
+    'group inline-flex h-10 w-max shrink-0 items-center justify-center rounded-md bg-background px-4 py-2 text-sm font-medium',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:bg-accent focus:text-accent-foreground focus:outline-none',
     'disabled:pointer-events-none disabled:opacity-50',
@@ -289,7 +289,7 @@ export class NavigationMenuIndicatorComponent {
               <ui-navigation-menu-item>
                 <ui-navigation-menu-trigger>{{ item.label }}</ui-navigation-menu-trigger>
                 <ui-navigation-menu-content>
-                  <ul class="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2">
+                  <ul class="grid w-full sm:w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2">
                     @for (child of item.children; track child.href) {
                       <li>
                         <ui-navigation-menu-link [href]="child.href">
@@ -340,7 +340,7 @@ export class NavigationMenuComponent implements AfterContentInit {
   }
 
   classes = computed(() => cn(
-    'relative z-10 flex max-w-max flex-1 items-center justify-center',
+    'relative z-10 flex max-w-full sm:max-w-max flex-1 items-center justify-center',
     this.class()
   ));
 

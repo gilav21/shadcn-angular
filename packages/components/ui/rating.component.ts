@@ -44,11 +44,13 @@ import { isTouchDevice } from '../lib/touch';
       @for (star of stars(); track star.index) {
         <button
           type="button"
+          data-star
           [class]="starClasses(star)"
           [attr.aria-label]="'Rate ' + (star.index + 1) + ' out of ' + max()"
           [disabled]="isDisabled() || readonly()"
           (mousemove)="onStarHover($event, star.index)"
           (click)="onStarClick($event, star.index)"
+          (touchstart)="onStarTouchStart($event, star.index)"
         >
           @if (getStarFill(star) === 'full') {
             <svg
@@ -183,6 +185,12 @@ export class RatingComponent implements ControlValueAccessor {
     return 'empty';
   }
 
+  onStarTouchStart(event: TouchEvent, index: number) {
+    if (this.isDisabled() || this.readonly()) return;
+    event.preventDefault();
+    this.hoverValue.set(index + 1);
+  }
+
   onStarHover(event: MouseEvent, index: number) {
     if (isTouchDevice()) return;
     if (this.isDisabled() || this.readonly()) return;
@@ -209,7 +217,7 @@ export class RatingComponent implements ControlValueAccessor {
     event.preventDefault();
 
     const touch = event.touches[0];
-    const ratingValue = this.getRatingFromPoint(touch.clientX, touch.clientY);
+    const ratingValue = this.getRatingFromPoint(touch.clientX);
     if (ratingValue !== null) {
       this.hoverValue.set(ratingValue);
     }
@@ -282,23 +290,35 @@ export class RatingComponent implements ControlValueAccessor {
     this.setValue(newValue);
   }
 
-  private getRatingFromPoint(clientX: number, clientY: number): number | null {
+  private getRatingFromPoint(clientX: number): number | null {
     const container = this.el.nativeElement.querySelector('[data-slot="rating"]') as HTMLElement | null;
     if (!container) return null;
 
     const buttons = container.querySelectorAll('button');
+    if (buttons.length === 0) return null;
+
+    let closestIndex = -1;
+    let closestDist = Infinity;
+
     for (let i = 0; i < buttons.length; i++) {
       const rect = buttons[i].getBoundingClientRect();
-      if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
-        if (this.precision() === 0.5) {
-          const x = clientX - rect.left;
-          const isFirstHalf = this.isRtl() ? x > rect.width / 2 : x < rect.width / 2;
-          return i + (isFirstHalf ? 0.5 : 1);
-        }
-        return i + 1;
+      const centerX = rect.left + rect.width / 2;
+      const dist = Math.abs(clientX - centerX);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestIndex = i;
       }
     }
-    return null;
+
+    if (closestIndex < 0) return null;
+
+    if (this.precision() === 0.5) {
+      const rect = buttons[closestIndex].getBoundingClientRect();
+      const x = clientX - rect.left;
+      const isFirstHalf = this.isRtl() ? x > rect.width / 2 : x < rect.width / 2;
+      return closestIndex + (isFirstHalf ? 0.5 : 1);
+    }
+    return closestIndex + 1;
   }
 
   private setValue(val: number) {

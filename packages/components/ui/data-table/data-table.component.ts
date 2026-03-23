@@ -606,7 +606,7 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                                 </button>
                               </ui-popover-trigger>
                               <ui-popover-content
-                                class="w-80"
+                                class="w-80 max-w-[calc(100vw-2rem)]"
                                 strategy="fixed"
                                 align="end"
                               >
@@ -644,7 +644,7 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                                 </button>
                               </ui-popover-trigger>
                               <ui-popover-content
-                                class="w-80"
+                                class="w-80 max-w-[calc(100vw-2rem)]"
                                 strategy="fixed"
                                 align="end"
                               >
@@ -667,7 +667,7 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                     ) {
                       <button
                         type="button"
-                        class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover/head:opacity-100 hover:bg-accent hover:text-accent-foreground transition-opacity"
+                        class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover/head:opacity-100 touch-visible hover:bg-accent hover:text-accent-foreground transition-opacity"
                         [attr.aria-label]="'Column menu for ' + col.header"
                         (click)="onColumnMenuClick($event, col)"
                       >
@@ -706,7 +706,7 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
                 @for (col of enhancedColumns(); track col.accessorKey) {
                   <ui-table-head
                     [style]="getHeaderCellStyle(col)"
-                    class="sticky top-[var(--header-height,41px)] z-20 bg-muted/50 py-1 px-1"
+                    class="sticky top-[var(--header-height,41px)] z-20 bg-muted/50 py-1 px-1 overflow-hidden"
                   >
                     @if (
                       col.floatingFilter !== false &&
@@ -2618,10 +2618,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private _buildCellStyle(col: CellStyleColumn, isHeader: boolean): Record<string, string> {
     const width = col._width;
     const isAuto = width === "auto";
+    const isSpecial = col.accessorKey === "_selection" || col.accessorKey === "_expander" || col.accessorKey === "_actions";
+    const minColWidth = isSpecial ? "0px" : "80px";
 
     const style: Record<string, string> = {
       width: isAuto ? "0px" : width,
-      "min-width": isAuto ? "0px" : width,
+      "min-width": isAuto ? minColWidth : width,
       "max-width": isAuto ? "none" : width,
       "flex-shrink": isAuto ? "1" : "0",
       "flex-grow": isAuto ? "1" : "0",

@@ -166,8 +166,8 @@
 
     /* Minimum touch target size (WCAG 2.5.8) */
     @media (pointer: coarse) {
-        button:not([data-slot]),
-        [role="button"]:not([data-slot]),
+        button:not([data-slot]):not([data-swatch]):not([data-grid-cell]):not([data-star]):not([data-color-btn]),
+        [role="button"]:not([data-slot]):not([data-swatch]):not([data-grid-cell]):not([data-star]):not([data-color-btn]),
         input,
         select,
         textarea {

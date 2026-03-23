@@ -4,7 +4,7 @@
     A powerful table component with sorting, filtering, and pagination.
   </p>
 
-  <div class="flex items-center gap-2 mb-2">
+  <div class="flex flex-wrap items-center gap-2 mb-2">
     <ui-button variant="outline" size="sm" (click)="clientTable.exportToCsv('payments')" (keydown.enter)="clientTable.exportToCsv('payments')">
       Export CSV
     </ui-button>
@@ -12,7 +12,7 @@
       Export Excel
     </ui-button>
   </div>
-  <div class="rounded-md border h-[600px] overflow-auto relative">
+  <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
     <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
       [(rowSelection)]="selection" [rowActions]="paymentRowActions" />
   </div>
@@ -28,7 +28,7 @@
     Drag the right edge of column headers to resize columns. Minimum width is enforced.
   </p>
 
-  <div class="rounded-md border h-[600px] overflow-auto relative">
+  <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
     <ui-data-table [data]="payments()" [columns]="resizableColumns" [enableColumnResize]="true"
       (columnResize)="onColumnResize($event)" />
   </div>
@@ -41,7 +41,7 @@
     Simulated server-side sorting, filtering, and pagination with 1s delay.
   </p>
 
-  <div class="flex items-center gap-2 mb-2">
+  <div class="flex flex-wrap items-center gap-2 mb-2">
     <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-all', payments())" (keydown.enter)="serverGrid.exportToExcel('payments-all', payments())">
       Export All (inline data)
     </ui-button>
@@ -112,7 +112,7 @@
     </div>
   </div>
 
-  <div class="rounded-md border h-[680px] overflow-auto relative">
+  <div class="rounded-md border h-[400px] sm:h-[680px] overflow-auto relative">
     <ui-data-table #opsGrid [data]="opsData()" [columns]="opsColumns" [total]="opsTotal()"
       [loading]="opsLoading()" [loadingVisibility]="opsLoadingVisibility()"
       [loaderComponent]="opsLoaderComponent" [loaderComponentInputs]="{ total: opsTotal() }"
@@ -178,7 +178,7 @@
     type and inputs.
   </p>
 
-  <div class="rounded-md border h-[600px] overflow-auto relative">
+  <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
     <ui-data-table [data]="payments()" [columns]="customCellsColumns" />
   </div>
 </section>
@@ -196,7 +196,7 @@
     <ui-button size="sm" variant="outline" (click)="treeTable.collapseAllSubRows()" (keydown.enter)="treeTable.collapseAllSubRows()">Collapse All</ui-button>
     <ui-button size="sm" variant="outline" (click)="treeTable.expandAllSubRows(1)" (keydown.enter)="treeTable.expandAllSubRows(1)">Expand Level 1</ui-button>
 
-    <div class="ml-auto flex items-center gap-4 text-xs text-muted-foreground">
+    <div class="flex flex-wrap items-center gap-2 sm:gap-4 text-xs text-muted-foreground w-full sm:w-auto sm:ml-auto">
       <span class="flex items-center gap-2">
         Selection mode:
       </span>
@@ -209,7 +209,7 @@
       <span class="flex items-center gap-2">
         Filter mode:
       </span>
-      <select class="rounded-md border bg-background px-2 py-1 text-xs" [value]="treeFilterMode()" (change)="treeFilterMode.set($any($event.target).value)">
+      <select class="rounded-md border bg-background px-2 py-1 text-xs max-w-[180px] sm:max-w-none truncate" [value]="treeFilterMode()" (change)="treeFilterMode.set($any($event.target).value)">
         <option value="includeParentOnChildMatch">includeParentOnChildMatch</option>
         <option value="includeChildren">includeChildren</option>
         <option value="excludeChildren">excludeChildren</option>
@@ -240,7 +240,7 @@
     </div>
   }
 
-  <div class="rounded-md border h-[600px] overflow-auto relative">
+  <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
     <ui-data-table #treeTable
       [data]="orgTreeData()"
       [columns]="orgTreeColumns"
@@ -326,7 +326,7 @@
     Double-click or press Enter/F2 on a focused cell to edit. Escape cancels, Enter commits, Tab moves to the next cell.
     Supports text, number, and select editors out of the box.
   </p>
-  <div style="height: 400px;">
+  <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="editableData()"
       [columns]="editableColumns"
@@ -352,7 +352,7 @@
     Columns can define <code class="text-xs bg-muted px-1 rounded">aggregateFn</code> (sum, avg, count, min, max) or a custom <code class="text-xs bg-muted px-1 rounded">footer</code> string/function.
     The footer row auto-appears when any column has an aggregate.
   </p>
-  <div style="height: 400px;">
+  <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
       [columns]="footerColumns"
@@ -369,7 +369,7 @@
     Enable <code class="text-xs bg-muted px-1 rounded">enableColumnMenu</code> to show a dropdown on each header with Sort, Pin, Hide, and Show All options.
     Hover over a column header to see the menu button.
   </p>
-  <div style="height: 400px;">
+  <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
       [columns]="menuColumns"
@@ -386,7 +386,7 @@
     Per-column filter inputs rendered in a second header row. Always visible, no popover needed.
     Enable with <code class="text-xs bg-muted px-1 rounded">enableFloatingFilters</code>.
   </p>
-  <div style="height: 400px;">
+  <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
       [columns]="floatingFilterColumns"
@@ -403,7 +403,7 @@
     Rows with <code class="text-xs bg-muted px-1 rounded">status === 'failed'</code> are disabled via the <code class="text-xs bg-muted px-1 rounded">isRowDisabled</code> function.
     Disabled rows cannot be selected, edited, or dragged. Keyboard navigation skips them.
   </p>
-  <div style="height: 400px;">
+  <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
       [columns]="paymentColumns"
@@ -421,7 +421,7 @@
     Drag rows to reorder. Failed rows are disabled and cannot be dragged.
     The blue indicator shows the drop position.
   </p>
-  <div style="height: 350px;">
+  <div class="h-[280px] sm:h-[350px]">
     <ui-data-table
       [data]="draggableData()"
       [columns]="paymentColumns"
@@ -447,7 +447,7 @@
   <p class="text-muted-foreground">
     Click a cell to focus it, then Shift+Click another to select a range. Ctrl+C copies the range as tab-separated text. Escape clears the range.
   </p>
-  <div style="height: 400px;">
+  <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
       [columns]="paymentColumns"
@@ -465,7 +465,7 @@
     Type-safe fluent API for defining columns:
     <code class="text-xs bg-muted px-1 rounded">columnHelper&lt;T&gt;().accessor('name', 'Name', &#123; ... &#125;).build()</code>
   </p>
-  <div style="height: 350px;">
+  <div class="h-[280px] sm:h-[350px]">
     <ui-data-table
       [data]="payments()"
       [columns]="builderColumns"
@@ -535,7 +535,7 @@
     </ui-card-content>
   </ui-card>
 
-  <div class="rounded-md border h-[600px] relative">
+  <div class="rounded-md border h-[400px] sm:h-[600px] relative">
     <ui-data-table
       #virtualTable
       [data]="virtualDemoData"

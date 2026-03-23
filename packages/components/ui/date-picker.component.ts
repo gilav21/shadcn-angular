@@ -31,8 +31,14 @@ function calculatePopupPosition(element: HTMLElement): PopupPosition {
     offsetX = boundary.left - rect.left + 8;
   }
 
-  if (rect.bottom > boundary.bottom) {
-    actualSide = 'top';
+  const overflowBottom = rect.bottom - boundary.bottom;
+  const parentEl = element.parentElement;
+  const parentRect = parentEl?.getBoundingClientRect();
+  const spaceAbove = parentRect ? parentRect.top - boundary.top : 0;
+  const spaceBelow = parentRect ? boundary.bottom - parentRect.bottom : 0;
+
+  if (overflowBottom > 0) {
+    actualSide = spaceAbove > spaceBelow ? 'top' : 'bottom';
   }
 
   return { offsetX, actualSide };
@@ -160,7 +166,7 @@ export class DatePickerComponent implements ControlValueAccessor {
   }
 
   readonly buttonClasses = computed(() => cn(
-    'inline-flex h-10 w-[240px] items-center justify-start rounded-md border border-input bg-background px-4 py-2 text-sm font-normal ring-offset-background',
+    'inline-flex h-10 w-full sm:w-[240px] items-center justify-start rounded-md border border-input bg-background px-4 py-2 text-sm font-normal ring-offset-background',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     'disabled:cursor-not-allowed disabled:opacity-50',
@@ -331,7 +337,7 @@ export class DateRangePickerComponent implements ControlValueAccessor {
   }
 
   readonly buttonClasses = computed(() => cn(
-    'inline-flex h-10 w-[300px] items-center justify-start rounded-md border border-input bg-background px-4 py-2 text-sm font-normal ring-offset-background',
+    'inline-flex h-10 w-full sm:w-[300px] items-center justify-start rounded-md border border-input bg-background px-4 py-2 text-sm font-normal ring-offset-background',
     'hover:bg-accent hover:text-accent-foreground',
     'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     'disabled:cursor-not-allowed disabled:opacity-50',
