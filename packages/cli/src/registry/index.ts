@@ -210,7 +210,7 @@ export const registry = defineRegistry({
     name: 'file-viewer',
     files: ['file-viewer.component.ts'],
     dependencies: ['spinner'],
-    libFiles: ['doc-enhanced-parser.ts', 'docx-parser.ts', 'file-type-detector.ts', 'image-validator.ts', 'inflate.ts', 'ole2-reader.ts', 'ppt-parser.ts', 'pptx-parser.ts', 'svg-sanitizer.ts', 'xlsx-reader.ts', 'zip-reader.ts'],
+    libFiles: ['doc-enhanced-parser.ts', 'docx-parser.ts', 'file-type-detector.ts', 'image-validator.ts', 'inflate.ts', 'ole2-reader.ts', 'pdf-parser.ts', 'ppt-parser.ts', 'pptx-parser.ts', 'svg-sanitizer.ts', 'xlsx-reader.ts', 'zip-reader.ts'],
   },
   'hover-card': {
     name: 'hover-card',
