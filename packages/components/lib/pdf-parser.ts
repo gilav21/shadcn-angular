@@ -4395,46 +4395,6 @@ export interface PdfParseResultPaged {
     readonly imageOnly: boolean;
 }
 
-function buildPositionedLayer(
-    images: ReadonlyArray<ImageItem>,
-    pathRects: ReadonlyArray<PathRect>,
-    pageHeight: number,
-    usedRects: ReadonlySet<PathRect>,
-): string {
-    const parts: string[] = [];
-
-    for (const rect of pathRects) {
-        if (usedRects.has(rect)) continue;
-        if (!rect.filled) continue;
-        if (rect.fillColor === '#000000' && rect.height < 2) continue;
-        if (rect.width < 3 || rect.height < 3) continue;
-        const cssTop = pageHeight - rect.y - rect.height;
-        parts.push(
-            `<div style="position:absolute;left:${rect.x}px;top:${cssTop}px;width:${rect.width}px;height:${rect.height}px;background:${rect.fillColor};pointer-events:none"></div>`,
-        );
-    }
-
-    for (const rect of pathRects) {
-        if (usedRects.has(rect)) continue;
-        if (!rect.stroked || rect.filled) continue;
-        if (rect.width < 3 && rect.height < 3) continue;
-        const cssTop = pageHeight - rect.y - rect.height;
-        const lw = Math.max(rect.lineWidth, 1);
-        parts.push(
-            `<div style="position:absolute;left:${rect.x}px;top:${cssTop}px;width:${rect.width}px;height:${rect.height}px;border:${lw}px solid ${rect.strokeColor};box-sizing:border-box;pointer-events:none"></div>`,
-        );
-    }
-
-    for (const img of images) {
-        const cssTop = pageHeight - img.y - img.height;
-        parts.push(
-            `<img src="${img.dataUrl}" alt="" style="position:absolute;left:${img.x}px;top:${cssTop}px;width:${img.width}px;height:${img.height}px;max-width:none;pointer-events:none" />`,
-        );
-    }
-
-    return parts.join('\n');
-}
-
 function buildPageResult(
     pageTextItems: TextItem[], pageImageItems: ImageItem[], pagePathRects: PathRect[],
     pageIndex: number, structureMap: StructureMap,
@@ -4443,41 +4403,18 @@ function buildPageResult(
     const deduped = deduplicateTextItems(pageTextItems);
 
     if (deduped.length === 0 && pageImageItems.length > 0) {
-        const posLayer = buildPositionedLayer(pageImageItems, [], pageHeight, new Set());
-        const html = `<div style="position:relative;width:${pageWidth}px;height:${pageHeight}px">${posLayer}</div>`;
-        return { html, text: '', imageOnly: true, pageIndex, pageWidth, pageHeight };
+        const sortedImages = [...pageImageItems].sort((a, b) => b.y - a.y);
+        const imgTags = sortedImages
+            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto" />`)
+            .join('\n');
+        return { html: imgTags, text: '', imageOnly: true, pageIndex, pageWidth, pageHeight };
     }
 
     if (deduped.length === 0) {
         return { html: '', text: '', imageOnly: false, pageIndex, pageWidth, pageHeight };
     }
 
-    const mergedForUnderline = mergeAdjacentChars(deduped);
-    const { usedRects } = detectUnderlines(pagePathRects, mergedForUnderline);
-    const tableGrids = detectTableGrids(pagePathRects, pageIndex);
-    const tableUsedRects = new Set<PathRect>(usedRects);
-    for (const grid of tableGrids) {
-        for (const rect of pagePathRects) {
-            if (rect.x >= grid.x - 2 && rect.x + rect.width <= grid.x + grid.width + 2 &&
-                rect.y >= grid.y - 2 && rect.y + rect.height <= grid.y + grid.height + 2) {
-                tableUsedRects.add(rect);
-            }
-        }
-    }
-
-    const posLayer = buildPositionedLayer(pageImageItems, pagePathRects, pageHeight, tableUsedRects);
-    const textHtml = textItemsToHtml(deduped, [], structureMap, pagePathRects, pageWidth, pageHeight);
-
-    let html: string;
-    if (posLayer) {
-        html = `<div style="position:relative;width:${pageWidth}px;min-height:${pageHeight}px">` +
-            `<div style="position:absolute;inset:0;overflow:hidden">${posLayer}</div>` +
-            `<div style="position:relative;z-index:1">${textHtml}</div>` +
-            `</div>`;
-    } else {
-        html = textHtml;
-    }
-
+    const html = textItemsToHtml(deduped, pageImageItems, structureMap, pagePathRects, pageWidth, pageHeight);
     const sorted = [...deduped].sort((a, b) => {
         if (Math.abs(a.y - b.y) > 2) return b.y - a.y;
         return a.x - b.x;

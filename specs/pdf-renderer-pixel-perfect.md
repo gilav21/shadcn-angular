@@ -247,10 +247,10 @@ What the parser already handles correctly:
 - [x] **1.1** Add `pageWidth` / `pageHeight` to `PdfPageResult` + fix CropBox precedence (Gap 5.1)
 - [x] **1.2** Wrap page HTML in a sized container div using actual page dimensions + RTL detection
 
-### Sprint 2 — Visual Fidelity Foundation ✅ Done
-- [x] **2.1** Absolute-position images within page container (fixes Gap 1.2)
-- [x] **2.2** Render background fill rectangles as positioned divs (fixes Gap 1.3)
-- [x] **2.3** Render decorative lines and borders (fixes Gap 1.4)
+### Sprint 2 — Visual Fidelity Foundation (Partially Done)
+- [ ] **2.1** Absolute-position images within page container (fixes Gap 1.2) — reverted, requires pixel-perfect mode (fixed-size container + scale-to-fit). Currently using inline images sorted by Y-position for flowing text mode.
+- [ ] **2.2** Render background fill rectangles as positioned divs (fixes Gap 1.3) — reverted, same reason. Blocked on pixel-perfect mode.
+- [ ] **2.3** Render decorative lines and borders (fixes Gap 1.4) — reverted, same reason.
 - [x] **2.4** Image transparency via SMask → RGBA PNG (fixes Gap 1.5)
 - [x] **2.5** Fix CropBox precedence over MediaBox (fixes Gap 5.1) — moved to Sprint 1
 
@@ -307,7 +307,7 @@ What the parser already handles correctly:
 
 > _Add your comments, questions, and decisions here as the spec evolves._
 
-- [ ] **Decision needed:** Should the page container scale to fit the viewer width (like a real PDF viewer), or render at actual PDF points size? Current PPTX approach scales via CSS `transform: scale()`.
+- [x] **Decision made:** Use flowing text mode with `max-w-3xl` container (not fixed PDF dimensions). Absolute positioning requires a scale-to-fit approach that conflicted with flowing text. Keeping flowing text for now — pixel-perfect mode (fixed container + CSS scale) can be added as a toggle later.
 - [ ] **Decision needed:** Sprint 1 uses `[style.zoom]` for zoom (same as DOCX). Should we switch to `transform: scale()` for better mobile support?
 - [ ] **Consider:** The `text` field in `PdfPageResult` is used by the rich-text editor. Any layout changes in the HTML output must not affect the `text` extraction output.
 - [ ] **Consider:** Sprints 2–4 require the page-sized container from Sprint 1.2 — those tasks are blocked until 1.2 lands.
