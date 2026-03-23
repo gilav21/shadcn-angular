@@ -56,6 +56,37 @@ const HEADING_CLASSES: Record<number, string> = {
     selector: 'ui-file-viewer',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [SpinnerComponent],
+    styles: `
+        .pdf-page {
+            line-height: 1.6;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+        }
+        .pdf-page img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0.5rem auto;
+        }
+        .pdf-page p {
+            margin: 0.25em 0;
+        }
+        .pdf-page h1, .pdf-page h2, .pdf-page h3,
+        .pdf-page h4, .pdf-page h5, .pdf-page h6 {
+            margin-top: 1em;
+            margin-bottom: 0.4em;
+        }
+        .pdf-page table {
+            margin: 0.5em 0;
+        }
+        .pdf-page td {
+            vertical-align: top;
+        }
+        .pdf-page ul, .pdf-page ol {
+            margin: 0.25em 0;
+            padding-inline-start: 1.5em;
+        }
+    `,
     template: `
         <div [class]="containerClasses()" [attr.data-slot]="'file-viewer'" [style.height]="height()">
             @if (hasCustomContent()) {
@@ -145,9 +176,12 @@ const HEADING_CLASSES: Record<number, string> = {
                                     </div>
                                 }
                                 @case ('pdf') {
-                                    <div class="p-4 sm:p-6 max-w-4xl mx-auto overflow-auto h-full"
-                                         [style.zoom]="currentZoom()"
-                                         [innerHTML]="currentPdfPageHtml()">
+                                    <div class="overflow-auto h-full bg-muted/40 flex justify-center py-4 sm:py-6"
+                                         [style.zoom]="currentZoom()">
+                                        <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full max-w-[800px] min-h-full px-8 sm:px-12 py-10 sm:py-14 mx-4 sm:mx-6"
+                                             [attr.dir]="pdfPageRtl() ? 'rtl' : null"
+                                             [innerHTML]="currentPdfPageHtml()">
+                                        </div>
                                     </div>
                                 }
                                 @case ('xlsx') {
@@ -372,6 +406,27 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             return this.sanitizer.bypassSecurityTrustHtml(pages[idx].html);
         }
         return '';
+    });
+
+    readonly pdfPageRtl = computed(() => {
+        const pages = this.pdfPages();
+        const idx = this.currentPage() - 1;
+        if (idx < 0 || idx >= pages.length) return false;
+        const text = pages[idx].text;
+        if (!text) return false;
+        let rtlCount = 0;
+        let totalCount = 0;
+        for (let i = 0; i < text.length; i++) {
+            const code = text.codePointAt(i) ?? 0;
+            if (code <= 0x20) continue;
+            totalCount++;
+            if ((code >= 0x0590 && code <= 0x05FF) || (code >= 0xFB1D && code <= 0xFB4F) ||
+                (code >= 0x0600 && code <= 0x06FF) || (code >= 0xFB50 && code <= 0xFDFF) ||
+                (code >= 0xFE70 && code <= 0xFEFF)) {
+                rtlCount++;
+            }
+        }
+        return totalCount > 0 && rtlCount > totalCount * 0.3;
     });
 
     readonly currentSlideHtml = computed<SafeHtml>(() => {

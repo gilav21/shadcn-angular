@@ -3461,7 +3461,7 @@ function insertImagesBeforeY(state: HtmlBuilderState, sortedImages: ImageItem[],
         if (img.page > page || (img.page === page && img.y < y)) break;
         flushParagraph(state);
         closeList(state);
-        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" />`);
+        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" style="max-width:100%;height:auto" />`);
         state.imageIdx++;
     }
 }
@@ -3979,7 +3979,7 @@ function textItemsToHtml(
 
     while (state.imageIdx < sortedImages.length) {
         const img = sortedImages[state.imageIdx];
-        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" />`);
+        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" style="max-width:100%;height:auto" />`);
         state.imageIdx++;
     }
 
@@ -4217,7 +4217,7 @@ export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
     if (dedupedItems.length === 0 && allImageItems.length > 0) {
         allImageItems.sort((a, b) => a.page === b.page ? b.y - a.y : a.page - b.page);
         const imgTags = allImageItems
-            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" />`)
+            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto" />`)
             .join('\n');
         return { html: imgTags, text: '', imageOnly: true };
     }
@@ -4267,7 +4267,7 @@ function buildPageResult(
     if (deduped.length === 0 && pageImageItems.length > 0) {
         const sortedImages = [...pageImageItems].sort((a, b) => b.y - a.y);
         const imgTags = sortedImages
-            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" />`)
+            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto" />`)
             .join('\n');
         return { html: imgTags, text: '', imageOnly: true, pageIndex };
     }
