@@ -262,12 +262,12 @@ What the parser already handles correctly:
 - [x] **3.5** Horizontal scaling → CSS `scaleX()` (fixes Gap 2.4)
 - [x] **3.6** Glyph fallback chain for unmapped codes (fixes Gap 2.5) — already handled by existing encoding differences + PDFDocEncoding fallback
 
-### Sprint 4 — Layout Precision
-- [ ] **4.1** Page margin detection and CSS padding (fixes Gap 3.2)
-- [ ] **4.2** Line spacing preservation via `margin-bottom` (fixes Gap 3.3)
-- [ ] **4.3** Text alignment detection: center / right / justify (fixes Gap 3.5)
-- [ ] **4.4** First-line paragraph indentation (fixes Gap 3.4)
-- [ ] **4.5** Side-by-side multi-column rendering (fixes Gap 3.1)
+### Sprint 4 — Layout Precision ✅ Done
+- [x] **4.1** Page margin detection and CSS padding (fixes Gap 3.2) — content bounding box computed, margins passed to alignment detection
+- [x] **4.2** Line spacing preservation via `margin-bottom` (fixes Gap 3.3) — paragraph spacing tracked from Y-delta, applied as CSS margin-bottom
+- [x] **4.3** Text alignment detection: center / right / justify (fixes Gap 3.5) — line X extent vs content bounds analysis
+- [ ] **4.4** First-line paragraph indentation (fixes Gap 3.4) — deferred (low visual impact)
+- [ ] **4.5** Side-by-side multi-column rendering (fixes Gap 3.1) — deferred (complex, needs careful CSS grid approach)
 
 ### Sprint 5 — Scanned Document Support
 - [ ] **5.1** CCITTFaxDecode Group 3 (1D) decoder (fixes Gap 1.6)

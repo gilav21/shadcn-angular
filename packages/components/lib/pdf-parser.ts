@@ -3509,6 +3509,8 @@ interface HtmlBuilderState {
     inNumberedList: boolean;
     currentParagraph: string[];
     currentParagraphRTL: boolean;
+    currentParagraphAlign: string;
+    currentParagraphSpacingPx: number;
     lastY: number | null;
     lastPage: number;
     lastLineSpacing: number;
@@ -3519,9 +3521,19 @@ function flushParagraph(state: HtmlBuilderState): void {
     if (state.currentParagraph.length === 0) return;
     const text = state.currentParagraph.join('<br>');
     const dir = state.currentParagraphRTL ? ' dir="rtl"' : '';
-    state.html.push(`<p${dir}>${text}</p>`);
+    const styles: string[] = [];
+    if (state.currentParagraphAlign) {
+        styles.push(`text-align:${state.currentParagraphAlign}`);
+    }
+    if (state.currentParagraphSpacingPx > 2) {
+        styles.push(`margin-bottom:${Math.round(state.currentParagraphSpacingPx * 0.75)}px`);
+    }
+    const styleAttr = styles.length > 0 ? ` style="${styles.join(';')}"` : '';
+    state.html.push(`<p${dir}${styleAttr}>${text}</p>`);
     state.currentParagraph = [];
     state.currentParagraphRTL = false;
+    state.currentParagraphAlign = '';
+    state.currentParagraphSpacingPx = 0;
 }
 
 function closeList(state: HtmlBuilderState): void {
@@ -3948,11 +3960,46 @@ function isLineInsideBorderBox(line: TextLine, boxes: PathRect[]): PathRect | un
     return undefined;
 }
 
+function detectTextAlignment(line: TextLine, pageWidth: number, leftMargin: number, rightMargin: number): string {
+    if (pageWidth <= 0) return '';
+    const lineLeft = Math.min(...line.items.map(it => it.x));
+    const lineRight = Math.max(...line.items.map(it => it.endX));
+    const contentWidth = rightMargin - leftMargin;
+    if (contentWidth <= 0) return '';
+
+    const leftDist = lineLeft - leftMargin;
+    const rightDist = rightMargin - lineRight;
+
+    if (leftDist > contentWidth * 0.25 && rightDist > contentWidth * 0.25) {
+        return 'center';
+    }
+    if (leftDist > contentWidth * 0.2 && rightDist < contentWidth * 0.05) {
+        return 'right';
+    }
+    return '';
+}
+
+function computeContentBounds(textItems: ReadonlyArray<TextItem>): { left: number; right: number; top: number; bottom: number } {
+    let left = Infinity;
+    let right = -Infinity;
+    let top = -Infinity;
+    let bottom = Infinity;
+    for (const item of textItems) {
+        if (item.x < left) left = item.x;
+        if (item.endX > right) right = item.endX;
+        if (item.y > top) top = item.y;
+        if (item.y - item.fontSize < bottom) bottom = item.y - item.fontSize;
+    }
+    return { left, right, top, bottom };
+}
+
 function textItemsToHtml(
     textItems: TextItem[],
     imageItems: ImageItem[],
     structureMap: StructureMap,
     pathRects: PathRect[] = [],
+    pageWidth = 0,
+    pageHeight = 0,
 ): string {
     const mergedItems = mergeAdjacentChars(textItems);
     const rawLines = groupIntoLines(mergedItems);
@@ -3960,6 +4007,10 @@ function textItemsToHtml(
     const lines = detectColumns(rawLines);
     const bodySize = detectBodyFontSize(mergedItems);
     const bodyFont = detectBodyFont(mergedItems);
+
+    const contentBounds = computeContentBounds(mergedItems);
+    const leftMargin = pageWidth > 0 ? contentBounds.left : 0;
+    const rightMargin = pageWidth > 0 ? contentBounds.right : pageWidth;
 
     const { underlinedItems, usedRects } = detectUnderlines(pathRects, mergedItems);
     const remainingRects = pathRects.filter(r => !usedRects.has(r));
@@ -3983,6 +4034,7 @@ function textItemsToHtml(
     const state: HtmlBuilderState = {
         html: [], inBulletList: false, inNumberedList: false,
         currentParagraph: [], currentParagraphRTL: false,
+        currentParagraphAlign: '', currentParagraphSpacingPx: 0,
         lastY: null, lastPage: -1, lastLineSpacing: 0, imageIdx: 0,
     };
 
@@ -4040,6 +4092,15 @@ function textItemsToHtml(
                 lineSpacing > bodySize * 2
             );
         const isPageBreak = state.lastPage !== -1 && line.items[0].page !== state.lastPage;
+
+        if (isParagraphBreak && lineSpacing > 0) {
+            state.currentParagraphSpacingPx = lineSpacing - (state.lastLineSpacing > 0 ? state.lastLineSpacing : bodySize);
+        }
+
+        const align = pageWidth > 0 ? detectTextAlignment(line, pageWidth, leftMargin, rightMargin) : '';
+        if (align && state.currentParagraph.length === 0) {
+            state.currentParagraphAlign = align;
+        }
 
         processHtmlLineWithUnderlines(line, lineText, bodySize, bodyFont, state, isParagraphBreak, isPageBreak, underlinedItems, structureMap);
 
@@ -4405,7 +4466,7 @@ function buildPageResult(
     }
 
     const posLayer = buildPositionedLayer(pageImageItems, pagePathRects, pageHeight, tableUsedRects);
-    const textHtml = textItemsToHtml(deduped, [], structureMap, pagePathRects);
+    const textHtml = textItemsToHtml(deduped, [], structureMap, pagePathRects, pageWidth, pageHeight);
 
     let html: string;
     if (posLayer) {
