@@ -1,6 +1,6 @@
 # PDF Renderer: Full Spec & Roadmap to Pixel Perfect
 
-> **Status:** In Progress
+> **Status:** Sprints 1-4 Complete (core visual fidelity)
 > **Last updated:** 2026-03-23
 > **Owner:** gilav21
 
