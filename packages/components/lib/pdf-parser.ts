@@ -2780,6 +2780,22 @@ function pixelToRgb(
     return [0, 0, 0];
 }
 
+function decodeSMask(dict: Record<string, PdfObject>, reader: PdfReader, width: number, height: number): Uint8Array | null {
+    const smaskRef = dict['SMask'];
+    if (!smaskRef) return null;
+    try {
+        const smaskDict = reader.getDict(smaskRef);
+        const smaskW = reader.getNumber(smaskDict['Width']);
+        const smaskH = reader.getNumber(smaskDict['Height']);
+        if (smaskW !== width || smaskH !== height) return null;
+        const maskData = reader.getStreamData(smaskRef);
+        if (maskData.length < width * height) return null;
+        return maskData;
+    } catch {
+        return null;
+    }
+}
+
 function rawPixelsToPng(
     decoded: Uint8Array,
     width: number,
@@ -2795,29 +2811,37 @@ function rawPixelsToPng(
     const expectedBytes = width * height * srcChannels * bytesPerSample;
     if (decoded.length < expectedBytes * 0.8) return null;
 
+    const smask = decodeSMask(dict, reader, width, height);
+    const hasAlpha = smask !== null;
+    const pixelBytes = hasAlpha ? 4 : 3;
+
     const pngRows: Uint8Array[] = [];
     const rowBytes = width * srcChannels * bytesPerSample;
 
     for (let row = 0; row < height; row++) {
         const rowStart = row * rowBytes;
-        const rgbRow = new Uint8Array(width * 3);
+        const pixelRow = new Uint8Array(width * pixelBytes);
         for (let col = 0; col < width; col++) {
             const srcIdx = rowStart + col * srcChannels * bytesPerSample;
             const [r, g, b] = pixelToRgb(decoded, srcIdx, channels, indexed, lookupTable, baseChannels);
-            rgbRow[col * 3] = r;
-            rgbRow[col * 3 + 1] = g;
-            rgbRow[col * 3 + 2] = b;
+            const outIdx = col * pixelBytes;
+            pixelRow[outIdx] = r;
+            pixelRow[outIdx + 1] = g;
+            pixelRow[outIdx + 2] = b;
+            if (hasAlpha) {
+                pixelRow[outIdx + 3] = smask[row * width + col];
+            }
         }
-        const filterRow = new Uint8Array(1 + width * 3);
+        const filterRow = new Uint8Array(1 + width * pixelBytes);
         filterRow[0] = 0;
-        filterRow.set(rgbRow, 1);
+        filterRow.set(pixelRow, 1);
         pngRows.push(filterRow);
     }
 
-    return buildPng(width, height, pngRows);
+    return buildPng(width, height, pngRows, hasAlpha);
 }
 
-function buildPng(width: number, height: number, rows: Uint8Array[]): Uint8Array {
+function buildPng(width: number, height: number, rows: Uint8Array[], hasAlpha = false): Uint8Array {
     const rawDataSize = rows.reduce((sum, r) => sum + r.length, 0);
     const rawData = new Uint8Array(rawDataSize);
     let offset = 0;
@@ -2866,7 +2890,7 @@ function buildPng(width: number, height: number, rows: Uint8Array[]): Uint8Array
         v.setUint32(0, width);
         v.setUint32(4, height);
         d[8] = 8;
-        d[9] = 2;
+        d[9] = hasAlpha ? 6 : 2;
         d[10] = 0;
         d[11] = 0;
         d[12] = 0;
@@ -4267,6 +4291,46 @@ export interface PdfParseResultPaged {
     readonly imageOnly: boolean;
 }
 
+function buildPositionedLayer(
+    images: ReadonlyArray<ImageItem>,
+    pathRects: ReadonlyArray<PathRect>,
+    pageHeight: number,
+    usedRects: ReadonlySet<PathRect>,
+): string {
+    const parts: string[] = [];
+
+    for (const rect of pathRects) {
+        if (usedRects.has(rect)) continue;
+        if (!rect.filled) continue;
+        if (rect.fillColor === '#000000' && rect.height < 2) continue;
+        if (rect.width < 3 || rect.height < 3) continue;
+        const cssTop = pageHeight - rect.y - rect.height;
+        parts.push(
+            `<div style="position:absolute;left:${rect.x}px;top:${cssTop}px;width:${rect.width}px;height:${rect.height}px;background:${rect.fillColor};pointer-events:none"></div>`,
+        );
+    }
+
+    for (const rect of pathRects) {
+        if (usedRects.has(rect)) continue;
+        if (!rect.stroked || rect.filled) continue;
+        if (rect.width < 3 && rect.height < 3) continue;
+        const cssTop = pageHeight - rect.y - rect.height;
+        const lw = Math.max(rect.lineWidth, 1);
+        parts.push(
+            `<div style="position:absolute;left:${rect.x}px;top:${cssTop}px;width:${rect.width}px;height:${rect.height}px;border:${lw}px solid ${rect.strokeColor};box-sizing:border-box;pointer-events:none"></div>`,
+        );
+    }
+
+    for (const img of images) {
+        const cssTop = pageHeight - img.y - img.height;
+        parts.push(
+            `<img src="${img.dataUrl}" alt="" style="position:absolute;left:${img.x}px;top:${cssTop}px;width:${img.width}px;height:${img.height}px;max-width:none;pointer-events:none" />`,
+        );
+    }
+
+    return parts.join('\n');
+}
+
 function buildPageResult(
     pageTextItems: TextItem[], pageImageItems: ImageItem[], pagePathRects: PathRect[],
     pageIndex: number, structureMap: StructureMap,
@@ -4275,18 +4339,41 @@ function buildPageResult(
     const deduped = deduplicateTextItems(pageTextItems);
 
     if (deduped.length === 0 && pageImageItems.length > 0) {
-        const sortedImages = [...pageImageItems].sort((a, b) => b.y - a.y);
-        const imgTags = sortedImages
-            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto" />`)
-            .join('\n');
-        return { html: imgTags, text: '', imageOnly: true, pageIndex, pageWidth, pageHeight };
+        const posLayer = buildPositionedLayer(pageImageItems, [], pageHeight, new Set());
+        const html = `<div style="position:relative;width:${pageWidth}px;height:${pageHeight}px">${posLayer}</div>`;
+        return { html, text: '', imageOnly: true, pageIndex, pageWidth, pageHeight };
     }
 
     if (deduped.length === 0) {
         return { html: '', text: '', imageOnly: false, pageIndex, pageWidth, pageHeight };
     }
 
-    const html = textItemsToHtml(deduped, pageImageItems, structureMap, pagePathRects);
+    const mergedForUnderline = mergeAdjacentChars(deduped);
+    const { usedRects } = detectUnderlines(pagePathRects, mergedForUnderline);
+    const tableGrids = detectTableGrids(pagePathRects, pageIndex);
+    const tableUsedRects = new Set<PathRect>(usedRects);
+    for (const grid of tableGrids) {
+        for (const rect of pagePathRects) {
+            if (rect.x >= grid.x - 2 && rect.x + rect.width <= grid.x + grid.width + 2 &&
+                rect.y >= grid.y - 2 && rect.y + rect.height <= grid.y + grid.height + 2) {
+                tableUsedRects.add(rect);
+            }
+        }
+    }
+
+    const posLayer = buildPositionedLayer(pageImageItems, pagePathRects, pageHeight, tableUsedRects);
+    const textHtml = textItemsToHtml(deduped, [], structureMap, pagePathRects);
+
+    let html: string;
+    if (posLayer) {
+        html = `<div style="position:relative;width:${pageWidth}px;min-height:${pageHeight}px">` +
+            `<div style="position:absolute;inset:0;overflow:hidden">${posLayer}</div>` +
+            `<div style="position:relative;z-index:1">${textHtml}</div>` +
+            `</div>`;
+    } else {
+        html = textHtml;
+    }
+
     const sorted = [...deduped].sort((a, b) => {
         if (Math.abs(a.y - b.y) > 2) return b.y - a.y;
         return a.x - b.x;

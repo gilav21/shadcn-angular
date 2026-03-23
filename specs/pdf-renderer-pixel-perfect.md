@@ -247,11 +247,11 @@ What the parser already handles correctly:
 - [x] **1.1** Add `pageWidth` / `pageHeight` to `PdfPageResult` + fix CropBox precedence (Gap 5.1)
 - [x] **1.2** Wrap page HTML in a sized container div using actual page dimensions + RTL detection
 
-### Sprint 2 — Visual Fidelity Foundation
-- [ ] **2.1** Absolute-position images within page container (fixes Gap 1.2)
-- [ ] **2.2** Render background fill rectangles as positioned divs (fixes Gap 1.3)
-- [ ] **2.3** Render decorative lines and borders (fixes Gap 1.4)
-- [ ] **2.4** Image transparency via SMask → RGBA PNG (fixes Gap 1.5)
+### Sprint 2 — Visual Fidelity Foundation ✅ Done
+- [x] **2.1** Absolute-position images within page container (fixes Gap 1.2)
+- [x] **2.2** Render background fill rectangles as positioned divs (fixes Gap 1.3)
+- [x] **2.3** Render decorative lines and borders (fixes Gap 1.4)
+- [x] **2.4** Image transparency via SMask → RGBA PNG (fixes Gap 1.5)
 - [x] **2.5** Fix CropBox precedence over MediaBox (fixes Gap 5.1) — moved to Sprint 1
 
 ### Sprint 3 — Text Fidelity
