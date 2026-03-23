@@ -229,6 +229,11 @@ interface TextItem {
     italic: boolean;
     fontFamily: string;
     mcid: number;
+    charSpacing: number;
+    wordSpacing: number;
+    textRise: number;
+    horizontalScaling: number;
+    textRenderMode: number;
 }
 
 interface FontInfo {
@@ -1690,6 +1695,11 @@ function processTextShow(
         italic: fontInfo?.isItalic ?? false,
         fontFamily: fontInfo?.familyName ?? '',
         mcid: currentMcid,
+        charSpacing: gs.charSpacing,
+        wordSpacing: gs.wordSpacing,
+        textRise: gs.textRise,
+        horizontalScaling: gs.horizontalScaling,
+        textRenderMode: gs.textRenderMode,
     });
     gs.textMatrix[4] += advance;
 }
@@ -1743,6 +1753,11 @@ function processTJOperator(
         italic: fontInfo?.isItalic ?? false,
         fontFamily: fontInfo?.familyName ?? '',
         mcid: currentMcid,
+        charSpacing: gs.charSpacing,
+        wordSpacing: gs.wordSpacing,
+        textRise: gs.textRise,
+        horizontalScaling: gs.horizontalScaling,
+        textRenderMode: gs.textRenderMode,
     });
 }
 
@@ -3202,6 +3217,11 @@ function mergeAdjacentChars(items: TextItem[]): TextItem[] {
                 italic: current.italic || next.italic,
                 fontFamily: current.fontFamily || next.fontFamily,
                 mcid: current.mcid >= 0 ? current.mcid : next.mcid,
+                charSpacing: current.charSpacing,
+                wordSpacing: current.wordSpacing,
+                textRise: current.textRise,
+                horizontalScaling: current.horizontalScaling,
+                textRenderMode: current.textRenderMode,
             };
         } else {
             merged.push(current);
@@ -3365,12 +3385,35 @@ function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: 
     if (sizeRatio < 0.85 || sizeRatio > 1.15) {
         styles.push(`font-size: ${Math.round(item.fontSize)}pt`);
     }
+    if (Math.abs(item.charSpacing) > 0.1) {
+        styles.push(`letter-spacing: ${(item.charSpacing * 0.75).toFixed(1)}px`);
+    }
+    if (Math.abs(item.wordSpacing) > 0.5) {
+        styles.push(`word-spacing: ${(item.wordSpacing * 0.75).toFixed(1)}px`);
+    }
+    if (item.horizontalScaling !== 100 && Math.abs(item.horizontalScaling - 100) > 1) {
+        styles.push(`display:inline-block;transform:scaleX(${(item.horizontalScaling / 100).toFixed(2)})`);
+    }
+    applyTextRenderModeStyles(item, styles);
     if (styles.length > 0) {
         fragment = `<span style="${styles.join('; ')}">${fragment}</span>`;
+    }
+    if (item.textRise > 1) {
+        fragment = `<sup>${fragment}</sup>`;
+    } else if (item.textRise < -1) {
+        fragment = `<sub>${fragment}</sub>`;
     }
     if (item.italic) fragment = `<em>${fragment}</em>`;
     if (item.bold) fragment = `<strong>${fragment}</strong>`;
     return fragment;
+}
+
+function applyTextRenderModeStyles(item: TextItem, styles: string[]): void {
+    if (item.textRenderMode === 1) {
+        styles.push(`-webkit-text-stroke: 1px ${item.color}; color: transparent`);
+    } else if (item.textRenderMode === 2) {
+        styles.push(`-webkit-text-stroke: 1px ${item.color}`);
+    }
 }
 
 function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number): string {

@@ -254,13 +254,13 @@ What the parser already handles correctly:
 - [x] **2.4** Image transparency via SMask → RGBA PNG (fixes Gap 1.5)
 - [x] **2.5** Fix CropBox precedence over MediaBox (fixes Gap 5.1) — moved to Sprint 1
 
-### Sprint 3 — Text Fidelity
-- [ ] **3.1** CSS `letter-spacing` from `charSpacing` (fixes Gap 2.1)
-- [ ] **3.2** CSS `word-spacing` from `wordSpacing` (fixes Gap 2.1)
-- [ ] **3.3** Text rendering modes 1–2 (stroke/fill+stroke) → CSS (fixes Gap 2.2)
-- [ ] **3.4** Superscript/subscript from `textRise` (fixes Gap 2.3)
-- [ ] **3.5** Horizontal scaling → CSS `scaleX()` (fixes Gap 2.4)
-- [ ] **3.6** Glyph fallback chain for unmapped codes (fixes Gap 2.5)
+### Sprint 3 — Text Fidelity ✅ Done
+- [x] **3.1** CSS `letter-spacing` from `charSpacing` (fixes Gap 2.1)
+- [x] **3.2** CSS `word-spacing` from `wordSpacing` (fixes Gap 2.1)
+- [x] **3.3** Text rendering modes 1–2 (stroke/fill+stroke) → CSS (fixes Gap 2.2)
+- [x] **3.4** Superscript/subscript from `textRise` (fixes Gap 2.3)
+- [x] **3.5** Horizontal scaling → CSS `scaleX()` (fixes Gap 2.4)
+- [x] **3.6** Glyph fallback chain for unmapped codes (fixes Gap 2.5) — already handled by existing encoding differences + PDFDocEncoding fallback
 
 ### Sprint 4 — Layout Precision
 - [ ] **4.1** Page margin detection and CSS padding (fixes Gap 3.2)
