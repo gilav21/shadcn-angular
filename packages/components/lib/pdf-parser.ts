@@ -2436,7 +2436,7 @@ function processContentToken(token: string, ctx: ContentExtractionContext, token
 }
 
 function getPageMediaBox(reader: PdfReader, pageDict: Record<string, PdfObject>): number[] {
-    const mbObj = pageDict['MediaBox'] ?? pageDict['CropBox'];
+    const mbObj = pageDict['CropBox'] ?? pageDict['MediaBox'];
     if (!mbObj) return [0, 0, 612, 792];
     const arr = reader.getArray(mbObj);
     if (arr.length < 4) return [0, 0, 612, 792];
@@ -2464,20 +2464,27 @@ function extractPageContent(
     reader: PdfReader,
     pageObj: PdfObject,
     pageIndex: number,
-): { textItems: TextItem[]; imageItems: ImageItem[]; pathRects: PathRect[] } {
+): { textItems: TextItem[]; imageItems: ImageItem[]; pathRects: PathRect[]; pageWidth: number; pageHeight: number } {
     const pageDict = reader.getDict(pageObj);
+    const mediaBox = getPageMediaBox(reader, pageDict);
+    const rotate = reader.getNumber(pageDict['Rotate']);
+    const normalizedRotate = ((rotate % 360) + 360) % 360;
+    const rawWidth = mediaBox[2] - mediaBox[0];
+    const rawHeight = mediaBox[3] - mediaBox[1];
+    const isRotated = normalizedRotate === 90 || normalizedRotate === 270;
+    const pageWidth = isRotated ? rawHeight : rawWidth;
+    const pageHeight = isRotated ? rawWidth : rawHeight;
+
     const contentsObj = pageDict['Contents'];
-    if (!contentsObj) return { textItems: [], imageItems: [], pathRects: [] };
+    if (!contentsObj) return { textItems: [], imageItems: [], pathRects: [], pageWidth, pageHeight };
 
     const contentData = resolveContentData(reader, contentsObj);
-    if (contentData.length === 0) return { textItems: [], imageItems: [], pathRects: [] };
+    if (contentData.length === 0) return { textItems: [], imageItems: [], pathRects: [], pageWidth, pageHeight };
 
     const resources = pageDict['Resources'] ? reader.getDict(pageDict['Resources']) : {};
     const fontDict = resources['Font'] ? reader.getDict(resources['Font']) : {};
     const xObjectDict = resources['XObject'] ? reader.getDict(resources['XObject']) : {};
 
-    const rotate = reader.getNumber(pageDict['Rotate']);
-    const mediaBox = getPageMediaBox(reader, pageDict);
     const initialCtm = buildRotationCtm(rotate, mediaBox);
 
     const fontInfoMap = new Map<string, FontInfo>();
@@ -2518,7 +2525,7 @@ function extractPageContent(
         i = processContentToken(token, ctx, tokens, i);
     }
 
-    return { textItems: ctx.textItems, imageItems: ctx.imageItems, pathRects: ctx.pathRects };
+    return { textItems: ctx.textItems, imageItems: ctx.imageItems, pathRects: ctx.pathRects, pageWidth, pageHeight };
 }
 
 function resolveImageFilterName(reader: PdfReader, dict: Record<string, PdfObject>): string {
@@ -4248,6 +4255,8 @@ export interface PdfPageResult {
     readonly text: string;
     readonly imageOnly: boolean;
     readonly pageIndex: number;
+    readonly pageWidth: number;
+    readonly pageHeight: number;
 }
 
 export interface PdfParseResultPaged {
@@ -4261,6 +4270,7 @@ export interface PdfParseResultPaged {
 function buildPageResult(
     pageTextItems: TextItem[], pageImageItems: ImageItem[], pagePathRects: PathRect[],
     pageIndex: number, structureMap: StructureMap,
+    pageWidth: number, pageHeight: number,
 ): PdfPageResult {
     const deduped = deduplicateTextItems(pageTextItems);
 
@@ -4269,11 +4279,11 @@ function buildPageResult(
         const imgTags = sortedImages
             .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto" />`)
             .join('\n');
-        return { html: imgTags, text: '', imageOnly: true, pageIndex };
+        return { html: imgTags, text: '', imageOnly: true, pageIndex, pageWidth, pageHeight };
     }
 
     if (deduped.length === 0) {
-        return { html: '', text: '', imageOnly: false, pageIndex };
+        return { html: '', text: '', imageOnly: false, pageIndex, pageWidth, pageHeight };
     }
 
     const html = textItemsToHtml(deduped, pageImageItems, structureMap, pagePathRects);
@@ -4283,7 +4293,7 @@ function buildPageResult(
     });
     const text = sorted.map(item => item.text).join(' ').replaceAll(/\s+/g, ' ').trim();
 
-    return { html, text, imageOnly: false, pageIndex };
+    return { html, text, imageOnly: false, pageIndex, pageWidth, pageHeight };
 }
 
 export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResultPaged> {
@@ -4320,15 +4330,15 @@ export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResult
 
     for (let i = 0; i < pdfPages.length; i++) {
         try {
-            const { textItems, imageItems, pathRects } = extractPageContent(reader, pdfPages[i], i);
-            const pageResult = buildPageResult(textItems, imageItems, pathRects, i, structureMap);
+            const { textItems, imageItems, pathRects, pageWidth, pageHeight } = extractPageContent(reader, pdfPages[i], i);
+            const pageResult = buildPageResult(textItems, imageItems, pathRects, i, structureMap, pageWidth, pageHeight);
             pages.push(pageResult);
 
             if (pageResult.html) allHtmlParts.push(pageResult.html);
             if (pageResult.text) allTextParts.push(pageResult.text);
             if (!pageResult.imageOnly || pageResult.text) allImageOnly = false;
         } catch {
-            pages.push({ html: '', text: '', imageOnly: false, pageIndex: i });
+            pages.push({ html: '', text: '', imageOnly: false, pageIndex: i, pageWidth: 612, pageHeight: 792 });
         }
     }
 

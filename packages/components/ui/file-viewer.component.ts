@@ -61,6 +61,8 @@ const HEADING_CLASSES: Record<number, string> = {
             line-height: 1.6;
             word-wrap: break-word;
             overflow-wrap: break-word;
+            padding: 40px 48px;
+            box-sizing: border-box;
         }
         .pdf-page img {
             max-width: 100%;
@@ -85,6 +87,11 @@ const HEADING_CLASSES: Record<number, string> = {
         .pdf-page ul, .pdf-page ol {
             margin: 0.25em 0;
             padding-inline-start: 1.5em;
+        }
+        @media (max-width: 640px) {
+            .pdf-page {
+                padding: 24px 16px;
+            }
         }
     `,
     template: `
@@ -178,7 +185,10 @@ const HEADING_CLASSES: Record<number, string> = {
                                 @case ('pdf') {
                                     <div class="overflow-auto h-full bg-muted/40 flex justify-center py-4 sm:py-6"
                                          [style.zoom]="currentZoom()">
-                                        <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full max-w-[800px] min-h-full px-8 sm:px-12 py-10 sm:py-14 mx-4 sm:mx-6"
+                                        <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm mx-4 sm:mx-6"
+                                             [style.width.px]="pdfPageDimensions().width"
+                                             [style.min-height.px]="pdfPageDimensions().height"
+                                             [style.max-width]="'calc(100vw - 2rem)'"
                                              [attr.dir]="pdfPageRtl() ? 'rtl' : null"
                                              [innerHTML]="currentPdfPageHtml()">
                                         </div>
@@ -406,6 +416,15 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             return this.sanitizer.bypassSecurityTrustHtml(pages[idx].html);
         }
         return '';
+    });
+
+    readonly pdfPageDimensions = computed(() => {
+        const pages = this.pdfPages();
+        const idx = this.currentPage() - 1;
+        if (idx >= 0 && idx < pages.length) {
+            return { width: pages[idx].pageWidth, height: pages[idx].pageHeight };
+        }
+        return { width: 612, height: 792 };
     });
 
     readonly pdfPageRtl = computed(() => {
