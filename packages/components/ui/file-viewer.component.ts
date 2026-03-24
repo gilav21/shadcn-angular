@@ -345,6 +345,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     readonly imageSrc = signal<SafeUrl>('');
     readonly mediaSrc = signal<SafeUrl>('');
     private readonly pdfPages = signal<ReadonlyArray<PdfPageResult>>([]);
+    private readonly pdfOutline = signal<ReadonlyArray<import('../lib/pdf-parser').PdfOutlineItem>>([]);
     readonly downloadUrl = signal<SafeUrl>('');
 
     private readonly xlsxData = signal<{ sheets: ReadonlyArray<{ name: string; data: string[][] }>; truncated?: boolean } | null>(null);
@@ -658,6 +659,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const { parsePdfPaged } = await import('../lib/pdf-parser');
         const result = await parsePdfPaged(bytes.buffer as ArrayBuffer);
         this.pdfPages.set(result.pages);
+        this.pdfOutline.set(result.outline);
         this.totalPages.set(result.totalPages);
         this.currentPage.set(1);
     }

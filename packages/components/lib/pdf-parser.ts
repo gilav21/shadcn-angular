@@ -1478,6 +1478,10 @@ interface GraphicsState {
     strokeColorSpace: string;
     strokeOpacity: number;
     fillOpacity: number;
+    dashArray: number[];
+    dashPhase: number;
+    lineCap: number;
+    lineJoin: number;
 }
 
 function identityMatrix(): number[] {
@@ -2218,6 +2222,8 @@ function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObj
             leading: 0, charSpacing: 0, wordSpacing: 0, textRise: 0, horizontalScaling: 100,
             textRenderMode: 0, fillColorSpace: parentCtx.gs.fillColorSpace, strokeColorSpace: parentCtx.gs.strokeColorSpace,
             strokeOpacity: parentCtx.gs.strokeOpacity, fillOpacity: parentCtx.gs.fillOpacity,
+            dashArray: [...parentCtx.gs.dashArray], dashPhase: parentCtx.gs.dashPhase,
+            lineCap: parentCtx.gs.lineCap, lineJoin: parentCtx.gs.lineJoin,
         },
         operandStack: [],
         pageIndex: parentCtx.pageIndex,
@@ -2236,7 +2242,7 @@ function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObj
 
 const IGNORED_OPERATORS = new Set([
     'ri',
-    'J', 'j', 'M', 'd', 'i', 'W', 'W*',
+    'M', 'i', 'W', 'W*',
     'sh', 'EI',
     'MP', 'DP',
 ]);
@@ -2535,6 +2541,22 @@ function processStateToken(token: string, ctx: ContentExtractionContext): boolea
     }
     if (token === 'BT') { ctx.gs.textMatrix = identityMatrix(); ctx.gs.lineMatrix = identityMatrix(); return true; }
     if (token === 'ET') return true;
+    if (token === 'J') { ctx.gs.lineCap = popNumber(ctx); return true; }
+    if (token === 'j') { ctx.gs.lineJoin = popNumber(ctx); return true; }
+    if (token === 'd') {
+        const phase = popNumber(ctx);
+        const arrTokens: string[] = [];
+        while (ctx.operandStack.length > 0) arrTokens.unshift(ctx.operandStack.pop()!);
+        const nums: number[] = [];
+        for (const t of arrTokens) {
+            if (t === '[' || t === ']') continue;
+            const n = Number.parseFloat(t);
+            if (!Number.isNaN(n)) nums.push(n);
+        }
+        ctx.gs.dashArray = nums;
+        ctx.gs.dashPhase = phase;
+        return true;
+    }
     return false;
 }
 
@@ -2882,6 +2904,7 @@ function extractPageContent(
             leading: 0, charSpacing: 0, wordSpacing: 0, textRise: 0, horizontalScaling: 100,
             textRenderMode: 0, fillColorSpace: 'DeviceRGB', strokeColorSpace: 'DeviceRGB',
             strokeOpacity: 1, fillOpacity: 1,
+            dashArray: [], dashPhase: 0, lineCap: 0, lineJoin: 0,
         },
         operandStack: [],
         pageIndex,
@@ -4821,12 +4844,19 @@ export interface PdfPageResult {
     readonly pageHeight: number;
 }
 
+export interface PdfOutlineItem {
+    readonly title: string;
+    readonly pageIndex: number;
+    readonly children: ReadonlyArray<PdfOutlineItem>;
+}
+
 export interface PdfParseResultPaged {
     readonly pages: ReadonlyArray<PdfPageResult>;
     readonly totalPages: number;
     readonly html: string;
     readonly text: string;
     readonly imageOnly: boolean;
+    readonly outline: ReadonlyArray<PdfOutlineItem>;
 }
 
 function buildPageResult(
@@ -4905,11 +4935,109 @@ export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResult
         }
     }
 
+    const outline = parseOutline(reader, pdfPages);
+
     return {
         pages,
         totalPages: pages.length,
         html: allHtmlParts.join('\n'),
         text: allTextParts.join(' '),
         imageOnly: allImageOnly && pages.length > 0,
+        outline,
     };
+}
+
+function parseOutline(reader: PdfReader, pdfPages: PdfObject[]): PdfOutlineItem[] {
+    try {
+        const root = reader.getRoot();
+        const outlinesRef = root['Outlines'];
+        if (!outlinesRef) return [];
+        const outlinesDict = reader.getDict(outlinesRef);
+        const firstRef = outlinesDict['First'];
+        if (!firstRef) return [];
+        const pageMap = buildPageObjNumMap(reader, pdfPages);
+        return parseOutlineItems(reader, firstRef, pageMap, 0);
+    } catch {
+        return [];
+    }
+}
+
+function buildPageObjNumMap(reader: PdfReader, pdfPages: PdfObject[]): Map<string, number> {
+    const map = new Map<string, number>();
+    for (let i = 0; i < pdfPages.length; i++) {
+        const page = pdfPages[i];
+        if (page.type === 'ref') {
+            map.set(page.value as string, i);
+        }
+    }
+    return map;
+}
+
+function resolveOutlinePageIndex(reader: PdfReader, item: Record<string, PdfObject>, pageMap: Map<string, number>): number {
+    const dest = item['Dest'];
+    if (dest) {
+        const resolved = reader.resolveDeep(dest);
+        if (resolved.type === 'array') {
+            const arr = resolved.value as PdfObject[];
+            if (arr.length > 0 && arr[0].type === 'ref') {
+                return pageMap.get(arr[0].value as string) ?? -1;
+            }
+        }
+        if (resolved.type === 'string') {
+            return -1;
+        }
+    }
+    const aObj = item['A'];
+    if (aObj) {
+        try {
+            const action = reader.getDict(aObj);
+            const s = reader.getString(action['S'] ?? { type: 'null', value: null });
+            if (s === 'GoTo') {
+                const d = action['D'];
+                if (d) {
+                    const resolved = reader.resolveDeep(d);
+                    if (resolved.type === 'array') {
+                        const arr = resolved.value as PdfObject[];
+                        if (arr.length > 0 && arr[0].type === 'ref') {
+                            return pageMap.get(arr[0].value as string) ?? -1;
+                        }
+                    }
+                }
+            }
+        } catch { /* skip */ }
+    }
+    return -1;
+}
+
+function parseOutlineItems(reader: PdfReader, firstRef: PdfObject, pageMap: Map<string, number>, depth: number): PdfOutlineItem[] {
+    if (depth > 10) return [];
+    const items: PdfOutlineItem[] = [];
+    const visited = new Set<string>();
+    let currentRef: PdfObject | null = firstRef;
+
+    while (currentRef) {
+        const key = currentRef.type === 'ref' ? currentRef.value as string : '';
+        if (key && visited.has(key)) break;
+        if (key) visited.add(key);
+
+        try {
+            const itemDict = reader.getDict(currentRef);
+            const title = reader.getString(itemDict['Title'] ?? { type: 'string', value: '' });
+            const pageIndex = resolveOutlinePageIndex(reader, itemDict, pageMap);
+
+            let children: PdfOutlineItem[] = [];
+            const childFirst = itemDict['First'];
+            if (childFirst) {
+                children = parseOutlineItems(reader, childFirst, pageMap, depth + 1);
+            }
+
+            items.push({ title, pageIndex, children });
+
+            const nextRef = itemDict['Next'];
+            currentRef = nextRef ?? null;
+        } catch {
+            break;
+        }
+    }
+    return items;
 }
