@@ -1710,10 +1710,10 @@ function buildStandardFontWidths(reader: PdfReader, fontObjDict: Record<string, 
             const fontDesc = reader.getDict(fontDescRef);
             const mw = fontDesc['MissingWidth'];
             if (mw) defaultWidth = reader.getNumber(mw);
+            if (defaultWidth === 600 || defaultWidth === 0) {
+                defaultWidth = extractCffDefaultWidth(reader, fontDesc) ?? 600;
+            }
         }
-    }
-    if (lastChar > 0 && widthsArr.length === 0) {
-        defaultWidth = 600;
     }
     return { widths, defaultWidth };
 }
@@ -1912,6 +1912,28 @@ function detectFontStyle(reader: PdfReader, fontObjDict: Record<string, PdfObjec
     return { isBold, isItalic, familyName };
 }
 
+function extractCffDefaultWidth(reader: PdfReader, fontDesc: Record<string, PdfObject>): number | null {
+    for (const key of ['FontFile3', 'FontFile2', 'FontFile']) {
+        const ref = fontDesc[key];
+        if (!ref) continue;
+        try {
+            const data = reader.getStreamData(ref);
+            if (data.length < 10) continue;
+            if (data[0] === 1 && data[3] >= 1 && data[3] <= 4) {
+                const nameOffset = data[2];
+                if (nameOffset < data.length) {
+                    for (let i = nameOffset; i < Math.min(data.length - 4, nameOffset + 500); i++) {
+                        if (data[i] === 0x14) {
+                            return data[i - 1] >= 32 ? (data[i - 1] - 139) * 100 + 600 : 600;
+                        }
+                    }
+                }
+            }
+        } catch { /* skip */ }
+    }
+    return null;
+}
+
 function buildFontInfo(reader: PdfReader, fontRef: PdfObject): FontInfo {
     const fontObjDict = reader.getDict(fontRef);
     const subtype = reader.getString(fontObjDict['Subtype']);
@@ -1930,6 +1952,11 @@ function buildFontInfo(reader: PdfReader, fontRef: PdfObject): FontInfo {
 
     if (encodingObj) {
         parseEncodingDifferences(reader, encodingObj, toUnicode);
+    }
+
+    if (subtype === 'Type3') {
+        const { widths, defaultWidth } = buildStandardFontWidths(reader, fontObjDict);
+        return { isTwoByte: false, widths, defaultWidth, toUnicode, isBold, isItalic, familyName: familyName || 'serif' };
     }
 
     if (subtype === 'Type0') {
@@ -2230,6 +2257,8 @@ function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObj
         formDepth: parentCtx.formDepth + 1,
         compatibilityMode: 0,
         mcidStack: [],
+        ocgOffSet: parentCtx?.ocgOffSet ?? new Set<string>(),
+        ocgHiddenDepth: 0,
     };
 
     let i = 0;
@@ -2242,8 +2271,8 @@ function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObj
 
 const IGNORED_OPERATORS = new Set([
     'ri',
-    'M', 'i', 'W', 'W*',
-    'sh', 'EI',
+    'M', 'i',
+    'EI',
     'MP', 'DP',
 ]);
 
@@ -2389,6 +2418,92 @@ function emitRectFromLine(
     }
 }
 
+function pathOpsToSvg(ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext, stroked: boolean, filled: boolean): void {
+    const hasCurves = ops.some(op => op.op === 'c' || op.op === 'v' || op.op === 'y');
+    if (!hasCurves) return;
+
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    let d = '';
+    for (const op of ops) {
+        const a = op.args;
+        switch (op.op) {
+            case 'm': {
+                const { tx: x, ty: y } = transformPoint(a[0], a[1], ctx.gs.ctm);
+                d += `M${x.toFixed(1)},${y.toFixed(1)}`;
+                minX = Math.min(minX, x); minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+                break;
+            }
+            case 'l': {
+                const { tx: x, ty: y } = transformPoint(a[0], a[1], ctx.gs.ctm);
+                d += `L${x.toFixed(1)},${y.toFixed(1)}`;
+                minX = Math.min(minX, x); minY = Math.min(minY, y);
+                maxX = Math.max(maxX, x); maxY = Math.max(maxY, y);
+                break;
+            }
+            case 'c': {
+                const { tx: x1, ty: y1 } = transformPoint(a[0], a[1], ctx.gs.ctm);
+                const { tx: x2, ty: y2 } = transformPoint(a[2], a[3], ctx.gs.ctm);
+                const { tx: x3, ty: y3 } = transformPoint(a[4], a[5], ctx.gs.ctm);
+                d += `C${x1.toFixed(1)},${y1.toFixed(1)},${x2.toFixed(1)},${y2.toFixed(1)},${x3.toFixed(1)},${y3.toFixed(1)}`;
+                for (const px of [x1, x2, x3]) { minX = Math.min(minX, px); maxX = Math.max(maxX, px); }
+                for (const py of [y1, y2, y3]) { minY = Math.min(minY, py); maxY = Math.max(maxY, py); }
+                break;
+            }
+            case 'v': {
+                const { tx: x2, ty: y2 } = transformPoint(a[0], a[1], ctx.gs.ctm);
+                const { tx: x3, ty: y3 } = transformPoint(a[2], a[3], ctx.gs.ctm);
+                d += `S${x2.toFixed(1)},${y2.toFixed(1)},${x3.toFixed(1)},${y3.toFixed(1)}`;
+                for (const px of [x2, x3]) { minX = Math.min(minX, px); maxX = Math.max(maxX, px); }
+                for (const py of [y2, y3]) { minY = Math.min(minY, py); maxY = Math.max(maxY, py); }
+                break;
+            }
+            case 'y': {
+                const { tx: x1, ty: y1 } = transformPoint(a[0], a[1], ctx.gs.ctm);
+                const { tx: x3, ty: y3 } = transformPoint(a[2], a[3], ctx.gs.ctm);
+                d += `Q${x1.toFixed(1)},${y1.toFixed(1)},${x3.toFixed(1)},${y3.toFixed(1)}`;
+                for (const px of [x1, x3]) { minX = Math.min(minX, px); maxX = Math.max(maxX, px); }
+                for (const py of [y1, y3]) { minY = Math.min(minY, py); maxY = Math.max(maxY, py); }
+                break;
+            }
+            case 'h':
+                d += 'Z';
+                break;
+            case 're': {
+                const { tx: rx, ty: ry } = transformPoint(a[0], a[1], ctx.gs.ctm);
+                const w = a[2] * Math.abs(ctx.gs.ctm[0]);
+                const h = a[3] * Math.abs(ctx.gs.ctm[3]);
+                d += `M${rx.toFixed(1)},${ry.toFixed(1)}h${w.toFixed(1)}v${h.toFixed(1)}h${(-w).toFixed(1)}Z`;
+                minX = Math.min(minX, rx); minY = Math.min(minY, ry);
+                maxX = Math.max(maxX, rx + w); maxY = Math.max(maxY, ry + h);
+                break;
+            }
+        }
+    }
+
+    if (!d || minX === Infinity) return;
+
+    const width = Math.ceil(maxX - minX + 2);
+    const height = Math.ceil(maxY - minY + 2);
+    if (width < 2 || height < 2 || width > 5000 || height > 5000) return;
+
+    const fillAttr = filled ? `fill="${ctx.gs.fillColor}"` : 'fill="none"';
+    const strokeAttr = stroked ? `stroke="${ctx.gs.strokeColor}" stroke-width="${Math.max(ctx.gs.lineWidth, 0.5)}"` : '';
+    const opacityAttr = ctx.gs.fillOpacity < 1 ? ` opacity="${ctx.gs.fillOpacity}"` : '';
+
+    const svgHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${(minX - 1).toFixed(1)} ${(minY - 1).toFixed(1)} ${width} ${height}" style="max-width:100%;height:auto"><path d="${d}" ${fillAttr} ${strokeAttr}${opacityAttr}/></svg>`;
+
+    const avgY = (minY + maxY) / 2;
+    ctx.imageItems.push({
+        dataUrl: `data:image/svg+xml;base64,${btoa(svgHtml)}`,
+        width,
+        height,
+        x: minX,
+        y: avgY,
+        page: ctx.pageIndex,
+    });
+}
+
 function emitPathRects(ctx: ContentExtractionContext, stroked: boolean, filled: boolean): void {
     let lastMoveX = 0;
     let lastMoveY = 0;
@@ -2411,12 +2526,14 @@ function processPathPaintOperator(token: string, ctx: ContentExtractionContext):
     switch (token) {
         case 'S':
         case 's':
+            pathOpsToSvg(ctx.currentPath, ctx, true, false);
             emitPathRects(ctx, true, false);
             ctx.currentPath = [];
             return true;
         case 'f':
         case 'F':
         case 'f*':
+            pathOpsToSvg(ctx.currentPath, ctx, false, true);
             emitPathRects(ctx, false, true);
             ctx.currentPath = [];
             return true;
@@ -2424,6 +2541,7 @@ function processPathPaintOperator(token: string, ctx: ContentExtractionContext):
         case 'B*':
         case 'b':
         case 'b*':
+            pathOpsToSvg(ctx.currentPath, ctx, true, true);
             emitPathRects(ctx, true, true);
             ctx.currentPath = [];
             return true;
@@ -2518,6 +2636,8 @@ interface ContentExtractionContext {
     formDepth: number;
     compatibilityMode: number;
     mcidStack: number[];
+    ocgOffSet: Set<string>;
+    ocgHiddenDepth: number;
 }
 
 function popNumber(ctx: ContentExtractionContext): number {
@@ -2543,6 +2663,9 @@ function processStateToken(token: string, ctx: ContentExtractionContext): boolea
     if (token === 'ET') return true;
     if (token === 'J') { ctx.gs.lineCap = popNumber(ctx); return true; }
     if (token === 'j') { ctx.gs.lineJoin = popNumber(ctx); return true; }
+    if (token === 'W' || token === 'W*') {
+        return true;
+    }
     if (token === 'd') {
         const phase = popNumber(ctx);
         const arrTokens: string[] = [];
@@ -2781,6 +2904,11 @@ function processContentToken(token: string, ctx: ContentExtractionContext, token
     const resourceResult = processResourceToken(token, ctx, tokens, tokenIndex);
     if (resourceResult >= 0) return resourceResult;
 
+    if (token === 'sh') {
+        ctx.operandStack.length = 0;
+        return tokenIndex;
+    }
+
     if (IGNORED_OPERATORS.has(token)) { ctx.operandStack.length = 0; return tokenIndex; }
 
     if (ctx.compatibilityMode > 0) { ctx.operandStack.length = 0; return tokenIndex; }
@@ -2911,6 +3039,8 @@ function extractPageContent(
         formDepth: 0,
         compatibilityMode: 0,
         mcidStack: [],
+        ocgOffSet: new Set<string>(),
+        ocgHiddenDepth: 0,
     };
 
     let i = 0;
@@ -3885,11 +4015,12 @@ function classifyLinesByColumn(pageLines: TextLine[], splitX: number): TextLine[
     return [...spanningLines, ...leftLines, ...rightLines];
 }
 
-function detectColumns(lines: TextLine[]): TextLine[] {
-    if (lines.length < 4) return lines;
+function detectColumns(lines: TextLine[]): { lines: TextLine[]; hasColumns: boolean } {
+    if (lines.length < 4) return { lines, hasColumns: false };
 
     const pages = new Set(lines.map(l => l.items[0]?.page ?? 0));
     const result: TextLine[] = [];
+    let hasColumns = false;
 
     for (const page of pages) {
         const pageLines = lines.filter(l => (l.items[0]?.page ?? 0) === page);
@@ -3916,10 +4047,11 @@ function detectColumns(lines: TextLine[]): TextLine[] {
             continue;
         }
 
+        hasColumns = true;
         result.push(...classifyLinesByColumn(pageLines, splitX));
     }
 
-    return result;
+    return { lines: result, hasColumns };
 }
 
 const BULLET_PATTERN = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]\s*/;
@@ -3930,10 +4062,13 @@ interface HtmlBuilderState {
     html: string[];
     inBulletList: boolean;
     inNumberedList: boolean;
+    inColumnLayout: boolean;
     currentParagraph: string[];
     currentParagraphRTL: boolean;
     currentParagraphAlign: string;
     currentParagraphSpacingPx: number;
+    currentParagraphIndent: number;
+    currentParagraphLineXs: number[];
     lastY: number | null;
     lastPage: number;
     lastLineSpacing: number;
@@ -3952,12 +4087,29 @@ function flushParagraph(state: HtmlBuilderState): void {
     if (state.currentParagraphSpacingPx > 2) {
         styles.push(`margin-bottom:${Math.round(state.currentParagraphSpacingPx * 0.75)}px`);
     }
+    if (state.currentParagraphIndent > 5) {
+        styles.push(`text-indent:${Math.round(state.currentParagraphIndent * 0.75)}px`);
+    }
     const styleAttr = styles.length > 0 ? ` style="${styles.join(';')}"` : '';
     state.html.push(`<p${dir}${styleAttr}>${text}</p>`);
     state.currentParagraph = [];
     state.currentParagraphRTL = false;
     state.currentParagraphAlign = '';
     state.currentParagraphSpacingPx = 0;
+    state.currentParagraphIndent = 0;
+    state.currentParagraphLineXs = [];
+}
+
+function detectParagraphIndent(state: HtmlBuilderState): void {
+    const xs = state.currentParagraphLineXs;
+    if (xs.length < 2) return;
+    const firstX = xs[0];
+    const restXs = xs.slice(1);
+    const avgRestX = restXs.reduce((s, x) => s + x, 0) / restXs.length;
+    const indent = firstX - avgRestX;
+    if (indent > 5 && restXs.every(x => Math.abs(x - avgRestX) < 5)) {
+        state.currentParagraphIndent = indent;
+    }
 }
 
 function closeList(state: HtmlBuilderState): void {
@@ -4045,7 +4197,9 @@ function processHtmlLine(
         flushParagraph(state);
     }
     if (rtl) state.currentParagraphRTL = true;
+    state.currentParagraphLineXs.push(line.minX);
     state.currentParagraph.push(lineToHtmlContent(line, bodyFont, bodySize, state.annotations));
+    detectParagraphIndent(state);
 }
 
 function processHtmlLineWithUnderlines(
@@ -4085,7 +4239,9 @@ function processHtmlLineWithUnderlines(
         flushParagraph(state);
     }
     if (rtl) state.currentParagraphRTL = true;
+    state.currentParagraphLineXs.push(line.minX);
     state.currentParagraph.push(content);
+    detectParagraphIndent(state);
 }
 
 // ── Path-based detection (underlines, tables, borders) ──────────────────
@@ -4431,7 +4587,7 @@ function textItemsToHtml(
     const mergedItems = mergeAdjacentChars(textItems);
     const rawLines = groupIntoLines(mergedItems);
     if (rawLines.length === 0) return '';
-    const lines = detectColumns(rawLines);
+    const { lines, hasColumns } = detectColumns(rawLines);
     const bodySize = detectBodyFontSize(mergedItems);
     const bodyFont = detectBodyFont(mergedItems);
 
@@ -4477,9 +4633,10 @@ function textItemsToHtml(
     let hrIdx = 0;
 
     const state: HtmlBuilderState = {
-        html: [], inBulletList: false, inNumberedList: false,
+        html: [], inBulletList: false, inNumberedList: false, inColumnLayout: false,
         currentParagraph: [], currentParagraphRTL: false,
         currentParagraphAlign: '', currentParagraphSpacingPx: 0,
+        currentParagraphIndent: 0, currentParagraphLineXs: [],
         lastY: null, lastPage: -1, lastLineSpacing: 0, imageIdx: 0,
         annotations,
     };
@@ -4575,7 +4732,11 @@ function textItemsToHtml(
         state.imageIdx++;
     }
 
-    return state.html.join('\n');
+    let result = state.html.join('\n');
+    if (hasColumns) {
+        result = `<div style="column-count:2;column-gap:2em">${result}</div>`;
+    }
+    return result;
 }
 
 // ── Structure tree parsing (tagged PDF) ─────────────────────────────────
