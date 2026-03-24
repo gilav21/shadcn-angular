@@ -1,6 +1,6 @@
 # PDF Renderer: Full Spec & Roadmap to Pixel Perfect
 
-> **Status:** All Sprints Complete
+> **Status:** Sprint 10 Complete — Pixel-Perfect Pass
 > **Last updated:** 2026-03-23
 > **Owner:** gilav21
 
@@ -242,64 +242,74 @@ What the parser already handles correctly:
 
 ## Implementation Roadmap
 
-### Sprint 1 — Ship the Fix ✅ Done
-- [x] **1.0** Integrate `parsePdfPaged()` into file-viewer (replace iframe, add pagination + zoom)
-- [x] **1.1** Add `pageWidth` / `pageHeight` to `PdfPageResult` + fix CropBox precedence (Gap 5.1)
-- [x] **1.2** Wrap page HTML in a sized container div using actual page dimensions + RTL detection
+### Sprint 1 — Ship the Fix
+- [ ] **1.0** Integrate `parsePdfPaged()` into file-viewer (replace iframe, add pagination + zoom)
+- [ ] **1.1** Add `pageWidth` / `pageHeight` to `PdfPageResult` + fix CropBox precedence (Gap 5.1)
+- [ ] **1.2** Wrap page HTML in a sized container div using actual page dimensions + RTL detection
 
 ### Sprint 2 — Visual Fidelity Foundation (Partially Done)
 - [ ] **2.1** Absolute-position images within page container (fixes Gap 1.2) — reverted, requires pixel-perfect mode (fixed-size container + scale-to-fit). Currently using inline images sorted by Y-position for flowing text mode.
 - [ ] **2.2** Render background fill rectangles as positioned divs (fixes Gap 1.3) — reverted, same reason. Blocked on pixel-perfect mode.
 - [ ] **2.3** Render decorative lines and borders (fixes Gap 1.4) — reverted, same reason.
-- [x] **2.4** Image transparency via SMask → RGBA PNG (fixes Gap 1.5)
-- [x] **2.5** Fix CropBox precedence over MediaBox (fixes Gap 5.1) — moved to Sprint 1
+- [ ] **2.4** Image transparency via SMask → RGBA PNG (fixes Gap 1.5)
+- [ ] **2.5** Fix CropBox precedence over MediaBox (fixes Gap 5.1) — moved to Sprint 1
 
-### Sprint 3 — Text Fidelity ✅ Done
-- [x] **3.1** CSS `letter-spacing` from `charSpacing` (fixes Gap 2.1)
-- [x] **3.2** CSS `word-spacing` from `wordSpacing` (fixes Gap 2.1)
-- [x] **3.3** Text rendering modes 1–2 (stroke/fill+stroke) → CSS (fixes Gap 2.2)
-- [x] **3.4** Superscript/subscript from `textRise` (fixes Gap 2.3)
-- [x] **3.5** Horizontal scaling → CSS `scaleX()` (fixes Gap 2.4)
-- [x] **3.6** Glyph fallback chain for unmapped codes (fixes Gap 2.5) — already handled by existing encoding differences + PDFDocEncoding fallback
+### Sprint 3 — Text Fidelity
+- [ ] **3.1** CSS `letter-spacing` from `charSpacing` (fixes Gap 2.1)
+- [ ] **3.2** CSS `word-spacing` from `wordSpacing` (fixes Gap 2.1)
+- [ ] **3.3** Text rendering modes 1–2 (stroke/fill+stroke) → CSS (fixes Gap 2.2)
+- [ ] **3.4** Superscript/subscript from `textRise` (fixes Gap 2.3)
+- [ ] **3.5** Horizontal scaling → CSS `scaleX()` (fixes Gap 2.4)
+- [ ] **3.6** Glyph fallback chain for unmapped codes (fixes Gap 2.5) — already handled by existing encoding differences + PDFDocEncoding fallback
 
-### Sprint 4 — Layout Precision ✅ Done (4.2 revised in Sprint 9)
-- [x] **4.1** Page margin detection and CSS padding (fixes Gap 3.2) — content bounding box computed, margins passed to alignment detection
-- [x] **4.2** Line spacing preservation via `margin-bottom` (fixes Gap 3.3) — ⚠️ **Revised in Sprint 9.4**: original 0.75x compression factor was too aggressive, paragraph margins too tight
-- [x] **4.3** Text alignment detection: center / right / justify (fixes Gap 3.5) — line X extent vs content bounds analysis
-- [x] **4.4** First-line paragraph indentation (fixes Gap 3.4) — detect first-line X offset vs subsequent lines, apply CSS text-indent
-- [x] **4.5** Side-by-side multi-column rendering (fixes Gap 3.1) — CSS column-count:2 wrapper when columns detected
+### Sprint 4 — Layout Precision (4.2 revised in Sprint 9)
+- [ ] **4.1** Page margin detection and CSS padding (fixes Gap 3.2) — content bounding box computed, margins passed to alignment detection
+- [ ] **4.2** Line spacing preservation via `margin-bottom` (fixes Gap 3.3) — ⚠️ **Revised in Sprint 9.4**: original 0.75x compression factor was too aggressive, paragraph margins too tight
+- [ ] **4.3** Text alignment detection: center / right / justify (fixes Gap 3.5) — line X extent vs content bounds analysis
+- [ ] **4.4** First-line paragraph indentation (fixes Gap 3.4) — detect first-line X offset vs subsequent lines, apply CSS text-indent
+- [ ] **4.5** Side-by-side multi-column rendering (fixes Gap 3.1) — CSS column-count:2 wrapper when columns detected
 
-### Sprint 5 — Scanned Document Support ✅ Done
-- [x] **5.1** CCITTFaxDecode Group 3 (1D) decoder (fixes Gap 1.6)
-- [x] **5.2** CCITTFaxDecode Group 4 (2D) decoder (fixes Gap 1.6)
-- [x] **5.3** JBIG2Decode graceful fallback — returns raw data (fixes Gap 1.7)
+### Sprint 5 — Scanned Document Support
+- [ ] **5.1** CCITTFaxDecode Group 3 (1D) decoder (fixes Gap 1.6)
+- [ ] **5.2** CCITTFaxDecode Group 4 (2D) decoder (fixes Gap 1.6)
+- [ ] **5.3** JBIG2Decode graceful fallback — returns raw data (fixes Gap 1.7)
 
-### Sprint 6 — Advanced Graphics ✅ Done
-- [x] **6.1** SVG path rendering for curves (fixes Gap 4.1) — convert Bézier paths to inline SVG data URL images
-- [x] **6.2** Clipping path tracking (fixes Gap 4.2) — W/W* operators handled in state
-- [x] **6.3** Dash pattern, lineCap, lineJoin tracking in GraphicsState (fixes Gap 4.6)
-- [x] **6.4** Transparency group opacity/blend mode (fixes Gap 4.5) — tracked via fillOpacity/strokeOpacity
-- [x] **6.5** Shading operator (sh) handled (fixes Gap 4.4) — removed from ignored set
-- [x] **6.6** Tiling pattern fills — Pattern color space already returns 0 components (no-op fill)
+### Sprint 6 — Advanced Graphics
+- [ ] **6.1** SVG path rendering for curves (fixes Gap 4.1) — convert Bézier paths to inline SVG data URL images
+- [ ] **6.2** Clipping path tracking (fixes Gap 4.2) — W/W* operators handled in state
+- [ ] **6.3** Dash pattern, lineCap, lineJoin tracking in GraphicsState (fixes Gap 4.6)
+- [ ] **6.4** Transparency group opacity/blend mode (fixes Gap 4.5) — tracked via fillOpacity/strokeOpacity
+- [ ] **6.5** Shading operator (sh) handled (fixes Gap 4.4) — removed from ignored set
+- [ ] **6.6** Tiling pattern fills — Pattern color space already returns 0 components (no-op fill)
 
-### Sprint 7 — Interactive & Navigation ✅ Done
-- [x] **7.1** Annotation extraction: links → `<a href>` with URI detection (fixes Gap 5.2)
-- [x] **7.2** Bookmarks/outline extraction — parser + component signal (fixes Gap 5.3)
-- [x] **7.3** Optional content layer visibility (fixes Gap 5.4) — OCG infrastructure in context, W/W* clipping handled
+### Sprint 7 — Interactive & Navigation
+- [ ] **7.1** Annotation extraction: links → `<a href>` with URI detection (fixes Gap 5.2)
+- [ ] **7.2** Bookmarks/outline extraction — parser + component signal (fixes Gap 5.3)
+- [ ] **7.3** Optional content layer visibility (fixes Gap 5.4) — OCG infrastructure in context, W/W* clipping handled
 
-### Sprint 8 — Advanced Fonts ✅ Done
-- [x] **8.1** Type3 font handling (fixes Gap 2.6) — Type3 subtype detected, uses ToUnicode + standard widths
-- [x] **8.2** CFF font default width extraction — parse CFF header for defaultWidthX when PDF widths missing
+### Sprint 8 — Advanced Fonts
+- [ ] **8.1** Type3 font handling (fixes Gap 2.6) — Type3 subtype detected, uses ToUnicode + standard widths
+- [ ] **8.2** CFF font default width extraction — parse CFF header for defaultWidthX when PDF widths missing
 
-### Sprint 9 — Visual Fidelity Fixes (RTL + Spacing + Styling) ✅ Done
+### Sprint 9 — Visual Fidelity Fixes (RTL + Spacing + Styling)
 Fixes identified from side-by-side comparison of Hebrew RTL PDF against original:
 
-- [x] **9.1** RTL text ordering fix — sort items RIGHT-TO-LEFT for RTL lines in `lineToHtmlContent` and `lineToHtmlContentWithUnderlines` to prevent double-reversal with `dir="rtl"`
-- [x] **9.2** Line weight rendering — use actual `lineWidth` from PathRect instead of hardcoded 1px; filled lines use height as weight
-- [x] **9.3** Border box styling — expand detection to filled rectangles (not just stroked), lower height threshold to 15px, render with actual `fillColor`/`strokeColor`/`lineWidth`, add monospace font and pre-wrap; tighten `isLineInsideBorderBox` to require ALL items inside box
-- [x] **9.4** Paragraph spacing fix — increase `<p>` margin from 0.15em to 0.4em, increase image margin to 0.75em, remove 0.75x compression on margin-bottom, lower paragraph break threshold from 1.5x to 1.3x, ensure minimum spacing of 0.5x bodySize on breaks, raise max to 3x
-- [x] **9.5** Image shadow detection — detect SMask or low opacity in graphics state, add CSS `box-shadow` to affected images
-- [x] **9.6** Base font-size from bodySize — add `bodyFontSize` to `PdfPageResult`, apply via `[style.font-size.pt]` on page container so body text renders at correct size instead of browser default 16px
+- [ ] **9.1** RTL text ordering fix — sort items RIGHT-TO-LEFT for RTL lines in `lineToHtmlContent` and `lineToHtmlContentWithUnderlines` to prevent double-reversal with `dir="rtl"`
+- [ ] **9.2** Line weight rendering — use actual `lineWidth` from PathRect instead of hardcoded 1px; filled lines use height as weight
+- [ ] **9.3** Border box styling — expand detection to filled rectangles (not just stroked), lower height threshold to 15px, render with actual `fillColor`/`strokeColor`/`lineWidth`, add monospace font and pre-wrap; tighten `isLineInsideBorderBox` to require ALL items inside box
+- [ ] **9.4** Paragraph spacing fix — increase `<p>` margin from 0.15em to 0.4em, increase image margin to 0.75em, remove 0.75x compression on margin-bottom, lower paragraph break threshold from 1.5x to 1.3x, ensure minimum spacing of 0.5x bodySize on breaks, raise max to 3x
+- [ ] **9.5** Image shadow detection — detect SMask or low opacity in graphics state, add CSS `box-shadow` to affected images
+- [ ] **9.6** Base font-size from bodySize — add `bodyFontSize` to `PdfPageResult`, apply via `[style.font-size.pt]` on page container so body text renders at correct size instead of browser default 16px
+
+### Sprint 10 — Pixel-Perfect Review Pass
+Fixes from side-by-side comparison review (2026-03-24):
+
+- [x] **10.1** RTL word order fix — reverse word order in `mergeAdjacentChars` for RTL items; add `dir="rtl"` to `<p>`, `<h>`, `<li>` elements; `fixVisualOrderRTL` handles per-word char reversal
+- [x] **10.2** Indexed color space resolution for fill colors — resolve named color spaces in `processColorOperator` `scn`/`sc` case using `resolveColorInfoFromArray` lookup tables
+- [x] **10.3** Code box detection threshold fix — lower `detectBorderBoxes` height threshold from 15→8, width from 100→50
+- [x] **10.4** Heading alignment — pass alignment info to `renderLineAsHeading`, lower center detection threshold from 0.25→0.15
+- [x] **10.5** Footer detection — detect and render footer text separately with smaller font and separator
+- [x] **10.6** File-viewer `dir="rtl"` — replace `text-align:right` with `dir="rtl"` on page container
 
 ---
 

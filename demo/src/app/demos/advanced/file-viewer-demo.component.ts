@@ -33,6 +33,7 @@ import {
         <div class="flex flex-wrap gap-2">
           <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('text')">Text File</ui-button>
           <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('svg')">SVG Image</ui-button>
+          <ui-button variant="outline" size="sm" (click)="loadPdfFromUrl()">PDF (Hebrew)</ui-button>
         </div>
       </div>
 
@@ -118,6 +119,15 @@ export class FileViewerDemoComponent {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) this.fileViewerFile.set(file);
+  }
+
+  loadPdfFromUrl(): void {
+    fetch('/DW2-3-Viruses-www.underwar.co.il.pdf')
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], 'DW2-3-Viruses-www.underwar.co.il.pdf', { type: 'application/pdf' });
+        this.fileViewerFile.set(file);
+      });
   }
 
   setFileViewerDemo(type: string): void {

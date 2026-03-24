@@ -1431,7 +1431,8 @@ function fixVisualOrderRTL(text: string): string {
     let ltrRun = '';
 
     for (const ch of chars) {
-        if (isLTRCode(ch.codePointAt(0) ?? 0)) {
+        const code = ch.codePointAt(0) ?? 0;
+        if (isLTRCode(code) || (code >= 0x30 && code <= 0x39)) {
             ltrRun += ch;
             continue;
         }
@@ -2127,10 +2128,67 @@ function applyTJStringFragment(
     return combinedText;
 }
 
+function resolveScnFillColor(ctx: ContentExtractionContext, values: number[]): string | null {
+    const cs = ctx.gs.fillColorSpace;
+    if (cs === 'DeviceCMYK' && values.length >= 4) {
+        return cmykToRgbHex(values[0], values[1], values[2], values[3]);
+    }
+    if (cs === 'DeviceRGB' && values.length >= 3) {
+        return rgbToHex(values[0], values[1], values[2]);
+    }
+    if (cs === 'DeviceGray' && values.length >= 1) {
+        return grayToHex(values[0]);
+    }
+
+    const csResDict = ctx.resources['ColorSpace']
+        ? ctx.reader.getDict(ctx.resources['ColorSpace'])
+        : {};
+    const csRef = csResDict[cs];
+    if (csRef) {
+        const resolved = ctx.reader.resolveDeep(csRef);
+        if (resolved.type === 'array') {
+            const csArr = resolved.value as PdfObject[];
+            const colorInfo = resolveColorInfoFromArray(ctx.reader, csArr);
+            if (colorInfo.indexed && colorInfo.lookupTable && values.length >= 1) {
+                const idx = Math.round(values[0]);
+                const lut = colorInfo.lookupTable;
+                const bc = colorInfo.baseChannels;
+                const off = idx * bc;
+                if (bc === 3) {
+                    return rgbToHex((lut[off] ?? 0) / 255, (lut[off + 1] ?? 0) / 255, (lut[off + 2] ?? 0) / 255);
+                }
+                if (bc === 4) {
+                    return cmykToRgbHex(
+                        (lut[off] ?? 0) / 255, (lut[off + 1] ?? 0) / 255,
+                        (lut[off + 2] ?? 0) / 255, (lut[off + 3] ?? 0) / 255,
+                    );
+                }
+                if (bc === 1) return grayToHex((lut[off] ?? 0) / 255);
+            }
+        }
+    }
+
+    const components = resolveColorSpaceComponents(ctx, cs);
+    if (components === 4 && values.length >= 4) {
+        return cmykToRgbHex(values[0], values[1], values[2], values[3]);
+    }
+    if (components === 3 && values.length >= 3) {
+        return rgbToHex(values[0], values[1], values[2]);
+    }
+    if (components === 1 && values.length >= 1) {
+        return grayToHex(values[0]);
+    }
+
+    if (values.length >= 3) return rgbToHex(values[0], values[1], values[2]);
+    if (values.length === 1) return grayToHex(values[0]);
+    return null;
+}
+
 function processColorOperator(
-    token: string, operandStack: string[], gs: GraphicsState,
+    token: string, ctx: ContentExtractionContext,
     popNumber: () => number,
 ): boolean {
+    const { operandStack, gs } = ctx;
     switch (token) {
         case 'rg': {
             const b = popNumber();
@@ -2159,14 +2217,8 @@ function processColorOperator(
                 const num = Number.parseFloat(v);
                 if (!Number.isNaN(num)) values.unshift(num);
             }
-            const cs = gs.fillColorSpace;
-            if (cs === 'DeviceCMYK' && values.length >= 4) {
-                gs.fillColor = cmykToRgbHex(values[0], values[1], values[2], values[3]);
-            } else if (values.length >= 3) {
-                gs.fillColor = rgbToHex(values[0], values[1], values[2]);
-            } else if (values.length === 1) {
-                gs.fillColor = grayToHex(values[0]);
-            }
+            const color = resolveScnFillColor(ctx, values);
+            if (color) gs.fillColor = color;
             return true;
         }
         default:
@@ -2900,7 +2952,7 @@ function processContentToken(token: string, ctx: ContentExtractionContext, token
     if (processTextStateOperator(token, ctx.gs, ctx.operandStack, () => popNumber(ctx))) return tokenIndex;
     if (processTextShowToken(token, ctx)) return tokenIndex;
     if (processColorSpaceOperator(token, ctx)) return tokenIndex;
-    if (processColorOperator(token, ctx.operandStack, ctx.gs, () => popNumber(ctx))) return tokenIndex;
+    if (processColorOperator(token, ctx, () => popNumber(ctx))) return tokenIndex;
     if (processStrokeColorOperator(token, ctx.operandStack, ctx.gs, () => popNumber(ctx))) return tokenIndex;
     if (processStrokeColorSpaceOperator(token, ctx)) return tokenIndex;
     if (processPathBuildOperator(token, ctx, () => popNumber(ctx))) return tokenIndex;
@@ -3763,6 +3815,13 @@ function mergeAdjacentChars(items: TextItem[]): TextItem[] {
         }
     }
     merged.push(current);
+    for (const item of merged) {
+        if (hasRTLText(item.text) && item.text.includes(' ')) {
+            const parts = item.text.split(/(\s+)/);
+            parts.reverse();
+            item.text = parts.join('');
+        }
+    }
     return merged;
 }
 
@@ -3968,17 +4027,14 @@ function applyTextRenderModeStyles(item: TextItem, styles: string[]): void {
 }
 
 function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number, annotations?: ReadonlyArray<PdfAnnotation>): string {
-    const rtl = isLineRTL(line);
-    const sorted = [...line.items].sort((a, b) => rtl ? b.x - a.x : a.x - b.x);
+    const sorted = [...line.items].sort((a, b) => a.x - b.x);
     let result = '';
     const bf = bodyFont ?? '';
     const bs = bodySize ?? 12;
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
-            const gap = rtl
-                ? sorted[i - 1].x - sorted[i].endX
-                : sorted[i].x - sorted[i - 1].endX;
-            if (gap > (sorted[i].fontSize || sorted[i - 1].fontSize) * 0.12) {
+            const gap = sorted[i].x - sorted[i - 1].endX;
+            if (gap > sorted[i - 1].fontSize * 0.12) {
                 result += ' ';
             }
         }
@@ -4082,12 +4138,14 @@ interface HtmlBuilderState {
     lastLineSpacing: number;
     imageIdx: number;
     readonly annotations: ReadonlyArray<PdfAnnotation>;
+    readonly pageWidth: number;
+    readonly leftMargin: number;
+    readonly rightMargin: number;
 }
 
 function flushParagraph(state: HtmlBuilderState): void {
     if (state.currentParagraph.length === 0) return;
     const text = state.currentParagraph.join('<br>');
-    const dir = state.currentParagraphRTL ? ' dir="rtl"' : '';
     const styles: string[] = [];
     if (state.currentParagraphAlign) {
         styles.push(`text-align:${state.currentParagraphAlign}`);
@@ -4099,7 +4157,8 @@ function flushParagraph(state: HtmlBuilderState): void {
         styles.push(`text-indent:${Math.round(state.currentParagraphIndent * 0.75)}px`);
     }
     const styleAttr = styles.length > 0 ? ` style="${styles.join(';')}"` : '';
-    state.html.push(`<p${dir}${styleAttr}>${text}</p>`);
+    const dirAttr = state.currentParagraphRTL ? ' dir="rtl"' : '';
+    state.html.push(`<p${dirAttr}${styleAttr}>${text}</p>`);
     state.currentParagraph = [];
     state.currentParagraphRTL = false;
     state.currentParagraphAlign = '';
@@ -4138,32 +4197,41 @@ function insertImagesBeforeY(state: HtmlBuilderState, sortedImages: ImageItem[],
 }
 
 function renderLineAsHeading(
-    state: HtmlBuilderState, line: TextLine, headingLevel: number, dir: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, headingLevel: number, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     closeList(state);
     const content = lineToHtmlContent(line, bodyFont, bodySize, state.annotations);
-    state.html.push(`<h${headingLevel}${dir}>${content}</h${headingLevel}>`);
+    const rtl = isLineRTL(line);
+    const dirAttr = rtl ? ' dir="rtl"' : '';
+    const align = state.pageWidth > 0
+        ? detectTextAlignment(line, state.pageWidth, state.leftMargin, state.rightMargin) : '';
+    const styleAttr = align ? ` style="text-align:${align}"` : '';
+    state.html.push(`<h${headingLevel}${dirAttr}${styleAttr}>${content}</h${headingLevel}>`);
 }
 
 function renderLineAsBullet(
-    state: HtmlBuilderState, line: TextLine, lineText: string, dir: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     if (state.inNumberedList) { state.html.push('</ol>'); state.inNumberedList = false; }
-    if (!state.inBulletList) { state.html.push(`<ul${dir}>`); state.inBulletList = true; }
+    if (!state.inBulletList) { state.html.push('<ul>'); state.inBulletList = true; }
     const content = lineToHtmlContent(line, bodyFont, bodySize, state.annotations);
-    state.html.push(`<li>${content}</li>`);
+    const rtl = isLineRTL(line);
+    const dirAttr = rtl ? ' dir="rtl"' : '';
+    state.html.push(`<li${dirAttr}>${content}</li>`);
 }
 
 function renderLineAsNumbered(
-    state: HtmlBuilderState, line: TextLine, lineText: string, dir: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     if (state.inBulletList) { state.html.push('</ul>'); state.inBulletList = false; }
-    if (!state.inNumberedList) { state.html.push(`<ol${dir}>`); state.inNumberedList = true; }
+    if (!state.inNumberedList) { state.html.push('<ol>'); state.inNumberedList = true; }
     const content = lineToHtmlContent(line, bodyFont, bodySize, state.annotations);
-    state.html.push(`<li>${content}</li>`);
+    const rtl = isLineRTL(line);
+    const dirAttr = rtl ? ' dir="rtl"' : '';
+    state.html.push(`<li${dirAttr}>${content}</li>`);
 }
 
 function processHtmlLine(
@@ -4173,7 +4241,6 @@ function processHtmlLine(
 ): void {
     const largeGapIdx = findLargeGapIndex(line);
     const rtl = isLineRTL(line);
-    const dir = rtl ? ' dir="rtl"' : '';
 
     if (largeGapIdx > 0) {
         flushParagraph(state);
@@ -4187,17 +4254,17 @@ function processHtmlLine(
     const primaryFontSize = line.items.reduce((max, item) => Math.max(max, item.fontSize), 0);
     const headingLevel = structHeading > 0 ? structHeading : getHeadingLevel(primaryFontSize, bodySize);
     if (headingLevel > 0) {
-        renderLineAsHeading(state, line, headingLevel, dir, bodyFont, bodySize);
+        renderLineAsHeading(state, line, headingLevel, bodyFont, bodySize);
         return;
     }
 
     const isStructList = structType !== null && isStructureListItem(structType);
     if (isStructList || BULLET_PATTERN.test(lineText)) {
-        renderLineAsBullet(state, line, lineText, dir, bodyFont, bodySize);
+        renderLineAsBullet(state, line, lineText, bodyFont, bodySize);
         return;
     }
     if (NUMBERED_PATTERN.test(lineText) || (rtl && NUMBERED_PATTERN_RTL_END.test(lineText))) {
-        renderLineAsNumbered(state, line, lineText, dir, bodyFont, bodySize);
+        renderLineAsNumbered(state, line, lineText, bodyFont, bodySize);
         return;
     }
 
@@ -4227,8 +4294,6 @@ function processHtmlLineWithUnderlines(
         return;
     }
 
-    const rtl = isLineRTL(line);
-    const dir = rtl ? ' dir="rtl"' : '';
     const structType = getStructureTypeForLine(line, structureMap);
     const structHeading = structType ? structureTypeToHeadingLevel(structType) : 0;
     const primaryFontSize = line.items.reduce((max, item) => Math.max(max, item.fontSize), 0);
@@ -4236,10 +4301,13 @@ function processHtmlLineWithUnderlines(
 
     const content = lineToHtmlContentWithUnderlines(line, underlinedItems, bodyFont, bodySize, state.annotations);
 
+    const rtl = isLineRTL(line);
+
     if (headingLevel > 0) {
         flushParagraph(state);
         closeList(state);
-        state.html.push(`<h${headingLevel}${dir}>${content}</h${headingLevel}>`);
+        const dirAttr = rtl ? ' dir="rtl"' : '';
+        state.html.push(`<h${headingLevel}${dirAttr}>${content}</h${headingLevel}>`);
         return;
     }
 
@@ -4420,7 +4488,7 @@ function detectTableGrids(rects: PathRect[], page: number): TableGrid[] {
 
 function detectBorderBoxes(rects: PathRect[], tableGrids: TableGrid[], page: number): PathRect[] {
     const pageRects = rects.filter(r =>
-        r.page === page && (r.stroked || r.filled) && r.width > 100 && r.height > 15
+        r.page === page && (r.stroked || r.filled) && r.width > 50 && r.height > 8
         && !isHorizontalLine(r) && !isVerticalLine(r)
     );
     return pageRects.filter(r => {
@@ -4506,17 +4574,14 @@ function lineToHtmlContentWithUnderlines(
     line: TextLine, underlinedItems: Set<TextItem>, bodyFont?: string, bodySize?: number,
     annotations?: ReadonlyArray<PdfAnnotation>,
 ): string {
-    const rtl = isLineRTL(line);
-    const sorted = [...line.items].sort((a, b) => rtl ? b.x - a.x : a.x - b.x);
+    const sorted = [...line.items].sort((a, b) => a.x - b.x);
     const bf = bodyFont ?? '';
     const bs = bodySize ?? 12;
     let result = '';
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
-            const gap = rtl
-                ? sorted[i - 1].x - sorted[i].endX
-                : sorted[i].x - sorted[i - 1].endX;
-            if (gap > (sorted[i].fontSize || sorted[i - 1].fontSize) * 0.12) {
+            const gap = sorted[i].x - sorted[i - 1].endX;
+            if (gap > sorted[i - 1].fontSize * 0.12) {
                 result += ' ';
             }
         }
@@ -4563,7 +4628,7 @@ function detectTextAlignment(line: TextLine, pageWidth: number, leftMargin: numb
     const leftDist = lineLeft - leftMargin;
     const rightDist = rightMargin - lineRight;
 
-    if (leftDist > contentWidth * 0.25 && rightDist > contentWidth * 0.25) {
+    if (leftDist > contentWidth * 0.15 && rightDist > contentWidth * 0.15) {
         return 'center';
     }
     if (leftDist > contentWidth * 0.2 && rightDist < contentWidth * 0.05) {
@@ -4649,12 +4714,20 @@ function textItemsToHtml(
         currentParagraphAlign: '', currentParagraphSpacingPx: 0,
         currentParagraphIndent: 0, currentParagraphLineXs: [],
         lastY: null, lastPage: -1, lastLineSpacing: 0, imageIdx: 0,
-        annotations,
+        annotations, pageWidth, leftMargin, rightMargin,
     };
+
+    const footerThreshold = pageHeight > 0 ? pageHeight * 0.1 : 0;
+    const footerLines: TextLine[] = [];
 
     for (const line of lines) {
         const lineText = lineToText(line);
         if (!lineText) continue;
+
+        if (footerThreshold > 0 && line.items.every(it => it.y < footerThreshold)) {
+            footerLines.push(line);
+            continue;
+        }
 
         insertImagesBeforeY(state, sortedImages, line.items[0].page, line.y);
 
@@ -4754,6 +4827,18 @@ function textItemsToHtml(
         const shadowStyle = img.hasShadow ? 'box-shadow:0 2px 8px rgba(0,0,0,0.3);' : '';
         state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" style="max-width:100%;height:auto;${shadowStyle}" />`);
         state.imageIdx++;
+    }
+
+    if (footerLines.length > 0) {
+        state.html.push('<hr style="border:none;border-top:1px solid #ccc;margin:1.5em 0 0.5em 0" />');
+        state.html.push('<footer style="font-size:0.75em;color:#666;text-align:center">');
+        for (const fl of footerLines) {
+            const content = lineToHtmlContentWithUnderlines(fl, underlinedItems, bodyFont, bodySize, state.annotations);
+            const rtl = isLineRTL(fl);
+            const dirAttr = rtl ? ' dir="rtl"' : '';
+            state.html.push(`<p${dirAttr} style="margin:0.15em 0">${content}</p>`);
+        }
+        state.html.push('</footer>');
     }
 
     let result = state.html.join('\n');
