@@ -159,6 +159,310 @@ function decodeRunLength(data: Uint8Array): Uint8Array {
     return new Uint8Array(output);
 }
 
+// ── CCITT Fax decoder (Group 3 1D / Group 4 2D) ────────────────────────
+
+interface CCITTCode { readonly runLen: number; readonly bits: number; readonly code: number }
+
+const WHITE_TERM_CODES: CCITTCode[] = [
+    {runLen:0,bits:8,code:0x35},{runLen:1,bits:6,code:0x07},{runLen:2,bits:4,code:0x07},{runLen:3,bits:4,code:0x08},
+    {runLen:4,bits:4,code:0x0B},{runLen:5,bits:4,code:0x0C},{runLen:6,bits:4,code:0x0E},{runLen:7,bits:4,code:0x0F},
+    {runLen:8,bits:5,code:0x13},{runLen:9,bits:5,code:0x14},{runLen:10,bits:5,code:0x07},{runLen:11,bits:5,code:0x08},
+    {runLen:12,bits:6,code:0x08},{runLen:13,bits:6,code:0x03},{runLen:14,bits:6,code:0x34},{runLen:15,bits:6,code:0x35},
+    {runLen:16,bits:6,code:0x2A},{runLen:17,bits:6,code:0x2B},{runLen:18,bits:7,code:0x27},{runLen:19,bits:7,code:0x0C},
+    {runLen:20,bits:7,code:0x08},{runLen:21,bits:7,code:0x17},{runLen:22,bits:7,code:0x03},{runLen:23,bits:7,code:0x04},
+    {runLen:24,bits:7,code:0x28},{runLen:25,bits:7,code:0x2B},{runLen:26,bits:7,code:0x13},{runLen:27,bits:7,code:0x24},
+    {runLen:28,bits:7,code:0x18},{runLen:29,bits:8,code:0x02},{runLen:30,bits:8,code:0x03},{runLen:31,bits:8,code:0x1A},
+    {runLen:32,bits:8,code:0x1B},{runLen:33,bits:8,code:0x12},{runLen:34,bits:8,code:0x13},{runLen:35,bits:8,code:0x14},
+    {runLen:36,bits:8,code:0x15},{runLen:37,bits:8,code:0x16},{runLen:38,bits:8,code:0x17},{runLen:39,bits:8,code:0x28},
+    {runLen:40,bits:8,code:0x29},{runLen:41,bits:8,code:0x2A},{runLen:42,bits:8,code:0x2B},{runLen:43,bits:8,code:0x2C},
+    {runLen:44,bits:8,code:0x2D},{runLen:45,bits:8,code:0x04},{runLen:46,bits:8,code:0x05},{runLen:47,bits:8,code:0x0A},
+    {runLen:48,bits:8,code:0x0B},{runLen:49,bits:8,code:0x52},{runLen:50,bits:8,code:0x53},{runLen:51,bits:8,code:0x54},
+    {runLen:52,bits:8,code:0x55},{runLen:53,bits:8,code:0x24},{runLen:54,bits:8,code:0x25},{runLen:55,bits:8,code:0x58},
+    {runLen:56,bits:8,code:0x59},{runLen:57,bits:8,code:0x5A},{runLen:58,bits:8,code:0x5B},{runLen:59,bits:8,code:0x4A},
+    {runLen:60,bits:8,code:0x4B},{runLen:61,bits:8,code:0x32},{runLen:62,bits:8,code:0x33},{runLen:63,bits:8,code:0x34},
+];
+
+const WHITE_MAKEUP_CODES: CCITTCode[] = [
+    {runLen:64,bits:5,code:0x1B},{runLen:128,bits:5,code:0x12},{runLen:192,bits:6,code:0x17},{runLen:256,bits:7,code:0x37},
+    {runLen:320,bits:8,code:0x36},{runLen:384,bits:8,code:0x37},{runLen:448,bits:8,code:0x64},{runLen:512,bits:8,code:0x65},
+    {runLen:576,bits:8,code:0x68},{runLen:640,bits:8,code:0x67},{runLen:704,bits:9,code:0xCC},{runLen:768,bits:9,code:0xCD},
+    {runLen:832,bits:9,code:0xD2},{runLen:896,bits:9,code:0xD3},{runLen:960,bits:9,code:0xD4},{runLen:1024,bits:9,code:0xD5},
+    {runLen:1088,bits:9,code:0xD6},{runLen:1152,bits:9,code:0xD7},{runLen:1216,bits:9,code:0xD8},{runLen:1280,bits:9,code:0xD9},
+    {runLen:1344,bits:9,code:0xDA},{runLen:1408,bits:9,code:0xDB},{runLen:1472,bits:9,code:0x98},{runLen:1536,bits:9,code:0x99},
+    {runLen:1600,bits:9,code:0x9A},{runLen:1664,bits:6,code:0x18},{runLen:1728,bits:9,code:0x9B},
+];
+
+const BLACK_TERM_CODES: CCITTCode[] = [
+    {runLen:0,bits:10,code:0x37},{runLen:1,bits:3,code:0x02},{runLen:2,bits:2,code:0x03},{runLen:3,bits:2,code:0x02},
+    {runLen:4,bits:3,code:0x03},{runLen:5,bits:4,code:0x03},{runLen:6,bits:4,code:0x02},{runLen:7,bits:5,code:0x03},
+    {runLen:8,bits:6,code:0x05},{runLen:9,bits:6,code:0x04},{runLen:10,bits:7,code:0x04},{runLen:11,bits:7,code:0x05},
+    {runLen:12,bits:7,code:0x07},{runLen:13,bits:8,code:0x04},{runLen:14,bits:8,code:0x07},{runLen:15,bits:9,code:0x18},
+    {runLen:16,bits:10,code:0x17},{runLen:17,bits:10,code:0x18},{runLen:18,bits:10,code:0x08},{runLen:19,bits:11,code:0x67},
+    {runLen:20,bits:11,code:0x68},{runLen:21,bits:11,code:0x6C},{runLen:22,bits:11,code:0x37},{runLen:23,bits:11,code:0x28},
+    {runLen:24,bits:11,code:0x17},{runLen:25,bits:11,code:0x18},{runLen:26,bits:12,code:0xCA},{runLen:27,bits:12,code:0xCB},
+    {runLen:28,bits:12,code:0xCC},{runLen:29,bits:12,code:0xCD},{runLen:30,bits:12,code:0x68},{runLen:31,bits:12,code:0x69},
+    {runLen:32,bits:12,code:0x6A},{runLen:33,bits:12,code:0x6B},{runLen:34,bits:12,code:0xD2},{runLen:35,bits:12,code:0xD3},
+    {runLen:36,bits:12,code:0xD4},{runLen:37,bits:12,code:0xD5},{runLen:38,bits:12,code:0xD6},{runLen:39,bits:12,code:0xD7},
+    {runLen:40,bits:12,code:0x6C},{runLen:41,bits:12,code:0x6D},{runLen:42,bits:12,code:0xDA},{runLen:43,bits:12,code:0xDB},
+    {runLen:44,bits:12,code:0x54},{runLen:45,bits:12,code:0x55},{runLen:46,bits:12,code:0x56},{runLen:47,bits:12,code:0x57},
+    {runLen:48,bits:12,code:0x64},{runLen:49,bits:12,code:0x65},{runLen:50,bits:12,code:0x52},{runLen:51,bits:12,code:0x53},
+    {runLen:52,bits:12,code:0x24},{runLen:53,bits:12,code:0x37},{runLen:54,bits:12,code:0x38},{runLen:55,bits:12,code:0x27},
+    {runLen:56,bits:12,code:0x28},{runLen:57,bits:12,code:0x58},{runLen:58,bits:12,code:0x59},{runLen:59,bits:12,code:0x2B},
+    {runLen:60,bits:12,code:0x2C},{runLen:61,bits:12,code:0x5A},{runLen:62,bits:12,code:0x66},{runLen:63,bits:12,code:0x67},
+];
+
+const BLACK_MAKEUP_CODES: CCITTCode[] = [
+    {runLen:64,bits:10,code:0x0F},{runLen:128,bits:12,code:0xC8},{runLen:192,bits:12,code:0xC9},{runLen:256,bits:12,code:0x5B},
+    {runLen:320,bits:12,code:0x33},{runLen:384,bits:12,code:0x34},{runLen:448,bits:12,code:0x35},{runLen:512,bits:13,code:0x6C},
+    {runLen:576,bits:13,code:0x6D},{runLen:640,bits:13,code:0x4A},{runLen:704,bits:13,code:0x4B},{runLen:768,bits:13,code:0x4C},
+    {runLen:832,bits:13,code:0x4D},{runLen:896,bits:13,code:0x72},{runLen:960,bits:13,code:0x73},{runLen:1024,bits:13,code:0x74},
+    {runLen:1088,bits:13,code:0x75},{runLen:1152,bits:13,code:0x76},{runLen:1216,bits:13,code:0x77},{runLen:1280,bits:13,code:0x52},
+    {runLen:1344,bits:13,code:0x53},{runLen:1408,bits:13,code:0x54},{runLen:1472,bits:13,code:0x55},{runLen:1536,bits:13,code:0x5A},
+    {runLen:1600,bits:13,code:0x5B},{runLen:1664,bits:13,code:0x64},{runLen:1728,bits:13,code:0x65},
+];
+
+const COMMON_MAKEUP_CODES: CCITTCode[] = [
+    {runLen:1792,bits:11,code:0x08},{runLen:1856,bits:11,code:0x0C},{runLen:1920,bits:11,code:0x0D},
+    {runLen:1984,bits:12,code:0x12},{runLen:2048,bits:12,code:0x13},{runLen:2112,bits:12,code:0x14},
+    {runLen:2176,bits:12,code:0x15},{runLen:2240,bits:12,code:0x16},{runLen:2304,bits:12,code:0x17},
+    {runLen:2368,bits:12,code:0x1C},{runLen:2432,bits:12,code:0x1D},{runLen:2496,bits:12,code:0x1E},
+    {runLen:2560,bits:12,code:0x1F},
+];
+
+type CCITTTreeNode = { readonly '0'?: CCITTTreeNode; readonly '1'?: CCITTTreeNode; readonly runLen?: number };
+
+function buildCCITTTree(codes: ReadonlyArray<CCITTCode>): CCITTTreeNode {
+    const root: Record<string, unknown> = {};
+    for (const c of codes) {
+        let node = root;
+        for (let i = c.bits - 1; i >= 0; i--) {
+            const bit = (c.code >> i) & 1 ? '1' : '0';
+            if (!node[bit]) node[bit] = {};
+            node = node[bit] as Record<string, unknown>;
+        }
+        node['runLen'] = c.runLen;
+    }
+    return root as CCITTTreeNode;
+}
+
+const whiteTree = buildCCITTTree([...WHITE_TERM_CODES, ...WHITE_MAKEUP_CODES, ...COMMON_MAKEUP_CODES]);
+const blackTree = buildCCITTTree([...BLACK_TERM_CODES, ...BLACK_MAKEUP_CODES, ...COMMON_MAKEUP_CODES]);
+
+class CCITTBitReader {
+    private pos = 0;
+    private bitPos = 0;
+    constructor(private readonly data: Uint8Array) {}
+
+    readBit(): number {
+        if (this.pos >= this.data.length) return 0;
+        const bit = (this.data[this.pos] >> (7 - this.bitPos)) & 1;
+        this.bitPos++;
+        if (this.bitPos >= 8) { this.bitPos = 0; this.pos++; }
+        return bit;
+    }
+
+    skipToByteAlign(): void {
+        if (this.bitPos > 0) { this.bitPos = 0; this.pos++; }
+    }
+
+    get exhausted(): boolean { return this.pos >= this.data.length; }
+}
+
+function ccittDecodeRun(reader: CCITTBitReader, tree: CCITTTreeNode): number {
+    let total = 0;
+    let makeup = true;
+    while (makeup) {
+        let node: CCITTTreeNode | undefined = tree;
+        while (node && node.runLen === undefined) {
+            const bit = reader.readBit();
+            node = bit ? node['1'] : node['0'];
+        }
+        if (!node || node.runLen === undefined) return total;
+        total += node.runLen;
+        makeup = node.runLen >= 64;
+    }
+    return total;
+}
+
+function decodeCCITTFax(data: Uint8Array, parms: Record<string, PdfObject>, reader: PdfReader): Uint8Array {
+    const k = reader.getNumber(parms['K']);
+    const columns = reader.getNumber(parms['Columns']) || 1728;
+    const rows = reader.getNumber(parms['Rows']) || 0;
+    const encodedByteAlign = !!parms['EncodedByteAlign'];
+    const blackIs1 = !!parms['BlackIs1'];
+
+    const rowBytes = Math.ceil(columns / 8);
+    const maxRows = rows > 0 ? rows : 10000;
+    const output: Uint8Array[] = [];
+    const bitReader = new CCITTBitReader(data);
+
+    if (k < 0) {
+        let refLine: Uint8Array<ArrayBufferLike> = new Uint8Array(columns);
+        for (let row = 0; row < maxRows; row++) {
+            if (bitReader.exhausted) break;
+            const curLine = decodeCCITTGroup4Row(bitReader, refLine, columns);
+            if (!curLine) break;
+            output.push(ccittRowToBytes(curLine, columns, blackIs1));
+            refLine = curLine;
+        }
+    } else if (k === 0) {
+        for (let row = 0; row < maxRows; row++) {
+            if (bitReader.exhausted) break;
+            if (encodedByteAlign) bitReader.skipToByteAlign();
+            const curLine = decodeCCITTGroup3Row(bitReader, columns);
+            if (!curLine) break;
+            output.push(ccittRowToBytes(curLine, columns, blackIs1));
+        }
+    } else {
+        let refLine: Uint8Array<ArrayBufferLike> = new Uint8Array(columns);
+        for (let row = 0; row < maxRows; row++) {
+            if (bitReader.exhausted) break;
+            if (encodedByteAlign) bitReader.skipToByteAlign();
+            const tag = bitReader.readBit();
+            let curLine: Uint8Array | null;
+            if (tag === 1) {
+                curLine = decodeCCITTGroup3Row(bitReader, columns);
+            } else {
+                curLine = decodeCCITTGroup4Row(bitReader, refLine, columns);
+            }
+            if (!curLine) break;
+            output.push(ccittRowToBytes(curLine, columns, blackIs1));
+            refLine = curLine;
+        }
+    }
+
+    if (output.length === 0) return data;
+    const result = new Uint8Array(output.length * rowBytes);
+    for (let i = 0; i < output.length; i++) {
+        result.set(output[i], i * rowBytes);
+    }
+    return result;
+}
+
+function ccittRowToBytes(line: Uint8Array, columns: number, blackIs1: boolean): Uint8Array {
+    const rowBytes = Math.ceil(columns / 8);
+    const out = new Uint8Array(rowBytes);
+    for (let i = 0; i < columns; i++) {
+        const pixel = blackIs1 ? line[i] : (line[i] ? 0 : 1);
+        if (pixel) out[i >> 3] |= 0x80 >> (i & 7);
+    }
+    return out;
+}
+
+function decodeCCITTGroup3Row(reader: CCITTBitReader, columns: number): Uint8Array | null {
+    const line = new Uint8Array(columns);
+    let col = 0;
+    let isWhite = true;
+    while (col < columns) {
+        const tree = isWhite ? whiteTree : blackTree;
+        const runLen = ccittDecodeRun(reader, tree);
+        const fill = isWhite ? 0 : 1;
+        const end = Math.min(col + runLen, columns);
+        for (let i = col; i < end; i++) line[i] = fill;
+        col = end;
+        isWhite = !isWhite;
+    }
+    return line;
+}
+
+function decodeCCITTGroup4Row(reader: CCITTBitReader, refLine: Uint8Array, columns: number): Uint8Array | null {
+    const line = new Uint8Array(columns);
+    let a0 = 0;
+    let isWhite = true;
+
+    const findB1 = (a0pos: number, white: boolean): number => {
+        let pos = a0pos;
+        const refColor = white ? 0 : 1;
+        if (pos < columns && refLine[pos] === refColor) {
+            while (pos < columns && refLine[pos] === refColor) pos++;
+        }
+        while (pos < columns && refLine[pos] !== refColor) pos++;
+        while (pos < columns && refLine[pos] === refColor) pos++;
+        return pos;
+    };
+
+    const findB2 = (b1: number): number => {
+        const b1Color = b1 < columns ? refLine[b1] : 0;
+        let pos = b1;
+        while (pos < columns && refLine[pos] === b1Color) pos++;
+        return pos;
+    };
+
+    let safetyCounter = 0;
+    while (a0 < columns) {
+        if (safetyCounter++ > columns * 2) return line;
+        const bit1 = reader.readBit();
+        if (bit1 === 1) {
+            const bit2 = reader.readBit();
+            const bit3 = reader.readBit();
+            if (bit2 === 0 && bit3 === 0) {
+                return line;
+            }
+            const b1 = findB1(a0, isWhite);
+            if (bit2 === 0 && bit3 === 1) {
+                const fill = isWhite ? 0 : 1;
+                for (let i = a0; i < Math.min(b1, columns); i++) line[i] = fill;
+                a0 = Math.min(b1, columns);
+                isWhite = !isWhite;
+                continue;
+            }
+            const b2 = findB2(b1);
+            if (bit2 === 1 && bit3 === 0) {
+                const fill = isWhite ? 0 : 1;
+                for (let i = a0; i < Math.min(b2, columns); i++) line[i] = fill;
+                a0 = Math.min(b2, columns);
+                continue;
+            }
+            let delta = 0;
+            if (bit2 === 1 && bit3 === 1) {
+                const d = reader.readBit();
+                delta = d === 0 ? -3 : 3;
+            }
+            const a1 = Math.max(0, Math.min(b1 + delta, columns));
+            const fill = isWhite ? 0 : 1;
+            for (let i = a0; i < a1; i++) line[i] = fill;
+            a0 = a1;
+            isWhite = !isWhite;
+        } else {
+            const bit2 = reader.readBit();
+            if (bit2 === 0) {
+                const bit3 = reader.readBit();
+                const b1 = findB1(a0, isWhite);
+                let delta: number;
+                if (bit3 === 0) {
+                    delta = reader.readBit() === 0 ? -2 : 2;
+                } else {
+                    delta = reader.readBit() === 0 ? -1 : 1;
+                }
+                const a1 = Math.max(0, Math.min(b1 + delta, columns));
+                const fill = isWhite ? 0 : 1;
+                for (let i = a0; i < a1; i++) line[i] = fill;
+                a0 = a1;
+                isWhite = !isWhite;
+            } else {
+                const tree = isWhite ? whiteTree : blackTree;
+                const runLen = ccittDecodeRun(reader, tree);
+                const fill = isWhite ? 0 : 1;
+                const end = Math.min(a0 + runLen, columns);
+                for (let i = a0; i < end; i++) line[i] = fill;
+                a0 = end;
+                isWhite = !isWhite;
+
+                const tree2 = isWhite ? whiteTree : blackTree;
+                const runLen2 = ccittDecodeRun(reader, tree2);
+                const fill2 = isWhite ? 0 : 1;
+                const end2 = Math.min(a0 + runLen2, columns);
+                for (let i = a0; i < end2; i++) line[i] = fill2;
+                a0 = end2;
+                isWhite = !isWhite;
+            }
+        }
+    }
+    return line;
+}
+
+// ── End CCITT Fax decoder ───────────────────────────────────────────────
+
 function applyPngPredictor(
     data: Uint8Array, columns: number, colors: number, bpc: number,
 ): Uint8Array {
@@ -266,6 +570,15 @@ interface PathRect {
     readonly strokeColor: string;
     readonly fillColor: string;
     readonly lineWidth: number;
+}
+
+interface PdfAnnotation {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+    readonly page: number;
+    readonly uri: string;
 }
 
 interface TableGrid {
@@ -844,6 +1157,10 @@ class PdfReader {
                     result = this.applyFlatePredictor(result, parms);
                 } else if (filter === 'RunLengthDecode' || filter === 'RL') {
                     result = decodeRunLength(result);
+                } else if (filter === 'CCITTFaxDecode' || filter === 'CCF') {
+                    result = decodeCCITTFax(result, parms, this);
+                } else if (filter === 'JBIG2Decode') {
+                    return rawStream;
                 }
             } catch {
                 return rawStream;
@@ -2475,11 +2792,49 @@ function buildRotationCtm(rotate: number, mediaBox: number[]): number[] {
     }
 }
 
+function extractAnnotations(reader: PdfReader, pageDict: Record<string, PdfObject>, pageIndex: number): PdfAnnotation[] {
+    const annotsObj = pageDict['Annots'];
+    if (!annotsObj) return [];
+    const annotations: PdfAnnotation[] = [];
+    try {
+        const annots = reader.getArray(annotsObj);
+        for (const annotRef of annots) {
+            try {
+                const annot = reader.getDict(annotRef);
+                const subtype = reader.getString(annot['Subtype'] ?? { type: 'null', value: null });
+                if (subtype !== 'Link') continue;
+                const aObj = annot['A'];
+                if (!aObj) continue;
+                const action = reader.getDict(aObj);
+                const sType = reader.getString(action['S'] ?? { type: 'null', value: null });
+                if (sType !== 'URI') continue;
+                const uriObj = action['URI'];
+                if (!uriObj) continue;
+                const uri = reader.getString(uriObj);
+                if (!uri) continue;
+                const rectObj = annot['Rect'];
+                if (!rectObj) continue;
+                const rect = reader.getArray(rectObj).map(o => reader.getNumber(o));
+                if (rect.length < 4) continue;
+                annotations.push({
+                    x: Math.min(rect[0], rect[2]),
+                    y: Math.min(rect[1], rect[3]),
+                    width: Math.abs(rect[2] - rect[0]),
+                    height: Math.abs(rect[3] - rect[1]),
+                    page: pageIndex,
+                    uri,
+                });
+            } catch { /* skip malformed annotation */ }
+        }
+    } catch { /* skip if annots can't be parsed */ }
+    return annotations;
+}
+
 function extractPageContent(
     reader: PdfReader,
     pageObj: PdfObject,
     pageIndex: number,
-): { textItems: TextItem[]; imageItems: ImageItem[]; pathRects: PathRect[]; pageWidth: number; pageHeight: number } {
+): { textItems: TextItem[]; imageItems: ImageItem[]; pathRects: PathRect[]; pageWidth: number; pageHeight: number; annotations: PdfAnnotation[] } {
     const pageDict = reader.getDict(pageObj);
     const mediaBox = getPageMediaBox(reader, pageDict);
     const rotate = reader.getNumber(pageDict['Rotate']);
@@ -2490,11 +2845,13 @@ function extractPageContent(
     const pageWidth = isRotated ? rawHeight : rawWidth;
     const pageHeight = isRotated ? rawWidth : rawHeight;
 
+    const annotations = extractAnnotations(reader, pageDict, pageIndex);
+
     const contentsObj = pageDict['Contents'];
-    if (!contentsObj) return { textItems: [], imageItems: [], pathRects: [], pageWidth, pageHeight };
+    if (!contentsObj) return { textItems: [], imageItems: [], pathRects: [], pageWidth, pageHeight, annotations };
 
     const contentData = resolveContentData(reader, contentsObj);
-    if (contentData.length === 0) return { textItems: [], imageItems: [], pathRects: [], pageWidth, pageHeight };
+    if (contentData.length === 0) return { textItems: [], imageItems: [], pathRects: [], pageWidth, pageHeight, annotations };
 
     const resources = pageDict['Resources'] ? reader.getDict(pageDict['Resources']) : {};
     const fontDict = resources['Font'] ? reader.getDict(resources['Font']) : {};
@@ -2540,7 +2897,7 @@ function extractPageContent(
         i = processContentToken(token, ctx, tokens, i);
     }
 
-    return { textItems: ctx.textItems, imageItems: ctx.imageItems, pathRects: ctx.pathRects, pageWidth, pageHeight };
+    return { textItems: ctx.textItems, imageItems: ctx.imageItems, pathRects: ctx.pathRects, pageWidth, pageHeight, annotations };
 }
 
 function resolveImageFilterName(reader: PdfReader, dict: Record<string, PdfObject>): string {
@@ -2822,8 +3179,7 @@ function rawPixelsToPng(
     const bpc = reader.getNumber(dict['BitsPerComponent']) || 8;
 
     const srcChannels = indexed ? 1 : channels;
-    const bytesPerSample = bpc / 8;
-    const expectedBytes = width * height * srcChannels * bytesPerSample;
+    const expectedBytes = Math.ceil(width * height * srcChannels * bpc / 8);
     if (decoded.length < expectedBytes * 0.8) return null;
 
     const smask = decodeSMask(dict, reader, width, height);
@@ -2831,14 +3187,34 @@ function rawPixelsToPng(
     const pixelBytes = hasAlpha ? 4 : 3;
 
     const pngRows: Uint8Array[] = [];
-    const rowBytes = width * srcChannels * bytesPerSample;
+    const rowBits = width * srcChannels * bpc;
+    const rowBytes = Math.ceil(rowBits / 8);
+    const isBitPacked = bpc < 8;
 
     for (let row = 0; row < height; row++) {
         const rowStart = row * rowBytes;
         const pixelRow = new Uint8Array(width * pixelBytes);
         for (let col = 0; col < width; col++) {
-            const srcIdx = rowStart + col * srcChannels * bytesPerSample;
-            const [r, g, b] = pixelToRgb(decoded, srcIdx, channels, indexed, lookupTable, baseChannels);
+            let r: number, g: number, b: number;
+            if (isBitPacked) {
+                const bitOffset = col * srcChannels * bpc;
+                const byteIdx = rowStart + (bitOffset >> 3);
+                const bitShift = 8 - bpc - (bitOffset & 7);
+                const mask = (1 << bpc) - 1;
+                const sample = (decoded[byteIdx] >> bitShift) & mask;
+                const normalized = Math.round(sample * 255 / mask);
+                if (indexed && lookupTable) {
+                    const lutOffset = sample * baseChannels;
+                    r = lookupTable[lutOffset] ?? 0;
+                    g = baseChannels >= 3 ? (lookupTable[lutOffset + 1] ?? 0) : r;
+                    b = baseChannels >= 3 ? (lookupTable[lutOffset + 2] ?? 0) : r;
+                } else {
+                    r = g = b = normalized;
+                }
+            } else {
+                const srcIdx = rowStart + col * srcChannels;
+                [r, g, b] = pixelToRgb(decoded, srcIdx, channels, indexed, lookupTable, baseChannels);
+            }
             const outIdx = col * pixelBytes;
             pixelRow[outIdx] = r;
             pixelRow[outIdx + 1] = g;
@@ -3376,7 +3752,20 @@ function lineToText(line: TextLine): string {
     return result.trim();
 }
 
-function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: number): string {
+function findAnnotationForItem(item: TextItem, annotations: ReadonlyArray<PdfAnnotation>): string | null {
+    for (const ann of annotations) {
+        if (ann.page !== item.page) continue;
+        const itemCenterX = (item.x + item.endX) / 2;
+        const itemY = item.y;
+        if (itemCenterX >= ann.x && itemCenterX <= ann.x + ann.width &&
+            itemY >= ann.y && itemY <= ann.y + ann.height) {
+            return ann.uri;
+        }
+    }
+    return null;
+}
+
+function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: number, linkUri?: string | null): string {
     let fragment = text;
     const styles: string[] = [];
     if (!isDefaultColor(item.color)) styles.push(`color: ${item.color}`);
@@ -3405,6 +3794,10 @@ function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: 
     }
     if (item.italic) fragment = `<em>${fragment}</em>`;
     if (item.bold) fragment = `<strong>${fragment}</strong>`;
+    if (linkUri) {
+        const safeUri = escapeHtml(linkUri);
+        fragment = `<a href="${safeUri}" target="_blank" rel="noopener noreferrer" style="color:#1a0dab;text-decoration:underline">${fragment}</a>`;
+    }
     return fragment;
 }
 
@@ -3416,7 +3809,7 @@ function applyTextRenderModeStyles(item: TextItem, styles: string[]): void {
     }
 }
 
-function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number): string {
+function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number, annotations?: ReadonlyArray<PdfAnnotation>): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     let result = '';
     const bf = bodyFont ?? '';
@@ -3429,7 +3822,8 @@ function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number)
             }
         }
         const text = escapeHtml(sorted[i].text);
-        result += wrapItemHtml(sorted[i], text, bf, bs);
+        const uri = annotations ? findAnnotationForItem(sorted[i], annotations) : null;
+        result += wrapItemHtml(sorted[i], text, bf, bs, uri);
     }
     return result.trim();
 }
@@ -3521,6 +3915,7 @@ interface HtmlBuilderState {
     lastPage: number;
     lastLineSpacing: number;
     imageIdx: number;
+    readonly annotations: ReadonlyArray<PdfAnnotation>;
 }
 
 function flushParagraph(state: HtmlBuilderState): void {
@@ -3563,7 +3958,7 @@ function renderLineAsHeading(
 ): void {
     flushParagraph(state);
     closeList(state);
-    const content = lineToHtmlContent(line, bodyFont, bodySize);
+    const content = lineToHtmlContent(line, bodyFont, bodySize, state.annotations);
     state.html.push(`<h${headingLevel}${dir}>${content}</h${headingLevel}>`);
 }
 
@@ -3573,7 +3968,7 @@ function renderLineAsBullet(
     flushParagraph(state);
     if (state.inNumberedList) { state.html.push('</ol>'); state.inNumberedList = false; }
     if (!state.inBulletList) { state.html.push(`<ul${dir}>`); state.inBulletList = true; }
-    const content = lineToHtmlContent(line, bodyFont, bodySize);
+    const content = lineToHtmlContent(line, bodyFont, bodySize, state.annotations);
     state.html.push(`<li>${content}</li>`);
 }
 
@@ -3583,7 +3978,7 @@ function renderLineAsNumbered(
     flushParagraph(state);
     if (state.inBulletList) { state.html.push('</ul>'); state.inBulletList = false; }
     if (!state.inNumberedList) { state.html.push(`<ol${dir}>`); state.inNumberedList = true; }
-    const content = lineToHtmlContent(line, bodyFont, bodySize);
+    const content = lineToHtmlContent(line, bodyFont, bodySize, state.annotations);
     state.html.push(`<li>${content}</li>`);
 }
 
@@ -3627,7 +4022,7 @@ function processHtmlLine(
         flushParagraph(state);
     }
     if (rtl) state.currentParagraphRTL = true;
-    state.currentParagraph.push(lineToHtmlContent(line, bodyFont, bodySize));
+    state.currentParagraph.push(lineToHtmlContent(line, bodyFont, bodySize, state.annotations));
 }
 
 function processHtmlLineWithUnderlines(
@@ -3653,7 +4048,7 @@ function processHtmlLineWithUnderlines(
     const primaryFontSize = line.items.reduce((max, item) => Math.max(max, item.fontSize), 0);
     const headingLevel = structHeading > 0 ? structHeading : getHeadingLevel(primaryFontSize, bodySize);
 
-    const content = lineToHtmlContentWithUnderlines(line, underlinedItems, bodyFont, bodySize);
+    const content = lineToHtmlContentWithUnderlines(line, underlinedItems, bodyFont, bodySize, state.annotations);
 
     if (headingLevel > 0) {
         flushParagraph(state);
@@ -3921,6 +4316,7 @@ function buildCellContent(
 
 function lineToHtmlContentWithUnderlines(
     line: TextLine, underlinedItems: Set<TextItem>, bodyFont?: string, bodySize?: number,
+    annotations?: ReadonlyArray<PdfAnnotation>,
 ): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     const bf = bodyFont ?? '';
@@ -3937,7 +4333,8 @@ function lineToHtmlContentWithUnderlines(
         if (underlinedItems.has(sorted[i])) {
             text = `<u>${text}</u>`;
         }
-        result += wrapItemHtml(sorted[i], text, bf, bs);
+        const uri = annotations ? findAnnotationForItem(sorted[i], annotations) : null;
+        result += wrapItemHtml(sorted[i], text, bf, bs, uri);
     }
     return result.trim();
 }
@@ -4006,6 +4403,7 @@ function textItemsToHtml(
     pathRects: PathRect[] = [],
     pageWidth = 0,
     pageHeight = 0,
+    annotations: PdfAnnotation[] = [],
 ): string {
     const mergedItems = mergeAdjacentChars(textItems);
     const rawLines = groupIntoLines(mergedItems);
@@ -4060,6 +4458,7 @@ function textItemsToHtml(
         currentParagraph: [], currentParagraphRTL: false,
         currentParagraphAlign: '', currentParagraphSpacingPx: 0,
         lastY: null, lastPage: -1, lastLineSpacing: 0, imageIdx: 0,
+        annotations,
     };
 
     for (const line of lines) {
@@ -4100,7 +4499,7 @@ function textItemsToHtml(
             closeList(state);
             const boxLines = lines.filter(l => isLineInsideBorderBox(l, [borderBox]));
             const boxContent = boxLines
-                .map(l => lineToHtmlContentWithUnderlines(l, underlinedItems, bodyFont, bodySize))
+                .map(l => lineToHtmlContentWithUnderlines(l, underlinedItems, bodyFont, bodySize, state.annotations))
                 .filter(c => c.length > 0)
                 .join('<br>');
             const rtl = boxLines.some(l => isLineRTL(l));
@@ -4434,6 +4833,7 @@ function buildPageResult(
     pageTextItems: TextItem[], pageImageItems: ImageItem[], pagePathRects: PathRect[],
     pageIndex: number, structureMap: StructureMap,
     pageWidth: number, pageHeight: number,
+    annotations: PdfAnnotation[] = [],
 ): PdfPageResult {
     const deduped = deduplicateTextItems(pageTextItems);
 
@@ -4449,7 +4849,7 @@ function buildPageResult(
         return { html: '', text: '', imageOnly: false, pageIndex, pageWidth, pageHeight };
     }
 
-    const html = textItemsToHtml(deduped, pageImageItems, structureMap, pagePathRects, pageWidth, pageHeight);
+    const html = textItemsToHtml(deduped, pageImageItems, structureMap, pagePathRects, pageWidth, pageHeight, annotations);
     const sorted = [...deduped].sort((a, b) => {
         if (Math.abs(a.y - b.y) > 2) return b.y - a.y;
         return a.x - b.x;
@@ -4493,8 +4893,8 @@ export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResult
 
     for (let i = 0; i < pdfPages.length; i++) {
         try {
-            const { textItems, imageItems, pathRects, pageWidth, pageHeight } = extractPageContent(reader, pdfPages[i], i);
-            const pageResult = buildPageResult(textItems, imageItems, pathRects, i, structureMap, pageWidth, pageHeight);
+            const { textItems, imageItems, pathRects, pageWidth, pageHeight, annotations } = extractPageContent(reader, pdfPages[i], i);
+            const pageResult = buildPageResult(textItems, imageItems, pathRects, i, structureMap, pageWidth, pageHeight, annotations);
             pages.push(pageResult);
 
             if (pageResult.html) allHtmlParts.push(pageResult.html);
