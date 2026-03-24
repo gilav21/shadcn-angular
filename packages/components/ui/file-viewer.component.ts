@@ -58,25 +58,25 @@ const HEADING_CLASSES: Record<number, string> = {
     imports: [SpinnerComponent],
     styles: `
         .pdf-page {
-            line-height: 1.4;
+            line-height: 1.6;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            padding: 40px 48px;
+            padding: 40px 56px;
             box-sizing: border-box;
         }
         .pdf-page img {
             max-width: 100%;
             height: auto;
             display: block;
-            margin: 0.75em auto;
+            margin: 1em auto;
         }
         .pdf-page p {
-            margin: 0.4em 0;
+            margin: 0.5em 0;
         }
         .pdf-page h1, .pdf-page h2, .pdf-page h3,
         .pdf-page h4, .pdf-page h5, .pdf-page h6 {
-            margin-top: 0.6em;
-            margin-bottom: 0.2em;
+            margin-top: 1em;
+            margin-bottom: 0.3em;
         }
         .pdf-page table {
             margin: 0.5em 0;
@@ -183,9 +183,9 @@ const HEADING_CLASSES: Record<number, string> = {
                                     </div>
                                 }
                                 @case ('pdf') {
-                                    <div class="overflow-auto h-full bg-muted/40 flex justify-center py-4 sm:py-6"
+                                    <div class="overflow-auto h-full bg-muted/40 flex justify-center items-start py-4 sm:py-6"
                                          [style.zoom]="currentZoom()">
-                                        <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full max-w-3xl mx-4 sm:mx-6"
+                                        <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full max-w-4xl mx-auto shrink-0"
                                              [attr.dir]="pdfPageRtl() ? 'rtl' : null"
                                              [style.font-size.pt]="pdfBodyFontSize()"
                                              [innerHTML]="currentPdfPageHtml()">
@@ -424,6 +424,15 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             return pages[idx].bodyFontSize || 12;
         }
         return 12;
+    });
+
+    readonly pdfPageMaxWidth = computed(() => {
+        const pages = this.pdfPages();
+        const idx = this.currentPage() - 1;
+        if (idx >= 0 && idx < pages.length && pages[idx].pageWidth > 0) {
+            return `${Math.round(pages[idx].pageWidth)}px`;
+        }
+        return '768px';
     });
 
     readonly pdfPageRtl = computed(() => {

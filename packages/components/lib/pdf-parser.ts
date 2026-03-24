@@ -1448,6 +1448,23 @@ function fixVisualOrderRTL(text: string): string {
     return result;
 }
 
+function reverseRTLWordOrder(text: string): string {
+    const tokens = text.split(/(\s+)/);
+    const words: string[] = [];
+    const spaces: string[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+        if (i % 2 === 0) words.push(tokens[i]);
+        else spaces.push(tokens[i]);
+    }
+    words.reverse();
+    let result = '';
+    for (let i = 0; i < words.length; i++) {
+        result += words[i];
+        if (i < spaces.length) result += spaces[i];
+    }
+    return result;
+}
+
 function isLineRTL(line: TextLine): boolean {
     let rtl = 0;
     let total = 0;
@@ -3817,9 +3834,7 @@ function mergeAdjacentChars(items: TextItem[]): TextItem[] {
     merged.push(current);
     for (const item of merged) {
         if (hasRTLText(item.text) && item.text.includes(' ')) {
-            const parts = item.text.split(/(\s+)/);
-            parts.reverse();
-            item.text = parts.join('');
+            item.text = reverseRTLWordOrder(item.text);
         }
     }
     return merged;
@@ -4618,6 +4633,33 @@ function isLineInsideBorderBox(line: TextLine, boxes: PathRect[]): PathRect | un
     return undefined;
 }
 
+function isLineNearBorderBox(line: PathRect, boxes: PathRect[]): boolean {
+    for (const box of boxes) {
+        if (box.page !== line.page) continue;
+        const xOverlap = line.x >= box.x - 10 && line.x + line.width <= box.x + box.width + 10;
+        const nearTop = Math.abs(line.y - box.y) < 8;
+        const nearBottom = Math.abs(line.y - (box.y + box.height)) < 8;
+        if (xOverlap && (nearTop || nearBottom)) return true;
+    }
+    return false;
+}
+
+function groupFooterLinesByY(lines: TextLine[]): TextLine[][] {
+    if (lines.length === 0) return [];
+    const sorted = [...lines].sort((a, b) => b.y - a.y);
+    const groups: TextLine[][] = [[sorted[0]]];
+    for (let i = 1; i < sorted.length; i++) {
+        const lastGroup = groups[groups.length - 1];
+        const lastY = lastGroup[0].y;
+        if (Math.abs(sorted[i].y - lastY) < 3) {
+            lastGroup.push(sorted[i]);
+        } else {
+            groups.push([sorted[i]]);
+        }
+    }
+    return groups;
+}
+
 function detectTextAlignment(line: TextLine, pageWidth: number, leftMargin: number, rightMargin: number): string {
     if (pageWidth <= 0) return '';
     const lineLeft = Math.min(...line.items.map(it => it.x));
@@ -4704,7 +4746,8 @@ function textItemsToHtml(
     }
 
     const decorativeLines = remainingRects
-        .filter(r => !tableGridRects.has(r) && r.height <= 3 && r.width > 50 && (r.stroked || r.filled))
+        .filter(r => !tableGridRects.has(r) && r.height <= 3 && r.width > 50 && (r.stroked || r.filled)
+            && !isLineNearBorderBox(r, allBorderBoxes))
         .sort((a, b) => a.page === b.page ? b.y - a.y : a.page - b.page);
     let hrIdx = 0;
 
@@ -4738,8 +4781,8 @@ function textItemsToHtml(
             closeList(state);
             const color = hr.stroked ? hr.strokeColor : hr.fillColor;
             const weight = hr.stroked
-                ? Math.max(1, Math.round(hr.lineWidth * 0.75))
-                : Math.max(1, Math.round(Math.abs(hr.height) * 0.75));
+                ? Math.max(2, Math.round(hr.lineWidth))
+                : Math.max(2, Math.round(Math.abs(hr.height)));
             state.html.push(`<hr style="border:none;border-top:${weight}px solid ${color};margin:0.5em 0" />`);
             hrIdx++;
         }
@@ -4776,10 +4819,12 @@ function textItemsToHtml(
                 boxStyles.push(`background-color:${borderBox.fillColor}`);
             }
             if (borderBox.stroked) {
-                const bw = Math.max(1, Math.round(borderBox.lineWidth * 0.75));
+                const bw = Math.max(1, Math.round(borderBox.lineWidth));
                 boxStyles.push(`border:${bw}px solid ${borderBox.strokeColor}`);
+            } else {
+                boxStyles.push('border:1px solid #000');
             }
-            boxStyles.push('padding:8px 12px', 'margin:8px 0', 'font-family:monospace', 'font-size:0.85em', 'overflow-x:auto', 'white-space:pre-wrap');
+            boxStyles.push('padding:8px 12px', 'margin:8px 0', 'font-family:monospace', 'font-size:0.85em', 'overflow-x:auto', 'white-space:pre-wrap', 'width:100%', 'box-sizing:border-box');
             state.html.push(`<div style="${boxStyles.join(';')}"${dirAttr}>${boxContent}</div>`);
             renderedBorderBoxes.add(borderBox);
             state.lastY = line.y;
@@ -4831,12 +4876,24 @@ function textItemsToHtml(
 
     if (footerLines.length > 0) {
         state.html.push('<hr style="border:none;border-top:1px solid #ccc;margin:1.5em 0 0.5em 0" />');
-        state.html.push('<footer style="font-size:0.75em;color:#666;text-align:center">');
-        for (const fl of footerLines) {
-            const content = lineToHtmlContentWithUnderlines(fl, underlinedItems, bodyFont, bodySize, state.annotations);
-            const rtl = isLineRTL(fl);
-            const dirAttr = rtl ? ' dir="rtl"' : '';
-            state.html.push(`<p${dirAttr} style="margin:0.15em 0">${content}</p>`);
+        const yGroups = groupFooterLinesByY(footerLines);
+        state.html.push('<footer style="font-size:0.75em;color:#666">');
+        for (const group of yGroups) {
+            if (group.length === 1) {
+                const content = lineToHtmlContentWithUnderlines(group[0], underlinedItems, bodyFont, bodySize, state.annotations);
+                const rtl = isLineRTL(group[0]);
+                const dirAttr = rtl ? ' dir="rtl"' : '';
+                state.html.push(`<p${dirAttr} style="margin:0.15em 0;text-align:center">${content}</p>`);
+            } else {
+                const sorted = [...group].sort((a, b) => a.minX - b.minX);
+                const parts = sorted.map(l =>
+                    lineToHtmlContentWithUnderlines(l, underlinedItems, bodyFont, bodySize, state.annotations));
+                state.html.push(`<div style="display:flex;justify-content:space-between;margin:0.15em 0">`);
+                for (const part of parts) {
+                    state.html.push(`<span>${part}</span>`);
+                }
+                state.html.push('</div>');
+            }
         }
         state.html.push('</footer>');
     }
