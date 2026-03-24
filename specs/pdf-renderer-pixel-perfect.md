@@ -262,9 +262,9 @@ What the parser already handles correctly:
 - [x] **3.5** Horizontal scaling → CSS `scaleX()` (fixes Gap 2.4)
 - [x] **3.6** Glyph fallback chain for unmapped codes (fixes Gap 2.5) — already handled by existing encoding differences + PDFDocEncoding fallback
 
-### Sprint 4 — Layout Precision ✅ Done
+### Sprint 4 — Layout Precision ✅ Done (4.2 revised in Sprint 9)
 - [x] **4.1** Page margin detection and CSS padding (fixes Gap 3.2) — content bounding box computed, margins passed to alignment detection
-- [x] **4.2** Line spacing preservation via `margin-bottom` (fixes Gap 3.3) — paragraph spacing tracked from Y-delta, applied as CSS margin-bottom
+- [x] **4.2** Line spacing preservation via `margin-bottom` (fixes Gap 3.3) — ⚠️ **Revised in Sprint 9.4**: original 0.75x compression factor was too aggressive, paragraph margins too tight
 - [x] **4.3** Text alignment detection: center / right / justify (fixes Gap 3.5) — line X extent vs content bounds analysis
 - [x] **4.4** First-line paragraph indentation (fixes Gap 3.4) — detect first-line X offset vs subsequent lines, apply CSS text-indent
 - [x] **4.5** Side-by-side multi-column rendering (fixes Gap 3.1) — CSS column-count:2 wrapper when columns detected
@@ -290,6 +290,16 @@ What the parser already handles correctly:
 ### Sprint 8 — Advanced Fonts ✅ Done
 - [x] **8.1** Type3 font handling (fixes Gap 2.6) — Type3 subtype detected, uses ToUnicode + standard widths
 - [x] **8.2** CFF font default width extraction — parse CFF header for defaultWidthX when PDF widths missing
+
+### Sprint 9 — Visual Fidelity Fixes (RTL + Spacing + Styling) ✅ Done
+Fixes identified from side-by-side comparison of Hebrew RTL PDF against original:
+
+- [x] **9.1** RTL text ordering fix — sort items RIGHT-TO-LEFT for RTL lines in `lineToHtmlContent` and `lineToHtmlContentWithUnderlines` to prevent double-reversal with `dir="rtl"`
+- [x] **9.2** Line weight rendering — use actual `lineWidth` from PathRect instead of hardcoded 1px; filled lines use height as weight
+- [x] **9.3** Border box styling — expand detection to filled rectangles (not just stroked), lower height threshold to 15px, render with actual `fillColor`/`strokeColor`/`lineWidth`, add monospace font and pre-wrap; tighten `isLineInsideBorderBox` to require ALL items inside box
+- [x] **9.4** Paragraph spacing fix — increase `<p>` margin from 0.15em to 0.4em, increase image margin to 0.75em, remove 0.75x compression on margin-bottom, lower paragraph break threshold from 1.5x to 1.3x, ensure minimum spacing of 0.5x bodySize on breaks, raise max to 3x
+- [x] **9.5** Image shadow detection — detect SMask or low opacity in graphics state, add CSS `box-shadow` to affected images
+- [x] **9.6** Base font-size from bodySize — add `bodyFontSize` to `PdfPageResult`, apply via `[style.font-size.pt]` on page container so body text renders at correct size instead of browser default 16px
 
 ---
 

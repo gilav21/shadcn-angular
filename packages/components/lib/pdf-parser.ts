@@ -557,6 +557,7 @@ interface ImageItem {
     x: number;
     y: number;
     page: number;
+    hasShadow?: boolean;
 }
 
 interface PathRect {
@@ -2185,7 +2186,11 @@ function processDoOperator(ctx: ContentExtractionContext): void {
 
     if (subtype === 'Image') {
         const imgResult = extractXObjectImage(ctx.reader, xObj, ctx.gs.ctm, ctx.pageIndex);
-        if (imgResult) ctx.imageItems.push(imgResult);
+        if (imgResult) {
+            const hasShadow = !!xDict['SMask'] || ctx.gs.fillOpacity < 0.95 || ctx.gs.strokeOpacity < 0.95;
+            if (hasShadow) imgResult.hasShadow = true;
+            ctx.imageItems.push(imgResult);
+        }
     } else if (subtype === 'Form') {
         processFormXObject(ctx, xObj);
     }
@@ -3963,14 +3968,17 @@ function applyTextRenderModeStyles(item: TextItem, styles: string[]): void {
 }
 
 function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number, annotations?: ReadonlyArray<PdfAnnotation>): string {
-    const sorted = [...line.items].sort((a, b) => a.x - b.x);
+    const rtl = isLineRTL(line);
+    const sorted = [...line.items].sort((a, b) => rtl ? b.x - a.x : a.x - b.x);
     let result = '';
     const bf = bodyFont ?? '';
     const bs = bodySize ?? 12;
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
-            const gap = sorted[i].x - sorted[i - 1].endX;
-            if (gap > sorted[i - 1].fontSize * 0.12) {
+            const gap = rtl
+                ? sorted[i - 1].x - sorted[i].endX
+                : sorted[i].x - sorted[i - 1].endX;
+            if (gap > (sorted[i].fontSize || sorted[i - 1].fontSize) * 0.12) {
                 result += ' ';
             }
         }
@@ -4085,7 +4093,7 @@ function flushParagraph(state: HtmlBuilderState): void {
         styles.push(`text-align:${state.currentParagraphAlign}`);
     }
     if (state.currentParagraphSpacingPx > 2) {
-        styles.push(`margin-bottom:${Math.round(state.currentParagraphSpacingPx * 0.75)}px`);
+        styles.push(`margin-bottom:${Math.round(state.currentParagraphSpacingPx)}px`);
     }
     if (state.currentParagraphIndent > 5) {
         styles.push(`text-indent:${Math.round(state.currentParagraphIndent * 0.75)}px`);
@@ -4123,7 +4131,8 @@ function insertImagesBeforeY(state: HtmlBuilderState, sortedImages: ImageItem[],
         if (img.page > page || (img.page === page && img.y < y)) break;
         flushParagraph(state);
         closeList(state);
-        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" style="max-width:100%;height:auto" />`);
+        const shadowStyle = img.hasShadow ? 'box-shadow:0 2px 8px rgba(0,0,0,0.3);' : '';
+        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" style="max-width:100%;height:auto;${shadowStyle}" />`);
         state.imageIdx++;
     }
 }
@@ -4411,7 +4420,7 @@ function detectTableGrids(rects: PathRect[], page: number): TableGrid[] {
 
 function detectBorderBoxes(rects: PathRect[], tableGrids: TableGrid[], page: number): PathRect[] {
     const pageRects = rects.filter(r =>
-        r.page === page && r.stroked && r.width > 150 && r.height > 40
+        r.page === page && (r.stroked || r.filled) && r.width > 100 && r.height > 15
         && !isHorizontalLine(r) && !isVerticalLine(r)
     );
     return pageRects.filter(r => {
@@ -4497,14 +4506,17 @@ function lineToHtmlContentWithUnderlines(
     line: TextLine, underlinedItems: Set<TextItem>, bodyFont?: string, bodySize?: number,
     annotations?: ReadonlyArray<PdfAnnotation>,
 ): string {
-    const sorted = [...line.items].sort((a, b) => a.x - b.x);
+    const rtl = isLineRTL(line);
+    const sorted = [...line.items].sort((a, b) => rtl ? b.x - a.x : a.x - b.x);
     const bf = bodyFont ?? '';
     const bs = bodySize ?? 12;
     let result = '';
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
-            const gap = sorted[i].x - sorted[i - 1].endX;
-            if (gap > sorted[i - 1].fontSize * 0.12) {
+            const gap = rtl
+                ? sorted[i - 1].x - sorted[i].endX
+                : sorted[i].x - sorted[i - 1].endX;
+            if (gap > (sorted[i].fontSize || sorted[i - 1].fontSize) * 0.12) {
                 result += ' ';
             }
         }
@@ -4533,11 +4545,10 @@ function isLineInsideGrid(line: TextLine, grids: TableGrid[]): boolean {
 function isLineInsideBorderBox(line: TextLine, boxes: PathRect[]): PathRect | undefined {
     for (const box of boxes) {
         if (line.items[0]?.page !== box.page) continue;
-        for (const item of line.items) {
-            if (isItemInBounds(item, box.x, box.y, box.width, box.height)) {
-                return box;
-            }
-        }
+        const allInside = line.items.every(item =>
+            isItemInBounds(item, box.x - 3, box.y - 3, box.width + 6, box.height + 6)
+        );
+        if (allInside) return box;
     }
     return undefined;
 }
@@ -4653,7 +4664,10 @@ function textItemsToHtml(
             flushParagraph(state);
             closeList(state);
             const color = hr.stroked ? hr.strokeColor : hr.fillColor;
-            state.html.push(`<hr style="border:none;border-top:1px solid ${color};margin:0.5em 0" />`);
+            const weight = hr.stroked
+                ? Math.max(1, Math.round(hr.lineWidth * 0.75))
+                : Math.max(1, Math.round(Math.abs(hr.height) * 0.75));
+            state.html.push(`<hr style="border:none;border-top:${weight}px solid ${color};margin:0.5em 0" />`);
             hrIdx++;
         }
 
@@ -4684,7 +4698,16 @@ function textItemsToHtml(
                 .join('<br>');
             const rtl = boxLines.some(l => isLineRTL(l));
             const dirAttr = rtl ? ' dir="rtl"' : '';
-            state.html.push(`<div style="border: 1px solid #000; padding: 8px; margin: 8px 0;"${dirAttr}>${boxContent}</div>`);
+            const boxStyles: string[] = [];
+            if (borderBox.filled && borderBox.fillColor !== '#ffffff' && borderBox.fillColor !== '#fff') {
+                boxStyles.push(`background-color:${borderBox.fillColor}`);
+            }
+            if (borderBox.stroked) {
+                const bw = Math.max(1, Math.round(borderBox.lineWidth * 0.75));
+                boxStyles.push(`border:${bw}px solid ${borderBox.strokeColor}`);
+            }
+            boxStyles.push('padding:8px 12px', 'margin:8px 0', 'font-family:monospace', 'font-size:0.85em', 'overflow-x:auto', 'white-space:pre-wrap');
+            state.html.push(`<div style="${boxStyles.join(';')}"${dirAttr}>${boxContent}</div>`);
             renderedBorderBoxes.add(borderBox);
             state.lastY = line.y;
             state.lastPage = line.items[0].page;
@@ -4701,14 +4724,14 @@ function textItemsToHtml(
         const isParagraphBreak = state.lastY !== null &&
             line.items[0].page === state.lastPage &&
             (
-                (state.lastLineSpacing > 0 && lineSpacing > state.lastLineSpacing * 1.5) ||
-                lineSpacing > bodySize * 2
+                (state.lastLineSpacing > 0 && lineSpacing > state.lastLineSpacing * 1.3) ||
+                lineSpacing > bodySize * 1.8
             );
         const isPageBreak = state.lastPage !== -1 && line.items[0].page !== state.lastPage;
 
         if (isParagraphBreak && lineSpacing > 0) {
             const extraSpacing = lineSpacing - (state.lastLineSpacing > 0 ? state.lastLineSpacing : bodySize);
-            state.currentParagraphSpacingPx = Math.min(Math.max(extraSpacing, 0), bodySize * 2);
+            state.currentParagraphSpacingPx = Math.min(Math.max(extraSpacing, bodySize * 0.5), bodySize * 3);
         }
 
         const align = pageWidth > 0 ? detectTextAlignment(line, pageWidth, leftMargin, rightMargin) : '';
@@ -4728,7 +4751,8 @@ function textItemsToHtml(
 
     while (state.imageIdx < sortedImages.length) {
         const img = sortedImages[state.imageIdx];
-        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" style="max-width:100%;height:auto" />`);
+        const shadowStyle = img.hasShadow ? 'box-shadow:0 2px 8px rgba(0,0,0,0.3);' : '';
+        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" style="max-width:100%;height:auto;${shadowStyle}" />`);
         state.imageIdx++;
     }
 
@@ -4970,7 +4994,10 @@ export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
     if (dedupedItems.length === 0 && allImageItems.length > 0) {
         allImageItems.sort((a, b) => a.page === b.page ? b.y - a.y : a.page - b.page);
         const imgTags = allImageItems
-            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto" />`)
+            .map(img => {
+                const shadow = img.hasShadow ? 'box-shadow:0 2px 8px rgba(0,0,0,0.3);' : '';
+                return `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto;${shadow}" />`;
+            })
             .join('\n');
         return { html: imgTags, text: '', imageOnly: true };
     }
@@ -5003,6 +5030,7 @@ export interface PdfPageResult {
     readonly pageIndex: number;
     readonly pageWidth: number;
     readonly pageHeight: number;
+    readonly bodyFontSize: number;
 }
 
 export interface PdfOutlineItem {
@@ -5031,15 +5059,19 @@ function buildPageResult(
     if (deduped.length === 0 && pageImageItems.length > 0) {
         const sortedImages = [...pageImageItems].sort((a, b) => b.y - a.y);
         const imgTags = sortedImages
-            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto" />`)
+            .map(img => {
+                const shadow = img.hasShadow ? 'box-shadow:0 2px 8px rgba(0,0,0,0.3);' : '';
+                return `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" style="max-width:100%;height:auto;${shadow}" />`;
+            })
             .join('\n');
-        return { html: imgTags, text: '', imageOnly: true, pageIndex, pageWidth, pageHeight };
+        return { html: imgTags, text: '', imageOnly: true, pageIndex, pageWidth, pageHeight, bodyFontSize: 12 };
     }
 
     if (deduped.length === 0) {
-        return { html: '', text: '', imageOnly: false, pageIndex, pageWidth, pageHeight };
+        return { html: '', text: '', imageOnly: false, pageIndex, pageWidth, pageHeight, bodyFontSize: 12 };
     }
 
+    const bodyFontSize = detectBodyFontSize(deduped);
     const html = textItemsToHtml(deduped, pageImageItems, structureMap, pagePathRects, pageWidth, pageHeight, annotations);
     const sorted = [...deduped].sort((a, b) => {
         if (Math.abs(a.y - b.y) > 2) return b.y - a.y;
@@ -5047,7 +5079,7 @@ function buildPageResult(
     });
     const text = sorted.map(item => item.text).join(' ').replaceAll(/\s+/g, ' ').trim();
 
-    return { html, text, imageOnly: false, pageIndex, pageWidth, pageHeight };
+    return { html, text, imageOnly: false, pageIndex, pageWidth, pageHeight, bodyFontSize };
 }
 
 export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResultPaged> {
@@ -5092,7 +5124,7 @@ export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResult
             if (pageResult.text) allTextParts.push(pageResult.text);
             if (!pageResult.imageOnly || pageResult.text) allImageOnly = false;
         } catch {
-            pages.push({ html: '', text: '', imageOnly: false, pageIndex: i, pageWidth: 612, pageHeight: 792 });
+            pages.push({ html: '', text: '', imageOnly: false, pageIndex: i, pageWidth: 612, pageHeight: 792, bodyFontSize: 12 });
         }
     }
 

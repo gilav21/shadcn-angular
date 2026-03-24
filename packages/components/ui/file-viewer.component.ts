@@ -68,10 +68,10 @@ const HEADING_CLASSES: Record<number, string> = {
             max-width: 100%;
             height: auto;
             display: block;
-            margin: 0.25rem auto;
+            margin: 0.75em auto;
         }
         .pdf-page p {
-            margin: 0.15em 0;
+            margin: 0.4em 0;
         }
         .pdf-page h1, .pdf-page h2, .pdf-page h3,
         .pdf-page h4, .pdf-page h5, .pdf-page h6 {
@@ -187,6 +187,7 @@ const HEADING_CLASSES: Record<number, string> = {
                                          [style.zoom]="currentZoom()">
                                         <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full max-w-3xl mx-4 sm:mx-6"
                                              [attr.dir]="pdfPageRtl() ? 'rtl' : null"
+                                             [style.font-size.pt]="pdfBodyFontSize()"
                                              [innerHTML]="currentPdfPageHtml()">
                                         </div>
                                     </div>
@@ -414,6 +415,15 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             return this.sanitizer.bypassSecurityTrustHtml(pages[idx].html);
         }
         return '';
+    });
+
+    readonly pdfBodyFontSize = computed(() => {
+        const pages = this.pdfPages();
+        const idx = this.currentPage() - 1;
+        if (idx >= 0 && idx < pages.length) {
+            return pages[idx].bodyFontSize || 12;
+        }
+        return 12;
     });
 
     readonly pdfPageRtl = computed(() => {
