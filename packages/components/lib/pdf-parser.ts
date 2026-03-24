@@ -3481,6 +3481,12 @@ function detectColumns(lines: TextLine[]): TextLine[] {
             continue;
         }
 
+        const pageText = pageLines.map(l => l.items.map(it => it.text).join('')).join('');
+        if (hasRTLText(pageText)) {
+            result.push(...pageLines);
+            continue;
+        }
+
         const startXs = pageLines.map(l => l.minX).sort((a, b) => a - b);
         const { bestGap, splitX } = findBestColumnGap(startXs);
 
@@ -4045,7 +4051,7 @@ function textItemsToHtml(
     }
 
     const decorativeLines = remainingRects
-        .filter(r => !tableGridRects.has(r) && isHorizontalLine(r) && r.width > 50)
+        .filter(r => !tableGridRects.has(r) && r.height <= 3 && r.width > 50 && (r.stroked || r.filled))
         .sort((a, b) => a.page === b.page ? b.y - a.y : a.page - b.page);
     let hrIdx = 0;
 
@@ -4066,9 +4072,9 @@ function textItemsToHtml(
             const hr = decorativeLines[hrIdx];
             if (hr.page > line.items[0].page || (hr.page === line.items[0].page && hr.y < line.y)) break;
             flushParagraph(state);
-            const color = hr.fillColor !== '#000000' || !hr.stroked ? hr.fillColor : hr.strokeColor;
-            const hrStyle = color !== '#000000' ? ` style="border-color:${color}"` : '';
-            state.html.push(`<hr${hrStyle} />`);
+            closeList(state);
+            const color = hr.stroked ? hr.strokeColor : hr.fillColor;
+            state.html.push(`<hr style="border:none;border-top:1px solid ${color};margin:0.5em 0" />`);
             hrIdx++;
         }
 
