@@ -58,7 +58,7 @@ const HEADING_CLASSES: Record<number, string> = {
     imports: [SpinnerComponent],
     styles: `
         .pdf-page {
-            line-height: 1.6;
+            line-height: 1.4;
             word-wrap: break-word;
             overflow-wrap: break-word;
             padding: 40px 48px;
@@ -68,15 +68,15 @@ const HEADING_CLASSES: Record<number, string> = {
             max-width: 100%;
             height: auto;
             display: block;
-            margin: 0.5rem auto;
+            margin: 0.25rem auto;
         }
         .pdf-page p {
-            margin: 0.25em 0;
+            margin: 0.15em 0;
         }
         .pdf-page h1, .pdf-page h2, .pdf-page h3,
         .pdf-page h4, .pdf-page h5, .pdf-page h6 {
-            margin-top: 1em;
-            margin-bottom: 0.4em;
+            margin-top: 0.6em;
+            margin-bottom: 0.2em;
         }
         .pdf-page table {
             margin: 0.5em 0;

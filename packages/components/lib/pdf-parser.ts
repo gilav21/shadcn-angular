@@ -4031,6 +4031,24 @@ function textItemsToHtml(
         a.page === b.page ? b.y - a.y : a.page - b.page
     );
 
+    const tableGridRects = new Set<PathRect>();
+    for (const grid of allTableGrids) {
+        for (const rect of remainingRects) {
+            if (rect.x >= grid.x - 2 && rect.x + rect.width <= grid.x + grid.width + 2 &&
+                rect.y >= grid.y - 2 && rect.y + rect.height <= grid.y + grid.height + 2) {
+                tableGridRects.add(rect);
+            }
+        }
+    }
+    for (const box of allBorderBoxes) {
+        tableGridRects.add(box);
+    }
+
+    const decorativeLines = remainingRects
+        .filter(r => !tableGridRects.has(r) && isHorizontalLine(r) && r.width > 50)
+        .sort((a, b) => a.page === b.page ? b.y - a.y : a.page - b.page);
+    let hrIdx = 0;
+
     const state: HtmlBuilderState = {
         html: [], inBulletList: false, inNumberedList: false,
         currentParagraph: [], currentParagraphRTL: false,
@@ -4043,6 +4061,16 @@ function textItemsToHtml(
         if (!lineText) continue;
 
         insertImagesBeforeY(state, sortedImages, line.items[0].page, line.y);
+
+        while (hrIdx < decorativeLines.length) {
+            const hr = decorativeLines[hrIdx];
+            if (hr.page > line.items[0].page || (hr.page === line.items[0].page && hr.y < line.y)) break;
+            flushParagraph(state);
+            const color = hr.fillColor !== '#000000' || !hr.stroked ? hr.fillColor : hr.strokeColor;
+            const hrStyle = color !== '#000000' ? ` style="border-color:${color}"` : '';
+            state.html.push(`<hr${hrStyle} />`);
+            hrIdx++;
+        }
 
         if (isLineInsideGrid(line, allTableGrids)) {
             const grid = allTableGrids.find(g => {
@@ -4094,7 +4122,8 @@ function textItemsToHtml(
         const isPageBreak = state.lastPage !== -1 && line.items[0].page !== state.lastPage;
 
         if (isParagraphBreak && lineSpacing > 0) {
-            state.currentParagraphSpacingPx = lineSpacing - (state.lastLineSpacing > 0 ? state.lastLineSpacing : bodySize);
+            const extraSpacing = lineSpacing - (state.lastLineSpacing > 0 ? state.lastLineSpacing : bodySize);
+            state.currentParagraphSpacingPx = Math.min(Math.max(extraSpacing, 0), bodySize * 2);
         }
 
         const align = pageWidth > 0 ? detectTextAlignment(line, pageWidth, leftMargin, rightMargin) : '';
