@@ -57,39 +57,41 @@ const HEADING_CLASSES: Record<number, string> = {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [SpinnerComponent],
     styles: `
-        .pdf-page {
+        :host ::ng-deep .pdf-page {
             line-height: 1.6;
             word-wrap: break-word;
             overflow-wrap: break-word;
             padding: 40px 56px;
             box-sizing: border-box;
         }
-        .pdf-page img {
+        :host ::ng-deep .pdf-page img {
             max-width: 100%;
             height: auto;
             display: block;
             margin: 1em auto;
         }
-        .pdf-page p {
+        :host ::ng-deep .pdf-page p {
             margin: 0.5em 0;
         }
-        .pdf-page h1, .pdf-page h2, .pdf-page h3,
-        .pdf-page h4, .pdf-page h5, .pdf-page h6 {
+        :host ::ng-deep .pdf-page h1, :host ::ng-deep .pdf-page h2, :host ::ng-deep .pdf-page h3,
+        :host ::ng-deep .pdf-page h4, :host ::ng-deep .pdf-page h5, :host ::ng-deep .pdf-page h6 {
             margin-top: 1em;
             margin-bottom: 0.3em;
         }
-        .pdf-page table {
+        :host ::ng-deep .pdf-page table {
             margin: 0.5em 0;
         }
-        .pdf-page td {
+        :host ::ng-deep .pdf-page td {
             vertical-align: top;
         }
-        .pdf-page ul, .pdf-page ol {
+        :host ::ng-deep .pdf-page ul, :host ::ng-deep .pdf-page ol {
             margin: 0.25em 0;
             padding-inline-start: 1.5em;
         }
+        :host ::ng-deep .pdf-page ul { list-style-type: disc; }
+        :host ::ng-deep .pdf-page ol { list-style-type: decimal; }
         @media (max-width: 640px) {
-            .pdf-page {
+            :host ::ng-deep .pdf-page {
                 padding: 24px 16px;
             }
         }
@@ -186,7 +188,6 @@ const HEADING_CLASSES: Record<number, string> = {
                                     <div class="overflow-auto h-full bg-muted/40 flex justify-center items-start py-4 sm:py-6"
                                          [style.zoom]="currentZoom()">
                                         <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full max-w-4xl mx-auto shrink-0"
-                                             [attr.dir]="pdfPageRtl() ? 'rtl' : null"
                                              [style.font-size.pt]="pdfBodyFontSize()"
                                              [innerHTML]="currentPdfPageHtml()">
                                         </div>
@@ -433,27 +434,6 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             return `${Math.round(pages[idx].pageWidth)}px`;
         }
         return '768px';
-    });
-
-    readonly pdfPageRtl = computed(() => {
-        const pages = this.pdfPages();
-        const idx = this.currentPage() - 1;
-        if (idx < 0 || idx >= pages.length) return false;
-        const text = pages[idx].text;
-        if (!text) return false;
-        let rtlCount = 0;
-        let totalCount = 0;
-        for (let i = 0; i < text.length; i++) {
-            const code = text.codePointAt(i) ?? 0;
-            if (code <= 0x20) continue;
-            totalCount++;
-            if ((code >= 0x0590 && code <= 0x05FF) || (code >= 0xFB1D && code <= 0xFB4F) ||
-                (code >= 0x0600 && code <= 0x06FF) || (code >= 0xFB50 && code <= 0xFDFF) ||
-                (code >= 0xFE70 && code <= 0xFEFF)) {
-                rtlCount++;
-            }
-        }
-        return totalCount > 0 && rtlCount > totalCount * 0.3;
     });
 
     readonly currentSlideHtml = computed<SafeHtml>(() => {
