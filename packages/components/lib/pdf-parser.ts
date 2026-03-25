@@ -3832,11 +3832,6 @@ function mergeAdjacentChars(items: TextItem[]): TextItem[] {
         }
     }
     merged.push(current);
-    for (const item of merged) {
-        if (hasRTLText(item.text) && item.text.includes(' ')) {
-            item.text = reverseRTLWordOrder(item.text);
-        }
-    }
     return merged;
 }
 
@@ -4517,6 +4512,32 @@ function detectBorderBoxes(rects: PathRect[], tableGrids: TableGrid[], page: num
     });
 }
 
+function mergeAdjacentBorderBoxes(boxes: PathRect[]): PathRect[] {
+    if (boxes.length <= 1) return boxes;
+    const sorted = [...boxes].sort((a, b) => b.y - a.y);
+    const merged: PathRect[] = [{ ...sorted[0] }];
+    for (let i = 1; i < sorted.length; i++) {
+        const prev = merged[merged.length - 1];
+        const curr = sorted[i];
+        const sameX = Math.abs(prev.x - curr.x) < 5 && Math.abs(prev.width - curr.width) < 10;
+        const adjacent = Math.abs((prev.y - prev.height) - curr.y) < 5
+            || Math.abs(prev.y - (curr.y - curr.height)) < 5
+            || (curr.y <= prev.y && curr.y >= prev.y - prev.height);
+        if (sameX && adjacent) {
+            const minY = Math.min(prev.y - prev.height, curr.y - curr.height);
+            const maxY = Math.max(prev.y, curr.y);
+            const newX = Math.min(prev.x, curr.x);
+            const newWidth = Math.max(prev.x + prev.width, curr.x + curr.width) - newX;
+            merged[merged.length - 1] = {
+                ...prev, x: newX, y: maxY, width: newWidth, height: maxY - minY,
+            };
+        } else {
+            merged.push({ ...curr });
+        }
+    }
+    return merged;
+}
+
 function isItemInBounds(item: TextItem, x: number, y: number, w: number, h: number): boolean {
     const cx = (item.x + item.endX) / 2;
     const cy = item.y;
@@ -4705,6 +4726,15 @@ function textItemsToHtml(
     const mergedItems = mergeAdjacentChars(textItems);
     const rawLines = groupIntoLines(mergedItems);
     if (rawLines.length === 0) return '';
+    for (const line of rawLines) {
+        if (isLineRTL(line)) {
+            for (const item of line.items) {
+                if (item.text.includes(' ')) {
+                    item.text = reverseRTLWordOrder(item.text);
+                }
+            }
+        }
+    }
     const { lines, hasColumns } = detectColumns(rawLines);
     const bodySize = detectBodyFontSize(mergedItems);
     const bodyFont = detectBodyFont(mergedItems);
@@ -4722,7 +4752,8 @@ function textItemsToHtml(
     for (const page of pages) {
         const grids = detectTableGrids(remainingRects, page);
         allTableGrids.push(...grids);
-        allBorderBoxes.push(...detectBorderBoxes(remainingRects, grids, page));
+        const boxes = detectBorderBoxes(remainingRects, grids, page);
+        allBorderBoxes.push(...mergeAdjacentBorderBoxes(boxes));
     }
 
     const renderedGrids = new Set<TableGrid>();
