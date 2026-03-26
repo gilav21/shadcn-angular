@@ -1438,11 +1438,31 @@ function parseBfRangeEntries(text: string, map: Map<number, string>): void {
     }
 }
 
+function fillToUnicodeGaps(map: Map<number, string>): void {
+    const entries = [...map.entries()].sort((a, b) => a[0] - b[0]);
+    for (let i = 1; i < entries.length; i++) {
+        const [prevGlyph, prevUnicode] = entries[i - 1];
+        const [nextGlyph, nextUnicode] = entries[i];
+        const glyphGap = nextGlyph - prevGlyph;
+        if (glyphGap <= 1 || glyphGap > 32) continue;
+        if (prevUnicode.length !== 1 || nextUnicode.length !== 1) continue;
+        const prevCode = prevUnicode.codePointAt(0)!;
+        const nextCode = nextUnicode.codePointAt(0)!;
+        if (nextCode - prevCode !== glyphGap) continue;
+        for (let g = prevGlyph + 1; g < nextGlyph; g++) {
+            if (!map.has(g)) {
+                map.set(g, String.fromCodePoint(prevCode + (g - prevGlyph)));
+            }
+        }
+    }
+}
+
 function parseToUnicodeMap(data: Uint8Array): Map<number, string> {
     const map = new Map<number, string>();
     const text = new TextDecoder('latin1').decode(data);
     parseBfCharEntries(text, map);
     parseBfRangeEntries(text, map);
+    fillToUnicodeGaps(map);
     return map;
 }
 
@@ -1482,13 +1502,15 @@ function hasRTLText(text: string): boolean {
     return false;
 }
 
-const BRACKET_MIRROR: Record<string, string> = {
-    '(': ')', ')': '(', '[': ']', ']': '[',
-};
-
 function isLTRCode(code: number): boolean {
     return (code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A)
         || (code >= 0x30 && code <= 0x39);
+}
+
+function flushLtrRun(ltrRun: string): string {
+    return ltrRun.trimEnd().split(' ')
+        .map(w => w.split('').reverse().join(''))
+        .reverse().join(' ');
 }
 
 function fixVisualOrderRTL(text: string): string {
@@ -1502,18 +1524,18 @@ function fixVisualOrderRTL(text: string): string {
 
     for (const ch of chars) {
         const code = ch.codePointAt(0) ?? 0;
-        if (isLTRCode(code) || (code >= 0x30 && code <= 0x39)) {
+        if (isLTRCode(code) || (ltrRun.length > 0 && code === 0x20)) {
             ltrRun += ch;
             continue;
         }
         if (ltrRun) {
-            result += ltrRun.split('').reverse().join('');
+            result += flushLtrRun(ltrRun);
             ltrRun = '';
         }
-        result += BRACKET_MIRROR[ch] ?? ch;
+        result += ch;
     }
     if (ltrRun) {
-        result += ltrRun.split('').reverse().join('');
+        result += flushLtrRun(ltrRun);
     }
     return result;
 }
