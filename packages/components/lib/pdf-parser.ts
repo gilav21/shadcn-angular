@@ -1633,6 +1633,23 @@ function fixLeadingPunctuation(units: string[]): string[] {
     });
 }
 
+function fixLeadingBracketsInLtrTokens(units: string[]): string[] {
+    return units.map(unit => {
+        if (unit.length < 2 || hasRTLText(unit)) return unit;
+        const firstCode = unit.codePointAt(0) ?? 0;
+        if (firstCode !== 0x28 && firstCode !== 0x29) return unit;
+        const rest = unit.slice(1);
+        const mirrored = firstCode === 0x28 ? ')' : '(';
+        let insertPos = rest.length;
+        while (insertPos > 0) {
+            const code = rest.codePointAt(insertPos - 1) ?? 0;
+            if (code === 0x2E || code === 0x21 || code === 0x3F) insertPos--;
+            else break;
+        }
+        return rest.slice(0, insertPos) + mirrored + rest.slice(insertPos);
+    });
+}
+
 function reverseRTLWordOrder(text: string): string {
     const tokens = text.split(/(\s+)/);
     const words: string[] = [];
@@ -1644,7 +1661,7 @@ function reverseRTLWordOrder(text: string): string {
 
     const units = collectRTLUnits(words, spaces);
     units.reverse();
-    return fixLeadingPunctuation(reattachHebrewPrefixes(units)).join(' ');
+    return fixLeadingBracketsInLtrTokens(fixLeadingPunctuation(reattachHebrewPrefixes(units))).join(' ');
 }
 
 function isLineRTL(line: TextLine): boolean {
