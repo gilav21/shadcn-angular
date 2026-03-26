@@ -1570,7 +1570,9 @@ function collectRTLUnits(words: string[], spaces: string[]): string[] {
     let ltrSpaces: string[] = [];
 
     for (let i = 0; i < words.length; i++) {
-        if (hasLatinChar(words[i])) {
+        const firstCode = words[i].codePointAt(0) ?? 0;
+        const isLtrWord = hasLatinChar(words[i]) && !isRTLChar(firstCode);
+        if (isLtrWord) {
             if (ltrGroup.length > 0) {
                 ltrSpaces.push(i > 0 ? spaces[i - 1] : ' ');
             }
@@ -1590,6 +1592,47 @@ function collectRTLUnits(words: string[], spaces: string[]): string[] {
     return units;
 }
 
+function findLtrStart(text: string): number {
+    for (let i = 0; i < text.length; i++) {
+        if (isLTRCode(text.codePointAt(i) ?? 0)) return i;
+    }
+    return -1;
+}
+
+function reattachHebrewPrefixes(units: string[]): string[] {
+    const result: string[] = [];
+    for (let i = 0; i < units.length; i++) {
+        const unit = units[i];
+        const next = i + 1 < units.length ? units[i + 1] : null;
+        // Handle "ב-XP" followed by "Windows": reattach RTL prefix to next LTR word
+        if (next !== null && hasLatinChar(unit) && hasRTLText(unit) && !hasRTLText(next)) {
+            const ltrStart = findLtrStart(unit);
+            if (ltrStart > 0) {
+                result.push(unit.substring(0, ltrStart) + next); // "ב-Windows"
+                result.push(unit.substring(ltrStart)); // "XP"
+                i++;
+                continue;
+            }
+        }
+        result.push(unit);
+    }
+    return result;
+}
+
+function fixLeadingPunctuation(units: string[]): string[] {
+    return units.map(unit => {
+        if (unit.length < 2 || hasRTLText(unit)) return unit;
+        let end = 0;
+        while (end < unit.length) {
+            const code = unit.codePointAt(end) ?? 0;
+            if (code === 0x2E || code === 0x21 || code === 0x3F) end++;
+            else break;
+        }
+        if (end > 0 && end < unit.length) return unit.slice(end) + unit.slice(0, end);
+        return unit;
+    });
+}
+
 function reverseRTLWordOrder(text: string): string {
     const tokens = text.split(/(\s+)/);
     const words: string[] = [];
@@ -1601,7 +1644,7 @@ function reverseRTLWordOrder(text: string): string {
 
     const units = collectRTLUnits(words, spaces);
     units.reverse();
-    return units.join(' ');
+    return fixLeadingPunctuation(reattachHebrewPrefixes(units)).join(' ');
 }
 
 function isLineRTL(line: TextLine): boolean {
@@ -2177,13 +2220,12 @@ function processTextShow(
 ): void {
     const fontInfo = fontInfoMap.get(gs.fontName);
     const { text: rawDecoded, charCodes } = pdfStringToUnicode(raw, fontInfo);
-    const decoded = fixVisualOrderRTL(rawDecoded);
     const advance = calcTextAdvance(charCodes, fontInfo, gs);
     if (isInvisibleTextMode(gs.textRenderMode) || gs.fillOpacity < 0.01) {
         gs.textMatrix[4] += advance;
         return;
     }
-    if (!decoded.trim()) {
+    if (!rawDecoded.trim()) {
         gs.textMatrix[4] += advance;
         return;
     }
@@ -2191,7 +2233,7 @@ function processTextShow(
     const combined = multiplyMatrix(multiplyMatrix(riseMatrix, gs.textMatrix), gs.ctm);
     const effectiveFontSize = getEffectiveFontSize(gs);
     textItems.push({
-        text: decoded,
+        text: rawDecoded,
         fontSize: Math.round(effectiveFontSize * 100) / 100,
         x: Math.round(combined[4] * 100) / 100,
         y: Math.round(combined[5] * 100) / 100,
@@ -2242,14 +2284,13 @@ function processTJOperator(
     }
 
     if (isInvisibleTextMode(gs.textRenderMode) || gs.fillOpacity < 0.01) return;
-    const fixedText = fixVisualOrderRTL(combinedText);
-    if (!fixedText.trim()) return;
+    if (!combinedText.trim()) return;
     const riseMatrix: number[] = [1, 0, 0, 1, 0, gs.textRise];
     const combined = multiplyMatrix(multiplyMatrix(riseMatrix, startTm), gs.ctm);
     const endCombined = multiplyMatrix(gs.textMatrix, gs.ctm);
     const effectiveFontSize = getEffectiveFontSize(gs);
     textItems.push({
-        text: fixedText,
+        text: combinedText,
         fontSize: Math.round(effectiveFontSize * 100) / 100,
         x: Math.round(combined[4] * 100) / 100,
         y: Math.round(combined[5] * 100) / 100,
@@ -3841,7 +3882,11 @@ function isCharCoveredByWord(charItem: TextItem, wordItem: TextItem): boolean {
     const yDiff = Math.abs(charItem.y - wordItem.y);
     if (yDiff > wordItem.fontSize * 0.5) return false;
     const margin = wordItem.fontSize * 0.3;
-    return charItem.x >= wordItem.x - margin && charItem.endX <= wordItem.endX + margin;
+    const positionOverlaps = charItem.x >= wordItem.x - margin && charItem.endX <= wordItem.endX + margin;
+    if (!positionOverlaps) return false;
+    // Only remove if the word actually contains the char (true duplicate, not adjacent punctuation)
+    const charText = charItem.text.trim();
+    return charText.length > 0 && wordItem.text.includes(charText);
 }
 
 function removeOverlappingCharDuplicates(items: TextItem[]): TextItem[] {
@@ -3868,7 +3913,9 @@ function removeOverlappingCharDuplicates(items: TextItem[]): TextItem[] {
                 break;
             }
         }
-        if (!covered) keptChars.push(charItem);
+        if (!covered) {
+            keptChars.push(charItem);
+        }
     }
 
     return [...wordItems, ...keptChars];
@@ -5210,14 +5257,34 @@ function processLinesToHtml(ctx: HtmlBuilderContext, state: HtmlBuilderState): T
     return footerLines;
 }
 
+function mirrorBracketsAdjacentToRtl(text: string): string {
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '(' || ch === ')') {
+            const prevCode = i > 0 ? (text.codePointAt(i - 1) ?? 0) : 0;
+            const nextCode = i + 1 < text.length ? (text.codePointAt(i + 1) ?? 0) : 0;
+            if (isRTLChar(prevCode) || isRTLChar(nextCode)) {
+                result += ch === '(' ? ')' : '(';
+                continue;
+            }
+        }
+        result += ch;
+    }
+    return result;
+}
+
 function applyRtlWordFixes(rawLines: TextLine[]): void {
     for (const line of rawLines) {
         if (!isLineRTL(line)) continue;
         for (const item of line.items) {
+            if (!hasRTLText(item.text)) continue;
+            item.text = fixVisualOrderRTL(item.text);
             if (item.text.includes(' ')) {
                 item.text = reverseRTLWordOrder(item.text);
                 item.text = joinSplitHebrewFragments(item.text);
             }
+            item.text = mirrorBracketsAdjacentToRtl(item.text);
         }
     }
 }
