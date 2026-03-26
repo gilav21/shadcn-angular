@@ -1513,31 +1513,31 @@ function flushLtrRun(ltrRun: string): string {
         .reverse().join(' ');
 }
 
-function fixVisualOrderRTL(text: string): string {
-    if (!hasRTLText(text)) return text;
-
-    const chars = [...text];
-    chars.reverse();
-
+function fixRTLWordChars(word: string): string {
+    const chars = [...word].reverse();
     let result = '';
     let ltrRun = '';
-
     for (const ch of chars) {
         const code = ch.codePointAt(0) ?? 0;
-        if (isLTRCode(code) || (ltrRun.length > 0 && code === 0x20)) {
+        if (isLTRCode(code)) {
             ltrRun += ch;
-            continue;
+        } else {
+            if (ltrRun) {
+                result += flushLtrRun(ltrRun);
+                ltrRun = '';
+            }
+            result += ch;
         }
-        if (ltrRun) {
-            result += flushLtrRun(ltrRun);
-            ltrRun = '';
-        }
-        result += ch;
     }
     if (ltrRun) {
         result += flushLtrRun(ltrRun);
     }
     return result;
+}
+
+function fixVisualOrderRTL(text: string): string {
+    if (!hasRTLText(text)) return text;
+    return text.split(/(\s+)/).map(token => hasRTLText(token) ? fixRTLWordChars(token) : token).join('');
 }
 
 function joinSplitHebrewFragments(text: string): string {
@@ -4006,8 +4006,9 @@ function mergeTextItems(current: TextItem, next: TextItem, gap: number, wordGapT
     const scriptChange = hasScriptBoundary(current.text, next.text);
     const needsSpace = scriptChange || (wordGap === undefined ? gap > fallbackGap : gap > wordGap);
     const separator = needsSpace ? ' ' : '';
+    const text = current.text + separator + next.text;
     return {
-        text: current.text + separator + next.text,
+        text,
         fontSize,
         x: Math.min(current.x, next.x),
         y: current.y,
