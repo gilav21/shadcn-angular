@@ -1633,13 +1633,50 @@ function fixLeadingPunctuation(units: string[]): string[] {
     });
 }
 
+function mirrorBracketCode(code: number): number {
+    if (code === 0x28) return 0x29;
+    if (code === 0x29) return 0x28;
+    if (code === 0x5B) return 0x5D;
+    if (code === 0x5D) return 0x5B;
+    return code;
+}
+
+function isBracketCode(code: number): boolean {
+    return code === 0x28 || code === 0x29 || code === 0x5B || code === 0x5D;
+}
+
+function isSquareBracketCode(code: number): boolean {
+    return code === 0x5B || code === 0x5D;
+}
+
+function hasMatchingCloseBracket(text: string, openCode: number): boolean {
+    const closeCode = mirrorBracketCode(openCode);
+    for (const ch of text.slice(1)) {
+        if ((ch.codePointAt(0) ?? 0) === closeCode) return true;
+    }
+    return false;
+}
+
 function fixLeadingBracketsInLtrTokens(units: string[]): string[] {
     return units.map(unit => {
         if (unit.length < 2 || hasRTLText(unit)) return unit;
         const firstCode = unit.codePointAt(0) ?? 0;
-        if (firstCode !== 0x28 && firstCode !== 0x29) return unit;
+        if (!isBracketCode(firstCode)) return unit;
+
+        if (isSquareBracketCode(firstCode)) {
+            const lastCode = unit.codePointAt(unit.length - 1) ?? 0;
+            const mirroredFirst = mirrorBracketCode(firstCode);
+            if (isBracketCode(lastCode) && mirroredFirst === lastCode) {
+                const mirroredLast = mirrorBracketCode(lastCode);
+                return String.fromCodePoint(mirroredFirst) + unit.slice(1, -1) + String.fromCodePoint(mirroredLast);
+            }
+            return String.fromCodePoint(mirroredFirst) + unit.slice(1);
+        }
+
+        if (hasMatchingCloseBracket(unit, firstCode)) return unit;
+
         const rest = unit.slice(1);
-        const mirrored = firstCode === 0x28 ? ')' : '(';
+        const mirrored = String.fromCodePoint(mirrorBracketCode(firstCode));
         let insertPos = rest.length;
         while (insertPos > 0) {
             const code = rest.codePointAt(insertPos - 1) ?? 0;
@@ -1661,7 +1698,8 @@ function reverseRTLWordOrder(text: string): string {
 
     const units = collectRTLUnits(words, spaces);
     units.reverse();
-    return fixLeadingBracketsInLtrTokens(fixLeadingPunctuation(reattachHebrewPrefixes(units))).join(' ');
+    const afterPunct = fixLeadingPunctuation(reattachHebrewPrefixes(units));
+    return fixLeadingBracketsInLtrTokens(afterPunct).join(' ');
 }
 
 function isLineRTL(line: TextLine): boolean {
