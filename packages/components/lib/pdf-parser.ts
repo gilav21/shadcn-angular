@@ -1329,17 +1329,25 @@ const PDF_DOC_ENCODING: Record<number, string> = {
 };
 
 function decodeTwoByteChar(code: number, toUnicode: Map<number, string>): string {
-    if (toUnicode.has(code)) return toUnicode.get(code)!;
+    if (toUnicode.has(code)) {
+        return toUnicode.get(code)!;
+    }
 
     const lo = code & 0xFF;
-    if (toUnicode.has(lo)) return toUnicode.get(lo)!;
+    if (toUnicode.has(lo)) {
+        return toUnicode.get(lo)!;
+    }
 
     if (code >= 0x20 && code < 0xFFFE) {
         const ch = String.fromCodePoint(code);
-        if (isValidDecodedChar(code)) return ch;
+        if (isValidDecodedChar(code)) {
+            return ch;
+        }
     }
 
-    if (lo >= 0x20 && lo < 0x7F) return String.fromCodePoint(lo);
+    if (lo >= 0x20 && lo < 0x7F) {
+        return String.fromCodePoint(lo);
+    }
 
     return '';
 }
@@ -5330,8 +5338,20 @@ function mirrorBracketsAdjacentToRtl(text: string): string {
 }
 
 function applyRtlWordFixes(rawLines: TextLine[]): void {
+    const isRtlDoc = rawLines.some(line => isLineRTL(line));
     for (const line of rawLines) {
-        if (!isLineRTL(line)) continue;
+        if (!isLineRTL(line)) {
+            if (isRtlDoc) {
+                for (const item of line.items) {
+                    // Only fix visual-order mirrored square brackets (e.g. ]windows] → [windows]).
+                    // Round brackets are handled through the RTL processing path.
+                    if (!hasRTLText(item.text) && (item.text.codePointAt(0) ?? 0) === 0x5D) {
+                        item.text = fixLeadingBracketsInLtrTokens([item.text])[0];
+                    }
+                }
+            }
+            continue;
+        }
         for (const item of line.items) {
             if (!hasRTLText(item.text)) continue;
             item.text = fixVisualOrderRTL(item.text);
