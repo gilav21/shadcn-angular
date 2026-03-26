@@ -1612,12 +1612,17 @@ function reattachHebrewPrefixes(units: string[]): string[] {
     for (let i = 0; i < units.length; i++) {
         const unit = units[i];
         const next = i + 1 < units.length ? units[i + 1] : null;
-        // Handle "ב-XP" followed by "Windows": reattach RTL prefix to next LTR word
         if (next !== null && hasLatinChar(unit) && hasRTLText(unit) && !hasRTLText(next)) {
             const ltrStart = findLtrStart(unit);
             if (ltrStart > 0) {
-                result.push(unit.substring(0, ltrStart) + next); // "ב-Windows"
-                result.push(unit.substring(ltrStart)); // "XP"
+                const charBeforeLtr = unit.codePointAt(ltrStart - 1) ?? 0;
+                if (charBeforeLtr === 0x22) {
+                    const hebrewPrefix = unit.substring(0, ltrStart - 1);
+                    const ltrSuffix = unit.substring(ltrStart) + '"';
+                    result.push(hebrewPrefix + next, ltrSuffix);
+                } else {
+                    result.push(unit.substring(0, ltrStart) + next, unit.substring(ltrStart)); // "XP"
+                }
                 i++;
                 continue;
             }
