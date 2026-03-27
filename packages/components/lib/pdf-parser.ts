@@ -5280,7 +5280,9 @@ function renderGridForLine(
 function applyParagraphSpacing(state: HtmlBuilderState, lineSpacing: number, bodySize: number): void {
     if (lineSpacing <= 0) return;
     const extraSpacing = lineSpacing - (state.lastLineSpacing > 0 ? state.lastLineSpacing : bodySize);
-    state.currentParagraphSpacingPx = Math.min(Math.max(extraSpacing, bodySize * 0.5), bodySize * 3);
+    if (extraSpacing > bodySize) {
+        state.currentParagraphSpacingPx = Math.min(extraSpacing, bodySize * 3);
+    }
 }
 
 function processRegularLine(
@@ -5363,8 +5365,15 @@ function mirrorBracketsAdjacentToRtl(text: string): string {
             const prevCode = i > 0 ? (text.codePointAt(i - 1) ?? 0) : 0;
             const nextCode = i + 1 < text.length ? (text.codePointAt(i + 1) ?? 0) : 0;
             if (isRTLChar(prevCode) || isRTLChar(nextCode)) {
-                result += ch === '(' ? ')' : '(';
-                continue;
+                // Matched pairs are handled correctly by the browser's Unicode PBA in
+                // dir="rtl". Only mirror orphan brackets (no matching partner in text).
+                const hasPartner = ch === '('
+                    ? text.indexOf(')', i + 1) !== -1
+                    : text.lastIndexOf('(', i - 1) !== -1;
+                if (!hasPartner) {
+                    result += ch === '(' ? ')' : '(';
+                    continue;
+                }
             }
         }
         result += ch;
