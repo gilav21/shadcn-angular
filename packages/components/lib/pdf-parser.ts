@@ -1512,7 +1512,8 @@ function hasRTLText(text: string): boolean {
 
 function isLTRCode(code: number): boolean {
     return (code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A)
-        || (code >= 0x30 && code <= 0x39);
+        || (code >= 0x30 && code <= 0x39)
+        || code === 0x26 || code === 0x2E;  // & and . for compound LTR words like Auto&Play, Autorun.inf
 }
 
 function flushLtrRun(ltrRun: string): string {
@@ -1556,8 +1557,17 @@ function joinSplitHebrewFragments(text: string): string {
             (_m, p1: string, p2: string) => p1 + p2 + '"');
 }
 
+function fixBracketsAroundLtrWords(text: string): string {
+    // fixRTLWordChars inverts brackets around LTR words (e.g. "(Default)-ה" → "ה-)Default(").
+    // Fix: )(LTR_word)( → (LTR_word).
+    return text.replaceAll(/\)([A-Za-z\d][^()\s]*)\(/g, '($1)');
+}
+
 function fixSplitRoundBrackets(text: string): string {
-    return text.replaceAll(/\) +([\u0590-\u05FF][^\s(]*)\(/g, '($1)');
+    // PDF splits "(word)" into a standalone ")" and "word(" (with bracket merged in visual order).
+    // After word-order reversal: ") word(". After mirrorBracketsAdjacentToRtl the trailing "("
+    // (adjacent to RTL) becomes ")" giving ") word)". Match both forms and rejoin as "(word)".
+    return text.replaceAll(/\) +([\u0590-\u05FF][^\s()]*)[()]/g, '($1)');
 }
 
 function hasLatinChar(word: string): boolean {
@@ -1624,10 +1634,15 @@ function reattachHebrewPrefixes(units: string[]): string[] {
                     const hebrewPrefix = unit.substring(0, ltrStart - 1);
                     const ltrSuffix = unit.substring(ltrStart) + '"';
                     result.push(hebrewPrefix + next, ltrSuffix);
+                    i++;
+                } else if (isRTLChar(charBeforeLtr)) {
+                    result.push(unit.substring(0, ltrStart) + next, unit.substring(ltrStart));
+                    i++;
                 } else {
-                    result.push(unit.substring(0, ltrStart) + next, unit.substring(ltrStart)); // "XP"
+                    // Hyphen, bracket, or other connector: keep the unit intact (e.g. ה-data:).
+                    result.push(unit);
+                    continue;
                 }
-                i++;
                 continue;
             }
         }
@@ -1642,7 +1657,7 @@ function fixLeadingPunctuation(units: string[]): string[] {
         let end = 0;
         while (end < unit.length) {
             const code = unit.codePointAt(end) ?? 0;
-            if (code === 0x2E || code === 0x21 || code === 0x3F) end++;
+            if (code === 0x2E || code === 0x21 || code === 0x3F || code === 0x2C) end++;
             else break;
         }
         if (end > 0 && end < unit.length) return unit.slice(end) + unit.slice(0, end);
@@ -5367,6 +5382,7 @@ function applyRtlWordFixes(rawLines: TextLine[]): void {
                         // No mirrorBracketsAdjacentToRtl here: this line has no dir="rtl"
                         // so the browser will not auto-mirror brackets.
                         item.text = fixVisualOrderRTL(item.text);
+                        item.text = fixBracketsAroundLtrWords(item.text);
                         if (item.text.includes(' ')) {
                             item.text = reverseRTLWordOrder(item.text);
                             item.text = joinSplitHebrewFragments(item.text);
@@ -5383,12 +5399,13 @@ function applyRtlWordFixes(rawLines: TextLine[]): void {
         for (const item of line.items) {
             if (!hasRTLText(item.text)) continue;
             item.text = fixVisualOrderRTL(item.text);
+            item.text = fixBracketsAroundLtrWords(item.text);
             if (item.text.includes(' ')) {
                 item.text = reverseRTLWordOrder(item.text);
                 item.text = joinSplitHebrewFragments(item.text);
-                item.text = fixSplitRoundBrackets(item.text);
             }
             item.text = mirrorBracketsAdjacentToRtl(item.text);
+            item.text = fixSplitRoundBrackets(item.text);
         }
     }
 }
