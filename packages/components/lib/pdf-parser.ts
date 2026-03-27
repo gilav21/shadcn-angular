@@ -1556,6 +1556,10 @@ function joinSplitHebrewFragments(text: string): string {
             (_m, p1: string, p2: string) => p1 + p2 + '"');
 }
 
+function fixSplitRoundBrackets(text: string): string {
+    return text.replaceAll(/\) +([\u0590-\u05FF][^\s(]*)\(/g, '($1)');
+}
+
 function hasLatinChar(word: string): boolean {
     for (let i = 0; i < word.length; i++) {
         const c = word.codePointAt(i) ?? 0;
@@ -4313,7 +4317,9 @@ function lineToText(line: TextLine): string {
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
             const gap = sorted[i].x - sorted[i - 1].endX;
-            if (gap > sorted[i - 1].fontSize * 0.12) {
+            if (gap > sorted[i - 1].fontSize * 0.12
+                    && !isSingleBracket(sorted[i - 1].text)
+                    && !isSingleBracket(sorted[i].text)) {
                 result += ' ';
             }
         }
@@ -4379,6 +4385,11 @@ function applyTextRenderModeStyles(item: TextItem, styles: string[]): void {
     }
 }
 
+function isSingleBracket(text: string): boolean {
+    const t = text.trim();
+    return t === '(' || t === ')' || t === '[' || t === ']';
+}
+
 function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number, annotations?: ReadonlyArray<PdfAnnotation>): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     let result = '';
@@ -4387,7 +4398,9 @@ function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number,
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
             const gap = sorted[i].x - sorted[i - 1].endX;
-            if (gap > sorted[i - 1].fontSize * 0.12) {
+            if (gap > sorted[i - 1].fontSize * 0.12
+                    && !isSingleBracket(sorted[i - 1].text)
+                    && !isSingleBracket(sorted[i].text)) {
                 result += ' ';
             }
         }
@@ -5028,7 +5041,9 @@ function lineToHtmlContentWithUnderlines(
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
             const gap = sorted[i].x - sorted[i - 1].endX;
-            if (gap > sorted[i - 1].fontSize * 0.12) {
+            if (gap > sorted[i - 1].fontSize * 0.12
+                    && !isSingleBracket(sorted[i - 1].text)
+                    && !isSingleBracket(sorted[i].text)) {
                 result += ' ';
             }
         }
@@ -5348,9 +5363,17 @@ function applyRtlWordFixes(rawLines: TextLine[]): void {
         if (!isLineRTL(line)) {
             if (isRtlDoc) {
                 for (const item of line.items) {
-                    // Only fix visual-order mirrored square brackets (e.g. ]windows] → [windows]).
-                    // Round brackets are handled through the RTL processing path.
-                    if (!hasRTLText(item.text) && (item.text.codePointAt(0) ?? 0) === 0x5D) {
+                    if (hasRTLText(item.text)) {
+                        // No mirrorBracketsAdjacentToRtl here: this line has no dir="rtl"
+                        // so the browser will not auto-mirror brackets.
+                        item.text = fixVisualOrderRTL(item.text);
+                        if (item.text.includes(' ')) {
+                            item.text = reverseRTLWordOrder(item.text);
+                            item.text = joinSplitHebrewFragments(item.text);
+                            item.text = fixSplitRoundBrackets(item.text);
+                        }
+                    } else if ((item.text.codePointAt(0) ?? 0) === 0x5D) {
+                        // Fix visual-order mirrored square brackets (e.g. ]windows] → [windows]).
                         item.text = fixLeadingBracketsInLtrTokens([item.text])[0];
                     }
                 }
@@ -5363,6 +5386,7 @@ function applyRtlWordFixes(rawLines: TextLine[]): void {
             if (item.text.includes(' ')) {
                 item.text = reverseRTLWordOrder(item.text);
                 item.text = joinSplitHebrewFragments(item.text);
+                item.text = fixSplitRoundBrackets(item.text);
             }
             item.text = mirrorBracketsAdjacentToRtl(item.text);
         }
