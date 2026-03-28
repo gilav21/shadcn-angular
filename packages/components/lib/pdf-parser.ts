@@ -1553,7 +1553,7 @@ function joinSplitHebrewFragments(text: string): string {
     return text
         .replaceAll(/"([\u0590-\u05FF]+)\s+([\u0590-\u05FF])(?=\s|[^"\u0590-\u05FF]|$)/g,
             (_m, p1: string, p2: string) => p1 + '"' + p2)
-        .replaceAll(/([\u0590-\u05FF])\s+([\u0590-\u05FF]+)"(?=\s|[^"\u0590-\u05FF]|$)/g,
+        .replaceAll(/(?<![\u0590-\u05FF])([\u0590-\u05FF])\s+([\u0590-\u05FF]+)"(?=\s|[^"\u0590-\u05FF]|$)/g,
             (_m, p1: string, p2: string) => p1 + p2 + '"');
 }
 
@@ -1657,7 +1657,7 @@ function fixLeadingPunctuation(units: string[]): string[] {
         let end = 0;
         while (end < unit.length) {
             const code = unit.codePointAt(end) ?? 0;
-            if (code === 0x2E || code === 0x21 || code === 0x3F || code === 0x2C) end++;
+            if (code === 0x2E || code === 0x21 || code === 0x3F || code === 0x2C || code === 0x3A) end++;
             else break;
         }
         if (end > 0 && end < unit.length) return unit.slice(end) + unit.slice(0, end);
@@ -4591,6 +4591,7 @@ function flushParagraph(state: HtmlBuilderState): void {
 }
 
 function detectParagraphIndent(state: HtmlBuilderState): void {
+    if (state.currentParagraphRTL) return;
     const xs = state.currentParagraphLineXs;
     if (xs.length < 2) return;
     const firstX = xs[0];
@@ -4629,7 +4630,8 @@ function renderLineAsHeading(
     const dirAttr = rtl ? ' dir="rtl"' : '';
     const align = state.pageWidth > 0
         ? detectTextAlignment(line, state.pageWidth, state.leftMargin, state.rightMargin) : '';
-    const styleAttr = align ? ` style="text-align:${align}"` : '';
+    const effectiveAlign = align || (rtl ? 'right' : '');
+    const styleAttr = effectiveAlign ? ` style="text-align:${effectiveAlign}"` : '';
     state.html.push(`<h${headingLevel}${dirAttr}${styleAttr}>${content}</h${headingLevel}>`);
 }
 
@@ -4752,7 +4754,8 @@ function processHtmlLineWithUnderlines(
         flushParagraph(state);
         closeList(state);
         const dirAttr = rtl ? ' dir="rtl"' : '';
-        state.html.push(`<h${headingLevel}${dirAttr}>${content}</h${headingLevel}>`);
+        const hAlign = rtl ? ' style="text-align:right"' : '';
+        state.html.push(`<h${headingLevel}${dirAttr}${hAlign}>${content}</h${headingLevel}>`);
         return;
     }
 
@@ -5133,7 +5136,12 @@ function detectTextAlignment(line: TextLine, pageWidth: number, leftMargin: numb
     const rightDist = rightMargin - lineRight;
 
     if (leftDist > contentWidth * 0.15 && rightDist > contentWidth * 0.15) {
-        return 'center';
+        if (isLineRTL(line)) {
+            const balance = Math.min(leftDist, rightDist) / Math.max(leftDist, rightDist);
+            if (balance > 0.5) return 'center';
+        } else {
+            return 'center';
+        }
     }
     if (leftDist > contentWidth * 0.2 && rightDist < contentWidth * 0.05) {
         return 'right';
@@ -5258,6 +5266,7 @@ interface HtmlBuilderContext {
     readonly leftMargin: number;
     readonly rightMargin: number;
     readonly footerThreshold: number;
+    readonly isRtlDoc: boolean;
 }
 
 function renderGridForLine(
@@ -5320,6 +5329,12 @@ function processRegularLine(
 
     processHtmlLineWithUnderlines(line, lineText, bodySize, bodyFont, state, { isParagraphBreak, isPageBreak, underlinedItems, structureMap });
 
+    // In RTL documents, lines with any RTL text should mark the paragraph RTL
+    // even if isLineRTL returns false (e.g. "ב-Vista:" has only 12% RTL chars).
+    if (ctx.isRtlDoc && !state.currentParagraphRTL && hasRTLText(lineText)) {
+        state.currentParagraphRTL = true;
+    }
+
     if (lineSpacing > 0) state.lastLineSpacing = lineSpacing;
 }
 
@@ -5357,23 +5372,24 @@ function processLinesToHtml(ctx: HtmlBuilderContext, state: HtmlBuilderState): T
     return footerLines;
 }
 
+function isNearRTL(text: string, pos: number, dir: -1 | 1): boolean {
+    const c1 = pos + dir >= 0 && pos + dir < text.length ? (text.codePointAt(pos + dir) ?? 0) : 0;
+    if (isRTLChar(c1)) return true;
+    if (c1 === 0x27 || c1 === 0x22) {
+        const c2 = pos + dir * 2 >= 0 && pos + dir * 2 < text.length ? (text.codePointAt(pos + dir * 2) ?? 0) : 0;
+        return isRTLChar(c2);
+    }
+    return false;
+}
+
 function mirrorBracketsAdjacentToRtl(text: string): string {
     let result = '';
     for (let i = 0; i < text.length; i++) {
         const ch = text[i];
         if (ch === '(' || ch === ')') {
-            const prevCode = i > 0 ? (text.codePointAt(i - 1) ?? 0) : 0;
-            const nextCode = i + 1 < text.length ? (text.codePointAt(i + 1) ?? 0) : 0;
-            if (isRTLChar(prevCode) || isRTLChar(nextCode)) {
-                // Matched pairs are handled correctly by the browser's Unicode PBA in
-                // dir="rtl". Only mirror orphan brackets (no matching partner in text).
-                const hasPartner = ch === '('
-                    ? text.indexOf(')', i + 1) !== -1
-                    : text.lastIndexOf('(', i - 1) !== -1;
-                if (!hasPartner) {
-                    result += ch === '(' ? ')' : '(';
-                    continue;
-                }
+            if (isNearRTL(text, i, -1) || isNearRTL(text, i, 1)) {
+                result += ch === '(' ? ')' : '(';
+                continue;
             }
         }
         result += ch;
@@ -5409,6 +5425,7 @@ function applyRtlWordFixes(rawLines: TextLine[]): void {
             if (!hasRTLText(item.text)) continue;
             item.text = fixVisualOrderRTL(item.text);
             item.text = fixBracketsAroundLtrWords(item.text);
+
             if (item.text.includes(' ')) {
                 item.text = reverseRTLWordOrder(item.text);
                 item.text = joinSplitHebrewFragments(item.text);
@@ -5495,6 +5512,7 @@ function textItemsToHtml(
         lines, mergedItems, underlinedItems, structureMap, allTableGrids, allBorderBoxes,
         sortedImages, decorativeLines, bodySize, bodyFont, pageWidth, leftMargin, rightMargin,
         footerThreshold: pageHeight > 0 ? pageHeight * 0.1 : 0,
+        isRtlDoc: lines.some(l => isLineRTL(l)),
     };
 
     const footerLines = processLinesToHtml(htmlCtx, state);
