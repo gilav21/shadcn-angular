@@ -28,6 +28,7 @@ import {
           <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('text')">Text File</ui-button>
           <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('svg')">SVG Image</ui-button>
           <ui-button variant="outline" size="sm" (click)="loadPdfFromUrl()">PDF (Hebrew)</ui-button>
+          <ui-button variant="outline" size="sm" (click)="loadComplexPdfFromUrl()">PDF (Complex Hebrew)</ui-button>
         </div>
       </div>
 
@@ -102,6 +103,15 @@ export class FileViewerDemoComponent {
   }
 
   loadPdfFromUrl(): void {
+    fetch('/test2.pdf')
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], 'test2.pdf', { type: 'application/pdf' });
+        this.fileViewerFile.set(file);
+      });
+  }
+
+  loadComplexPdfFromUrl(): void {
     fetch('/DW2-3-Viruses-www.underwar.co.il.pdf')
       .then(r => r.blob())
       .then(blob => {
