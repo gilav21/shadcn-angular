@@ -48,7 +48,7 @@ The project already has a comprehensive **4310-line custom PDF parser** (`packag
 What the parser already handles correctly:
 
 | Feature | Notes |
-|---------|-------|
+| --------- | ------- |
 | PDF structure | Traditional xref + xref streams + compressed object streams |
 | Stream filters | FlateDecode, LZWDecode, ASCIIHex, ASCII85, RunLength, PNG predictors |
 | Text extraction | Tj, TJ, `'`, `"` operators; char/word spacing; text rise |
@@ -316,7 +316,7 @@ Fixes from side-by-side comparison review (2026-03-24):
 ## Key Files
 
 | File | Role |
-|------|------|
+| ------ | ------ |
 | `packages/components/lib/pdf-parser.ts` | All parsing and HTML generation (4310 lines) |
 | `packages/components/ui/file-viewer.component.ts` | Component integration |
 | `packages/components/lib/inflate.ts` | FlateDecode (already used by parser) |

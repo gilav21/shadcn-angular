@@ -10,6 +10,7 @@ import {
     ContentChild,
     AfterContentInit,
     Directive,
+    ElementRef,
 } from '@angular/core';
 import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-browser';
 import type { PdfPageResult } from '../lib/pdf-parser';
@@ -58,25 +59,23 @@ const HEADING_CLASSES: Record<number, string> = {
     imports: [SpinnerComponent],
     styles: `
         :host ::ng-deep .pdf-page {
-            line-height: 1.6;
+            line-height: normal;
             word-wrap: break-word;
             overflow-wrap: break-word;
-            padding: 40px 56px;
             box-sizing: border-box;
         }
         :host ::ng-deep .pdf-page img {
             max-width: 100%;
             height: auto;
             display: block;
-            margin: 1em auto;
+            margin: 0 auto;
         }
         :host ::ng-deep .pdf-page p {
-            margin: 0.5em 0;
+            margin: 0;
         }
         :host ::ng-deep .pdf-page h1, :host ::ng-deep .pdf-page h2, :host ::ng-deep .pdf-page h3,
         :host ::ng-deep .pdf-page h4, :host ::ng-deep .pdf-page h5, :host ::ng-deep .pdf-page h6 {
-            margin-top: 1em;
-            margin-bottom: 0.3em;
+            margin: 0;
         }
         :host ::ng-deep .pdf-page table {
             margin: 0.5em 0;
@@ -90,11 +89,6 @@ const HEADING_CLASSES: Record<number, string> = {
         }
         :host ::ng-deep .pdf-page ul { list-style-type: disc; }
         :host ::ng-deep .pdf-page ol { list-style-type: decimal; }
-        @media (max-width: 640px) {
-            :host ::ng-deep .pdf-page {
-                padding: 24px 16px;
-            }
-        }
     `,
     template: `
         <div [class]="containerClasses()" [attr.data-slot]="'file-viewer'" [style.height]="height()">
@@ -187,7 +181,9 @@ const HEADING_CLASSES: Record<number, string> = {
                                 @case ('pdf') {
                                     <div class="overflow-auto h-full bg-muted/40 flex justify-center items-start py-4 sm:py-6"
                                          [style.zoom]="currentZoom()">
-                                        <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full max-w-4xl mx-auto shrink-0"
+                                        <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full mx-auto shrink-0"
+                                             [style.max-width]="pdfPageMaxWidth()"
+                                             [style.padding]="pdfPagePadding()"
                                              [style.font-size.pt]="pdfBodyFontSize()"
                                              [innerHTML]="currentPdfPageHtml()">
                                         </div>
@@ -431,9 +427,21 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const pages = this.pdfPages();
         const idx = this.currentPage() - 1;
         if (idx >= 0 && idx < pages.length && pages[idx].pageWidth > 0) {
-            return `${Math.round(pages[idx].pageWidth)}px`;
+            return `${Math.round(pages[idx].pageWidth)}pt`;
         }
-        return '768px';
+        return '612pt';
+    });
+
+    readonly pdfPagePadding = computed(() => {
+        const pages = this.pdfPages();
+        const idx = this.currentPage() - 1;
+        if (idx >= 0 && idx < pages.length && pages[idx].pageWidth > 0) {
+            const page = pages[idx];
+            const left = Math.max(0, page.contentLeft);
+            const right = Math.max(0, page.pageWidth - page.contentRight);
+            return `40px ${Math.round(right * 100) / 100}pt 40px ${Math.round(left * 100) / 100}pt`;
+        }
+        return '40px 48px';
     });
 
     readonly currentSlideHtml = computed<SafeHtml>(() => {
@@ -462,8 +470,11 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.class()
     ));
 
-    constructor(sanitizer: DomSanitizer) {
+    private readonly el: ElementRef<HTMLElement>;
+
+    constructor(sanitizer: DomSanitizer, el: ElementRef<HTMLElement>) {
         this.sanitizer = sanitizer;
+        this.el = el;
 
         effect(() => {
             this.currentZoom.set(this.zoom());
@@ -500,12 +511,21 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const p = Math.max(1, this.currentPage() - 1);
         this.currentPage.set(p);
         this.pageChange.emit(p);
+        this.scrollContentToTop();
     }
 
     nextPage(): void {
         const p = Math.min(this.totalPages(), this.currentPage() + 1);
         this.currentPage.set(p);
         this.pageChange.emit(p);
+        this.scrollContentToTop();
+    }
+
+    private scrollContentToTop(): void {
+        const content = this.el.nativeElement.querySelector('[data-slot="file-viewer-content"]');
+        if (content) content.scrollTop = 0;
+        const pdfScroll = content?.querySelector('.overflow-auto');
+        if (pdfScroll) pdfScroll.scrollTop = 0;
     }
 
     zoomIn(): void {
