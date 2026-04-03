@@ -344,6 +344,15 @@ function fontFormatToMime(format: FontFormat): { mime: string; cssFormat: string
     return null;
 }
 
+// Unicode mirrored bracket pairs
+const MIRROR_PAIRS: ReadonlyMap<number, number> = new Map([
+    [0x0028, 0x0029], [0x0029, 0x0028], // ( ↔ )
+    [0x005B, 0x005D], [0x005D, 0x005B], // [ ↔ ]
+    [0x007B, 0x007D], [0x007D, 0x007B], // { ↔ }
+    [0x003C, 0x003E], [0x003E, 0x003C], // < ↔ >
+    [0x00AB, 0x00BB], [0x00BB, 0x00AB], // « ↔ »
+]);
+
 interface FontRegistryEntry {
     readonly id: number;
     readonly fontData: ExtractedFont | null;
@@ -355,6 +364,7 @@ interface FontRegistryEntry {
     readonly unitsPerEm: number;
     readonly reEncodedData: Uint8Array | null;
     readonly unicodeFallbackWidths: Map<number, number> | null;
+    readonly glyphFixupMap: Map<number, number> | null;
 }
 
 function fontNeedsReencoding(srcFont: opentype.Font, fontInfo: FontInfo): boolean {
@@ -467,9 +477,38 @@ function processEmbeddedFont(
             } catch { /* fall back to raw font */ }
         }
 
-        return { glyphAdvances, unitsPerEm, reEncodedData };
+        // Build glyph fixup map: detect mirrored bracket pairs where the CID
+        // font's raw glyph doesn't match the ToUnicode character but matches
+        // its Unicode mirror instead.  This happens in CID fonts where the
+        // GID→glyph assignment doesn't align with the Unicode cmap for bracket
+        // pairs (common in RTL PDFs).  The fixup swaps the emitted character so
+        // the browser renders the correct visual shape at the positioned coordinate.
+        let glyphFixupMap: Map<number, number> | null = null;
+        if (fontInfo.isTwoByte && !reEncodedData) {
+            const fixes = new Map<number, number>();
+            for (const [code, unicodeStr] of fontInfo.toUnicode) {
+                const cp = unicodeStr.codePointAt(0) ?? 0;
+                const mirrorCp = MIRROR_PAIRS.get(cp);
+                if (!mirrorCp) continue;
+                try {
+                    const glyphAtCode = font.glyphs.get(code);
+                    if (!glyphAtCode || glyphAtCode.advanceWidth <= 0) continue;
+                    const glyphForChar = font.charToGlyph(String.fromCodePoint(cp));
+                    const glyphForMirror = font.charToGlyph(String.fromCodePoint(mirrorCp));
+                    const codeIdx = (glyphAtCode as unknown as { index?: number }).index ?? -1;
+                    const charIdx = (glyphForChar as unknown as { index?: number }).index ?? -2;
+                    const mirrorIdx = (glyphForMirror as unknown as { index?: number }).index ?? -3;
+                    if (codeIdx !== charIdx && codeIdx === mirrorIdx) {
+                        fixes.set(code, mirrorCp);
+                    }
+                } catch { /* skip */ }
+            }
+            glyphFixupMap = fixes.size > 0 ? fixes : null;
+        }
+
+        return { glyphAdvances, unitsPerEm, reEncodedData, glyphFixupMap };
     } catch {
-        return { glyphAdvances: new Map(), unitsPerEm: 1000, reEncodedData: null };
+        return { glyphAdvances: new Map(), unitsPerEm: 1000, reEncodedData: null, glyphFixupMap: null };
     }
 }
 
@@ -651,15 +690,17 @@ function reEncodeFont(
         glyphs,
     });
 
-    const arrayBuffer = newFont.download() as unknown as ArrayBuffer;
-    if (!arrayBuffer) {
-        // opentype.js download() returns ArrayBuffer in Node, triggers download in browser
-        // Use toArrayBuffer() if available
-        const ab = (newFont as unknown as { toArrayBuffer?: () => ArrayBuffer }).toArrayBuffer?.();
-        if (ab) return new Uint8Array(ab);
-        return null;
+    // opentype.js download() calls require('fs') which fails in ESM bundles.
+    // Use toArrayBuffer() directly instead.
+    const toAB = (newFont as unknown as { toArrayBuffer?: () => ArrayBuffer }).toArrayBuffer;
+    if (toAB) {
+        return new Uint8Array(toAB.call(newFont));
     }
-    return new Uint8Array(arrayBuffer);
+    try {
+        const arrayBuffer = newFont.download() as unknown as ArrayBuffer;
+        if (arrayBuffer) return new Uint8Array(arrayBuffer);
+    } catch { /* download() may fail in ESM — already tried toArrayBuffer above */ }
+    return null;
 }
 
 export class FontRegistry {
@@ -685,11 +726,13 @@ export class FontRegistry {
         let unitsPerEm = 1000;
         let reEncodedData: Uint8Array | null = null;
 
+        let glyphFixupMap: Map<number, number> | null = null;
         if (fontData) {
             const processed = processEmbeddedFont(fontData, info);
             glyphAdvances = processed.glyphAdvances.size > 0 ? processed.glyphAdvances : null;
             unitsPerEm = processed.unitsPerEm;
             reEncodedData = processed.reEncodedData;
+            glyphFixupMap = processed.glyphFixupMap;
         }
 
         // Build Unicode→width fallback for CIDs with missing glyphs.
@@ -728,6 +771,7 @@ export class FontRegistry {
             unitsPerEm,
             reEncodedData,
             unicodeFallbackWidths,
+            glyphFixupMap,
         };
         this.entriesByResourceName.set(fontName, entry);
         if (!this.entriesByBaseFont.has(baseFontName)) {
@@ -758,9 +802,26 @@ export class FontRegistry {
         return null;
     }
 
+    getGlyphFixup(fontName: string, code: number): number | undefined {
+        const entry = this.getEntry(fontName);
+        return entry?.glyphFixupMap?.get(code);
+    }
+
+    private allUniqueEntries(): FontRegistryEntry[] {
+        const seen = new Set<number>();
+        const result: FontRegistryEntry[] = [];
+        for (const entry of this.entriesByResourceName.values()) {
+            if (!seen.has(entry.id)) {
+                seen.add(entry.id);
+                result.push(entry);
+            }
+        }
+        return result;
+    }
+
     dumpFontFaceCss(): string {
         const rules: string[] = [];
-        for (const entry of this.entriesByBaseFont.values()) {
+        for (const entry of this.allUniqueEntries()) {
             // Prefer re-encoded font (correct Unicode cmap for bidi)
             if (entry.reEncodedData) {
                 const b64 = uint8ToBase64(entry.reEncodedData);
@@ -785,7 +846,7 @@ export class FontRegistry {
     dumpFontFamilyCss(): string {
         const SYMBOL_FONTS = ['symbol', 'zapfdingbats', 'wingdings'];
         const rules: string[] = [];
-        for (const entry of this.entriesByBaseFont.values()) {
+        for (const entry of this.allUniqueEntries()) {
             const isSymbolFont = SYMBOL_FONTS.some(
                 s => entry.baseFontName.toLowerCase().includes(s),
             );
@@ -2296,7 +2357,11 @@ class PixelPerfectProcessor {
 
             // Normal character path (text.cc:131-170) — includes spaces as chars
             const charWidth = ddx * this.drawTextScale * this.zoom;
-            const cp = unicode.codePointAt(0) ?? code;
+            let cp = unicode.codePointAt(0) ?? code;
+            // Apply bracket glyph fixup: if the font's visual glyph at this CID
+            // is the mirror of the ToUnicode character, swap to match the visual shape.
+            const fixup = this.fontRegistry.getGlyphFixup(this.fontName, code);
+            if (fixup !== undefined) cp = fixup;
             this.currentLine.appendUnicodes([cp], charWidth);
 
             // C++ text.cc:165-169: word_space adjustment for space/unicode mismatch
