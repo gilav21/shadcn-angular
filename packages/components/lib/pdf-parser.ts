@@ -591,7 +591,7 @@ export interface PdfParseResult {
     imageOnly: boolean;
 }
 
-interface TextItem {
+export interface TextItem {
     text: string;
     fontSize: number;
     x: number;
@@ -602,15 +602,19 @@ interface TextItem {
     bold: boolean;
     italic: boolean;
     fontFamily: string;
+    fontName: string;
     mcid: number;
     charSpacing: number;
     wordSpacing: number;
     textRise: number;
     horizontalScaling: number;
     textRenderMode: number;
+    strokeColor: string;
+    transformMatrix: readonly [number, number, number, number];
+    isSpaceOffset: boolean;
 }
 
-interface FontInfo {
+export interface FontInfo {
     isTwoByte: boolean;
     widths: Map<number, number>;
     defaultWidth: number;
@@ -620,7 +624,7 @@ interface FontInfo {
     familyName: string;
 }
 
-interface ImageItem {
+export interface ImageItem {
     dataUrl: string;
     width: number;
     height: number;
@@ -631,7 +635,7 @@ interface ImageItem {
     page: number;
 }
 
-interface PathRect {
+export interface PathRect {
     readonly x: number;
     readonly y: number;
     readonly width: number;
@@ -644,7 +648,7 @@ interface PathRect {
     readonly lineWidth: number;
 }
 
-interface PdfAnnotation {
+export interface PdfAnnotation {
     readonly x: number;
     readonly y: number;
     readonly width: number;
@@ -663,7 +667,7 @@ interface TableGrid {
     readonly cols: number[];
 }
 
-interface PdfObject {
+export interface PdfObject {
     type: 'dict' | 'array' | 'number' | 'string' | 'name' | 'boolean' | 'null' | 'ref' | 'stream';
     value: unknown;
     stream?: Uint8Array;
@@ -671,7 +675,7 @@ interface PdfObject {
 
 // ── PDF structure parser ────────────────────────────────────────────────
 
-class PdfReader {
+export class PdfReader {
     private data: Uint8Array;
     private text: string;
     private readonly objects: Map<string, { offset: number; gen: number }> = new Map();
@@ -1375,9 +1379,7 @@ function decodeTwoByteString(raw: string, fontInfo: FontInfo): { result: string;
     if (raw.length % 2 === 1) {
         const code = raw.codePointAt(raw.length - 1) ?? 0;
         charCodes.push(code);
-        result += fontInfo.toUnicode.has(code)
-            ? fontInfo.toUnicode.get(code)!
-            : String.fromCodePoint(code);
+        result += decodeTwoByteChar(code, fontInfo.toUnicode);
     }
     return { result, charCodes };
 }
@@ -1434,7 +1436,25 @@ function parseBfRangeEntries(text: string, map: Map<number, string>): void {
     let match: RegExpExecArray | null;
     while ((match = bfRangeRe.exec(text)) !== null) {
         for (const entry of match[1].trim().split('\n')) {
-            const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(entry.trim());
+            const trimmed = entry.trim();
+            const arrayParts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*\[((?:\s*<[\dA-Fa-f]+>\s*)+)\]/.exec(trimmed);
+            if (arrayParts) {
+                const start = Number.parseInt(arrayParts[1], 16);
+                const end = Number.parseInt(arrayParts[2], 16);
+                const values = [...arrayParts[3].matchAll(/<([0-9a-fA-F]+)>/g)];
+                const count = Math.min(values.length, end - start + 1);
+                for (let i = 0; i < count; i++) {
+                    const dstHex = values[i][1];
+                    let dstStr = '';
+                    for (let j = 0; j < dstHex.length; j += 4) {
+                        dstStr += String.fromCodePoint(Number.parseInt(dstHex.substring(j, j + 4), 16));
+                    }
+                    map.set(start + i, dstStr);
+                }
+                continue;
+            }
+
+            const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(trimmed);
             if (!parts) continue;
             const start = Number.parseInt(parts[1], 16);
             const end = Number.parseInt(parts[2], 16);
@@ -1454,9 +1474,11 @@ function fillToUnicodeGaps(map: Map<number, string>): void {
         const [nextGlyph, nextUnicode] = entries[i];
         const glyphGap = nextGlyph - prevGlyph;
         if (glyphGap <= 1 || glyphGap > 32) continue;
+        if (prevGlyph < 0x20 || nextGlyph < 0x20) continue;
         if (prevUnicode.length !== 1 || nextUnicode.length !== 1) continue;
         const prevCode = prevUnicode.codePointAt(0)!;
         const nextCode = nextUnicode.codePointAt(0)!;
+        if (prevCode < 0x20 || nextCode < 0x20) continue;
         if (nextCode - prevCode !== glyphGap) continue;
         for (let g = prevGlyph + 1; g < nextGlyph; g++) {
             if (!map.has(g)) {
@@ -1750,7 +1772,7 @@ function isLineRTL(line: TextLine): boolean {
     return total > 0 && rtl > total * 0.3;
 }
 
-interface GraphicsState {
+export interface GraphicsState {
     ctm: number[];
     fontSize: number;
     fontName: string;
@@ -2226,7 +2248,7 @@ function extractCffDefaultWidth(reader: PdfReader, fontDesc: Record<string, PdfO
     return null;
 }
 
-function buildFontInfo(reader: PdfReader, fontRef: PdfObject): FontInfo {
+export function buildFontInfo(reader: PdfReader, fontRef: PdfObject): FontInfo {
     const fontObjDict = reader.getDict(fontRef);
     const subtype = reader.getString(fontObjDict['Subtype']);
     const encodingObj = fontObjDict['Encoding'];
@@ -2322,25 +2344,173 @@ function processTextShow(
     const riseMatrix: number[] = [1, 0, 0, 1, 0, gs.textRise];
     const combined = multiplyMatrix(multiplyMatrix(riseMatrix, gs.textMatrix), gs.ctm);
     const effectiveFontSize = getEffectiveFontSize(gs);
+    const scaleX = Math.hypot(combined[0], combined[1]);
+    const scaleY = Math.hypot(combined[2], combined[3]);
+    const normA = scaleX > 0 ? combined[0] / scaleX : 1;
+    const normB = scaleX > 0 ? combined[1] / scaleX : 0;
+    const normC = scaleY > 0 ? combined[2] / scaleY : 0;
+    const normD = scaleY > 0 ? combined[3] / scaleY : 1;
+
     textItems.push({
         text: rawDecoded,
-        fontSize: Math.round(effectiveFontSize * 100) / 100,
-        x: Math.round(combined[4] * 100) / 100,
-        y: Math.round(combined[5] * 100) / 100,
-        endX: Math.round((combined[4] + advance) * 100) / 100,
+        fontSize: effectiveFontSize,
+        x: combined[4],
+        y: combined[5],
+        endX: combined[4] + advance,
         page: pageIndex,
         color: gs.fillColor,
         bold: fontInfo?.isBold ?? false,
         italic: fontInfo?.isItalic ?? false,
         fontFamily: fontInfo?.familyName ?? '',
+        fontName: gs.fontName,
         mcid: currentMcid,
         charSpacing: gs.charSpacing,
         wordSpacing: gs.wordSpacing,
         textRise: gs.textRise,
         horizontalScaling: gs.horizontalScaling,
         textRenderMode: gs.textRenderMode,
+        strokeColor: gs.strokeColor,
+        transformMatrix: [normA, normB, normC, normD],
+        isSpaceOffset: false,
     });
     gs.textMatrix[4] += advance;
+}
+
+function processTextShowPerChar(
+    raw: string, gs: GraphicsState, fontInfoMap: Map<string, FontInfo>,
+    textItems: TextItem[], pageIndex: number, currentMcid: number,
+): void {
+    const fontInfo = fontInfoMap.get(gs.fontName);
+    const { text: rawDecoded, charCodes } = pdfStringToUnicode(raw, fontInfo);
+    const fullAdvance = calcTextAdvance(charCodes, fontInfo, gs);
+
+    if (isInvisibleTextMode(gs.textRenderMode) || gs.fillOpacity < 0.01) {
+        gs.textMatrix[4] += fullAdvance;
+        return;
+    }
+    if (!rawDecoded.trim()) {
+        gs.textMatrix[4] += fullAdvance;
+        return;
+    }
+
+    const riseMatrix: number[] = [1, 0, 0, 1, 0, gs.textRise];
+    const baseCombined = multiplyMatrix(multiplyMatrix(riseMatrix, gs.textMatrix), gs.ctm);
+    const effectiveFontSize = getEffectiveFontSize(gs);
+    const scaleX = Math.hypot(baseCombined[0], baseCombined[1]);
+    const scaleY = Math.hypot(baseCombined[2], baseCombined[3]);
+    const normA = scaleX > 0 ? baseCombined[0] / scaleX : 1;
+    const normB = scaleX > 0 ? baseCombined[1] / scaleX : 0;
+    const normC = scaleY > 0 ? baseCombined[2] / scaleY : 0;
+    const normD = scaleY > 0 ? baseCombined[3] / scaleY : 1;
+    const tm: readonly [number, number, number, number] = [normA, normB, normC, normD];
+
+    const dw = fontInfo ? fontInfo.defaultWidth : 600;
+    let xAccum = 0;
+
+    for (let i = 0; i < charCodes.length; i++) {
+        const ch = rawDecoded[i];
+        if (ch === undefined) break;
+
+        const code = charCodes[i];
+        const w = fontInfo ? (fontInfo.widths.get(code) ?? dw) : 600;
+        const charAdvance = (w / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+        const spacing = gs.charSpacing + (code === 32 ? gs.wordSpacing : 0);
+
+        const charX = baseCombined[4] + xAccum;
+        const charEndX = charX + charAdvance;
+
+        // Mirrors pdf2htmlEX text.cc lines 121-134:
+        // Space detection: only for single-byte fonts where the raw byte is 0x20
+        // For CID/two-byte fonts, n > 1 so is_space is always false in the C++ code
+        // (spaces render as regular glyphs using the embedded font)
+        const isSingleByte = !(fontInfo?.isTwoByte);
+        const isSpace = isSingleByte && (code === 32);
+        if (!isSpace) {
+            textItems.push({
+                text: ch,
+                fontSize: effectiveFontSize,
+                x: charX,
+                y: baseCombined[5],
+                endX: charEndX,
+                page: pageIndex,
+                color: gs.fillColor,
+                bold: fontInfo?.isBold ?? false,
+                italic: fontInfo?.isItalic ?? false,
+                fontFamily: fontInfo?.familyName ?? '',
+                fontName: gs.fontName,
+                mcid: currentMcid,
+                charSpacing: gs.charSpacing,
+                wordSpacing: gs.wordSpacing,
+                textRise: gs.textRise,
+                horizontalScaling: gs.horizontalScaling,
+                textRenderMode: gs.textRenderMode,
+                strokeColor: gs.strokeColor,
+                transformMatrix: tm,
+                isSpaceOffset: false,
+            });
+        } else {
+            // Space: emit a marker item that the pixel-perfect renderer
+            // converts to an offset (matching pdf2htmlEX's space_as_offset behavior)
+            textItems.push({
+                text: '',
+                fontSize: effectiveFontSize,
+                x: charX,
+                y: baseCombined[5],
+                endX: charEndX,
+                page: pageIndex,
+                color: gs.fillColor,
+                bold: fontInfo?.isBold ?? false,
+                italic: fontInfo?.isItalic ?? false,
+                fontFamily: fontInfo?.familyName ?? '',
+                fontName: gs.fontName,
+                mcid: currentMcid,
+                charSpacing: gs.charSpacing,
+                wordSpacing: gs.wordSpacing,
+                textRise: gs.textRise,
+                horizontalScaling: gs.horizontalScaling,
+                textRenderMode: gs.textRenderMode,
+                strokeColor: gs.strokeColor,
+                transformMatrix: tm,
+                isSpaceOffset: true,
+            });
+        }
+
+        xAccum += charAdvance + spacing;
+    }
+
+    gs.textMatrix[4] += fullAdvance;
+}
+
+function processTJOperatorPerChar(
+    operandStack: string[], gs: GraphicsState, fontInfoMap: Map<string, FontInfo>,
+    textItems: TextItem[], pageIndex: number, currentMcid: number,
+): void {
+    const arrTokens: string[] = [];
+    while (operandStack.length > 0) {
+        arrTokens.unshift(operandStack.pop()!);
+    }
+    const fontInfo = fontInfoMap.get(gs.fontName);
+    let pendingDisplacement = 0;
+
+    for (const t of arrTokens) {
+        if (t === '[' || t === ']') continue;
+        if (t.startsWith('(')) {
+            if (pendingDisplacement !== 0) {
+                gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+                pendingDisplacement = 0;
+            }
+            const rawStr = t.slice(1, -1);
+            processTextShowPerChar(rawStr, gs, fontInfoMap, textItems, pageIndex, currentMcid);
+        } else {
+            const kern = Number.parseFloat(t);
+            if (!Number.isNaN(kern)) {
+                pendingDisplacement += kern;
+            }
+        }
+    }
+    if (pendingDisplacement !== 0) {
+        gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+    }
 }
 
 function processTJOperator(
@@ -2379,23 +2549,35 @@ function processTJOperator(
     const combined = multiplyMatrix(multiplyMatrix(riseMatrix, startTm), gs.ctm);
     const endCombined = multiplyMatrix(gs.textMatrix, gs.ctm);
     const effectiveFontSize = getEffectiveFontSize(gs);
+    const tjScaleX = Math.hypot(combined[0], combined[1]);
+    const tjScaleY = Math.hypot(combined[2], combined[3]);
+
     textItems.push({
         text: combinedText,
-        fontSize: Math.round(effectiveFontSize * 100) / 100,
-        x: Math.round(combined[4] * 100) / 100,
-        y: Math.round(combined[5] * 100) / 100,
-        endX: Math.round(endCombined[4] * 100) / 100,
+        fontSize: effectiveFontSize,
+        x: combined[4],
+        y: combined[5],
+        endX: endCombined[4],
         page: pageIndex,
         color: gs.fillColor,
         bold: fontInfo?.isBold ?? false,
         italic: fontInfo?.isItalic ?? false,
         fontFamily: fontInfo?.familyName ?? '',
+        fontName: gs.fontName,
         mcid: currentMcid,
         charSpacing: gs.charSpacing,
         wordSpacing: gs.wordSpacing,
         textRise: gs.textRise,
         horizontalScaling: gs.horizontalScaling,
         textRenderMode: gs.textRenderMode,
+        strokeColor: gs.strokeColor,
+        transformMatrix: [
+            tjScaleX > 0 ? combined[0] / tjScaleX : 1,
+            tjScaleX > 0 ? combined[1] / tjScaleX : 0,
+            tjScaleY > 0 ? combined[2] / tjScaleY : 0,
+            tjScaleY > 0 ? combined[3] / tjScaleY : 1,
+        ],
+        isSpaceOffset: false,
     });
 }
 
@@ -2615,6 +2797,7 @@ function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObj
         mcidStack: [],
         ocgOffSet: parentCtx?.ocgOffSet ?? new Set<string>(),
         ocgHiddenDepth: 0,
+        perFragment: parentCtx.perFragment,
     };
 
     let i = 0;
@@ -2998,6 +3181,7 @@ interface ContentExtractionContext {
     mcidStack: number[];
     ocgOffSet: Set<string>;
     ocgHiddenDepth: number;
+    perFragment: boolean;
 }
 
 function popNumber(ctx: ContentExtractionContext): number {
@@ -3051,14 +3235,16 @@ function currentMcid(ctx: ContentExtractionContext): number {
 
 function processTextShowToken(token: string, ctx: ContentExtractionContext): boolean {
     const mcid = currentMcid(ctx);
+    const showFn = ctx.perFragment ? processTextShowPerChar : processTextShow;
+
     if (token === 'Tj') {
-        processTextShow(popString(ctx), ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        showFn(popString(ctx), ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
         return true;
     }
     if (token === "'") {
         ctx.gs.textMatrix = multiplyMatrix([1, 0, 0, 1, 0, -ctx.gs.leading], ctx.gs.lineMatrix);
         ctx.gs.lineMatrix = ctx.gs.textMatrix.slice();
-        processTextShow(popString(ctx), ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        showFn(popString(ctx), ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
         return true;
     }
     if (token === '"') {
@@ -3066,11 +3252,15 @@ function processTextShowToken(token: string, ctx: ContentExtractionContext): boo
         ctx.gs.charSpacing = popNumber(ctx); ctx.gs.wordSpacing = popNumber(ctx);
         ctx.gs.textMatrix = multiplyMatrix([1, 0, 0, 1, 0, -ctx.gs.leading], ctx.gs.lineMatrix);
         ctx.gs.lineMatrix = ctx.gs.textMatrix.slice();
-        processTextShow(raw, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        showFn(raw, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
         return true;
     }
     if (token === 'TJ') {
-        processTJOperator(ctx.operandStack, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        if (ctx.perFragment) {
+            processTJOperatorPerChar(ctx.operandStack, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        } else {
+            processTJOperator(ctx.operandStack, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        }
         return true;
     }
     return false;
@@ -3288,7 +3478,7 @@ function processContentToken(token: string, ctx: ContentExtractionContext, token
     return tokenIndex;
 }
 
-function getPageMediaBox(reader: PdfReader, pageDict: Record<string, PdfObject>): number[] {
+export function getPageMediaBox(reader: PdfReader, pageDict: Record<string, PdfObject>): number[] {
     const mbObj = pageDict['CropBox'] ?? pageDict['MediaBox'];
     if (!mbObj) return [0, 0, 612, 792];
     const arr = reader.getArray(mbObj);
@@ -3356,10 +3546,15 @@ function extractAnnotations(reader: PdfReader, pageDict: Record<string, PdfObjec
     return annotations;
 }
 
-function extractPageContent(
+export interface ExtractPageOptions {
+    readonly perFragment?: boolean;
+}
+
+export function extractPageContent(
     reader: PdfReader,
     pageObj: PdfObject,
     pageIndex: number,
+    options?: ExtractPageOptions,
 ): { textItems: TextItem[]; imageItems: ImageItem[]; pathRects: PathRect[]; pageWidth: number; pageHeight: number; annotations: PdfAnnotation[] } {
     const pageDict = reader.getDict(pageObj);
     const mediaBox = getPageMediaBox(reader, pageDict);
@@ -3417,6 +3612,7 @@ function extractPageContent(
         mcidStack: [],
         ocgOffSet: new Set<string>(),
         ocgHiddenDepth: 0,
+        perFragment: options?.perFragment ?? false,
     };
 
     let i = 0;
@@ -4159,12 +4355,16 @@ function mergeTextItems(current: TextItem, next: TextItem, gap: number, wordGapT
         bold: current.bold || next.bold,
         italic: current.italic || next.italic,
         fontFamily: current.fontFamily || next.fontFamily,
+        fontName: current.fontName || next.fontName,
         mcid: current.mcid >= 0 ? current.mcid : next.mcid,
         charSpacing: current.charSpacing,
         wordSpacing: current.wordSpacing,
         textRise: current.textRise,
         horizontalScaling: current.horizontalScaling,
         textRenderMode: current.textRenderMode,
+        strokeColor: current.strokeColor,
+        transformMatrix: current.transformMatrix,
+        isSpaceOffset: false,
     };
 }
 
