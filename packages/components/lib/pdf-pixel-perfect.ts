@@ -1949,6 +1949,8 @@ class PixelPerfectProcessor {
     private fontName = '';
     private fillColor = '#000000';
     private strokeColor = '#000000';
+    private patternFillImage: string | null = null; // data URL when fill uses a tiling pattern with image
+    private fillColorSpaceIsPattern = false;
     private charSpace = 0;
     private wordSpace = 0;
     private horizScaling = 1.0;
@@ -2489,8 +2491,8 @@ class PixelPerfectProcessor {
             case 'RG': this.opRg(operands, false); break;
             case 'k': this.opK(operands, true); break;
             case 'K': this.opK(operands, false); break;
-            case 'cs': case 'CS': break; // color space set (handled implicitly)
-            case 'sc': case 'SC': case 'scn': case 'SCN': this.opSc(operands, op === 'sc' || op === 'scn'); break;
+            case 'cs': case 'CS': this.opCs(operands, resources); break;
+            case 'sc': case 'SC': case 'scn': case 'SCN': this.opSc(operands, op === 'sc' || op === 'scn', resources); break;
 
             // ── Text state operators ──────────────────────────
             case 'Tf': this.opTf(operands); break;
@@ -2606,7 +2608,37 @@ class PixelPerfectProcessor {
         else { this.strokeColor = hex; this.strokeColorChanged = true; }
     }
 
-    private opSc(operands: ReadonlyArray<string>, isFill: boolean): void {
+    private opCs(operands: ReadonlyArray<string>, resources: Record<string, PdfObject>): void {
+        const name = operands[0]?.startsWith('/') ? operands[0].substring(1) : operands[0] ?? '';
+        this.fillColorSpaceIsPattern = name === 'Pattern';
+        if (!this.fillColorSpaceIsPattern) this.patternFillImage = null;
+    }
+
+    private extractPatternImage(patternName: string, resources: Record<string, PdfObject>): string | null {
+        const patterns = resources['Pattern'] ? this.reader.getDict(resources['Pattern']) : {};
+        const patRef = patterns[patternName];
+        if (!patRef) return null;
+        const patDict = this.reader.getDict(patRef);
+        // Only handle tiling patterns with image XObjects
+        const patType = patDict['PatternType'] ? this.reader.getNumber(patDict['PatternType']) : 0;
+        if (patType !== 1) return null;
+        const patRes = patDict['Resources'] ? this.reader.getDict(patDict['Resources']) : {};
+        const patXObj = patRes['XObject'] ? this.reader.getDict(patRes['XObject']) : {};
+        for (const [, imgRef] of Object.entries(patXObj)) {
+            const imgDict = this.reader.getDict(imgRef);
+            const subtype = this.reader.getString(imgDict['Subtype']);
+            if (subtype !== 'Image') continue;
+            const w = this.reader.getNumber(imgDict['Width']);
+            const h = this.reader.getNumber(imgDict['Height']);
+            if (w <= 0 || h <= 0) continue;
+            const resolved = this.reader.resolveDeep(imgRef);
+            const filterName = resolveImageFilterName(this.reader, imgDict);
+            return buildImageDataUrl(filterName, resolved, this.reader, w, h, imgDict);
+        }
+        return null;
+    }
+
+    private opSc(operands: ReadonlyArray<string>, isFill: boolean, resources: Record<string, PdfObject>): void {
         if (operands.length >= 3) {
             const hex = rgbToHex(
                 Number.parseFloat(operands[0]),
@@ -2616,6 +2648,12 @@ class PixelPerfectProcessor {
             if (isFill) { this.fillColor = hex; this.fillColorChanged = true; }
             else { this.strokeColor = hex; this.strokeColorChanged = true; }
         } else if (operands.length >= 1) {
+            if (this.fillColorSpaceIsPattern && isFill) {
+                // Pattern fill — extract image from the tiling pattern
+                const name = operands[0].startsWith('/') ? operands[0].substring(1) : operands[0];
+                const img = this.extractPatternImage(name, resources);
+                if (img) { this.patternFillImage = img; return; }
+            }
             const hex = grayToHex(Number.parseFloat(operands[0]));
             if (isFill) { this.fillColor = hex; this.fillColorChanged = true; }
             else { this.strokeColor = hex; this.strokeColorChanged = true; }
@@ -2761,6 +2799,31 @@ class PixelPerfectProcessor {
 
     private paintPath(stroked: boolean, filled: boolean): void {
         const scaledLineWidth = this.lineWidth;
+
+        // Pattern fill: render the pattern's image at the path bounding box
+        if (filled && this.patternFillImage && this.generalPathPoints.length > 0) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const p of this.generalPathPoints) {
+                if (p.tx < minX) minX = p.tx;
+                if (p.ty < minY) minY = p.ty;
+                if (p.tx > maxX) maxX = p.tx;
+                if (p.ty > maxY) maxY = p.ty;
+            }
+            const w = maxX - minX;
+            const h = maxY - minY;
+            if (w > 1 && h > 1) {
+                this.imageItems.push({
+                    dataUrl: this.patternFillImage,
+                    width: Math.round(w), height: Math.round(h),
+                    renderWidth: w, renderHeight: h,
+                    x: minX, y: minY,
+                });
+            }
+            this.patternFillImage = null;
+            this.pathPoints = [];
+            this.generalPathPoints.length = 0;
+            return;
+        }
 
         // Emit rect from `re` operator
         if (this.pathPoints.length >= 4) {
