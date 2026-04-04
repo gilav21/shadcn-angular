@@ -90,6 +90,7 @@ interface PathRect {
     readonly strokeColor: string;
     readonly fillColor: string;
     readonly lineWidth: number;
+    readonly borderRadius: number;
 }
 
 interface ImageItem {
@@ -854,7 +855,12 @@ export class FontRegistry {
             // font-weight, visibility to match pdf2htmlEX output exactly
             const lineHeight = Math.abs(entry.ascent - entry.descent) > 0.01
                 ? `line-height:${(entry.ascent - entry.descent).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')};` : '';
-            const baseProps = `${lineHeight}font-style:normal;font-weight:normal;font-synthesis:none;` +
+            const isBold = entry.baseFontName.toLowerCase().includes('bold');
+            const isItalic = entry.baseFontName.toLowerCase().includes('italic') ||
+                entry.baseFontName.toLowerCase().includes('oblique');
+            const fontWeight = isBold ? 'bold' : 'normal';
+            const fontStyle = isItalic ? 'italic' : 'normal';
+            const baseProps = `${lineHeight}font-style:${fontStyle};font-weight:${fontWeight};font-synthesis:none;` +
                 `-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;`;
             if (isSymbolFont) {
                 rules.push(`.ff${entry.id.toString(16)}{font-family:sans-serif;${baseProps}}`);
@@ -2736,6 +2742,7 @@ class PixelPerfectProcessor {
                 strokeColor: this.strokeColor,
                 fillColor: this.fillColor,
                 lineWidth: this.lineWidth,
+                borderRadius: 0,
             });
         }
         // Emit bounding-box rect from general path (m/l/c/v/y/h curves)
@@ -2750,12 +2757,30 @@ class PixelPerfectProcessor {
             const w = maxX - minX;
             const h = maxY - minY;
             if (w >= 5 && h >= 5) {
+                // Estimate border-radius from the smallest X-axis inset of points
+                // near the left or right edge. For rounded rects, curve points are
+                // inset from the bounding box corner by the radius amount.
+                // Use X-axis only since Y may be flipped by the CTM.
+                let radius = 0;
+                const edgeTol = 0.5;
+                const quarterW = w * 0.3;
+                for (const p of this.generalPathPoints) {
+                    const fromLeft = p.tx - minX;
+                    const fromRight = maxX - p.tx;
+                    const xInset = Math.min(fromLeft, fromRight);
+                    // Only consider points near a vertical edge (within 30% of width)
+                    if (xInset > edgeTol && xInset < quarterW && xInset > radius) {
+                        radius = xInset;
+                    }
+                }
+                radius = Math.min(radius, w / 2, h / 2);
                 this.pathRects.push({
                     x: minX, y: minY, width: w, height: h,
                     stroked, filled,
                     strokeColor: this.strokeColor,
                     fillColor: this.fillColor,
                     lineWidth: this.lineWidth,
+                    borderRadius: radius,
                 });
             }
         }
@@ -3023,8 +3048,9 @@ function renderFilledRect(rect: PathRect, z: number): string {
     const bottom = round(rect.y * z);
     const w = round(rect.width * z);
     const h = round(rect.height * z);
+    const br = rect.borderRadius > 0 ? `border-radius:${round(rect.borderRadius * z)}px;` : '';
     return `<div style="position:absolute;left:${left}px;bottom:${bottom}px;` +
-        `width:${w}px;height:${h}px;background-color:${rect.fillColor};"></div>`;
+        `width:${w}px;height:${h}px;background-color:${rect.fillColor};${br}"></div>`;
 }
 
 function renderStrokedRect(rect: PathRect, z: number): string {
@@ -3044,8 +3070,9 @@ function renderStrokedRect(rect: PathRect, z: number): string {
         return `<div style="position:absolute;left:${left}px;bottom:${bottom}px;` +
             `height:${h}px;border-left:${lw}px solid ${rect.strokeColor};"></div>`;
     }
+    const br = rect.borderRadius > 0 ? `border-radius:${round(rect.borderRadius * z)}px;` : '';
     return `<div style="position:absolute;left:${left}px;bottom:${bottom}px;` +
-        `width:${w}px;height:${h}px;border:${lw}px solid ${rect.strokeColor};box-sizing:border-box;"></div>`;
+        `width:${w}px;height:${h}px;border:${lw}px solid ${rect.strokeColor};box-sizing:border-box;${br}"></div>`;
 }
 
 function renderImage(img: ImageItem, z: number): string {
