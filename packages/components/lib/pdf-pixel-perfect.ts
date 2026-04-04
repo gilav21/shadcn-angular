@@ -3099,7 +3099,11 @@ function renderStrokedRect(rect: PathRect, z: number): string {
     const bottom = round(rect.y * z);
     const w = round(rect.width * z);
     const h = round(rect.height * z);
-    const lw = Math.max(round(rect.lineWidth * z), 1);
+    // PDF points are 1/72 inch; CSS pixels are 1/96 inch.
+    // Scale by 4/3 and round UP to ensure lines render at the intended
+    // thickness (browsers round sub-pixel border widths DOWN).
+    const PDF_TO_CSS_PX = 4 / 3;
+    const lw = Math.max(Math.ceil(rect.lineWidth * z * PDF_TO_CSS_PX), 1);
     const isHorizontalLine = rect.height < 2;
     const isVerticalLine = rect.width < 2;
 
