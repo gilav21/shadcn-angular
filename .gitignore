@@ -9,3 +9,13 @@ __screenshots__
 
 # Claude Code local settings
 .claude/settings.local.json
+# Pixel-perfect generated HTML outputs
+demo/public/pixel-perfect.html
+demo/public/simple-pp.html
+demo/public/pixel-perfect-*.html
+
+# C++ pdf2htmlEX reference source (large, not project code)
+pdf2htmlEX/
+
+# pdf2htmlEX reference HTML output
+demo/public/DW2-3-Viruses-www.underwar.co.il.html
