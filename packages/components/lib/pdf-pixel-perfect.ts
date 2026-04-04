@@ -2760,6 +2760,9 @@ class PixelPerfectProcessor {
     }
 
     private paintPath(stroked: boolean, filled: boolean): void {
+        // Scale line width by CTM (PDF line width is in user space)
+        const scaledLineWidth = this.lineWidth * Math.hypot(this.ctm[0], this.ctm[1]);
+
         // Emit rect from `re` operator
         if (this.pathPoints.length >= 4) {
             const [rx, ry, rw, rh] = this.pathPoints;
@@ -2774,7 +2777,7 @@ class PixelPerfectProcessor {
                 stroked, filled,
                 strokeColor: this.strokeColor,
                 fillColor: this.fillColor,
-                lineWidth: this.lineWidth,
+                lineWidth: scaledLineWidth,
                 borderRadius: 0,
             });
         }
@@ -2812,7 +2815,7 @@ class PixelPerfectProcessor {
                     stroked, filled,
                     strokeColor: this.strokeColor,
                     fillColor: this.fillColor,
-                    lineWidth: this.lineWidth,
+                    lineWidth: scaledLineWidth,
                     borderRadius: radius,
                 });
             }
