@@ -826,7 +826,7 @@ export class FontRegistry {
             if (entry.reEncodedData) {
                 const b64 = uint8ToBase64(entry.reEncodedData);
                 rules.push(
-                    `@font-face{font-family:'f${entry.id}';` +
+                    `@font-face{font-family:'f${entry.id.toString(16)}';` +
                     `src:url('data:font/ttf;base64,${b64}') format('truetype');}`,
                 );
                 continue;
@@ -836,7 +836,7 @@ export class FontRegistry {
             if (!fmt) continue;
             const b64 = uint8ToBase64(entry.fontData.data);
             rules.push(
-                `@font-face{font-family:'f${entry.id}';` +
+                `@font-face{font-family:'f${entry.id.toString(16)}';` +
                 `src:url('data:${fmt.mime};base64,${b64}') format('${fmt.cssFormat}');}`,
             );
         }
@@ -857,12 +857,12 @@ export class FontRegistry {
             const baseProps = `${lineHeight}font-style:normal;font-weight:normal;font-synthesis:none;` +
                 `-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;`;
             if (isSymbolFont) {
-                rules.push(`.ff${entry.id}{font-family:sans-serif;${baseProps}}`);
+                rules.push(`.ff${entry.id.toString(16)}{font-family:sans-serif;${baseProps}}`);
             } else if (entry.fontData && fontFormatToMime(entry.fontData.format)) {
-                rules.push(`.ff${entry.id}{font-family:'f${entry.id}';${baseProps}}`);
+                rules.push(`.ff${entry.id.toString(16)}{font-family:'f${entry.id.toString(16)}';${baseProps}}`);
             } else {
                 const fallback = entry.familyName || 'serif';
-                rules.push(`.ff${entry.id}{font-family:${fallback};${baseProps}}`);
+                rules.push(`.ff${entry.id.toString(16)}{font-family:${fallback};${baseProps}}`);
             }
         }
         return rules.join('\n');
