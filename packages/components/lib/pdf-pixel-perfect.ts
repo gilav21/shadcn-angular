@@ -2760,8 +2760,7 @@ class PixelPerfectProcessor {
     }
 
     private paintPath(stroked: boolean, filled: boolean): void {
-        // Scale line width by CTM (PDF line width is in user space)
-        const scaledLineWidth = this.lineWidth * Math.hypot(this.ctm[0], this.ctm[1]);
+        const scaledLineWidth = this.lineWidth;
 
         // Emit rect from `re` operator
         if (this.pathPoints.length >= 4) {
