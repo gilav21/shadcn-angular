@@ -704,6 +704,34 @@ function reEncodeFont(
     return null;
 }
 
+const SYSTEM_FONT_FAMILIES: ReadonlyMap<string, string> = new Map([
+    ['arial', 'Arial, sans-serif'],
+    ['arialmt', 'Arial, sans-serif'],
+    ['timesnewroman', "'Times New Roman', serif"],
+    ['timesnewromanpsmt', "'Times New Roman', serif"],
+    ['couriernew', "'Courier New', monospace"],
+    ['calibri', 'Calibri, sans-serif'],
+    ['cambria', 'Cambria, serif'],
+    ['verdana', 'Verdana, sans-serif'],
+    ['georgia', 'Georgia, serif'],
+    ['tahoma', 'Tahoma, sans-serif'],
+    ['trebuchetms', "'Trebuchet MS', sans-serif"],
+    ['helvetica', 'Helvetica, Arial, sans-serif'],
+]);
+
+function getSystemFontFamily(baseFontName: string): string | undefined {
+    let name = baseFontName;
+    const plusIdx = name.indexOf('+');
+    if (plusIdx >= 0 && plusIdx <= 6) name = name.slice(plusIdx + 1);
+    const normalized = name.toLowerCase().replaceAll(/[-_,\s]/g, '');
+    const stripped = normalized.replaceAll(/(bold|italic|oblique|mt|ps|regular|medium|light|condensed|black|heavy)/g, '');
+    return SYSTEM_FONT_FAMILIES.get(stripped) ?? SYSTEM_FONT_FAMILIES.get(normalized);
+}
+
+function usesSystemFallback(entry: FontRegistryEntry): boolean {
+    return !entry.reEncodedData && getSystemFontFamily(entry.baseFontName) !== undefined;
+}
+
 export class FontRegistry {
     private readonly entriesByResourceName = new Map<string, FontRegistryEntry>();
     private readonly entriesByBaseFont = new Map<string, FontRegistryEntry>();
@@ -823,7 +851,7 @@ export class FontRegistry {
     dumpFontFaceCss(): string {
         const rules: string[] = [];
         for (const entry of this.allUniqueEntries()) {
-            // Prefer re-encoded font (correct Unicode cmap for bidi)
+            if (usesSystemFallback(entry)) continue;
             if (entry.reEncodedData) {
                 const b64 = uint8ToBase64(entry.reEncodedData);
                 rules.push(
@@ -862,8 +890,13 @@ export class FontRegistry {
             const fontStyle = isItalic ? 'italic' : 'normal';
             const baseProps = `${lineHeight}font-style:${fontStyle};font-weight:${fontWeight};font-synthesis:none;` +
                 `-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;`;
+            const systemFamily = getSystemFontFamily(entry.baseFontName);
             if (isSymbolFont) {
                 rules.push(`.ff${entry.id.toString(16)}{font-family:sans-serif;${baseProps}}`);
+            } else if (entry.reEncodedData && entry.fontData && fontFormatToMime(entry.fontData.format)) {
+                rules.push(`.ff${entry.id.toString(16)}{font-family:'f${entry.id.toString(16)}';${baseProps}}`);
+            } else if (systemFamily && !entry.reEncodedData) {
+                rules.push(`.ff${entry.id.toString(16)}{font-family:${systemFamily};${baseProps}}`);
             } else if (entry.fontData && fontFormatToMime(entry.fontData.format)) {
                 rules.push(`.ff${entry.id.toString(16)}{font-family:'f${entry.id.toString(16)}';${baseProps}}`);
             } else {
