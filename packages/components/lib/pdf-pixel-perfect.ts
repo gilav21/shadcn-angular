@@ -1884,7 +1884,7 @@ interface ProcessedPage {
     readonly annotations: PdfAnnotation[];
     readonly pageWidth: number;
     readonly pageHeight: number;
-    readonly yFlipOffset: number;
+    readonly initialYScale: number;
 }
 
 const FONT_SIZE_MULTIPLIER = 4.0; // pdf2htmlEX default (pdf2htmlEX.cc:185)
@@ -1990,7 +1990,7 @@ class PixelPerfectProcessor {
         let pageWidth = Math.abs(mediaBox[2] - mediaBox[0]);
         let pageHeight = Math.abs(mediaBox[3] - mediaBox[1]);
         this.pageHeight = pageHeight;
-        this.yFlipOffset = 0;
+        this.initialYScale = 0;
 
         const rotation = pageDict['Rotate'] ? this.reader.getNumber(pageDict['Rotate']) : 0;
         if (rotation === 90 || rotation === 270) {
@@ -2027,7 +2027,7 @@ class PixelPerfectProcessor {
             annotations,
             pageWidth,
             pageHeight,
-            yFlipOffset: this.yFlipOffset,
+            initialYScale: this.initialYScale,
         };
     }
 
@@ -2521,17 +2521,18 @@ class PixelPerfectProcessor {
         this.textMatChanged = true;
     }
 
-    private yFlipOffset = 0; // Non-zero when CTM flips Y axis
+    private initialYScale = 0;
 
     private opCm(operands: ReadonlyArray<string>): void {
         if (operands.length < 6) return;
         const m = operands.map(Number.parseFloat);
-        this.ctm = multiplyMatrix(this.ctm, m);
-        // Detect Y-flip: when CTM has negative d-component (Y scale), record
-        // the f-offset for coordinate correction in assemblePageHtml.
-        if (this.ctm[3] < 0 && this.ctm[1] === 0 && this.ctm[2] === 0) {
-            this.yFlipOffset = this.ctm[5];
+        // Detect Y-flip on the FIRST cm that has negative d-component.
+        // Store the absolute d value as the initial Y scale factor for
+        // coordinate correction in assemblePageHtml.
+        if (this.initialYScale === 0 && m[3] < 0 && m[1] === 0 && m[2] === 0) {
+            this.initialYScale = Math.abs(m[3]);
         }
+        this.ctm = multiplyMatrix(this.ctm, m);
         this.ctmChanged = true;
     }
 
@@ -3026,15 +3027,20 @@ function assemblePageHtml(
 ): PixelPerfectPage {
     const { lines, pathRects, imageItems, annotations, pageWidth, pageHeight } = result;
 
-    // Fix Y-flipped coordinate system.  When the CTM has a negative Y scale
-    // (common in browser-saved PDFs), text positions have a large negative Y offset.
-    // Correct using: new_y = pageHeight - yFlipOffset - old_y
-    // where yFlipOffset is the CTM's f-component at the time of the flip.
-    const { yFlipOffset } = result;
-    if (yFlipOffset > 0) {
-        const fixY = (y: number) => pageHeight - yFlipOffset - y;
-        for (const line of lines) { line.y = fixY(line.y); }
-        for (const img of imageItems) { (img as { y: number }).y = fixY(img.y); }
+    // Fix Y-flipped coordinate system (common in browser-saved PDFs).
+    // When the initial CTM has a negative Y scale (e.g. [0.24, 0, 0, -0.24, 0, 792]),
+    // subsequent cm operators amplify coordinates beyond the page range, producing
+    // negative Y values in the combined text matrix.  The correct page position is
+    // |y| * initial_y_scale, where initial_y_scale is the absolute value of the
+    // first cm's d-component.  This works across all nested cm blocks.
+    const { initialYScale } = result;
+    if (initialYScale > 0 && initialYScale < 1) {
+        for (const line of lines) {
+            if (line.y < 0) line.y = Math.abs(line.y) * initialYScale;
+        }
+        for (const img of imageItems) {
+            if (img.y < 0) (img as { y: number }).y = Math.abs(img.y) * initialYScale;
+        }
     }
 
     const scaledWidth = pageWidth * z;
