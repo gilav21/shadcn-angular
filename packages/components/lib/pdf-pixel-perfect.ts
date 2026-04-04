@@ -2789,26 +2789,32 @@ class PixelPerfectProcessor {
                 if (p.tx > maxX) maxX = p.tx;
                 if (p.ty > maxY) maxY = p.ty;
             }
-            const w = maxX - minX;
-            const h = maxY - minY;
-            if (w >= 5 && h >= 5) {
-                // Estimate border-radius from the smallest X-axis inset of points
-                // near the left or right edge. For rounded rects, curve points are
-                // inset from the bounding box corner by the radius amount.
-                // Use X-axis only since Y may be flipped by the CTM.
+            let w = maxX - minX;
+            let h = maxY - minY;
+
+            // For thin lines (m→l straight lines), one dimension is ~0.
+            // Use the stroke line width as the thin dimension so the line renders.
+            const isHLine = h < 2 && w >= 1;
+            const isVLine = w < 2 && h >= 1;
+            if (isHLine) h = Math.max(h, scaledLineWidth);
+            if (isVLine) w = Math.max(w, scaledLineWidth);
+
+            if (w >= 1 || h >= 1) {
+                // Estimate border-radius for thick paths (rounded rects).
                 let radius = 0;
-                const edgeTol = 0.5;
-                const quarterW = w * 0.3;
-                for (const p of this.generalPathPoints) {
-                    const fromLeft = p.tx - minX;
-                    const fromRight = maxX - p.tx;
-                    const xInset = Math.min(fromLeft, fromRight);
-                    // Only consider points near a vertical edge (within 30% of width)
-                    if (xInset > edgeTol && xInset < quarterW && xInset > radius) {
-                        radius = xInset;
+                if (w >= 5 && h >= 5) {
+                    const edgeTol = 0.5;
+                    const quarterW = w * 0.3;
+                    for (const p of this.generalPathPoints) {
+                        const fromLeft = p.tx - minX;
+                        const fromRight = maxX - p.tx;
+                        const xInset = Math.min(fromLeft, fromRight);
+                        if (xInset > edgeTol && xInset < quarterW && xInset > radius) {
+                            radius = xInset;
+                        }
                     }
+                    radius = Math.min(radius, w / 2, h / 2);
                 }
-                radius = Math.min(radius, w / 2, h / 2);
                 this.pathRects.push({
                     x: minX, y: minY, width: w, height: h,
                     stroked, filled,
