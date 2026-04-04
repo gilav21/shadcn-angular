@@ -707,6 +707,7 @@ function reEncodeFont(
 const SYSTEM_FONT_FAMILIES: ReadonlyMap<string, string> = new Map([
     ['arial', 'Arial, sans-serif'],
     ['arialmt', 'Arial, sans-serif'],
+    ['arialnarrow', "'Arial Narrow', Arial, sans-serif"],
     ['timesnewroman', "'Times New Roman', serif"],
     ['timesnewromanpsmt', "'Times New Roman', serif"],
     ['couriernew', "'Courier New', monospace"],
