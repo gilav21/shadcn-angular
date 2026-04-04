@@ -704,33 +704,57 @@ function reEncodeFont(
     return null;
 }
 
-const SYSTEM_FONT_FAMILIES: ReadonlyMap<string, string> = new Map([
-    ['arial', 'Arial, sans-serif'],
-    ['arialmt', 'Arial, sans-serif'],
-    ['arialnarrow', "'Arial Narrow', Arial, sans-serif"],
-    ['timesnewroman', "'Times New Roman', serif"],
-    ['timesnewromanpsmt', "'Times New Roman', serif"],
-    ['couriernew', "'Courier New', monospace"],
-    ['calibri', 'Calibri, sans-serif'],
-    ['cambria', 'Cambria, serif'],
-    ['verdana', 'Verdana, sans-serif'],
-    ['georgia', 'Georgia, serif'],
-    ['tahoma', 'Tahoma, sans-serif'],
-    ['trebuchetms', "'Trebuchet MS', sans-serif"],
-    ['helvetica', 'Helvetica, Arial, sans-serif'],
-]);
+// Serif font family keywords for generic fallback detection
+const SERIF_KEYWORDS = ['times', 'georgia', 'cambria', 'garamond', 'palatino', 'bodoni', 'baskerville', 'bookman', 'century'];
+const MONO_KEYWORDS = ['courier', 'mono', 'consolas', 'menlo', 'lucidaconsole', 'inconsolata'];
 
-function getSystemFontFamily(baseFontName: string): string | undefined {
+/**
+ * Dynamically extract a CSS font-family from any PDF BaseFontName.
+ * No static map needed — works for any font by parsing the name.
+ *
+ * Examples:
+ *   "ABCDEF+Arial"              → "'Arial', sans-serif"
+ *   "MZPIBW+Arial Narrow Bold"  → "'Arial Narrow', sans-serif"
+ *   "TimesNewRomanPS-BoldMT"    → "'Times New Roman', serif"
+ *   "AKOBGE+arialuni"           → "'Arialuni', sans-serif"
+ *   "CourierNew-Regular"         → "'Courier New', monospace"
+ */
+function getSystemFontFamily(baseFontName: string): string {
     let name = baseFontName;
+    // Strip subset prefix (e.g. "ABCDEF+")
     const plusIdx = name.indexOf('+');
     if (plusIdx >= 0 && plusIdx <= 6) name = name.slice(plusIdx + 1);
-    const normalized = name.toLowerCase().replaceAll(/[-_,\s]/g, '');
-    const stripped = normalized.replaceAll(/(bold|italic|oblique|mt|ps|regular|medium|light|condensed|black|heavy)/g, '');
-    return SYSTEM_FONT_FAMILIES.get(stripped) ?? SYSTEM_FONT_FAMILIES.get(normalized);
+
+    // Strip trailing technical suffixes before CamelCase split
+    name = name.replaceAll(/[-]?(PS)?MT$/gi, '');
+
+    // Insert spaces before uppercase runs for CamelCase: "TimesNewRoman" → "Times New Roman"
+    name = name.replaceAll(/([a-z])([A-Z])/g, '$1 $2');
+
+    // Clean up dashes/underscores/commas to spaces
+    name = name.replaceAll(/[-_,]+/g, ' ').trim();
+
+    // Remove style/weight suffixes (run twice to catch consecutive: "PS Bold" → "")
+    const stylePat = /\s+(Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/gi;
+    name = name.replaceAll(stylePat, '').trim();
+    name = name.replaceAll(stylePat, '').trim();
+
+    // Title-case all-lowercase names: "arialuni" → "Arialuni"
+    if (name === name.toLowerCase() && name.length > 0) {
+        name = name[0].toUpperCase() + name.slice(1);
+    }
+
+    // Determine generic fallback from lowercase name
+    const lower = name.toLowerCase().replaceAll(/\s/g, '');
+    let generic = 'sans-serif';
+    if (SERIF_KEYWORDS.some(k => lower.includes(k))) generic = 'serif';
+    else if (MONO_KEYWORDS.some(k => lower.includes(k))) generic = 'monospace';
+
+    return `'${name}', ${generic}`;
 }
 
 function usesSystemFallback(entry: FontRegistryEntry): boolean {
-    return !entry.reEncodedData && getSystemFontFamily(entry.baseFontName) !== undefined;
+    return !entry.reEncodedData;
 }
 
 export class FontRegistry {
