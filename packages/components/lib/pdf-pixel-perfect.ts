@@ -1973,6 +1973,7 @@ class PixelPerfectProcessor {
     private readonly pathRects: PathRect[] = [];
     private readonly imageItems: ImageItem[] = [];
     private pathPoints: number[] = [];
+    private readonly generalPathPoints: Array<{ x: number; y: number }> = [];
 
     constructor(reader: PdfReader, fontRegistry: FontRegistry, zoom: number) {
         this.reader = reader;
@@ -2477,11 +2478,16 @@ class PixelPerfectProcessor {
 
             // ── Path operators ────────────────────────────────
             case 're': this.opRe(operands); break;
-            case 'm': case 'l': case 'c': case 'v': case 'y': case 'h': break; // path construction (re is main one we handle)
+            case 'm': this.opPathMove(operands); break;
+            case 'l': this.opPathLine(operands); break;
+            case 'c': this.opPathCurve(operands); break;
+            case 'v': this.opPathCurveV(operands); break;
+            case 'y': this.opPathCurveY(operands); break;
+            case 'h': break; // closepath — tracked implicitly
             case 'S': case 's': this.paintPath(true, false); break;
             case 'f': case 'F': case 'f*': this.paintPath(false, true); break;
             case 'B': case 'B*': case 'b': case 'b*': this.paintPath(true, true); break;
-            case 'n': this.pathPoints = []; break;
+            case 'n': this.pathPoints = []; this.generalPathPoints.length = 0; break;
 
             // ── XObject ──────────────────────────────────────
             case 'Do': this.opDo(operands, resources, pageWidth, pageHeight); break;
@@ -2675,7 +2681,47 @@ class PixelPerfectProcessor {
         this.pathPoints = operands.map(Number.parseFloat);
     }
 
+    private opPathMove(operands: ReadonlyArray<string>): void {
+        if (operands.length < 2) return;
+        const x = Number.parseFloat(operands[0]);
+        const y = Number.parseFloat(operands[1]);
+        const p = transformPoint(x, y, this.ctm);
+        this.generalPathPoints.push(p);
+    }
+
+    private opPathLine(operands: ReadonlyArray<string>): void {
+        if (operands.length < 2) return;
+        const p = transformPoint(Number.parseFloat(operands[0]), Number.parseFloat(operands[1]), this.ctm);
+        this.generalPathPoints.push(p);
+    }
+
+    private opPathCurve(operands: ReadonlyArray<string>): void {
+        if (operands.length < 6) return;
+        this.generalPathPoints.push(
+            transformPoint(Number.parseFloat(operands[0]), Number.parseFloat(operands[1]), this.ctm),
+            transformPoint(Number.parseFloat(operands[2]), Number.parseFloat(operands[3]), this.ctm),
+            transformPoint(Number.parseFloat(operands[4]), Number.parseFloat(operands[5]), this.ctm),
+        );
+    }
+
+    private opPathCurveV(operands: ReadonlyArray<string>): void {
+        if (operands.length < 4) return;
+        this.generalPathPoints.push(
+            transformPoint(Number.parseFloat(operands[0]), Number.parseFloat(operands[1]), this.ctm),
+            transformPoint(Number.parseFloat(operands[2]), Number.parseFloat(operands[3]), this.ctm),
+        );
+    }
+
+    private opPathCurveY(operands: ReadonlyArray<string>): void {
+        if (operands.length < 4) return;
+        this.generalPathPoints.push(
+            transformPoint(Number.parseFloat(operands[0]), Number.parseFloat(operands[1]), this.ctm),
+            transformPoint(Number.parseFloat(operands[2]), Number.parseFloat(operands[3]), this.ctm),
+        );
+    }
+
     private paintPath(stroked: boolean, filled: boolean): void {
+        // Emit rect from `re` operator
         if (this.pathPoints.length >= 4) {
             const [rx, ry, rw, rh] = this.pathPoints;
             const p1 = transformPoint(rx, ry, this.ctm);
@@ -2692,7 +2738,29 @@ class PixelPerfectProcessor {
                 lineWidth: this.lineWidth,
             });
         }
+        // Emit bounding-box rect from general path (m/l/c/v/y/h curves)
+        if (this.generalPathPoints.length > 0) {
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            for (const p of this.generalPathPoints) {
+                if (p.tx < minX) minX = p.tx;
+                if (p.ty < minY) minY = p.ty;
+                if (p.tx > maxX) maxX = p.tx;
+                if (p.ty > maxY) maxY = p.ty;
+            }
+            const w = maxX - minX;
+            const h = maxY - minY;
+            if (w >= 5 && h >= 5) {
+                this.pathRects.push({
+                    x: minX, y: minY, width: w, height: h,
+                    stroked, filled,
+                    strokeColor: this.strokeColor,
+                    fillColor: this.fillColor,
+                    lineWidth: this.lineWidth,
+                });
+            }
+        }
         this.pathPoints = [];
+        this.generalPathPoints.length = 0;
     }
 
     private opDo(

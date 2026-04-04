@@ -3047,6 +3047,74 @@ function pathOpsToSvg(ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
     });
 }
 
+function emitBoundingBoxRect(
+    ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
+    stroked: boolean, filled: boolean,
+): void {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    let curX = 0;
+    let curY = 0;
+    let hasPoints = false;
+
+    for (const op of ops) {
+        const points: Array<{ x: number; y: number }> = [];
+        switch (op.op) {
+            case 'm':
+            case 'l':
+                points.push({ x: op.args[0], y: op.args[1] });
+                curX = op.args[0]; curY = op.args[1];
+                break;
+            case 'c':
+                points.push(
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                    { x: op.args[4], y: op.args[5] },
+                );
+                curX = op.args[4]; curY = op.args[5];
+                break;
+            case 'v':
+                points.push(
+                    { x: curX, y: curY },
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                );
+                curX = op.args[2]; curY = op.args[3];
+                break;
+            case 'y':
+                points.push(
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                );
+                curX = op.args[2]; curY = op.args[3];
+                break;
+        }
+        for (const p of points) {
+            const { tx, ty } = transformPoint(p.x, p.y, ctx.gs.ctm);
+            if (tx < minX) minX = tx;
+            if (ty < minY) minY = ty;
+            if (tx > maxX) maxX = tx;
+            if (ty > maxY) maxY = ty;
+            hasPoints = true;
+        }
+    }
+
+    if (!hasPoints) return;
+    const width = maxX - minX;
+    const height = maxY - minY;
+    if (width < 5 || height < 5) return;
+
+    ctx.pathRects.push({
+        x: minX, y: minY, width, height,
+        page: ctx.pageIndex, stroked, filled,
+        strokeColor: ctx.gs.strokeColor,
+        fillColor: ctx.gs.fillColor,
+        lineWidth: ctx.gs.lineWidth,
+    });
+}
+
 function emitPathRects(ctx: ContentExtractionContext, stroked: boolean, filled: boolean): void {
     let lastMoveX = 0;
     let lastMoveY = 0;
@@ -3062,6 +3130,12 @@ function emitPathRects(ctx: ContentExtractionContext, stroked: boolean, filled: 
             lastMoveX = op.args[0];
             lastMoveY = op.args[1];
         }
+    }
+
+    // Emit bounding-box rect for paths containing curves (rounded rects, button borders)
+    if (ctx.currentPath.some(op => op.op === 'c' || op.op === 'v' || op.op === 'y')) {
+        const nonReOps = ctx.currentPath.filter(op => op.op !== 're');
+        emitBoundingBoxRect(nonReOps, ctx, stroked, filled);
     }
 }
 
