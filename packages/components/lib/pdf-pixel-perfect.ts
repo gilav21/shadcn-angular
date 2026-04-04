@@ -1,5 +1,5 @@
 import type { PdfObject, FontInfo } from './pdf-parser';
-import { PdfReader, buildFontInfo, getPageMediaBox } from './pdf-parser';
+import { PdfReader, buildFontInfo, getPageMediaBox, buildImageDataUrl, resolveImageFilterName } from './pdf-parser';
 import * as opentype from 'opentype.js';
 
 // Fallback font for glyphs missing from embedded PDF fonts.
@@ -1884,6 +1884,7 @@ interface ProcessedPage {
     readonly annotations: PdfAnnotation[];
     readonly pageWidth: number;
     readonly pageHeight: number;
+    readonly yFlipOffset: number;
 }
 
 const FONT_SIZE_MULTIPLIER = 4.0; // pdf2htmlEX default (pdf2htmlEX.cc:185)
@@ -1892,6 +1893,7 @@ class PixelPerfectProcessor {
     private readonly reader: PdfReader;
     private readonly fontRegistry: FontRegistry;
     private readonly zoom: number;
+    private pageHeight = 792;
     // text_scale_factor1/2 from general.cc:326-327
     private readonly textScaleFactor1: number;
     private readonly textScaleFactor2: number;
@@ -1987,6 +1989,8 @@ class PixelPerfectProcessor {
         const mediaBox = getPageMediaBox(this.reader, pageDict);
         let pageWidth = Math.abs(mediaBox[2] - mediaBox[0]);
         let pageHeight = Math.abs(mediaBox[3] - mediaBox[1]);
+        this.pageHeight = pageHeight;
+        this.yFlipOffset = 0;
 
         const rotation = pageDict['Rotate'] ? this.reader.getNumber(pageDict['Rotate']) : 0;
         if (rotation === 90 || rotation === 270) {
@@ -2023,6 +2027,7 @@ class PixelPerfectProcessor {
             annotations,
             pageWidth,
             pageHeight,
+            yFlipOffset: this.yFlipOffset,
         };
     }
 
@@ -2516,10 +2521,17 @@ class PixelPerfectProcessor {
         this.textMatChanged = true;
     }
 
+    private yFlipOffset = 0; // Non-zero when CTM flips Y axis
+
     private opCm(operands: ReadonlyArray<string>): void {
         if (operands.length < 6) return;
         const m = operands.map(Number.parseFloat);
         this.ctm = multiplyMatrix(this.ctm, m);
+        // Detect Y-flip: when CTM has negative d-component (Y scale), record
+        // the f-offset for coordinate correction in assemblePageHtml.
+        if (this.ctm[3] < 0 && this.ctm[1] === 0 && this.ctm[2] === 0) {
+            this.yFlipOffset = this.ctm[5];
+        }
         this.ctmChanged = true;
     }
 
@@ -2751,23 +2763,18 @@ class PixelPerfectProcessor {
             const data = this.reader.getStreamData(ref);
             if (data.length === 0) return;
 
-            // Detect format from filter
-            const filterObj = objDict['Filter'];
-            const filter = filterObj ? this.reader.getString(filterObj) : '';
-            let mime = 'image/png';
-            let imageData = data;
+            const filterName = resolveImageFilterName(this.reader, objDict);
+            let dataUrl: string | null = null;
 
-            if (filter === 'DCTDecode') {
-                mime = 'image/jpeg';
-            } else if (filter === 'JPXDecode') {
-                mime = 'image/jp2';
+            if (filterName === 'DCTDecode') {
+                dataUrl = `data:image/jpeg;base64,${uint8ToBase64(data)}`;
+            } else if (filterName === 'JPXDecode') {
+                dataUrl = `data:image/jp2;base64,${uint8ToBase64(data)}`;
             } else {
-                // Raw image data - skip for now (would need color space decoding)
-                return;
+                // Raw pixel data — use pdf-parser's full decoder (color spaces, PNG encoding)
+                dataUrl = buildImageDataUrl(filterName, ref, this.reader, imgWidth, imgHeight, objDict);
             }
-
-            const b64 = uint8ToBase64(imageData);
-            const dataUrl = `data:${mime};base64,${b64}`;
+            if (!dataUrl) return;
 
             // Image placement: CTM maps unit square to image position
             const p1 = transformPoint(0, 0, this.ctm);
@@ -3018,6 +3025,18 @@ function assemblePageHtml(
     z: number,
 ): PixelPerfectPage {
     const { lines, pathRects, imageItems, annotations, pageWidth, pageHeight } = result;
+
+    // Fix Y-flipped coordinate system.  When the CTM has a negative Y scale
+    // (common in browser-saved PDFs), text positions have a large negative Y offset.
+    // Correct using: new_y = pageHeight - yFlipOffset - old_y
+    // where yFlipOffset is the CTM's f-component at the time of the flip.
+    const { yFlipOffset } = result;
+    if (yFlipOffset > 0) {
+        const fixY = (y: number) => pageHeight - yFlipOffset - y;
+        for (const line of lines) { line.y = fixY(line.y); }
+        for (const img of imageItems) { (img as { y: number }).y = fixY(img.y); }
+    }
+
     const scaledWidth = pageWidth * z;
     const scaledHeight = pageHeight * z;
 

@@ -3625,7 +3625,7 @@ export function extractPageContent(
     return { textItems: ctx.textItems, imageItems: ctx.imageItems, pathRects: ctx.pathRects, pageWidth, pageHeight, annotations };
 }
 
-function resolveImageFilterName(reader: PdfReader, dict: Record<string, PdfObject>): string {
+export function resolveImageFilterName(reader: PdfReader, dict: Record<string, PdfObject>): string {
     const filterObj = dict['Filter'];
     if (!filterObj) return '';
     const filterResolved = reader.resolveDeep(filterObj);
@@ -3637,7 +3637,7 @@ function resolveImageFilterName(reader: PdfReader, dict: Record<string, PdfObjec
     return last.type === 'name' ? last.value as string : '';
 }
 
-function buildImageDataUrl(
+export function buildImageDataUrl(
     filterName: string, xObj: PdfObject, reader: PdfReader,
     width: number, height: number, dict: Record<string, PdfObject>,
 ): string | null {
