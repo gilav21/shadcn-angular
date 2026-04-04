@@ -13,7 +13,7 @@ import {
     ElementRef,
 } from '@angular/core';
 import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-browser';
-import type { PdfPageResult } from '../lib/pdf-parser';
+import type { PixelPerfectPage } from '../lib/pdf-pixel-perfect';
 import { cn } from '../lib/utils';
 import { SpinnerComponent } from './spinner.component';
 import type { FileViewerType, FileTypeResult } from '../lib/file-type-detector';
@@ -181,10 +181,7 @@ const HEADING_CLASSES: Record<number, string> = {
                                 @case ('pdf') {
                                     <div class="overflow-auto h-full bg-muted/40 flex justify-center items-start py-4 sm:py-6"
                                          [style.zoom]="currentZoom()">
-                                        <div class="pdf-page bg-white dark:bg-zinc-900 shadow-lg rounded-sm w-full mx-auto shrink-0"
-                                             [style.max-width]="pdfPageMaxWidth()"
-                                             [style.padding]="pdfPagePadding()"
-                                             [style.font-size.pt]="pdfBodyFontSize()"
+                                        <div class="pdf-page"
                                              [innerHTML]="currentPdfPageHtml()">
                                         </div>
                                     </div>
@@ -342,8 +339,8 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     readonly textContent = signal('');
     readonly imageSrc = signal<SafeUrl>('');
     readonly mediaSrc = signal<SafeUrl>('');
-    private readonly pdfPages = signal<ReadonlyArray<PdfPageResult>>([]);
-    private readonly pdfOutline = signal<ReadonlyArray<import('../lib/pdf-parser').PdfOutlineItem>>([]);
+    private readonly pdfPages = signal<ReadonlyArray<PixelPerfectPage>>([]);
+    private readonly pdfGlobalCss = signal('');
     readonly downloadUrl = signal<SafeUrl>('');
 
     private readonly xlsxData = signal<{ sheets: ReadonlyArray<{ name: string; data: string[][] }>; truncated?: boolean } | null>(null);
@@ -409,40 +406,13 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const pages = this.pdfPages();
         const idx = this.currentPage() - 1;
         if (idx >= 0 && idx < pages.length) {
-            return this.sanitizer.bypassSecurityTrustHtml(pages[idx].html);
+            const css = this.pdfGlobalCss();
+            const html = `<style>${css}</style>${pages[idx].html}`;
+            return this.sanitizer.bypassSecurityTrustHtml(html);
         }
         return '';
     });
 
-    readonly pdfBodyFontSize = computed(() => {
-        const pages = this.pdfPages();
-        const idx = this.currentPage() - 1;
-        if (idx >= 0 && idx < pages.length) {
-            return pages[idx].bodyFontSize || 12;
-        }
-        return 12;
-    });
-
-    readonly pdfPageMaxWidth = computed(() => {
-        const pages = this.pdfPages();
-        const idx = this.currentPage() - 1;
-        if (idx >= 0 && idx < pages.length && pages[idx].pageWidth > 0) {
-            return `${Math.round(pages[idx].pageWidth)}pt`;
-        }
-        return '612pt';
-    });
-
-    readonly pdfPagePadding = computed(() => {
-        const pages = this.pdfPages();
-        const idx = this.currentPage() - 1;
-        if (idx >= 0 && idx < pages.length && pages[idx].pageWidth > 0) {
-            const page = pages[idx];
-            const left = Math.max(0, page.contentLeft);
-            const right = Math.max(0, page.pageWidth - page.contentRight);
-            return `40px ${Math.round(right * 100) / 100}pt 40px ${Math.round(left * 100) / 100}pt`;
-        }
-        return '40px 48px';
-    });
 
     readonly currentSlideHtml = computed<SafeHtml>(() => {
         const slides = this.pptxSlides();
@@ -675,10 +645,10 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processPdf(bytes: Uint8Array): Promise<void> {
-        const { parsePdfPaged } = await import('../lib/pdf-parser');
-        const result = await parsePdfPaged(bytes.buffer as ArrayBuffer);
+        const { renderPixelPerfectPaged } = await import('../lib/pdf-pixel-perfect');
+        const result = await renderPixelPerfectPaged(bytes.buffer as ArrayBuffer);
         this.pdfPages.set(result.pages);
-        this.pdfOutline.set(result.outline);
+        this.pdfGlobalCss.set(result.globalCss);
         this.totalPages.set(result.totalPages);
         this.currentPage.set(1);
     }

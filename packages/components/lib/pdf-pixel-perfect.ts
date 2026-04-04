@@ -399,9 +399,9 @@ function fontNeedsReencoding(srcFont: opentype.Font, fontInfo: FontInfo): boolea
 function processEmbeddedFont(
     fontData: ExtractedFont,
     fontInfo: FontInfo,
-): { glyphAdvances: Map<number, number>; unitsPerEm: number; reEncodedData: Uint8Array | null } {
+): { glyphAdvances: Map<number, number>; unitsPerEm: number; reEncodedData: Uint8Array | null; glyphFixupMap: Map<number, number> | null } {
     if (fontData.format !== 'truetype' && fontData.format !== 'opentype') {
-        return { glyphAdvances: new Map(), unitsPerEm: 1000, reEncodedData: null };
+        return { glyphAdvances: new Map(), unitsPerEm: 1000, reEncodedData: null, glyphFixupMap: null };
     }
 
     try {
@@ -2039,7 +2039,7 @@ class PixelPerfectProcessor {
     private readonly pathRects: PathRect[] = [];
     private readonly imageItems: ImageItem[] = [];
     private pathPoints: number[] = [];
-    private readonly generalPathPoints: Array<{ x: number; y: number }> = [];
+    private readonly generalPathPoints: Array<{ tx: number; ty: number }> = [];
 
     constructor(reader: PdfReader, fontRegistry: FontRegistry, zoom: number) {
         this.reader = reader;
