@@ -3099,7 +3099,7 @@ function renderStrokedRect(rect: PathRect, z: number): string {
     const bottom = round(rect.y * z);
     const w = round(rect.width * z);
     const h = round(rect.height * z);
-    const lw = round(rect.lineWidth * z);
+    const lw = Math.max(round(rect.lineWidth * z), 1);
     const isHorizontalLine = rect.height < 2;
     const isVerticalLine = rect.width < 2;
 
