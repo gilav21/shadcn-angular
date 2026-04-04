@@ -1148,14 +1148,18 @@ function tokenizeContentStream(data: Uint8Array): string[] {
 
 // ── Matrix & Transform Utilities ─────────────────────────────────────
 
+// Matrix multiplication matching C++ pdf2htmlEX tm_multiply (math.h:34-42).
+// PDF matrices use column-major layout: [a,b,c,d,e,f] represents
+// [[a,c,e],[b,d,f],[0,0,1]].  The translation formula differs from
+// row-major: result[4] = m1[0]*m2[4] + m1[2]*m2[5] + m1[4].
 function multiplyMatrix(a: readonly number[], b: readonly number[]): number[] {
     return [
-        a[0] * b[0] + a[1] * b[2],
-        a[0] * b[1] + a[1] * b[3],
-        a[2] * b[0] + a[3] * b[2],
-        a[2] * b[1] + a[3] * b[3],
-        a[4] * b[0] + a[5] * b[2] + b[4],
-        a[4] * b[1] + a[5] * b[3] + b[5],
+        a[0] * b[0] + a[2] * b[1],
+        a[1] * b[0] + a[3] * b[1],
+        a[0] * b[2] + a[2] * b[3],
+        a[1] * b[2] + a[3] * b[3],
+        a[0] * b[4] + a[2] * b[5] + a[4],
+        a[1] * b[4] + a[3] * b[5] + a[5],
     ];
 }
 
