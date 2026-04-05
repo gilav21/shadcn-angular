@@ -1,10 +1,12 @@
 import type { PdfObject, FontInfo } from './pdf-parser';
 import { PdfReader, buildFontInfo, getPageMediaBox, buildImageDataUrl, resolveImageFilterName } from './pdf-parser';
-import * as opentype from 'opentype.js';
+import { TtfFont } from './ttf-parser';
+import { buildTtf } from './ttf-builder';
+import type { TtfBuilderGlyph } from './ttf-builder';
 
 // Fallback font for glyphs missing from embedded PDF fonts.
 // Loaded lazily from bundled NotoSans-Regular.ttf in Node.js environments.
-let fallbackFont: opentype.Font | null | undefined;
+let fallbackFont: TtfFont | null | undefined;
 let fallbackFontData: ArrayBuffer | null = null;
 
 export function setFallbackFontData(data: ArrayBuffer): void {
@@ -12,14 +14,14 @@ export function setFallbackFontData(data: ArrayBuffer): void {
     fallbackFont = undefined; // reset cache
 }
 
-function getFallbackFont(): opentype.Font | null {
+function getFallbackFont(): TtfFont | null {
     if (fallbackFont !== undefined) return fallbackFont;
     fallbackFont = null;
 
     // If data was provided explicitly (e.g., from browser fetch), use it
     if (fallbackFontData) {
         try {
-            fallbackFont = opentype.parse(fallbackFontData);
+            fallbackFont = new TtfFont(fallbackFontData);
             return fallbackFont;
         } catch { /* skip */ }
     }
@@ -27,11 +29,7 @@ function getFallbackFont(): opentype.Font | null {
     // Try Node.js file system
     try {
         /* eslint-disable @typescript-eslint/no-require-imports */
-        const nodeRequire = typeof __non_webpack_require__ !== 'undefined'
-            ? __non_webpack_require__
-            : typeof module !== 'undefined' && typeof module.require === 'function'
-                ? module.require.bind(module)
-                : undefined;
+        const nodeRequire = resolveNodeRequire();
         if (!nodeRequire) return null;
 
         const fs = nodeRequire('fs') as { readFileSync: (p: string) => Buffer };
@@ -45,7 +43,7 @@ function getFallbackFont(): opentype.Font | null {
             try {
                 const data = fs.readFileSync(p);
                 const buf = data instanceof Uint8Array ? data : new Uint8Array(data);
-                fallbackFont = opentype.parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
+                fallbackFont = new TtfFont(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength));
                 return fallbackFont;
             } catch { /* try next */ }
         }
@@ -55,6 +53,13 @@ function getFallbackFont(): opentype.Font | null {
 
 declare const __non_webpack_require__: ((m: string) => unknown) | undefined;
 declare const __filename: string;
+
+function resolveNodeRequire(): ((m: string) => unknown) | undefined {
+    /* eslint-disable @typescript-eslint/no-require-imports */
+    if (__non_webpack_require__ !== undefined) return __non_webpack_require__;
+    if (typeof module !== 'undefined' && typeof module.require === 'function') return module.require.bind(module);
+    return undefined;
+}
 
 // ── Options & Output Interfaces ───────────────────────────────────────
 
@@ -227,10 +232,10 @@ export class AllStateManager {
     readonly fontSize = new NumericStateManager(0.001);
     readonly letterSpace = new NumericStateManager(0.001);
     readonly wordSpace = new NumericStateManager(0.001);
-    readonly whitespace = new NumericStateManager(1.0);
+    readonly whitespace = new NumericStateManager(1);
     readonly bottom = new NumericStateManager(0.001);
     readonly height = new NumericStateManager(0.001);
-    readonly left = new NumericStateManager(1.0);
+    readonly left = new NumericStateManager(1);
     readonly verticalAlign = new NumericStateManager(0.001);
 
     dumpAllCss(): string {
@@ -277,51 +282,43 @@ interface ExtractedFont {
     readonly format: FontFormat;
 }
 
-function extractFontProgram(reader: PdfReader, fontObjDict: Record<string, PdfObject>): ExtractedFont | null {
-    let descriptorRef = fontObjDict['FontDescriptor'];
+function resolveFontDescriptor(reader: PdfReader, fontObjDict: Record<string, PdfObject>): PdfObject | undefined {
+    const direct = fontObjDict['FontDescriptor'];
+    if (direct) return direct;
+    const descendantsRef = fontObjDict['DescendantFonts'];
+    if (!descendantsRef) return undefined;
+    const descendants = reader.getArray(descendantsRef);
+    if (descendants.length === 0) return undefined;
+    const cidFontDict = reader.getDict(descendants[0]);
+    return cidFontDict['FontDescriptor'];
+}
 
-    if (!descriptorRef) {
-        const descendantsRef = fontObjDict['DescendantFonts'];
-        if (descendantsRef) {
-            const descendants = reader.getArray(descendantsRef);
-            if (descendants.length > 0) {
-                const cidFontDict = reader.getDict(descendants[0]);
-                descriptorRef = cidFontDict['FontDescriptor'];
-            }
-        }
-    }
+function tryReadStream(reader: PdfReader, ref: PdfObject | undefined): Uint8Array | null {
+    if (!ref) return null;
+    try {
+        const data = reader.getStreamData(ref);
+        return data.length > 0 ? data : null;
+    } catch { return null; }
+}
+
+function extractFontProgram(reader: PdfReader, fontObjDict: Record<string, PdfObject>): ExtractedFont | null {
+    const descriptorRef = resolveFontDescriptor(reader, fontObjDict);
     if (!descriptorRef) return null;
 
     const descriptor = reader.getDict(descriptorRef);
 
-    const fontFile2Ref = descriptor['FontFile2'];
-    if (fontFile2Ref) {
-        try {
-            const data = reader.getStreamData(fontFile2Ref);
-            if (data.length > 0) return { data, format: 'truetype' };
-        } catch { /* skip */ }
+    const ff2Data = tryReadStream(reader, descriptor['FontFile2']);
+    if (ff2Data) return { data: ff2Data, format: 'truetype' };
+
+    const ff3Data = tryReadStream(reader, descriptor['FontFile3']);
+    if (ff3Data) {
+        const ffDict = reader.getDict(descriptor['FontFile3']);
+        const subtype = reader.getString(ffDict['Subtype']);
+        return { data: ff3Data, format: subtype === 'OpenType' ? 'opentype' : 'cff' };
     }
 
-    const fontFile3Ref = descriptor['FontFile3'];
-    if (fontFile3Ref) {
-        try {
-            const data = reader.getStreamData(fontFile3Ref);
-            if (data.length > 0) {
-                const ffDict = reader.getDict(fontFile3Ref);
-                const subtype = reader.getString(ffDict['Subtype']);
-                if (subtype === 'OpenType') return { data, format: 'opentype' };
-                return { data, format: 'cff' };
-            }
-        } catch { /* skip */ }
-    }
-
-    const fontFileRef = descriptor['FontFile'];
-    if (fontFileRef) {
-        try {
-            const data = reader.getStreamData(fontFileRef);
-            if (data.length > 0) return { data, format: 'type1' };
-        } catch { /* skip */ }
-    }
+    const ff1Data = tryReadStream(reader, descriptor['FontFile']);
+    if (ff1Data) return { data: ff1Data, format: 'type1' };
 
     return null;
 }
@@ -331,8 +328,8 @@ function uint8ToBase64(data: Uint8Array): string {
     let binary = '';
     for (let i = 0; i < data.length; i += chunkSize) {
         const slice = data.subarray(i, Math.min(i + chunkSize, data.length));
-        for (let j = 0; j < slice.length; j++) {
-            binary += String.fromCharCode(slice[j]);
+        for (const byte of slice) {
+            binary += String.fromCodePoint(byte);
         }
     }
     return btoa(binary);
@@ -368,7 +365,7 @@ interface FontRegistryEntry {
     readonly glyphFixupMap: Map<number, number> | null;
 }
 
-function fontNeedsReencoding(srcFont: opentype.Font, fontInfo: FontInfo): boolean {
+function fontNeedsReencoding(srcFont: TtfFont, fontInfo: FontInfo): boolean {
     if (!fontInfo.isTwoByte || fontInfo.toUnicode.size === 0) return false;
 
     let totalMapped = 0;
@@ -383,17 +380,65 @@ function fontNeedsReencoding(srcFont: opentype.Font, fontInfo: FontInfo): boolea
         }
         if (cp <= 0 || cp > 0xFFFF) continue;
         totalMapped++;
-        try {
-            const glyph = srcFont.charToGlyph(String.fromCodePoint(cp));
-            if (glyph && glyph.advanceWidth > 0 && (glyph.index ?? 0) > 0) {
-                coveredMapped++;
-            }
-        } catch { /* skip */ }
+        const metrics = srcFont.charToGlyphMetrics(cp);
+        if (metrics.advanceWidth > 0 && metrics.index > 0) {
+            coveredMapped++;
+        }
     }
 
     if (puaMapped > 0) return true;
     if (totalMapped === 0) return false;
     return (coveredMapped / totalMapped) < 0.95;
+}
+
+function fixCidToUnicodeWidths(
+    font: TtfFont, fontInfo: FontInfo, glyphAdvances: Map<number, number>,
+): void {
+    for (const [code, unicodeStr] of fontInfo.toUnicode) {
+        if (glyphAdvances.has(code) && glyphAdvances.get(code)! > 0) continue;
+        const cp = unicodeStr.codePointAt(0) ?? 0;
+        if (cp <= 0 || cp > 0xFFFF) continue;
+        const metrics = font.charToGlyphMetrics(cp);
+        if (metrics.advanceWidth > 0) {
+            glyphAdvances.set(code, metrics.advanceWidth);
+        }
+    }
+}
+
+function fixAsciiFallbackWidths(
+    font: TtfFont, fb: TtfFont | null, unitsPerEm: number, glyphAdvances: Map<number, number>,
+): void {
+    for (let lo = 0x20; lo <= 0x7E; lo++) {
+        if (glyphAdvances.has(lo) && glyphAdvances.get(lo)! > 0) continue;
+        const metrics = font.charToGlyphMetrics(lo);
+        if (metrics.advanceWidth > 0 && metrics.index > 0) {
+            glyphAdvances.set(lo, metrics.advanceWidth);
+            continue;
+        }
+        if (!fb) continue;
+        const fbMetrics = fb.charToGlyphMetrics(lo);
+        if (fbMetrics.advanceWidth > 0 && fbMetrics.index > 0) {
+            const scaled = Math.round(fbMetrics.advanceWidth * unitsPerEm / fb.unitsPerEm);
+            glyphAdvances.set(lo, scaled);
+        }
+    }
+}
+
+function buildGlyphFixupMap(font: TtfFont, fontInfo: FontInfo): Map<number, number> | null {
+    const fixes = new Map<number, number>();
+    for (const [code, unicodeStr] of fontInfo.toUnicode) {
+        const cp = unicodeStr.codePointAt(0) ?? 0;
+        const mirrorCp = MIRROR_PAIRS.get(cp);
+        if (!mirrorCp) continue;
+        const glyphAtCode = font.getGlyphMetrics(code);
+        if (glyphAtCode.advanceWidth <= 0) continue;
+        const glyphForChar = font.charToGlyphMetrics(cp);
+        const glyphForMirror = font.charToGlyphMetrics(mirrorCp);
+        if (glyphAtCode.index !== glyphForChar.index && glyphAtCode.index === glyphForMirror.index) {
+            fixes.set(code, mirrorCp);
+        }
+    }
+    return fixes.size > 0 ? fixes : null;
 }
 
 function processEmbeddedFont(
@@ -405,7 +450,7 @@ function processEmbeddedFont(
     }
 
     try {
-        const font = opentype.parse(fontData.data.buffer.slice(
+        const font = new TtfFont(fontData.data.buffer.slice(
             fontData.data.byteOffset,
             fontData.data.byteOffset + fontData.data.byteLength,
         ));
@@ -413,99 +458,24 @@ function processEmbeddedFont(
         const glyphAdvances = new Map<number, number>();
         const unitsPerEm = font.unitsPerEm;
 
-        // Extract per-glyph advance widths by GID
         for (let gid = 0; gid < font.numGlyphs; gid++) {
-            const glyph = font.glyphs.get(gid);
-            if (glyph && glyph.advanceWidth > 0) {
-                glyphAdvances.set(gid, glyph.advanceWidth);
-            }
+            const w = font.getAdvanceWidth(gid);
+            if (w > 0) glyphAdvances.set(gid, w);
         }
 
-        // For CID fonts: CID Identity-H doesn't guarantee CID=GID.
-        // The font's cmap table maps Unicode→GID correctly. Use charToGlyph
-        // to get the correct advance for characters whose CID doesn't match their GID.
         if (fontInfo.isTwoByte) {
-            // First: fix CID codes that have ToUnicode entries
-            for (const [code, unicodeStr] of fontInfo.toUnicode) {
-                if (glyphAdvances.has(code) && glyphAdvances.get(code)! > 0) continue;
-                const cp = unicodeStr.codePointAt(0) ?? 0;
-                if (cp <= 0 || cp > 0xFFFF) continue;
-                try {
-                    const glyph = font.charToGlyph(String.fromCodePoint(cp));
-                    if (glyph && glyph.advanceWidth > 0) {
-                        glyphAdvances.set(code, glyph.advanceWidth);
-                    }
-                } catch { /* skip */ }
-            }
-            // Second: for CID codes WITHOUT ToUnicode that fall through to
-            // decodeTwoByteChar's ASCII fallback (lo byte 0x20-0x7E), try the
-            // font's cmap first, then the fallback font.
-            const fb = getFallbackFont();
-            for (let lo = 0x20; lo <= 0x7E; lo++) {
-                if (glyphAdvances.has(lo) && glyphAdvances.get(lo)! > 0) continue;
-                const ch = String.fromCodePoint(lo);
-                // Try embedded font's cmap
-                try {
-                    const glyph = font.charToGlyph(ch);
-                    if (glyph && glyph.advanceWidth > 0 && (glyph.index ?? 0) > 0) {
-                        glyphAdvances.set(lo, glyph.advanceWidth);
-                        continue;
-                    }
-                } catch { /* skip */ }
-                // Use fallback font (Noto Sans) — this is what the browser will render
-                if (fb) {
-                    try {
-                        const fbGlyph = fb.charToGlyph(ch);
-                        if (fbGlyph && fbGlyph.advanceWidth > 0 && (fbGlyph.index ?? 0) > 0) {
-                            // Scale from fallback's unitsPerEm to embedded font's unitsPerEm
-                            const scaled = Math.round(fbGlyph.advanceWidth * unitsPerEm / fb.unitsPerEm);
-                            glyphAdvances.set(lo, scaled);
-                        }
-                    } catch { /* skip */ }
-                }
-            }
+            fixCidToUnicodeWidths(font, fontInfo, glyphAdvances);
+            fixAsciiFallbackWidths(font, getFallbackFont(), unitsPerEm, glyphAdvances);
         }
 
-        // Re-encode: build a new font with normalized widths (C++ ffw_set_widths)
-        // and correct Unicode cmap (C++ ffw_reencode_raw).
-        // Only for CID fonts — single-byte fonts render correctly with their original programs.
-        // C++ uses FontForge for ALL fonts, but we lack full FontForge capabilities (hinting, etc.)
-        // so re-encoding single-byte fonts degrades rendering quality (blurry, wrong weight).
         let reEncodedData: Uint8Array | null = null;
         if (fontNeedsReencoding(font, fontInfo)) {
-            try {
-                reEncodedData = reEncodeFont(font, fontInfo, unitsPerEm);
-            } catch { /* fall back to raw font */ }
+            try { reEncodedData = reEncodeFont(font, fontInfo, unitsPerEm); } catch { /* fall back */ }
         }
 
-        // Build glyph fixup map: detect mirrored bracket pairs where the CID
-        // font's raw glyph doesn't match the ToUnicode character but matches
-        // its Unicode mirror instead.  This happens in CID fonts where the
-        // GID→glyph assignment doesn't align with the Unicode cmap for bracket
-        // pairs (common in RTL PDFs).  The fixup swaps the emitted character so
-        // the browser renders the correct visual shape at the positioned coordinate.
-        let glyphFixupMap: Map<number, number> | null = null;
-        if (fontInfo.isTwoByte && !reEncodedData) {
-            const fixes = new Map<number, number>();
-            for (const [code, unicodeStr] of fontInfo.toUnicode) {
-                const cp = unicodeStr.codePointAt(0) ?? 0;
-                const mirrorCp = MIRROR_PAIRS.get(cp);
-                if (!mirrorCp) continue;
-                try {
-                    const glyphAtCode = font.glyphs.get(code);
-                    if (!glyphAtCode || glyphAtCode.advanceWidth <= 0) continue;
-                    const glyphForChar = font.charToGlyph(String.fromCodePoint(cp));
-                    const glyphForMirror = font.charToGlyph(String.fromCodePoint(mirrorCp));
-                    const codeIdx = (glyphAtCode as unknown as { index?: number }).index ?? -1;
-                    const charIdx = (glyphForChar as unknown as { index?: number }).index ?? -2;
-                    const mirrorIdx = (glyphForMirror as unknown as { index?: number }).index ?? -3;
-                    if (codeIdx !== charIdx && codeIdx === mirrorIdx) {
-                        fixes.set(code, mirrorCp);
-                    }
-                } catch { /* skip */ }
-            }
-            glyphFixupMap = fixes.size > 0 ? fixes : null;
-        }
+        const glyphFixupMap = fontInfo.isTwoByte && !reEncodedData
+            ? buildGlyphFixupMap(font, fontInfo)
+            : null;
 
         return { glyphAdvances, unitsPerEm, reEncodedData, glyphFixupMap };
     } catch {
@@ -513,176 +483,62 @@ function processEmbeddedFont(
     }
 }
 
-/**
- * Scale path horizontally only (matching FontForge ffw_set_widths stretch/squeeze).
- * Preserves vertical dimensions, adjusts horizontal to match target advance width.
- */
-function scalePathX(srcPath: opentype.Path | undefined, scaleX: number): opentype.Path {
-    const path = new opentype.Path();
-    if (!srcPath?.commands || Math.abs(scaleX - 1.0) < 1e-6) {
-        // No scaling needed — copy as-is
-        if (srcPath?.commands) {
-            for (const cmd of srcPath.commands) {
-                if (cmd.type === 'M') path.moveTo(cmd.x * scaleX, cmd.y);
-                else if (cmd.type === 'L') path.lineTo(cmd.x * scaleX, cmd.y);
-                else if (cmd.type === 'Q') path.quadraticCurveTo(cmd.x1 * scaleX, cmd.y1, cmd.x * scaleX, cmd.y);
-                else if (cmd.type === 'C') path.curveTo(cmd.x1 * scaleX, cmd.y1, cmd.x2 * scaleX, cmd.y2, cmd.x * scaleX, cmd.y);
-                else if (cmd.type === 'Z') path.closePath();
-            }
-        }
-        return path;
-    }
-    for (const cmd of srcPath.commands) {
-        if (cmd.type === 'M') path.moveTo(cmd.x * scaleX, cmd.y);
-        else if (cmd.type === 'L') path.lineTo(cmd.x * scaleX, cmd.y);
-        else if (cmd.type === 'Q') path.quadraticCurveTo(cmd.x1 * scaleX, cmd.y1, cmd.x * scaleX, cmd.y);
-        else if (cmd.type === 'C') path.curveTo(cmd.x1 * scaleX, cmd.y1, cmd.x2 * scaleX, cmd.y2, cmd.x * scaleX, cmd.y);
-        else if (cmd.type === 'Z') path.closePath();
-    }
-    return path;
+function computeTargetAdvance(widths: ReadonlyMap<number, number>, code: number, unitsPerEm: number): number {
+    const pdfWidth = widths.get(code);
+    return pdfWidth === undefined ? 0 : Math.round(pdfWidth * unitsPerEm / 1000);
 }
 
-function scalePath(srcPath: opentype.Path | undefined, scale: number): opentype.Path {
-    const path = new opentype.Path();
-    if (!srcPath?.commands) return path;
-    for (const cmd of srcPath.commands) {
-        if (cmd.type === 'M') {
-            path.moveTo(cmd.x * scale, cmd.y * scale);
-        } else if (cmd.type === 'L') {
-            path.lineTo(cmd.x * scale, cmd.y * scale);
-        } else if (cmd.type === 'Q') {
-            path.quadraticCurveTo(cmd.x1 * scale, cmd.y1 * scale, cmd.x * scale, cmd.y * scale);
-        } else if (cmd.type === 'C') {
-            path.curveTo(
-                cmd.x1 * scale, cmd.y1 * scale,
-                cmd.x2 * scale, cmd.y2 * scale,
-                cmd.x * scale, cmd.y * scale,
-            );
-        } else if (cmd.type === 'Z') {
-            path.closePath();
+function collectToUnicodeGlyphs(
+    srcFont: TtfFont, fontInfo: FontInfo, unitsPerEm: number,
+    fb: TtfFont | null, glyphs: TtfBuilderGlyph[], usedUnicodes: Set<number>,
+): void {
+    for (const [code, unicodeStr] of fontInfo.toUnicode) {
+        const resolved = resolveUnicode(unicodeStr);
+        if (resolved <= 0 || resolved > 0xFFFF || usedUnicodes.has(resolved)) continue;
+
+        const targetAdvance = computeTargetAdvance(fontInfo.widths, code, unitsPerEm);
+        const srcGlyphResult = findSourceGlyph(srcFont, resolved, code);
+        if (srcGlyphResult) {
+            usedUnicodes.add(resolved);
+            glyphs.push(buildReEncodedGlyph(srcFont, srcGlyphResult, resolved, targetAdvance));
+        } else if (fb) {
+            const fbGlyph = buildFallbackGlyph(fb, resolved, targetAdvance, unitsPerEm);
+            if (fbGlyph) { usedUnicodes.add(resolved); glyphs.push(fbGlyph); }
         }
     }
-    return path;
+}
+
+function collectAsciiFallbackGlyphs(
+    fb: TtfFont, fontInfo: FontInfo, unitsPerEm: number,
+    glyphs: TtfBuilderGlyph[], usedUnicodes: Set<number>,
+): void {
+    for (let cp = 0x20; cp <= 0x7E; cp++) {
+        if (usedUnicodes.has(cp)) continue;
+        const targetAdvance = computeTargetAdvance(fontInfo.widths, cp, unitsPerEm);
+        const fbGlyph = buildFallbackGlyph(fb, cp, targetAdvance, unitsPerEm);
+        if (fbGlyph) { usedUnicodes.add(cp); glyphs.push(fbGlyph); }
+    }
 }
 
 function reEncodeFont(
-    srcFont: opentype.Font,
+    srcFont: TtfFont,
     fontInfo: FontInfo,
     unitsPerEm: number,
 ): Uint8Array | null {
-    // Build glyphs for the new font, mapped to correct Unicode code points
-    const notdefGlyph = new opentype.Glyph({
-        name: '.notdef',
+    const glyphs: TtfBuilderGlyph[] = [{
         unicode: 0,
         advanceWidth: Math.round(unitsPerEm * 0.5),
-        path: new opentype.Path(),
-    });
-
-    const glyphs: opentype.Glyph[] = [notdefGlyph];
+        glyphData: new Uint8Array(0),
+    }];
     const usedUnicodes = new Set<number>();
-
     const fb = getFallbackFont();
 
-    for (const [code, unicodeStr] of fontInfo.toUnicode) {
-        let unicode = unicodeStr.codePointAt(0) ?? 0;
-        // Apply PUA mapping for Symbol fonts
-        if (unicode >= 0xF000 && unicode <= 0xF0FF) {
-            const mapped = SYMBOL_PUA_MAP[unicode];
-            unicode = mapped !== undefined ? mapped : (unicode & 0x00FF);
-        }
-        if (unicode <= 0 || unicode > 0xFFFF || usedUnicodes.has(unicode)) continue;
-
-        // C++ font.cc:687-719: use PDF /Widths for advance width (ffw_set_widths)
-        const pdfWidth = fontInfo.widths.get(code);
-        const targetAdvance = pdfWidth !== undefined
-            ? Math.round(pdfWidth * unitsPerEm / 1000)
-            : 0;
-
-        // Prefer the source font's Unicode cmap when available.
-        // For some CID fonts, the raw CID->GID path and the Unicode cmap disagree
-        // on mirrored punctuation glyphs like ()[].
-        // Re-encoding must follow the target Unicode code point first, then fall
-        // back to the raw CID glyph when the font has no usable Unicode mapping.
-        let srcGlyph: opentype.Glyph | undefined;
-        try {
-            const byUnicode = srcFont.charToGlyph(String.fromCodePoint(unicode));
-            if (byUnicode && byUnicode.advanceWidth > 0 &&
-                ((byUnicode as unknown as { index?: number }).index ?? 0) > 0) {
-                srcGlyph = byUnicode;
-            }
-        } catch { /* skip */ }
-        if (!srcGlyph || srcGlyph.advanceWidth <= 0) {
-            srcGlyph = srcFont.glyphs.get(code);
-        }
-        if (srcGlyph && srcGlyph.advanceWidth > 0) {
-            usedUnicodes.add(unicode);
-            // C++ ffw_set_widths: override advance width to match PDF /Widths
-            const finalAdvance = targetAdvance > 0 ? targetAdvance : srcGlyph.advanceWidth;
-            let finalPath = srcGlyph.path ?? new opentype.Path();
-            // Scale path horizontally if width changed (C++ stretch/squeeze)
-            if (targetAdvance > 0 && Math.abs(srcGlyph.advanceWidth - targetAdvance) > 1) {
-                const sx = targetAdvance / srcGlyph.advanceWidth;
-                finalPath = scalePathX(srcGlyph.path, sx);
-            }
-            glyphs.push(new opentype.Glyph({
-                name: srcGlyph.name || `glyph${code}`,
-                unicode,
-                advanceWidth: finalAdvance,
-                path: finalPath,
-            }));
-        } else if (fb) {
-            // Glyph missing — copy from fallback font (Noto Sans)
-            try {
-                const fbGlyph = fb.charToGlyph(String.fromCodePoint(unicode));
-                if (fbGlyph && fbGlyph.advanceWidth > 0 && (fbGlyph.index ?? 0) > 0) {
-                    usedUnicodes.add(unicode);
-                    const scale = unitsPerEm / fb.unitsPerEm;
-                    const fbAdvance = Math.round(fbGlyph.advanceWidth * scale);
-                    // Use PDF width if available, otherwise scaled fallback
-                    const finalAdvance = targetAdvance > 0 ? targetAdvance : fbAdvance;
-                    const sx = targetAdvance > 0 && fbAdvance > 0 ? targetAdvance / fbAdvance : 1;
-                    glyphs.push(new opentype.Glyph({
-                        name: `fb_${unicode}`,
-                        unicode,
-                        advanceWidth: finalAdvance,
-                        path: scalePathX(scalePath(fbGlyph.path, scale), sx),
-                    }));
-                }
-            } catch { /* skip */ }
-        }
-    }
-
-    // Also add ASCII chars (0x20-0x7E) that might not be in ToUnicode
-    // but are used via decodeTwoByteChar's ASCII fallback
-    if (fb) {
-        for (let cp = 0x20; cp <= 0x7E; cp++) {
-            if (usedUnicodes.has(cp)) continue;
-            // Check if PDF has a width for this code
-            const pdfWidth = fontInfo.widths.get(cp);
-            try {
-                const fbGlyph = fb.charToGlyph(String.fromCodePoint(cp));
-                if (fbGlyph && fbGlyph.advanceWidth > 0 && (fbGlyph.index ?? 0) > 0) {
-                    usedUnicodes.add(cp);
-                    const scale = unitsPerEm / fb.unitsPerEm;
-                    const fbAdvance = Math.round(fbGlyph.advanceWidth * scale);
-                    const targetAdvance = pdfWidth !== undefined
-                        ? Math.round(pdfWidth * unitsPerEm / 1000) : fbAdvance;
-                    const sx = targetAdvance > 0 && fbAdvance > 0 ? targetAdvance / fbAdvance : 1;
-                    glyphs.push(new opentype.Glyph({
-                        name: `fb_${cp}`,
-                        unicode: cp,
-                        advanceWidth: targetAdvance,
-                        path: scalePathX(scalePath(fbGlyph.path, scale), sx),
-                    }));
-                }
-            } catch { /* skip */ }
-        }
-    }
+    collectToUnicodeGlyphs(srcFont, fontInfo, unitsPerEm, fb, glyphs, usedUnicodes);
+    if (fb) collectAsciiFallbackGlyphs(fb, fontInfo, unitsPerEm, glyphs, usedUnicodes);
 
     if (glyphs.length <= 1) return null;
 
-    // C++ ffw_fix_metric: use source font's ascender/descender for consistent metrics
-    const newFont = new opentype.Font({
+    return buildTtf({
         familyName: fontInfo.familyName || 'ReEncoded',
         styleName: 'Regular',
         unitsPerEm,
@@ -690,18 +546,71 @@ function reEncodeFont(
         descender: srcFont.descender || Math.round(unitsPerEm * -0.2),
         glyphs,
     });
+}
 
-    // opentype.js download() calls require('fs') which fails in ESM bundles.
-    // Use toArrayBuffer() directly instead.
-    const toAB = (newFont as unknown as { toArrayBuffer?: () => ArrayBuffer }).toArrayBuffer;
-    if (toAB) {
-        return new Uint8Array(toAB.call(newFont));
+function resolveUnicode(unicodeStr: string): number {
+    let cp = unicodeStr.codePointAt(0) ?? 0;
+    if (cp >= 0xF000 && cp <= 0xF0FF) {
+        cp = SYMBOL_PUA_MAP[cp] ?? (cp & 0x00FF);
     }
-    try {
-        const arrayBuffer = newFont.download() as unknown as ArrayBuffer;
-        if (arrayBuffer) return new Uint8Array(arrayBuffer);
-    } catch { /* download() may fail in ESM — already tried toArrayBuffer above */ }
+    return cp;
+}
+
+function findSourceGlyph(
+    srcFont: TtfFont, unicode: number, code: number,
+): { gid: number; advanceWidth: number } | null {
+    // Prefer the source font's Unicode cmap when available.
+    const byUnicode = srcFont.charToGlyphMetrics(unicode);
+    if (byUnicode.advanceWidth > 0 && byUnicode.index > 0) {
+        return { gid: byUnicode.index, advanceWidth: byUnicode.advanceWidth };
+    }
+    // Fall back to the raw CID glyph
+    const byCode = srcFont.getGlyphMetrics(code);
+    if (byCode.advanceWidth > 0) {
+        return { gid: code, advanceWidth: byCode.advanceWidth };
+    }
     return null;
+}
+
+function buildReEncodedGlyph(
+    srcFont: TtfFont,
+    src: { gid: number; advanceWidth: number },
+    unicode: number,
+    targetAdvance: number,
+): TtfBuilderGlyph {
+    const finalAdvance = targetAdvance > 0 ? targetAdvance : src.advanceWidth;
+    let glyphData = srcFont.getRawGlyph(src.gid) ?? new Uint8Array(0);
+
+    // Scale glyph horizontally if width changed (C++ stretch/squeeze)
+    if (targetAdvance > 0 && Math.abs(src.advanceWidth - targetAdvance) > 1 && glyphData.length > 0) {
+        const sx = targetAdvance / src.advanceWidth;
+        glyphData = srcFont.scaleRawGlyphX(glyphData, sx);
+    }
+
+    return { unicode, advanceWidth: finalAdvance, glyphData };
+}
+
+function buildFallbackGlyph(
+    fb: TtfFont, unicode: number, targetAdvance: number, unitsPerEm: number,
+): TtfBuilderGlyph | null {
+    const fbMetrics = fb.charToGlyphMetrics(unicode);
+    if (fbMetrics.advanceWidth <= 0 || fbMetrics.index <= 0) return null;
+
+    const scale = unitsPerEm / fb.unitsPerEm;
+    const fbAdvance = Math.round(fbMetrics.advanceWidth * scale);
+    const finalAdvance = targetAdvance > 0 ? targetAdvance : fbAdvance;
+
+    let glyphData = fb.getRawGlyph(fbMetrics.index) ?? new Uint8Array(0);
+    if (glyphData.length > 0) {
+        // Uniform scale first, then horizontal adjustment
+        glyphData = fb.scaleRawGlyph(glyphData, scale);
+        if (targetAdvance > 0 && fbAdvance > 0 && Math.abs(targetAdvance - fbAdvance) > 1) {
+            const sx = targetAdvance / fbAdvance;
+            glyphData = fb.scaleRawGlyphX(glyphData, sx);
+        }
+    }
+
+    return { unicode, advanceWidth: finalAdvance, glyphData };
 }
 
 // Serif font family keywords for generic fallback detection
@@ -726,7 +635,7 @@ function getSystemFontFamily(baseFontName: string): string {
     if (plusIdx >= 0 && plusIdx <= 6) name = name.slice(plusIdx + 1);
 
     // Strip trailing technical suffixes before CamelCase split
-    name = name.replaceAll(/[-]?(PS)?MT$/gi, '');
+    name = name.replaceAll(/-?(PS)?MT$/gi, '');
 
     // Insert spaces before uppercase runs for CamelCase: "TimesNewRoman" → "Times New Roman"
     name = name.replaceAll(/([a-z])([A-Z])/g, '$1 $2');
@@ -757,6 +666,77 @@ function usesSystemFallback(entry: FontRegistryEntry): boolean {
     return !entry.reEncodedData;
 }
 
+function processEmbeddedFontData(
+    fontData: ExtractedFont | null, info: FontInfo,
+): {
+    glyphAdvances: Map<number, number> | null;
+    unitsPerEm: number;
+    reEncodedData: Uint8Array | null;
+    glyphFixupMap: Map<number, number> | null;
+} {
+    if (!fontData) {
+        return { glyphAdvances: null, unitsPerEm: 1000, reEncodedData: null, glyphFixupMap: null };
+    }
+    const processed = processEmbeddedFont(fontData, info);
+    return {
+        glyphAdvances: processed.glyphAdvances.size > 0 ? processed.glyphAdvances : null,
+        unitsPerEm: processed.unitsPerEm,
+        reEncodedData: processed.reEncodedData,
+        glyphFixupMap: processed.glyphFixupMap,
+    };
+}
+
+function buildUnicodeFallbackWidths(
+    glyphAdvances: Map<number, number> | null,
+    unitsPerEm: number,
+    info: FontInfo,
+): Map<number, number> | null {
+    if (!glyphAdvances || info.toUnicode.size === 0) return null;
+
+    const uniMap = new Map<number, number>();
+    for (const [code, unicodeStr] of info.toUnicode) {
+        const cp = unicodeStr.codePointAt(0) ?? 0;
+        if (cp <= 0) continue;
+        const otAdv = glyphAdvances.get(code);
+        if (otAdv && otAdv > 0 && !uniMap.has(cp)) {
+            uniMap.set(cp, Math.round(otAdv * 1000 / unitsPerEm));
+        }
+    }
+    for (const [code, unicodeStr] of info.toUnicode) {
+        const cp = unicodeStr.codePointAt(0) ?? 0;
+        if (cp <= 0 || uniMap.has(cp)) continue;
+        const pdfW = info.widths.get(code);
+        if (pdfW !== undefined && pdfW !== info.defaultWidth) {
+            uniMap.set(cp, pdfW);
+        }
+    }
+    return uniMap.size > 0 ? uniMap : null;
+}
+
+function buildFontBaseProps(entry: FontRegistryEntry): string {
+    const lineHeight = Math.abs(entry.ascent - entry.descent) > 0.01
+        ? `line-height:${(entry.ascent - entry.descent).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')};` : '';
+    const isBold = entry.baseFontName.toLowerCase().includes('bold');
+    const isItalic = entry.baseFontName.toLowerCase().includes('italic') ||
+        entry.baseFontName.toLowerCase().includes('oblique');
+    const fontWeight = isBold ? 'bold' : 'normal';
+    const fontStyle = isItalic ? 'italic' : 'normal';
+    return `${lineHeight}font-style:${fontStyle};font-weight:${fontWeight};font-synthesis:none;` +
+        `-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;`;
+}
+
+function resolveFontFamily(entry: FontRegistryEntry, isSymbolFont: boolean): string {
+    if (isSymbolFont) return 'sans-serif';
+    const embeddedId = `'f${entry.id.toString(16)}'`;
+    if (entry.reEncodedData && entry.fontData && fontFormatToMime(entry.fontData.format)) {
+        return embeddedId;
+    }
+    const systemFamily = getSystemFontFamily(entry.baseFontName);
+    if (systemFamily && !entry.reEncodedData) return systemFamily;
+    if (entry.fontData && fontFormatToMime(entry.fontData.format)) return embeddedId;
+    return entry.familyName || 'serif';
+}
+
 export class FontRegistry {
     private readonly entriesByResourceName = new Map<string, FontRegistryEntry>();
     private readonly entriesByBaseFont = new Map<string, FontRegistryEntry>();
@@ -775,44 +755,12 @@ export class FontRegistry {
         const info = buildFontInfo(reader, fontRef);
         const { ascent, descent } = extractFontMetrics(reader, fontObjDict);
 
-        // Process font with opentype.js for accurate glyph metrics + re-encoding
-        let glyphAdvances: Map<number, number> | null = null;
-        let unitsPerEm = 1000;
-        let reEncodedData: Uint8Array | null = null;
+        const { glyphAdvances, unitsPerEm, reEncodedData, glyphFixupMap } =
+            processEmbeddedFontData(fontData, info);
 
-        let glyphFixupMap: Map<number, number> | null = null;
-        if (fontData) {
-            const processed = processEmbeddedFont(fontData, info);
-            glyphAdvances = processed.glyphAdvances.size > 0 ? processed.glyphAdvances : null;
-            unitsPerEm = processed.unitsPerEm;
-            reEncodedData = processed.reEncodedData;
-            glyphFixupMap = processed.glyphFixupMap;
-        }
-
-        // Build Unicode→width fallback for CIDs with missing glyphs.
-        // When multiple CIDs map to the same Unicode, use the one with a valid width.
-        let unicodeFallbackWidths: Map<number, number> | null = null;
-        if (glyphAdvances && info.toUnicode.size > 0) {
-            const uniMap = new Map<number, number>();
-            for (const [code, unicodeStr] of info.toUnicode) {
-                const cp = unicodeStr.codePointAt(0) ?? 0;
-                if (cp <= 0) continue;
-                const otAdv = glyphAdvances.get(code);
-                if (otAdv && otAdv > 0 && !uniMap.has(cp)) {
-                    uniMap.set(cp, Math.round(otAdv * 1000 / unitsPerEm));
-                }
-            }
-            // Also add widths from PDF /W for characters not in opentype
-            for (const [code, unicodeStr] of info.toUnicode) {
-                const cp = unicodeStr.codePointAt(0) ?? 0;
-                if (cp <= 0 || uniMap.has(cp)) continue;
-                const pdfW = info.widths.get(code);
-                if (pdfW !== undefined && pdfW !== info.defaultWidth) {
-                    uniMap.set(cp, pdfW);
-                }
-            }
-            unicodeFallbackWidths = uniMap.size > 0 ? uniMap : null;
-        }
+        const unicodeFallbackWidths = buildUnicodeFallbackWidths(
+            glyphAdvances, unitsPerEm, info,
+        );
 
         const entry: FontRegistryEntry = {
             id: this.nextId++,
@@ -904,30 +852,10 @@ export class FontRegistry {
             const isSymbolFont = SYMBOL_FONTS.some(
                 s => entry.baseFontName.toLowerCase().includes(s),
             );
-            // C++ export_remote_font (font.cc:1059-1067): include line-height, font-style,
-            // font-weight, visibility to match pdf2htmlEX output exactly
-            const lineHeight = Math.abs(entry.ascent - entry.descent) > 0.01
-                ? `line-height:${(entry.ascent - entry.descent).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')};` : '';
-            const isBold = entry.baseFontName.toLowerCase().includes('bold');
-            const isItalic = entry.baseFontName.toLowerCase().includes('italic') ||
-                entry.baseFontName.toLowerCase().includes('oblique');
-            const fontWeight = isBold ? 'bold' : 'normal';
-            const fontStyle = isItalic ? 'italic' : 'normal';
-            const baseProps = `${lineHeight}font-style:${fontStyle};font-weight:${fontWeight};font-synthesis:none;` +
-                `-webkit-font-smoothing:antialiased;text-rendering:geometricPrecision;`;
-            const systemFamily = getSystemFontFamily(entry.baseFontName);
-            if (isSymbolFont) {
-                rules.push(`.ff${entry.id.toString(16)}{font-family:sans-serif;${baseProps}}`);
-            } else if (entry.reEncodedData && entry.fontData && fontFormatToMime(entry.fontData.format)) {
-                rules.push(`.ff${entry.id.toString(16)}{font-family:'f${entry.id.toString(16)}';${baseProps}}`);
-            } else if (systemFamily && !entry.reEncodedData) {
-                rules.push(`.ff${entry.id.toString(16)}{font-family:${systemFamily};${baseProps}}`);
-            } else if (entry.fontData && fontFormatToMime(entry.fontData.format)) {
-                rules.push(`.ff${entry.id.toString(16)}{font-family:'f${entry.id.toString(16)}';${baseProps}}`);
-            } else {
-                const fallback = entry.familyName || 'serif';
-                rules.push(`.ff${entry.id.toString(16)}{font-family:${fallback};${baseProps}}`);
-            }
+            const baseProps = buildFontBaseProps(entry);
+            const family = resolveFontFamily(entry, isSymbolFont);
+            const hexId = entry.id.toString(16);
+            rules.push(`.ff${hexId}{font-family:${family};${baseProps}}`);
         }
         return rules.join('\n');
     }
@@ -954,8 +882,8 @@ function extractFontMetrics(
     const rawAscent = descriptor['Ascent'] ? reader.getNumber(descriptor['Ascent']) : 0;
     const rawDescent = descriptor['Descent'] ? reader.getNumber(descriptor['Descent']) : 0;
 
-    const ascent = rawAscent !== 0 ? rawAscent / 1000 : 0.8;
-    const descent = rawDescent !== 0 ? rawDescent / 1000 : -0.2;
+    const ascent = rawAscent === 0 ? 0.8 : rawAscent / 1000;
+    const descent = rawDescent === 0 ? -0.2 : rawDescent / 1000;
     return { ascent, descent };
 }
 
@@ -1257,10 +1185,10 @@ function grayToHex(g: number): string {
 
 // ── TextLine Model (1:1 translation of pdf2htmlEX HTMLTextLine) ──────
 
-const LINE_Y_EPS = 1.0;
+const LINE_Y_EPS = 1;
 const LINE_TRANSFORM_EPS = 0.001;
 const DEFAULT_ASCENT_RATIO = 0.8;
-const H_EPS = 1.0;
+const H_EPS = 1;
 const SPACE_THRESHOLD = 0.125;
 const EPS = 0.001;
 // C++ State::HASH_ID_COUNT — number of IDs compared in diff/hash (font through word_space)
@@ -1354,13 +1282,13 @@ function lineStylesEqual(a: LineStyleState | null, b: LineStyleState): boolean {
 function lineStyleDiffClasses(prev: LineStyleState | null, cur: LineStyleState): string[] {
     const classes: string[] = [];
 
-    if (!prev || prev.fontId !== cur.fontId) {
+    if (prev?.fontId !== cur.fontId) {
         classes.push(`ff${h(cur.fontId)}`);
     }
-    if (!prev || prev.fontSizeId !== cur.fontSizeId) {
+    if (prev?.fontSizeId !== cur.fontSizeId) {
         classes.push(`fs${h(cur.fontSizeId)}`);
     }
-    if (!prev || prev.fillColorId !== cur.fillColorId) {
+    if (prev?.fillColorId !== cur.fillColorId) {
         classes.push(`fc${h(cur.fillColorId)}`);
     }
 
@@ -1368,11 +1296,11 @@ function lineStyleDiffClasses(prev: LineStyleState | null, cur: LineStyleState):
         handleBoldItalicDiff(prev, cur, classes);
     }
 
-    if (cur.hasStroke && (!prev || prev.strokeColorId !== cur.strokeColorId)) {
+    if (cur.hasStroke && prev?.strokeColorId !== cur.strokeColorId) {
         classes.push(`sc${h(cur.strokeColorId)}`);
     }
     // Letter space: always output (C++ never makes it free)
-    if (!prev || prev.letterSpaceId !== cur.letterSpaceId) {
+    if (prev?.letterSpaceId !== cur.letterSpaceId) {
         classes.push(`ls${h(cur.letterSpaceId)}`);
     }
     // Word space: output only if NOT free (C++ hash_umask check)
@@ -1390,10 +1318,10 @@ function lineStyleDiffClasses(prev: LineStyleState | null, cur: LineStyleState):
 function handleBoldItalicDiff(
     prev: LineStyleState | null, cur: LineStyleState, classes: string[],
 ): void {
-    if (!prev || prev.bold !== cur.bold) {
+    if (prev?.bold !== cur.bold) {
         classes.push(cur.bold ? 'fwb' : 'fwn');
     }
-    if (!prev || prev.italic !== cur.italic) {
+    if (prev?.italic !== cur.italic) {
         classes.push(cur.italic ? 'fsi' : 'fsn');
     }
 }
@@ -1422,6 +1350,67 @@ function getFontAscent(fontName: string, fontFamily: string, fontRegistry: FontR
  * - offsets: TextLineOffset[] -- horizontal gaps at specific text indices
  * - states: LineStyleState[] -- style changes at specific text indices
  */
+function addWidthsToHistogram(
+    offsets: ReadonlyArray<TextLineOffset>, start: number, end: number, widthMap: Map<number, number>,
+): void {
+    for (let oi = start; oi < end; oi++) {
+        const target = offsets[oi].width;
+        let found = false;
+        for (const [w, c] of widthMap) {
+            if (Math.abs(w - target) <= EPS) {
+                widthMap.set(w, c + 1);
+                found = true;
+                break;
+            }
+        }
+        if (!found) widthMap.set(target, 1);
+    }
+}
+
+function findMostUsedWidth(widthMap: ReadonlyMap<number, number>): { width: number; count: number } {
+    let width = 0;
+    let count = 0;
+    for (const [w, c] of widthMap) {
+        if (c > count) { width = w; count = c; }
+    }
+    return { width, count };
+}
+
+function findMostFrequentAboveThreshold(
+    widthMap: ReadonlyMap<number, number>, letterSpaceDiff: number, threshold: number,
+): { width: number; count: number } {
+    let width = 0;
+    let count = 0;
+    for (const [w, c] of widthMap) {
+        const fixedWidth = w + letterSpaceDiff;
+        if (fixedWidth >= threshold - EPS && c > count) {
+            count = c;
+            width = fixedWidth;
+        }
+    }
+    return { width, count };
+}
+
+interface OptimizeSpaceOptions {
+    readonly mgr: AllStateManager;
+    readonly stateEntry: { textState: TextState; installed: LineStyleState | null };
+    readonly textIdx1: number;
+    readonly textIdx2: number;
+    readonly widthMap: Map<number, number>;
+    readonly z: number;
+}
+
+interface EmitOffsetOptions {
+    readonly mgr: AllStateManager;
+    readonly ts: TextState;
+    readonly installed: LineStyleState | null;
+    readonly target: number;
+    readonly curTextIdx: number;
+    readonly hEps: number;
+    readonly spaceThreshold: number;
+    readonly z: number;
+}
+
 class TextLine {
     readonly text: number[] = [];
     readonly decomposedText: number[][] = []; // C++ decomposed_text for ligatures
@@ -1456,8 +1445,8 @@ class TextLine {
         while (offsetIdx > 0 && this.text[offsetIdx - 1] === 0) {
             --offsetIdx;
         }
-        if (this.offsets.length > 0 && this.offsets[this.offsets.length - 1].startIdx === offsetIdx) {
-            this.offsets[this.offsets.length - 1].width += width;
+        if (this.offsets.length > 0 && this.offsets.at(-1)!.startIdx === offsetIdx) {
+            this.offsets.at(-1)!.width += width;
         } else {
             this.offsets.push({ startIdx: offsetIdx, width });
         }
@@ -1466,10 +1455,10 @@ class TextLine {
 
     // F3: append_state (HTMLTextLine.cc:71-84) — reuses last if same position
     appendState(textState: TextState): void {
-        if (this.states.length === 0 || this.states[this.states.length - 1].installed?.startIdx !== this.text.length) {
+        if (this.states.length === 0 || this.states.at(-1)!.installed?.startIdx !== this.text.length) {
             this.states.push({ textState, installed: null });
         } else {
-            this.states[this.states.length - 1].textState = textState;
+            this.states.at(-1)!.textState = textState;
         }
     }
 
@@ -1530,7 +1519,7 @@ class TextLine {
     optimizeNormal(mgr: AllStateManager, hEps: number, spaceThreshold: number, z: number): void {
         // C++ line 366-367: remove useless states at end
         while (this.states.length > 0 &&
-            (this.states[this.states.length - 1].installed?.startIdx ?? 0) >= this.text.length) {
+            (this.states.at(-1)!.installed?.startIdx ?? 0) >= this.text.length) {
             this.states.pop();
         }
         if (this.states.length === 0) return;
@@ -1543,141 +1532,108 @@ class TextLine {
 
         for (let si = 0; si < this.states.length; si++) {
             const stateEntry = this.states[si];
-            const ts = stateEntry.textState;
             if (!stateEntry.installed) continue;
 
             const textIdx1 = stateEntry.installed.startIdx;
             const textIdx2 = si + 1 < this.states.length
                 ? (this.states[si + 1].installed?.startIdx ?? this.text.length)
                 : this.text.length;
-            const textCount = textIdx2 - textIdx1;
 
-            // C++ lines 392-396: copy offsets before this state to newOffsets
             while (offIter1 < this.offsets.length && this.offsets[offIter1].startIdx <= textIdx1) {
                 newOffsets.push({ ...this.offsets[offIter1] });
                 offIter1++;
             }
-
-            // C++ lines 399-400: find end of offsets for this state
             let offIter2 = offIter1;
             while (offIter2 < this.offsets.length && this.offsets[offIter2].startIdx <= textIdx2) {
                 offIter2++;
             }
-            let offsetCount = offIter2 - offIter1;
 
-            // === LETTER SPACE OPTIMIZATION (C++ lines 406-484) ===
-            let letterSpaceDiff = 0;
-            widthMap.clear();
-
-            if (offsetCount > 0) {
-                // C++ lines 417-418: implicit zero-width slots
-                if (textCount > offsetCount) {
-                    widthMap.set(0, textCount - offsetCount);
-                }
-
-                // C++ lines 420-432: build width histogram with EPS matching
-                for (let oi = offIter1; oi < offIter2; oi++) {
-                    const target = this.offsets[oi].width;
-                    let found = false;
-                    for (const [w, c] of widthMap) {
-                        if (Math.abs(w - target) <= EPS) {
-                            widthMap.set(w, c + 1);
-                            found = true;
-                            break;
-                        }
-                    }
-                    if (!found) widthMap.set(target, 1);
-                }
-
-                // C++ lines 436-445: find most used width
-                let mostUsedWidth = 0;
-                let maxCount = 0;
-                for (const [w, c] of widthMap) {
-                    if (c > maxCount) {
-                        mostUsedWidth = w;
-                        maxCount = c;
-                    }
-                }
-
-                // C++ line 448: check if optimization is worthwhile
-                if (maxCount <= textCount / 2 || (ts.letterSpace * z + mostUsedWidth) <= EPS) {
-                    // C++ lines 451-452: just copy old offsets
-                    for (let oi = offIter1; oi < offIter2; oi++) {
-                        newOffsets.push({ ...this.offsets[oi] });
-                    }
-                } else {
-                    // C++ lines 459-461: install new letter space with snap-back
-                    const oldLs = ts.letterSpace * z;
-                    const lsResult = mgr.letterSpace.installAndSnap(oldLs + mostUsedWidth);
-                    stateEntry.installed.letterSpaceId = lsResult.id;
-                    ts.letterSpace = lsResult.snapped / z;
-                    letterSpaceDiff = oldLs - lsResult.snapped;
-
-                    // C++ lines 463-483: rebuild ALL offsets for this segment
-                    let oi = offIter1;
-                    offsetCount = 0;
-                    for (let curIdx = textIdx1; curIdx < textIdx2; curIdx++) {
-                        let curWidth: number;
-                        if (oi < offIter2 && this.offsets[oi].startIdx === curIdx + 1) {
-                            curWidth = this.offsets[oi].width + letterSpaceDiff;
-                            oi++;
-                        } else {
-                            curWidth = letterSpaceDiff;
-                        }
-                        if (Math.abs(curWidth) > EPS) {
-                            newOffsets.push({ startIdx: curIdx + 1, width: curWidth });
-                            offsetCount++;
-                        }
-                    }
-                }
-            }
-
-            // === WORD SPACE OPTIMIZATION (C++ lines 487-532) ===
-            // Only if NO literal space chars (' ' = 0x20) in segment
-            let hasLiteralSpace = false;
-            for (let ci = textIdx1; ci < textIdx2; ci++) {
-                if (this.text[ci] === 0x20) { hasLiteralSpace = true; break; }
-            }
-
-            if (!hasLiteralSpace) {
-                if (offsetCount > 0) {
-                    // C++ lines 505-521: find most frequent offset >= threshold
-                    const emSize = ts.fontSize * z * (ts.fontAscent - ts.fontDescent);
-                    const threshold = emSize * spaceThreshold;
-                    let mostUsedWidth = 0;
-                    let maxCount = 0;
-                    for (const [w, c] of widthMap) {
-                        const fixedWidth = w + letterSpaceDiff;
-                        if (fixedWidth >= threshold - EPS && c > maxCount) {
-                            maxCount = c;
-                            mostUsedWidth = fixedWidth;
-                        }
-                    }
-
-                    if (maxCount > 0) {
-                        // C++ lines 523-526: set word_space = mostUsedWidth - single_space_offset()
-                        ts.wordSpace = 0;
-                        const singleSpaceOff = ts.letterSpace * z + (ts.spaceWidth / 1000) * ts.fontSize * z;
-                        const newWordSpace = mostUsedWidth - singleSpaceOff;
-                        const wsResult = mgr.wordSpace.installAndSnap(newWordSpace);
-                        stateEntry.installed.wordSpaceId = wsResult.id;
-                        ts.wordSpace = wsResult.snapped / z;
-                        stateEntry.installed.wordSpaceFree = false;
-                    } else {
-                        // No offset meets threshold — word_space is free
-                        stateEntry.installed.wordSpaceFree = true;
-                    }
-                } else {
-                    // C++ line 530: no offsets — word_space is free
-                    stateEntry.installed.wordSpaceFree = true;
-                }
-            }
-
+            const spaceOpts: OptimizeSpaceOptions = { mgr, stateEntry, textIdx1, textIdx2, widthMap, z };
+            const lsResult = this.optimizeLetterSpace(spaceOpts, offIter1, offIter2, newOffsets);
+            this.optimizeWordSpace(spaceOpts, lsResult.offsetCount, lsResult.letterSpaceDiff, spaceThreshold);
             offIter1 = offIter2;
         }
 
-        // C++ line 537: swap offsets with new_offsets
         this.offsets = newOffsets;
+    }
+
+    private optimizeLetterSpace(
+        opts: OptimizeSpaceOptions,
+        offIter1: number, offIter2: number,
+        newOffsets: TextLineOffset[],
+    ): { offsetCount: number; letterSpaceDiff: number } {
+        const { mgr, stateEntry, textIdx1, textIdx2, widthMap, z } = opts;
+        const ts = stateEntry.textState;
+        let offsetCount = offIter2 - offIter1;
+        let letterSpaceDiff = 0;
+        const textCount = textIdx2 - textIdx1;
+        widthMap.clear();
+
+        if (offsetCount === 0) return { offsetCount, letterSpaceDiff };
+
+        if (textCount > offsetCount) widthMap.set(0, textCount - offsetCount);
+        addWidthsToHistogram(this.offsets, offIter1, offIter2, widthMap);
+        const { width: mostUsedWidth, count: maxCount } = findMostUsedWidth(widthMap);
+
+        if (maxCount <= textCount / 2 || (ts.letterSpace * z + mostUsedWidth) <= EPS) {
+            for (let oi = offIter1; oi < offIter2; oi++) {
+                newOffsets.push({ ...this.offsets[oi] });
+            }
+            return { offsetCount, letterSpaceDiff };
+        }
+
+        const oldLs = ts.letterSpace * z;
+        const lsResult = mgr.letterSpace.installAndSnap(oldLs + mostUsedWidth);
+        stateEntry.installed!.letterSpaceId = lsResult.id;
+        ts.letterSpace = lsResult.snapped / z;
+        letterSpaceDiff = oldLs - lsResult.snapped;
+
+        let oi = offIter1;
+        offsetCount = 0;
+        for (let curIdx = textIdx1; curIdx < textIdx2; curIdx++) {
+            const curWidth = (oi < offIter2 && this.offsets[oi].startIdx === curIdx + 1)
+                ? this.offsets[oi++].width + letterSpaceDiff
+                : letterSpaceDiff;
+            if (Math.abs(curWidth) > EPS) {
+                newOffsets.push({ startIdx: curIdx + 1, width: curWidth });
+                offsetCount++;
+            }
+        }
+
+        return { offsetCount, letterSpaceDiff };
+    }
+
+    private optimizeWordSpace(
+        opts: OptimizeSpaceOptions,
+        offsetCount: number, letterSpaceDiff: number,
+        spaceThreshold: number,
+    ): void {
+        const { mgr, stateEntry, textIdx1, textIdx2, widthMap, z } = opts;
+        if (this.text.slice(textIdx1, textIdx2).includes(0x20)) return;
+
+        const ts = stateEntry.textState;
+        if (offsetCount === 0) {
+            stateEntry.installed!.wordSpaceFree = true;
+            return;
+        }
+
+        const emSize = ts.fontSize * z * (ts.fontAscent - ts.fontDescent);
+        const threshold = emSize * spaceThreshold;
+        const { width: mostUsedWidth, count: maxCount } = findMostFrequentAboveThreshold(
+            widthMap, letterSpaceDiff, threshold,
+        );
+
+        if (maxCount === 0) {
+            stateEntry.installed!.wordSpaceFree = true;
+            return;
+        }
+
+        ts.wordSpace = 0;
+        const singleSpaceOff = ts.letterSpace * z + (ts.spaceWidth / 1000) * ts.fontSize * z;
+        const wsResult = mgr.wordSpace.installAndSnap(mostUsedWidth - singleSpaceOff);
+        stateEntry.installed!.wordSpaceId = wsResult.id;
+        ts.wordSpace = wsResult.snapped / z;
+        stateEntry.installed!.wordSpaceFree = false;
     }
 
     /**
@@ -1739,18 +1695,12 @@ class TextLine {
             stateStack.push(this.states[0].installed);
         }
 
-        // C++ line 172: accumulated horizontal offset
-        let dx = 0;
-        // C++ line 176: guard for negative offset spans
-        let lastTextPosWithNegativeOffset = 0;
-        let curTextIdx = 0;
-        let curOffsetIdx = 0;
+        const ctx = { dx: 0, lastTextPosWithNegativeOffset: 0, curTextIdx: 0, curOffsetIdx: 0 };
 
         for (let si = 0; si < this.states.length; si++) {
-            // State change — greedy parent selection (C++ lines 185-221)
             if (si > 0 && this.states[si].installed) {
                 this.applyGreedyStateChange(
-                    parts, stateStack, this.states[si].installed!, lastTextPosWithNegativeOffset,
+                    parts, stateStack, this.states[si].installed!, ctx.lastTextPosWithNegativeOffset,
                 );
             }
 
@@ -1759,85 +1709,71 @@ class TextLine {
                 ? (this.states[si + 1].installed?.startIdx ?? this.text.length)
                 : this.text.length;
 
-            // C++ lines 227-293: interleaved offset/text output
-            while (true) {
-                if (curOffsetIdx < this.offsets.length &&
-                    this.offsets[curOffsetIdx].startIdx <= curTextIdx) {
-                    if (this.offsets[curOffsetIdx].startIdx > textIdx2) break;
-
-                    // C++ line 235: next is offset
-                    const target = this.offsets[curOffsetIdx].width + dx;
-                    let actualOffset = 0;
-
-                    if (Math.abs(target) <= hEps) {
-                        // C++ line 239-241: ignore near-zero
-                        actualOffset = 0;
-                    } else {
-                        let done = false;
-
-                        // C++ lines 247-259: single_space_offset matching
-                        const installed = this.states[si].installed;
-                        if (installed && !installed.wordSpaceFree) {
-                            const sso = ts.wordSpace * z + ts.letterSpace * z
-                                + (ts.spaceWidth / 1000) * ts.fontSize * z;
-                            if (Math.abs(target - sso) <= hEps) {
-                                // Emit visible space — CSS word-spacing handles width
-                                parts.push('<span class="_"> </span>');
-                                actualOffset = sso;
-                                done = true;
-                            }
-                        }
-
-                        // C++ lines 263-277: regular offset span with installAndSnap
-                        if (!done) {
-                            const wsResult = mgr.whitespace.installAndSnap(target);
-                            if (Math.abs(wsResult.snapped) > EPS) {
-                                // C++ line 269-270: track negative offsets
-                                if (wsResult.snapped < -EPS) {
-                                    lastTextPosWithNegativeOffset = curTextIdx;
-                                }
-                                const emSize = ts.fontSize * z
-                                    * (ts.fontAscent - ts.fontDescent);
-                                const threshold = emSize * spaceThreshold;
-                                const spaceChar = target > (threshold - EPS) ? ' ' : '';
-                                parts.push(`<span class="_ _${h(wsResult.id)}">${spaceChar}</span>`);
-                            }
-                            actualOffset = wsResult.snapped;
-                        }
-                    }
-                    dx = target - actualOffset;
-                    curOffsetIdx++;
-                } else {
-                    // C++ lines 283-291: next is text
-                    if (curTextIdx >= textIdx2) break;
-
-                    let nextTextIdx = textIdx2;
-                    if (curOffsetIdx < this.offsets.length &&
-                        this.offsets[curOffsetIdx].startIdx < nextTextIdx) {
-                        nextTextIdx = this.offsets[curOffsetIdx].startIdx;
-                    }
-
-                    // dump_chars (HTMLTextLine.cc:86-138): output text[curTextIdx..nextTextIdx)
-                    for (let i = curTextIdx; i < nextTextIdx; i++) {
-                        const cp = this.text[i];
-                        if (cp > 0) {
-                            parts.push(escapeHtml(String.fromCodePoint(cp)));
-                        } else if (cp < 0) {
-                            const decomposed = this.decomposedText[-cp - 1];
-                            for (const u of decomposed) {
-                                parts.push(escapeHtml(String.fromCodePoint(u)));
-                            }
-                        }
-                        // cp === 0: padding char, skip
-                    }
-                    curTextIdx = nextTextIdx;
-                }
-            }
+            this.emitInterleavedContent(
+                parts, ctx,
+                { ts, installed: this.states[si].installed, textIdx2 },
+                { mgr, hEps, spaceThreshold, z },
+            );
         }
 
-        // Close remaining spans
         for (let i = stateStack.length - 1; i >= 1; i--) {
             parts.push('</span>');
+        }
+    }
+
+    private emitInterleavedOffset(
+        parts: string[],
+        ctx: { dx: number; lastTextPosWithNegativeOffset: number; curTextIdx: number; curOffsetIdx: number },
+        ts: TextState, installed: LineStyleState | null,
+        emitCtx: { mgr: AllStateManager; hEps: number; spaceThreshold: number; z: number },
+    ): void {
+        const target = this.offsets[ctx.curOffsetIdx].width + ctx.dx;
+        const result = this.emitOffset(parts, {
+            mgr: emitCtx.mgr, ts, installed, target, curTextIdx: ctx.curTextIdx,
+            hEps: emitCtx.hEps, spaceThreshold: emitCtx.spaceThreshold, z: emitCtx.z,
+        });
+        if (result.negativeOffset) ctx.lastTextPosWithNegativeOffset = ctx.curTextIdx;
+        ctx.dx = target - result.actualOffset;
+        ctx.curOffsetIdx++;
+    }
+
+    private emitInterleavedContent(
+        parts: string[],
+        ctx: { dx: number; lastTextPosWithNegativeOffset: number; curTextIdx: number; curOffsetIdx: number },
+        stateInfo: { ts: TextState; installed: LineStyleState | null; textIdx2: number },
+        emitCtx: { mgr: AllStateManager; hEps: number; spaceThreshold: number; z: number },
+    ): void {
+        const { ts, installed, textIdx2 } = stateInfo;
+        while (true) {
+            const hasOffset = ctx.curOffsetIdx < this.offsets.length &&
+                this.offsets[ctx.curOffsetIdx].startIdx <= ctx.curTextIdx;
+            if (hasOffset) {
+                if (this.offsets[ctx.curOffsetIdx].startIdx > textIdx2) break;
+                this.emitInterleavedOffset(parts, ctx, ts, installed, emitCtx);
+            } else {
+                if (ctx.curTextIdx >= textIdx2) break;
+                let nextTextIdx = textIdx2;
+                if (ctx.curOffsetIdx < this.offsets.length &&
+                    this.offsets[ctx.curOffsetIdx].startIdx < nextTextIdx) {
+                    nextTextIdx = this.offsets[ctx.curOffsetIdx].startIdx;
+                }
+                this.dumpChars(parts, ctx.curTextIdx, nextTextIdx);
+                ctx.curTextIdx = nextTextIdx;
+            }
+        }
+    }
+
+    private dumpChars(parts: string[], from: number, to: number): void {
+        for (let i = from; i < to; i++) {
+            const cp = this.text[i];
+            if (cp > 0) {
+                parts.push(escapeHtml(String.fromCodePoint(cp)));
+            } else if (cp < 0) {
+                const decomposed = this.decomposedText[-cp - 1];
+                for (const u of decomposed) {
+                    parts.push(escapeHtml(String.fromCodePoint(u)));
+                }
+            }
         }
     }
 
@@ -1850,6 +1786,33 @@ class TextLine {
         return currentIdx;
     }
 
+    private emitOffset(
+        parts: string[], opts: EmitOffsetOptions,
+    ): { actualOffset: number; negativeOffset: boolean } {
+        const { mgr, ts, installed, target, hEps, spaceThreshold, z } = opts;
+        if (Math.abs(target) <= hEps) return { actualOffset: 0, negativeOffset: false };
+
+        if (installed && !installed.wordSpaceFree) {
+            const sso = ts.wordSpace * z + ts.letterSpace * z
+                + (ts.spaceWidth / 1000) * ts.fontSize * z;
+            if (Math.abs(target - sso) <= hEps) {
+                parts.push('<span class="_"> </span>');
+                return { actualOffset: sso, negativeOffset: false };
+            }
+        }
+
+        const wsResult = mgr.whitespace.installAndSnap(target);
+        let negativeOffset = false;
+        if (Math.abs(wsResult.snapped) > EPS) {
+            if (wsResult.snapped < -EPS) negativeOffset = true;
+            const emSize = ts.fontSize * z * (ts.fontAscent - ts.fontDescent);
+            const threshold = emSize * spaceThreshold;
+            const spaceChar = target > (threshold - EPS) ? ' ' : '';
+            parts.push(`<span class="_ _${h(wsResult.id)}">${spaceChar}</span>`);
+        }
+        return { actualOffset: wsResult.snapped, negativeOffset };
+    }
+
     /**
      * Greedy state stack optimization — 1:1 translation of C++ dump_text lines 185-221.
      * Walks stack from back to front, accumulates vertical_align, tracks negative offset guard.
@@ -1860,44 +1823,47 @@ class TextLine {
         newState: LineStyleState,
         lastTextPosWithNegativeOffset: number,
     ): void {
-        // C++ line 187: accumulate vertical_align walking up the stack
+        this.trimStateStack(parts, stateStack, newState, lastTextPosWithNegativeOffset);
+        this.pushDiffSpan(parts, stateStack, newState);
+    }
+
+    private trimStateStack(
+        parts: string[], stateStack: LineStyleState[],
+        newState: LineStyleState, lastTextPosWithNegativeOffset: number,
+    ): void {
         let verticalAlign = newState.verticalAlignIsZero ? 0 : 1;
         let bestCost = HASH_ID_COUNT + 1;
-        let bestIdx = 0;
 
         for (let i = stateStack.length - 1; i >= 0; i--) {
             const existing = stateStack[i];
-            // C++ line 192: diff counts DIFFERENCES for common-mask IDs
             let cost = this.stateDiffCount(existing, newState);
-            // C++ line 193-194: add cost for non-zero accumulated vertical_align
             if (verticalAlign !== 0) cost++;
 
             if (cost < bestCost) {
-                // C++ lines 198-202: pop down to this match
-                while (stateStack.length - 1 > i) {
-                    // stateStack[0] is the div (no </span>), all others have open spans
-                    if (stateStack.length > 1) parts.push('</span>');
-                    stateStack.pop();
-                }
+                this.popStackTo(parts, stateStack, i);
                 bestCost = cost;
-                bestIdx = i;
                 if (bestCost === 0) break;
             }
 
-            // C++ line 211: cannot go further past negative offset guard
             if (existing.startIdx <= lastTextPosWithNegativeOffset) break;
-
-            // C++ line 214: accumulate vertical_align from popped states
             if (!existing.verticalAlignIsZero) verticalAlign++;
         }
+    }
 
-        const prev = stateStack[stateStack.length - 1] ?? null;
-        if (!lineStylesEqual(prev, newState)) {
-            const diffClasses = lineStyleDiffClasses(prev, newState);
-            if (diffClasses.length > 0) {
-                parts.push(`<span class="${diffClasses.join(' ')}">`);
-                stateStack.push(newState);
-            }
+    private popStackTo(parts: string[], stateStack: LineStyleState[], targetIdx: number): void {
+        while (stateStack.length - 1 > targetIdx) {
+            if (stateStack.length > 1) parts.push('</span>');
+            stateStack.pop();
+        }
+    }
+
+    private pushDiffSpan(parts: string[], stateStack: LineStyleState[], newState: LineStyleState): void {
+        const prev = stateStack.at(-1) ?? null;
+        if (lineStylesEqual(prev, newState)) return;
+        const diffClasses = lineStyleDiffClasses(prev, newState);
+        if (diffClasses.length > 0) {
+            parts.push(`<span class="${diffClasses.join(' ')}">`);
+            stateStack.push(newState);
         }
     }
 
@@ -1929,6 +1895,14 @@ class TextLine {
 
 // ── Content Stream Processor (mirrors pdf2htmlEX HTMLRenderer) ───────
 
+type OperatorHandler = (
+    op: string,
+    operands: ReadonlyArray<string>,
+    resources: Record<string, PdfObject>,
+    pageWidth: number,
+    pageHeight: number,
+) => void;
+
 const PP_EPS = 1e-6;
 
 const FILL_BY_RENDER_MODE: ReadonlyArray<boolean> = [true, false, true, false, true, false, true, false];
@@ -1955,7 +1929,7 @@ interface ProcessedPage {
     readonly initialYScale: number;
 }
 
-const FONT_SIZE_MULTIPLIER = 4.0; // pdf2htmlEX default (pdf2htmlEX.cc:185)
+const FONT_SIZE_MULTIPLIER = 4; // pdf2htmlEX default (pdf2htmlEX.cc:185)
 
 class PixelPerfectProcessor {
     private readonly reader: PdfReader;
@@ -1978,14 +1952,14 @@ class PixelPerfectProcessor {
     private fillColorSpaceIsPattern = false;
     private charSpace = 0;
     private wordSpace = 0;
-    private horizScaling = 1.0;
+    private horizScaling = 1;
     private rise = 0;
     private renderMode = 0;
     private leading = 0;
     private lineWidth = 1;
 
     // Derived state (mirrors C++ draw_* variables)
-    private drawTextScale = 1.0;
+    private drawTextScale = 1;
     private drawTx = 0;
     private drawTy = 0;
     private curTx = 0;
@@ -1994,7 +1968,7 @@ class PixelPerfectProcessor {
     private curTextTm: number[] = [1, 0, 0, 1, 0, 0];
 
     // State from before current checkStateChange
-    private prevDrawTextScale = 1.0;
+    private prevDrawTextScale = 1;
     private prevTextTm: number[] = [1, 0, 0, 1, 0, 0];
 
     // HTML state (mirrors C++ cur_text_state / cur_line_state)
@@ -2112,12 +2086,12 @@ class PixelPerfectProcessor {
         this.strokeColor = '#000000';
         this.charSpace = 0;
         this.wordSpace = 0;
-        this.horizScaling = 1.0;
+        this.horizScaling = 1;
         this.rise = 0;
         this.renderMode = 0;
         this.leading = 0;
         this.lineWidth = 1;
-        this.drawTextScale = 1.0;
+        this.drawTextScale = 1;
         this.drawTx = 0;
         this.drawTy = 0;
         this.curTx = 0;
@@ -2125,7 +2099,7 @@ class PixelPerfectProcessor {
         this.curFontSize = 0;
         this.curTextTm = [1, 0, 0, 1, 0, 0];
         this.prevTextTm = [1, 0, 0, 1, 0, 0];
-        this.prevDrawTextScale = 1.0;
+        this.prevDrawTextScale = 1;
         this.curTransformMatrix = [1, 0, 0, 1];
         this.prevTransformMatrix = [1, 0, 0, 1];
         this.curLetterSpace = 0;
@@ -2194,48 +2168,10 @@ class PixelPerfectProcessor {
             this.riseChanged = false;
         }
 
-        // Font rescaling (state.cc:268-322)
         if (needRescaleFont) {
-            const newDrawTm = [...this.curTextTm];
-            // state.cc:282: 1.0/text_scale_factor2 * hypot(tm[2], tm[3])
-            let newDrawTextScale = (1.0 / this.textScaleFactor2) *
-                Math.hypot(newDrawTm[2], newDrawTm[3]);
-            let newDrawFontSize = this.fontSize;
-
-            if (newDrawTextScale > PP_EPS) {
-                newDrawFontSize *= newDrawTextScale;
-                for (let i = 0; i < 4; i++) newDrawTm[i] /= newDrawTextScale;
-            } else {
-                newDrawTextScale = 1.0;
-            }
-
-            // Handle flipped pages
-            if (newDrawFontSize < -PP_EPS) {
-                newDrawFontSize *= -1;
-                for (let i = 0; i < 4; i++) newDrawTm[i] *= -1;
-            }
-
-            if (Math.abs(newDrawTextScale - this.drawTextScale) > PP_EPS) {
-                drawTextScaleChanged = true;
-                this.drawTextScale = newDrawTextScale;
-            }
-
-            if (Math.abs(newDrawFontSize - this.curFontSize) > PP_EPS) {
-                nls = setLineState(nls, NewLineState.NLS_NEWSTATE);
-                this.curFontSize = newDrawFontSize;
-            }
-
-            const newTm: readonly [number, number, number, number] =
-                [newDrawTm[0], newDrawTm[1], newDrawTm[2], newDrawTm[3]];
-            if (!tmEqual(
-                [newTm[0], newTm[1], newTm[2], newTm[3]],
-                [this.curTransformMatrix[0], this.curTransformMatrix[1],
-                    this.curTransformMatrix[2], this.curTransformMatrix[3]],
-                4, PP_EPS,
-            )) {
-                nls = setLineState(nls, NewLineState.NLS_NEWLINE);
-                this.curTransformMatrix = newTm;
-            }
+            const rescaleResult = this.rescaleFont(nls);
+            nls = rescaleResult.nls;
+            drawTextScaleChanged = rescaleResult.drawTextScaleChanged;
         }
 
         // First text on page forces new line
@@ -2249,7 +2185,56 @@ class PixelPerfectProcessor {
             nls = this.tryMergePosition(nls, oldTm, oldDrawTextScale);
         }
 
-        // Letter space (state.cc:420-428) — depends on draw_text_scale
+        nls = this.checkSpacingAndColorChanges(nls, drawTextScaleChanged);
+
+        return nls;
+    }
+
+    private rescaleFont(nls: NewLineState): { nls: NewLineState; drawTextScaleChanged: boolean } {
+        const newDrawTm = [...this.curTextTm];
+        let newDrawTextScale = (1 / this.textScaleFactor2) *
+            Math.hypot(newDrawTm[2], newDrawTm[3]);
+        let newDrawFontSize = this.fontSize;
+        let drawTextScaleChanged = false;
+
+        if (newDrawTextScale > PP_EPS) {
+            newDrawFontSize *= newDrawTextScale;
+            for (let i = 0; i < 4; i++) newDrawTm[i] /= newDrawTextScale;
+        } else {
+            newDrawTextScale = 1;
+        }
+
+        if (newDrawFontSize < -PP_EPS) {
+            newDrawFontSize *= -1;
+            for (let i = 0; i < 4; i++) newDrawTm[i] *= -1;
+        }
+
+        if (Math.abs(newDrawTextScale - this.drawTextScale) > PP_EPS) {
+            drawTextScaleChanged = true;
+            this.drawTextScale = newDrawTextScale;
+        }
+
+        if (Math.abs(newDrawFontSize - this.curFontSize) > PP_EPS) {
+            nls = setLineState(nls, NewLineState.NLS_NEWSTATE);
+            this.curFontSize = newDrawFontSize;
+        }
+
+        const newTm: readonly [number, number, number, number] =
+            [newDrawTm[0], newDrawTm[1], newDrawTm[2], newDrawTm[3]];
+        if (!tmEqual(
+            [newTm[0], newTm[1], newTm[2], newTm[3]],
+            [this.curTransformMatrix[0], this.curTransformMatrix[1],
+                this.curTransformMatrix[2], this.curTransformMatrix[3]],
+            4, PP_EPS,
+        )) {
+            nls = setLineState(nls, NewLineState.NLS_NEWLINE);
+            this.curTransformMatrix = newTm;
+        }
+
+        return { nls, drawTextScaleChanged };
+    }
+
+    private checkSpacingAndColorChanges(nls: NewLineState, drawTextScaleChanged: boolean): NewLineState {
         if (this.allChanged || this.letterSpaceChanged || drawTextScaleChanged) {
             const newLs = this.charSpace * this.drawTextScale;
             if (Math.abs(newLs - this.curLetterSpace) > PP_EPS) {
@@ -2259,7 +2244,6 @@ class PixelPerfectProcessor {
             this.letterSpaceChanged = false;
         }
 
-        // Word space (state.cc:430-440) — depends on draw_text_scale
         if (this.allChanged || this.wordSpaceChanged || drawTextScaleChanged) {
             const newWs = this.wordSpace * this.drawTextScale;
             if (Math.abs(newWs - this.curWordSpace) > PP_EPS) {
@@ -2269,7 +2253,11 @@ class PixelPerfectProcessor {
             this.wordSpaceChanged = false;
         }
 
-        // Fill color (state.cc:443-470)
+        nls = this.checkColorChanges(nls);
+        return nls;
+    }
+
+    private checkColorChanges(nls: NewLineState): NewLineState {
         if (this.fillColorChanged) {
             const newFill = FILL_BY_RENDER_MODE[this.renderMode] ? this.fillColor : 'transparent';
             if (newFill !== this.curFillColor) {
@@ -2279,7 +2267,6 @@ class PixelPerfectProcessor {
             this.fillColorChanged = false;
         }
 
-        // Stroke color (state.cc:471-491)
         if (this.strokeColorChanged) {
             const newStroke = STROKE_BY_RENDER_MODE[this.renderMode] ? this.strokeColor : 'transparent';
             if (newStroke !== this.curStrokeColor) {
@@ -2320,25 +2307,8 @@ class PixelPerfectProcessor {
         const dy = (lhs2 * oldTm[0] - lhs1 * oldTm[1]) / det;
 
 
-        let merged = false;
-        if (Math.abs(dy) <= PP_EPS) {
-            merged = true;
-        } else {
-            const fi = this.currentFontInfo;
-            const entry = this.fontRegistry.getEntry(this.fontName);
-            const descent = entry?.descent ?? -0.2;
-            const ascent = entry?.ascent ?? 0.8;
-            const emSize = this.curFontSize * (ascent - descent);
-            if ((dx * oldDrawTextScale) >= -SPACE_THRESHOLD * emSize - PP_EPS) {
-                const oldAscent = ascent * this.curFontSize;
-                const oldDescent = descent * this.curFontSize;
-                const newAscent = dy * oldDrawTextScale + ascent * this.curFontSize;
-                const newDescent = dy * oldDrawTextScale + descent * this.curFontSize;
-                if (newDescent <= oldAscent + PP_EPS && newAscent >= oldDescent - PP_EPS) {
-                    merged = true;
-                }
-            }
-        }
+        const merged = Math.abs(dy) <= PP_EPS ||
+            this.canMergeVertically(dx, dy, oldDrawTextScale);
 
         if (merged && Math.abs(this.horizScaling) > PP_EPS) {
             const offset = dx * oldDrawTextScale / this.horizScaling * this.zoom;
@@ -2357,6 +2327,19 @@ class PixelPerfectProcessor {
         }
 
         return setLineState(nls, NewLineState.NLS_NEWLINE);
+    }
+
+    private canMergeVertically(dx: number, dy: number, oldDrawTextScale: number): boolean {
+        const entry = this.fontRegistry.getEntry(this.fontName);
+        const descent = entry?.descent ?? -0.2;
+        const ascent = entry?.ascent ?? 0.8;
+        const emSize = this.curFontSize * (ascent - descent);
+        if ((dx * oldDrawTextScale) < -SPACE_THRESHOLD * emSize - PP_EPS) return false;
+        const oldAscent = ascent * this.curFontSize;
+        const oldDescent = descent * this.curFontSize;
+        const newAscent = dy * oldDrawTextScale + ascent * this.curFontSize;
+        const newDescent = dy * oldDrawTextScale + descent * this.curFontSize;
+        return newDescent <= oldAscent + PP_EPS && newAscent >= oldDescent - PP_EPS;
     }
 
     // ── prepare_text_line (state.cc:496-540) ─────────────────────────
@@ -2411,54 +2394,36 @@ class PixelPerfectProcessor {
         const isTwoByte = fi?.isTwoByte ?? false;
 
         let dx = 0;
-        let dy = 0;
-
         for (let i = 0; i < charCodes.length; i++) {
-            const code = charCodes[i];
-            const unicode = unicodes[i];
-
-            // Get advance width from PDF /Widths (C++ text.cc:83-101 uses Poppler getWidth).
-            // Positioning must always use PDF widths — the font program widths are for
-            // browser rendering (now normalized to match via reEncodeFont).
-            const w = fi ? (fi.widths.get(code) ?? fi.defaultWidth) : 1000;
-            const ax = w / 1000;
-
-            // Displacement in text space (state.cc text.cc:86-87)
-            const ddx = ax * this.fontSize + this.charSpace;
-
-            // Space check (text.cc:121): C++ default is space_as_offset=0
-            // meaning spaces are kept as literal characters, NOT converted to offsets.
-            // The CSS word-spacing property (from optimize_normal) handles space width.
-            const isSpace = !isTwoByte && code === 0x20;
-
-            // Normal character path (text.cc:131-170) — includes spaces as chars
-            const charWidth = ddx * this.drawTextScale * this.zoom;
-            let cp = unicode.codePointAt(0) ?? code;
-            // Apply bracket glyph fixup: if the font's visual glyph at this CID
-            // is the mirror of the ToUnicode character, swap to match the visual shape.
-            const fixup = this.fontRegistry.getGlyphFixup(this.fontName, code);
-            if (fixup !== undefined) cp = fixup;
-            this.currentLine.appendUnicodes([cp], charWidth);
-
-            // C++ text.cc:165-169: word_space adjustment for space/unicode mismatch
-            // PDF applies word_space when byte == ' ', CSS applies when unicode == ' '
-            const isUnicodeSpace = cp === 0x20;
-            const spaceCount = (isSpace ? 1 : 0) - (isUnicodeSpace ? 1 : 0);
-            if (spaceCount !== 0) {
-                this.currentLine.appendOffset(
-                    this.wordSpace * this.drawTextScale * this.zoom * spaceCount,
-                );
-            }
-
-            // Update position (text.cc:170-177)
-            dx += ddx * this.horizScaling;
-            if (isSpace) dx += this.wordSpace * this.horizScaling;
+            dx += this.processDrawChar(charCodes[i], unicodes[i], fi, isTwoByte);
         }
 
         this.curTx += dx;
         this.drawTx += dx;
-        this.curTy += dy;
-        this.drawTy += dy;
+    }
+
+    private processDrawChar(code: number, unicode: string, fi: FontInfo | undefined, isTwoByte: boolean): number {
+        const w = fi ? (fi.widths.get(code) ?? fi.defaultWidth) : 1000;
+        const ddx = (w / 1000) * this.fontSize + this.charSpace;
+        const isSpace = !isTwoByte && code === 0x20;
+        const charWidth = ddx * this.drawTextScale * this.zoom;
+
+        let cp = unicode.codePointAt(0) ?? code;
+        const fixup = this.fontRegistry.getGlyphFixup(this.fontName, code);
+        if (fixup !== undefined) cp = fixup;
+        this.currentLine!.appendUnicodes([cp], charWidth);
+
+        const isUnicodeSpace = cp === 0x20;
+        const spaceCount = (isSpace ? 1 : 0) - (isUnicodeSpace ? 1 : 0);
+        if (spaceCount !== 0) {
+            this.currentLine!.appendOffset(
+                this.wordSpace * this.drawTextScale * this.zoom * spaceCount,
+            );
+        }
+
+        let advance = ddx * this.horizScaling;
+        if (isSpace) advance += this.wordSpace * this.horizScaling;
+        return advance;
     }
 
     // ── Operator Dispatch ────────────────────────────────────────────
@@ -2471,8 +2436,7 @@ class PixelPerfectProcessor {
     ): void {
         const operandStack: string[] = [];
 
-        for (let i = 0; i < tokens.length; i++) {
-            const tok = tokens[i];
+        for (const tok of tokens) {
 
             // Operand: push to stack (strings start with '(', names with '/', numbers, etc.)
             if (this.isOperand(tok)) {
@@ -2490,9 +2454,89 @@ class PixelPerfectProcessor {
         if (tok.startsWith('(') || tok.startsWith('/') || tok === '[' || tok === ']' ||
             tok === '<<' || tok === '>>') return true;
         if (tok === 'true' || tok === 'false' || tok === 'null') return true;
-        const c = tok.charCodeAt(0);
+        const c = tok.codePointAt(0) ?? 0;
         // Numbers: digit, sign, or decimal point
         return (c >= 0x30 && c <= 0x39) || c === 0x2D || c === 0x2B || c === 0x2E;
+    }
+
+    private operatorMap: Map<string, OperatorHandler> | null = null;
+
+    private getOperatorMap(): Map<string, OperatorHandler> {
+        if (this.operatorMap) return this.operatorMap;
+        const noop: OperatorHandler = () => { /* no-op */ };
+        const m = new Map<string, OperatorHandler>();
+
+        // Graphics state
+        m.set('q', () => this.saveState());
+        m.set('Q', () => this.restoreState());
+        m.set('cm', (_op, ops) => this.opCm(ops));
+        m.set('w', (_op, ops) => { if (ops.length >= 1) this.lineWidth = Number.parseFloat(ops[0]); });
+
+        // Color operators
+        m.set('g', (_op, ops) => { this.fillColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.fillColorChanged = true; });
+        m.set('G', (_op, ops) => { this.strokeColor = grayToHex(Number.parseFloat(ops[0] ?? '0')); this.strokeColorChanged = true; });
+        m.set('rg', (_op, ops) => this.opRg(ops, true));
+        m.set('RG', (_op, ops) => this.opRg(ops, false));
+        m.set('k', (_op, ops) => this.opK(ops, true));
+        m.set('K', (_op, ops) => this.opK(ops, false));
+        m.set('cs', (_op, ops, res) => this.opCs(ops, res));
+        m.set('CS', (_op, ops, res) => this.opCs(ops, res));
+        m.set('sc', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
+        m.set('SC', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
+        m.set('scn', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
+        m.set('SCN', (op, ops, res) => this.opSc(ops, op === 'sc' || op === 'scn', res));
+
+        // Text state
+        m.set('Tf', (_op, ops) => this.opTf(ops));
+        m.set('Tc', (_op, ops) => { this.charSpace = Number.parseFloat(ops[0] ?? '0'); this.letterSpaceChanged = true; });
+        m.set('Tw', (_op, ops) => { this.wordSpace = Number.parseFloat(ops[0] ?? '0'); this.wordSpaceChanged = true; });
+        m.set('Tz', (_op, ops) => { this.horizScaling = Number.parseFloat(ops[0] ?? '100') / 100; this.horizScaleChanged = true; });
+        m.set('TL', (_op, ops) => { this.leading = Number.parseFloat(ops[0] ?? '0'); });
+        m.set('Tr', (_op, ops) => { this.renderMode = Number.parseInt(ops[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; });
+        m.set('Ts', (_op, ops) => { this.rise = Number.parseFloat(ops[0] ?? '0'); this.riseChanged = true; });
+
+        // Text positioning
+        m.set('BT', () => this.opBT());
+        m.set('ET', noop);
+        m.set('Td', (_op, ops) => this.opTd(ops));
+        m.set('TD', (_op, ops) => this.opTD(ops));
+        m.set('Tm', (_op, ops) => this.opTm(ops));
+        m.set('T*', () => this.opTStar());
+
+        // Text show
+        m.set('Tj', (_op, ops) => this.opTj(ops));
+        m.set('TJ', (_op, ops) => this.opTJ(ops));
+        m.set('\'', (_op, ops) => { this.opTStar(); this.opTj(ops); });
+        m.set('"', (_op, ops) => this.opQuoteDbl(ops));
+
+        // Path operators
+        m.set('re', (_op, ops) => this.opRe(ops));
+        m.set('m', (_op, ops) => this.opPathMove(ops));
+        m.set('l', (_op, ops) => this.opPathLine(ops));
+        m.set('c', (_op, ops) => this.opPathCurve(ops));
+        m.set('v', (_op, ops) => this.opPathCurve2Points(ops));
+        m.set('y', (_op, ops) => this.opPathCurve2Points(ops));
+        m.set('h', noop);
+        m.set('S', () => this.paintPath(true, false));
+        m.set('s', () => this.paintPath(true, false));
+        m.set('f', () => this.paintPath(false, true));
+        m.set('F', () => this.paintPath(false, true));
+        m.set('f*', () => this.paintPath(false, true));
+        m.set('B', () => this.paintPath(true, true));
+        m.set('B*', () => this.paintPath(true, true));
+        m.set('b', () => this.paintPath(true, true));
+        m.set('b*', () => this.paintPath(true, true));
+        m.set('n', () => { this.pathPoints = []; this.generalPathPoints.length = 0; });
+
+        // XObject & ExtGState
+        m.set('Do', (_op, ops, res, pw, ph) => this.opDo(ops, res, pw, ph));
+        m.set('gs', (_op, ops, res) => this.opGs(ops, res));
+
+        // Marked content / inline images
+        for (const name of ['BMC', 'BDC', 'EMC', 'MP', 'DP', 'BI']) m.set(name, noop);
+
+        this.operatorMap = m;
+        return m;
     }
 
     private executeOperator(
@@ -2502,69 +2546,8 @@ class PixelPerfectProcessor {
         pageWidth: number,
         pageHeight: number,
     ): void {
-        switch (op) {
-            // ── Graphics state ────────────────────────────────
-            case 'q': this.saveState(); break;
-            case 'Q': this.restoreState(); break;
-            case 'cm': this.opCm(operands); break;
-            case 'w': if (operands.length >= 1) this.lineWidth = Number.parseFloat(operands[0]); break;
-
-            // ── Color operators ───────────────────────────────
-            case 'g': this.fillColor = grayToHex(Number.parseFloat(operands[0] ?? '0')); this.fillColorChanged = true; break;
-            case 'G': this.strokeColor = grayToHex(Number.parseFloat(operands[0] ?? '0')); this.strokeColorChanged = true; break;
-            case 'rg': this.opRg(operands, true); break;
-            case 'RG': this.opRg(operands, false); break;
-            case 'k': this.opK(operands, true); break;
-            case 'K': this.opK(operands, false); break;
-            case 'cs': case 'CS': this.opCs(operands, resources); break;
-            case 'sc': case 'SC': case 'scn': case 'SCN': this.opSc(operands, op === 'sc' || op === 'scn', resources); break;
-
-            // ── Text state operators ──────────────────────────
-            case 'Tf': this.opTf(operands); break;
-            case 'Tc': this.charSpace = Number.parseFloat(operands[0] ?? '0'); this.letterSpaceChanged = true; break;
-            case 'Tw': this.wordSpace = Number.parseFloat(operands[0] ?? '0'); this.wordSpaceChanged = true; break;
-            case 'Tz': this.horizScaling = Number.parseFloat(operands[0] ?? '100') / 100; this.horizScaleChanged = true; break;
-            case 'TL': this.leading = Number.parseFloat(operands[0] ?? '0'); break;
-            case 'Tr': this.renderMode = Number.parseInt(operands[0] ?? '0', 10); this.fillColorChanged = true; this.strokeColorChanged = true; break;
-            case 'Ts': this.rise = Number.parseFloat(operands[0] ?? '0'); this.riseChanged = true; break;
-
-            // ── Text positioning ──────────────────────────────
-            case 'BT': this.opBT(); break;
-            case 'ET': break;
-            case 'Td': this.opTd(operands); break;
-            case 'TD': this.opTD(operands); break;
-            case 'Tm': this.opTm(operands); break;
-            case 'T*': this.opTStar(); break;
-
-            // ── Text show operators ───────────────────────────
-            case 'Tj': this.opTj(operands); break;
-            case 'TJ': this.opTJ(operands); break;
-            case '\'': this.opTStar(); this.opTj(operands); break;
-            case '"': this.opQuoteDbl(operands); break;
-
-            // ── Path operators ────────────────────────────────
-            case 're': this.opRe(operands); break;
-            case 'm': this.opPathMove(operands); break;
-            case 'l': this.opPathLine(operands); break;
-            case 'c': this.opPathCurve(operands); break;
-            case 'v': this.opPathCurveV(operands); break;
-            case 'y': this.opPathCurveY(operands); break;
-            case 'h': break; // closepath — tracked implicitly
-            case 'S': case 's': this.paintPath(true, false); break;
-            case 'f': case 'F': case 'f*': this.paintPath(false, true); break;
-            case 'B': case 'B*': case 'b': case 'b*': this.paintPath(true, true); break;
-            case 'n': this.pathPoints = []; this.generalPathPoints.length = 0; break;
-
-            // ── XObject ──────────────────────────────────────
-            case 'Do': this.opDo(operands, resources, pageWidth, pageHeight); break;
-
-            // ── ExtGState ────────────────────────────────────
-            case 'gs': this.opGs(operands, resources); break;
-
-            // ── Marked content / inline images / others ──────
-            case 'BMC': case 'BDC': case 'EMC': case 'MP': case 'DP': break;
-            case 'BI': break;
-        }
+        const handler = this.getOperatorMap().get(op);
+        if (handler) handler(op, operands, resources, pageWidth, pageHeight);
     }
 
     // ── Operator implementations ─────────────────────────────────────
@@ -2663,6 +2646,25 @@ class PixelPerfectProcessor {
         return null;
     }
 
+    private applyFillColor(hex: string): void {
+        this.fillColor = hex;
+        this.fillColorChanged = true;
+    }
+
+    private applyStrokeColor(hex: string): void {
+        this.strokeColor = hex;
+        this.strokeColorChanged = true;
+    }
+
+    private tryApplyPatternFill(operands: ReadonlyArray<string>, resources: Record<string, PdfObject>): boolean {
+        if (!this.fillColorSpaceIsPattern) return false;
+        const name = operands[0].startsWith('/') ? operands[0].substring(1) : operands[0];
+        const img = this.extractPatternImage(name, resources);
+        if (!img) return false;
+        this.patternFillImage = img;
+        return true;
+    }
+
     private opSc(operands: ReadonlyArray<string>, isFill: boolean, resources: Record<string, PdfObject>): void {
         if (operands.length >= 3) {
             const hex = rgbToHex(
@@ -2670,19 +2672,13 @@ class PixelPerfectProcessor {
                 Number.parseFloat(operands[1]),
                 Number.parseFloat(operands[2]),
             );
-            if (isFill) { this.fillColor = hex; this.fillColorChanged = true; }
-            else { this.strokeColor = hex; this.strokeColorChanged = true; }
-        } else if (operands.length >= 1) {
-            if (this.fillColorSpaceIsPattern && isFill) {
-                // Pattern fill — extract image from the tiling pattern
-                const name = operands[0].startsWith('/') ? operands[0].substring(1) : operands[0];
-                const img = this.extractPatternImage(name, resources);
-                if (img) { this.patternFillImage = img; return; }
-            }
-            const hex = grayToHex(Number.parseFloat(operands[0]));
-            if (isFill) { this.fillColor = hex; this.fillColorChanged = true; }
-            else { this.strokeColor = hex; this.strokeColorChanged = true; }
+            if (isFill) this.applyFillColor(hex); else this.applyStrokeColor(hex);
+            return;
         }
+        if (operands.length < 1) return;
+        if (isFill && this.tryApplyPatternFill(operands, resources)) return;
+        const hex = grayToHex(Number.parseFloat(operands[0]));
+        if (isFill) this.applyFillColor(hex); else this.applyStrokeColor(hex);
     }
 
     private opTf(operands: ReadonlyArray<string>): void {
@@ -2806,15 +2802,7 @@ class PixelPerfectProcessor {
         );
     }
 
-    private opPathCurveV(operands: ReadonlyArray<string>): void {
-        if (operands.length < 4) return;
-        this.generalPathPoints.push(
-            transformPoint(Number.parseFloat(operands[0]), Number.parseFloat(operands[1]), this.ctm),
-            transformPoint(Number.parseFloat(operands[2]), Number.parseFloat(operands[3]), this.ctm),
-        );
-    }
-
-    private opPathCurveY(operands: ReadonlyArray<string>): void {
+    private opPathCurve2Points(operands: ReadonlyArray<string>): void {
         if (operands.length < 4) return;
         this.generalPathPoints.push(
             transformPoint(Number.parseFloat(operands[0]), Number.parseFloat(operands[1]), this.ctm),
@@ -2823,98 +2811,64 @@ class PixelPerfectProcessor {
     }
 
     private paintPath(stroked: boolean, filled: boolean): void {
+        if (this.tryPaintPatternFill(filled)) return;
+
         const scaledLineWidth = this.lineWidth;
-
-        // Pattern fill: render the pattern's image at the path bounding box
-        if (filled && this.patternFillImage && this.generalPathPoints.length > 0) {
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            for (const p of this.generalPathPoints) {
-                if (p.tx < minX) minX = p.tx;
-                if (p.ty < minY) minY = p.ty;
-                if (p.tx > maxX) maxX = p.tx;
-                if (p.ty > maxY) maxY = p.ty;
-            }
-            const w = maxX - minX;
-            const h = maxY - minY;
-            if (w > 1 && h > 1) {
-                this.imageItems.push({
-                    dataUrl: this.patternFillImage,
-                    width: Math.round(w), height: Math.round(h),
-                    renderWidth: w, renderHeight: h,
-                    x: minX, y: minY,
-                });
-            }
-            this.patternFillImage = null;
-            this.pathPoints = [];
-            this.generalPathPoints.length = 0;
-            return;
-        }
-
-        // Emit rect from `re` operator
-        if (this.pathPoints.length >= 4) {
-            const [rx, ry, rw, rh] = this.pathPoints;
-            const p1 = transformPoint(rx, ry, this.ctm);
-            const p2 = transformPoint(rx + rw, ry + rh, this.ctm);
-            const x = Math.min(p1.tx, p2.tx);
-            const y = Math.min(p1.ty, p2.ty);
-            const w = Math.abs(p2.tx - p1.tx);
-            const h = Math.abs(p2.ty - p1.ty);
-            this.pathRects.push({
-                x, y, width: w, height: h,
-                stroked, filled,
-                strokeColor: this.strokeColor,
-                fillColor: this.fillColor,
-                lineWidth: scaledLineWidth,
-                borderRadius: 0,
-            });
-        }
-        // Emit bounding-box rect from general path (m/l/c/v/y/h curves)
-        if (this.generalPathPoints.length > 0) {
-            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-            for (const p of this.generalPathPoints) {
-                if (p.tx < minX) minX = p.tx;
-                if (p.ty < minY) minY = p.ty;
-                if (p.tx > maxX) maxX = p.tx;
-                if (p.ty > maxY) maxY = p.ty;
-            }
-            let w = maxX - minX;
-            let h = maxY - minY;
-
-            // For thin lines (m→l straight lines), one dimension is ~0.
-            // Use the stroke line width as the thin dimension so the line renders.
-            const isHLine = h < 2 && w >= 1;
-            const isVLine = w < 2 && h >= 1;
-            if (isHLine) h = Math.max(h, scaledLineWidth);
-            if (isVLine) w = Math.max(w, scaledLineWidth);
-
-            if (w >= 1 || h >= 1) {
-                // Estimate border-radius for thick paths (rounded rects).
-                let radius = 0;
-                if (w >= 5 && h >= 5) {
-                    const edgeTol = 0.5;
-                    const quarterW = w * 0.3;
-                    for (const p of this.generalPathPoints) {
-                        const fromLeft = p.tx - minX;
-                        const fromRight = maxX - p.tx;
-                        const xInset = Math.min(fromLeft, fromRight);
-                        if (xInset > edgeTol && xInset < quarterW && xInset > radius) {
-                            radius = xInset;
-                        }
-                    }
-                    radius = Math.min(radius, w / 2, h / 2);
-                }
-                this.pathRects.push({
-                    x: minX, y: minY, width: w, height: h,
-                    stroked, filled,
-                    strokeColor: this.strokeColor,
-                    fillColor: this.fillColor,
-                    lineWidth: scaledLineWidth,
-                    borderRadius: radius,
-                });
-            }
-        }
+        this.emitReRect(stroked, filled, scaledLineWidth);
+        this.emitGeneralPathRect(stroked, filled, scaledLineWidth);
         this.pathPoints = [];
         this.generalPathPoints.length = 0;
+    }
+
+    private tryPaintPatternFill(filled: boolean): boolean {
+        if (!filled || !this.patternFillImage || this.generalPathPoints.length === 0) return false;
+
+        const bbox = computePointsBBox(this.generalPathPoints);
+        if (bbox.w > 1 && bbox.h > 1) {
+            this.imageItems.push({
+                dataUrl: this.patternFillImage,
+                width: Math.round(bbox.w), height: Math.round(bbox.h),
+                renderWidth: bbox.w, renderHeight: bbox.h,
+                x: bbox.minX, y: bbox.minY,
+            });
+        }
+        this.patternFillImage = null;
+        this.pathPoints = [];
+        this.generalPathPoints.length = 0;
+        return true;
+    }
+
+    private emitReRect(stroked: boolean, filled: boolean, scaledLineWidth: number): void {
+        if (this.pathPoints.length < 4) return;
+        const [rx, ry, rw, rh] = this.pathPoints;
+        const p1 = transformPoint(rx, ry, this.ctm);
+        const p2 = transformPoint(rx + rw, ry + rh, this.ctm);
+        this.pathRects.push({
+            x: Math.min(p1.tx, p2.tx), y: Math.min(p1.ty, p2.ty),
+            width: Math.abs(p2.tx - p1.tx), height: Math.abs(p2.ty - p1.ty),
+            stroked, filled,
+            strokeColor: this.strokeColor, fillColor: this.fillColor,
+            lineWidth: scaledLineWidth, borderRadius: 0,
+        });
+    }
+
+    private emitGeneralPathRect(stroked: boolean, filled: boolean, scaledLineWidth: number): void {
+        if (this.generalPathPoints.length === 0) return;
+
+        const bbox = computePointsBBox(this.generalPathPoints);
+        let { w, h } = bbox;
+
+        if (h < 2 && w >= 1) h = Math.max(h, scaledLineWidth);
+        if (w < 2 && h >= 1) w = Math.max(w, scaledLineWidth);
+        if (w < 1 && h < 1) return;
+
+        const radius = estimateBorderRadius(this.generalPathPoints, bbox.minX, bbox.maxX, w, h);
+        this.pathRects.push({
+            x: bbox.minX, y: bbox.minY, width: w, height: h,
+            stroked, filled,
+            strokeColor: this.strokeColor, fillColor: this.fillColor,
+            lineWidth: scaledLineWidth, borderRadius: radius,
+        });
     }
 
     private opDo(
@@ -3078,7 +3032,7 @@ class PixelPerfectProcessor {
 
     private updateLastStateStartIdx(): void {
         if (!this.currentLine) return;
-        const lastState = this.currentLine.states[this.currentLine.states.length - 1];
+        const lastState = this.currentLine.states.at(-1);
         if (lastState && !lastState.installed) {
             (lastState as { installed: LineStyleState | null }).installed = {
                 startIdx: this.currentLine.text.length,
@@ -3111,8 +3065,7 @@ class PixelPerfectProcessor {
                 for (const s of streams) {
                     try {
                         const data = this.reader.getStreamData(s);
-                        parts.push(data);
-                        parts.push(new Uint8Array([0x20])); // space separator
+                        parts.push(data, new Uint8Array([0x20])); // space separator
                     } catch { /* skip */ }
                 }
                 const totalLen = parts.reduce((sum, p) => sum + p.length, 0);
@@ -3172,6 +3125,36 @@ class PixelPerfectProcessor {
 
 // ── Graphics Rendering ────────────────────────────────────────────────
 
+function computePointsBBox(points: ReadonlyArray<{ tx: number; ty: number }>): {
+    minX: number; minY: number; maxX: number; maxY: number; w: number; h: number;
+} {
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const p of points) {
+        if (p.tx < minX) minX = p.tx;
+        if (p.ty < minY) minY = p.ty;
+        if (p.tx > maxX) maxX = p.tx;
+        if (p.ty > maxY) maxY = p.ty;
+    }
+    return { minX, minY, maxX, maxY, w: maxX - minX, h: maxY - minY };
+}
+
+function estimateBorderRadius(
+    points: ReadonlyArray<{ tx: number; ty: number }>,
+    minX: number, maxX: number, w: number, h: number,
+): number {
+    if (w < 5 || h < 5) return 0;
+    const edgeTol = 0.5;
+    const quarterW = w * 0.3;
+    let radius = 0;
+    for (const p of points) {
+        const xInset = Math.min(p.tx - minX, maxX - p.tx);
+        if (xInset > edgeTol && xInset < quarterW && xInset > radius) {
+            radius = xInset;
+        }
+    }
+    return Math.min(radius, w / 2, h / 2);
+}
+
 function renderFilledRect(rect: PathRect, z: number): string {
     const left = round(rect.x * z);
     const bottom = round(rect.y * z);
@@ -3229,25 +3212,69 @@ function renderAnnotation(ann: PdfAnnotation, z: number): string {
 
 // ── Page Assembly ─────────────────────────────────────────────────────
 
+function extractLineText(line: TextLine, z: number): string {
+    const offsetMap = new Map<number, number>();
+    for (const off of line.offsets) {
+        offsetMap.set(off.startIdx, off.width);
+    }
+    const emSize = (line.states.length > 0 ? line.states[0].textState.fontSize : 12) * z;
+    const threshold = emSize * SPACE_THRESHOLD;
+    let lineText = '';
+    for (let ci = 0; ci < line.text.length; ci++) {
+        const off = offsetMap.get(ci);
+        if (off !== undefined && off >= threshold) lineText += ' ';
+        const cp = line.text[ci];
+        if (cp > 0) lineText += String.fromCodePoint(cp);
+    }
+    return lineText.trim();
+}
+
 function extractTextFromLines(lines: ReadonlyArray<TextLine>, z: number): string {
     const lineParts: string[] = [];
     for (const line of lines) {
-        let lineText = '';
-        const offsetMap = new Map<number, number>();
-        for (const off of line.offsets) {
-            offsetMap.set(off.startIdx, off.width);
-        }
-        const emSize = (line.states.length > 0 ? line.states[0].textState.fontSize : 12) * z;
-        const threshold = emSize * SPACE_THRESHOLD;
-        for (let ci = 0; ci < line.text.length; ci++) {
-            const off = offsetMap.get(ci);
-            if (off !== undefined && off >= threshold) lineText += ' ';
-            const cp = line.text[ci];
-            if (cp > 0) lineText += String.fromCodePoint(cp);
-        }
-        if (lineText.trim()) lineParts.push(lineText.trim());
+        const text = extractLineText(line, z);
+        if (text) lineParts.push(text);
     }
     return lineParts.join('\n');
+}
+
+function fixYFlippedCoordinates(result: ProcessedPage): void {
+    const { initialYScale, lines, imageItems } = result;
+    if (initialYScale <= 0 || initialYScale >= 1) return;
+    for (const line of lines) {
+        if (line.y < 0) line.y = Math.abs(line.y) * initialYScale;
+    }
+    for (const img of imageItems) {
+        if (img.y < 0) (img as { y: number }).y = Math.abs(img.y) * initialYScale;
+    }
+}
+
+function buildPageContentHtml(
+    result: ProcessedPage, pageIndex: number,
+    mgr: AllStateManager, fontRegistry: FontRegistry, z: number,
+    scaledWidth: number, scaledHeight: number,
+): string {
+    const htmlParts: string[] = [];
+    htmlParts.push(
+        `<div id="pf${pageIndex + 1}" class="pf" style="width:${round(scaledWidth)}px;height:${round(scaledHeight)}px;" data-page-no="${pageIndex + 1}">`,
+        `<div class="pc pc${pageIndex + 1}">`,
+    );
+
+    for (const rect of result.pathRects) {
+        if (rect.filled && rect.fillColor) htmlParts.push(renderFilledRect(rect, z));
+        if (rect.stroked && rect.strokeColor) htmlParts.push(renderStrokedRect(rect, z));
+    }
+    for (const img of result.imageItems) htmlParts.push(renderImage(img, z));
+    for (const line of result.lines) {
+        const lineHtml = line.dumpText(mgr, fontRegistry, H_EPS, SPACE_THRESHOLD, z);
+        if (lineHtml) htmlParts.push(lineHtml);
+    }
+    for (const ann of result.annotations) {
+        if (ann.uri) htmlParts.push(renderAnnotation(ann, z));
+    }
+
+    htmlParts.push('</div>', '</div>');
+    return htmlParts.join('\n');
 }
 
 function assemblePageHtml(
@@ -3257,63 +3284,20 @@ function assemblePageHtml(
     fontRegistry: FontRegistry,
     z: number,
 ): PixelPerfectPage {
-    const { lines, pathRects, imageItems, annotations, pageWidth, pageHeight } = result;
+    fixYFlippedCoordinates(result);
 
-    // Fix Y-flipped coordinate system (common in browser-saved PDFs).
-    // When the initial CTM has a negative Y scale (e.g. [0.24, 0, 0, -0.24, 0, 792]),
-    // subsequent cm operators amplify coordinates beyond the page range, producing
-    // negative Y values in the combined text matrix.  The correct page position is
-    // |y| * initial_y_scale, where initial_y_scale is the absolute value of the
-    // first cm's d-component.  This works across all nested cm blocks.
-    const { initialYScale } = result;
-    if (initialYScale > 0 && initialYScale < 1) {
-        for (const line of lines) {
-            if (line.y < 0) line.y = Math.abs(line.y) * initialYScale;
-        }
-        for (const img of imageItems) {
-            if (img.y < 0) (img as { y: number }).y = Math.abs(img.y) * initialYScale;
-        }
-    }
+    const scaledWidth = result.pageWidth * z;
+    const scaledHeight = result.pageHeight * z;
 
-    const scaledWidth = pageWidth * z;
-    const scaledHeight = pageHeight * z;
+    const text = extractTextFromLines(result.lines, z);
 
-    // Extract text BEFORE optimization (optimization absorbs offsets into letter-spacing)
-    const text = extractTextFromLines(lines, z);
-
-    for (const line of lines) {
+    for (const line of result.lines) {
         line.prepare(mgr, fontRegistry, z);
         line.optimizeNormal(mgr, H_EPS, SPACE_THRESHOLD, z);
     }
 
-    const htmlParts: string[] = [];
-
-    htmlParts.push(`<div id="pf${pageIndex + 1}" class="pf" style="width:${round(scaledWidth)}px;height:${round(scaledHeight)}px;" data-page-no="${pageIndex + 1}">`);
-    htmlParts.push(`<div class="pc pc${pageIndex + 1}">`);
-
-    for (const rect of pathRects) {
-        if (rect.filled && rect.fillColor) htmlParts.push(renderFilledRect(rect, z));
-        if (rect.stroked && rect.strokeColor) htmlParts.push(renderStrokedRect(rect, z));
-    }
-
-    for (const img of imageItems) {
-        htmlParts.push(renderImage(img, z));
-    }
-
-    for (const line of lines) {
-        const lineHtml = line.dumpText(mgr, fontRegistry, H_EPS, SPACE_THRESHOLD, z);
-        if (lineHtml) htmlParts.push(lineHtml);
-    }
-
-    for (const ann of annotations) {
-        if (ann.uri) htmlParts.push(renderAnnotation(ann, z));
-    }
-
-    htmlParts.push('</div>');
-    htmlParts.push('</div>');
-
     return {
-        html: htmlParts.join('\n'),
+        html: buildPageContentHtml(result, pageIndex, mgr, fontRegistry, z, scaledWidth, scaledHeight),
         text,
         pageIndex,
         pageWidth: scaledWidth,

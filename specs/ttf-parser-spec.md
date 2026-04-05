@@ -1,13 +1,14 @@
 # Replace opentype.js with custom TrueType reader + writer
 
 ## Goal
-Remove the 500KB opentype.js dependency by implementing our own minimal TrueType parser and font builder. This fixes the Angular build error and reduces bundle size.
 
-## Phase 1: Minimal TrueType Reader (~150 lines)
+Remove the 500KB opentype.js dependency by implementing our own TrueType parser and font builder. This fixes the Angular build error and gives us control over the full code.
+
+## Phase 1: TrueType Reader (~150 lines)
 
 Replaces `opentype.parse()` + all read-only API calls. Handles 99% of PDFs.
 
-### Tasks
+### Phase 1 Tasks
 
 - [ ] **1.1** Create `packages/components/lib/ttf-parser.ts` with the core parser
   - Parse TTF/OTF file header (offset table: sfVersion, numTables)
@@ -30,6 +31,7 @@ Replaces `opentype.parse()` + all read-only API calls. Handles 99% of PDFs.
   - Pick the best Unicode platform subtable (platformID 3/1 or 0/3)
 
 - [ ] **1.7** Create `TtfFont` class with the API we need:
+
   ```typescript
   class TtfFont {
     readonly unitsPerEm: number;
@@ -57,7 +59,7 @@ Replaces `opentype.parse()` + all read-only API calls. Handles 99% of PDFs.
 
 Replaces `new opentype.Font()` + `toArrayBuffer()`. Needed for Symbol/custom fonts.
 
-### Tasks
+### Phase 2 Tasks
 
 - [ ] **2.1** Add glyph outline parser to `TtfFont`
   - Parse `loca` table (short or long format) → glyph offsets
@@ -111,27 +113,30 @@ opentype.js parses EVERYTHING (kerning, GSUB, GPOS, CFF, etc.). We want our impl
 ## Current opentype.js API usage reference
 
 ### Read APIs (Phase 1 replaces these)
-| API | Purpose | Used in |
-|-----|---------|---------|
-| `opentype.parse(buffer)` | Parse font binary | `processEmbeddedFont`, `getFallbackFont` |
-| `font.unitsPerEm` | Design units per em | `processEmbeddedFont`, `reEncodeFont` |
-| `font.numGlyphs` | Total glyphs | `processEmbeddedFont` |
-| `font.ascender/descender` | Vertical metrics | `reEncodeFont` |
-| `font.glyphs.get(gid)` | Glyph by GID | `processEmbeddedFont`, `reEncodeFont` |
-| `font.charToGlyph(char)` | Glyph by Unicode | `fontNeedsReencoding`, bracket fixup, `reEncodeFont` |
-| `glyph.advanceWidth` | Glyph width | Throughout |
-| `glyph.index` | Glyph ID | Coverage check, bracket fixup |
+
+| API                                      | Purpose              | Used in                                                      |
+| ---------------------------------------- | -------------------- | ------------------------------------------------------------ |
+| `opentype.parse(buffer)`                 | Parse font binary    | `processEmbeddedFont`, `getFallbackFont`                     |
+| `font.unitsPerEm`                        | Design units per em  | `processEmbeddedFont`, `reEncodeFont`                        |
+| `font.numGlyphs`                         | Total glyphs         | `processEmbeddedFont`                                        |
+| `font.ascender/descender`                | Vertical metrics     | `reEncodeFont`                                               |
+| `font.glyphs.get(gid)`                   | Glyph by GID         | `processEmbeddedFont`, `reEncodeFont`                        |
+| `font.charToGlyph(char)`                 | Glyph by Unicode     | `fontNeedsReencoding`, bracket fixup, `reEncodeFont`         |
+| `glyph.advanceWidth`                     | Glyph width          | Throughout                                                   |
+| `glyph.index`                            | Glyph ID             | Coverage check, bracket fixup                                |
 
 ### Write APIs (Phase 2 replaces these)
-| API | Purpose | Used in |
-|-----|---------|---------|
-| `new opentype.Font(...)` | Create font | `reEncodeFont` |
-| `new opentype.Glyph(...)` | Create glyph | `reEncodeFont` |
-| `new opentype.Path()` | Create path | `reEncodeFont`, `scalePathX`, `scalePath` |
-| `path.moveTo/lineTo/curveTo/closePath` | Build outlines | `scalePathX`, `scalePath` |
-| `font.toArrayBuffer()` | Serialize to TTF | `reEncodeFont` |
+
+| API                                      | Purpose              | Used in                                                      |
+| ---------------------------------------- | -------------------- | ------------------------------------------------------------ |
+| `new opentype.Font(...)`                 | Create font          | `reEncodeFont`                                               |
+| `new opentype.Glyph(...)`                | Create glyph         | `reEncodeFont`                                               |
+| `new opentype.Path()`                    | Create path          | `reEncodeFont`, `scalePathX`, `scalePath`                    |
+| `path.moveTo/lineTo/curveTo/closePath`   | Build outlines       | `scalePathX`, `scalePath`                                    |
+| `font.toArrayBuffer()`                   | Serialize to TTF     | `reEncodeFont`                                               |
 
 ## Files to modify
+
 - `packages/components/lib/ttf-parser.ts` — NEW (Phase 1)
 - `packages/components/lib/ttf-builder.ts` — NEW (Phase 2)
 - `packages/components/lib/pdf-pixel-perfect.ts` — Replace opentype imports
