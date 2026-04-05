@@ -1,12 +1,14 @@
 # Rich Text Editor - Follow-up Ideas
 
-This file captures the improvement ideas discussed during the history/UX work so they are not lost.
+This file captures the improvement ideas discussed during the history/UX work
+so they are not lost.
 
 ## Near-term Ideas
 
 1. Revision diff view
 
-- In the full revision dialog, show a visual diff between current content and selected revision.
+- In the full revision dialog, show a visual diff between current content and
+  selected revision.
 - Keep quick apply as default, diff as optional “inspect before apply”.
 
 1. Better revision understanding

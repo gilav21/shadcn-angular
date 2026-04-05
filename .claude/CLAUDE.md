@@ -2,15 +2,18 @@
 
 > **For Human & AI Contributors**
 
-This document defines how to build components in shadcn-angular. Follow these patterns exactly for predictable, consistent contributions.
+This document defines how to build components in shadcn-angular.
+Follow these patterns exactly for predictable, consistent contributions.
 
 ---
 
 ## Core Philosophy
 
-> **"If you project content, you get full control. If you don't, you get sensible defaults."**
+> **"If you project content, you get full control.
+> If you don't, you get sensible defaults."**
 
-We escaped Angular Material because customization was a nightmare. Our components must be:
+We escaped Angular Material because customization was a nightmare.
+Our components must be:
 
 - **Easy to start** — Simple inputs for common use cases
 - **Easy to customize** — Content projection for full control
@@ -257,12 +260,21 @@ classes = computed(() => cn(
 
 ### 1. Composition
 
-- **Prefer Package Components**: When building compound components, prioritize using existing package components (e.g., `ui-button`, `ui-badge`) over native HTML elements. This ensures consistent styling, functionality, and accessibility.
+- **Prefer Package Components**: When building compound components, prioritize
+  using existing package components (e.g., `ui-button`, `ui-badge`) over native
+  HTML elements. This ensures consistent styling, functionality, and
+  accessibility.
 
 ### 2. Code Hygiene
 
-- **No Non-JSDoc Comments**: Avoid implementation comments inside methods. Code should be self-documenting. Use JSDoc `/** ... */` only for public APIs (inputs, outputs, exported methods).
-- **No Unused Declarations**: Remove all unused imports, variables, parameters, and types in TypeScript files and the `@Component({ imports: [...] })` array. The compiler enforces `noUnusedLocals` and `noUnusedParameters` — check for `ts(6133)` ("declared but its value is never read") errors before finishing any file.
+- **No Non-JSDoc Comments**: Avoid implementation comments inside methods.
+  Code should be self-documenting. Use JSDoc `/** ... */` only for public APIs
+  (inputs, outputs, exported methods).
+- **No Unused Declarations**: Remove all unused imports, variables,
+  parameters, and types in TypeScript files and the
+  `@Component({ imports: [...] })` array. The compiler enforces
+  `noUnusedLocals` and `noUnusedParameters` — check for `ts(6133)`
+  ("declared but its value is never read") errors before finishing any file.
 
 ### 3. Testing & Documentation
 
@@ -277,21 +289,32 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
 #### TypeScript Strictness
 
 - **No `any` types** — use proper generics or `unknown`
-- **No unnecessary type assertions** (`as Type`) — only assert when the compiler genuinely can't infer the type (S4325)
-- **Mark never-reassigned members `readonly`** — signals, computed, viewChild, arrow function properties, etc. (S2933)
+- **No unnecessary type assertions** (`as Type`) — only assert when the
+  compiler genuinely can't infer the type (S4325)
+- **Mark never-reassigned members `readonly`** — signals, computed, viewChild,
+  arrow function properties, etc. (S2933)
 - **Remove all unused imports, variables, parameters** (S1128, ts6133)
 - **Merge duplicate imports** from the same module into one statement (S3863)
-- **Extract repeated union types into type aliases** — if a union like `'sm' | 'md' | 'lg'` appears 3+ times, create a `type Size = 'sm' | 'md' | 'lg'` (S4323)
+- **Extract repeated union types into type aliases** — if a union like
+  `'sm' | 'md' | 'lg'` appears 3+ times, create a `type Size = 'sm' | 'md' |
+  'lg'` (S4323)
 
 #### Modern API Preferences
 
-- **`Number.isNaN()`** over `isNaN()`, **`Number.isFinite()`** over `isFinite()`, **`Number.parseFloat()`** over `parseFloat()` (S7773)
-- **`String.fromCodePoint()`** over `String.fromCharCode()`, **`.codePointAt()`** over `.charCodeAt()` (S7758)
+- **`Number.isNaN()`** over `isNaN()`, **`Number.isFinite()`** over
+  `isFinite()`, **`Number.parseFloat()`** over `parseFloat()` (S7773)
+- **`String.fromCodePoint()`** over `String.fromCharCode()`,
+  **`.codePointAt()`** over `.charCodeAt()` (S7758)
 - **`Math.hypot(dx, dy)`** over `Math.sqrt(dx*dx + dy*dy)` (S7769)
-- **`structuredClone(obj)`** over `JSON.parse(JSON.stringify(obj))` (S7784)
-- **`el.dataset.fooBar`** over `el.getAttribute('data-foo-bar')` / `el.setAttribute('data-foo-bar', ...)` / `el.hasAttribute('data-foo-bar')` (S7761)
-- **`RegExp.exec(str)`** over `str.match(regex)` for single matches (S6594)
-- **`.replaceAll()`** over `.replace()` with global regex flag `/g` (S7781)
+- **`structuredClone(obj)`** over `JSON.parse(JSON.stringify(obj))`
+  (S7784)
+- **`el.dataset.fooBar`** over `el.getAttribute('data-foo-bar')`
+  / `el.setAttribute('data-foo-bar', ...)` /
+  `el.hasAttribute('data-foo-bar')` (S7761)
+- **`RegExp.exec(str)`** over `str.match(regex)` for single matches
+  (S6594)
+- **`.replaceAll()`** over `.replace()` with global regex flag `/g`
+  (S7781)
 - **`globalThis`** over `window` when accessing global scope (S7764)
 - **`new Array(n)`** over `Array(n)` (S7723)
 - **`Blob.text()`** over `FileReader.readAsText()` (S7756)
@@ -299,7 +322,8 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
 
 #### Cognitive Complexity (S3776 — max 15)
 
-- **Keep functions under 15 cognitive complexity** — this is the most common SonarQube violation
+- **Keep functions under 15 cognitive complexity** — this is the most common
+  SonarQube violation
 - **Extract helper functions** for nested logic blocks
 - **Use early returns** (guard clauses) to reduce nesting depth
 - **Extract switch/case bodies** into separate named functions
@@ -307,17 +331,23 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
 
 #### Control Flow & Logic
 
-- **No negated conditions in if/else** — flip the branches: `if (!x) { A } else { B }` → `if (x) { B } else { A }` (S7735)
+- **No negated conditions in if/else** — flip the branches:
+  `if (!x) { A } else { B }` → `if (x) { B } else { A }` (S7735)
 - **No nested ternaries** — extract to variables or if/else (S3358)
-- **No duplicate branch/case blocks** — merge identical branches with `||` or fall-through cases (S1871)
-- **No redundant assignments** — don't re-assign a variable to the value it already holds (S4165)
+- **No duplicate branch/case blocks** — merge identical branches with `||`
+  or fall-through cases (S1871)
+- **No redundant assignments** — don't re-assign a variable to the value it
+  already holds (S4165)
 - **No loop variable reassignment** — use `while` loops or restructure (S2310)
-- **Use `for-of`** instead of index-based `for` when the index is only used for array access (S4138)
-- **Use `else if`** instead of `if` as the only statement in an `else` block (S6660)
+- **Use `for-of`** instead of index-based `for` when the index is only used
+  for array access (S4138)
+- **Use `else if`** instead of `if` as the only statement in an `else` block
+  (S6660)
 - **Always handle or comment catch blocks** — no empty `catch {}` (S2486)
 - **Always provide initial value to `.reduce()`** (S6959)
 - **No identical sub-expressions** in `||` or `&&` (S1764)
-- **Avoid boolean parameters** that switch behavior — use separate methods instead (S2301)
+- **Avoid boolean parameters** that switch behavior — use separate methods
+  instead (S2301)
 
 #### Regex
 
@@ -355,13 +385,16 @@ Before submitting a component, verify:
 
 ## 5. Responsive Design (Zero Tolerance)
 
-Every component MUST render correctly across all viewport widths: **320px → 375px → 640px → 768px → 1024px → 1920px+**. Desktop appearance must not change — responsive rules only add mobile/tablet adaptations.
+Every component MUST render correctly across all viewport widths:
+**320px → 375px → 640px → 768px → 1024px → 1920px+**. Desktop appearance
+must not change — responsive rules only add mobile/tablet adaptations.
 
 ### Rules
 
 #### No Hardcoded Pixel Widths Without Responsive Breakpoints
 
-- **Never** use `w-[Npx]`, `min-w-[Npx]`, or `max-w-[Npx]` alone — always pair with responsive variants
+- **Never** use `w-[Npx]`, `min-w-[Npx]`, or `max-w-[Npx]` alone — always
+  pair with responsive variants
 - ❌ `w-[300px]` — breaks on 320px phones
 - ✅ `w-full sm:w-[300px]` — full width on mobile, fixed on desktop
 - ❌ `max-w-[420px]` — clips on small phones
@@ -387,12 +420,16 @@ Every component MUST render correctly across all viewport widths: **320px → 37
 
 #### Overflow Protection for Popups/Overlays
 
-- **Every** absolutely/fixed positioned element (popover, dropdown, menu, toast, nav content) MUST have `max-w-[calc(100vw-2rem)]` to prevent viewport overflow
+- **Every** absolutely/fixed positioned element (popover, dropdown, menu,
+  toast, nav content) MUST have `max-w-[calc(100vw-2rem)]` to prevent
+  viewport overflow
 
 #### Text Truncation
 
-- Long text in constrained containers MUST use `truncate`, `line-clamp-N`, or `overflow-hidden`
-- Chip/badge text: use responsive max-width `max-w-[120px] sm:max-w-[200px] truncate`
+- Long text in constrained containers MUST use `truncate`, `line-clamp-N`,
+  or `overflow-hidden`
+- Chip/badge text: use responsive max-width
+  `max-w-[120px] sm:max-w-[200px] truncate`
 
 ### Testing Viewports
 
@@ -402,13 +439,16 @@ Verify every component at: **320px**, **375px**, **640px**, **768px**, **1024px*
 
 ## 6. Touch Device Compatibility (Zero Tolerance)
 
-Every interactive component MUST work on touch-only devices (phones, tablets) with no mouse or keyboard. Use the shared `touch.ts` utility (`isTouchDevice()`, `onLongPress()`, `onDoubleTap()`) from `lib/touch.ts`.
+Every interactive component MUST work on touch-only devices (phones, tablets)
+with no mouse or keyboard. Use the shared `touch.ts` utility
+(`isTouchDevice()`, `onLongPress()`, `onDoubleTap()`) from `lib/touch.ts`.
 
 ### Touch Compatibility Rules
 
 #### No Hover-Only Interactions
 
-- If `(mouseenter)`/`(mouseleave)` reveals essential UI (buttons, menus, content), add a touch alternative
+- If `(mouseenter)`/`(mouseleave)` reveals essential UI (buttons, menus,
+  content), add a touch alternative
 - ✅ Hover Card / Tooltip: tap to open, tap elsewhere to dismiss
 - ✅ Navigation Menu / Menubar: tap to toggle submenus
 - ✅ Dropdown submenu: tap to expand (not hover-only)
@@ -416,15 +456,20 @@ Every interactive component MUST work on touch-only devices (phones, tablets) wi
 
 #### No Mouse-Only Drag and Drop
 
-- HTML5 drag events (`dragstart`, `dragover`, `drop`, `dragend`) do NOT work on mobile Safari/Chrome
-- Every `(mousedown)` for dragging MUST have a matching `(touchstart)` with `touch-action: none`
-- Every `(window:mousemove)/(window:mouseup)` MUST have `(window:touchmove)/(window:touchend)`
-- Reference: `resizable.component.ts` and `slider.component.ts` already implement both correctly — follow their pattern
+- HTML5 drag events (`dragstart`, `dragover`, `drop`, `dragend`) do NOT work
+  on mobile Safari/Chrome
+- Every `(mousedown)` for dragging MUST have a matching `(touchstart)` with
+  `touch-action: none`
+- Every `(window:mousemove)/(window:mouseup)` MUST have
+  `(window:touchmove)/(window:touchend)`
+- Reference: `resizable.component.ts` and `slider.component.ts` already
+  implement both correctly — follow their pattern
 
 #### No Right-Click-Only Context Menus
 
 - `(contextmenu)` requires right-click — unavailable on touch
-- Add long-press (500ms touch hold) as alternative using `onLongPress()` from `lib/touch.ts`
+- Add long-press (500ms touch hold) as alternative using `onLongPress()` from
+  `lib/touch.ts`
 
 #### No Double-Click-Only Actions
 
@@ -434,12 +479,14 @@ Every interactive component MUST work on touch-only devices (phones, tablets) wi
 
 #### Touch Target Sizing
 
-- All interactive elements MUST be at least **44×44px** on touch devices (WCAG 2.5.8, Apple/Google HIG)
+- All interactive elements MUST be at least **44×44px** on touch devices
+  (WCAG 2.5.8, Apple/Google HIG)
 - The global `@media (pointer: coarse)` rule in `tailwind.css` enforces this as a baseline
 
 #### No Keyboard-Shortcut-Only Features
 
-- If a feature is only accessible via keyboard shortcut (Ctrl+C, Shift+Click range select, etc.), provide a touch alternative
+- If a feature is only accessible via keyboard shortcut (Ctrl+C, Shift+Click
+  range select, etc.), provide a touch alternative
 - Add visible buttons/actions for touch users where keyboard shortcuts exist
 
 ### Anti-Patterns
