@@ -134,15 +134,11 @@ Is the component compound (has child components)?
 
 | Component | Simple Inputs | Custom Content |
 | ---------- | ------------- | -------------- |
-| Timeline | `title`, `description`,
-  `time`, `variant` | `<ui-timeline-header>`,
-  `<ui-timeline-content>` |
-| Breadcrumb | `[items]` array | `<ui-breadcrumb-item>`
-  slots |
-| Accordion | `title`, `content` | `<ui-accordion-trigger>`,
-  `<ui-accordion-content>` |
-| Tree | `[data]` array | `<ui-tree-item>` nested structure |
-| Stepper | `[steps]` array | `<ui-stepper-item>` slots |
+| Timeline | Title, description, time | Header, content |
+| Breadcrumb | Items array | Breadcrumb item slots |
+| Accordion | Title, content | Trigger, content |
+| Tree | Data array | Tree item nested structure |
+| Stepper | Steps array | Stepper item slots |
 
 ### Components That Should Remain Simple
 
@@ -380,7 +376,8 @@ Before submitting a component, verify:
 - [ ] Tests cover both usage modes and verify functionality
 - [ ] Storybook covers all options/variants
 - [ ] Demo page includes copy-paste examples
-- [ ] No unused declarations (imports, variables, parameters, types) — no `ts(6133)` errors
+- [ ] No unused declarations (imports, variables, parameters, types) —
+  no `ts(6133)` errors
 - [ ] Strict typing (no `any`, handles `undefined`)
 - [ ] SonarQube zero issues — all rules in Section 4 above are followed
 - [ ] No cognitive complexity > 15 in any function
@@ -443,7 +440,8 @@ must not change — responsive rules only add mobile/tablet adaptations.
 
 ### Testing Viewports
 
-Verify every component at: **320px**, **375px**, **640px**, **768px**, **1024px**, **1920px**
+Verify every component at: **320px**, **375px**, **640px**, **768px**,
+**1024px**, **1920px**
 
 ---
 
@@ -462,7 +460,8 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
 - ✅ Hover Card / Tooltip: tap to open, tap elsewhere to dismiss
 - ✅ Navigation Menu / Menubar: tap to toggle submenus
 - ✅ Dropdown submenu: tap to expand (not hover-only)
-- CSS `opacity-0 group-hover:opacity-100` for essential controls → add `@media (hover: none) { opacity: 1 }` or always-visible on touch
+- CSS `opacity-0 group-hover:opacity-100` for essential controls → add
+  `@media (hover: none) { opacity: 1 }` or always-visible on touch
 
 #### No Mouse-Only Drag and Drop
 
@@ -491,7 +490,8 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
 
 - All interactive elements MUST be at least **44×44px** on touch devices
   (WCAG 2.5.8, Apple/Google HIG)
-- The global `@media (pointer: coarse)` rule in `tailwind.css` enforces this as a baseline
+- The global `@media (pointer: coarse)` rule in `tailwind.css` enforces
+  this as a baseline
 
 #### No Keyboard-Shortcut-Only Features
 
@@ -528,13 +528,15 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
 
 > **"Assuming is a bad working strategy."**
 
-**Never assume** something is working or broken — always verify with concrete evidence before making any claim.
+**Never assume** something is working or broken — always verify with
+concrete evidence before making any claim.
 
 - **Before claiming a root cause**: add debug logs, compare actual values,
   show concrete data
 - **Before saying "X is broken"**: screenshot it, compare with the reference
   implementation
-- **Before saying "X works correctly"**: test with real data, not just unit tests
+- **Before saying "X works correctly"**: test with real data, not just
+  unit tests
 - **When comparing with a reference implementation**: also check the original
   source when applicable (e.g., for PDF rendering: compare with both the C++
   output AND the actual PDF — sometimes the reference is wrong and we're right)
@@ -560,17 +562,28 @@ When generating or modifying components:
 6. **Test both modes** in the spec file
 7. **Follow naming conventions** exactly
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
-9. **Clean up unused declarations** — after writing or modifying code, verify every import, variable, and parameter is actually used. Remove any that aren't. Watch for `ts(6133)` errors.
-10. **SonarQube compliance** — follow ALL rules in Section 4 "SonarQube Compliance". Key points:
+9. **Clean up unused declarations** — after writing or modifying code, verify
+   every import, variable, and parameter is actually used. Remove any that
+   aren't. Watch for `ts(6133)` errors.
+10. **SonarQube compliance** — follow ALL rules in Section 4
+    "SonarQube Compliance". Key points:
     - Mark never-reassigned members `readonly` (signals, computed, viewChild, arrow properties)
-    - Use modern APIs: `Number.isNaN`, `Number.parseFloat`, `Math.hypot`, `structuredClone`, `.dataset`, `String.fromCodePoint`, `.codePointAt`, `.replaceAll`, `globalThis`
+    - Use modern APIs: `Number.isNaN`, `Number.parseFloat`, `Math.hypot`,
+      `structuredClone`, `.dataset`, `String.fromCodePoint`, `.codePointAt`,
+      `.replaceAll`, `globalThis`
     - Keep cognitive complexity ≤ 15 — extract helpers, use early returns
     - No negated if/else, no nested ternaries, no duplicate branches
     - Merge duplicate imports, extract repeated union types into aliases
     - Use `for-of` over index-based `for` when index is only used for access
     - Use `RegExp.exec()` over `String.match()` for single matches
-11. **Responsive design** — follow ALL rules in Section 5. Every hardcoded pixel width/height MUST have responsive breakpoints. Every flex toolbar MUST wrap. Every overlay MUST have `max-w-[calc(100vw-2rem)]`. Test mentally at 320px, 375px, 768px, 1920px.
-12. **Touch compatibility** — follow ALL rules in Section 6. Every `(mouseenter)` needs a touch alternative. Every `(mousedown)` for drag needs `(touchstart)`. Every `(contextmenu)` needs long-press. Every `(dblclick)` needs double-tap. Use `lib/touch.ts` utilities.
+11. **Responsive design** — follow ALL rules in Section 5. Every hardcoded
+    pixel width/height MUST have responsive breakpoints. Every flex toolbar
+    MUST wrap. Every overlay MUST have `max-w-[calc(100vw-2rem)]`. Test
+    mentally at 320px, 375px, 768px, 1920px.
+12. **Touch compatibility** — follow ALL rules in Section 6. Every
+    `(mouseenter)` needs a touch alternative. Every `(mousedown)` for drag
+    needs `(touchstart)`. Every `(contextmenu)` needs long-press. Every
+    `(dblclick)` needs double-tap. Use `lib/touch.ts` utilities.
 
 ### Template for New Compound Components
 
