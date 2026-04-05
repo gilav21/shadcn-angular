@@ -567,7 +567,8 @@ When generating or modifying components:
    aren't. Watch for `ts(6133)` errors.
 10. **SonarQube compliance** — follow ALL rules in Section 4
     "SonarQube Compliance". Key points:
-    - Mark never-reassigned members `readonly` (signals, computed, viewChild, arrow properties)
+    - Mark never-reassigned members `readonly` (signals, computed, viewChild,
+      arrow properties)
     - Use modern APIs: `Number.isNaN`, `Number.parseFloat`, `Math.hypot`,
       `structuredClone`, `.dataset`, `String.fromCodePoint`, `.codePointAt`,
       `.replaceAll`, `globalThis`
