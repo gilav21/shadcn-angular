@@ -63,7 +63,7 @@ export type ChipListVariant = VariantProps<typeof chipListVariants>['variant'];
           [style.borderColor]="chipColors()[chip] || null"
           [attr.data-slot]="'chip'"
         >
-          <span class="max-w-[200px] truncate">{{ chip }}</span>
+          <span class="max-w-[120px] sm:max-w-[200px] truncate">{{ chip }}</span>
           @if (!disabled()) {
             <ui-button
               variant="ghost"

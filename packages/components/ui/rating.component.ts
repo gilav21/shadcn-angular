@@ -11,6 +11,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../lib/utils';
+import { isTouchDevice } from '../lib/touch';
 
 @Component({
   selector: 'ui-rating',
@@ -28,6 +29,7 @@ import { cn, isRtl } from '../lib/utils';
       [attr.data-slot]="'rating'"
       [attr.data-readonly]="readonly() || null"
       [attr.data-disabled]="isDisabled() || null"
+      style="touch-action: none"
       role="slider"
       [attr.aria-valuenow]="value()"
       [attr.aria-valuemin]="0"
@@ -36,15 +38,19 @@ import { cn, isRtl } from '../lib/utils';
       [attr.tabindex]="isDisabled() || readonly() ? -1 : 0"
       (keydown)="onKeydown($event)"
       (mouseleave)="onMouseLeave()"
+      (touchmove)="onTouchMove($event)"
+      (touchend)="onTouchEnd($event)"
     >
       @for (star of stars(); track star.index) {
         <button
           type="button"
+          data-star
           [class]="starClasses(star)"
           [attr.aria-label]="'Rate ' + (star.index + 1) + ' out of ' + max()"
           [disabled]="isDisabled() || readonly()"
           (mousemove)="onStarHover($event, star.index)"
           (click)="onStarClick($event, star.index)"
+          (touchstart)="onStarTouchStart($event, star.index)"
         >
           @if (getStarFill(star) === 'full') {
             <svg
@@ -179,7 +185,14 @@ export class RatingComponent implements ControlValueAccessor {
     return 'empty';
   }
 
+  onStarTouchStart(event: TouchEvent, index: number) {
+    if (this.isDisabled() || this.readonly()) return;
+    event.preventDefault();
+    this.hoverValue.set(index + 1);
+  }
+
   onStarHover(event: MouseEvent, index: number) {
+    if (isTouchDevice()) return;
     if (this.isDisabled() || this.readonly()) return;
 
     if (this.precision() === 0.5) {
@@ -195,7 +208,32 @@ export class RatingComponent implements ControlValueAccessor {
   }
 
   onMouseLeave() {
+    if (isTouchDevice()) return;
     this.hoverValue.set(null);
+  }
+
+  onTouchMove(event: TouchEvent) {
+    if (this.isDisabled() || this.readonly()) return;
+    event.preventDefault();
+
+    const touch = event.touches[0];
+    const ratingValue = this.getRatingFromPoint(touch.clientX);
+    if (ratingValue !== null) {
+      this.hoverValue.set(ratingValue);
+    }
+  }
+
+  onTouchEnd(event: TouchEvent) {
+    if (this.isDisabled() || this.readonly()) return;
+    event.preventDefault();
+
+    const currentHover = this.hoverValue();
+    this.hoverValue.set(null);
+
+    if (currentHover !== null) {
+      const finalValue = this.value() === currentHover ? 0 : currentHover;
+      this.setValue(finalValue);
+    }
   }
 
   onStarClick(event: MouseEvent, index: number) {
@@ -250,6 +288,37 @@ export class RatingComponent implements ControlValueAccessor {
     }
 
     this.setValue(newValue);
+  }
+
+  private getRatingFromPoint(clientX: number): number | null {
+    const container = this.el.nativeElement.querySelector('[data-slot="rating"]') as HTMLElement | null;
+    if (!container) return null;
+
+    const buttons = container.querySelectorAll('button');
+    if (buttons.length === 0) return null;
+
+    let closestIndex = -1;
+    let closestDist = Infinity;
+
+    for (let i = 0; i < buttons.length; i++) {
+      const rect = buttons[i].getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      const dist = Math.abs(clientX - centerX);
+      if (dist < closestDist) {
+        closestDist = dist;
+        closestIndex = i;
+      }
+    }
+
+    if (closestIndex < 0) return null;
+
+    if (this.precision() === 0.5) {
+      const rect = buttons[closestIndex].getBoundingClientRect();
+      const x = clientX - rect.left;
+      const isFirstHalf = this.isRtl() ? x > rect.width / 2 : x < rect.width / 2;
+      return closestIndex + (isFirstHalf ? 0.5 : 1);
+    }
+    return closestIndex + 1;
   }
 
   private setValue(val: number) {

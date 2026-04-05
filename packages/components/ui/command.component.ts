@@ -264,7 +264,7 @@ export class CommandListComponent {
   ariaLabel = input<string | undefined>(undefined);
 
   classes = computed(() => cn(
-    'max-h-[300px] overflow-y-auto overflow-x-hidden',
+    'max-h-[200px] sm:max-h-[300px] overflow-y-auto overflow-x-hidden',
     this.class()
   ));
 }

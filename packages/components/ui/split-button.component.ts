@@ -167,8 +167,13 @@ export class SplitButtonComponent {
         'rounded-l-none px-2'
     ));
 
+    private readonly menuPosition = signal<'below' | 'above'>('below');
+
     menuClasses = computed(() => cn(
-        'absolute top-full right-0 mt-1 min-w-[8rem] z-50',
+        'absolute z-50 min-w-[8rem] max-w-[calc(100vw-2rem)]',
+        this.menuPosition() === 'below'
+            ? 'top-full right-0 mt-1'
+            : 'bottom-full right-0 mb-1',
         'rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
         'animate-in fade-in-0 zoom-in-95'
     ));
@@ -188,7 +193,13 @@ export class SplitButtonComponent {
 
     toggleMenu(event: MouseEvent) {
         event.stopPropagation();
-        this.isOpen.update(v => !v);
+        const opening = !this.isOpen();
+        if (opening) {
+            const rect = this.el.nativeElement.getBoundingClientRect();
+            const spaceBelow = globalThis.innerHeight - rect.bottom;
+            this.menuPosition.set(spaceBelow < 150 ? 'above' : 'below');
+        }
+        this.isOpen.set(opening);
     }
 
     onItemClick(item: SplitButtonItem, event: MouseEvent) {

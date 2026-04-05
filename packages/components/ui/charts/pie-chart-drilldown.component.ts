@@ -50,10 +50,12 @@ import {
 
       <div [class]="chartContainerClasses()">
         <svg
-          [attr.width]="size()"
-          [attr.height]="size()"
           [attr.viewBox]="viewBox()"
-          class="overflow-visible"
+          [attr.width]="'100%'"
+          [attr.height]="'auto'"
+          [style.max-width.px]="size()"
+          [style.aspect-ratio]="'1 / 1'"
+          class="overflow-visible shrink-0"
           role="img"
           [attr.aria-label]="chartAriaLabel()"
         >
@@ -239,25 +241,31 @@ export class PieChartDrilldownComponent {
     getChartSummary('Pie chart with drilldown', this.currentData().length, this.currentSeriesName())
   );
 
-  containerClasses = computed(() => cn('relative', this.class()));
+  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
 
   chartContainerClasses = computed(() => {
     const pos = this.legendPosition();
-    const flexDir = pos === 'left' || pos === 'right' ? 'flex-row' : 'flex-col';
+    const isHorizontalLegend = pos === 'left' || pos === 'right';
+    const flexDir = isHorizontalLegend ? 'flex-col sm:flex-row' : 'flex-col';
     let reverse = '';
     if (pos === 'left') {
-      reverse = 'flex-row-reverse';
+      reverse = 'sm:flex-row-reverse';
     } else if (pos === 'top') {
       reverse = 'flex-col-reverse';
     }
 
-    return cn('relative flex gap-4 items-center', flexDir, reverse);
+    return cn('relative inline-flex gap-4 items-center max-w-full', flexDir, reverse);
   });
 
   legendClasses = computed(() => {
     const pos = this.legendPosition();
     const isVertical = pos === 'left' || pos === 'right';
-    return cn('flex gap-2', isVertical ? 'flex-col' : 'flex-row flex-wrap justify-center');
+    return cn(
+      'flex gap-2',
+      isVertical
+        ? 'flex-row flex-wrap justify-center sm:flex-col sm:flex-nowrap sm:justify-start'
+        : 'flex-row flex-wrap justify-center'
+    );
   });
 
   hasDrilldown(slice: PieSlice): boolean {

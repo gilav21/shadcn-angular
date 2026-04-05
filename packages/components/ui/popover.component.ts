@@ -279,37 +279,72 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         const contentRect = content.getBoundingClientRect();
         const boundary = getClippingRect(content);
 
-        let adjustedSide = this.side();
-        const adjustedAlign = this.align();
-        let offsetX = 0;
-        let offsetY = 0;
-
-        if (contentRect.right > boundary.right) {
-            offsetX = -(contentRect.right - boundary.right + 8);
-        } else if (contentRect.left < boundary.left) {
-            offsetX = boundary.left - contentRect.left + 8;
-        }
-
-        if (contentRect.bottom > boundary.bottom) {
-            if (adjustedSide === 'bottom') {
-                adjustedSide = 'top';
-            } else {
-                offsetY = -(contentRect.bottom - boundary.bottom + 8);
-            }
-        } else if (contentRect.top < boundary.top) {
-            if (adjustedSide === 'top') {
-                adjustedSide = 'bottom';
-            } else {
-                offsetY = boundary.top - contentRect.top + 8;
-            }
-        }
+        const offsetX = this.computeHorizontalOffset(contentRect, boundary);
+        const { side, offsetY } = this.computeVerticalAdjustment(contentRect, boundary);
 
         this.adjustedPosition.set({
-            side: adjustedSide,
-            align: adjustedAlign,
+            side,
+            align: this.align(),
             offsetX,
             offsetY,
         });
+    }
+
+    private computeHorizontalOffset(contentRect: DOMRect, boundary: { left: number; right: number }): number {
+        if (contentRect.right > boundary.right) {
+            return -(contentRect.right - boundary.right + 8);
+        }
+        if (contentRect.left < boundary.left) {
+            return boundary.left - contentRect.left + 8;
+        }
+        return 0;
+    }
+
+    private computeVerticalAdjustment(
+        contentRect: DOMRect,
+        boundary: { top: number; bottom: number }
+    ): { side: PopoverSide; offsetY: number } {
+        const overflowBottom = contentRect.bottom - boundary.bottom;
+        const overflowTop = boundary.top - contentRect.top;
+        const currentSide = this.side();
+
+        if (overflowBottom > 0) {
+            return this.resolveVerticalOverflow(currentSide, 'bottom', 'top', overflowBottom, contentRect.height, boundary);
+        }
+        if (overflowTop > 0) {
+            return this.resolveVerticalOverflow(currentSide, 'top', 'bottom', -overflowTop, contentRect.height, boundary);
+        }
+        return { side: currentSide, offsetY: 0 };
+    }
+
+    private resolveVerticalOverflow(
+        currentSide: PopoverSide,
+        overflowSide: PopoverSide,
+        flipSide: PopoverSide,
+        overflow: number,
+        contentHeight: number,
+        boundary: { top: number; bottom: number }
+    ): { side: PopoverSide; offsetY: number } {
+        if (currentSide !== overflowSide) {
+            return { side: currentSide, offsetY: -(overflow + 8) };
+        }
+        const triggerRect = this.popover?.getTriggerRect();
+        const availableSpace = this.getAvailableSpace(flipSide, triggerRect, boundary);
+
+        if (availableSpace >= contentHeight) {
+            return { side: flipSide, offsetY: 0 };
+        }
+        return { side: currentSide, offsetY: -(overflow + 8) };
+    }
+
+    private getAvailableSpace(
+        flipSide: PopoverSide,
+        triggerRect: DOMRect | null | undefined,
+        boundary: { top: number; bottom: number }
+    ): number {
+        if (!triggerRect) return 0;
+        if (flipSide === 'top') return triggerRect.top - boundary.top;
+        return boundary.bottom - triggerRect.bottom;
     }
 
     positionStyles = computed(() => {

@@ -54,3 +54,26 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Design services around a single responsibility
 - Use the `providedIn: 'root'` option for singleton services
 - Use the `inject()` function instead of constructor injection
+
+## Responsive Design
+
+All layouts and pages MUST render correctly from **320px phone to 1920px+ desktop**. Desktop appearance must not change — responsive rules only add mobile/tablet adaptations.
+
+- **No hardcoded pixel widths without breakpoints**: ❌ `w-[300px]` → ✅ `w-full sm:w-[300px]`
+- **No hardcoded heights without scaling**: ❌ `h-[600px]` → ✅ `h-[350px] sm:h-[450px] md:h-[600px]`
+- **Responsive spacing**: ❌ `p-6` alone → ✅ `p-4 sm:p-6`
+- **Grids must be responsive**: ❌ `grid-cols-4` → ✅ `grid-cols-2 sm:grid-cols-4`
+- **Flex toolbars must wrap**: ❌ `flex justify-between` → ✅ `flex flex-wrap justify-between gap-2`
+- **Overlays must fit viewport**: Always add `max-w-[calc(100vw-2rem)]`
+- **Test at**: 320px, 375px, 640px, 768px, 1024px, 1920px
+
+## Touch Device Compatibility
+
+All interactive elements MUST work on touch-only devices (no mouse, no keyboard).
+
+- **No hover-only interactions**: If `(mouseenter)` reveals UI, add a tap/click alternative
+- **No mouse-only drag**: Every `(mousedown)` for dragging needs `(touchstart)` + `touch-action: none`
+- **No right-click-only menus**: `(contextmenu)` needs long-press alternative on touch
+- **No double-click-only actions**: `(dblclick)` needs double-tap alternative
+- **Touch targets ≥ 44×44px**: Follow WCAG 2.5.8 minimum
+- **No keyboard-shortcut-only features**: Provide visible touch alternatives for Ctrl+C, Shift+Click, etc.

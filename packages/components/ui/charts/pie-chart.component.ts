@@ -34,10 +34,12 @@ import {
       role="img"
     >
       <svg
-        [attr.width]="size()"
-        [attr.height]="size()"
         [attr.viewBox]="viewBox()"
-        class="overflow-visible"
+        [attr.width]="'100%'"
+        [attr.height]="'auto'"
+        [style.max-width.px]="size()"
+        [style.aspect-ratio]="'1 / 1'"
+        class="overflow-visible shrink-0"
       >
         <g [attr.transform]="'translate(' + center() + ',' + center() + ')'">
           @for (slice of slices(); track slice.index) {
@@ -192,12 +194,13 @@ export class PieChartComponent {
 
   containerClasses = computed(() => {
     const pos = this.legendPosition();
-    const flexDirection = pos === 'left' || pos === 'right' ? 'flex-row' : 'flex-col';
-    const rowReverse = pos === 'left' ? 'flex-row-reverse' : '';
+    const isHorizontalLegend = pos === 'left' || pos === 'right';
+    const flexDirection = isHorizontalLegend ? 'flex-col sm:flex-row' : 'flex-col';
+    const rowReverse = pos === 'left' ? 'sm:flex-row-reverse' : '';
     const colReverse = pos === 'top' ? 'flex-col-reverse' : '';
 
     return cn(
-      'relative flex gap-4 items-center',
+      'relative inline-flex gap-4 items-center max-w-full',
       flexDirection,
       rowReverse,
       colReverse,
@@ -211,7 +214,9 @@ export class PieChartComponent {
 
     return cn(
       'flex gap-2',
-      isVertical ? 'flex-col' : 'flex-row flex-wrap justify-center'
+      isVertical
+        ? 'flex-row flex-wrap justify-center sm:flex-col sm:flex-nowrap sm:justify-start'
+        : 'flex-row flex-wrap justify-center'
     );
   });
 

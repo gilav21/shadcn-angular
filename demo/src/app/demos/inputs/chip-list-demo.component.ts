@@ -10,40 +10,35 @@ import { ChipListComponent, LabelComponent } from '../../../../../packages/compo
   template: `
     <section class="space-y-4">
       <h2 id="chip-list" class="text-2xl font-semibold scroll-m-20">Chip List</h2>
-      <p class="text-muted-foreground">Input that converts text to chips.</p>
+      <p class="text-muted-foreground">Input that converts text into chips. Type and press Enter to add.</p>
 
-      <div class="grid gap-4 max-w-sm">
-        <div class="space-y-2">
-          <ui-label>Default (Outline)</ui-label>
-          <ui-chip-list />
-        </div>
+      <div class="space-y-6 max-w-full sm:max-w-md">
+        <h3 class="text-lg font-medium">Variants</h3>
+        <div class="grid gap-4 max-w-full sm:max-w-sm">
+          <div class="space-y-2">
+            <ui-label>Default (Outline)</ui-label>
+            <ui-chip-list />
+          </div>
 
-        <div class="space-y-2">
-          <ui-label>Underline</ui-label>
-          <ui-chip-list variant="underline" />
-        </div>
+          <div class="space-y-2">
+            <ui-label>Underline</ui-label>
+            <ui-chip-list variant="underline" />
+          </div>
 
-        <div class="space-y-2">
-          <ui-label>Ghost</ui-label>
-          <div class="rounded-lg border p-1">
-            <ui-chip-list variant="ghost" />
+          <div class="space-y-2">
+            <ui-label>Ghost</ui-label>
+            <div class="rounded-lg border p-1">
+              <ui-chip-list variant="ghost" />
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <ui-label>With Badge Variant (Secondary)</ui-label>
+            <ui-chip-list badgeVariant="secondary" />
           </div>
         </div>
 
-        <div class="space-y-2">
-          <ui-label>With Badge Variant (Secondary)</ui-label>
-          <ui-chip-list badgeVariant="secondary" />
-        </div>
-      </div>
-    </section>
-
-    <section class="space-y-4">
-      <h2 id="chip-list-secondary" class="text-2xl font-semibold scroll-m-20">Chip List</h2>
-      <p class="text-muted-foreground">
-        Input that converts text into chips. Type and press Enter to add.
-      </p>
-
-      <div class="space-y-6 max-w-md">
+        <h3 class="text-lg font-medium">With Data</h3>
         <div class="space-y-2">
           <ui-label>Tags</ui-label>
           <ui-chip-list [(ngModel)]="chipListTags" placeholder="Add a tag..." />

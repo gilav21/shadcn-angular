@@ -55,8 +55,11 @@ import {
       }
 
       <svg
-        [attr.width]="svgWidth()"
-        [attr.height]="svgHeight()"
+        [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
+        [attr.width]="'100%'"
+        [attr.height]="'auto'"
+        [style.max-width.px]="svgWidth()"
+        [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
         class="overflow-visible"
         role="img"
         [attr.aria-label]="chartAriaLabel()"
@@ -312,7 +315,7 @@ export class BarChartDrilldownComponent implements AfterViewInit {
     getChartSummary('Column chart with drilldown', this.currentData().length, this.currentSeriesName())
   );
 
-  containerClasses = computed(() => cn('relative inline-block', this.class()));
+  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
 
   hasDrilldown(bar: BarRect): boolean {
     const point = bar.data as DrilldownDataPoint;

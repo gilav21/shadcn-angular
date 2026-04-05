@@ -174,7 +174,7 @@ export class FileUploadComponent {
 
   dropzoneClasses = computed(() =>
     cn(
-      'relative flex min-h-[150px] cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors',
+      'relative flex min-h-[100px] sm:min-h-[150px] cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-4 sm:p-6 transition-colors',
       'hover:border-primary/50 hover:bg-accent/50',
       this.isDragging() && 'border-primary bg-accent',
       this.isDisabled() && 'cursor-not-allowed opacity-50'

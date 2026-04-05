@@ -93,6 +93,7 @@ export const registry = defineRegistry({
     name: 'color-picker',
     files: ['color-picker.component.ts'],
     dependencies: ['input', 'popover', 'tabs'],
+    libFiles: ['touch.ts'],
   },
   confetti: {
     name: 'confetti',
@@ -114,6 +115,7 @@ export const registry = defineRegistry({
   'context-menu': {
     name: 'context-menu',
     files: ['context-menu.component.ts'],
+    libFiles: ['touch.ts'],
   },
   'date-picker': {
     name: 'date-picker',
@@ -145,12 +147,12 @@ export const registry = defineRegistry({
   },
   'data-table': {
     name: 'data-table',
-    files: ['calendar-locales.ts', 'data-table/component-pool.service.ts', 'data-table/data-table-column-header.component.ts', 'data-table/data-table-date-filter.component.ts', 'data-table/data-table-multiselect-filter.component.ts', 'data-table/data-table-pagination.component.ts', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts'],
+    files: ['calendar-locales.ts', 'data-table/component-pool.service.ts', 'data-table/data-table-column-builder.ts', 'data-table/data-table-column-header.component.ts', 'data-table/data-table-date-filter.component.ts', 'data-table/data-table-multiselect-filter.component.ts', 'data-table/data-table-pagination.component.ts', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts'],
     peerFiles: [
       'context-menu-integrations.ts',
     ],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'table'],
-    libFiles: ['xlsx.ts'],
+    libFiles: ['touch.ts', 'xlsx.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
     ],
@@ -184,6 +186,7 @@ export const registry = defineRegistry({
   'dropdown-menu': {
     name: 'dropdown-menu',
     files: ['dropdown-menu.component.ts'],
+    libFiles: ['touch.ts'],
   },
   empty: {
     name: 'empty',
@@ -207,11 +210,12 @@ export const registry = defineRegistry({
     name: 'file-viewer',
     files: ['file-viewer.component.ts'],
     dependencies: ['spinner'],
-    libFiles: ['doc-enhanced-parser.ts', 'docx-parser.ts', 'file-type-detector.ts', 'image-validator.ts', 'inflate.ts', 'ole2-reader.ts', 'ppt-parser.ts', 'pptx-parser.ts', 'svg-sanitizer.ts', 'xlsx-reader.ts', 'zip-reader.ts'],
+    libFiles: ['doc-enhanced-parser.ts', 'docx-parser.ts', 'file-type-detector.ts', 'image-validator.ts', 'inflate.ts', 'ole2-reader.ts', 'pdf-parser.ts', 'pdf-pixel-perfect.ts', 'ppt-parser.ts', 'pptx-parser.ts', 'svg-sanitizer.ts', 'ttf-builder.ts', 'ttf-parser.ts', 'xlsx-reader.ts', 'zip-reader.ts'],
   },
   'hover-card': {
     name: 'hover-card',
     files: ['hover-card.component.ts'],
+    libFiles: ['touch.ts'],
   },
   input: {
     name: 'input',
@@ -236,6 +240,7 @@ export const registry = defineRegistry({
   menubar: {
     name: 'menubar',
     files: ['menubar.component.ts'],
+    libFiles: ['touch.ts'],
   },
   'native-select': {
     name: 'native-select',
@@ -244,6 +249,7 @@ export const registry = defineRegistry({
   'navigation-menu': {
     name: 'navigation-menu',
     files: ['navigation-menu.component.ts'],
+    libFiles: ['touch.ts'],
   },
   'number-ticker': {
     name: 'number-ticker',
@@ -268,6 +274,7 @@ export const registry = defineRegistry({
   rating: {
     name: 'rating',
     files: ['rating.component.ts'],
+    libFiles: ['touch.ts'],
   },
   resizable: {
     name: 'resizable',
@@ -276,6 +283,7 @@ export const registry = defineRegistry({
   'scroll-area': {
     name: 'scroll-area',
     files: ['scroll-area.component.ts'],
+    libFiles: ['touch.ts'],
   },
   select: {
     name: 'select',
@@ -345,6 +353,7 @@ export const registry = defineRegistry({
   tooltip: {
     name: 'tooltip',
     files: ['tooltip.component.ts'],
+    libFiles: ['touch.ts'],
   },
   tree: {
     name: 'tree',
@@ -371,7 +380,7 @@ export const registry = defineRegistry({
     name: 'rich-text-editor',
     files: ['rich-text-command-registry.service.ts', 'rich-text-editor.component.ts', 'rich-text-image-resizer.component.ts', 'rich-text-locales.ts', 'rich-text-markdown.service.ts', 'rich-text-mention.component.ts', 'rich-text-paste-normalizer.service.ts', 'rich-text-sanitizer.service.ts', 'rich-text-toolbar.component.ts'],
     dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
-    libFiles: ['docx-parser.ts', 'docx-to-editor-html.ts', 'image-validator.ts', 'inflate.ts', 'pdf-parser.ts', 'shortcut-binding.service.ts', 'svg-sanitizer.ts', 'zip-reader.ts'],
+    libFiles: ['docx-parser.ts', 'docx-to-editor-html.ts', 'image-validator.ts', 'inflate.ts', 'pdf-parser.ts', 'shortcut-binding.service.ts', 'svg-sanitizer.ts', 'touch.ts', 'zip-reader.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
@@ -417,6 +426,7 @@ export const registry = defineRegistry({
     name: 'bento-grid',
     dependencies: ['component-outlet', 'context-menu'],
     files: ['bento-grid.component.ts'],
+    libFiles: ['touch.ts'],
   },
   'page-builder': {
     name: 'page-builder',
@@ -500,7 +510,7 @@ export const registry = defineRegistry({
   kanban: {
     name: 'kanban',
     files: ['kanban-locales.ts', 'kanban.component.ts'],
-    libFiles: ['shortcut-binding.service.ts'],
+    libFiles: ['shortcut-binding.service.ts', 'touch.ts'],
     dependencies: ['alert-dialog', 'autocomplete', 'avatar', 'badge', 'button', 'chip-list', 'context-menu', 'dialog', 'input', 'label', 'scroll-area', 'separator', 'textarea'],
   },
   'shortcut-bindings-dialog': {

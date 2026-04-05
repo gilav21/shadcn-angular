@@ -18,7 +18,7 @@ import { cn } from '../lib/utils';
       [attr.data-slot]="'pagination'">
       @if (totalPages() > 0) {
         <!-- Simple mode: auto-generate pagination -->
-        <ul class="flex flex-row items-center gap-1" data-slot="pagination-content">
+        <ul class="flex flex-row flex-wrap items-center gap-1" data-slot="pagination-content">
           <!-- Previous button -->
           <li>
             <button 

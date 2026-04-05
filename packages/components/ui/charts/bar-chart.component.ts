@@ -35,8 +35,11 @@ import {
       [attr.aria-label]="chartAriaLabel()"
     >
       <svg
-        [attr.width]="svgWidth()"
-        [attr.height]="svgHeight()"
+        [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
+        [attr.width]="'100%'"
+        [attr.height]="'auto'"
+        [style.max-width.px]="svgWidth()"
+        [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
         class="overflow-visible"
       >
         @if (showGrid()) {
@@ -357,7 +360,7 @@ export class BarChartComponent {
     return getChartSummary(type, this.data().length, this.title());
   });
 
-  containerClasses = computed(() => cn('relative inline-block', this.class()));
+  containerClasses = computed(() => cn('relative inline-block max-w-full', this.class()));
 
   getTickPosition(tick: number): number {
     const range = this.dataRange();

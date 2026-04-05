@@ -355,6 +355,33 @@ ${generateCssVars(darkVars)}
   [role="button"]:not(:disabled) {
     cursor: pointer;
   }
+
+  /* Prevent media elements from causing horizontal overflow */
+  img, video, canvas {
+    max-width: 100%;
+    height: auto;
+  }
+
+  /* Minimum touch target size (WCAG 2.5.8) */
+  @media (pointer: coarse) {
+    button:not([data-slot]),
+    [role="button"]:not([data-slot]),
+    input,
+    select,
+    textarea {
+      min-height: 44px;
+    }
+  }
+
+  /* Show hover-dependent controls on touch devices */
+  @media (hover: none) {
+    .hover-only {
+      display: none;
+    }
+    .touch-visible {
+      opacity: 1 !important;
+    }
+  }
 }
 `;
 }

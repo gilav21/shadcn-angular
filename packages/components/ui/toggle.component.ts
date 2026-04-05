@@ -46,6 +46,7 @@ export type ToggleSize = VariantProps<typeof toggleVariants>['size'];
       [attr.data-state]="pressed() ? 'on' : 'off'"
       [attr.data-slot]="'toggle'"
       (click)="onClick()"
+      (touchend)="onTouchEnd($event)"
     >
       <ng-content />
     </button>
@@ -76,7 +77,23 @@ export class ToggleComponent {
         )
     );
 
+    private touchToggled = false;
+
+    onTouchEnd(event: TouchEvent) {
+        if (!this.disabled()) {
+            event.preventDefault();
+            this.touchToggled = true;
+            const newState = !this.pressed();
+            this.pressed.set(newState);
+            this.pressedChange.emit(newState);
+        }
+    }
+
     onClick() {
+        if (this.touchToggled) {
+            this.touchToggled = false;
+            return;
+        }
         if (!this.disabled()) {
             const newState = !this.pressed();
             this.pressed.set(newState);

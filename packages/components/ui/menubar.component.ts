@@ -12,6 +12,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { cn, isRtl } from '../lib/utils';
+import { isTouchDevice } from '../lib/touch';
 
 @Injectable()
 export class MenubarService {
@@ -165,6 +166,7 @@ export class MenubarTriggerComponent {
   }
 
   onMouseEnter() {
+    if (isTouchDevice()) return;
     if (this.service.activeMenuId()) {
       this.menu.open();
     }
@@ -248,7 +250,7 @@ export class MenubarContentComponent {
   readonly el = inject(ElementRef);
 
   classes = computed(() => cn(
-    'absolute top-full z-50 mt-1 min-w-[12rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+    'absolute top-full z-50 mt-1 min-w-[12rem] max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
     'animate-in fade-in-0 zoom-in-95',
     'ltr:left-0 rtl:right-0',
     this.class()
@@ -384,7 +386,7 @@ export class MenubarShortcutComponent { }
 })
 export class MenubarSubComponent {
   isOpen = signal(false);
-  private timeoutId: any;
+  private timeoutId: ReturnType<typeof setTimeout> | undefined;
 
   private trigger: MenubarSubTriggerComponent | null = null;
   private content: MenubarSubContentComponent | null = null;
@@ -427,8 +429,8 @@ export class MenubarSubComponent {
       [attr.aria-haspopup]="true"
       [attr.aria-expanded]="sub.isOpen()"
       tabindex="0"
-      (mouseenter)="sub.enter()"
-      (mouseleave)="sub.leave()"
+      (mouseenter)="onMouseEnter()"
+      (mouseleave)="onMouseLeave()"
       (keydown)="onKeydown($event)"
       (click)="onClick()"
     >
@@ -463,7 +465,24 @@ export class MenubarSubTriggerComponent {
     this.class()
   ));
 
-  onClick() { }
+  onMouseEnter() {
+    if (isTouchDevice()) return;
+    this.sub.enter();
+  }
+
+  onMouseLeave() {
+    if (isTouchDevice()) return;
+    this.sub.leave();
+  }
+
+  onClick() {
+    if (!isTouchDevice()) return;
+    if (this.sub.isOpen()) {
+      this.sub.leave();
+    } else {
+      this.sub.enter();
+    }
+  }
 
   focus() {
     this.triggerEl?.nativeElement.focus();
@@ -503,8 +522,8 @@ export class MenubarSubTriggerComponent {
       <div 
         [class]="classes()" 
         role="menu"
-        (mouseenter)="sub.enter()"
-        (mouseleave)="sub.leave()"
+        (mouseenter)="onMouseEnter()"
+        (mouseleave)="onMouseLeave()"
         (keydown)="onKeydown($event)"
       >
         <ng-content />
@@ -523,10 +542,21 @@ export class MenubarSubContentComponent {
     this.sub.registerContent(this);
   }
 
+  onMouseEnter() {
+    if (isTouchDevice()) return;
+    this.sub.enter();
+  }
+
+  onMouseLeave() {
+    if (isTouchDevice()) return;
+    this.sub.leave();
+  }
+
   classes = computed(() => cn(
-    'absolute top-0 z-50 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
-    'ltr:left-full ltr:ml-0.5 ltr:animate-in ltr:slide-in-from-left-1 ltr:fade-in-0 ltr:zoom-in-95',
-    'rtl:right-full rtl:mr-0.5 rtl:animate-in rtl:slide-in-from-right-1 rtl:fade-in-0 rtl:zoom-in-95',
+    'absolute top-0 z-50 min-w-[8rem] max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+    'max-sm:left-0 max-sm:top-full max-sm:mt-0.5',
+    'sm:ltr:left-full sm:ltr:ml-0.5 ltr:animate-in ltr:slide-in-from-left-1 ltr:fade-in-0 ltr:zoom-in-95',
+    'sm:rtl:right-full sm:rtl:mr-0.5 rtl:animate-in rtl:slide-in-from-right-1 rtl:fade-in-0 rtl:zoom-in-95',
     this.class()
   ));
 

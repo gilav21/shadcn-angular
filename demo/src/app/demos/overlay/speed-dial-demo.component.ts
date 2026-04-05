@@ -28,7 +28,7 @@ import {
       <h2 id="speed-dial" class="text-2xl font-semibold scroll-m-20">Speed Dial</h2>
       <p class="text-muted-foreground">Floating action button with a popup menu of action items.</p>
 
-      <div class="relative h-64 border rounded-lg p-4">
+      <div class="relative h-64 border rounded-lg p-4 overflow-auto">
         <!-- Linear Up -->
         <ui-speed-dial type="linear" direction="up" class="absolute top-25 left-1/8">
           <ui-speed-dial-trigger>

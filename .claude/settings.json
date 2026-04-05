@@ -12,6 +12,17 @@
         ]
       }
     ],
-    "PreToolUse": []
+    "PreToolUse": [],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '[SonarQube] If you edited .ts files: ensure cognitive complexity <= 15, use modern APIs, no nested ternaries, max 7 params. Run /sonar before committing.'",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
   }
 }

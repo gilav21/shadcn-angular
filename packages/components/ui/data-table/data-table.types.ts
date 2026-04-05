@@ -23,11 +23,11 @@ export interface ColumnDef<T> {
     accessorFn?: (row: T) => unknown;
     header: string;
     cell?: (row: T) => string;
-    template?: TemplateRef<any>;
-    headerTemplate?: TemplateRef<any>;
-    component?: Type<any>;
-    componentInputs?: (row: T) => Record<string, any>;
-    componentOutputs?: (row: T) => Record<string, (event: any) => void>;
+    template?: TemplateRef<unknown>;
+    headerTemplate?: TemplateRef<unknown>;
+    component?: Type<unknown>;
+    componentInputs?: (row: T) => Record<string, unknown>;
+    componentOutputs?: (row: T) => Record<string, (event: unknown) => void>;
     enableSorting?: boolean;
     sortFn?: (a: T, b: T) => number;
     enableFiltering?: boolean;
@@ -44,6 +44,54 @@ export interface ColumnDef<T> {
     enableReordering?: boolean;
     treeExpander?: boolean;
     _isTreeExpanderHost?: boolean;
+    editable?: boolean;
+    editComponent?: Type<unknown>;
+    editTemplate?: TemplateRef<unknown>;
+    editType?: 'text' | 'number' | 'select' | 'checkbox';
+    editOptions?: Array<{ label: string; value: unknown }>;
+    valueSetter?: (row: T, newValue: unknown) => T;
+    editValidator?: (value: unknown, row: T) => boolean | string;
+    footer?: string | ((rows: T[]) => string);
+    footerTemplate?: TemplateRef<unknown>;
+    footerComponent?: Type<unknown>;
+    aggregateFn?: AggregateFn;
+    floatingFilter?: boolean;
+    floatingFilterComponent?: Type<unknown>;
+    floatingFilterTemplate?: TemplateRef<unknown>;
+    enableCellFlash?: boolean;
+}
+
+export type AggregateFn = 'sum' | 'avg' | 'count' | 'min' | 'max' | ((values: unknown[]) => string);
+
+export interface EnhancedColumnDef<T> extends ColumnDef<T> {
+    _stickyLeft?: number;
+    _stickyRight?: number;
+    _pin?: string;
+    _width: string;
+    _minWidth: string;
+}
+
+export interface CellStyleColumn {
+    accessorKey?: string | number | symbol;
+    sticky?: boolean;
+    _stickyLeft?: number;
+    _stickyRight?: number;
+    _pin?: string;
+    _width: string;
+    _minWidth?: string;
+}
+
+export interface CellEditEvent<T> {
+    row: T;
+    column: ColumnDef<T>;
+    oldValue: unknown;
+    newValue: unknown;
+    rowIndex: number;
+}
+
+export interface EditingCell {
+    rowIndex: number;
+    columnKey: string;
 }
 
 export interface DataTableRowEvent<T> {
@@ -115,6 +163,28 @@ export interface RowActionContext<T> {
     isLeaf?: boolean;
     parentRow?: T | null;
     isExpanded?: boolean;
+}
+
+export type CellFlashDirection = 'up' | 'down' | 'changed';
+
+export interface CellRange {
+    startRow: number;
+    startCol: string;
+    endRow: number;
+    endCol: string;
+}
+
+export type RowDragPosition = 'above' | 'below' | 'on';
+
+export interface RowReorderEvent<T> {
+    row: T;
+    targetRow: T;
+    position: RowDragPosition;
+    previousId: string | null;
+    nextId: string | null;
+    parentId?: string | null;
+    fromIndex: number;
+    toIndex: number;
 }
 
 export interface VirtualRenderRange {

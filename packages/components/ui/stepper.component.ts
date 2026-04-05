@@ -100,14 +100,14 @@ export class StepperComponent {
   classes = computed(() =>
     cn(
       'flex',
-      this.orientation() === 'horizontal' ? 'flex-row items-start' : 'flex-col',
+      this.orientation() === 'horizontal' ? 'flex-row items-start overflow-x-auto' : 'flex-col',
       this.class()
     )
   );
 
   stepItemClasses = computed(() =>
     cn(
-      'flex',
+      'flex shrink-0',
       this.orientation() === 'vertical' ? 'flex-row gap-4' : 'flex-col items-center gap-2'
     )
   );

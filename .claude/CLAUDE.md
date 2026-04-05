@@ -339,6 +339,124 @@ Before submitting a component, verify:
 - [ ] No cognitive complexity > 15 in any function
 - [ ] All class members that aren't reassigned are `readonly`
 - [ ] Uses modern APIs (`Number.isNaN`, `structuredClone`, `.dataset`, etc.)
+- [ ] Responsive: works from 320px phone to ultrawide (see Section 5)
+- [ ] Touch: all interactions work on touch-only devices (see Section 6)
+
+---
+
+## 5. Responsive Design (Zero Tolerance)
+
+Every component MUST render correctly across all viewport widths: **320px → 375px → 640px → 768px → 1024px → 1920px+**. Desktop appearance must not change — responsive rules only add mobile/tablet adaptations.
+
+### Rules
+
+#### No Hardcoded Pixel Widths Without Responsive Breakpoints
+- **Never** use `w-[Npx]`, `min-w-[Npx]`, or `max-w-[Npx]` alone — always pair with responsive variants
+- ❌ `w-[300px]` — breaks on 320px phones
+- ✅ `w-full sm:w-[300px]` — full width on mobile, fixed on desktop
+- ❌ `max-w-[420px]` — clips on small phones
+- ✅ `max-w-[calc(100vw-2rem)] sm:max-w-[420px]` — viewport-aware
+
+#### No Hardcoded Heights Without Responsive Scaling
+- ❌ `h-[600px]` — too tall for mobile
+- ✅ `h-[350px] sm:h-[450px] md:h-[600px]`
+- ❌ `min-h-[150px]` — wastes mobile space
+- ✅ `min-h-[100px] sm:min-h-[150px]`
+
+#### Responsive Spacing
+- ❌ `p-6` or `gap-6` alone on containers
+- ✅ `p-4 sm:p-6` and `gap-4 sm:gap-6`
+- Apply to: Card, Dialog, Sheet, Drawer, Empty, and any container with `p-6`+ or `gap-6`+
+
+#### Flex Layouts Must Wrap
+- ❌ `flex items-center justify-between` on toolbars/controls — overflows on mobile
+- ✅ `flex flex-wrap items-center justify-between gap-2`
+
+#### Overflow Protection for Popups/Overlays
+- **Every** absolutely/fixed positioned element (popover, dropdown, menu, toast, nav content) MUST have `max-w-[calc(100vw-2rem)]` to prevent viewport overflow
+
+#### Text Truncation
+- Long text in constrained containers MUST use `truncate`, `line-clamp-N`, or `overflow-hidden`
+- Chip/badge text: use responsive max-width `max-w-[120px] sm:max-w-[200px] truncate`
+
+### Testing Viewports
+Verify every component at: **320px**, **375px**, **640px**, **768px**, **1024px**, **1920px**
+
+---
+
+## 6. Touch Device Compatibility (Zero Tolerance)
+
+Every interactive component MUST work on touch-only devices (phones, tablets) with no mouse or keyboard. Use the shared `touch.ts` utility (`isTouchDevice()`, `onLongPress()`, `onDoubleTap()`) from `lib/touch.ts`.
+
+### Rules
+
+#### No Hover-Only Interactions
+- If `(mouseenter)`/`(mouseleave)` reveals essential UI (buttons, menus, content), add a touch alternative
+- ✅ Hover Card / Tooltip: tap to open, tap elsewhere to dismiss
+- ✅ Navigation Menu / Menubar: tap to toggle submenus
+- ✅ Dropdown submenu: tap to expand (not hover-only)
+- CSS `opacity-0 group-hover:opacity-100` for essential controls → add `@media (hover: none) { opacity: 1 }` or always-visible on touch
+
+#### No Mouse-Only Drag and Drop
+- HTML5 drag events (`dragstart`, `dragover`, `drop`, `dragend`) do NOT work on mobile Safari/Chrome
+- Every `(mousedown)` for dragging MUST have a matching `(touchstart)` with `touch-action: none`
+- Every `(window:mousemove)/(window:mouseup)` MUST have `(window:touchmove)/(window:touchend)`
+- Reference: `resizable.component.ts` and `slider.component.ts` already implement both correctly — follow their pattern
+
+#### No Right-Click-Only Context Menus
+- `(contextmenu)` requires right-click — unavailable on touch
+- Add long-press (500ms touch hold) as alternative using `onLongPress()` from `lib/touch.ts`
+
+#### No Double-Click-Only Actions
+- `(dblclick)` doesn't work reliably on touch
+- Add double-tap detection using `onDoubleTap()` from `lib/touch.ts`
+- Data table inline editing is the primary case
+
+#### Touch Target Sizing
+- All interactive elements MUST be at least **44×44px** on touch devices (WCAG 2.5.8, Apple/Google HIG)
+- The global `@media (pointer: coarse)` rule in `tailwind.css` enforces this as a baseline
+
+#### No Keyboard-Shortcut-Only Features
+- If a feature is only accessible via keyboard shortcut (Ctrl+C, Shift+Click range select, etc.), provide a touch alternative
+- Add visible buttons/actions for touch users where keyboard shortcuts exist
+
+### Anti-Patterns
+
+```typescript
+// ❌ Hover-only menu reveal
+(mouseenter)="showMenu()" (mouseleave)="hideMenu()"
+
+// ✅ Works on both mouse and touch
+(mouseenter)="showMenu()" (mouseleave)="hideMenu()" (click)="toggleMenu()"
+
+// ❌ Mouse-only drag
+(mousedown)="startDrag($event)"
+
+// ✅ Mouse + touch drag
+(mousedown)="startDrag($event)" (touchstart)="startDrag($event)"
+
+// ❌ Right-click only context menu
+(contextmenu)="openMenu($event)"
+
+// ✅ Right-click + long-press
+// In ngAfterViewInit: onLongPress(this.el.nativeElement, (e) => this.openMenu(e))
+```
+
+---
+
+## Working Strategy — Zero Assumptions
+
+> **"Assuming is a bad working strategy."**
+
+**Never assume** something is working or broken — always verify with concrete evidence before making any claim.
+
+- **Before claiming a root cause**: add debug logs, compare actual values, show concrete data
+- **Before saying "X is broken"**: screenshot it, compare with the reference implementation
+- **Before saying "X works correctly"**: test with real data, not just unit tests
+- **When comparing with a reference implementation**: also check the original source when applicable (e.g., for PDF rendering: compare with both the C++ output AND the actual PDF — sometimes the reference is wrong and we're right)
+- **Before saying "X is fixed"**: verify the VISUAL rendering, not just the source code. For HTML: check what the browser SHOWS, not what the DOM contains (CSS transforms, bidi, font rendering can all change the visual). Take screenshots and compare with the reference.
+- **If uncertain**: say "needs investigation" and outline diagnostic steps — do NOT guess or repeat the same unverified theory
+- **Never repeat the same unverified claim** across multiple responses
 
 ---
 
@@ -363,6 +481,8 @@ When generating or modifying components:
     - Merge duplicate imports, extract repeated union types into aliases
     - Use `for-of` over index-based `for` when index is only used for access
     - Use `RegExp.exec()` over `String.match()` for single matches
+11. **Responsive design** — follow ALL rules in Section 5. Every hardcoded pixel width/height MUST have responsive breakpoints. Every flex toolbar MUST wrap. Every overlay MUST have `max-w-[calc(100vw-2rem)]`. Test mentally at 320px, 375px, 768px, 1920px.
+12. **Touch compatibility** — follow ALL rules in Section 6. Every `(mouseenter)` needs a touch alternative. Every `(mousedown)` for drag needs `(touchstart)`. Every `(contextmenu)` needs long-press. Every `(dblclick)` needs double-tap. Use `lib/touch.ts` utilities.
 
 ### Template for New Compound Components
 

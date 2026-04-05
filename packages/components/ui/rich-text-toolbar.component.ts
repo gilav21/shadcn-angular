@@ -356,7 +356,7 @@ export type FontFamilyStrategy = 'append' | 'replace';
                     <button
                       type="button"
                       data-swatch
-                      class="w-5 h-5 rounded border border-border hover:scale-110 transition-transform"
+                      class="aspect-square w-5 rounded border border-border hover:scale-110 transition-transform"
                       [style.background-color]="color"
                       [title]="color"
                       [disabled]="interactionDisabled()"
@@ -441,7 +441,7 @@ export type FontFamilyStrategy = 'append' | 'replace';
                     <button
                       type="button"
                       data-swatch
-                      class="w-5 h-5 rounded border border-border hover:scale-110 transition-transform"
+                      class="aspect-square w-5 rounded border border-border hover:scale-110 transition-transform"
                       [style.background-color]="color"
                       [title]="color"
                       [disabled]="interactionDisabled()"
@@ -467,7 +467,7 @@ export type FontFamilyStrategy = 'append' | 'replace';
                       <button
                         type="button"
                         data-grid-cell
-                        class="w-5 h-5 border rounded-sm transition-colors"
+                        class="aspect-square w-5 border rounded-sm transition-colors"
                         [class.bg-primary]="row <= tableGridHoverRows() && col <= tableGridHoverCols()"
                         [class.border-primary]="row <= tableGridHoverRows() && col <= tableGridHoverCols()"
                         [class.border-border]="row > tableGridHoverRows() || col > tableGridHoverCols()"

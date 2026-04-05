@@ -26,7 +26,7 @@ import {
       <h2 id="carousel" class="text-2xl font-semibold scroll-m-20">Carousel</h2>
       <p class="text-muted-foreground">A carousel with motion and swipe controls.</p>
 
-      <div class="mx-auto max-w-xs">
+      <div class="mx-auto max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
         <ui-carousel class="w-full">
           <ui-carousel-content>
             @for (item of [1, 2, 3, 4, 5]; track item) {
@@ -48,7 +48,7 @@ import {
 
       <div class="pt-4">
         <h3 class="text-lg font-medium mb-2">Vertical Carousel</h3>
-        <div class="mx-auto max-w-xs">
+        <div class="mx-auto max-w-xs sm:max-w-sm md:max-w-md lg:max-w-lg">
           <ui-carousel orientation="vertical" class="w-full">
             <ui-carousel-content class="h-[200px]">
               @for (item of [1, 2, 3, 4, 5]; track item) {

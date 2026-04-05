@@ -17,13 +17,46 @@ function decodeASCIIHex(data: Uint8Array): Uint8Array {
     return result;
 }
 
+function ascii85IsEndMarker(text: string, i: number): boolean {
+    return text[i] === '~' && i + 1 < text.length && text[i + 1] === '>';
+}
+
+function ascii85CollectGroup(text: string, startIndex: number): { group: number[]; nextIndex: number } {
+    const group: number[] = [];
+    let i = startIndex;
+    while (group.length < 5 && i < text.length) {
+        if (text[i] === '~') break;
+        if (!' \t\r\n\0\f'.includes(text[i])) {
+            group.push(text.codePointAt(i)! - 33);
+        }
+        i++;
+    }
+    return { group, nextIndex: i };
+}
+
+function ascii85DecodeGroup(group: number[]): number[] {
+    while (group.length < 5) group.push(84);
+
+    let value = 0;
+    for (const g of group) value = value * 85 + g;
+
+    const bytes = [
+        (value >>> 24) & 0xFF,
+        (value >>> 16) & 0xFF,
+        (value >>> 8) & 0xFF,
+        value & 0xFF,
+    ];
+    const numBytes = group.length === 5 ? 4 : group.length - 1;
+    return bytes.slice(0, numBytes);
+}
+
 function decodeASCII85(data: Uint8Array): Uint8Array {
     const text = new TextDecoder('latin1').decode(data);
     const output: number[] = [];
     let i = 0;
 
     while (i < text.length) {
-        if (text[i] === '~' && i + 1 < text.length && text[i + 1] === '>') break;
+        if (ascii85IsEndMarker(text, i)) break;
         if (' \t\r\n\0\f'.includes(text[i])) { i++; continue; }
 
         if (text[i] === 'z') {
@@ -32,29 +65,11 @@ function decodeASCII85(data: Uint8Array): Uint8Array {
             continue;
         }
 
-        const group: number[] = [];
-        while (group.length < 5 && i < text.length) {
-            if (text[i] === '~') break;
-            if (!' \t\r\n\0\f'.includes(text[i])) {
-                group.push(text.codePointAt(i)! - 33);
-            }
-            i++;
-        }
+        const { group, nextIndex } = ascii85CollectGroup(text, i);
+        i = nextIndex;
 
         if (group.length < 2) break;
-        while (group.length < 5) group.push(84);
-
-        let value = 0;
-        for (const g of group) value = value * 85 + g;
-
-        const bytes = [
-            (value >>> 24) & 0xFF,
-            (value >>> 16) & 0xFF,
-            (value >>> 8) & 0xFF,
-            value & 0xFF,
-        ];
-        const numBytes = group.length === 5 ? 4 : group.length - 1;
-        for (let b = 0; b < numBytes; b++) output.push(bytes[b]);
+        for (const byte of ascii85DecodeGroup(group)) output.push(byte);
     }
 
     return new Uint8Array(output);
@@ -137,6 +152,22 @@ function decodeLZW(data: Uint8Array, earlyChange: number): Uint8Array {
     return new Uint8Array(output);
 }
 
+function rleCopyLiteral(data: Uint8Array, output: number[], start: number, count: number): number {
+    let i = start;
+    for (let j = 0; j <= count && i < data.length; j++) {
+        output.push(data[i++]);
+    }
+    return i;
+}
+
+function rleRepeatByte(data: Uint8Array, output: number[], pos: number, len: number): number {
+    if (pos >= data.length) return pos;
+    const byte = data[pos];
+    const repeatCount = 257 - len;
+    for (let j = 0; j < repeatCount; j++) output.push(byte);
+    return pos + 1;
+}
+
 function decodeRunLength(data: Uint8Array): Uint8Array {
     const output: number[] = [];
     let i = 0;
@@ -145,19 +176,362 @@ function decodeRunLength(data: Uint8Array): Uint8Array {
         i++;
         if (len === 128) break;
         if (len < 128) {
-            for (let j = 0; j <= len && i < data.length; j++) {
-                output.push(data[i++]);
-            }
+            i = rleCopyLiteral(data, output, i, len);
         } else {
-            const repeatCount = 257 - len;
-            if (i < data.length) {
-                const byte = data[i++];
-                for (let j = 0; j < repeatCount; j++) output.push(byte);
-            }
+            i = rleRepeatByte(data, output, i, len);
         }
     }
     return new Uint8Array(output);
 }
+
+// ── CCITT Fax decoder (Group 3 1D / Group 4 2D) ────────────────────────
+
+interface CCITTCode { readonly runLen: number; readonly bits: number; readonly code: number }
+
+const WHITE_TERM_CODES: CCITTCode[] = [
+    {runLen:0,bits:8,code:0x35},{runLen:1,bits:6,code:0x07},{runLen:2,bits:4,code:0x07},{runLen:3,bits:4,code:0x08},
+    {runLen:4,bits:4,code:0x0B},{runLen:5,bits:4,code:0x0C},{runLen:6,bits:4,code:0x0E},{runLen:7,bits:4,code:0x0F},
+    {runLen:8,bits:5,code:0x13},{runLen:9,bits:5,code:0x14},{runLen:10,bits:5,code:0x07},{runLen:11,bits:5,code:0x08},
+    {runLen:12,bits:6,code:0x08},{runLen:13,bits:6,code:0x03},{runLen:14,bits:6,code:0x34},{runLen:15,bits:6,code:0x35},
+    {runLen:16,bits:6,code:0x2A},{runLen:17,bits:6,code:0x2B},{runLen:18,bits:7,code:0x27},{runLen:19,bits:7,code:0x0C},
+    {runLen:20,bits:7,code:0x08},{runLen:21,bits:7,code:0x17},{runLen:22,bits:7,code:0x03},{runLen:23,bits:7,code:0x04},
+    {runLen:24,bits:7,code:0x28},{runLen:25,bits:7,code:0x2B},{runLen:26,bits:7,code:0x13},{runLen:27,bits:7,code:0x24},
+    {runLen:28,bits:7,code:0x18},{runLen:29,bits:8,code:0x02},{runLen:30,bits:8,code:0x03},{runLen:31,bits:8,code:0x1A},
+    {runLen:32,bits:8,code:0x1B},{runLen:33,bits:8,code:0x12},{runLen:34,bits:8,code:0x13},{runLen:35,bits:8,code:0x14},
+    {runLen:36,bits:8,code:0x15},{runLen:37,bits:8,code:0x16},{runLen:38,bits:8,code:0x17},{runLen:39,bits:8,code:0x28},
+    {runLen:40,bits:8,code:0x29},{runLen:41,bits:8,code:0x2A},{runLen:42,bits:8,code:0x2B},{runLen:43,bits:8,code:0x2C},
+    {runLen:44,bits:8,code:0x2D},{runLen:45,bits:8,code:0x04},{runLen:46,bits:8,code:0x05},{runLen:47,bits:8,code:0x0A},
+    {runLen:48,bits:8,code:0x0B},{runLen:49,bits:8,code:0x52},{runLen:50,bits:8,code:0x53},{runLen:51,bits:8,code:0x54},
+    {runLen:52,bits:8,code:0x55},{runLen:53,bits:8,code:0x24},{runLen:54,bits:8,code:0x25},{runLen:55,bits:8,code:0x58},
+    {runLen:56,bits:8,code:0x59},{runLen:57,bits:8,code:0x5A},{runLen:58,bits:8,code:0x5B},{runLen:59,bits:8,code:0x4A},
+    {runLen:60,bits:8,code:0x4B},{runLen:61,bits:8,code:0x32},{runLen:62,bits:8,code:0x33},{runLen:63,bits:8,code:0x34},
+];
+
+const WHITE_MAKEUP_CODES: CCITTCode[] = [
+    {runLen:64,bits:5,code:0x1B},{runLen:128,bits:5,code:0x12},{runLen:192,bits:6,code:0x17},{runLen:256,bits:7,code:0x37},
+    {runLen:320,bits:8,code:0x36},{runLen:384,bits:8,code:0x37},{runLen:448,bits:8,code:0x64},{runLen:512,bits:8,code:0x65},
+    {runLen:576,bits:8,code:0x68},{runLen:640,bits:8,code:0x67},{runLen:704,bits:9,code:0xCC},{runLen:768,bits:9,code:0xCD},
+    {runLen:832,bits:9,code:0xD2},{runLen:896,bits:9,code:0xD3},{runLen:960,bits:9,code:0xD4},{runLen:1024,bits:9,code:0xD5},
+    {runLen:1088,bits:9,code:0xD6},{runLen:1152,bits:9,code:0xD7},{runLen:1216,bits:9,code:0xD8},{runLen:1280,bits:9,code:0xD9},
+    {runLen:1344,bits:9,code:0xDA},{runLen:1408,bits:9,code:0xDB},{runLen:1472,bits:9,code:0x98},{runLen:1536,bits:9,code:0x99},
+    {runLen:1600,bits:9,code:0x9A},{runLen:1664,bits:6,code:0x18},{runLen:1728,bits:9,code:0x9B},
+];
+
+const BLACK_TERM_CODES: CCITTCode[] = [
+    {runLen:0,bits:10,code:0x37},{runLen:1,bits:3,code:0x02},{runLen:2,bits:2,code:0x03},{runLen:3,bits:2,code:0x02},
+    {runLen:4,bits:3,code:0x03},{runLen:5,bits:4,code:0x03},{runLen:6,bits:4,code:0x02},{runLen:7,bits:5,code:0x03},
+    {runLen:8,bits:6,code:0x05},{runLen:9,bits:6,code:0x04},{runLen:10,bits:7,code:0x04},{runLen:11,bits:7,code:0x05},
+    {runLen:12,bits:7,code:0x07},{runLen:13,bits:8,code:0x04},{runLen:14,bits:8,code:0x07},{runLen:15,bits:9,code:0x18},
+    {runLen:16,bits:10,code:0x17},{runLen:17,bits:10,code:0x18},{runLen:18,bits:10,code:0x08},{runLen:19,bits:11,code:0x67},
+    {runLen:20,bits:11,code:0x68},{runLen:21,bits:11,code:0x6C},{runLen:22,bits:11,code:0x37},{runLen:23,bits:11,code:0x28},
+    {runLen:24,bits:11,code:0x17},{runLen:25,bits:11,code:0x18},{runLen:26,bits:12,code:0xCA},{runLen:27,bits:12,code:0xCB},
+    {runLen:28,bits:12,code:0xCC},{runLen:29,bits:12,code:0xCD},{runLen:30,bits:12,code:0x68},{runLen:31,bits:12,code:0x69},
+    {runLen:32,bits:12,code:0x6A},{runLen:33,bits:12,code:0x6B},{runLen:34,bits:12,code:0xD2},{runLen:35,bits:12,code:0xD3},
+    {runLen:36,bits:12,code:0xD4},{runLen:37,bits:12,code:0xD5},{runLen:38,bits:12,code:0xD6},{runLen:39,bits:12,code:0xD7},
+    {runLen:40,bits:12,code:0x6C},{runLen:41,bits:12,code:0x6D},{runLen:42,bits:12,code:0xDA},{runLen:43,bits:12,code:0xDB},
+    {runLen:44,bits:12,code:0x54},{runLen:45,bits:12,code:0x55},{runLen:46,bits:12,code:0x56},{runLen:47,bits:12,code:0x57},
+    {runLen:48,bits:12,code:0x64},{runLen:49,bits:12,code:0x65},{runLen:50,bits:12,code:0x52},{runLen:51,bits:12,code:0x53},
+    {runLen:52,bits:12,code:0x24},{runLen:53,bits:12,code:0x37},{runLen:54,bits:12,code:0x38},{runLen:55,bits:12,code:0x27},
+    {runLen:56,bits:12,code:0x28},{runLen:57,bits:12,code:0x58},{runLen:58,bits:12,code:0x59},{runLen:59,bits:12,code:0x2B},
+    {runLen:60,bits:12,code:0x2C},{runLen:61,bits:12,code:0x5A},{runLen:62,bits:12,code:0x66},{runLen:63,bits:12,code:0x67},
+];
+
+const BLACK_MAKEUP_CODES: CCITTCode[] = [
+    {runLen:64,bits:10,code:0x0F},{runLen:128,bits:12,code:0xC8},{runLen:192,bits:12,code:0xC9},{runLen:256,bits:12,code:0x5B},
+    {runLen:320,bits:12,code:0x33},{runLen:384,bits:12,code:0x34},{runLen:448,bits:12,code:0x35},{runLen:512,bits:13,code:0x6C},
+    {runLen:576,bits:13,code:0x6D},{runLen:640,bits:13,code:0x4A},{runLen:704,bits:13,code:0x4B},{runLen:768,bits:13,code:0x4C},
+    {runLen:832,bits:13,code:0x4D},{runLen:896,bits:13,code:0x72},{runLen:960,bits:13,code:0x73},{runLen:1024,bits:13,code:0x74},
+    {runLen:1088,bits:13,code:0x75},{runLen:1152,bits:13,code:0x76},{runLen:1216,bits:13,code:0x77},{runLen:1280,bits:13,code:0x52},
+    {runLen:1344,bits:13,code:0x53},{runLen:1408,bits:13,code:0x54},{runLen:1472,bits:13,code:0x55},{runLen:1536,bits:13,code:0x5A},
+    {runLen:1600,bits:13,code:0x5B},{runLen:1664,bits:13,code:0x64},{runLen:1728,bits:13,code:0x65},
+];
+
+const COMMON_MAKEUP_CODES: CCITTCode[] = [
+    {runLen:1792,bits:11,code:0x08},{runLen:1856,bits:11,code:0x0C},{runLen:1920,bits:11,code:0x0D},
+    {runLen:1984,bits:12,code:0x12},{runLen:2048,bits:12,code:0x13},{runLen:2112,bits:12,code:0x14},
+    {runLen:2176,bits:12,code:0x15},{runLen:2240,bits:12,code:0x16},{runLen:2304,bits:12,code:0x17},
+    {runLen:2368,bits:12,code:0x1C},{runLen:2432,bits:12,code:0x1D},{runLen:2496,bits:12,code:0x1E},
+    {runLen:2560,bits:12,code:0x1F},
+];
+
+type CCITTTreeNode = { readonly '0'?: CCITTTreeNode; readonly '1'?: CCITTTreeNode; readonly runLen?: number };
+
+function buildCCITTTree(codes: ReadonlyArray<CCITTCode>): CCITTTreeNode {
+    const root: Record<string, unknown> = {};
+    for (const c of codes) {
+        let node = root;
+        for (let i = c.bits - 1; i >= 0; i--) {
+            const bit = (c.code >> i) & 1 ? '1' : '0';
+            if (!node[bit]) node[bit] = {};
+            node = node[bit] as Record<string, unknown>;
+        }
+        node['runLen'] = c.runLen;
+    }
+    return root as CCITTTreeNode;
+}
+
+const whiteTree = buildCCITTTree([...WHITE_TERM_CODES, ...WHITE_MAKEUP_CODES, ...COMMON_MAKEUP_CODES]);
+const blackTree = buildCCITTTree([...BLACK_TERM_CODES, ...BLACK_MAKEUP_CODES, ...COMMON_MAKEUP_CODES]);
+
+class CCITTBitReader {
+    private pos = 0;
+    private bitPos = 0;
+    constructor(private readonly data: Uint8Array) {}
+
+    readBit(): number {
+        if (this.pos >= this.data.length) return 0;
+        const bit = (this.data[this.pos] >> (7 - this.bitPos)) & 1;
+        this.bitPos++;
+        if (this.bitPos >= 8) { this.bitPos = 0; this.pos++; }
+        return bit;
+    }
+
+    skipToByteAlign(): void {
+        if (this.bitPos > 0) { this.bitPos = 0; this.pos++; }
+    }
+
+    get exhausted(): boolean { return this.pos >= this.data.length; }
+}
+
+function ccittDecodeRun(reader: CCITTBitReader, tree: CCITTTreeNode): number {
+    let total = 0;
+    let makeup = true;
+    while (makeup) {
+        let node: CCITTTreeNode | undefined = tree;
+        while (node && node.runLen === undefined) {
+            const bit = reader.readBit();
+            node = bit ? node['1'] : node['0'];
+        }
+        if (node?.runLen === undefined) return total;
+        total += node.runLen;
+        makeup = node.runLen >= 64;
+    }
+    return total;
+}
+
+function ccittDecodeGroup4Rows(
+    bitReader: CCITTBitReader, columns: number, maxRows: number, blackIs1: boolean, output: Uint8Array[],
+): void {
+    let refLine: Uint8Array<ArrayBufferLike> = new Uint8Array(columns);
+    for (let row = 0; row < maxRows; row++) {
+        if (bitReader.exhausted) break;
+        const curLine = decodeCCITTGroup4Row(bitReader, refLine, columns);
+        if (!curLine) break;
+        output.push(ccittRowToBytes(curLine, columns, blackIs1));
+        refLine = curLine;
+    }
+}
+
+function ccittDecodeGroup3Rows(
+    bitReader: CCITTBitReader, columns: number, maxRows: number, blackIs1: boolean,
+    encodedByteAlign: boolean, output: Uint8Array[],
+): void {
+    for (let row = 0; row < maxRows; row++) {
+        if (bitReader.exhausted) break;
+        if (encodedByteAlign) bitReader.skipToByteAlign();
+        const curLine = decodeCCITTGroup3Row(bitReader, columns);
+        if (!curLine) break;
+        output.push(ccittRowToBytes(curLine, columns, blackIs1));
+    }
+}
+
+function ccittDecodeMixedRows(
+    bitReader: CCITTBitReader, columns: number, maxRows: number, blackIs1: boolean,
+    encodedByteAlign: boolean, output: Uint8Array[],
+): void {
+    let refLine: Uint8Array<ArrayBufferLike> = new Uint8Array(columns);
+    for (let row = 0; row < maxRows; row++) {
+        if (bitReader.exhausted) break;
+        if (encodedByteAlign) bitReader.skipToByteAlign();
+        const tag = bitReader.readBit();
+        const curLine = tag === 1
+            ? decodeCCITTGroup3Row(bitReader, columns)
+            : decodeCCITTGroup4Row(bitReader, refLine, columns);
+        if (!curLine) break;
+        output.push(ccittRowToBytes(curLine, columns, blackIs1));
+        refLine = curLine;
+    }
+}
+
+function ccittAssembleOutput(output: Uint8Array[], rowBytes: number, fallback: Uint8Array): Uint8Array {
+    if (output.length === 0) return fallback;
+    const result = new Uint8Array(output.length * rowBytes);
+    for (let i = 0; i < output.length; i++) {
+        result.set(output[i], i * rowBytes);
+    }
+    return result;
+}
+
+function decodeCCITTFax(data: Uint8Array, parms: Record<string, PdfObject>, reader: PdfReader): Uint8Array {
+    const k = reader.getNumber(parms['K']);
+    const columns = reader.getNumber(parms['Columns']) || 1728;
+    const rows = reader.getNumber(parms['Rows']) || 0;
+    const encodedByteAlign = !!parms['EncodedByteAlign'];
+    const blackIs1 = !!parms['BlackIs1'];
+
+    const rowBytes = Math.ceil(columns / 8);
+    const maxRows = rows > 0 ? rows : 10000;
+    const output: Uint8Array[] = [];
+    const bitReader = new CCITTBitReader(data);
+
+    if (k < 0) {
+        ccittDecodeGroup4Rows(bitReader, columns, maxRows, blackIs1, output);
+    } else if (k === 0) {
+        ccittDecodeGroup3Rows(bitReader, columns, maxRows, blackIs1, encodedByteAlign, output);
+    } else {
+        ccittDecodeMixedRows(bitReader, columns, maxRows, blackIs1, encodedByteAlign, output);
+    }
+
+    return ccittAssembleOutput(output, rowBytes, data);
+}
+
+function ccittRowToBytes(line: Uint8Array, columns: number, blackIs1: boolean): Uint8Array {
+    const rowBytes = Math.ceil(columns / 8);
+    const out = new Uint8Array(rowBytes);
+    for (let i = 0; i < columns; i++) {
+        const rawPixel = line[i];
+        const pixel = blackIs1 ? rawPixel : (1 - rawPixel);
+        if (pixel) out[i >> 3] |= 0x80 >> (i & 7);
+    }
+    return out;
+}
+
+function decodeCCITTGroup3Row(reader: CCITTBitReader, columns: number): Uint8Array | null {
+    const line = new Uint8Array(columns);
+    let col = 0;
+    let isWhite = true;
+    while (col < columns) {
+        const tree = isWhite ? whiteTree : blackTree;
+        const runLen = ccittDecodeRun(reader, tree);
+        const fill = isWhite ? 0 : 1;
+        const end = Math.min(col + runLen, columns);
+        for (let i = col; i < end; i++) line[i] = fill;
+        col = end;
+        isWhite = !isWhite;
+    }
+    return line;
+}
+
+interface Group4State {
+    a0: number;
+    isWhite: boolean;
+    done: boolean;
+}
+
+function g4FillRun(line: Uint8Array, start: number, end: number, fill: number): void {
+    for (let i = start; i < end; i++) line[i] = fill;
+}
+
+function g4FindB1(refLine: Uint8Array, a0pos: number, white: boolean, columns: number): number {
+    let pos = a0pos;
+    const refColor = white ? 0 : 1;
+    if (pos < columns && refLine[pos] === refColor) {
+        while (pos < columns && refLine[pos] === refColor) pos++;
+    }
+    while (pos < columns && refLine[pos] !== refColor) pos++;
+    while (pos < columns && refLine[pos] === refColor) pos++;
+    return pos;
+}
+
+function g4FindB2(refLine: Uint8Array, b1: number, columns: number): number {
+    const b1Color = b1 < columns ? refLine[b1] : 0;
+    let pos = b1;
+    while (pos < columns && refLine[pos] === b1Color) pos++;
+    return pos;
+}
+
+function g4ApplyVerticalDelta(
+    line: Uint8Array, state: Group4State, b1: number, delta: number, columns: number,
+): void {
+    const a1 = Math.max(0, Math.min(b1 + delta, columns));
+    const fill = state.isWhite ? 0 : 1;
+    g4FillRun(line, state.a0, a1, fill);
+    state.a0 = a1;
+    state.isWhite = !state.isWhite;
+}
+
+function g4HandleBit1Set(
+    reader: CCITTBitReader, refLine: Uint8Array, line: Uint8Array, state: Group4State, columns: number,
+): void {
+    const bit2 = reader.readBit();
+    const bit3 = reader.readBit();
+    if (bit2 === 0 && bit3 === 0) {
+        state.done = true;
+        return;
+    }
+    const b1 = g4FindB1(refLine, state.a0, state.isWhite, columns);
+    if (bit2 === 0 && bit3 === 1) {
+        g4FillRun(line, state.a0, Math.min(b1, columns), state.isWhite ? 0 : 1);
+        state.a0 = Math.min(b1, columns);
+        state.isWhite = !state.isWhite;
+        return;
+    }
+    if (bit2 === 1 && bit3 === 0) {
+        const b2 = g4FindB2(refLine, b1, columns);
+        g4FillRun(line, state.a0, Math.min(b2, columns), state.isWhite ? 0 : 1);
+        state.a0 = Math.min(b2, columns);
+        return;
+    }
+    const d = reader.readBit();
+    const delta = d === 0 ? -3 : 3;
+    g4ApplyVerticalDelta(line, state, b1, delta, columns);
+}
+
+function g4HandleSmallDelta(
+    reader: CCITTBitReader, refLine: Uint8Array, line: Uint8Array, state: Group4State, columns: number,
+): void {
+    const bit3 = reader.readBit();
+    const b1 = g4FindB1(refLine, state.a0, state.isWhite, columns);
+    let delta: number;
+    if (bit3 === 0) {
+        delta = reader.readBit() === 0 ? -2 : 2;
+    } else {
+        delta = reader.readBit() === 0 ? -1 : 1;
+    }
+    g4ApplyVerticalDelta(line, state, b1, delta, columns);
+}
+
+function g4HandleHorizontal(
+    reader: CCITTBitReader, line: Uint8Array, state: Group4State, columns: number,
+): void {
+    const tree = state.isWhite ? whiteTree : blackTree;
+    const runLen = ccittDecodeRun(reader, tree);
+    const fill = state.isWhite ? 0 : 1;
+    const end = Math.min(state.a0 + runLen, columns);
+    g4FillRun(line, state.a0, end, fill);
+    state.a0 = end;
+    state.isWhite = !state.isWhite;
+
+    const tree2 = state.isWhite ? whiteTree : blackTree;
+    const runLen2 = ccittDecodeRun(reader, tree2);
+    const fill2 = state.isWhite ? 0 : 1;
+    const end2 = Math.min(state.a0 + runLen2, columns);
+    g4FillRun(line, state.a0, end2, fill2);
+    state.a0 = end2;
+    state.isWhite = !state.isWhite;
+}
+
+function decodeCCITTGroup4Row(reader: CCITTBitReader, refLine: Uint8Array, columns: number): Uint8Array | null {
+    const line = new Uint8Array(columns);
+    const state: Group4State = { a0: 0, isWhite: true, done: false };
+
+    let safetyCounter = 0;
+    while (state.a0 < columns) {
+        if (safetyCounter++ > columns * 2) return line;
+        const bit1 = reader.readBit();
+        if (bit1 === 1) {
+            g4HandleBit1Set(reader, refLine, line, state, columns);
+            if (state.done) return line;
+        } else if (reader.readBit() === 0) {
+            g4HandleSmallDelta(reader, refLine, line, state, columns);
+        } else {
+            g4HandleHorizontal(reader, line, state, columns);
+        }
+    }
+    return line;
+}
+
+// ── End CCITT Fax decoder ───────────────────────────────────────────────
 
 function applyPngPredictor(
     data: Uint8Array, columns: number, colors: number, bpc: number,
@@ -217,7 +591,7 @@ export interface PdfParseResult {
     imageOnly: boolean;
 }
 
-interface TextItem {
+export interface TextItem {
     text: string;
     fontSize: number;
     x: number;
@@ -228,10 +602,19 @@ interface TextItem {
     bold: boolean;
     italic: boolean;
     fontFamily: string;
+    fontName: string;
     mcid: number;
+    charSpacing: number;
+    wordSpacing: number;
+    textRise: number;
+    horizontalScaling: number;
+    textRenderMode: number;
+    strokeColor: string;
+    transformMatrix: readonly [number, number, number, number];
+    isSpaceOffset: boolean;
 }
 
-interface FontInfo {
+export interface FontInfo {
     isTwoByte: boolean;
     widths: Map<number, number>;
     defaultWidth: number;
@@ -241,16 +624,18 @@ interface FontInfo {
     familyName: string;
 }
 
-interface ImageItem {
+export interface ImageItem {
     dataUrl: string;
     width: number;
     height: number;
+    renderWidth: number;
+    renderHeight: number;
     x: number;
     y: number;
     page: number;
 }
 
-interface PathRect {
+export interface PathRect {
     readonly x: number;
     readonly y: number;
     readonly width: number;
@@ -263,6 +648,15 @@ interface PathRect {
     readonly lineWidth: number;
 }
 
+export interface PdfAnnotation {
+    readonly x: number;
+    readonly y: number;
+    readonly width: number;
+    readonly height: number;
+    readonly page: number;
+    readonly uri: string;
+}
+
 interface TableGrid {
     readonly x: number;
     readonly y: number;
@@ -273,7 +667,7 @@ interface TableGrid {
     readonly cols: number[];
 }
 
-interface PdfObject {
+export interface PdfObject {
     type: 'dict' | 'array' | 'number' | 'string' | 'name' | 'boolean' | 'null' | 'ref' | 'stream';
     value: unknown;
     stream?: Uint8Array;
@@ -281,7 +675,7 @@ interface PdfObject {
 
 // ── PDF structure parser ────────────────────────────────────────────────
 
-class PdfReader {
+export class PdfReader {
     private data: Uint8Array;
     private text: string;
     private readonly objects: Map<string, { offset: number; gen: number }> = new Map();
@@ -298,9 +692,19 @@ class PdfReader {
         this.findXRef();
     }
 
+    private findLastStartxref(chunk: string): RegExpExecArray | null {
+        const re = /startxref\s+(\d+)/g;
+        let last: RegExpExecArray | null = null;
+        let m: RegExpExecArray | null;
+        while ((m = re.exec(chunk)) !== null) {
+            last = m;
+        }
+        return last;
+    }
+
     private findXRef(): void {
-        const lastChunk = this.text.slice(-1024);
-        const match = /startxref\s+(\d+)/.exec(lastChunk);
+        let match = this.findLastStartxref(this.text.slice(-1024));
+        match ??= this.findLastStartxref(this.text.slice(-8192));
         if (!match) throw new Error('Could not find startxref in PDF');
         const xrefOffset = Number.parseInt(match[1], 10);
 
@@ -330,8 +734,9 @@ class PdfReader {
         if (dictStart === -1) return;
         const result = this.parseObjectAt(dictStart);
         if (result.obj.type !== 'dict') return;
-        this.trailer = result.obj.value as Record<string, PdfObject>;
-        const prev = this.trailer['Prev'];
+        const dict = result.obj.value as Record<string, PdfObject>;
+        this.trailer ??= dict;
+        const prev = dict['Prev'];
         if (prev?.type === 'number') {
             this.parseTraditionalXRef(prev.value as number);
         }
@@ -378,6 +783,18 @@ class PdfReader {
         return [0, sizeObj ? sizeObj.value as number : 0];
     }
 
+    private storeXRefEntry(fieldType: number, objKey: string, field2: number, field3: number): void {
+        if (fieldType === 1) {
+            if (!this.objects.has(objKey)) {
+                this.objects.set(objKey, { offset: field2, gen: field3 });
+            }
+        } else if (fieldType === 2) {
+            if (!this.compressedObjects.has(objKey)) {
+                this.compressedObjects.set(objKey, { streamObjNum: field2, index: field3 });
+            }
+        }
+    }
+
     private processXRefStreamEntries(decoded: Uint8Array, w: number[], indexArr: number[]): void {
         const entrySize = w[0] + w[1] + w[2];
         let bytePos = 0;
@@ -392,17 +809,9 @@ class PdfReader {
                 const field3 = this.readXRefField(decoded, bytePos, w[0] + w[1], w[2]);
                 bytePos += entrySize;
 
-                if (fieldType === 1) {
-                    const key = `${startObj + i} ${field3}`;
-                    if (!this.objects.has(key)) {
-                        this.objects.set(key, { offset: field2, gen: field3 });
-                    }
-                } else if (fieldType === 2) {
-                    const key = `${startObj + i} 0`;
-                    if (!this.compressedObjects.has(key)) {
-                        this.compressedObjects.set(key, { streamObjNum: field2, index: field3 });
-                    }
-                }
+                const gen = fieldType === 1 ? field3 : 0;
+                const key = `${startObj + i} ${gen}`;
+                this.storeXRefEntry(fieldType, key, field2, field3);
             }
         }
     }
@@ -791,42 +1200,49 @@ class PdfReader {
         return data;
     }
 
+    private resolveFilterNames(filterObj: PdfObject): string[] {
+        const resolved = this.resolveDeep(filterObj);
+        if (resolved.type === 'name') return [resolved.value as string];
+        if (resolved.type === 'array') {
+            const names: string[] = [];
+            for (const f of resolved.value as PdfObject[]) {
+                const rf = this.resolveDeep(f);
+                if (rf.type === 'name') names.push(rf.value as string);
+            }
+            return names;
+        }
+        return [];
+    }
+
+    private applyFilter(data: Uint8Array, filter: string, parms: Record<string, PdfObject>): Uint8Array | null {
+        if (filter === 'FlateDecode' || filter === 'Fl') {
+            return this.applyFlatePredictor(zlibInflate(data), parms);
+        }
+        if (filter === 'ASCIIHexDecode' || filter === 'AHx') return decodeASCIIHex(data);
+        if (filter === 'ASCII85Decode' || filter === 'A85') return decodeASCII85(data);
+        if (filter === 'LZWDecode' || filter === 'LZW') {
+            const earlyChange = this.getNumber(parms['EarlyChange']);
+            return this.applyFlatePredictor(decodeLZW(data, earlyChange === 0 ? 0 : 1), parms);
+        }
+        if (filter === 'RunLengthDecode' || filter === 'RL') return decodeRunLength(data);
+        if (filter === 'CCITTFaxDecode' || filter === 'CCF') return decodeCCITTFax(data, parms, this);
+        if (filter === 'JBIG2Decode') return null;
+        return data;
+    }
+
     decodeStreamData(dict: Record<string, PdfObject>, rawStream: Uint8Array): Uint8Array {
         const filterObj = dict['Filter'];
         if (!filterObj) return rawStream;
 
-        const resolved = this.resolveDeep(filterObj);
-        const filters: string[] = [];
-        if (resolved.type === 'name') {
-            filters.push(resolved.value as string);
-        } else if (resolved.type === 'array') {
-            for (const f of resolved.value as PdfObject[]) {
-                const rf = this.resolveDeep(f);
-                if (rf.type === 'name') filters.push(rf.value as string);
-            }
-        }
-
+        const filters = this.resolveFilterNames(filterObj);
         const decodeParms = this.getDecodeParmsArray(dict, filters.length);
         let result = rawStream;
 
         for (let fi = 0; fi < filters.length; fi++) {
-            const filter = filters[fi];
-            const parms = decodeParms[fi] ?? {};
             try {
-                if (filter === 'FlateDecode' || filter === 'Fl') {
-                    result = zlibInflate(result);
-                    result = this.applyFlatePredictor(result, parms);
-                } else if (filter === 'ASCIIHexDecode' || filter === 'AHx') {
-                    result = decodeASCIIHex(result);
-                } else if (filter === 'ASCII85Decode' || filter === 'A85') {
-                    result = decodeASCII85(result);
-                } else if (filter === 'LZWDecode' || filter === 'LZW') {
-                    const earlyChange = this.getNumber(parms['EarlyChange']);
-                    result = decodeLZW(result, earlyChange === 0 ? 0 : 1);
-                    result = this.applyFlatePredictor(result, parms);
-                } else if (filter === 'RunLengthDecode' || filter === 'RL') {
-                    result = decodeRunLength(result);
-                }
+                const decoded = this.applyFilter(result, filters[fi], decodeParms[fi] ?? {});
+                if (decoded === null) return rawStream;
+                result = decoded;
             } catch {
                 return rawStream;
             }
@@ -847,11 +1263,29 @@ class PdfReader {
         return this.trailer ?? {};
     }
 
+    private isCatalogDict(obj: PdfObject): Record<string, PdfObject> | null {
+        if (obj.type !== 'dict' && obj.type !== 'stream') return null;
+        const dict = obj.value as Record<string, PdfObject>;
+        const typeStr = dict['Type'] ? this.getString(dict['Type']) : '';
+        return typeStr === 'Catalog' ? dict : null;
+    }
+
     getRoot(): Record<string, PdfObject> {
         const trailer = this.getTrailer();
         const rootRef = trailer['Root'];
-        if (!rootRef) return {};
-        return this.getDict(rootRef);
+        if (rootRef) return this.getDict(rootRef);
+
+        for (const [, obj] of this.parsedObjects) {
+            const catalog = this.isCatalogDict(obj);
+            if (catalog) return catalog;
+        }
+        for (const [key] of this.objects) {
+            const obj = this.resolveRef({ type: 'ref', value: key });
+            const catalog = this.isCatalogDict(obj);
+            if (catalog) return catalog;
+        }
+
+        return {};
     }
 
     getPages(): PdfObject[] {
@@ -865,10 +1299,12 @@ class PdfReader {
         const dict = this.getDict(node);
         const typeObj = dict['Type'];
         const typeName = typeObj ? this.getString(typeObj) : '';
-
-        if (typeName === 'Page') return [this.resolveDeep(node)];
-
         const kids = dict['Kids'];
+
+        if (typeName === 'Page' || (!kids && dict['Contents'])) {
+            return [this.resolveDeep(node)];
+        }
+
         if (!kids) return [];
         const pages: PdfObject[] = [];
         for (const kid of this.getArray(kids)) {
@@ -898,36 +1334,38 @@ const PDF_DOC_ENCODING: Record<number, string> = {
 };
 
 function decodeTwoByteChar(code: number, toUnicode: Map<number, string>): string {
-    if (toUnicode.has(code)) return toUnicode.get(code)!;
+    if (toUnicode.has(code)) {
+        return toUnicode.get(code)!;
+    }
 
     const lo = code & 0xFF;
-    if (toUnicode.has(lo)) return toUnicode.get(lo)!;
+    if (toUnicode.has(lo)) {
+        return toUnicode.get(lo)!;
+    }
 
     if (code >= 0x20 && code < 0xFFFE) {
         const ch = String.fromCodePoint(code);
-        if (isValidDecodedChar(code)) return ch;
+        if (isValidDecodedChar(code)) {
+            return ch;
+        }
     }
 
-    if (lo >= 0x20 && lo < 0x7F) return String.fromCodePoint(lo);
+    if (lo >= 0x20 && lo < 0x7F) {
+        return String.fromCodePoint(lo);
+    }
 
     return '';
 }
 
+const VALID_DECODED_CHAR_RANGES: ReadonlyArray<[number, number]> = [
+    [0x0020, 0x007E], [0x00A0, 0x024F], [0x0370, 0x03FF], [0x0400, 0x04FF],
+    [0x0500, 0x05FF], [0x0600, 0x06FF], [0x0900, 0x097F], [0x2000, 0x206F],
+    [0x2010, 0x2027], [0x20A0, 0x20CF], [0xFB1D, 0xFB4F], [0xFB50, 0xFDFF],
+    [0xFE70, 0xFEFF],
+];
+
 function isValidDecodedChar(code: number): boolean {
-    if (code >= 0x0020 && code <= 0x007E) return true;
-    if (code >= 0x00A0 && code <= 0x024F) return true;
-    if (code >= 0x0370 && code <= 0x03FF) return true;
-    if (code >= 0x0400 && code <= 0x04FF) return true;
-    if (code >= 0x0500 && code <= 0x05FF) return true;
-    if (code >= 0x0600 && code <= 0x06FF) return true;
-    if (code >= 0x0900 && code <= 0x097F) return true;
-    if (code >= 0x2000 && code <= 0x206F) return true;
-    if (code >= 0x2010 && code <= 0x2027) return true;
-    if (code >= 0x20A0 && code <= 0x20CF) return true;
-    if (code >= 0xFB1D && code <= 0xFB4F) return true;
-    if (code >= 0xFB50 && code <= 0xFDFF) return true;
-    if (code >= 0xFE70 && code <= 0xFEFF) return true;
-    return false;
+    return VALID_DECODED_CHAR_RANGES.some(([lo, hi]) => code >= lo && code <= hi);
 }
 
 function decodeTwoByteString(raw: string, fontInfo: FontInfo): { result: string; charCodes: number[] } {
@@ -941,9 +1379,7 @@ function decodeTwoByteString(raw: string, fontInfo: FontInfo): { result: string;
     if (raw.length % 2 === 1) {
         const code = raw.codePointAt(raw.length - 1) ?? 0;
         charCodes.push(code);
-        result += fontInfo.toUnicode.has(code)
-            ? fontInfo.toUnicode.get(code)!
-            : String.fromCodePoint(code);
+        result += decodeTwoByteChar(code, fontInfo.toUnicode);
     }
     return { result, charCodes };
 }
@@ -1000,7 +1436,25 @@ function parseBfRangeEntries(text: string, map: Map<number, string>): void {
     let match: RegExpExecArray | null;
     while ((match = bfRangeRe.exec(text)) !== null) {
         for (const entry of match[1].trim().split('\n')) {
-            const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(entry.trim());
+            const trimmed = entry.trim();
+            const arrayParts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*\[((?:\s*<[\dA-Fa-f]+>\s*)+)\]/.exec(trimmed);
+            if (arrayParts) {
+                const start = Number.parseInt(arrayParts[1], 16);
+                const end = Number.parseInt(arrayParts[2], 16);
+                const values = [...arrayParts[3].matchAll(/<([0-9a-fA-F]+)>/g)];
+                const count = Math.min(values.length, end - start + 1);
+                for (let i = 0; i < count; i++) {
+                    const dstHex = values[i][1];
+                    let dstStr = '';
+                    for (let j = 0; j < dstHex.length; j += 4) {
+                        dstStr += String.fromCodePoint(Number.parseInt(dstHex.substring(j, j + 4), 16));
+                    }
+                    map.set(start + i, dstStr);
+                }
+                continue;
+            }
+
+            const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(trimmed);
             if (!parts) continue;
             const start = Number.parseInt(parts[1], 16);
             const end = Number.parseInt(parts[2], 16);
@@ -1013,11 +1467,33 @@ function parseBfRangeEntries(text: string, map: Map<number, string>): void {
     }
 }
 
+function fillToUnicodeGaps(map: Map<number, string>): void {
+    const entries = [...map.entries()].sort((a, b) => a[0] - b[0]);
+    for (let i = 1; i < entries.length; i++) {
+        const [prevGlyph, prevUnicode] = entries[i - 1];
+        const [nextGlyph, nextUnicode] = entries[i];
+        const glyphGap = nextGlyph - prevGlyph;
+        if (glyphGap <= 1 || glyphGap > 32) continue;
+        if (prevGlyph < 0x20 || nextGlyph < 0x20) continue;
+        if (prevUnicode.length !== 1 || nextUnicode.length !== 1) continue;
+        const prevCode = prevUnicode.codePointAt(0)!;
+        const nextCode = nextUnicode.codePointAt(0)!;
+        if (prevCode < 0x20 || nextCode < 0x20) continue;
+        if (nextCode - prevCode !== glyphGap) continue;
+        for (let g = prevGlyph + 1; g < nextGlyph; g++) {
+            if (!map.has(g)) {
+                map.set(g, String.fromCodePoint(prevCode + (g - prevGlyph)));
+            }
+        }
+    }
+}
+
 function parseToUnicodeMap(data: Uint8Array): Map<number, string> {
     const map = new Map<number, string>();
     const text = new TextDecoder('latin1').decode(data);
     parseBfCharEntries(text, map);
     parseBfRangeEntries(text, map);
+    fillToUnicodeGaps(map);
     return map;
 }
 
@@ -1057,39 +1533,230 @@ function hasRTLText(text: string): boolean {
     return false;
 }
 
-const BRACKET_MIRROR: Record<string, string> = {
-    '(': ')', ')': '(', '[': ']', ']': '[',
-};
-
 function isLTRCode(code: number): boolean {
     return (code >= 0x41 && code <= 0x5A) || (code >= 0x61 && code <= 0x7A)
-        || (code >= 0x30 && code <= 0x39);
+        || (code >= 0x30 && code <= 0x39)
+        || code === 0x26 || code === 0x2E;  // & and . for compound LTR words like Auto&Play, Autorun.inf
+}
+
+function flushLtrRun(ltrRun: string): string {
+    return ltrRun.trimEnd().split(' ')
+        .map(w => w.split('').reverse().join(''))
+        .reverse().join(' ');
+}
+
+function fixRTLWordChars(word: string): string {
+    const chars = [...word].reverse();
+    let result = '';
+    let ltrRun = '';
+    for (const ch of chars) {
+        const code = ch.codePointAt(0) ?? 0;
+        if (isLTRCode(code)) {
+            ltrRun += ch;
+        } else {
+            if (ltrRun) {
+                result += flushLtrRun(ltrRun);
+                ltrRun = '';
+            }
+            result += ch;
+        }
+    }
+    if (ltrRun) {
+        result += flushLtrRun(ltrRun);
+    }
+    return result;
 }
 
 function fixVisualOrderRTL(text: string): string {
     if (!hasRTLText(text)) return text;
+    return text.split(/(\s+)/).map(token => hasRTLText(token) ? fixRTLWordChars(token) : token).join('');
+}
 
-    const chars = [...text];
-    chars.reverse();
+function joinSplitHebrewFragments(text: string): string {
+    return text
+        .replaceAll(/"([\u0590-\u05FF]+)\s+([\u0590-\u05FF])(?=\s|[^"\u0590-\u05FF]|$)/g,
+            (_m, p1: string, p2: string) => p1 + '"' + p2)
+        .replaceAll(/(?<![\u0590-\u05FF])([\u0590-\u05FF])\s+([\u0590-\u05FF]+)"(?=\s|[^"\u0590-\u05FF]|$)/g,
+            (_m, p1: string, p2: string) => p1 + p2 + '"');
+}
 
-    let result = '';
-    let ltrRun = '';
+function fixBracketsAroundLtrWords(text: string): string {
+    // fixRTLWordChars inverts brackets around LTR words (e.g. "(Default)-ה" → "ה-)Default(").
+    // Fix: )(LTR_word)( → (LTR_word).
+    return text.replaceAll(/\)([A-Za-z\d][^()\s]*)\(/g, '($1)');
+}
 
-    for (const ch of chars) {
-        if (isLTRCode(ch.codePointAt(0) ?? 0)) {
-            ltrRun += ch;
-            continue;
-        }
-        if (ltrRun) {
-            result += ltrRun.split('').reverse().join('');
-            ltrRun = '';
-        }
-        result += BRACKET_MIRROR[ch] ?? ch;
+function fixSplitRoundBrackets(text: string): string {
+    // PDF splits "(word)" into a standalone ")" and "word(" (with bracket merged in visual order).
+    // After word-order reversal: ") word(". After mirrorBracketsAdjacentToRtl the trailing "("
+    // (adjacent to RTL) becomes ")" giving ") word)". Match both forms and rejoin as "(word)".
+    return text.replaceAll(/\) +([\u0590-\u05FF][^\s()]*)[()]/g, '($1)');
+}
+
+function hasLatinChar(word: string): boolean {
+    for (let i = 0; i < word.length; i++) {
+        const c = word.codePointAt(i) ?? 0;
+        if ((c >= 0x41 && c <= 0x5A) || (c >= 0x61 && c <= 0x7A)) return true;
     }
-    if (ltrRun) {
-        result += ltrRun.split('').reverse().join('');
+    return false;
+}
+
+function joinLtrGroup(group: string[], groupSpaces: string[]): string {
+    let grouped = group[0];
+    for (let j = 1; j < group.length; j++) {
+        grouped += groupSpaces[j - 1] + group[j];
+    }
+    return grouped;
+}
+
+function flushLtrGroup(units: string[], ltrGroup: string[], ltrSpaces: string[]): void {
+    if (ltrGroup.length > 0) {
+        units.push(joinLtrGroup(ltrGroup, ltrSpaces));
+        ltrGroup.length = 0;
+        ltrSpaces.length = 0;
+    }
+}
+
+function collectRTLUnits(words: string[], spaces: string[]): string[] {
+    const units: string[] = [];
+    let ltrGroup: string[] = [];
+    let ltrSpaces: string[] = [];
+
+    for (let i = 0; i < words.length; i++) {
+        const firstCode = words[i].codePointAt(0) ?? 0;
+        const isLtrWord = hasLatinChar(words[i]) && !isRTLChar(firstCode);
+        if (isLtrWord) {
+            if (ltrGroup.length > 0) {
+                ltrSpaces.push(i > 0 ? spaces[i - 1] : ' ');
+            }
+            ltrGroup.push(words[i]);
+        } else {
+            flushLtrGroup(units, ltrGroup, ltrSpaces);
+            units.push(words[i]);
+        }
+    }
+    flushLtrGroup(units, ltrGroup, ltrSpaces);
+    return units;
+}
+
+function findLtrStart(text: string): number {
+    for (let i = 0; i < text.length; i++) {
+        if (isLTRCode(text.codePointAt(i) ?? 0)) return i;
+    }
+    return -1;
+}
+
+function reattachHebrewPrefixes(units: string[]): string[] {
+    const result: string[] = [];
+    for (let i = 0; i < units.length; i++) {
+        const unit = units[i];
+        const next = i + 1 < units.length ? units[i + 1] : null;
+        if (next !== null && hasLatinChar(unit) && hasRTLText(unit) && !hasRTLText(next)) {
+            const ltrStart = findLtrStart(unit);
+            if (ltrStart > 0) {
+                const charBeforeLtr = unit.codePointAt(ltrStart - 1) ?? 0;
+                if (charBeforeLtr === 0x22) {
+                    const hebrewPrefix = unit.substring(0, ltrStart - 1);
+                    const ltrSuffix = unit.substring(ltrStart) + '"';
+                    result.push(hebrewPrefix + next, ltrSuffix);
+                    i++;
+                } else if (isRTLChar(charBeforeLtr)) {
+                    result.push(unit.substring(0, ltrStart) + next, unit.substring(ltrStart));
+                    i++;
+                } else {
+                    // Hyphen, bracket, or other connector: keep the unit intact (e.g. ה-data:).
+                    result.push(unit);
+                    continue;
+                }
+                continue;
+            }
+        }
+        result.push(unit);
     }
     return result;
+}
+
+function fixLeadingPunctuation(units: string[]): string[] {
+    return units.map(unit => {
+        if (unit.length < 2 || hasRTLText(unit)) return unit;
+        let end = 0;
+        while (end < unit.length) {
+            const code = unit.codePointAt(end) ?? 0;
+            if (code === 0x2E || code === 0x21 || code === 0x3F || code === 0x2C || code === 0x3A) end++;
+            else break;
+        }
+        if (end > 0 && end < unit.length) return unit.slice(end) + unit.slice(0, end);
+        return unit;
+    });
+}
+
+function mirrorBracketCode(code: number): number {
+    if (code === 0x28) return 0x29;
+    if (code === 0x29) return 0x28;
+    if (code === 0x5B) return 0x5D;
+    if (code === 0x5D) return 0x5B;
+    return code;
+}
+
+function isBracketCode(code: number): boolean {
+    return code === 0x28 || code === 0x29 || code === 0x5B || code === 0x5D;
+}
+
+function isSquareBracketCode(code: number): boolean {
+    return code === 0x5B || code === 0x5D;
+}
+
+function hasMatchingCloseBracket(text: string, openCode: number): boolean {
+    const closeCode = mirrorBracketCode(openCode);
+    for (const ch of text.slice(1)) {
+        if ((ch.codePointAt(0) ?? 0) === closeCode) return true;
+    }
+    return false;
+}
+
+function fixLeadingBracketsInLtrTokens(units: string[]): string[] {
+    return units.map(unit => {
+        if (unit.length < 2 || hasRTLText(unit)) return unit;
+        const firstCode = unit.codePointAt(0) ?? 0;
+        if (!isBracketCode(firstCode)) return unit;
+
+        if (isSquareBracketCode(firstCode)) {
+            const lastCode = unit.codePointAt(unit.length - 1) ?? 0;
+            const mirroredFirst = mirrorBracketCode(firstCode);
+            if (isBracketCode(lastCode) && mirroredFirst === lastCode) {
+                const mirroredLast = mirrorBracketCode(lastCode);
+                return String.fromCodePoint(mirroredFirst) + unit.slice(1, -1) + String.fromCodePoint(mirroredLast);
+            }
+            return String.fromCodePoint(mirroredFirst) + unit.slice(1);
+        }
+
+        if (hasMatchingCloseBracket(unit, firstCode)) return unit;
+
+        const rest = unit.slice(1);
+        const mirrored = String.fromCodePoint(mirrorBracketCode(firstCode));
+        let insertPos = rest.length;
+        while (insertPos > 0) {
+            const code = rest.codePointAt(insertPos - 1) ?? 0;
+            if (code === 0x2E || code === 0x21 || code === 0x3F) insertPos--;
+            else break;
+        }
+        return rest.slice(0, insertPos) + mirrored + rest.slice(insertPos);
+    });
+}
+
+function reverseRTLWordOrder(text: string): string {
+    const tokens = text.split(/(\s+)/);
+    const words: string[] = [];
+    const spaces: string[] = [];
+    for (let i = 0; i < tokens.length; i++) {
+        if (i % 2 === 0) words.push(tokens[i]);
+        else spaces.push(tokens[i]);
+    }
+
+    const units = collectRTLUnits(words, spaces);
+    units.reverse();
+    const afterPunct = fixLeadingPunctuation(reattachHebrewPrefixes(units));
+    return fixLeadingBracketsInLtrTokens(afterPunct).join(' ');
 }
 
 function isLineRTL(line: TextLine): boolean {
@@ -1105,7 +1772,7 @@ function isLineRTL(line: TextLine): boolean {
     return total > 0 && rtl > total * 0.3;
 }
 
-interface GraphicsState {
+export interface GraphicsState {
     ctm: number[];
     fontSize: number;
     fontName: string;
@@ -1124,6 +1791,10 @@ interface GraphicsState {
     strokeColorSpace: string;
     strokeOpacity: number;
     fillOpacity: number;
+    dashArray: number[];
+    dashPhase: number;
+    lineCap: number;
+    lineJoin: number;
 }
 
 function identityMatrix(): number[] {
@@ -1339,7 +2010,6 @@ function buildType0FontWidths(reader: PdfReader, fontObjDict: Record<string, Pdf
 
 function buildStandardFontWidths(reader: PdfReader, fontObjDict: Record<string, PdfObject>): { widths: Map<number, number>; defaultWidth: number } {
     const firstChar = reader.getNumber(fontObjDict['FirstChar']);
-    const lastChar = reader.getNumber(fontObjDict['LastChar']);
     const widthsArr = fontObjDict['Widths'] ? reader.getArray(fontObjDict['Widths']) : [];
     const widths = new Map<number, number>();
     for (let ci = 0; ci < widthsArr.length; ci++) {
@@ -1352,10 +2022,10 @@ function buildStandardFontWidths(reader: PdfReader, fontObjDict: Record<string, 
             const fontDesc = reader.getDict(fontDescRef);
             const mw = fontDesc['MissingWidth'];
             if (mw) defaultWidth = reader.getNumber(mw);
+            if (defaultWidth === 600 || defaultWidth === 0) {
+                defaultWidth = extractCffDefaultWidth(reader, fontDesc) ?? 600;
+            }
         }
-    }
-    if (lastChar > 0 && widthsArr.length === 0) {
-        defaultWidth = 600;
     }
     return { widths, defaultWidth };
 }
@@ -1507,54 +2177,78 @@ function normalizeFontFamily(baseFontName: string): string {
     return base.replaceAll(/([a-z])([A-Z])/g, '$1 $2');
 }
 
+function applyFontDescriptorFlags(
+    reader: PdfReader, descRef: PdfObject, style: { isBold: boolean; isItalic: boolean },
+): void {
+    const desc = reader.getDict(descRef);
+    const flags = reader.getNumber(desc['Flags']);
+    if (flags & (1 << 6)) style.isItalic = true;
+    if (flags & (1 << 18)) style.isBold = true;
+    const weight = reader.getNumber(desc['FontWeight']);
+    if (weight >= 700) style.isBold = true;
+    const italicAngle = reader.getNumber(desc['ItalicAngle']);
+    if (italicAngle !== 0 && !style.isItalic) style.isItalic = true;
+}
+
 function detectFontStyle(reader: PdfReader, fontObjDict: Record<string, PdfObject>): {
     isBold: boolean; isItalic: boolean; familyName: string;
 } {
     const baseFontName = reader.getString(fontObjDict['BaseFont']) || '';
     const nameLower = baseFontName.toLowerCase();
 
-    let isBold = /bold|heavy|black/.test(nameLower) && !/demi|semi|light/.test(nameLower);
-    let isItalic = /italic|oblique/.test(nameLower);
+    const style = {
+        isBold: /bold|heavy|black/.test(nameLower) && !/demi|semi|light/.test(nameLower),
+        isItalic: /italic|oblique/.test(nameLower),
+    };
 
     const descriptorRef = fontObjDict['FontDescriptor'];
     if (descriptorRef) {
-        const desc = reader.getDict(descriptorRef);
-        const flags = reader.getNumber(desc['Flags']);
-        if (flags & (1 << 6)) isItalic = true;
-        if (flags & (1 << 18)) isBold = true;
-        const weight = reader.getNumber(desc['FontWeight']);
-        if (weight >= 700) isBold = true;
-        const italicAngle = reader.getNumber(desc['ItalicAngle']);
-        if (italicAngle !== 0 && !isItalic) isItalic = true;
+        applyFontDescriptorFlags(reader, descriptorRef, style);
     }
 
-    let cidFontDict: Record<string, PdfObject> | undefined;
     const descendantsRef = fontObjDict['DescendantFonts'];
     if (descendantsRef) {
         const descendants = reader.getArray(descendantsRef);
         if (descendants.length > 0) {
-            cidFontDict = reader.getDict(descendants[0]);
-        }
-    }
-    if (cidFontDict) {
-        const cidDescRef = cidFontDict['FontDescriptor'];
-        if (cidDescRef) {
-            const cidDesc = reader.getDict(cidDescRef);
-            const cidFlags = reader.getNumber(cidDesc['Flags']);
-            if (cidFlags & (1 << 6)) isItalic = true;
-            if (cidFlags & (1 << 18)) isBold = true;
-            const cidWeight = reader.getNumber(cidDesc['FontWeight']);
-            if (cidWeight >= 700) isBold = true;
-            const cidAngle = reader.getNumber(cidDesc['ItalicAngle']);
-            if (cidAngle !== 0 && !isItalic) isItalic = true;
+            const cidFontDict = reader.getDict(descendants[0]);
+            const cidDescRef = cidFontDict['FontDescriptor'];
+            if (cidDescRef) {
+                applyFontDescriptorFlags(reader, cidDescRef, style);
+            }
         }
     }
 
     const familyName = normalizeFontFamily(baseFontName);
-    return { isBold, isItalic, familyName };
+    return { isBold: style.isBold, isItalic: style.isItalic, familyName };
 }
 
-function buildFontInfo(reader: PdfReader, fontRef: PdfObject): FontInfo {
+function searchCffWidthInData(data: Uint8Array): number | null {
+    if (data.length < 10) return null;
+    if (data[0] !== 1 || data[3] < 1 || data[3] > 4) return null;
+    const nameOffset = data[2];
+    if (nameOffset >= data.length) return null;
+    for (let i = nameOffset; i < Math.min(data.length - 4, nameOffset + 500); i++) {
+        if (data[i] === 0x14) {
+            return data[i - 1] >= 32 ? (data[i - 1] - 139) * 100 + 600 : 600;
+        }
+    }
+    return null;
+}
+
+function extractCffDefaultWidth(reader: PdfReader, fontDesc: Record<string, PdfObject>): number | null {
+    for (const key of ['FontFile3', 'FontFile2', 'FontFile']) {
+        const ref = fontDesc[key];
+        if (!ref) continue;
+        try {
+            const data = reader.getStreamData(ref);
+            const result = searchCffWidthInData(data);
+            if (result !== null) return result;
+        } catch { /* skip */ }
+    }
+    return null;
+}
+
+export function buildFontInfo(reader: PdfReader, fontRef: PdfObject): FontInfo {
     const fontObjDict = reader.getDict(fontRef);
     const subtype = reader.getString(fontObjDict['Subtype']);
     const encodingObj = fontObjDict['Encoding'];
@@ -1572,6 +2266,11 @@ function buildFontInfo(reader: PdfReader, fontRef: PdfObject): FontInfo {
 
     if (encodingObj) {
         parseEncodingDifferences(reader, encodingObj, toUnicode);
+    }
+
+    if (subtype === 'Type3') {
+        const { widths, defaultWidth } = buildStandardFontWidths(reader, fontObjDict);
+        return { isTwoByte: false, widths, defaultWidth, toUnicode, isBold, isItalic, familyName: familyName || 'serif' };
     }
 
     if (subtype === 'Type0') {
@@ -1633,33 +2332,185 @@ function processTextShow(
 ): void {
     const fontInfo = fontInfoMap.get(gs.fontName);
     const { text: rawDecoded, charCodes } = pdfStringToUnicode(raw, fontInfo);
-    const decoded = fixVisualOrderRTL(rawDecoded);
     const advance = calcTextAdvance(charCodes, fontInfo, gs);
     if (isInvisibleTextMode(gs.textRenderMode) || gs.fillOpacity < 0.01) {
         gs.textMatrix[4] += advance;
         return;
     }
-    if (!decoded.trim()) {
+    if (!rawDecoded.trim()) {
         gs.textMatrix[4] += advance;
         return;
     }
     const riseMatrix: number[] = [1, 0, 0, 1, 0, gs.textRise];
     const combined = multiplyMatrix(multiplyMatrix(riseMatrix, gs.textMatrix), gs.ctm);
     const effectiveFontSize = getEffectiveFontSize(gs);
+    const scaleX = Math.hypot(combined[0], combined[1]);
+    const scaleY = Math.hypot(combined[2], combined[3]);
+    const normA = scaleX > 0 ? combined[0] / scaleX : 1;
+    const normB = scaleX > 0 ? combined[1] / scaleX : 0;
+    const normC = scaleY > 0 ? combined[2] / scaleY : 0;
+    const normD = scaleY > 0 ? combined[3] / scaleY : 1;
+
     textItems.push({
-        text: decoded,
-        fontSize: Math.round(effectiveFontSize * 100) / 100,
-        x: Math.round(combined[4] * 100) / 100,
-        y: Math.round(combined[5] * 100) / 100,
-        endX: Math.round((combined[4] + advance) * 100) / 100,
+        text: rawDecoded,
+        fontSize: effectiveFontSize,
+        x: combined[4],
+        y: combined[5],
+        endX: combined[4] + advance,
         page: pageIndex,
         color: gs.fillColor,
         bold: fontInfo?.isBold ?? false,
         italic: fontInfo?.isItalic ?? false,
         fontFamily: fontInfo?.familyName ?? '',
+        fontName: gs.fontName,
         mcid: currentMcid,
+        charSpacing: gs.charSpacing,
+        wordSpacing: gs.wordSpacing,
+        textRise: gs.textRise,
+        horizontalScaling: gs.horizontalScaling,
+        textRenderMode: gs.textRenderMode,
+        strokeColor: gs.strokeColor,
+        transformMatrix: [normA, normB, normC, normD],
+        isSpaceOffset: false,
     });
     gs.textMatrix[4] += advance;
+}
+
+function processTextShowPerChar(
+    raw: string, gs: GraphicsState, fontInfoMap: Map<string, FontInfo>,
+    textItems: TextItem[], pageIndex: number, currentMcid: number,
+): void {
+    const fontInfo = fontInfoMap.get(gs.fontName);
+    const { text: rawDecoded, charCodes } = pdfStringToUnicode(raw, fontInfo);
+    const fullAdvance = calcTextAdvance(charCodes, fontInfo, gs);
+
+    if (isInvisibleTextMode(gs.textRenderMode) || gs.fillOpacity < 0.01) {
+        gs.textMatrix[4] += fullAdvance;
+        return;
+    }
+    if (!rawDecoded.trim()) {
+        gs.textMatrix[4] += fullAdvance;
+        return;
+    }
+
+    const riseMatrix: number[] = [1, 0, 0, 1, 0, gs.textRise];
+    const baseCombined = multiplyMatrix(multiplyMatrix(riseMatrix, gs.textMatrix), gs.ctm);
+    const effectiveFontSize = getEffectiveFontSize(gs);
+    const scaleX = Math.hypot(baseCombined[0], baseCombined[1]);
+    const scaleY = Math.hypot(baseCombined[2], baseCombined[3]);
+    const normA = scaleX > 0 ? baseCombined[0] / scaleX : 1;
+    const normB = scaleX > 0 ? baseCombined[1] / scaleX : 0;
+    const normC = scaleY > 0 ? baseCombined[2] / scaleY : 0;
+    const normD = scaleY > 0 ? baseCombined[3] / scaleY : 1;
+    const tm: readonly [number, number, number, number] = [normA, normB, normC, normD];
+
+    const dw = fontInfo ? fontInfo.defaultWidth : 600;
+    let xAccum = 0;
+
+    for (let i = 0; i < charCodes.length; i++) {
+        const ch = rawDecoded[i];
+        if (ch === undefined) break;
+
+        const code = charCodes[i];
+        const w = fontInfo ? (fontInfo.widths.get(code) ?? dw) : 600;
+        const charAdvance = (w / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+        const spacing = gs.charSpacing + (code === 32 ? gs.wordSpacing : 0);
+
+        const charX = baseCombined[4] + xAccum;
+        const charEndX = charX + charAdvance;
+
+        // Mirrors pdf2htmlEX text.cc lines 121-134:
+        // Space detection: only for single-byte fonts where the raw byte is 0x20
+        // For CID/two-byte fonts, n > 1 so is_space is always false in the C++ code
+        // (spaces render as regular glyphs using the embedded font)
+        const isSingleByte = !(fontInfo?.isTwoByte);
+        const isSpace = isSingleByte && (code === 32);
+        if (!isSpace) {
+            textItems.push({
+                text: ch,
+                fontSize: effectiveFontSize,
+                x: charX,
+                y: baseCombined[5],
+                endX: charEndX,
+                page: pageIndex,
+                color: gs.fillColor,
+                bold: fontInfo?.isBold ?? false,
+                italic: fontInfo?.isItalic ?? false,
+                fontFamily: fontInfo?.familyName ?? '',
+                fontName: gs.fontName,
+                mcid: currentMcid,
+                charSpacing: gs.charSpacing,
+                wordSpacing: gs.wordSpacing,
+                textRise: gs.textRise,
+                horizontalScaling: gs.horizontalScaling,
+                textRenderMode: gs.textRenderMode,
+                strokeColor: gs.strokeColor,
+                transformMatrix: tm,
+                isSpaceOffset: false,
+            });
+        } else {
+            // Space: emit a marker item that the pixel-perfect renderer
+            // converts to an offset (matching pdf2htmlEX's space_as_offset behavior)
+            textItems.push({
+                text: '',
+                fontSize: effectiveFontSize,
+                x: charX,
+                y: baseCombined[5],
+                endX: charEndX,
+                page: pageIndex,
+                color: gs.fillColor,
+                bold: fontInfo?.isBold ?? false,
+                italic: fontInfo?.isItalic ?? false,
+                fontFamily: fontInfo?.familyName ?? '',
+                fontName: gs.fontName,
+                mcid: currentMcid,
+                charSpacing: gs.charSpacing,
+                wordSpacing: gs.wordSpacing,
+                textRise: gs.textRise,
+                horizontalScaling: gs.horizontalScaling,
+                textRenderMode: gs.textRenderMode,
+                strokeColor: gs.strokeColor,
+                transformMatrix: tm,
+                isSpaceOffset: true,
+            });
+        }
+
+        xAccum += charAdvance + spacing;
+    }
+
+    gs.textMatrix[4] += fullAdvance;
+}
+
+function processTJOperatorPerChar(
+    operandStack: string[], gs: GraphicsState, fontInfoMap: Map<string, FontInfo>,
+    textItems: TextItem[], pageIndex: number, currentMcid: number,
+): void {
+    const arrTokens: string[] = [];
+    while (operandStack.length > 0) {
+        arrTokens.unshift(operandStack.pop()!);
+    }
+    const fontInfo = fontInfoMap.get(gs.fontName);
+    let pendingDisplacement = 0;
+
+    for (const t of arrTokens) {
+        if (t === '[' || t === ']') continue;
+        if (t.startsWith('(')) {
+            if (pendingDisplacement !== 0) {
+                gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+                pendingDisplacement = 0;
+            }
+            const rawStr = t.slice(1, -1);
+            processTextShowPerChar(rawStr, gs, fontInfoMap, textItems, pageIndex, currentMcid);
+        } else {
+            const kern = Number.parseFloat(t);
+            if (!Number.isNaN(kern)) {
+                pendingDisplacement += kern;
+            }
+        }
+    }
+    if (pendingDisplacement !== 0) {
+        gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+    }
 }
 
 function processTJOperator(
@@ -1693,24 +2544,40 @@ function processTJOperator(
     }
 
     if (isInvisibleTextMode(gs.textRenderMode) || gs.fillOpacity < 0.01) return;
-    const fixedText = fixVisualOrderRTL(combinedText);
-    if (!fixedText.trim()) return;
+    if (!combinedText.trim()) return;
     const riseMatrix: number[] = [1, 0, 0, 1, 0, gs.textRise];
     const combined = multiplyMatrix(multiplyMatrix(riseMatrix, startTm), gs.ctm);
     const endCombined = multiplyMatrix(gs.textMatrix, gs.ctm);
     const effectiveFontSize = getEffectiveFontSize(gs);
+    const tjScaleX = Math.hypot(combined[0], combined[1]);
+    const tjScaleY = Math.hypot(combined[2], combined[3]);
+
     textItems.push({
-        text: fixedText,
-        fontSize: Math.round(effectiveFontSize * 100) / 100,
-        x: Math.round(combined[4] * 100) / 100,
-        y: Math.round(combined[5] * 100) / 100,
-        endX: Math.round(endCombined[4] * 100) / 100,
+        text: combinedText,
+        fontSize: effectiveFontSize,
+        x: combined[4],
+        y: combined[5],
+        endX: endCombined[4],
         page: pageIndex,
         color: gs.fillColor,
         bold: fontInfo?.isBold ?? false,
         italic: fontInfo?.isItalic ?? false,
         fontFamily: fontInfo?.familyName ?? '',
+        fontName: gs.fontName,
         mcid: currentMcid,
+        charSpacing: gs.charSpacing,
+        wordSpacing: gs.wordSpacing,
+        textRise: gs.textRise,
+        horizontalScaling: gs.horizontalScaling,
+        textRenderMode: gs.textRenderMode,
+        strokeColor: gs.strokeColor,
+        transformMatrix: [
+            tjScaleX > 0 ? combined[0] / tjScaleX : 1,
+            tjScaleX > 0 ? combined[1] / tjScaleX : 0,
+            tjScaleY > 0 ? combined[2] / tjScaleY : 0,
+            tjScaleY > 0 ? combined[3] / tjScaleY : 1,
+        ],
+        isSpaceOffset: false,
     });
 }
 
@@ -1731,10 +2598,80 @@ function applyTJStringFragment(
     return combinedText;
 }
 
+function resolveComponentsColor(values: number[], components: number): string | null {
+    if (components === 4 && values.length >= 4) {
+        return cmykToRgbHex(values[0], values[1], values[2], values[3]);
+    }
+    if (components === 3 && values.length >= 3) {
+        return rgbToHex(values[0], values[1], values[2]);
+    }
+    if (components === 1 && values.length >= 1) {
+        return grayToHex(values[0]);
+    }
+    return null;
+}
+
+function resolveIndexedColorFromLut(lut: Uint8Array, bc: number, idx: number): string | null {
+    const off = idx * bc;
+    if (bc === 3) {
+        return rgbToHex((lut[off] ?? 0) / 255, (lut[off + 1] ?? 0) / 255, (lut[off + 2] ?? 0) / 255);
+    }
+    if (bc === 4) {
+        return cmykToRgbHex(
+            (lut[off] ?? 0) / 255, (lut[off + 1] ?? 0) / 255,
+            (lut[off + 2] ?? 0) / 255, (lut[off + 3] ?? 0) / 255,
+        );
+    }
+    if (bc === 1) return grayToHex((lut[off] ?? 0) / 255);
+    return null;
+}
+
+function resolveScnIndexedColor(ctx: ContentExtractionContext, cs: string, values: number[]): string | null {
+    const csResDict = ctx.resources['ColorSpace']
+        ? ctx.reader.getDict(ctx.resources['ColorSpace'])
+        : {};
+    const csRef = csResDict[cs];
+    if (!csRef) return null;
+    const resolved = ctx.reader.resolveDeep(csRef);
+    if (resolved.type !== 'array') return null;
+    const csArr = resolved.value as PdfObject[];
+    const colorInfo = resolveColorInfoFromArray(ctx.reader, csArr);
+    if (colorInfo.indexed && colorInfo.lookupTable && values.length >= 1) {
+        const idx = Math.round(values[0]);
+        return resolveIndexedColorFromLut(colorInfo.lookupTable, colorInfo.baseChannels, idx);
+    }
+    return null;
+}
+
+function resolveScnFillColor(ctx: ContentExtractionContext, values: number[]): string | null {
+    const cs = ctx.gs.fillColorSpace;
+    if (cs === 'DeviceCMYK' && values.length >= 4) {
+        return cmykToRgbHex(values[0], values[1], values[2], values[3]);
+    }
+    if (cs === 'DeviceRGB' && values.length >= 3) {
+        return rgbToHex(values[0], values[1], values[2]);
+    }
+    if (cs === 'DeviceGray' && values.length >= 1) {
+        return grayToHex(values[0]);
+    }
+
+    const indexedColor = resolveScnIndexedColor(ctx, cs, values);
+    if (indexedColor !== null) return indexedColor;
+
+    const components = resolveColorSpaceComponents(ctx, cs);
+    const componentColor = resolveComponentsColor(values, components);
+    if (componentColor !== null) return componentColor;
+
+    if (values.length >= 3) return rgbToHex(values[0], values[1], values[2]);
+    if (values.length === 1) return grayToHex(values[0]);
+    return null;
+}
+
 function processColorOperator(
-    token: string, operandStack: string[], gs: GraphicsState,
+    token: string, ctx: ContentExtractionContext,
     popNumber: () => number,
 ): boolean {
+    const { operandStack, gs } = ctx;
     switch (token) {
         case 'rg': {
             const b = popNumber();
@@ -1763,14 +2700,8 @@ function processColorOperator(
                 const num = Number.parseFloat(v);
                 if (!Number.isNaN(num)) values.unshift(num);
             }
-            const cs = gs.fillColorSpace;
-            if (cs === 'DeviceCMYK' && values.length >= 4) {
-                gs.fillColor = cmykToRgbHex(values[0], values[1], values[2], values[3]);
-            } else if (values.length >= 3) {
-                gs.fillColor = rgbToHex(values[0], values[1], values[2]);
-            } else if (values.length === 1) {
-                gs.fillColor = grayToHex(values[0]);
-            }
+            const color = resolveScnFillColor(ctx, values);
+            if (color) gs.fillColor = color;
             return true;
         }
         default:
@@ -1790,7 +2721,9 @@ function processDoOperator(ctx: ContentExtractionContext): void {
 
     if (subtype === 'Image') {
         const imgResult = extractXObjectImage(ctx.reader, xObj, ctx.gs.ctm, ctx.pageIndex);
-        if (imgResult) ctx.imageItems.push(imgResult);
+        if (imgResult) {
+            ctx.imageItems.push(imgResult);
+        }
     } else if (subtype === 'Form') {
         processFormXObject(ctx, xObj);
     }
@@ -1854,12 +2787,17 @@ function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObj
             leading: 0, charSpacing: 0, wordSpacing: 0, textRise: 0, horizontalScaling: 100,
             textRenderMode: 0, fillColorSpace: parentCtx.gs.fillColorSpace, strokeColorSpace: parentCtx.gs.strokeColorSpace,
             strokeOpacity: parentCtx.gs.strokeOpacity, fillOpacity: parentCtx.gs.fillOpacity,
+            dashArray: [...parentCtx.gs.dashArray], dashPhase: parentCtx.gs.dashPhase,
+            lineCap: parentCtx.gs.lineCap, lineJoin: parentCtx.gs.lineJoin,
         },
         operandStack: [],
         pageIndex: parentCtx.pageIndex,
         formDepth: parentCtx.formDepth + 1,
         compatibilityMode: 0,
         mcidStack: [],
+        ocgOffSet: parentCtx?.ocgOffSet ?? new Set<string>(),
+        ocgHiddenDepth: 0,
+        perFragment: parentCtx.perFragment,
     };
 
     let i = 0;
@@ -1872,8 +2810,8 @@ function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObj
 
 const IGNORED_OPERATORS = new Set([
     'ri',
-    'J', 'j', 'M', 'd', 'i', 'W', 'W*',
-    'sh', 'EI',
+    'M', 'i',
+    'EI',
     'MP', 'DP',
 ]);
 
@@ -2019,6 +2957,164 @@ function emitRectFromLine(
     }
 }
 
+interface SvgBounds {
+    minX: number; minY: number; maxX: number; maxY: number; d: string;
+}
+
+function expandBoundsX(bounds: SvgBounds, ...xs: number[]): void {
+    for (const x of xs) { bounds.minX = Math.min(bounds.minX, x); bounds.maxX = Math.max(bounds.maxX, x); }
+}
+
+function expandBoundsY(bounds: SvgBounds, ...ys: number[]): void {
+    for (const y of ys) { bounds.minY = Math.min(bounds.minY, y); bounds.maxY = Math.max(bounds.maxY, y); }
+}
+
+function accumulateSvgOp(op: PathOp, ctm: number[], bounds: SvgBounds): void {
+    const a = op.args;
+    if (op.op === 'm' || op.op === 'l') {
+        const { tx: x, ty: y } = transformPoint(a[0], a[1], ctm);
+        bounds.d += op.op === 'm' ? `M${x.toFixed(1)},${y.toFixed(1)}` : `L${x.toFixed(1)},${y.toFixed(1)}`;
+        expandBoundsX(bounds, x); expandBoundsY(bounds, y);
+        return;
+    }
+    if (op.op === 'c') {
+        const { tx: x1, ty: y1 } = transformPoint(a[0], a[1], ctm);
+        const { tx: x2, ty: y2 } = transformPoint(a[2], a[3], ctm);
+        const { tx: x3, ty: y3 } = transformPoint(a[4], a[5], ctm);
+        bounds.d += `C${x1.toFixed(1)},${y1.toFixed(1)},${x2.toFixed(1)},${y2.toFixed(1)},${x3.toFixed(1)},${y3.toFixed(1)}`;
+        expandBoundsX(bounds, x1, x2, x3); expandBoundsY(bounds, y1, y2, y3);
+        return;
+    }
+    if (op.op === 'v') {
+        const { tx: x2, ty: y2 } = transformPoint(a[0], a[1], ctm);
+        const { tx: x3, ty: y3 } = transformPoint(a[2], a[3], ctm);
+        bounds.d += `S${x2.toFixed(1)},${y2.toFixed(1)},${x3.toFixed(1)},${y3.toFixed(1)}`;
+        expandBoundsX(bounds, x2, x3); expandBoundsY(bounds, y2, y3);
+        return;
+    }
+    if (op.op === 'y') {
+        const { tx: x1, ty: y1 } = transformPoint(a[0], a[1], ctm);
+        const { tx: x3, ty: y3 } = transformPoint(a[2], a[3], ctm);
+        bounds.d += `Q${x1.toFixed(1)},${y1.toFixed(1)},${x3.toFixed(1)},${y3.toFixed(1)}`;
+        expandBoundsX(bounds, x1, x3); expandBoundsY(bounds, y1, y3);
+        return;
+    }
+    if (op.op === 'h') {
+        bounds.d += 'Z';
+        return;
+    }
+    if (op.op === 're') {
+        const { tx: rx, ty: ry } = transformPoint(a[0], a[1], ctm);
+        const w = a[2] * Math.abs(ctm[0]);
+        const h = a[3] * Math.abs(ctm[3]);
+        bounds.d += `M${rx.toFixed(1)},${ry.toFixed(1)}h${w.toFixed(1)}v${h.toFixed(1)}h${(-w).toFixed(1)}Z`;
+        expandBoundsX(bounds, rx, rx + w); expandBoundsY(bounds, ry, ry + h);
+    }
+}
+
+function pathOpsToSvg(ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext, stroked: boolean, filled: boolean): void {
+    const hasCurves = ops.some(op => op.op === 'c' || op.op === 'v' || op.op === 'y');
+    if (!hasCurves) return;
+
+    const bounds: SvgBounds = { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity, d: '' };
+    for (const op of ops) {
+        accumulateSvgOp(op, ctx.gs.ctm, bounds);
+    }
+
+    const { minX, minY, maxX, maxY, d } = bounds;
+    if (!d || minX === Infinity) return;
+
+    const width = Math.ceil(maxX - minX + 2);
+    const height = Math.ceil(maxY - minY + 2);
+    if (width < 2 || height < 2 || width > 5000 || height > 5000) return;
+
+    const fillAttr = filled ? `fill="${ctx.gs.fillColor}"` : 'fill="none"';
+    const strokeAttr = stroked ? `stroke="${ctx.gs.strokeColor}" stroke-width="${Math.max(ctx.gs.lineWidth, 0.5)}"` : '';
+    const opacityAttr = ctx.gs.fillOpacity < 1 ? ` opacity="${ctx.gs.fillOpacity}"` : '';
+
+    const svgHtml = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="${(minX - 1).toFixed(1)} ${(minY - 1).toFixed(1)} ${width} ${height}" style="max-width:100%;height:auto"><path d="${d}" ${fillAttr} ${strokeAttr}${opacityAttr}/></svg>`;
+
+    const avgY = (minY + maxY) / 2;
+    ctx.imageItems.push({
+        dataUrl: `data:image/svg+xml;base64,${btoa(svgHtml)}`,
+        width,
+        height,
+        renderWidth: width,
+        renderHeight: height,
+        x: minX,
+        y: avgY,
+        page: ctx.pageIndex,
+    });
+}
+
+function emitBoundingBoxRect(
+    ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
+    stroked: boolean, filled: boolean,
+): void {
+    let minX = Infinity;
+    let minY = Infinity;
+    let maxX = -Infinity;
+    let maxY = -Infinity;
+    let curX = 0;
+    let curY = 0;
+    let hasPoints = false;
+
+    for (const op of ops) {
+        const points: Array<{ x: number; y: number }> = [];
+        switch (op.op) {
+            case 'm':
+            case 'l':
+                points.push({ x: op.args[0], y: op.args[1] });
+                curX = op.args[0]; curY = op.args[1];
+                break;
+            case 'c':
+                points.push(
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                    { x: op.args[4], y: op.args[5] },
+                );
+                curX = op.args[4]; curY = op.args[5];
+                break;
+            case 'v':
+                points.push(
+                    { x: curX, y: curY },
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                );
+                curX = op.args[2]; curY = op.args[3];
+                break;
+            case 'y':
+                points.push(
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                );
+                curX = op.args[2]; curY = op.args[3];
+                break;
+        }
+        for (const p of points) {
+            const { tx, ty } = transformPoint(p.x, p.y, ctx.gs.ctm);
+            if (tx < minX) minX = tx;
+            if (ty < minY) minY = ty;
+            if (tx > maxX) maxX = tx;
+            if (ty > maxY) maxY = ty;
+            hasPoints = true;
+        }
+    }
+
+    if (!hasPoints) return;
+    const width = maxX - minX;
+    const height = maxY - minY;
+    if (width < 5 || height < 5) return;
+
+    ctx.pathRects.push({
+        x: minX, y: minY, width, height,
+        page: ctx.pageIndex, stroked, filled,
+        strokeColor: ctx.gs.strokeColor,
+        fillColor: ctx.gs.fillColor,
+        lineWidth: ctx.gs.lineWidth,
+    });
+}
+
 function emitPathRects(ctx: ContentExtractionContext, stroked: boolean, filled: boolean): void {
     let lastMoveX = 0;
     let lastMoveY = 0;
@@ -2035,18 +3131,26 @@ function emitPathRects(ctx: ContentExtractionContext, stroked: boolean, filled: 
             lastMoveY = op.args[1];
         }
     }
+
+    // Emit bounding-box rect for paths containing curves (rounded rects, button borders)
+    if (ctx.currentPath.some(op => op.op === 'c' || op.op === 'v' || op.op === 'y')) {
+        const nonReOps = ctx.currentPath.filter(op => op.op !== 're');
+        emitBoundingBoxRect(nonReOps, ctx, stroked, filled);
+    }
 }
 
 function processPathPaintOperator(token: string, ctx: ContentExtractionContext): boolean {
     switch (token) {
         case 'S':
         case 's':
+            pathOpsToSvg(ctx.currentPath, ctx, true, false);
             emitPathRects(ctx, true, false);
             ctx.currentPath = [];
             return true;
         case 'f':
         case 'F':
         case 'f*':
+            pathOpsToSvg(ctx.currentPath, ctx, false, true);
             emitPathRects(ctx, false, true);
             ctx.currentPath = [];
             return true;
@@ -2054,6 +3158,7 @@ function processPathPaintOperator(token: string, ctx: ContentExtractionContext):
         case 'B*':
         case 'b':
         case 'b*':
+            pathOpsToSvg(ctx.currentPath, ctx, true, true);
             emitPathRects(ctx, true, true);
             ctx.currentPath = [];
             return true;
@@ -2148,6 +3253,9 @@ interface ContentExtractionContext {
     formDepth: number;
     compatibilityMode: number;
     mcidStack: number[];
+    ocgOffSet: Set<string>;
+    ocgHiddenDepth: number;
+    perFragment: boolean;
 }
 
 function popNumber(ctx: ContentExtractionContext): number {
@@ -2161,6 +3269,20 @@ function popString(ctx: ContentExtractionContext): string {
     return val.startsWith('(') && val.endsWith(')') ? val.slice(1, -1) : val;
 }
 
+function processDashOperator(ctx: ContentExtractionContext): void {
+    const phase = popNumber(ctx);
+    const arrTokens: string[] = [];
+    while (ctx.operandStack.length > 0) arrTokens.unshift(ctx.operandStack.pop()!);
+    const nums: number[] = [];
+    for (const t of arrTokens) {
+        if (t === '[' || t === ']') continue;
+        const n = Number.parseFloat(t);
+        if (!Number.isNaN(n)) nums.push(n);
+    }
+    ctx.gs.dashArray = nums;
+    ctx.gs.dashPhase = phase;
+}
+
 function processStateToken(token: string, ctx: ContentExtractionContext): boolean {
     if (token === 'q') { ctx.stateStack.push(structuredClone(ctx.gs)); return true; }
     if (token === 'Q') {
@@ -2171,6 +3293,10 @@ function processStateToken(token: string, ctx: ContentExtractionContext): boolea
     }
     if (token === 'BT') { ctx.gs.textMatrix = identityMatrix(); ctx.gs.lineMatrix = identityMatrix(); return true; }
     if (token === 'ET') return true;
+    if (token === 'J') { ctx.gs.lineCap = popNumber(ctx); return true; }
+    if (token === 'j') { ctx.gs.lineJoin = popNumber(ctx); return true; }
+    if (token === 'W' || token === 'W*') { return true; }
+    if (token === 'd') { processDashOperator(ctx); return true; }
     return false;
 }
 
@@ -2183,14 +3309,16 @@ function currentMcid(ctx: ContentExtractionContext): number {
 
 function processTextShowToken(token: string, ctx: ContentExtractionContext): boolean {
     const mcid = currentMcid(ctx);
+    const showFn = ctx.perFragment ? processTextShowPerChar : processTextShow;
+
     if (token === 'Tj') {
-        processTextShow(popString(ctx), ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        showFn(popString(ctx), ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
         return true;
     }
     if (token === "'") {
         ctx.gs.textMatrix = multiplyMatrix([1, 0, 0, 1, 0, -ctx.gs.leading], ctx.gs.lineMatrix);
         ctx.gs.lineMatrix = ctx.gs.textMatrix.slice();
-        processTextShow(popString(ctx), ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        showFn(popString(ctx), ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
         return true;
     }
     if (token === '"') {
@@ -2198,11 +3326,15 @@ function processTextShowToken(token: string, ctx: ContentExtractionContext): boo
         ctx.gs.charSpacing = popNumber(ctx); ctx.gs.wordSpacing = popNumber(ctx);
         ctx.gs.textMatrix = multiplyMatrix([1, 0, 0, 1, 0, -ctx.gs.leading], ctx.gs.lineMatrix);
         ctx.gs.lineMatrix = ctx.gs.textMatrix.slice();
-        processTextShow(raw, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        showFn(raw, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
         return true;
     }
     if (token === 'TJ') {
-        processTJOperator(ctx.operandStack, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        if (ctx.perFragment) {
+            processTJOperatorPerChar(ctx.operandStack, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        } else {
+            processTJOperator(ctx.operandStack, ctx.gs, ctx.fontInfoMap, ctx.textItems, ctx.pageIndex, mcid);
+        }
         return true;
     }
     return false;
@@ -2224,6 +3356,20 @@ function processResourceToken(token: string, ctx: ContentExtractionContext, toke
     return -1;
 }
 
+function applyGsFontFromArr(ctx: ContentExtractionContext, fontArr: PdfObject): void {
+    const arr = ctx.reader.getArray(fontArr);
+    if (arr.length < 2) return;
+    const fontRef = arr[0];
+    const fontSize = ctx.reader.getNumber(arr[1]);
+    if (fontSize > 0) ctx.gs.fontSize = fontSize;
+    const fontDict = ctx.reader.getDict(fontRef);
+    const baseFontObj = fontDict['BaseFont'];
+    if (baseFontObj) {
+        const baseFontName = ctx.reader.getString(baseFontObj);
+        if (baseFontName) ctx.gs.fontName = baseFontName;
+    }
+}
+
 function processGsOperator(ctx: ContentExtractionContext): void {
     const rawName = ctx.operandStack.pop() || '';
     const name = rawName.startsWith('/') ? rawName.slice(1) : rawName;
@@ -2235,20 +3381,7 @@ function processGsOperator(ctx: ContentExtractionContext): void {
     const gsDict = ctx.reader.getDict(gsRef);
 
     const fontArr = gsDict['Font'];
-    if (fontArr) {
-        const arr = ctx.reader.getArray(fontArr);
-        if (arr.length >= 2) {
-            const fontRef = arr[0];
-            const fontSize = ctx.reader.getNumber(arr[1]);
-            if (fontSize > 0) ctx.gs.fontSize = fontSize;
-            const fontDict = ctx.reader.getDict(fontRef);
-            const baseFontObj = fontDict['BaseFont'];
-            if (baseFontObj) {
-                const baseFontName = ctx.reader.getString(baseFontObj);
-                if (baseFontName) ctx.gs.fontName = baseFontName;
-            }
-        }
-    }
+    if (fontArr) { applyGsFontFromArr(ctx, fontArr); }
 
     const lwObj = gsDict['LW'];
     if (lwObj) {
@@ -2261,6 +3394,26 @@ function processGsOperator(ctx: ContentExtractionContext): void {
 
     const caLowerObj = gsDict['ca'];
     if (caLowerObj) ctx.gs.fillOpacity = ctx.reader.getNumber(caLowerObj);
+}
+
+function resolveColorSpaceTypeComponents(reader: PdfReader, csType: string, csArr: PdfObject[]): number {
+    if (csType === 'ICCBased' && csArr.length >= 2) {
+        const iccDict = reader.getDict(csArr[1]);
+        const n = reader.getNumber(iccDict['N']);
+        if (n === 1 || n === 3 || n === 4) return n;
+        return 3;
+    }
+    if (csType === 'CalRGB') return 3;
+    if (csType === 'CalGray') return 1;
+    if (csType === 'Indexed' && csArr.length >= 2) {
+        const baseCs = reader.getString(csArr[1]);
+        if (baseCs === 'DeviceRGB' || baseCs === 'CalRGB') return 3;
+        if (baseCs === 'DeviceCMYK') return 4;
+        return 3;
+    }
+    if (csType === 'Separation' || csType === 'DeviceN') return 1;
+    if (csType === 'Pattern') return 0;
+    return -1;
 }
 
 function resolveColorSpaceComponents(ctx: ContentExtractionContext, csName: string): number {
@@ -2278,23 +3431,7 @@ function resolveColorSpaceComponents(ctx: ContentExtractionContext, csName: stri
     if (csArr.length === 0) return -1;
 
     const csType = ctx.reader.getString(csArr[0]);
-    if (csType === 'ICCBased' && csArr.length >= 2) {
-        const iccDict = ctx.reader.getDict(csArr[1]);
-        const n = ctx.reader.getNumber(iccDict['N']);
-        if (n === 1 || n === 3 || n === 4) return n;
-        return 3;
-    }
-    if (csType === 'CalRGB') return 3;
-    if (csType === 'CalGray') return 1;
-    if (csType === 'Indexed' && csArr.length >= 2) {
-        const baseCs = ctx.reader.getString(csArr[1]);
-        if (baseCs === 'DeviceRGB' || baseCs === 'CalRGB') return 3;
-        if (baseCs === 'DeviceCMYK') return 4;
-        return 3;
-    }
-    if (csType === 'Separation' || csType === 'DeviceN') return 1;
-    if (csType === 'Pattern') return 0;
-    return -1;
+    return resolveColorSpaceTypeComponents(ctx.reader, csType, csArr);
 }
 
 function processColorSpaceOperator(token: string, ctx: ContentExtractionContext): boolean {
@@ -2334,6 +3471,17 @@ function processStrokeColorSpaceOperator(token: string, ctx: ContentExtractionCo
     return true;
 }
 
+function findMcidInDictSlice(stack: string[], start: number): number {
+    for (let j = start + 1; j < stack.length - 1; j++) {
+        if (stack[j] === '/MCID') {
+            const val = Number.parseInt(stack[j + 1], 10);
+            if (!Number.isNaN(val)) return val;
+        }
+        if (stack[j] === '>>') break;
+    }
+    return -1;
+}
+
 function extractMcidFromOperands(ctx: ContentExtractionContext): number {
     const stack = ctx.operandStack;
     for (let i = stack.length - 1; i >= 0; i--) {
@@ -2344,13 +3492,8 @@ function extractMcidFromOperands(ctx: ContentExtractionContext): number {
     }
     for (let i = 0; i < stack.length; i++) {
         if (stack[i] === '<<') {
-            for (let j = i + 1; j < stack.length - 1; j++) {
-                if (stack[j] === '/MCID') {
-                    const val = Number.parseInt(stack[j + 1], 10);
-                    if (!Number.isNaN(val)) return val;
-                }
-                if (stack[j] === '>>') break;
-            }
+            const val = findMcidInDictSlice(stack, i);
+            if (val >= 0) return val;
         }
     }
     return -1;
@@ -2375,36 +3518,42 @@ function processMarkedContentToken(token: string, ctx: ContentExtractionContext)
     return false;
 }
 
+function dispatchContentOperator(token: string, ctx: ContentExtractionContext): boolean {
+    if (processMarkedContentToken(token, ctx)) return true;
+    if (processStateToken(token, ctx)) return true;
+    if (processMatrixOperator(token, ctx.gs, () => popNumber(ctx))) return true;
+    if (processTextStateOperator(token, ctx.gs, ctx.operandStack, () => popNumber(ctx))) return true;
+    if (processTextShowToken(token, ctx)) return true;
+    if (processColorSpaceOperator(token, ctx)) return true;
+    if (processColorOperator(token, ctx, () => popNumber(ctx))) return true;
+    if (processStrokeColorOperator(token, ctx.operandStack, ctx.gs, () => popNumber(ctx))) return true;
+    if (processStrokeColorSpaceOperator(token, ctx)) return true;
+    if (processPathBuildOperator(token, ctx, () => popNumber(ctx))) return true;
+    if (processPathPaintOperator(token, ctx)) return true;
+    return false;
+}
+
 function processContentToken(token: string, ctx: ContentExtractionContext, tokens: string[], tokenIndex: number): number {
     if (token === 'BX') { ctx.compatibilityMode++; ctx.operandStack.length = 0; return tokenIndex; }
-    if (token === 'EX') { if (ctx.compatibilityMode > 0) ctx.compatibilityMode--; ctx.operandStack.length = 0; return tokenIndex; }
+    if (token === 'EX') { if (ctx.compatibilityMode > 0) { ctx.compatibilityMode--; } ctx.operandStack.length = 0; return tokenIndex; }
     if (token === 'gs') { processGsOperator(ctx); ctx.operandStack.length = 0; return tokenIndex; }
 
-    if (processMarkedContentToken(token, ctx)) return tokenIndex;
-    if (processStateToken(token, ctx)) return tokenIndex;
-    if (processMatrixOperator(token, ctx.gs, () => popNumber(ctx))) return tokenIndex;
-    if (processTextStateOperator(token, ctx.gs, ctx.operandStack, () => popNumber(ctx))) return tokenIndex;
-    if (processTextShowToken(token, ctx)) return tokenIndex;
-    if (processColorSpaceOperator(token, ctx)) return tokenIndex;
-    if (processColorOperator(token, ctx.operandStack, ctx.gs, () => popNumber(ctx))) return tokenIndex;
-    if (processStrokeColorOperator(token, ctx.operandStack, ctx.gs, () => popNumber(ctx))) return tokenIndex;
-    if (processStrokeColorSpaceOperator(token, ctx)) return tokenIndex;
-    if (processPathBuildOperator(token, ctx, () => popNumber(ctx))) return tokenIndex;
-    if (processPathPaintOperator(token, ctx)) return tokenIndex;
+    if (dispatchContentOperator(token, ctx)) return tokenIndex;
 
     const resourceResult = processResourceToken(token, ctx, tokens, tokenIndex);
     if (resourceResult >= 0) return resourceResult;
 
-    if (IGNORED_OPERATORS.has(token)) { ctx.operandStack.length = 0; return tokenIndex; }
-
-    if (ctx.compatibilityMode > 0) { ctx.operandStack.length = 0; return tokenIndex; }
+    if (token === 'sh' || IGNORED_OPERATORS.has(token) || ctx.compatibilityMode > 0) {
+        ctx.operandStack.length = 0;
+        return tokenIndex;
+    }
 
     ctx.operandStack.push(token);
     return tokenIndex;
 }
 
-function getPageMediaBox(reader: PdfReader, pageDict: Record<string, PdfObject>): number[] {
-    const mbObj = pageDict['MediaBox'] ?? pageDict['CropBox'];
+export function getPageMediaBox(reader: PdfReader, pageDict: Record<string, PdfObject>): number[] {
+    const mbObj = pageDict['CropBox'] ?? pageDict['MediaBox'];
     if (!mbObj) return [0, 0, 612, 792];
     const arr = reader.getArray(mbObj);
     if (arr.length < 4) return [0, 0, 612, 792];
@@ -2428,24 +3577,81 @@ function buildRotationCtm(rotate: number, mediaBox: number[]): number[] {
     }
 }
 
-function extractPageContent(
+function tryExtractLinkAnnotation(reader: PdfReader, annotRef: PdfObject, pageIndex: number): PdfAnnotation | null {
+    const annot = reader.getDict(annotRef);
+    const subtype = reader.getString(annot['Subtype'] ?? { type: 'null', value: null });
+    if (subtype !== 'Link') return null;
+    const aObj = annot['A'];
+    if (!aObj) return null;
+    const action = reader.getDict(aObj);
+    const sType = reader.getString(action['S'] ?? { type: 'null', value: null });
+    if (sType !== 'URI') return null;
+    const uriObj = action['URI'];
+    if (!uriObj) return null;
+    const uri = reader.getString(uriObj);
+    if (!uri) return null;
+    const rectObj = annot['Rect'];
+    if (!rectObj) return null;
+    const rect = reader.getArray(rectObj).map(o => reader.getNumber(o));
+    if (rect.length < 4) return null;
+    return {
+        x: Math.min(rect[0], rect[2]),
+        y: Math.min(rect[1], rect[3]),
+        width: Math.abs(rect[2] - rect[0]),
+        height: Math.abs(rect[3] - rect[1]),
+        page: pageIndex,
+        uri,
+    };
+}
+
+function extractAnnotations(reader: PdfReader, pageDict: Record<string, PdfObject>, pageIndex: number): PdfAnnotation[] {
+    const annotsObj = pageDict['Annots'];
+    if (!annotsObj) return [];
+    const annotations: PdfAnnotation[] = [];
+    try {
+        const annots = reader.getArray(annotsObj);
+        for (const annotRef of annots) {
+            try {
+                const annotation = tryExtractLinkAnnotation(reader, annotRef, pageIndex);
+                if (annotation) annotations.push(annotation);
+            } catch { /* skip malformed annotation */ }
+        }
+    } catch { /* skip if annots can't be parsed */ }
+    return annotations;
+}
+
+export interface ExtractPageOptions {
+    readonly perFragment?: boolean;
+}
+
+export function extractPageContent(
     reader: PdfReader,
     pageObj: PdfObject,
     pageIndex: number,
-): { textItems: TextItem[]; imageItems: ImageItem[]; pathRects: PathRect[] } {
+    options?: ExtractPageOptions,
+): { textItems: TextItem[]; imageItems: ImageItem[]; pathRects: PathRect[]; pageWidth: number; pageHeight: number; annotations: PdfAnnotation[] } {
     const pageDict = reader.getDict(pageObj);
+    const mediaBox = getPageMediaBox(reader, pageDict);
+    const rotate = reader.getNumber(pageDict['Rotate']);
+    const normalizedRotate = ((rotate % 360) + 360) % 360;
+    const rawWidth = mediaBox[2] - mediaBox[0];
+    const rawHeight = mediaBox[3] - mediaBox[1];
+    const isRotated = normalizedRotate === 90 || normalizedRotate === 270;
+    const pageWidth = isRotated ? rawHeight : rawWidth;
+    const pageHeight = isRotated ? rawWidth : rawHeight;
+
+    const annotations = extractAnnotations(reader, pageDict, pageIndex);
+
     const contentsObj = pageDict['Contents'];
-    if (!contentsObj) return { textItems: [], imageItems: [], pathRects: [] };
+    if (!contentsObj) return { textItems: [], imageItems: [], pathRects: [], pageWidth, pageHeight, annotations };
 
     const contentData = resolveContentData(reader, contentsObj);
-    if (contentData.length === 0) return { textItems: [], imageItems: [], pathRects: [] };
+    if (contentData.length === 0) return { textItems: [], imageItems: [], pathRects: [], pageWidth, pageHeight, annotations };
 
     const resources = pageDict['Resources'] ? reader.getDict(pageDict['Resources']) : {};
     const fontDict = resources['Font'] ? reader.getDict(resources['Font']) : {};
     const xObjectDict = resources['XObject'] ? reader.getDict(resources['XObject']) : {};
 
-    const rotate = reader.getNumber(pageDict['Rotate']);
-    const mediaBox = getPageMediaBox(reader, pageDict);
     const initialCtm = buildRotationCtm(rotate, mediaBox);
 
     const fontInfoMap = new Map<string, FontInfo>();
@@ -2471,12 +3677,16 @@ function extractPageContent(
             leading: 0, charSpacing: 0, wordSpacing: 0, textRise: 0, horizontalScaling: 100,
             textRenderMode: 0, fillColorSpace: 'DeviceRGB', strokeColorSpace: 'DeviceRGB',
             strokeOpacity: 1, fillOpacity: 1,
+            dashArray: [], dashPhase: 0, lineCap: 0, lineJoin: 0,
         },
         operandStack: [],
         pageIndex,
         formDepth: 0,
         compatibilityMode: 0,
         mcidStack: [],
+        ocgOffSet: new Set<string>(),
+        ocgHiddenDepth: 0,
+        perFragment: options?.perFragment ?? false,
     };
 
     let i = 0;
@@ -2486,10 +3696,10 @@ function extractPageContent(
         i = processContentToken(token, ctx, tokens, i);
     }
 
-    return { textItems: ctx.textItems, imageItems: ctx.imageItems, pathRects: ctx.pathRects };
+    return { textItems: ctx.textItems, imageItems: ctx.imageItems, pathRects: ctx.pathRects, pageWidth, pageHeight, annotations };
 }
 
-function resolveImageFilterName(reader: PdfReader, dict: Record<string, PdfObject>): string {
+export function resolveImageFilterName(reader: PdfReader, dict: Record<string, PdfObject>): string {
     const filterObj = dict['Filter'];
     if (!filterObj) return '';
     const filterResolved = reader.resolveDeep(filterObj);
@@ -2501,7 +3711,7 @@ function resolveImageFilterName(reader: PdfReader, dict: Record<string, PdfObjec
     return last.type === 'name' ? last.value as string : '';
 }
 
-function buildImageDataUrl(
+export function buildImageDataUrl(
     filterName: string, xObj: PdfObject, reader: PdfReader,
     width: number, height: number, dict: Record<string, PdfObject>,
 ): string | null {
@@ -2535,6 +3745,8 @@ function extractXObjectImage(
 
     return {
         dataUrl, width, height,
+        renderWidth: Math.abs(ctm[0]),
+        renderHeight: Math.abs(ctm[3]),
         x: Math.round(ctm[4] * 100) / 100,
         y: Math.round(ctm[5] * 100) / 100,
         page: pageIndex,
@@ -2601,6 +3813,8 @@ function parseInlineImage(
         imageItem: {
             dataUrl: '',
             width, height,
+            renderWidth: Math.abs(ctm[0]),
+            renderHeight: Math.abs(ctm[3]),
             x: Math.round(ctm[4] * 100) / 100,
             y: Math.round(ctm[5] * 100) / 100,
             page: pageIndex,
@@ -2741,6 +3955,93 @@ function pixelToRgb(
     return [0, 0, 0];
 }
 
+function decodeSMask(dict: Record<string, PdfObject>, reader: PdfReader, width: number, height: number): Uint8Array | null {
+    const smaskRef = dict['SMask'];
+    if (!smaskRef) return null;
+    try {
+        const smaskDict = reader.getDict(smaskRef);
+        const smaskW = reader.getNumber(smaskDict['Width']);
+        const smaskH = reader.getNumber(smaskDict['Height']);
+        if (smaskW !== width || smaskH !== height) return null;
+        const maskData = reader.getStreamData(smaskRef);
+        if (maskData.length < width * height) return null;
+        return maskData;
+    } catch {
+        return null;
+    }
+}
+
+interface BitPackedPixelOptions {
+    readonly decoded: Uint8Array;
+    readonly col: number;
+    readonly rowStart: number;
+    readonly srcChannels: number;
+    readonly bpc: number;
+    readonly indexed: boolean;
+    readonly lookupTable: Uint8Array | null;
+    readonly baseChannels: number;
+}
+
+interface PngRowOptions {
+    readonly decoded: Uint8Array;
+    readonly row: number;
+    readonly width: number;
+    readonly rowBytes: number;
+    readonly srcChannels: number;
+    readonly bpc: number;
+    readonly channels: number;
+    readonly indexed: boolean;
+    readonly lookupTable: Uint8Array | null;
+    readonly baseChannels: number;
+    readonly smask: Uint8Array | null;
+    readonly pixelBytes: number;
+}
+
+function decodeBitPackedPixel(opts: BitPackedPixelOptions): [number, number, number] {
+    const { decoded, col, rowStart, srcChannels, bpc, indexed, lookupTable, baseChannels } = opts;
+    const bitOffset = col * srcChannels * bpc;
+    const byteIdx = rowStart + (bitOffset >> 3);
+    const bitShift = 8 - bpc - (bitOffset & 7);
+    const mask = (1 << bpc) - 1;
+    const sample = (decoded[byteIdx] >> bitShift) & mask;
+    const normalized = Math.round(sample * 255 / mask);
+    if (indexed && lookupTable) {
+        const lutOffset = sample * baseChannels;
+        const r = lookupTable[lutOffset] ?? 0;
+        const g = baseChannels >= 3 ? (lookupTable[lutOffset + 1] ?? 0) : r;
+        const b = baseChannels >= 3 ? (lookupTable[lutOffset + 2] ?? 0) : r;
+        return [r, g, b];
+    }
+    return [normalized, normalized, normalized];
+}
+
+function buildPngRow(opts: PngRowOptions): Uint8Array {
+    const { decoded, row, width, rowBytes, srcChannels, bpc, channels, indexed, lookupTable, baseChannels, smask, pixelBytes } = opts;
+    const rowStart = row * rowBytes;
+    const pixelRow = new Uint8Array(width * pixelBytes);
+    const isBitPacked = bpc < 8;
+    for (let col = 0; col < width; col++) {
+        let r: number, g: number, b: number;
+        if (isBitPacked) {
+            [r, g, b] = decodeBitPackedPixel({ decoded, col, rowStart, srcChannels, bpc, indexed, lookupTable, baseChannels });
+        } else {
+            const srcIdx = rowStart + col * srcChannels;
+            [r, g, b] = pixelToRgb(decoded, srcIdx, channels, indexed, lookupTable, baseChannels);
+        }
+        const outIdx = col * pixelBytes;
+        pixelRow[outIdx] = r;
+        pixelRow[outIdx + 1] = g;
+        pixelRow[outIdx + 2] = b;
+        if (smask !== null) {
+            pixelRow[outIdx + 3] = smask[row * width + col];
+        }
+    }
+    const filterRow = new Uint8Array(1 + width * pixelBytes);
+    filterRow[0] = 0;
+    filterRow.set(pixelRow, 1);
+    return filterRow;
+}
+
 function rawPixelsToPng(
     decoded: Uint8Array,
     width: number,
@@ -2752,33 +4053,23 @@ function rawPixelsToPng(
     const bpc = reader.getNumber(dict['BitsPerComponent']) || 8;
 
     const srcChannels = indexed ? 1 : channels;
-    const bytesPerSample = bpc / 8;
-    const expectedBytes = width * height * srcChannels * bytesPerSample;
+    const expectedBytes = Math.ceil(width * height * srcChannels * bpc / 8);
     if (decoded.length < expectedBytes * 0.8) return null;
 
-    const pngRows: Uint8Array[] = [];
-    const rowBytes = width * srcChannels * bytesPerSample;
+    const smask = decodeSMask(dict, reader, width, height);
+    const hasAlpha = smask !== null;
+    const pixelBytes = hasAlpha ? 4 : 3;
+    const rowBytes = Math.ceil(width * srcChannels * bpc / 8);
 
+    const pngRows: Uint8Array[] = [];
     for (let row = 0; row < height; row++) {
-        const rowStart = row * rowBytes;
-        const rgbRow = new Uint8Array(width * 3);
-        for (let col = 0; col < width; col++) {
-            const srcIdx = rowStart + col * srcChannels * bytesPerSample;
-            const [r, g, b] = pixelToRgb(decoded, srcIdx, channels, indexed, lookupTable, baseChannels);
-            rgbRow[col * 3] = r;
-            rgbRow[col * 3 + 1] = g;
-            rgbRow[col * 3 + 2] = b;
-        }
-        const filterRow = new Uint8Array(1 + width * 3);
-        filterRow[0] = 0;
-        filterRow.set(rgbRow, 1);
-        pngRows.push(filterRow);
+        pngRows.push(buildPngRow({ decoded, row, width, rowBytes, srcChannels, bpc, channels, indexed, lookupTable, baseChannels, smask, pixelBytes }));
     }
 
-    return buildPng(width, height, pngRows);
+    return buildPng(width, height, pngRows, hasAlpha);
 }
 
-function buildPng(width: number, height: number, rows: Uint8Array[]): Uint8Array {
+function buildPng(width: number, height: number, rows: Uint8Array[], hasAlpha = false): Uint8Array {
     const rawDataSize = rows.reduce((sum, r) => sum + r.length, 0);
     const rawData = new Uint8Array(rawDataSize);
     let offset = 0;
@@ -2827,7 +4118,7 @@ function buildPng(width: number, height: number, rows: Uint8Array[]): Uint8Array
         v.setUint32(0, width);
         v.setUint32(4, height);
         d[8] = 8;
-        d[9] = 2;
+        d[9] = hasAlpha ? 6 : 2;
         d[10] = 0;
         d[11] = 0;
         d[12] = 0;
@@ -2955,7 +4246,11 @@ function isCharCoveredByWord(charItem: TextItem, wordItem: TextItem): boolean {
     const yDiff = Math.abs(charItem.y - wordItem.y);
     if (yDiff > wordItem.fontSize * 0.5) return false;
     const margin = wordItem.fontSize * 0.3;
-    return charItem.x >= wordItem.x - margin && charItem.endX <= wordItem.endX + margin;
+    const positionOverlaps = charItem.x >= wordItem.x - margin && charItem.endX <= wordItem.endX + margin;
+    if (!positionOverlaps) return false;
+    // Only remove if the word actually contains the char (true duplicate, not adjacent punctuation)
+    const charText = charItem.text.trim();
+    return charText.length > 0 && wordItem.text.includes(charText);
 }
 
 function removeOverlappingCharDuplicates(items: TextItem[]): TextItem[] {
@@ -2982,7 +4277,9 @@ function removeOverlappingCharDuplicates(items: TextItem[]): TextItem[] {
                 break;
             }
         }
-        if (!covered) keptChars.push(charItem);
+        if (!covered) {
+            keptChars.push(charItem);
+        }
     }
 
     return [...wordItems, ...keptChars];
@@ -3049,13 +4346,25 @@ function detectCharByCharPages(items: TextItem[]): Set<number> {
     return result;
 }
 
-function computeWordGapThreshold(
-    sorted: TextItem[],
-    yTolerance: number,
-    charPages: Set<number>,
-): Map<number, number> {
-    if (charPages.size === 0) return new Map();
+function computePageGapThreshold(gaps: number[]): number {
+    gaps.sort((a, b) => a - b);
+    const median = gaps[Math.floor(gaps.length / 2)];
+    let maxJump = 0;
+    let jumpIndex = -1;
+    for (let i = 0; i < gaps.length - 1; i++) {
+        const jump = gaps[i + 1] - gaps[i];
+        if (jump > maxJump) {
+            maxJump = jump;
+            jumpIndex = i;
+        }
+    }
+    if (jumpIndex >= 0 && maxJump > median * 0.3) {
+        return (gaps[jumpIndex] + gaps[jumpIndex + 1]) / 2;
+    }
+    return median * 1.5;
+}
 
+function collectPageGaps(sorted: TextItem[], yTolerance: number, charPages: Set<number>): Map<number, number[]> {
     const pageGaps = new Map<number, number[]>();
     for (let i = 1; i < sorted.length; i++) {
         const prev = sorted[i - 1];
@@ -3071,30 +4380,66 @@ function computeWordGapThreshold(
             pageGaps.set(next.page, gaps);
         }
     }
+    return pageGaps;
+}
 
+function computeWordGapThreshold(
+    sorted: TextItem[],
+    yTolerance: number,
+    charPages: Set<number>,
+): Map<number, number> {
+    if (charPages.size === 0) return new Map();
+
+    const pageGaps = collectPageGaps(sorted, yTolerance, charPages);
     const result = new Map<number, number>();
     for (const [page, gaps] of pageGaps) {
         if (gaps.length < 5) continue;
-        gaps.sort((a, b) => a - b);
-
-        let maxJump = 0;
-        let jumpIndex = -1;
-        for (let i = 0; i < gaps.length - 1; i++) {
-            const jump = gaps[i + 1] - gaps[i];
-            if (jump > maxJump) {
-                maxJump = jump;
-                jumpIndex = i;
-            }
-        }
-
-        const median = gaps[Math.floor(gaps.length / 2)];
-        if (jumpIndex >= 0 && maxJump > median * 0.3) {
-            result.set(page, (gaps[jumpIndex] + gaps[jumpIndex + 1]) / 2);
-        } else {
-            result.set(page, median * 1.5);
-        }
+        result.set(page, computePageGapThreshold(gaps));
     }
     return result;
+}
+
+function hasScriptBoundary(prevText: string, nextText: string): boolean {
+    if (!prevText || !nextText) return false;
+    const lastChar = prevText.codePointAt(prevText.length - 1) ?? 0;
+    const firstChar = nextText.codePointAt(0) ?? 0;
+    const lastIsRTL = isRTLChar(lastChar);
+    const firstIsRTL = isRTLChar(firstChar);
+    const lastIsLTR = isLTRCode(lastChar);
+    const firstIsLTR = isLTRCode(firstChar);
+    return (lastIsRTL && firstIsLTR) || (lastIsLTR && firstIsRTL);
+}
+
+function mergeTextItems(current: TextItem, next: TextItem, gap: number, wordGapThresholds: Map<number, number>): TextItem {
+    const fontSize = Math.max(current.fontSize, next.fontSize);
+    const wordGap = wordGapThresholds.get(next.page);
+    const fallbackGap = fontSize * 0.15;
+    const scriptChange = hasScriptBoundary(current.text, next.text);
+    const needsSpace = scriptChange || (wordGap === undefined ? gap > fallbackGap : gap > wordGap);
+    const separator = needsSpace ? ' ' : '';
+    const text = current.text + separator + next.text;
+    return {
+        text,
+        fontSize,
+        x: Math.min(current.x, next.x),
+        y: current.y,
+        endX: Math.max(current.endX, next.endX),
+        page: current.page,
+        color: current.color,
+        bold: current.bold || next.bold,
+        italic: current.italic || next.italic,
+        fontFamily: current.fontFamily || next.fontFamily,
+        fontName: current.fontName || next.fontName,
+        mcid: current.mcid >= 0 ? current.mcid : next.mcid,
+        charSpacing: current.charSpacing,
+        wordSpacing: current.wordSpacing,
+        textRise: current.textRise,
+        horizontalScaling: current.horizontalScaling,
+        textRenderMode: current.textRenderMode,
+        strokeColor: current.strokeColor,
+        transformMatrix: current.transformMatrix,
+        isSpaceOffset: false,
+    };
 }
 
 function mergeAdjacentChars(items: TextItem[]): TextItem[] {
@@ -3123,23 +4468,7 @@ function mergeAdjacentChars(items: TextItem[]): TextItem[] {
         const isAdjacent = isNearby || wideMerge;
 
         if (sameLine && isAdjacent) {
-            const wordGap = wordGapThresholds.get(next.page);
-            const fallbackGap = fontSize * 0.15;
-            const needsSpace = wordGap !== undefined ? gap > wordGap : gap > fallbackGap;
-            const separator = needsSpace ? ' ' : '';
-            current = {
-                text: current.text + separator + next.text,
-                fontSize: Math.max(current.fontSize, next.fontSize),
-                x: Math.min(current.x, next.x),
-                y: current.y,
-                endX: Math.max(current.endX, next.endX),
-                page: current.page,
-                color: current.color,
-                bold: current.bold || next.bold,
-                italic: current.italic || next.italic,
-                fontFamily: current.fontFamily || next.fontFamily,
-                mcid: current.mcid >= 0 ? current.mcid : next.mcid,
-            };
+            current = mergeTextItems(current, next, gap, wordGapThresholds);
         } else {
             merged.push(current);
             current = { ...next };
@@ -3284,7 +4613,9 @@ function lineToText(line: TextLine): string {
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
             const gap = sorted[i].x - sorted[i - 1].endX;
-            if (gap > sorted[i - 1].fontSize * 0.12) {
+            if (gap > sorted[i - 1].fontSize * 0.12
+                    && !isSingleBracket(sorted[i - 1].text)
+                    && !isSingleBracket(sorted[i].text)) {
                 result += ' ';
             }
         }
@@ -3293,8 +4624,20 @@ function lineToText(line: TextLine): string {
     return result.trim();
 }
 
-function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: number): string {
-    let fragment = text;
+function findAnnotationForItem(item: TextItem, annotations: ReadonlyArray<PdfAnnotation>): string | null {
+    for (const ann of annotations) {
+        if (ann.page !== item.page) continue;
+        const itemCenterX = (item.x + item.endX) / 2;
+        const itemY = item.y;
+        if (itemCenterX >= ann.x && itemCenterX <= ann.x + ann.width &&
+            itemY >= ann.y && itemY <= ann.y + ann.height) {
+            return ann.uri;
+        }
+    }
+    return null;
+}
+
+function buildItemStyles(item: TextItem, bodyFont: string, bodySize: number): string[] {
     const styles: string[] = [];
     if (!isDefaultColor(item.color)) styles.push(`color: ${item.color}`);
     if (item.fontFamily && item.fontFamily !== bodyFont) styles.push(`font-family: '${item.fontFamily}'`);
@@ -3302,15 +4645,54 @@ function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: 
     if (sizeRatio < 0.85 || sizeRatio > 1.15) {
         styles.push(`font-size: ${Math.round(item.fontSize)}pt`);
     }
+    if (Math.abs(item.charSpacing) > 0.1) {
+        styles.push(`letter-spacing: ${(item.charSpacing * 0.75).toFixed(1)}px`);
+    }
+    if (Math.abs(item.wordSpacing) > 0.5) {
+        styles.push(`word-spacing: ${(item.wordSpacing * 0.75).toFixed(1)}px`);
+    }
+    if (item.horizontalScaling !== 100 && Math.abs(item.horizontalScaling - 100) > 1) {
+        styles.push(`display:inline-block;transform:scaleX(${(item.horizontalScaling / 100).toFixed(2)})`);
+    }
+    applyTextRenderModeStyles(item, styles);
+    return styles;
+}
+
+function wrapItemHtml(item: TextItem, text: string, bodyFont: string, bodySize: number, linkUri?: string | null): string {
+    let fragment = text;
+    const styles = buildItemStyles(item, bodyFont, bodySize);
     if (styles.length > 0) {
         fragment = `<span style="${styles.join('; ')}">${fragment}</span>`;
     }
+    if (item.textRise > 1) {
+        fragment = `<sup>${fragment}</sup>`;
+    } else if (item.textRise < -1) {
+        fragment = `<sub>${fragment}</sub>`;
+    }
     if (item.italic) fragment = `<em>${fragment}</em>`;
     if (item.bold) fragment = `<strong>${fragment}</strong>`;
+    if (linkUri) {
+        const safeUri = escapeHtml(linkUri);
+        const linkColor = isDefaultColor(item.color) ? '#1a0dab' : item.color;
+        fragment = `<a href="${safeUri}" target="_blank" rel="noopener noreferrer" style="color:${linkColor};text-decoration:underline">${fragment}</a>`;
+    }
     return fragment;
 }
 
-function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number): string {
+function applyTextRenderModeStyles(item: TextItem, styles: string[]): void {
+    if (item.textRenderMode === 1) {
+        styles.push(`-webkit-text-stroke: 1px ${item.color}; color: transparent`);
+    } else if (item.textRenderMode === 2) {
+        styles.push(`-webkit-text-stroke: 1px ${item.color}`);
+    }
+}
+
+function isSingleBracket(text: string): boolean {
+    const t = text.trim();
+    return t === '(' || t === ')' || t === '[' || t === ']';
+}
+
+function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number, annotations?: ReadonlyArray<PdfAnnotation>): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     let result = '';
     const bf = bodyFont ?? '';
@@ -3318,12 +4700,15 @@ function lineToHtmlContent(line: TextLine, bodyFont?: string, bodySize?: number)
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
             const gap = sorted[i].x - sorted[i - 1].endX;
-            if (gap > sorted[i - 1].fontSize * 0.12) {
+            if (gap > sorted[i - 1].fontSize * 0.12
+                    && !isSingleBracket(sorted[i - 1].text)
+                    && !isSingleBracket(sorted[i].text)) {
                 result += ' ';
             }
         }
         const text = escapeHtml(sorted[i].text);
-        result += wrapItemHtml(sorted[i], text, bf, bs);
+        const uri = annotations ? findAnnotationForItem(sorted[i], annotations) : null;
+        result += wrapItemHtml(sorted[i], text, bf, bs, uri);
     }
     return result.trim();
 }
@@ -3362,15 +4747,22 @@ function classifyLinesByColumn(pageLines: TextLine[], splitX: number): TextLine[
     return [...spanningLines, ...leftLines, ...rightLines];
 }
 
-function detectColumns(lines: TextLine[]): TextLine[] {
-    if (lines.length < 4) return lines;
+function detectColumns(lines: TextLine[]): { lines: TextLine[]; hasColumns: boolean } {
+    if (lines.length < 4) return { lines, hasColumns: false };
 
     const pages = new Set(lines.map(l => l.items[0]?.page ?? 0));
     const result: TextLine[] = [];
+    let hasColumns = false;
 
     for (const page of pages) {
         const pageLines = lines.filter(l => (l.items[0]?.page ?? 0) === page);
         if (pageLines.length < 4) {
+            result.push(...pageLines);
+            continue;
+        }
+
+        const pageText = pageLines.map(l => l.items.map(it => it.text).join('')).join('');
+        if (hasRTLText(pageText)) {
             result.push(...pageLines);
             continue;
         }
@@ -3387,35 +4779,154 @@ function detectColumns(lines: TextLine[]): TextLine[] {
             continue;
         }
 
+        hasColumns = true;
         result.push(...classifyLinesByColumn(pageLines, splitX));
     }
 
-    return result;
+    return { lines: result, hasColumns };
 }
 
 const BULLET_PATTERN = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]\s*/;
+const BULLET_CHARS = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]+$/;
 const NUMBERED_PATTERN = /^(\d{1,3})[.)]\s+/;
 const NUMBERED_PATTERN_RTL_END = /\s+[.)]\d{1,3}$/;
+
+function stripBulletItems(line: TextLine): TextLine {
+    const filtered = line.items.filter(item => {
+        const t = item.text.trim();
+        if (BULLET_CHARS.test(t)) return false;
+        if (t.length <= 2 && /symbol/i.test(item.fontFamily)) return false;
+        if (t.length === 1 && (t.codePointAt(0) ?? 0) >= 0xF000) return false;
+        return true;
+    });
+    if (filtered.length === 0) return line;
+    const first = filtered[0];
+    return {
+        items: filtered.map(item => {
+            const trimmed = item.text.replace(BULLET_PATTERN, '');
+            if (trimmed !== item.text) return { ...item, text: trimmed };
+            return item;
+        }),
+        y: line.y,
+        minX: first.x,
+    };
+}
+
+function stripNumberedPrefix(line: TextLine): TextLine {
+    const filtered = line.items.filter(item => {
+        const t = item.text.trim();
+        return !(/^\d{1,3}[.)]$/.test(t));
+    });
+    if (filtered.length === 0) return line;
+    const first = filtered[0];
+    return {
+        items: filtered.map(item => {
+            const trimmed = item.text.replace(NUMBERED_PATTERN, '');
+            if (trimmed !== item.text) return { ...item, text: trimmed };
+            const trimmedRtl = item.text.replace(NUMBERED_PATTERN_RTL_END, '');
+            if (trimmedRtl !== item.text) return { ...item, text: trimmedRtl };
+            return item;
+        }),
+        y: line.y,
+        minX: first.x,
+    };
+}
 
 interface HtmlBuilderState {
     html: string[];
     inBulletList: boolean;
     inNumberedList: boolean;
+    inColumnLayout: boolean;
     currentParagraph: string[];
     currentParagraphRTL: boolean;
+    currentParagraphAlign: string;
+    currentParagraphSpacingPx: number;
+    pendingMarginTopPt: number;
+    currentParagraphIndent: number;
+    currentParagraphLineXs: number[];
+    currentParagraphLineSpacings: number[];
+    currentParagraphBodySize: number;
     lastY: number | null;
     lastPage: number;
     lastLineSpacing: number;
     imageIdx: number;
+    readonly annotations: ReadonlyArray<PdfAnnotation>;
+    readonly pageWidth: number;
+    readonly leftMargin: number;
+    readonly rightMargin: number;
+}
+
+function buildParagraphStyles(state: HtmlBuilderState, useFlowingText: boolean): string[] {
+    const styles: string[] = [];
+    if (state.currentParagraphAlign) {
+        styles.push(`text-align:${state.currentParagraphAlign}`);
+    } else if (useFlowingText) {
+        styles.push('text-align:justify');
+    }
+    if (state.pendingMarginTopPt > 0) {
+        styles.push(`margin-top:${Math.round(state.pendingMarginTopPt * 100) / 100}pt`);
+        state.pendingMarginTopPt = 0;
+    }
+    if (state.currentParagraphSpacingPx > 0) {
+        styles.push(`margin-bottom:${Math.round(state.currentParagraphSpacingPx * 100) / 100}pt`);
+    }
+    if (state.currentParagraphLineSpacings.length > 0 && state.currentParagraphBodySize > 0) {
+        const sorted = [...state.currentParagraphLineSpacings].sort((a, b) => a - b);
+        const medianSpacing = sorted[Math.floor(sorted.length / 2)];
+        const lineHeightRatio = medianSpacing / state.currentParagraphBodySize;
+        if (lineHeightRatio > 0.5 && lineHeightRatio < 5) {
+            styles.push(`line-height:${Math.round(lineHeightRatio * 100) / 100}`);
+        }
+    }
+    if (state.currentParagraphIndent > 5) {
+        styles.push(`text-indent:${Math.round(state.currentParagraphIndent * 0.75)}px`);
+    }
+    return styles;
+}
+
+function resetParagraphState(state: HtmlBuilderState): void {
+    state.currentParagraph = [];
+    state.currentParagraphRTL = false;
+    state.currentParagraphAlign = '';
+    state.currentParagraphSpacingPx = 0;
+    state.currentParagraphIndent = 0;
+    state.currentParagraphLineXs = [];
+    state.currentParagraphLineSpacings = [];
+    state.currentParagraphBodySize = 0;
 }
 
 function flushParagraph(state: HtmlBuilderState): void {
-    if (state.currentParagraph.length === 0) return;
-    const text = state.currentParagraph.join('<br>');
-    const dir = state.currentParagraphRTL ? ' dir="rtl"' : '';
-    state.html.push(`<p${dir}>${text}</p>`);
-    state.currentParagraph = [];
-    state.currentParagraphRTL = false;
+    if (state.currentParagraph.length === 0) {
+        if (state.currentParagraphSpacingPx > 0) {
+            state.pendingMarginTopPt = state.currentParagraphSpacingPx;
+            state.currentParagraphSpacingPx = 0;
+        }
+        return;
+    }
+    const isMultiLine = state.currentParagraph.length > 1;
+    const isCenteredOrAligned = state.currentParagraphAlign === 'center' || state.currentParagraphAlign === 'right';
+    const useFlowingText = isMultiLine && !isCenteredOrAligned;
+    const text = useFlowingText
+        ? state.currentParagraph.join(' ')
+        : state.currentParagraph.join('<br>');
+    const styles = buildParagraphStyles(state, useFlowingText);
+    const styleAttr = styles.length > 0 ? ` style="${styles.join(';')}"` : '';
+    const dirAttr = state.currentParagraphRTL ? ' dir="rtl"' : '';
+    state.html.push(`<p${dirAttr}${styleAttr}>${text}</p>`);
+    resetParagraphState(state);
+}
+
+function detectParagraphIndent(state: HtmlBuilderState): void {
+    if (state.currentParagraphRTL) return;
+    const xs = state.currentParagraphLineXs;
+    if (xs.length < 2) return;
+    const firstX = xs[0];
+    const restXs = xs.slice(1);
+    const avgRestX = restXs.reduce((s, x) => s + x, 0) / restXs.length;
+    const indent = firstX - avgRestX;
+    if (indent > 5 && restXs.every(x => Math.abs(x - avgRestX) < 5)) {
+        state.currentParagraphIndent = indent;
+    }
 }
 
 function closeList(state: HtmlBuilderState): void {
@@ -3429,48 +4940,93 @@ function insertImagesBeforeY(state: HtmlBuilderState, sortedImages: ImageItem[],
         if (img.page > page || (img.page === page && img.y < y)) break;
         flushParagraph(state);
         closeList(state);
-        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" />`);
+        const styles = [`width:${Math.round(img.renderWidth * 100) / 100}pt`, 'max-width:100%', 'height:auto'];
+        if (state.lastY !== null && img.page === state.lastPage) {
+            const imgTop = img.y + img.renderHeight;
+            const gap = state.lastY - imgTop;
+            if (gap > 0) styles.push(`margin-top:${Math.round(gap * 100) / 100}pt`);
+        }
+        state.html.push(`<img src="${img.dataUrl}" alt="Embedded image" style="${styles.join(';')}" />`);
+        state.lastY = img.y;
+        state.lastPage = img.page;
         state.imageIdx++;
     }
 }
 
 function renderLineAsHeading(
-    state: HtmlBuilderState, line: TextLine, headingLevel: number, dir: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, headingLevel: number, bodyFont: string, bodySize: number,
+    lineSpacing = 0,
 ): void {
     flushParagraph(state);
     closeList(state);
-    const content = lineToHtmlContent(line, bodyFont, bodySize);
-    state.html.push(`<h${headingLevel}${dir}>${content}</h${headingLevel}>`);
+    const content = lineToHtmlContent(line, bodyFont, bodySize, state.annotations);
+    const rtl = isLineRTL(line);
+    const dirAttr = rtl ? ' dir="rtl"' : '';
+    const align = state.pageWidth > 0
+        ? detectTextAlignment(line, state.pageWidth, state.leftMargin, state.rightMargin) : '';
+    const hStyles: string[] = [];
+    const effectiveAlign = align || (rtl ? 'right' : '');
+    if (effectiveAlign) hStyles.push(`text-align:${effectiveAlign}`);
+    const marginTop = Math.max(state.currentParagraphSpacingPx, state.pendingMarginTopPt);
+    if (marginTop > 0) {
+        hStyles.push(`margin-top:${Math.round(marginTop * 100) / 100}pt`);
+        state.currentParagraphSpacingPx = 0;
+        state.pendingMarginTopPt = 0;
+    }
+    const styleAttr = hStyles.length > 0 ? ` style="${hStyles.join(';')}"` : '';
+    state.html.push(`<h${headingLevel}${dirAttr}${styleAttr}>${content}</h${headingLevel}>`);
+    state.lastLineSpacing = 0;
 }
 
 function renderLineAsBullet(
-    state: HtmlBuilderState, line: TextLine, lineText: string, dir: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
     if (state.inNumberedList) { state.html.push('</ol>'); state.inNumberedList = false; }
-    if (!state.inBulletList) { state.html.push(`<ul${dir}>`); state.inBulletList = true; }
-    const content = lineToHtmlContent(line, bodyFont, bodySize);
-    state.html.push(`<li>${content}</li>`);
+    const rtl = isLineRTL(line);
+    if (!state.inBulletList) {
+        const listDir = rtl ? ' dir="rtl"' : '';
+        state.html.push(`<ul${listDir}>`);
+        state.inBulletList = true;
+    }
+    const filteredLine = stripBulletItems(line);
+    const content = lineToHtmlContent(filteredLine, bodyFont, bodySize, state.annotations);
+    const dirAttr = rtl ? ' dir="rtl"' : '';
+    state.html.push(`<li${dirAttr}>${content}</li>`);
 }
 
 function renderLineAsNumbered(
-    state: HtmlBuilderState, line: TextLine, lineText: string, dir: string, bodyFont: string, bodySize: number,
+    state: HtmlBuilderState, line: TextLine, lineText: string, bodyFont: string, bodySize: number,
 ): void {
     flushParagraph(state);
+    const rtl = isLineRTL(line);
     if (state.inBulletList) { state.html.push('</ul>'); state.inBulletList = false; }
-    if (!state.inNumberedList) { state.html.push(`<ol${dir}>`); state.inNumberedList = true; }
-    const content = lineToHtmlContent(line, bodyFont, bodySize);
-    state.html.push(`<li>${content}</li>`);
+    if (!state.inNumberedList) {
+        const listDir = rtl ? ' dir="rtl"' : '';
+        state.html.push(`<ol${listDir}>`);
+        state.inNumberedList = true;
+    }
+    const filteredLine = stripNumberedPrefix(line);
+    const content = lineToHtmlContent(filteredLine, bodyFont, bodySize, state.annotations);
+    const dirAttr = rtl ? ' dir="rtl"' : '';
+    state.html.push(`<li${dirAttr}>${content}</li>`);
+}
+
+interface HtmlLineOptions {
+    readonly isParagraphBreak: boolean;
+    readonly isPageBreak: boolean;
+    readonly structureMap: StructureMap;
+    readonly lineSpacing: number;
+    readonly bodySize: number;
 }
 
 function processHtmlLine(
     line: TextLine, lineText: string, bodySize: number, bodyFont: string,
-    state: HtmlBuilderState, isParagraphBreak: boolean, isPageBreak: boolean,
-    structureMap: StructureMap,
+    state: HtmlBuilderState, options: HtmlLineOptions,
 ): void {
+    const { isParagraphBreak, isPageBreak, structureMap } = options;
     const largeGapIdx = findLargeGapIndex(line);
     const rtl = isLineRTL(line);
-    const dir = rtl ? ' dir="rtl"' : '';
 
     if (largeGapIdx > 0) {
         flushParagraph(state);
@@ -3484,17 +5040,17 @@ function processHtmlLine(
     const primaryFontSize = line.items.reduce((max, item) => Math.max(max, item.fontSize), 0);
     const headingLevel = structHeading > 0 ? structHeading : getHeadingLevel(primaryFontSize, bodySize);
     if (headingLevel > 0) {
-        renderLineAsHeading(state, line, headingLevel, dir, bodyFont, bodySize);
+        renderLineAsHeading(state, line, headingLevel, bodyFont, bodySize, options.lineSpacing);
         return;
     }
 
     const isStructList = structType !== null && isStructureListItem(structType);
     if (isStructList || BULLET_PATTERN.test(lineText)) {
-        renderLineAsBullet(state, line, lineText, dir, bodyFont, bodySize);
+        renderLineAsBullet(state, line, lineText, bodyFont, bodySize);
         return;
     }
     if (NUMBERED_PATTERN.test(lineText) || (rtl && NUMBERED_PATTERN_RTL_END.test(lineText))) {
-        renderLineAsNumbered(state, line, lineText, dir, bodyFont, bodySize);
+        renderLineAsNumbered(state, line, lineText, bodyFont, bodySize);
         return;
     }
 
@@ -3503,38 +5059,59 @@ function processHtmlLine(
         flushParagraph(state);
     }
     if (rtl) state.currentParagraphRTL = true;
-    state.currentParagraph.push(lineToHtmlContent(line, bodyFont, bodySize));
+    state.currentParagraphLineXs.push(line.minX);
+    if (!isParagraphBreak && !isPageBreak && options.lineSpacing > 0) {
+        state.currentParagraphLineSpacings.push(options.lineSpacing);
+        if (state.currentParagraphBodySize === 0) state.currentParagraphBodySize = bodySize;
+    }
+    state.currentParagraph.push(lineToHtmlContent(line, bodyFont, bodySize, state.annotations));
+    detectParagraphIndent(state);
+}
+
+interface HtmlLineWithUnderlinesOptions extends HtmlLineOptions {
+    readonly underlinedItems: Set<TextItem>;
+}
+
+function renderUnderlinedHeading(
+    state: HtmlBuilderState, headingLevel: number, content: string, rtl: boolean,
+): void {
+    flushParagraph(state);
+    closeList(state);
+    const dirAttr = rtl ? ' dir="rtl"' : '';
+    const hStyles: string[] = [];
+    if (rtl) hStyles.push('text-align:right');
+    const marginTop = Math.max(state.currentParagraphSpacingPx, state.pendingMarginTopPt);
+    if (marginTop > 0) {
+        hStyles.push(`margin-top:${Math.round(marginTop * 100) / 100}pt`);
+        state.currentParagraphSpacingPx = 0;
+        state.pendingMarginTopPt = 0;
+    }
+    const styleAttr = hStyles.length > 0 ? ` style="${hStyles.join(';')}"` : '';
+    state.html.push(`<h${headingLevel}${dirAttr}${styleAttr}>${content}</h${headingLevel}>`);
+    state.lastLineSpacing = 0;
 }
 
 function processHtmlLineWithUnderlines(
     line: TextLine, lineText: string, bodySize: number, bodyFont: string,
-    state: HtmlBuilderState, isParagraphBreak: boolean, isPageBreak: boolean,
-    underlinedItems: Set<TextItem>, structureMap: StructureMap,
+    state: HtmlBuilderState, options: HtmlLineWithUnderlinesOptions,
 ): void {
-    if (underlinedItems.size === 0) {
-        processHtmlLine(line, lineText, bodySize, bodyFont, state, isParagraphBreak, isPageBreak, structureMap);
+    const { isParagraphBreak, isPageBreak, underlinedItems, structureMap, lineSpacing, bodySize: bs } = options;
+    const baseOptions: HtmlLineOptions = { isParagraphBreak, isPageBreak, structureMap, lineSpacing, bodySize: bs };
+
+    if (underlinedItems.size === 0 || !line.items.some(it => underlinedItems.has(it))) {
+        processHtmlLine(line, lineText, bodySize, bodyFont, state, baseOptions);
         return;
     }
 
-    const hasUnderline = line.items.some(it => underlinedItems.has(it));
-    if (!hasUnderline) {
-        processHtmlLine(line, lineText, bodySize, bodyFont, state, isParagraphBreak, isPageBreak, structureMap);
-        return;
-    }
-
-    const rtl = isLineRTL(line);
-    const dir = rtl ? ' dir="rtl"' : '';
     const structType = getStructureTypeForLine(line, structureMap);
     const structHeading = structType ? structureTypeToHeadingLevel(structType) : 0;
     const primaryFontSize = line.items.reduce((max, item) => Math.max(max, item.fontSize), 0);
     const headingLevel = structHeading > 0 ? structHeading : getHeadingLevel(primaryFontSize, bodySize);
-
-    const content = lineToHtmlContentWithUnderlines(line, underlinedItems, bodyFont, bodySize);
+    const content = lineToHtmlContentWithUnderlines(line, underlinedItems, bodyFont, bodySize, state.annotations);
+    const rtl = isLineRTL(line);
 
     if (headingLevel > 0) {
-        flushParagraph(state);
-        closeList(state);
-        state.html.push(`<h${headingLevel}${dir}>${content}</h${headingLevel}>`);
+        renderUnderlinedHeading(state, headingLevel, content, rtl);
         return;
     }
 
@@ -3543,7 +5120,13 @@ function processHtmlLineWithUnderlines(
         flushParagraph(state);
     }
     if (rtl) state.currentParagraphRTL = true;
+    state.currentParagraphLineXs.push(line.minX);
+    if (!isParagraphBreak && !isPageBreak && lineSpacing > 0) {
+        state.currentParagraphLineSpacings.push(lineSpacing);
+        if (state.currentParagraphBodySize === 0) state.currentParagraphBodySize = bs;
+    }
     state.currentParagraph.push(content);
+    detectParagraphIndent(state);
 }
 
 // ── Path-based detection (underlines, tables, borders) ──────────────────
@@ -3553,8 +5136,8 @@ function clusterValues(values: number[], tolerance: number): number[] {
     const sorted = [...values].sort((a, b) => a - b);
     const clusters: number[][] = [[sorted[0]]];
     for (let i = 1; i < sorted.length; i++) {
-        const lastCluster = clusters[clusters.length - 1];
-        if (sorted[i] - lastCluster[lastCluster.length - 1] <= tolerance) {
+        const lastCluster = clusters.at(-1)!;
+        if (sorted[i] - lastCluster.at(-1)! <= tolerance) {
             lastCluster.push(sorted[i]);
         } else {
             clusters.push([sorted[i]]);
@@ -3637,6 +5220,20 @@ function segmentsIntersectOrTouch(a: LineSegment, b: LineSegment, tolerance: num
     return xHit && yHit;
 }
 
+function expandGroup(segments: LineSegment[], visited: boolean[], queue: number[], group: LineSegment[], tolerance: number): void {
+    while (queue.length > 0) {
+        const cur = queue.pop()!;
+        for (let j = 0; j < segments.length; j++) {
+            if (visited[j]) continue;
+            if (segmentsIntersectOrTouch(segments[cur], segments[j], tolerance)) {
+                visited[j] = true;
+                group.push(segments[j]);
+                queue.push(j);
+            }
+        }
+    }
+}
+
 function groupSegmentsSpatially(segments: LineSegment[], tolerance: number): LineSegment[][] {
     const visited = new Array<boolean>(segments.length).fill(false);
     const groups: LineSegment[][] = [];
@@ -3646,18 +5243,7 @@ function groupSegmentsSpatially(segments: LineSegment[], tolerance: number): Lin
         visited[i] = true;
         const group: LineSegment[] = [segments[i]];
         const queue = [i];
-
-        while (queue.length > 0) {
-            const cur = queue.pop()!;
-            for (let j = 0; j < segments.length; j++) {
-                if (visited[j]) continue;
-                if (segmentsIntersectOrTouch(segments[cur], segments[j], tolerance)) {
-                    visited[j] = true;
-                    group.push(segments[j]);
-                    queue.push(j);
-                }
-            }
-        }
+        expandGroup(segments, visited, queue, group, tolerance);
         groups.push(group);
     }
     return groups;
@@ -3713,7 +5299,7 @@ function detectTableGrids(rects: PathRect[], page: number): TableGrid[] {
 
 function detectBorderBoxes(rects: PathRect[], tableGrids: TableGrid[], page: number): PathRect[] {
     const pageRects = rects.filter(r =>
-        r.page === page && r.stroked && r.width > 150 && r.height > 40
+        r.page === page && (r.stroked || r.filled) && r.width > 50 && r.height > 8
         && !isHorizontalLine(r) && !isVerticalLine(r)
     );
     return pageRects.filter(r => {
@@ -3725,6 +5311,34 @@ function detectBorderBoxes(rects: PathRect[], tableGrids: TableGrid[], page: num
         }
         return true;
     });
+}
+
+function mergeAdjacentBorderBoxes(boxes: PathRect[]): PathRect[] {
+    if (boxes.length <= 1) return boxes;
+    const sorted = [...boxes].sort((a, b) => b.y - a.y);
+    const merged: PathRect[] = [{ ...sorted[0] }];
+    for (let i = 1; i < sorted.length; i++) {
+        const prev = merged.at(-1)!;
+        const curr = sorted[i];
+        const sameX = Math.abs(prev.x - curr.x) < 5 && Math.abs(prev.width - curr.width) < 10;
+        const prevTop = prev.y + prev.height;
+        const currTop = curr.y + curr.height;
+        const adjacent = Math.abs(prev.y - currTop) < 5
+            || Math.abs(curr.y - prevTop) < 5
+            || (curr.y < prevTop && currTop > prev.y);
+        if (sameX && adjacent) {
+            const newY = Math.min(prev.y, curr.y);
+            const newTop = Math.max(prevTop, currTop);
+            const newX = Math.min(prev.x, curr.x);
+            const newWidth = Math.max(prev.x + prev.width, curr.x + curr.width) - newX;
+            merged[merged.length - 1] = {
+                ...prev, x: newX, y: newY, width: newWidth, height: newTop - newY,
+            };
+        } else {
+            merged.push({ ...curr });
+        }
+    }
+    return merged;
 }
 
 function isItemInBounds(item: TextItem, x: number, y: number, w: number, h: number): boolean {
@@ -3773,16 +5387,15 @@ function renderTableGrid(
 }
 
 function buildCellContent(
-    items: TextItem[], underlinedItems: Set<TextItem>, bodySize: number, bodyFont?: string,
+    items: TextItem[], underlinedItems: Set<TextItem>, bodySize: number, bodyFont = '',
 ): string {
     if (items.length === 0) return '';
-    const bf = bodyFont ?? '';
     let result = '';
     for (let i = 0; i < items.length; i++) {
         const item = items[i];
         let text = escapeHtml(item.text);
         if (underlinedItems.has(item)) text = `<u>${text}</u>`;
-        const fragment = wrapItemHtml(item, text, bf, bodySize);
+        const fragment = wrapItemHtml(item, text, bodyFont, bodySize);
         if (i > 0) {
             const prev = items[i - 1];
             const gap = item.x - prev.endX;
@@ -3797,6 +5410,7 @@ function buildCellContent(
 
 function lineToHtmlContentWithUnderlines(
     line: TextLine, underlinedItems: Set<TextItem>, bodyFont?: string, bodySize?: number,
+    annotations?: ReadonlyArray<PdfAnnotation>,
 ): string {
     const sorted = [...line.items].sort((a, b) => a.x - b.x);
     const bf = bodyFont ?? '';
@@ -3805,7 +5419,9 @@ function lineToHtmlContentWithUnderlines(
     for (let i = 0; i < sorted.length; i++) {
         if (i > 0) {
             const gap = sorted[i].x - sorted[i - 1].endX;
-            if (gap > sorted[i - 1].fontSize * 0.12) {
+            if (gap > sorted[i - 1].fontSize * 0.12
+                    && !isSingleBracket(sorted[i - 1].text)
+                    && !isSingleBracket(sorted[i].text)) {
                 result += ' ';
             }
         }
@@ -3813,7 +5429,8 @@ function lineToHtmlContentWithUnderlines(
         if (underlinedItems.has(sorted[i])) {
             text = `<u>${text}</u>`;
         }
-        result += wrapItemHtml(sorted[i], text, bf, bs);
+        const uri = annotations ? findAnnotationForItem(sorted[i], annotations) : null;
+        result += wrapItemHtml(sorted[i], text, bf, bs, uri);
     }
     return result.trim();
 }
@@ -3833,28 +5450,388 @@ function isLineInsideGrid(line: TextLine, grids: TableGrid[]): boolean {
 function isLineInsideBorderBox(line: TextLine, boxes: PathRect[]): PathRect | undefined {
     for (const box of boxes) {
         if (line.items[0]?.page !== box.page) continue;
-        for (const item of line.items) {
-            if (isItemInBounds(item, box.x, box.y, box.width, box.height)) {
-                return box;
-            }
-        }
+        const allInside = line.items.every(item =>
+            isItemInBounds(item, box.x - 3, box.y - 3, box.width + 6, box.height + 6)
+        );
+        if (allInside) return box;
     }
     return undefined;
 }
 
-function textItemsToHtml(
-    textItems: TextItem[],
-    imageItems: ImageItem[],
-    structureMap: StructureMap,
-    pathRects: PathRect[] = [],
-): string {
-    const mergedItems = mergeAdjacentChars(textItems);
-    const rawLines = groupIntoLines(mergedItems);
-    if (rawLines.length === 0) return '';
-    const lines = detectColumns(rawLines);
-    const bodySize = detectBodyFontSize(mergedItems);
-    const bodyFont = detectBodyFont(mergedItems);
+function isLineNearBorderBox(line: PathRect, boxes: PathRect[]): boolean {
+    for (const box of boxes) {
+        if (box.page !== line.page) continue;
+        const xOverlap = line.x >= box.x - 10 && line.x + line.width <= box.x + box.width + 10;
+        const nearTop = Math.abs(line.y - box.y) < 8;
+        const nearBottom = Math.abs(line.y - (box.y + box.height)) < 8;
+        if (xOverlap && (nearTop || nearBottom)) return true;
+    }
+    return false;
+}
 
+function groupFooterLinesByY(lines: TextLine[]): TextLine[][] {
+    if (lines.length === 0) return [];
+    const sorted = [...lines].sort((a, b) => b.y - a.y);
+    const groups: TextLine[][] = [[sorted[0]]];
+    for (let i = 1; i < sorted.length; i++) {
+        const lastGroup = groups.at(-1)!;
+        const lastY = lastGroup[0].y;
+        if (Math.abs(sorted[i].y - lastY) < 3) {
+            lastGroup.push(sorted[i]);
+        } else {
+            groups.push([sorted[i]]);
+        }
+    }
+    return groups;
+}
+
+function detectTextAlignment(line: TextLine, pageWidth: number, leftMargin: number, rightMargin: number): string {
+    if (pageWidth <= 0) return '';
+    const lineLeft = Math.min(...line.items.map(it => it.x));
+    const lineRight = Math.max(...line.items.map(it => it.endX));
+    const contentWidth = rightMargin - leftMargin;
+    if (contentWidth <= 0) return '';
+
+    const leftDist = lineLeft - leftMargin;
+    const rightDist = rightMargin - lineRight;
+
+    if (leftDist > contentWidth * 0.15 && rightDist > contentWidth * 0.15) {
+        if (isLineRTL(line)) {
+            const balance = Math.min(leftDist, rightDist) / Math.max(leftDist, rightDist);
+            if (balance > 0.5) return 'center';
+        } else {
+            return 'center';
+        }
+    }
+    if (leftDist > contentWidth * 0.2 && rightDist < contentWidth * 0.05) {
+        return 'right';
+    }
+    return '';
+}
+
+function computeContentBounds(textItems: ReadonlyArray<TextItem>): { left: number; right: number; top: number; bottom: number } {
+    let left = Infinity;
+    let right = -Infinity;
+    let top = -Infinity;
+    let bottom = Infinity;
+    for (const item of textItems) {
+        if (item.x < left) left = item.x;
+        if (item.endX > right) right = item.endX;
+        if (item.y > top) top = item.y;
+        if (item.y - item.fontSize < bottom) bottom = item.y - item.fontSize;
+    }
+    return { left, right, top, bottom };
+}
+
+function buildTableGridRects(allTableGrids: TableGrid[], remainingRects: PathRect[], allBorderBoxes: PathRect[]): Set<PathRect> {
+    const tableGridRects = new Set<PathRect>();
+    for (const grid of allTableGrids) {
+        for (const rect of remainingRects) {
+            if (rect.x >= grid.x - 2 && rect.x + rect.width <= grid.x + grid.width + 2 &&
+                rect.y >= grid.y - 2 && rect.y + rect.height <= grid.y + grid.height + 2) {
+                tableGridRects.add(rect);
+            }
+        }
+    }
+    for (const box of allBorderBoxes) {
+        tableGridRects.add(box);
+    }
+    return tableGridRects;
+}
+
+function insertHrBeforeLine(
+    state: HtmlBuilderState, decorativeLines: PathRect[], hrIdx: number, linePageIdx: number, lineY: number,
+): number {
+    while (hrIdx < decorativeLines.length) {
+        const hr = decorativeLines[hrIdx];
+        if (hr.page > linePageIdx || (hr.page === linePageIdx && hr.y < lineY)) break;
+        flushParagraph(state);
+        closeList(state);
+        const color = hr.stroked ? hr.strokeColor : hr.fillColor;
+        const weight = hr.stroked
+            ? Math.max(2, Math.round(hr.lineWidth))
+            : Math.max(2, Math.round(Math.abs(hr.height)));
+        let marginTop = '0';
+        if (state.lastY !== null && hr.page === state.lastPage) {
+            const gap = state.lastY - hr.y;
+            if (gap > 0) marginTop = `${Math.round(gap * 100) / 100}pt`;
+        }
+        state.html.push(`<hr style="border:none;border-top:${weight}px solid ${color};margin:${marginTop} 0 0 0" />`);
+        state.lastY = hr.y;
+        state.lastPage = hr.page;
+        hrIdx++;
+    }
+    return hrIdx;
+}
+
+function renderBorderBoxToHtml(
+    borderBox: PathRect, lines: TextLine[], underlinedItems: Set<TextItem>, bodyFont: string, bodySize: number,
+    annotations: ReadonlyArray<PdfAnnotation>,
+): string {
+    const boxLines = lines.filter(l => isLineInsideBorderBox(l, [borderBox]));
+    const boxContent = boxLines
+        .map(l => {
+            const content = lineToHtmlContentWithUnderlines(l, underlinedItems, bodyFont, bodySize, annotations);
+            if (!content.length) return '';
+            const lineDir = isLineRTL(l) ? ' dir="rtl"' : '';
+            return `<div${lineDir}>${content}</div>`;
+        })
+        .filter(c => c.length > 0)
+        .join('');
+    const boxStyles: string[] = [];
+    if (borderBox.filled && borderBox.fillColor !== '#ffffff' && borderBox.fillColor !== '#fff') {
+        boxStyles.push(`background-color:${borderBox.fillColor}`);
+    }
+    if (borderBox.stroked) {
+        const bw = Math.max(1, Math.round(borderBox.lineWidth));
+        boxStyles.push(`border:${bw}px solid ${borderBox.strokeColor}`);
+    } else {
+        boxStyles.push('border:1px solid #000');
+    }
+    boxStyles.push('padding:8px 12px', 'margin:8px 0', 'font-family:monospace', 'font-size:0.85em', 'overflow-x:auto', 'white-space:pre-wrap', 'width:100%', 'box-sizing:border-box');
+    return `<div style="${boxStyles.join(';')}">${boxContent}</div>`;
+}
+
+function renderFooterLines(
+    state: HtmlBuilderState, footerLines: TextLine[], underlinedItems: Set<TextItem>, bodyFont: string, bodySize: number,
+): void {
+    state.html.push('<hr style="border:none;border-top:1px solid #ccc;margin:1.5em 0 0.5em 0" />');
+    const yGroups = groupFooterLinesByY(footerLines);
+    state.html.push('<footer style="font-size:0.75em;color:#666">');
+    for (const group of yGroups) {
+        if (group.length === 1) {
+            const content = lineToHtmlContentWithUnderlines(group[0], underlinedItems, bodyFont, bodySize, state.annotations);
+            const rtl = isLineRTL(group[0]);
+            const dirAttr = rtl ? ' dir="rtl"' : '';
+            state.html.push(`<p${dirAttr} style="margin:0.15em 0;text-align:center">${content}</p>`);
+        } else {
+            const sorted = [...group].sort((a, b) => a.minX - b.minX);
+            const parts = sorted.map(l =>
+                lineToHtmlContentWithUnderlines(l, underlinedItems, bodyFont, bodySize, state.annotations));
+            state.html.push(`<div style="display:flex;justify-content:space-between;margin:0.15em 0">`);
+            for (const part of parts) {
+                state.html.push(`<span>${part}</span>`);
+            }
+            state.html.push('</div>');
+        }
+    }
+    state.html.push('</footer>');
+}
+
+interface HtmlBuilderContext {
+    readonly lines: TextLine[];
+    readonly mergedItems: TextItem[];
+    readonly underlinedItems: Set<TextItem>;
+    readonly structureMap: StructureMap;
+    readonly allTableGrids: TableGrid[];
+    readonly allBorderBoxes: PathRect[];
+    readonly sortedImages: ImageItem[];
+    readonly decorativeLines: PathRect[];
+    readonly bodySize: number;
+    readonly bodyFont: string;
+    readonly pageWidth: number;
+    readonly leftMargin: number;
+    readonly rightMargin: number;
+    readonly footerThreshold: number;
+    readonly isRtlDoc: boolean;
+}
+
+function renderGridForLine(
+    line: TextLine, state: HtmlBuilderState, ctx: HtmlBuilderContext,
+    renderedGrids: Set<TableGrid>,
+): void {
+    const { allTableGrids, mergedItems, underlinedItems, bodySize, bodyFont } = ctx;
+    const grid = allTableGrids.find(g => {
+        if (line.items[0]?.page !== g.page) return false;
+        return line.items.some(it => isItemInBounds(it, g.x - 5, g.y - 5, g.width + 10, g.height + 10));
+    });
+    if (grid && !renderedGrids.has(grid)) {
+        flushParagraph(state);
+        closeList(state);
+        state.html.push(renderTableGrid(grid, mergedItems, underlinedItems, bodySize, bodyFont));
+        renderedGrids.add(grid);
+    }
+}
+
+function applyParagraphSpacing(state: HtmlBuilderState, lineSpacing: number, bodySize: number): void {
+    if (lineSpacing <= 0) return;
+    const baselineSpacing = state.lastLineSpacing > 0 ? state.lastLineSpacing : bodySize;
+    const extraSpacing = lineSpacing - baselineSpacing;
+    if (extraSpacing > 0) {
+        const px = Math.min(extraSpacing, bodySize * 5);
+        state.currentParagraphSpacingPx = Math.max(state.currentParagraphSpacingPx, px);
+    }
+}
+
+function handleBorderBoxLine(
+    line: TextLine, ctx: HtmlBuilderContext, state: HtmlBuilderState,
+    renderedBorderBoxes: Set<PathRect>, borderBox: PathRect,
+): void {
+    if (!renderedBorderBoxes.has(borderBox)) {
+        flushParagraph(state);
+        closeList(state);
+        const { lines, underlinedItems, bodyFont, bodySize } = ctx;
+        state.html.push(renderBorderBoxToHtml(borderBox, lines, underlinedItems, bodyFont, bodySize, state.annotations));
+        renderedBorderBoxes.add(borderBox);
+    }
+}
+
+function detectParagraphBreak(line: TextLine, state: HtmlBuilderState, bodySize: number, lineSpacing: number): boolean {
+    return state.lastY !== null &&
+        line.items[0].page === state.lastPage &&
+        (
+            (state.lastLineSpacing > 0 &&
+                lineSpacing > Math.min(state.lastLineSpacing, bodySize * 1.5) * 1.3) ||
+            lineSpacing > bodySize * 1.5
+        );
+}
+
+function applyInitialGapSpacing(state: HtmlBuilderState, lineSpacing: number, bodySize: number): void {
+    if (state.lastLineSpacing === 0 && lineSpacing > 0 && state.lastY !== null) {
+        const gap = lineSpacing - bodySize;
+        if (gap > 0) {
+            state.pendingMarginTopPt = Math.max(state.pendingMarginTopPt, gap);
+        }
+    }
+}
+
+function processRegularLine(
+    line: TextLine, lineText: string, ctx: HtmlBuilderContext, state: HtmlBuilderState,
+    renderedBorderBoxes: Set<PathRect>,
+): void {
+    const { underlinedItems, structureMap, allBorderBoxes, bodySize, bodyFont, pageWidth, leftMargin, rightMargin } = ctx;
+    const borderBox = isLineInsideBorderBox(line, allBorderBoxes);
+    if (borderBox) {
+        handleBorderBoxLine(line, ctx, state, renderedBorderBoxes, borderBox);
+        return;
+    }
+
+    const lineSpacing = state.lastY !== null && line.items[0].page === state.lastPage
+        ? Math.abs(state.lastY - line.y) : 0;
+    const isParagraphBreak = detectParagraphBreak(line, state, bodySize, lineSpacing);
+    const isPageBreak = state.lastPage !== -1 && line.items[0].page !== state.lastPage;
+
+    if (isParagraphBreak) {
+        applyParagraphSpacing(state, lineSpacing, bodySize);
+    } else {
+        applyInitialGapSpacing(state, lineSpacing, bodySize);
+    }
+
+    const align = pageWidth > 0 ? detectTextAlignment(line, pageWidth, leftMargin, rightMargin) : '';
+    if (align && state.currentParagraph.length === 0) {
+        state.currentParagraphAlign = align;
+    }
+
+    processHtmlLineWithUnderlines(line, lineText, bodySize, bodyFont, state, { isParagraphBreak, isPageBreak, underlinedItems, structureMap, lineSpacing, bodySize });
+
+    if (ctx.isRtlDoc && !state.currentParagraphRTL && hasRTLText(lineText)) {
+        state.currentParagraphRTL = true;
+    }
+
+    if (lineSpacing > 0 && state.lastLineSpacing !== 0) state.lastLineSpacing = lineSpacing;
+}
+
+function processLinesToHtml(ctx: HtmlBuilderContext, state: HtmlBuilderState): TextLine[] {
+    const { lines, allTableGrids, sortedImages, decorativeLines, footerThreshold } = ctx;
+    const renderedGrids = new Set<TableGrid>();
+    const renderedBorderBoxes = new Set<PathRect>();
+    const footerLines: TextLine[] = [];
+    let hrIdx = 0;
+
+    for (const line of lines) {
+        const lineText = lineToText(line);
+        if (!lineText) continue;
+
+        if (footerThreshold > 0 && line.items.every(it => it.y < footerThreshold)) {
+            footerLines.push(line);
+            continue;
+        }
+
+        insertImagesBeforeY(state, sortedImages, line.items[0].page, line.y);
+        hrIdx = insertHrBeforeLine(state, decorativeLines, hrIdx, line.items[0].page, line.y);
+
+        if (isLineInsideGrid(line, allTableGrids)) {
+            renderGridForLine(line, state, ctx, renderedGrids);
+            state.lastY = line.y;
+            state.lastPage = line.items[0].page;
+            continue;
+        }
+
+        processRegularLine(line, lineText, ctx, state, renderedBorderBoxes);
+        state.lastY = line.y;
+        state.lastPage = line.items[0].page;
+    }
+
+    return footerLines;
+}
+
+function isNearRTL(text: string, pos: number, dir: -1 | 1): boolean {
+    const c1 = pos + dir >= 0 && pos + dir < text.length ? (text.codePointAt(pos + dir) ?? 0) : 0;
+    if (isRTLChar(c1)) return true;
+    if (c1 === 0x27 || c1 === 0x22) {
+        const c2 = pos + dir * 2 >= 0 && pos + dir * 2 < text.length ? (text.codePointAt(pos + dir * 2) ?? 0) : 0;
+        return isRTLChar(c2);
+    }
+    return false;
+}
+
+function mirrorBracketsAdjacentToRtl(text: string): string {
+    let result = '';
+    for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        if (ch === '(' || ch === ')') {
+            if (isNearRTL(text, i, -1) || isNearRTL(text, i, 1)) {
+                result += ch === '(' ? ')' : '(';
+                continue;
+            }
+        }
+        result += ch;
+    }
+    return result;
+}
+
+function fixLtrLineItemInRtlDoc(item: TextItem): void {
+    if (hasRTLText(item.text)) {
+        item.text = fixVisualOrderRTL(item.text);
+        item.text = fixBracketsAroundLtrWords(item.text);
+        if (item.text.includes(' ')) {
+            item.text = reverseRTLWordOrder(item.text);
+            item.text = joinSplitHebrewFragments(item.text);
+            item.text = fixSplitRoundBrackets(item.text);
+        }
+    } else if ((item.text.codePointAt(0) ?? 0) === 0x5D) {
+        item.text = fixLeadingBracketsInLtrTokens([item.text])[0];
+    }
+}
+
+function fixRtlLineItem(item: TextItem): void {
+    if (!hasRTLText(item.text)) return;
+    item.text = fixVisualOrderRTL(item.text);
+    item.text = fixBracketsAroundLtrWords(item.text);
+    if (item.text.includes(' ')) {
+        item.text = reverseRTLWordOrder(item.text);
+        item.text = joinSplitHebrewFragments(item.text);
+    }
+    item.text = mirrorBracketsAdjacentToRtl(item.text);
+    item.text = fixSplitRoundBrackets(item.text);
+}
+
+function applyRtlWordFixes(rawLines: TextLine[]): void {
+    const isRtlDoc = rawLines.some(line => isLineRTL(line));
+    for (const line of rawLines) {
+        if (!isLineRTL(line)) {
+            if (isRtlDoc) {
+                for (const item of line.items) fixLtrLineItemInRtlDoc(item);
+            }
+            continue;
+        }
+        for (const item of line.items) fixRtlLineItem(item);
+    }
+}
+
+function buildLayoutRects(
+    pathRects: PathRect[], mergedItems: TextItem[],
+): { underlinedItems: Set<TextItem>; allTableGrids: TableGrid[]; allBorderBoxes: PathRect[]; decorativeLines: PathRect[] } {
     const { underlinedItems, usedRects } = detectUnderlines(pathRects, mergedItems);
     const remainingRects = pathRects.filter(r => !usedRects.has(r));
 
@@ -3864,106 +5841,98 @@ function textItemsToHtml(
     for (const page of pages) {
         const grids = detectTableGrids(remainingRects, page);
         allTableGrids.push(...grids);
-        allBorderBoxes.push(...detectBorderBoxes(remainingRects, grids, page));
+        const boxes = detectBorderBoxes(remainingRects, grids, page);
+        allBorderBoxes.push(...mergeAdjacentBorderBoxes(boxes));
     }
 
-    const renderedGrids = new Set<TableGrid>();
-    const renderedBorderBoxes = new Set<PathRect>();
+    const tableGridRects = buildTableGridRects(allTableGrids, remainingRects, allBorderBoxes);
+    const decorativeLines = remainingRects
+        .filter(r => !tableGridRects.has(r) && r.height <= 3 && r.width > 50 && (r.stroked || r.filled)
+            && !isLineNearBorderBox(r, allBorderBoxes))
+        .sort((a, b) => a.page === b.page ? b.y - a.y : a.page - b.page);
+
+    return { underlinedItems, allTableGrids, allBorderBoxes, decorativeLines };
+}
+
+function appendRemainingImages(state: HtmlBuilderState, sortedImages: ImageItem[]): void {
+    while (state.imageIdx < sortedImages.length) {
+        const img = sortedImages[state.imageIdx];
+        const styles = [`width:${Math.round(img.renderWidth * 100) / 100}pt`, 'max-width:100%', 'height:auto'];
+        if (state.lastY !== null && img.page === state.lastPage) {
+            const imgTop = img.y + img.renderHeight;
+            const gap = state.lastY - imgTop;
+            if (gap > 0) styles.push(`margin-top:${Math.round(gap * 100) / 100}pt`);
+        }
+        state.html.push(`<img src="${img.dataUrl}" alt="Embedded image" style="${styles.join(';')}" />`);
+        state.lastY = img.y;
+        state.lastPage = img.page;
+        state.imageIdx++;
+    }
+}
+
+function textItemsToHtml(
+    textItems: TextItem[],
+    imageItems: ImageItem[],
+    structureMap: StructureMap,
+    pathRects: PathRect[] = [],
+    pageWidth = 0,
+    pageHeight = 0,
+    annotations: PdfAnnotation[] = [],
+): string {
+    const mergedItems = mergeAdjacentChars(textItems);
+    const rawLines = groupIntoLines(mergedItems);
+    if (rawLines.length === 0) return '';
+
+    applyRtlWordFixes(rawLines);
+
+    const { lines, hasColumns } = detectColumns(rawLines);
+    const bodySize = detectBodyFontSize(mergedItems);
+    const bodyFont = detectBodyFont(mergedItems);
+
+    const contentBounds = computeContentBounds(mergedItems);
+    const leftMargin = pageWidth > 0 ? contentBounds.left : 0;
+    const rightMargin = pageWidth > 0 ? contentBounds.right : pageWidth;
+
+    const { underlinedItems, allTableGrids, allBorderBoxes, decorativeLines } = buildLayoutRects(pathRects, mergedItems);
 
     const sortedImages = [...imageItems].sort((a, b) =>
         a.page === b.page ? b.y - a.y : a.page - b.page
     );
 
     const state: HtmlBuilderState = {
-        html: [], inBulletList: false, inNumberedList: false,
+        html: [], inBulletList: false, inNumberedList: false, inColumnLayout: false,
         currentParagraph: [], currentParagraphRTL: false,
+        currentParagraphAlign: '', currentParagraphSpacingPx: 0, pendingMarginTopPt: 0,
+        currentParagraphIndent: 0, currentParagraphLineXs: [], currentParagraphLineSpacings: [], currentParagraphBodySize: 0,
         lastY: null, lastPage: -1, lastLineSpacing: 0, imageIdx: 0,
+        annotations, pageWidth, leftMargin, rightMargin,
     };
 
-    for (const line of lines) {
-        const lineText = lineToText(line);
-        if (!lineText) continue;
+    const htmlCtx: HtmlBuilderContext = {
+        lines, mergedItems, underlinedItems, structureMap, allTableGrids, allBorderBoxes,
+        sortedImages, decorativeLines, bodySize, bodyFont, pageWidth, leftMargin, rightMargin,
+        footerThreshold: pageHeight > 0 ? pageHeight * 0.1 : 0,
+        isRtlDoc: lines.some(l => isLineRTL(l)),
+    };
 
-        insertImagesBeforeY(state, sortedImages, line.items[0].page, line.y);
-
-        if (isLineInsideGrid(line, allTableGrids)) {
-            const grid = allTableGrids.find(g => {
-                if (line.items[0]?.page !== g.page) return false;
-                return line.items.some(it => isItemInBounds(it, g.x - 5, g.y - 5, g.width + 10, g.height + 10));
-            });
-            if (grid && !renderedGrids.has(grid)) {
-                flushParagraph(state);
-                closeList(state);
-                state.html.push(renderTableGrid(grid, mergedItems, underlinedItems, bodySize, bodyFont));
-                renderedGrids.add(grid);
-            }
-            state.lastY = line.y;
-            state.lastPage = line.items[0].page;
-            continue;
-        }
-
-        const borderBox = isLineInsideBorderBox(line, allBorderBoxes);
-        if (borderBox && !renderedBorderBoxes.has(borderBox)) {
-            flushParagraph(state);
-            closeList(state);
-            const boxLines = lines.filter(l => isLineInsideBorderBox(l, [borderBox]));
-            const boxContent = boxLines
-                .map(l => lineToHtmlContentWithUnderlines(l, underlinedItems, bodyFont, bodySize))
-                .filter(c => c.length > 0)
-                .join('<br>');
-            const rtl = boxLines.some(l => isLineRTL(l));
-            const dirAttr = rtl ? ' dir="rtl"' : '';
-            state.html.push(`<div style="border: 1px solid #000; padding: 8px; margin: 8px 0;"${dirAttr}>${boxContent}</div>`);
-            renderedBorderBoxes.add(borderBox);
-            state.lastY = line.y;
-            state.lastPage = line.items[0].page;
-            continue;
-        }
-        if (borderBox && renderedBorderBoxes.has(borderBox)) {
-            state.lastY = line.y;
-            state.lastPage = line.items[0].page;
-            continue;
-        }
-
-        const lineSpacing = state.lastY !== null && line.items[0].page === state.lastPage
-            ? Math.abs(state.lastY - line.y) : 0;
-        const isParagraphBreak = state.lastY !== null &&
-            line.items[0].page === state.lastPage &&
-            (
-                (state.lastLineSpacing > 0 && lineSpacing > state.lastLineSpacing * 1.5) ||
-                lineSpacing > bodySize * 2
-            );
-        const isPageBreak = state.lastPage !== -1 && line.items[0].page !== state.lastPage;
-
-        processHtmlLineWithUnderlines(line, lineText, bodySize, bodyFont, state, isParagraphBreak, isPageBreak, underlinedItems, structureMap);
-
-        if (lineSpacing > 0) state.lastLineSpacing = lineSpacing;
-        state.lastY = line.y;
-        state.lastPage = line.items[0].page;
-    }
+    const footerLines = processLinesToHtml(htmlCtx, state);
 
     flushParagraph(state);
     closeList(state);
+    appendRemainingImages(state, sortedImages);
 
-    while (state.imageIdx < sortedImages.length) {
-        const img = sortedImages[state.imageIdx];
-        state.html.push(`<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Embedded image" />`);
-        state.imageIdx++;
+    if (footerLines.length > 0) {
+        renderFooterLines(state, footerLines, underlinedItems, bodyFont, bodySize);
     }
 
-    return state.html.join('\n');
+    let result = state.html.join('\n');
+    if (hasColumns) {
+        result = `<div style="column-count:2;column-gap:2em">${result}</div>`;
+    }
+    return result;
 }
 
 // ── Structure tree parsing (tagged PDF) ─────────────────────────────────
-
-type StructureType = 'Document' | 'Part' | 'Art' | 'Sect' | 'Div'
-    | 'H' | 'H1' | 'H2' | 'H3' | 'H4' | 'H5' | 'H6'
-    | 'P' | 'L' | 'LI' | 'Lbl' | 'LBody'
-    | 'Table' | 'TR' | 'TH' | 'TD'
-    | 'Span' | 'Link' | 'Quote' | 'Note' | 'Reference' | 'Code'
-    | 'Figure' | 'Formula' | 'Form'
-    | 'BlockQuote' | 'Caption' | 'TOC' | 'TOCI' | 'Index' | 'NonStruct'
-    | string;
 
 interface StructureMcidEntry {
     readonly mcid: number;
@@ -3971,13 +5940,13 @@ interface StructureMcidEntry {
 }
 
 interface StructureNode {
-    readonly type: StructureType;
+    readonly type: string;
     readonly mcids: StructureMcidEntry[];
     readonly children: StructureNode[];
 }
 
 interface StructureMap {
-    readonly mcidToType: Map<string, StructureType>;
+    readonly mcidToType: Map<string, string>;
     readonly hasStructure: boolean;
 }
 
@@ -3997,6 +5966,44 @@ function resolvePageIndex(reader: PdfReader, pageRef: PdfObject | undefined, pag
     return -1;
 }
 
+interface StructKDictOptions {
+    readonly reader: PdfReader;
+    readonly kDict: Record<string, PdfObject>;
+    readonly pages: PdfObject[];
+    readonly effectivePage: number;
+    readonly depth: number;
+    readonly mcids: StructureMcidEntry[];
+    readonly children: StructureNode[];
+    readonly elemRef: PdfObject;
+}
+
+function processStructKDict(opts: StructKDictOptions): void {
+    const { reader, kDict, pages, effectivePage, depth, mcids, children, elemRef } = opts;
+    const mcidObj = kDict['MCID'];
+    if (mcidObj) {
+        const mcidVal = reader.getNumber(mcidObj);
+        const mcidPageRef = kDict['Pg'];
+        const mcidPage = mcidPageRef ? resolvePageIndex(reader, mcidPageRef, pages) : effectivePage;
+        mcids.push({ mcid: mcidVal, page: mcidPage >= 0 ? mcidPage : effectivePage });
+    } else {
+        const child = parseStructureElement(reader, elemRef, pages, effectivePage, depth + 1);
+        if (child) children.push(child);
+    }
+}
+
+function processStructKArrayItem(
+    reader: PdfReader, item: PdfObject, pages: PdfObject[], effectivePage: number, depth: number,
+    mcids: StructureMcidEntry[], children: StructureNode[],
+): void {
+    const itemResolved = reader.resolveDeep(item);
+    if (itemResolved.type === 'number') {
+        mcids.push({ mcid: itemResolved.value as number, page: effectivePage });
+    } else if (itemResolved.type === 'dict') {
+        const itemDict = itemResolved.value as Record<string, PdfObject>;
+        processStructKDict({ reader, kDict: itemDict, pages, effectivePage, depth, mcids, children, elemRef: item });
+    }
+}
+
 function parseStructureElement(
     reader: PdfReader, elemObj: PdfObject, pages: PdfObject[], parentPageIdx: number, depth: number,
 ): StructureNode | null {
@@ -4010,7 +6017,7 @@ function parseStructureElement(
     const typeStr = reader.getString(dict['Type']);
     if (typeStr && typeStr !== 'StructElem') return null;
 
-    const sType = (reader.getString(dict['S']) || 'Span') as StructureType;
+    const sType: string = reader.getString(dict['S']) || 'Span';
     const pageRef = dict['Pg'];
     const pageIdx = pageRef ? resolvePageIndex(reader, pageRef, pages) : parentPageIdx;
     const effectivePage = pageIdx >= 0 ? pageIdx : parentPageIdx;
@@ -4027,42 +6034,17 @@ function parseStructureElement(
         mcids.push({ mcid: kResolved.value as number, page: effectivePage });
     } else if (kResolved.type === 'dict') {
         const kDict = kResolved.value as Record<string, PdfObject>;
-        const mcidObj = kDict['MCID'];
-        if (mcidObj) {
-            const mcidVal = reader.getNumber(mcidObj);
-            const mcidPageRef = kDict['Pg'];
-            const mcidPage = mcidPageRef ? resolvePageIndex(reader, mcidPageRef, pages) : effectivePage;
-            mcids.push({ mcid: mcidVal, page: mcidPage >= 0 ? mcidPage : effectivePage });
-        } else {
-            const child = parseStructureElement(reader, kResolved, pages, effectivePage, depth + 1);
-            if (child) children.push(child);
-        }
+        processStructKDict({ reader, kDict, pages, effectivePage, depth, mcids, children, elemRef: kResolved });
     } else if (kResolved.type === 'array') {
-        const arr = kResolved.value as PdfObject[];
-        for (const item of arr) {
-            const itemResolved = reader.resolveDeep(item);
-            if (itemResolved.type === 'number') {
-                mcids.push({ mcid: itemResolved.value as number, page: effectivePage });
-            } else if (itemResolved.type === 'dict') {
-                const itemDict = itemResolved.value as Record<string, PdfObject>;
-                const mcidObj = itemDict['MCID'];
-                if (mcidObj) {
-                    const mcidVal = reader.getNumber(mcidObj);
-                    const mcidPageRef = itemDict['Pg'];
-                    const mcidPage = mcidPageRef ? resolvePageIndex(reader, mcidPageRef, pages) : effectivePage;
-                    mcids.push({ mcid: mcidVal, page: mcidPage >= 0 ? mcidPage : effectivePage });
-                } else {
-                    const child = parseStructureElement(reader, item, pages, effectivePage, depth + 1);
-                    if (child) children.push(child);
-                }
-            }
+        for (const item of kResolved.value as PdfObject[]) {
+            processStructKArrayItem(reader, item, pages, effectivePage, depth, mcids, children);
         }
     }
 
     return { type: sType, mcids, children };
 }
 
-function collectMcidTypes(node: StructureNode, result: Map<string, StructureType>): void {
+function collectMcidTypes(node: StructureNode, result: Map<string, string>): void {
     for (const entry of node.mcids) {
         const key = `${entry.page}:${entry.mcid}`;
         if (!result.has(key)) {
@@ -4085,7 +6067,7 @@ function parseStructureTree(reader: PdfReader, pages: PdfObject[]): StructureMap
         const kObj = structTreeDict['K'];
         if (!kObj) return emptyResult;
 
-        const mcidToType = new Map<string, StructureType>();
+        const mcidToType = new Map<string, string>();
 
         const kResolved = reader.resolveDeep(kObj);
         if (kResolved.type === 'array') {
@@ -4104,7 +6086,7 @@ function parseStructureTree(reader: PdfReader, pages: PdfObject[]): StructureMap
     }
 }
 
-function getStructureTypeForLine(line: TextLine, structureMap: StructureMap): StructureType | null {
+function getStructureTypeForLine(line: TextLine, structureMap: StructureMap): string | null {
     if (!structureMap.hasStructure) return null;
     for (const item of line.items) {
         if (item.mcid < 0) continue;
@@ -4115,7 +6097,7 @@ function getStructureTypeForLine(line: TextLine, structureMap: StructureMap): St
     return null;
 }
 
-function structureTypeToHeadingLevel(type: StructureType): number {
+function structureTypeToHeadingLevel(type: string): number {
     switch (type) {
         case 'H1': return 1;
         case 'H2': return 2;
@@ -4128,7 +6110,7 @@ function structureTypeToHeadingLevel(type: StructureType): number {
     }
 }
 
-function isStructureListItem(type: StructureType): boolean {
+function isStructureListItem(type: string): boolean {
     return type === 'LI' || type === 'LBody' || type === 'Lbl';
 }
 
@@ -4185,7 +6167,9 @@ export async function parsePdf(buffer: ArrayBuffer): Promise<PdfParseResult> {
     if (dedupedItems.length === 0 && allImageItems.length > 0) {
         allImageItems.sort((a, b) => a.page === b.page ? b.y - a.y : a.page - b.page);
         const imgTags = allImageItems
-            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" />`)
+            .map(img => {
+                return `<img src="${img.dataUrl}" alt="Page image" style="width:${Math.round(img.renderWidth * 100) / 100}pt;max-width:100%;height:auto" />`;
+            })
             .join('\n');
         return { html: imgTags, text: '', imageOnly: true };
     }
@@ -4216,6 +6200,17 @@ export interface PdfPageResult {
     readonly text: string;
     readonly imageOnly: boolean;
     readonly pageIndex: number;
+    readonly pageWidth: number;
+    readonly pageHeight: number;
+    readonly bodyFontSize: number;
+    readonly contentLeft: number;
+    readonly contentRight: number;
+}
+
+export interface PdfOutlineItem {
+    readonly title: string;
+    readonly pageIndex: number;
+    readonly children: ReadonlyArray<PdfOutlineItem>;
 }
 
 export interface PdfParseResultPaged {
@@ -4224,34 +6219,48 @@ export interface PdfParseResultPaged {
     readonly html: string;
     readonly text: string;
     readonly imageOnly: boolean;
+    readonly outline: ReadonlyArray<PdfOutlineItem>;
+}
+
+interface BuildPageResultOptions {
+    readonly pageIndex: number;
+    readonly structureMap: StructureMap;
+    readonly pageWidth: number;
+    readonly pageHeight: number;
+    readonly annotations?: PdfAnnotation[];
 }
 
 function buildPageResult(
     pageTextItems: TextItem[], pageImageItems: ImageItem[], pagePathRects: PathRect[],
-    pageIndex: number, structureMap: StructureMap,
+    options: BuildPageResultOptions,
 ): PdfPageResult {
+    const { pageIndex, structureMap, pageWidth, pageHeight, annotations = [] } = options;
     const deduped = deduplicateTextItems(pageTextItems);
 
     if (deduped.length === 0 && pageImageItems.length > 0) {
         const sortedImages = [...pageImageItems].sort((a, b) => b.y - a.y);
         const imgTags = sortedImages
-            .map(img => `<img src="${img.dataUrl}" width="${img.width}" height="${img.height}" alt="Page image" />`)
+            .map(img => {
+                return `<img src="${img.dataUrl}" alt="Page image" style="width:${Math.round(img.renderWidth * 100) / 100}pt;max-width:100%;height:auto" />`;
+            })
             .join('\n');
-        return { html: imgTags, text: '', imageOnly: true, pageIndex };
+        return { html: imgTags, text: '', imageOnly: true, pageIndex, pageWidth, pageHeight, bodyFontSize: 12, contentLeft: 0, contentRight: pageWidth };
     }
 
     if (deduped.length === 0) {
-        return { html: '', text: '', imageOnly: false, pageIndex };
+        return { html: '', text: '', imageOnly: false, pageIndex, pageWidth, pageHeight, bodyFontSize: 12, contentLeft: 0, contentRight: pageWidth };
     }
 
-    const html = textItemsToHtml(deduped, pageImageItems, structureMap, pagePathRects);
+    const bodyFontSize = detectBodyFontSize(deduped);
+    const bounds = computeContentBounds(deduped);
+    const html = textItemsToHtml(deduped, pageImageItems, structureMap, pagePathRects, pageWidth, pageHeight, annotations);
     const sorted = [...deduped].sort((a, b) => {
         if (Math.abs(a.y - b.y) > 2) return b.y - a.y;
         return a.x - b.x;
     });
     const text = sorted.map(item => item.text).join(' ').replaceAll(/\s+/g, ' ').trim();
 
-    return { html, text, imageOnly: false, pageIndex };
+    return { html, text, imageOnly: false, pageIndex, pageWidth, pageHeight, bodyFontSize, contentLeft: bounds.left, contentRight: bounds.right };
 }
 
 export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResultPaged> {
@@ -4288,17 +6297,19 @@ export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResult
 
     for (let i = 0; i < pdfPages.length; i++) {
         try {
-            const { textItems, imageItems, pathRects } = extractPageContent(reader, pdfPages[i], i);
-            const pageResult = buildPageResult(textItems, imageItems, pathRects, i, structureMap);
+            const { textItems, imageItems, pathRects, pageWidth, pageHeight, annotations } = extractPageContent(reader, pdfPages[i], i);
+            const pageResult = buildPageResult(textItems, imageItems, pathRects, { pageIndex: i, structureMap, pageWidth, pageHeight, annotations });
             pages.push(pageResult);
 
             if (pageResult.html) allHtmlParts.push(pageResult.html);
             if (pageResult.text) allTextParts.push(pageResult.text);
             if (!pageResult.imageOnly || pageResult.text) allImageOnly = false;
         } catch {
-            pages.push({ html: '', text: '', imageOnly: false, pageIndex: i });
+            pages.push({ html: '', text: '', imageOnly: false, pageIndex: i, pageWidth: 612, pageHeight: 792, bodyFontSize: 12, contentLeft: 0, contentRight: 612 });
         }
     }
+
+    const outline = parseOutline(reader, pdfPages);
 
     return {
         pages,
@@ -4306,5 +6317,98 @@ export async function parsePdfPaged(buffer: ArrayBuffer): Promise<PdfParseResult
         html: allHtmlParts.join('\n'),
         text: allTextParts.join(' '),
         imageOnly: allImageOnly && pages.length > 0,
+        outline,
     };
+}
+
+function parseOutline(reader: PdfReader, pdfPages: PdfObject[]): PdfOutlineItem[] {
+    try {
+        const root = reader.getRoot();
+        const outlinesRef = root['Outlines'];
+        if (!outlinesRef) return [];
+        const outlinesDict = reader.getDict(outlinesRef);
+        const firstRef = outlinesDict['First'];
+        if (!firstRef) return [];
+        const pageMap = buildPageObjNumMap(reader, pdfPages);
+        return parseOutlineItems(reader, firstRef, pageMap, 0);
+    } catch {
+        return [];
+    }
+}
+
+function buildPageObjNumMap(reader: PdfReader, pdfPages: PdfObject[]): Map<string, number> {
+    const map = new Map<string, number>();
+    for (let i = 0; i < pdfPages.length; i++) {
+        const page = pdfPages[i];
+        if (page.type === 'ref') {
+            map.set(page.value as string, i);
+        }
+    }
+    return map;
+}
+
+function resolveRefArrayPageIndex(reader: PdfReader, destObj: PdfObject, pageMap: Map<string, number>): number {
+    const resolved = reader.resolveDeep(destObj);
+    if (resolved.type === 'array') {
+        const arr = resolved.value as PdfObject[];
+        if (arr.length > 0 && arr[0].type === 'ref') {
+            return pageMap.get(arr[0].value as string) ?? -1;
+        }
+    }
+    return -1;
+}
+
+function resolveOutlinePageIndex(reader: PdfReader, item: Record<string, PdfObject>, pageMap: Map<string, number>): number {
+    const dest = item['Dest'];
+    if (dest) {
+        const resolved = reader.resolveDeep(dest);
+        if (resolved.type === 'string') return -1;
+        const idx = resolveRefArrayPageIndex(reader, dest, pageMap);
+        if (idx >= 0) return idx;
+    }
+    const aObj = item['A'];
+    if (aObj) {
+        try {
+            const action = reader.getDict(aObj);
+            const s = reader.getString(action['S'] ?? { type: 'null', value: null });
+            if (s === 'GoTo') {
+                const d = action['D'];
+                if (d) return resolveRefArrayPageIndex(reader, d, pageMap);
+            }
+        } catch { /* skip */ }
+    }
+    return -1;
+}
+
+function parseOutlineItems(reader: PdfReader, firstRef: PdfObject, pageMap: Map<string, number>, depth: number): PdfOutlineItem[] {
+    if (depth > 10) return [];
+    const items: PdfOutlineItem[] = [];
+    const visited = new Set<string>();
+    let currentRef: PdfObject | null = firstRef;
+
+    while (currentRef) {
+        const key = currentRef.type === 'ref' ? currentRef.value as string : '';
+        if (key && visited.has(key)) break;
+        if (key) visited.add(key);
+
+        try {
+            const itemDict = reader.getDict(currentRef);
+            const title = reader.getString(itemDict['Title'] ?? { type: 'string', value: '' });
+            const pageIndex = resolveOutlinePageIndex(reader, itemDict, pageMap);
+
+            let children: PdfOutlineItem[] = [];
+            const childFirst = itemDict['First'];
+            if (childFirst) {
+                children = parseOutlineItems(reader, childFirst, pageMap, depth + 1);
+            }
+
+            items.push({ title, pageIndex, children });
+
+            const nextRef = itemDict['Next'];
+            currentRef = nextRef ?? null;
+        } catch {
+            break;
+        }
+    }
+    return items;
 }
