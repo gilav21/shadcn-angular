@@ -17,7 +17,7 @@
 | `TL` | Text leading | Distance between baselines | ✅ | `processTextStateOperator` L1948 | Used by `T*`, `TD`, `'`, `"` |
 | `Tf` | Font (name + size) | Set current font resource and size | ✅ | `processTextStateOperator` L1954-1958 | Resolves from operand stack |
 | `Tr` | Text render mode | 0=fill, 1=stroke, 2=both, 3=invisible... | ✅ | `processTextStateOperator` L1953, `isInvisibleTextMode` L1512 | Modes 3,7 filtered |
-| `Ts` | Text rise | Vertical offset for super/subscript | ⚠️ | `processTextStateOperator` L1952 | **Stored but NOT applied to y-coord in `processTextShow` L1532** |
+| `Ts` | Text rise | Vertical offset for super/subscript | ⚠️ | `processTextStateOperator` L1952 | Stored but NOT applied |
 
 ---
 
@@ -194,7 +194,9 @@ Handled in `processGsOperator()` (L2093-2130):
 | `MP` | Marked content point | ❌ Ignored | In `IGNORED_OPERATORS` |
 | `DP` | Marked content point (with props) | ❌ Ignored | In `IGNORED_OPERATORS` |
 
-**Impact:** Tagged PDFs use `BDC`/`EMC` to associate text with structure elements (H1, P, Table, L, LI, Span). Ignoring these means we rely entirely on heuristics for heading/list/table detection.
+**Impact:** Tagged PDFs use `BDC`/`EMC` to associate text with structure elements
+(H1, P, Table, L, LI, Span). Ignoring these means we rely entirely on
+heuristics for heading/list/table detection.
 
 ---
 
