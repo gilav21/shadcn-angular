@@ -1,11 +1,8 @@
 import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
 import {
   ButtonComponent,
-  BadgeComponent,
   CodeBlockComponent,
-  FileViewerComponent,
-  FileViewerToolbarDirective,
-  FileViewerContentDirective,
+  FileViewerComponent
 } from '../../../../../packages/components/ui';
 
 @Component({
@@ -13,11 +10,8 @@ import {
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [
     ButtonComponent,
-    BadgeComponent,
     CodeBlockComponent,
-    FileViewerComponent,
-    FileViewerToolbarDirective,
-    FileViewerContentDirective,
+    FileViewerComponent
   ],
   template: `
     <section class="space-y-8">
@@ -33,6 +27,8 @@ import {
         <div class="flex flex-wrap gap-2">
           <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('text')">Text File</ui-button>
           <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('svg')">SVG Image</ui-button>
+          <ui-button variant="outline" size="sm" (click)="loadPdfFromUrl()">PDF (Hebrew)</ui-button>
+          <ui-button variant="outline" size="sm" (click)="loadComplexPdfFromUrl()">PDF (Complex Hebrew)</ui-button>
         </div>
       </div>
 
@@ -54,23 +50,9 @@ import {
         <div class="space-y-2">
           <h3 class="text-lg font-medium">Simple Mode</h3>
           <p class="text-sm text-muted-foreground">Uses input-driven API — just pass the file.</p>
-          <ui-file-viewer [file]="fileViewerFile()" height="500px" />
+          <ui-file-viewer [file]="fileViewerFile()" height="1000px" />
         </div>
       }
-
-      <div class="space-y-2">
-        <h3 class="text-lg font-medium">Custom Mode (Content Projection)</h3>
-        <p class="text-sm text-muted-foreground">Full control over toolbar and content via projection.</p>
-        <ui-file-viewer [file]="fileViewerFile()" height="400px">
-          <ui-file-viewer-toolbar>
-            <div class="flex items-center gap-2 px-3 py-2 border-b bg-muted/30">
-              <span class="font-medium text-sm">Custom Toolbar</span>
-              <ui-badge variant="outline">Projected</ui-badge>
-            </div>
-          </ui-file-viewer-toolbar>
-          <ui-file-viewer-content />
-        </ui-file-viewer>
-      </div>
 
       <div class="space-y-2">
         <h3 class="text-lg font-medium">Usage</h3>
@@ -118,6 +100,24 @@ export class FileViewerDemoComponent {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (file) this.fileViewerFile.set(file);
+  }
+
+  loadPdfFromUrl(): void {
+    fetch('/test2.pdf')
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], 'test2.pdf', { type: 'application/pdf' });
+        this.fileViewerFile.set(file);
+      });
+  }
+
+  loadComplexPdfFromUrl(): void {
+    fetch('/DW2-3-Viruses-www.underwar.co.il.pdf')
+      .then(r => r.blob())
+      .then(blob => {
+        const file = new File([blob], 'DW2-3-Viruses-www.underwar.co.il.pdf', { type: 'application/pdf' });
+        this.fileViewerFile.set(file);
+      });
   }
 
   setFileViewerDemo(type: string): void {

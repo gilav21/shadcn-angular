@@ -10,8 +10,10 @@ import {
     ContentChild,
     AfterContentInit,
     Directive,
+    ElementRef,
 } from '@angular/core';
-import { DomSanitizer, type SafeHtml, type SafeResourceUrl, type SafeUrl } from '@angular/platform-browser';
+import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-browser';
+import type { PixelPerfectPage } from '../lib/pdf-pixel-perfect';
 import { cn } from '../lib/utils';
 import { SpinnerComponent } from './spinner.component';
 import type { FileViewerType, FileTypeResult } from '../lib/file-type-detector';
@@ -55,6 +57,39 @@ const HEADING_CLASSES: Record<number, string> = {
     selector: 'ui-file-viewer',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [SpinnerComponent],
+    styles: `
+        :host ::ng-deep .pdf-page {
+            line-height: normal;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            box-sizing: border-box;
+        }
+        :host ::ng-deep .pdf-page img {
+            max-width: 100%;
+            height: auto;
+            display: block;
+            margin: 0 auto;
+        }
+        :host ::ng-deep .pdf-page p {
+            margin: 0;
+        }
+        :host ::ng-deep .pdf-page h1, :host ::ng-deep .pdf-page h2, :host ::ng-deep .pdf-page h3,
+        :host ::ng-deep .pdf-page h4, :host ::ng-deep .pdf-page h5, :host ::ng-deep .pdf-page h6 {
+            margin: 0;
+        }
+        :host ::ng-deep .pdf-page table {
+            margin: 0.5em 0;
+        }
+        :host ::ng-deep .pdf-page td {
+            vertical-align: top;
+        }
+        :host ::ng-deep .pdf-page ul, :host ::ng-deep .pdf-page ol {
+            margin: 0.25em 0;
+            padding-inline-start: 1.5em;
+        }
+        :host ::ng-deep .pdf-page ul { list-style-type: disc; }
+        :host ::ng-deep .pdf-page ol { list-style-type: decimal; }
+    `,
     template: `
         <div [class]="containerClasses()" [attr.data-slot]="'file-viewer'" [style.height]="height()">
             @if (hasCustomContent()) {
@@ -144,10 +179,12 @@ const HEADING_CLASSES: Record<number, string> = {
                                     </div>
                                 }
                                 @case ('pdf') {
-                                    <iframe [src]="pdfSrc()"
-                                            class="w-full h-full border-0"
-                                            [title]="displayFilename()">
-                                    </iframe>
+                                    <div class="overflow-auto h-full bg-muted/40 flex justify-center items-start py-4 sm:py-6"
+                                         [style.zoom]="currentZoom()">
+                                        <div class="pdf-page"
+                                             [innerHTML]="currentPdfPageHtml()">
+                                        </div>
+                                    </div>
                                 }
                                 @case ('xlsx') {
                                     <div class="flex flex-col h-full">
@@ -302,7 +339,8 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     readonly textContent = signal('');
     readonly imageSrc = signal<SafeUrl>('');
     readonly mediaSrc = signal<SafeUrl>('');
-    readonly pdfSrc = signal<SafeResourceUrl>('');
+    private readonly pdfPages = signal<ReadonlyArray<PixelPerfectPage>>([]);
+    private readonly pdfGlobalCss = signal('');
     readonly downloadUrl = signal<SafeUrl>('');
 
     private readonly xlsxData = signal<{ sheets: ReadonlyArray<{ name: string; data: string[][] }>; truncated?: boolean } | null>(null);
@@ -323,12 +361,12 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
 
     readonly isPaginated = computed(() => {
         const t = this.detectedType();
-        return t === 'pptx' || t === 'ppt';
+        return t === 'pptx' || t === 'ppt' || t === 'pdf';
     });
 
     readonly isZoomable = computed(() => {
         const t = this.detectedType();
-        return t === 'image' || t === 'docx' || t === 'doc' || t === 'pptx' || t === 'ppt' || t === 'text';
+        return t === 'image' || t === 'docx' || t === 'doc' || t === 'pptx' || t === 'ppt' || t === 'text' || t === 'pdf';
     });
 
     readonly zoomPercent = computed(() => Math.round(this.currentZoom() * 100));
@@ -364,6 +402,18 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         return this.sanitizer.bypassSecurityTrustHtml(this.docxRenderedHtml());
     });
 
+    readonly currentPdfPageHtml = computed<SafeHtml>(() => {
+        const pages = this.pdfPages();
+        const idx = this.currentPage() - 1;
+        if (idx >= 0 && idx < pages.length) {
+            const css = this.pdfGlobalCss();
+            const html = `<style>${css}</style>${pages[idx].html}`;
+            return this.sanitizer.bypassSecurityTrustHtml(html);
+        }
+        return '';
+    });
+
+
     readonly currentSlideHtml = computed<SafeHtml>(() => {
         const slides = this.pptxSlides();
         const idx = this.currentPage() - 1;
@@ -390,8 +440,11 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         this.class()
     ));
 
-    constructor(sanitizer: DomSanitizer) {
+    private readonly el: ElementRef<HTMLElement>;
+
+    constructor(sanitizer: DomSanitizer, el: ElementRef<HTMLElement>) {
         this.sanitizer = sanitizer;
+        this.el = el;
 
         effect(() => {
             this.currentZoom.set(this.zoom());
@@ -428,12 +481,21 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const p = Math.max(1, this.currentPage() - 1);
         this.currentPage.set(p);
         this.pageChange.emit(p);
+        this.scrollContentToTop();
     }
 
     nextPage(): void {
         const p = Math.min(this.totalPages(), this.currentPage() + 1);
         this.currentPage.set(p);
         this.pageChange.emit(p);
+        this.scrollContentToTop();
+    }
+
+    private scrollContentToTop(): void {
+        const content = this.el.nativeElement.querySelector('[data-slot="file-viewer-content"]');
+        if (content) content.scrollTop = 0;
+        const pdfScroll = content?.querySelector('.overflow-auto');
+        if (pdfScroll) pdfScroll.scrollTop = 0;
     }
 
     zoomIn(): void {
@@ -521,7 +583,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
                 await this.processImage(bytes, file);
                 break;
             case 'pdf':
-                this.processPdf(file);
+                await this.processPdf(bytes);
                 break;
             case 'xlsx':
                 await this.processXlsx(bytes);
@@ -582,10 +644,13 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         return trimmed.startsWith('<svg') || trimmed.startsWith('<?xml');
     }
 
-    private processPdf(file: File | Blob): void {
-        const url = URL.createObjectURL(file);
-        this.blobUrls.push(url);
-        this.pdfSrc.set(this.sanitizer.bypassSecurityTrustResourceUrl(url));
+    private async processPdf(bytes: Uint8Array): Promise<void> {
+        const { renderPixelPerfectPaged } = await import('../lib/pdf-pixel-perfect');
+        const result = await renderPixelPerfectPaged(bytes.buffer as ArrayBuffer);
+        this.pdfPages.set(result.pages);
+        this.pdfGlobalCss.set(result.globalCss);
+        this.totalPages.set(result.totalPages);
+        this.currentPage.set(1);
     }
 
     private async processXlsx(bytes: Uint8Array): Promise<void> {

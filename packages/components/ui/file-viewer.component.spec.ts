@@ -142,9 +142,9 @@ describe('FileViewerComponent', () => {
             fixture.detectChanges();
         });
 
-        it('should be false for PDF (native rendering)', () => {
+        it('should be true for PDF (paginated rendering)', () => {
             component.detectedType.set('pdf');
-            expect(component.isPaginated()).toBe(false);
+            expect(component.isPaginated()).toBe(true);
         });
 
         it('should be true for PPTX', () => {
@@ -168,9 +168,9 @@ describe('FileViewerComponent', () => {
             expect(component.isZoomable()).toBe(true);
         });
 
-        it('should be false for PDF (native rendering)', () => {
+        it('should be true for PDF (paginated rendering)', () => {
             component.detectedType.set('pdf');
-            expect(component.isZoomable()).toBe(false);
+            expect(component.isZoomable()).toBe(true);
         });
 
         it('should be false for audio', () => {

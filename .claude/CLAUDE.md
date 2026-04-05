@@ -444,6 +444,22 @@ Every interactive component MUST work on touch-only devices (phones, tablets) wi
 
 ---
 
+## Working Strategy — Zero Assumptions
+
+> **"Assuming is a bad working strategy."**
+
+**Never assume** something is working or broken — always verify with concrete evidence before making any claim.
+
+- **Before claiming a root cause**: add debug logs, compare actual values, show concrete data
+- **Before saying "X is broken"**: screenshot it, compare with the reference implementation
+- **Before saying "X works correctly"**: test with real data, not just unit tests
+- **When comparing with a reference implementation**: also check the original source when applicable (e.g., for PDF rendering: compare with both the C++ output AND the actual PDF — sometimes the reference is wrong and we're right)
+- **Before saying "X is fixed"**: verify the VISUAL rendering, not just the source code. For HTML: check what the browser SHOWS, not what the DOM contains (CSS transforms, bidi, font rendering can all change the visual). Take screenshots and compare with the reference.
+- **If uncertain**: say "needs investigation" and outline diagnostic steps — do NOT guess or repeat the same unverified theory
+- **Never repeat the same unverified claim** across multiple responses
+
+---
+
 ## AI Agent Instructions
 
 When generating or modifying components:
