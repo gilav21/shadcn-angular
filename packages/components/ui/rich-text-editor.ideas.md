@@ -18,7 +18,8 @@ so they are not lost.
 
 1. History keyboard discoverability
 
-- Show an inline hint for history shortcut (`Ctrl/Cmd+Shift+H`) when history button is hidden.
+- Show an inline hint for history shortcut (`Ctrl/Cmd+Shift+H`) when history
+  button is hidden.
 - Consider a short onboarding tooltip the first time shortcut mode is used.
 
 ## Bigger Product Differentiators

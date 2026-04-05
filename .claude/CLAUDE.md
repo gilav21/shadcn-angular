@@ -134,9 +134,13 @@ Is the component compound (has child components)?
 
 | Component | Simple Inputs | Custom Content |
 | ---------- | ------------- | -------------- |
-| Timeline | `title`, `description`, `time`, `variant` | `<ui-timeline-header>`, `<ui-timeline-content>` |
-| Breadcrumb | `[items]` array | `<ui-breadcrumb-item>` slots |
-| Accordion | `title`, `content` | `<ui-accordion-trigger>`, `<ui-accordion-content>` |
+| Timeline | `title`, `description`,
+  `time`, `variant` | `<ui-timeline-header>`,
+  `<ui-timeline-content>` |
+| Breadcrumb | `[items]` array | `<ui-breadcrumb-item>`
+  slots |
+| Accordion | `title`, `content` | `<ui-accordion-trigger>`,
+  `<ui-accordion-content>` |
 | Tree | `[data]` array | `<ui-tree-item>` nested structure |
 | Stepper | `[steps]` array | `<ui-stepper-item>` slots |
 
@@ -278,9 +282,12 @@ classes = computed(() => cn(
 
 ### 3. Testing & Documentation
 
-- **Meaningful Unit Tests**: Tests must verify actual functionality (interactions, state changes), not just component creation.
-- **Storybook**: Every component must have a Storybook story showing all inputs/options.
-- **Demo Page**: Create a rich demo page with unique variants and "copy-paste ready" examples for developers.
+- **Meaningful Unit Tests**: Tests must verify actual functionality
+  (interactions, state changes), not just component creation.
+- **Storybook**: Every component must have a Storybook story showing all
+  inputs/options.
+- **Demo Page**: Create a rich demo page with unique variants and
+  "copy-paste ready" examples for developers.
 
 ### 4. SonarQube Compliance (Zero Tolerance)
 
@@ -366,7 +373,8 @@ Before submitting a component, verify:
 - [ ] Uses `input()` and `computed()` (not decorators)
 - [ ] Has `data-slot` attribute for testing/styling hooks
 - [ ] If compound: supports both simple and custom modes
-- [ ] If compound: uses existing package components (not raw HTML) where possible
+- [ ] If compound: uses existing package components (not raw HTML)
+  where possible
 - [ ] Accessibility: proper ARIA attributes and keyboard navigation
 - [ ] RTL Support: verifies correct rendering in RTL mode
 - [ ] Tests cover both usage modes and verify functionality
@@ -411,11 +419,13 @@ must not change — responsive rules only add mobile/tablet adaptations.
 
 - ❌ `p-6` or `gap-6` alone on containers
 - ✅ `p-4 sm:p-6` and `gap-4 sm:gap-6`
-- Apply to: Card, Dialog, Sheet, Drawer, Empty, and any container with `p-6`+ or `gap-6`+
+- Apply to: Card, Dialog, Sheet, Drawer, Empty, and any container with
+  `p-6`+ or `gap-6`+
 
 #### Flex Layouts Must Wrap
 
-- ❌ `flex items-center justify-between` on toolbars/controls — overflows on mobile
+- ❌ `flex items-center justify-between` on toolbars/controls — overflows
+  on mobile
 - ✅ `flex flex-wrap items-center justify-between gap-2`
 
 #### Overflow Protection for Popups/Overlays
@@ -508,7 +518,8 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
 (contextmenu)="openMenu($event)"
 
 // ✅ Right-click + long-press
-// In ngAfterViewInit: onLongPress(this.el.nativeElement, (e) => this.openMenu(e))
+// In ngAfterViewInit:
+// onLongPress(this.el.nativeElement, (e) => this.openMenu(e))
 ```
 
 ---
@@ -519,12 +530,20 @@ with no mouse or keyboard. Use the shared `touch.ts` utility
 
 **Never assume** something is working or broken — always verify with concrete evidence before making any claim.
 
-- **Before claiming a root cause**: add debug logs, compare actual values, show concrete data
-- **Before saying "X is broken"**: screenshot it, compare with the reference implementation
+- **Before claiming a root cause**: add debug logs, compare actual values,
+  show concrete data
+- **Before saying "X is broken"**: screenshot it, compare with the reference
+  implementation
 - **Before saying "X works correctly"**: test with real data, not just unit tests
-- **When comparing with a reference implementation**: also check the original source when applicable (e.g., for PDF rendering: compare with both the C++ output AND the actual PDF — sometimes the reference is wrong and we're right)
-- **Before saying "X is fixed"**: verify the VISUAL rendering, not just the source code. For HTML: check what the browser SHOWS, not what the DOM contains (CSS transforms, bidi, font rendering can all change the visual). Take screenshots and compare with the reference.
-- **If uncertain**: say "needs investigation" and outline diagnostic steps — do NOT guess or repeat the same unverified theory
+- **When comparing with a reference implementation**: also check the original
+  source when applicable (e.g., for PDF rendering: compare with both the C++
+  output AND the actual PDF — sometimes the reference is wrong and we're right)
+- **Before saying "X is fixed"**: verify the VISUAL rendering, not just the
+  source code. For HTML: check what the browser SHOWS, not what the DOM
+  contains (CSS transforms, bidi, font rendering can all change the visual).
+  Take screenshots and compare with the reference.
+- **If uncertain**: say "needs investigation" and outline diagnostic steps
+  — do NOT guess or repeat the same unverified theory
 - **Never repeat the same unverified claim** across multiple responses
 
 ---
