@@ -25,7 +25,7 @@ import { RichTextPasteNormalizerService } from './rich-text-paste-normalizer.ser
 import { Observable, isObservable, of, Subject, Subscription, firstValueFrom, from, catchError } from 'rxjs';
 import { debounceTime, switchMap, tap } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { isValidImageDataUrl } from '../lib/image-validator';
+import { isValidImageDataUrl } from '../lib/parsers/image-validator';
 import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamilyStrategy } from './rich-text-toolbar.component';
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
@@ -2859,8 +2859,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private async importDocx(file: File): Promise<void> {
         const bytes = new Uint8Array(await file.arrayBuffer());
-        const { parseDocx } = await import('../lib/docx-parser');
-        const { renderDocxForEditor } = await import('../lib/docx-to-editor-html');
+        const { parseDocx } = await import('../lib/parsers/docx-parser');
+        const { renderDocxForEditor } = await import('../lib/parsers/docx-to-editor-html');
         const result = parseDocx(bytes);
         const html = renderDocxForEditor(result);
         if (!html.trim()) {
@@ -2877,7 +2877,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private async importPdf(file: File): Promise<void> {
         const buffer = await file.arrayBuffer();
-        const { parsePdf } = await import('../lib/pdf-parser');
+        const { parsePdf } = await import('../lib/parsers/pdf-parser');
         const result = await parsePdf(buffer);
         if (!result.html.trim()) {
             const msg = this.resolvedLocale().editor.importFailed;

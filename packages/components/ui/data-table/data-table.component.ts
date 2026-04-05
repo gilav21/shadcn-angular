@@ -20,7 +20,7 @@ import { CommonModule, DOCUMENT } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { cn, isRtl } from "../../lib/utils";
 import { CALENDAR_LOCALES, CalendarLocale } from "../calendar-locales";
-import { generateXlsx } from "../../lib/xlsx";
+import { generateXlsx } from "../../lib/parsers/xlsx";
 import {
   TableComponent,
   TableHeaderComponent,

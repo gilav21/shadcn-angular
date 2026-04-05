@@ -445,6 +445,7 @@ async function installSingleLibFile(
     const content = await fetchLibContent(libFile, options);
 
     if (!await fs.pathExists(targetPath) || options.overwrite) {
+        await fs.ensureDir(path.dirname(targetPath));
         await fs.writeFile(targetPath, content);
         return;
     }

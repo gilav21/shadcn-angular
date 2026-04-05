@@ -217,10 +217,10 @@ describe('FileViewerComponent', () => {
 });
 
 describe('file-type-detector', () => {
-    let detectFileType: typeof import('../lib/file-type-detector').detectFileType;
+    let detectFileType: typeof import('../lib/parsers/file-type-detector').detectFileType;
 
     beforeAll(async () => {
-        const module = await import('../lib/file-type-detector');
+        const module = await import('../lib/parsers/file-type-detector');
         detectFileType = module.detectFileType;
     });
 
@@ -272,11 +272,11 @@ describe('file-type-detector', () => {
 });
 
 describe('inflate', () => {
-    let inflate: typeof import('../lib/inflate').inflate;
-    let zlibInflate: typeof import('../lib/inflate').zlibInflate;
+    let inflate: typeof import('../lib/parsers/inflate').inflate;
+    let zlibInflate: typeof import('../lib/parsers/inflate').zlibInflate;
 
     beforeAll(async () => {
-        const module = await import('../lib/inflate');
+        const module = await import('../lib/parsers/inflate');
         inflate = module.inflate;
         zlibInflate = module.zlibInflate;
     });
@@ -304,11 +304,11 @@ describe('inflate', () => {
 });
 
 describe('zip-reader', () => {
-    let readZip: typeof import('../lib/zip-reader').readZip;
-    let listZipEntries: typeof import('../lib/zip-reader').listZipEntries;
+    let readZip: typeof import('../lib/parsers/zip-reader').readZip;
+    let listZipEntries: typeof import('../lib/parsers/zip-reader').listZipEntries;
 
     beforeAll(async () => {
-        const module = await import('../lib/zip-reader');
+        const module = await import('../lib/parsers/zip-reader');
         readZip = module.readZip;
         listZipEntries = module.listZipEntries;
     });

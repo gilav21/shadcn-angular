@@ -37,7 +37,7 @@ function getFallbackFont(): TtfFont | null {
 
         const candidates = [
             path.resolve(path.dirname(__filename), 'fonts', 'NotoSans-Regular.ttf'),
-            path.resolve(process.cwd(), 'packages', 'components', 'lib', 'fonts', 'NotoSans-Regular.ttf'),
+            path.resolve(process.cwd(), 'packages', 'components', 'lib', 'parsers', 'fonts', 'NotoSans-Regular.ttf'),
         ];
         for (const p of candidates) {
             try {

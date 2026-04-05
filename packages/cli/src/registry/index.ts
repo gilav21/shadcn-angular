@@ -152,7 +152,7 @@ export const registry = defineRegistry({
       'context-menu-integrations.ts',
     ],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'table'],
-    libFiles: ['touch.ts', 'xlsx.ts'],
+    libFiles: ['parsers/xlsx.ts', 'touch.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
     ],
@@ -210,7 +210,7 @@ export const registry = defineRegistry({
     name: 'file-viewer',
     files: ['file-viewer.component.ts'],
     dependencies: ['spinner'],
-    libFiles: ['doc-enhanced-parser.ts', 'docx-parser.ts', 'file-type-detector.ts', 'image-validator.ts', 'inflate.ts', 'ole2-reader.ts', 'pdf-parser.ts', 'pdf-pixel-perfect.ts', 'ppt-parser.ts', 'pptx-parser.ts', 'svg-sanitizer.ts', 'ttf-builder.ts', 'ttf-parser.ts', 'xlsx-reader.ts', 'zip-reader.ts'],
+    libFiles: ['parsers/doc-enhanced-parser.ts', 'parsers/docx-parser.ts', 'parsers/file-type-detector.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/ole2-reader.ts', 'parsers/pdf-parser.ts', 'parsers/pdf-pixel-perfect.ts', 'parsers/ppt-parser.ts', 'parsers/pptx-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/ttf-builder.ts', 'parsers/ttf-parser.ts', 'parsers/xlsx-reader.ts', 'parsers/zip-reader.ts'],
   },
   'hover-card': {
     name: 'hover-card',
@@ -380,7 +380,7 @@ export const registry = defineRegistry({
     name: 'rich-text-editor',
     files: ['rich-text-command-registry.service.ts', 'rich-text-editor.component.ts', 'rich-text-image-resizer.component.ts', 'rich-text-locales.ts', 'rich-text-markdown.service.ts', 'rich-text-mention.component.ts', 'rich-text-paste-normalizer.service.ts', 'rich-text-sanitizer.service.ts', 'rich-text-toolbar.component.ts'],
     dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
-    libFiles: ['docx-parser.ts', 'docx-to-editor-html.ts', 'image-validator.ts', 'inflate.ts', 'pdf-parser.ts', 'shortcut-binding.service.ts', 'svg-sanitizer.ts', 'touch.ts', 'zip-reader.ts'],
+    libFiles: ['parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',

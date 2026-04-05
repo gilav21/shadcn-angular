@@ -13,16 +13,16 @@ import {
     ElementRef,
 } from '@angular/core';
 import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-browser';
-import type { PixelPerfectPage } from '../lib/pdf-pixel-perfect';
+import type { PixelPerfectPage } from '../lib/parsers/pdf-pixel-perfect';
 import { cn } from '../lib/utils';
 import { SpinnerComponent } from './spinner.component';
-import type { FileViewerType, FileTypeResult } from '../lib/file-type-detector';
+import type { FileViewerType, FileTypeResult } from '../lib/parsers/file-type-detector';
 import type {
     PptxTextFrame, PptxTextRun, PptxBullet,
     PptxShapeElement, PptxConnectorElement, PptxTableElement,
     PptxParagraph, PptxGradientFill, PptxPatternFill, PptxEffects,
     PptxUnderlineStyle, PptxTabStop,
-} from '../lib/pptx-parser';
+} from '../lib/parsers/pptx-parser';
 
 type ViewerState = 'idle' | 'loading' | 'loaded' | 'error';
 
@@ -573,7 +573,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async detectTypeResult(bytes: Uint8Array): Promise<FileTypeResult> {
-        const { detectFileType } = await import('../lib/file-type-detector');
+        const { detectFileType } = await import('../lib/parsers/file-type-detector');
         return detectFileType(bytes);
     }
 
@@ -616,7 +616,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const isSvg = this.checkIfSvg(bytes);
         if (isSvg) {
             const svgText = new TextDecoder().decode(bytes);
-            const { sanitizeSvg } = await import('../lib/svg-sanitizer');
+            const { sanitizeSvg } = await import('../lib/parsers/svg-sanitizer');
             const sanitized = sanitizeSvg(svgText);
             if (!sanitized) throw new Error('Invalid or unsafe SVG file');
             const blob = new Blob([sanitized], { type: 'image/svg+xml' });
@@ -645,7 +645,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processPdf(bytes: Uint8Array): Promise<void> {
-        const { renderPixelPerfectPaged } = await import('../lib/pdf-pixel-perfect');
+        const { renderPixelPerfectPaged } = await import('../lib/parsers/pdf-pixel-perfect');
         const result = await renderPixelPerfectPaged(bytes.buffer as ArrayBuffer);
         this.pdfPages.set(result.pages);
         this.pdfGlobalCss.set(result.globalCss);
@@ -654,14 +654,14 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processXlsx(bytes: Uint8Array): Promise<void> {
-        const { parseXlsx } = await import('../lib/xlsx-reader');
+        const { parseXlsx } = await import('../lib/parsers/xlsx-reader');
         const result = parseXlsx(bytes);
         this.xlsxData.set(result);
         this.activeSheetIndex.set(0);
     }
 
     private async processDocx(bytes: Uint8Array): Promise<void> {
-        const { parseDocx } = await import('../lib/docx-parser');
+        const { parseDocx } = await import('../lib/parsers/docx-parser');
         const result = parseDocx(bytes);
         this.docxRtl.set(this.detectDocumentRtl(result.elements));
         const headerHtml = this.renderDocxHeadersFooters(result.headers, 'header');
@@ -673,7 +673,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processDoc(bytes: Uint8Array): Promise<void> {
-        const { parseDocEnhanced } = await import('../lib/doc-enhanced-parser');
+        const { parseDocEnhanced } = await import('../lib/parsers/doc-enhanced-parser');
         const result = parseDocEnhanced(bytes);
         this.docxRtl.set(this.detectDocumentRtl(result.elements));
         this.docxRenderedHtml.set(this.renderDocxToHtml(result.elements));
@@ -1134,7 +1134,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processPptx(bytes: Uint8Array): Promise<void> {
-        const { parsePptx } = await import('../lib/pptx-parser');
+        const { parsePptx } = await import('../lib/parsers/pptx-parser');
         const result = parsePptx(bytes);
 
         const slides = result.slides.map(slide => ({
@@ -1149,7 +1149,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processLegacyPpt(bytes: Uint8Array): Promise<void> {
-        const { parsePpt } = await import('../lib/ppt-parser');
+        const { parsePpt } = await import('../lib/parsers/ppt-parser');
         const result = parsePpt(bytes);
 
         const slides = result.slides.map(slide => ({
