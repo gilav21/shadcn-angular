@@ -1,5 +1,8 @@
+# Claude Code Expert Configuration
 
-You are an expert in TypeScript, Angular, and scalable web application development. You write functional, maintainable, performant, and accessible code following Angular and TypeScript best practices.
+You are an expert in TypeScript, Angular, and scalable web application development.
+You write functional, maintainable, performant, and accessible code following
+Angular and TypeScript best practices.
 
 ## TypeScript Best Practices
 
@@ -57,7 +60,8 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 
 ## Responsive Design
 
-All layouts and pages MUST render correctly from **320px phone to 1920px+ desktop**. Desktop appearance must not change — responsive rules only add mobile/tablet adaptations.
+All layouts and pages MUST render correctly from **320px phone to 1920px+ desktop**.
+Desktop appearance must not change — responsive rules only add mobile/tablet adaptations.
 
 - **No hardcoded pixel widths without breakpoints**: ❌ `w-[300px]` → ✅ `w-full sm:w-[300px]`
 - **No hardcoded heights without scaling**: ❌ `h-[600px]` → ✅ `h-[350px] sm:h-[450px] md:h-[600px]`

@@ -2,11 +2,14 @@
 
 ## Goal
 
-Remove the 500KB opentype.js dependency by implementing our own TrueType parser and font builder. This fixes the Angular build error and gives us control over the full code.
+Remove the 500KB opentype.js dependency by implementing our own TrueType
+parser and font builder. This fixes the Angular build error and gives us
+control over the full code.
 
 ## Phase 1: TrueType Reader (~150 lines)
 
-Replaces `opentype.parse()` + all read-only API calls. Handles 99% of PDFs.
+Replaces `opentype.parse()` + all read-only API calls. Handles 99% of
+PDFs.
 
 ### Phase 1 Tasks
 
@@ -17,7 +20,8 @@ Replaces `opentype.parse()` + all read-only API calls. Handles 99% of PDFs.
 
 - [ ] **1.2** Parse `head` table → extract `unitsPerEm`
 
-- [ ] **1.3** Parse `hhea` table → extract `ascender`, `descender`, `numberOfHMetrics`
+- [ ] **1.3** Parse `hhea` table → extract `ascender`, `descender`,
+  `numberOfHMetrics`
 
 - [ ] **1.4** Parse `maxp` table → extract `numGlyphs`
 
@@ -25,7 +29,8 @@ Replaces `opentype.parse()` + all read-only API calls. Handles 99% of PDFs.
   - First `numberOfHMetrics` entries have advanceWidth + leftSideBearing
   - Remaining glyphs reuse the last advanceWidth
 
-- [ ] **1.6** Parse `cmap` table → build `unicodeToGid: Map<number, number>`
+- [ ] **1.6** Parse `cmap` table → build
+  `unicodeToGid: Map<number, number>`
   - Support Format 4 (BMP, most common)
   - Support Format 12 (full Unicode, for CJK/emoji fonts)
   - Pick the best Unicode platform subtable (platformID 3/1 or 0/3)
@@ -67,7 +72,8 @@ Replaces `new opentype.Font()` + `toArrayBuffer()`. Needed for Symbol/custom fon
   - Store as `getRawGlyph(gid): Uint8Array | null`
 
 - [ ] **2.2** Create `ttf-builder.ts` with `buildTtf()` function
-  - Input: array of `{ unicode: number; advanceWidth: number; glyphData: Uint8Array }`
+  - Input: array of `{ unicode: number; advanceWidth: number;
+    glyphData: Uint8Array }`
   - Plus font metrics: familyName, unitsPerEm, ascender, descender
   - Output: `Uint8Array` (complete TTF binary)
 
@@ -102,13 +108,20 @@ Replaces `new opentype.Font()` + `toArrayBuffer()`. Needed for Symbol/custom fon
 
 - [ ] **2.7** Remove opentype.js from package.json dependencies
 
-- [ ] **2.8** Verify: Angular build passes, all 3 PDFs render correctly, Symbol fonts render correctly
+- [ ] **2.8** Verify: Angular build passes, all 3 PDFs render correctly,
+  Symbol fonts render correctly
 
 ## Key simplification vs opentype.js
 
-opentype.js parses EVERYTHING (kerning, GSUB, GPOS, CFF, etc.). We want our implementation to cover the full spectrum too — a complete TrueType/OpenType reader and writer that handles all table types, so we never hit a font we can't process.
+opentype.js parses EVERYTHING (kerning, GSUB, GPOS, CFF, etc.). We want our
+implementation to cover the full spectrum too — a complete TrueType/OpenType
+reader and writer that handles all table types, so we never hit a font we
+can't process.
 
-**Critical insight for Phase 2:** We DON'T need to parse glyph outlines into path commands. We can copy raw `glyf` table bytes directly from the source font to the output font, only modifying the `cmap` table to remap Unicode points. This dramatically simplifies the writer.
+**Critical insight for Phase 2:** We DON'T need to parse glyph outlines into
+path commands. We can copy raw `glyf` table bytes directly from the source
+font to the output font, only modifying the `cmap` table to remap Unicode
+points. This dramatically simplifies the writer.
 
 ## Current opentype.js API usage reference
 
