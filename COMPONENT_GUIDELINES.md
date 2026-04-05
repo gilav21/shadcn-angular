@@ -2,15 +2,19 @@
 
 > **For Human & AI Contributors**
 
-This document defines how to build components in shadcn-angular. Follow these patterns exactly for predictable, consistent contributions.
+This document defines how to build components in shadcn-angular.
+Follow these patterns exactly for predictable, consistent contributions.
 
 ---
 
 ## Core Philosophy
 
-> **"If you project content, you get full control. If you don't, you get sensible defaults."**
+> **"If you project content, you get full control.
+> If you don't, you get sensible defaults."**
 
-We escaped Angular Material because customization was a nightmare. Our components must be:
+We escaped Angular Material because customization was a nightmare.
+Our components must be:
+
 - **Easy to start** — Simple inputs for common use cases
 - **Easy to customize** — Content projection for full control
 - **Easy to understand** — The source code lives in YOUR project
@@ -117,7 +121,7 @@ template: `
 
 ## Decision Tree: When to Apply This Pattern
 
-```
+```text
 Is the component compound (has child components)?
 ├── NO → Use simple inputs only (Button, Badge, Input)
 └── YES → Does it commonly need customization?
@@ -129,17 +133,17 @@ Is the component compound (has child components)?
 ### Components That SHOULD Have Dual Mode
 
 | Component | Simple Inputs | Custom Content |
-|-----------|---------------|----------------|
-| Timeline | `title`, `description`, `time`, `variant` | `<ui-timeline-header>`, `<ui-timeline-content>` |
-| Breadcrumb | `[items]` array | `<ui-breadcrumb-item>` slots |
-| Accordion | `title`, `content` | `<ui-accordion-trigger>`, `<ui-accordion-content>` |
+| ---------- | ------------- | -------------- |
+| Timeline | `title`, `description`, `time`, `variant` | Content project |
+| Breadcrumb | `[items]` array | Content projection support |
+| Accordion | `title`, `content` | Content projection support |
 | Tree | `[data]` array | `<ui-tree-item>` nested structure |
 | Stepper | `[steps]` array | `<ui-stepper-item>` slots |
 
 ### Components That Should Remain Simple
 
 | Component | Reason |
-|-----------|--------|
+| ---------- | ------ |
 | Button | Single element, no compound structure |
 | Badge | Single element |
 | Input | Single element with variants |
@@ -152,7 +156,7 @@ Is the component compound (has child components)?
 
 ### Component Selectors
 
-```
+```text
 ui-{component}              → Main container
 ui-{component}-item         → Repeated item
 ui-{component}-header       → Header section (for projection)
@@ -255,16 +259,27 @@ classes = computed(() => cn(
 ## Quality Standards
 
 ### 1. Composition
-- **Prefer Package Components**: When building compound components, prioritize using existing package components (e.g., `ui-button`, `ui-badge`) over native HTML elements. This ensures consistent styling, functionality, and accessibility.
+
+- **Prefer Package Components**: When building compound components, prioritize
+  using existing package components (e.g., `ui-button`, `ui-badge`) over native
+  HTML elements. This ensures consistent styling, functionality, and accessibility.
 
 ### 2. Code Hygiene
-- **No Non-JSDoc Comments**: Avoid implementation comments inside methods. Code should be self-documenting. Use JSDoc `/** ... */` only for public APIs (inputs, outputs, exported methods).
-- **Clean Imports**: Remove all unused imports in TypeScript files and the `@Component({ imports: [...] })` array.
+
+- **No Non-JSDoc Comments**: Avoid implementation comments inside methods.
+  Code should be self-documenting. Use JSDoc `/** ... */` only for public APIs
+  (inputs, outputs, exported methods).
+- **Clean Imports**: Remove all unused imports in TypeScript files and the
+  `@Component({ imports: [...] })` array.
 
 ### 3. Testing & Documentation
-- **Meaningful Unit Tests**: Tests must verify actual functionality (interactions, state changes), not just component creation.
-- **Storybook**: Every component must have a Storybook story showing all inputs/options.
-- **Demo Page**: Create a rich demo page with unique variants and "copy-paste ready" examples for developers.
+
+- **Meaningful Unit Tests**: Tests must verify actual functionality (interactions,
+  state changes), not just component creation.
+- **Storybook**: Every component must have a Storybook story showing all
+  inputs/options.
+- **Demo Page**: Create a rich demo page with unique variants and "copy-paste
+  ready" examples for developers.
 
 ---
 
@@ -277,7 +292,8 @@ Before submitting a component, verify:
 - [ ] Uses `input()` and `computed()` (not decorators)
 - [ ] Has `data-slot` attribute for testing/styling hooks
 - [ ] If compound: supports both simple and custom modes
-- [ ] If compound: uses existing package components (not raw HTML) where possible
+- [ ] If compound: uses existing package components (not raw HTML)
+  where possible
 - [ ] Accessibility: proper ARIA attributes and keyboard navigation
 - [ ] RTL Support: verifies correct rendering in RTL mode
 - [ ] Tests cover both usage modes and verify functionality
@@ -292,78 +308,113 @@ Before submitting a component, verify:
 
 ## 5. Responsive Design (Zero Tolerance)
 
-Every component MUST render correctly across all viewport widths: **320px → 375px → 640px → 768px → 1024px → 1920px+**. Desktop appearance must not change — responsive rules only add mobile/tablet adaptations.
+Every component MUST render correctly across all viewport widths:
+**320px → 375px → 640px → 768px → 1024px → 1920px+**. Desktop appearance must
+not change — responsive rules only add mobile/tablet adaptations.
 
 ### Rules
 
 #### No Hardcoded Pixel Widths Without Responsive Breakpoints
-- **Never** use `w-[Npx]`, `min-w-[Npx]`, or `max-w-[Npx]` alone — always pair with responsive variants
+
+- **Never** use `w-[Npx]`, `min-w-[Npx]`, or `max-w-[Npx]` alone — always
+  pair with responsive variants
 - ❌ `w-[300px]` — breaks on 320px phones
 - ✅ `w-full sm:w-[300px]` — full width on mobile, fixed on desktop
 - ❌ `max-w-[420px]` — clips on small phones
 - ✅ `max-w-[calc(100vw-2rem)] sm:max-w-[420px]` — viewport-aware
 
 #### No Hardcoded Heights Without Responsive Scaling
+
 - ❌ `h-[600px]` — too tall for mobile
 - ✅ `h-[350px] sm:h-[450px] md:h-[600px]`
 - ❌ `min-h-[150px]` — wastes mobile space
 - ✅ `min-h-[100px] sm:min-h-[150px]`
 
 #### Responsive Spacing
+
 - ❌ `p-6` or `gap-6` alone on containers
 - ✅ `p-4 sm:p-6` and `gap-4 sm:gap-6`
-- Apply to: Card, Dialog, Sheet, Drawer, Empty, and any container with `p-6`+ or `gap-6`+
+- Apply to: Card, Dialog, Sheet, Drawer, Empty, and any container with
+  `p-6`+ or `gap-6`+
 
 #### Flex Layouts Must Wrap
-- ❌ `flex items-center justify-between` on toolbars/controls — overflows on mobile
+
+- ❌ `flex items-center justify-between` on toolbars/controls — overflows
+  on mobile
 - ✅ `flex flex-wrap items-center justify-between gap-2`
 
 #### Overflow Protection for Popups/Overlays
-- **Every** absolutely/fixed positioned element (popover, dropdown, menu, toast, nav content) MUST have `max-w-[calc(100vw-2rem)]` to prevent viewport overflow
+
+- **Every** absolutely/fixed positioned element (popover, dropdown, menu,
+  toast, nav content) MUST have `max-w-[calc(100vw-2rem)]` to prevent
+  viewport overflow
 
 #### Text Truncation
-- Long text in constrained containers MUST use `truncate`, `line-clamp-N`, or `overflow-hidden`
-- Chip/badge text: use responsive max-width `max-w-[120px] sm:max-w-[200px] truncate`
+
+- Long text in constrained containers MUST use `truncate`, `line-clamp-N`,
+  or `overflow-hidden`
+- Chip/badge text: use responsive max-width
+  `max-w-[120px] sm:max-w-[200px] truncate`
 
 ### Testing Viewports
-Verify every component at: **320px**, **375px**, **640px**, **768px**, **1024px**, **1920px**
+
+Verify every component at: **320px**, **375px**, **640px**, **768px**,
+**1024px**, **1920px**
 
 ---
 
 ## 6. Touch Device Compatibility (Zero Tolerance)
 
-Every interactive component MUST work on touch-only devices (phones, tablets) with no mouse or keyboard. Use the shared `touch.ts` utility (`isTouchDevice()`, `onLongPress()`, `onDoubleTap()`) from `lib/touch.ts`.
+Every interactive component MUST work on touch-only devices (phones, tablets)
+with no mouse or keyboard. Use the shared `touch.ts` utility (`isTouchDevice()`,
+`onLongPress()`, `onDoubleTap()`) from `lib/touch.ts`.
 
-### Rules
+### Touch Compatibility Rules
 
 #### No Hover-Only Interactions
-- If `(mouseenter)`/`(mouseleave)` reveals essential UI (buttons, menus, content), add a touch alternative
+
+- If `(mouseenter)`/`(mouseleave)` reveals essential UI (buttons, menus,
+  content), add a touch alternative
 - ✅ Hover Card / Tooltip: tap to open, tap elsewhere to dismiss
 - ✅ Navigation Menu / Menubar: tap to toggle submenus
 - ✅ Dropdown submenu: tap to expand (not hover-only)
-- CSS `opacity-0 group-hover:opacity-100` for essential controls → add `@media (hover: none) { opacity: 1 }` or always-visible on touch
+- CSS `opacity-0 group-hover:opacity-100` for essential controls → add
+  `@media (hover: none) { opacity: 1 }` or always-visible on touch
 
 #### No Mouse-Only Drag and Drop
-- HTML5 drag events (`dragstart`, `dragover`, `drop`, `dragend`) do NOT work on mobile Safari/Chrome
-- Every `(mousedown)` for dragging MUST have a matching `(touchstart)` with `touch-action: none`
-- Every `(window:mousemove)/(window:mouseup)` MUST have `(window:touchmove)/(window:touchend)`
-- Reference: `resizable.component.ts` and `slider.component.ts` already implement both correctly — follow their pattern
+
+- HTML5 drag events (`dragstart`, `dragover`, `drop`, `dragend`) do NOT work
+  on mobile Safari/Chrome
+- Every `(mousedown)` for dragging MUST have a matching `(touchstart)` with
+  `touch-action: none`
+- Every `(window:mousemove)/(window:mouseup)` MUST have
+  `(window:touchmove)/(window:touchend)`
+- Reference: `resizable.component.ts` and `slider.component.ts` already
+  implement both correctly — follow their pattern
 
 #### No Right-Click-Only Context Menus
+
 - `(contextmenu)` requires right-click — unavailable on touch
-- Add long-press (500ms touch hold) as alternative using `onLongPress()` from `lib/touch.ts`
+- Add long-press (500ms touch hold) as alternative using `onLongPress()` from
+  `lib/touch.ts`
 
 #### No Double-Click-Only Actions
+
 - `(dblclick)` doesn't work reliably on touch
 - Add double-tap detection using `onDoubleTap()` from `lib/touch.ts`
 - Data table inline editing is the primary case
 
 #### Touch Target Sizing
-- All interactive elements MUST be at least **44×44px** on touch devices (WCAG 2.5.8, Apple/Google HIG)
-- The global `@media (pointer: coarse)` rule in `tailwind.css` enforces this as a baseline
+
+- All interactive elements MUST be at least **44×44px** on touch devices
+  (WCAG 2.5.8, Apple/Google HIG)
+- The global `@media (pointer: coarse)` rule in `tailwind.css` enforces this
+  as a baseline
 
 #### No Keyboard-Shortcut-Only Features
-- If a feature is only accessible via keyboard shortcut (Ctrl+C, Shift+Click range select, etc.), provide a touch alternative
+
+- If a feature is only accessible via keyboard shortcut (Ctrl+C, Shift+Click
+  range select, etc.), provide a touch alternative
 - Add visible buttons/actions for touch users where keyboard shortcuts exist
 
 ### Anti-Patterns
@@ -402,8 +453,14 @@ When generating or modifying components:
 6. **Test both modes** in the spec file
 7. **Follow naming conventions** exactly
 8. **Form Components**: Support both `value` input and `ControlValueAccessor`
-9. **Responsive design** — follow ALL rules in Section 5. Every hardcoded pixel width/height MUST have responsive breakpoints. Every flex toolbar MUST wrap. Every overlay MUST have `max-w-[calc(100vw-2rem)]`. Test mentally at 320px, 375px, 768px, 1920px.
-10. **Touch compatibility** — follow ALL rules in Section 6. Every `(mouseenter)` needs a touch alternative. Every `(mousedown)` for drag needs `(touchstart)`. Every `(contextmenu)` needs long-press. Every `(dblclick)` needs double-tap. Use `lib/touch.ts` utilities.
+9. **Responsive design** — follow ALL rules in Section 5. Every hardcoded pixel
+   width/height MUST have responsive breakpoints. Every flex toolbar MUST wrap.
+   Every overlay MUST have `max-w-[calc(100vw-2rem)]`. Test mentally at 320px,
+   375px, 768px, 1920px.
+10. **Touch compatibility** — follow ALL rules in Section 6. Every `(mouseenter)`
+    needs a touch alternative. Every `(mousedown)` for drag needs `(touchstart)`.
+    Every `(contextmenu)` needs long-press. Every `(dblclick)` needs double-tap.
+    Use `lib/touch.ts` utilities.
 
 ### Template for New Compound Components
 

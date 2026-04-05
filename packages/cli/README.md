@@ -1,6 +1,7 @@
 # @gilav21/shadcn-angular
 
-An Angular port of [shadcn/ui](https://ui.shadcn.com/) - beautifully designed components that you can copy and paste into your apps.
+An Angular port of [shadcn/ui](https://ui.shadcn.com/) -
+beautifully designed components that you can copy and paste into your apps.
 
 This CLI tool helps you easily add components to your Angular project.
 
@@ -18,15 +19,16 @@ npx @gilav21/shadcn-angular init
 ```
 
 This will:
-1.  Configure your `tailwind.config.ts`.
-2.  Add CSS variables to your global styles.
-3.  Add a `cn` utility for class merging.
-4.  Create a `components.json` configuration file.
+
+1. Configure your `tailwind.config.ts`.
+2. Add CSS variables to your global styles.
+3. Add a `cn` utility for class merging.
+4. Create a `components.json` configuration file.
 
 ### `init` Options
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `-y, --yes` | Skip confirmation prompt |
 | `-d, --defaults` | Use default configuration |
 | `-b, --branch <branch>` | GitHub branch to fetch from (default: `master`) |
@@ -60,7 +62,7 @@ npx @gilav21/shadcn-angular add
 ### `add` Options
 
 | Flag | Description |
-|------|-------------|
+| ------ | ------------- |
 | `-y, --yes` | Skip all prompts (no optional deps, no overwrite) |
 | `-o, --overwrite` | Overwrite existing files that differ from the registry |
 | `-a, --all` | Install every available component |
@@ -70,11 +72,15 @@ npx @gilav21/shadcn-angular add
 
 ## Optional Dependencies
 
-Some components offer companion components that enhance their functionality. When you add such a component, the CLI will prompt you to optionally install them.
+Some components offer companion components that enhance their functionality.
+When you add such a component, the CLI will prompt you to optionally install them.
 
-For example, `data-table` offers `context-menu` for right-click menus on rows and headers. `tree` also offers `context-menu` for right-click menus on tree nodes.
+For example, `data-table` offers `context-menu`
+for right-click menus on rows and headers.
+`tree` also offers `context-menu` for right-click menus on tree nodes.
 
 Behavior with flags:
+
 - **Interactive (default)** — you pick which optional companions to include
 - **`--yes`** — skips optional dependencies entirely (useful in CI)
 - **`--all`** — automatically includes all optional dependencies
@@ -203,4 +209,5 @@ Behavior with flags:
 
 ## Documentation
 
-For full documentation and examples, verify usage in your local development environment or check the original [shadcn/ui documentation](https://ui.shadcn.com/docs).
+For full documentation and examples, verify usage in your local development environment
+or check the original [shadcn/ui documentation](https://ui.shadcn.com/docs).

@@ -11,6 +11,7 @@ This document defines how to build components in shadcn-angular. Follow these pa
 > **"If you project content, you get full control. If you don't, you get sensible defaults."**
 
 We escaped Angular Material because customization was a nightmare. Our components must be:
+
 - **Easy to start** — Simple inputs for common use cases
 - **Easy to customize** — Content projection for full control
 - **Easy to understand** — The source code lives in YOUR project
@@ -117,7 +118,7 @@ template: `
 
 ## Decision Tree: When to Apply This Pattern
 
-```
+```text
 Is the component compound (has child components)?
 ├── NO → Use simple inputs only (Button, Badge, Input)
 └── YES → Does it commonly need customization?
@@ -129,7 +130,7 @@ Is the component compound (has child components)?
 ### Components That SHOULD Have Dual Mode
 
 | Component | Simple Inputs | Custom Content |
-|-----------|---------------|----------------|
+| ---------- | ------------- | -------------- |
 | Timeline | `title`, `description`, `time`, `variant` | `<ui-timeline-header>`, `<ui-timeline-content>` |
 | Breadcrumb | `[items]` array | `<ui-breadcrumb-item>` slots |
 | Accordion | `title`, `content` | `<ui-accordion-trigger>`, `<ui-accordion-content>` |
@@ -139,7 +140,7 @@ Is the component compound (has child components)?
 ### Components That Should Remain Simple
 
 | Component | Reason |
-|-----------|--------|
+| ---------- | ------ |
 | Button | Single element, no compound structure |
 | Badge | Single element |
 | Input | Single element with variants |
@@ -152,7 +153,7 @@ Is the component compound (has child components)?
 
 ### Component Selectors
 
-```
+```text
 ui-{component}              → Main container
 ui-{component}-item         → Repeated item
 ui-{component}-header       → Header section (for projection)
@@ -255,13 +256,16 @@ classes = computed(() => cn(
 ## Quality Standards
 
 ### 1. Composition
+
 - **Prefer Package Components**: When building compound components, prioritize using existing package components (e.g., `ui-button`, `ui-badge`) over native HTML elements. This ensures consistent styling, functionality, and accessibility.
 
 ### 2. Code Hygiene
+
 - **No Non-JSDoc Comments**: Avoid implementation comments inside methods. Code should be self-documenting. Use JSDoc `/** ... */` only for public APIs (inputs, outputs, exported methods).
 - **No Unused Declarations**: Remove all unused imports, variables, parameters, and types in TypeScript files and the `@Component({ imports: [...] })` array. The compiler enforces `noUnusedLocals` and `noUnusedParameters` — check for `ts(6133)` ("declared but its value is never read") errors before finishing any file.
 
 ### 3. Testing & Documentation
+
 - **Meaningful Unit Tests**: Tests must verify actual functionality (interactions, state changes), not just component creation.
 - **Storybook**: Every component must have a Storybook story showing all inputs/options.
 - **Demo Page**: Create a rich demo page with unique variants and "copy-paste ready" examples for developers.
@@ -271,6 +275,7 @@ classes = computed(() => cn(
 All code must pass SonarQube with **zero issues**. Apply these rules from the start:
 
 #### TypeScript Strictness
+
 - **No `any` types** — use proper generics or `unknown`
 - **No unnecessary type assertions** (`as Type`) — only assert when the compiler genuinely can't infer the type (S4325)
 - **Mark never-reassigned members `readonly`** — signals, computed, viewChild, arrow function properties, etc. (S2933)
@@ -279,6 +284,7 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
 - **Extract repeated union types into type aliases** — if a union like `'sm' | 'md' | 'lg'` appears 3+ times, create a `type Size = 'sm' | 'md' | 'lg'` (S4323)
 
 #### Modern API Preferences
+
 - **`Number.isNaN()`** over `isNaN()`, **`Number.isFinite()`** over `isFinite()`, **`Number.parseFloat()`** over `parseFloat()` (S7773)
 - **`String.fromCodePoint()`** over `String.fromCharCode()`, **`.codePointAt()`** over `.charCodeAt()` (S7758)
 - **`Math.hypot(dx, dy)`** over `Math.sqrt(dx*dx + dy*dy)` (S7769)
@@ -292,6 +298,7 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
 - **`\d`** over `[0-9]` in regex (S6353)
 
 #### Cognitive Complexity (S3776 — max 15)
+
 - **Keep functions under 15 cognitive complexity** — this is the most common SonarQube violation
 - **Extract helper functions** for nested logic blocks
 - **Use early returns** (guard clauses) to reduce nesting depth
@@ -299,6 +306,7 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
 - **Extract loop bodies** when they contain conditionals
 
 #### Control Flow & Logic
+
 - **No negated conditions in if/else** — flip the branches: `if (!x) { A } else { B }` → `if (x) { B } else { A }` (S7735)
 - **No nested ternaries** — extract to variables or if/else (S3358)
 - **No duplicate branch/case blocks** — merge identical branches with `||` or fall-through cases (S1871)
@@ -312,6 +320,7 @@ All code must pass SonarQube with **zero issues**. Apply these rules from the st
 - **Avoid boolean parameters** that switch behavior — use separate methods instead (S2301)
 
 #### Regex
+
 - **No unnecessary escapes** in regex (S6535)
 - **No duplicate characters** in character classes (S5869)
 - **Use quantifiers** `{2}` instead of repeating characters (S6326)
@@ -351,6 +360,7 @@ Every component MUST render correctly across all viewport widths: **320px → 37
 ### Rules
 
 #### No Hardcoded Pixel Widths Without Responsive Breakpoints
+
 - **Never** use `w-[Npx]`, `min-w-[Npx]`, or `max-w-[Npx]` alone — always pair with responsive variants
 - ❌ `w-[300px]` — breaks on 320px phones
 - ✅ `w-full sm:w-[300px]` — full width on mobile, fixed on desktop
@@ -358,28 +368,34 @@ Every component MUST render correctly across all viewport widths: **320px → 37
 - ✅ `max-w-[calc(100vw-2rem)] sm:max-w-[420px]` — viewport-aware
 
 #### No Hardcoded Heights Without Responsive Scaling
+
 - ❌ `h-[600px]` — too tall for mobile
 - ✅ `h-[350px] sm:h-[450px] md:h-[600px]`
 - ❌ `min-h-[150px]` — wastes mobile space
 - ✅ `min-h-[100px] sm:min-h-[150px]`
 
 #### Responsive Spacing
+
 - ❌ `p-6` or `gap-6` alone on containers
 - ✅ `p-4 sm:p-6` and `gap-4 sm:gap-6`
 - Apply to: Card, Dialog, Sheet, Drawer, Empty, and any container with `p-6`+ or `gap-6`+
 
 #### Flex Layouts Must Wrap
+
 - ❌ `flex items-center justify-between` on toolbars/controls — overflows on mobile
 - ✅ `flex flex-wrap items-center justify-between gap-2`
 
 #### Overflow Protection for Popups/Overlays
+
 - **Every** absolutely/fixed positioned element (popover, dropdown, menu, toast, nav content) MUST have `max-w-[calc(100vw-2rem)]` to prevent viewport overflow
 
 #### Text Truncation
+
 - Long text in constrained containers MUST use `truncate`, `line-clamp-N`, or `overflow-hidden`
 - Chip/badge text: use responsive max-width `max-w-[120px] sm:max-w-[200px] truncate`
 
 ### Testing Viewports
+
 Verify every component at: **320px**, **375px**, **640px**, **768px**, **1024px**, **1920px**
 
 ---
@@ -388,9 +404,10 @@ Verify every component at: **320px**, **375px**, **640px**, **768px**, **1024px*
 
 Every interactive component MUST work on touch-only devices (phones, tablets) with no mouse or keyboard. Use the shared `touch.ts` utility (`isTouchDevice()`, `onLongPress()`, `onDoubleTap()`) from `lib/touch.ts`.
 
-### Rules
+### Touch Compatibility Rules
 
 #### No Hover-Only Interactions
+
 - If `(mouseenter)`/`(mouseleave)` reveals essential UI (buttons, menus, content), add a touch alternative
 - ✅ Hover Card / Tooltip: tap to open, tap elsewhere to dismiss
 - ✅ Navigation Menu / Menubar: tap to toggle submenus
@@ -398,25 +415,30 @@ Every interactive component MUST work on touch-only devices (phones, tablets) wi
 - CSS `opacity-0 group-hover:opacity-100` for essential controls → add `@media (hover: none) { opacity: 1 }` or always-visible on touch
 
 #### No Mouse-Only Drag and Drop
+
 - HTML5 drag events (`dragstart`, `dragover`, `drop`, `dragend`) do NOT work on mobile Safari/Chrome
 - Every `(mousedown)` for dragging MUST have a matching `(touchstart)` with `touch-action: none`
 - Every `(window:mousemove)/(window:mouseup)` MUST have `(window:touchmove)/(window:touchend)`
 - Reference: `resizable.component.ts` and `slider.component.ts` already implement both correctly — follow their pattern
 
 #### No Right-Click-Only Context Menus
+
 - `(contextmenu)` requires right-click — unavailable on touch
 - Add long-press (500ms touch hold) as alternative using `onLongPress()` from `lib/touch.ts`
 
 #### No Double-Click-Only Actions
+
 - `(dblclick)` doesn't work reliably on touch
 - Add double-tap detection using `onDoubleTap()` from `lib/touch.ts`
 - Data table inline editing is the primary case
 
 #### Touch Target Sizing
+
 - All interactive elements MUST be at least **44×44px** on touch devices (WCAG 2.5.8, Apple/Google HIG)
 - The global `@media (pointer: coarse)` rule in `tailwind.css` enforces this as a baseline
 
 #### No Keyboard-Shortcut-Only Features
+
 - If a feature is only accessible via keyboard shortcut (Ctrl+C, Shift+Click range select, etc.), provide a touch alternative
 - Add visible buttons/actions for touch users where keyboard shortcuts exist
 
