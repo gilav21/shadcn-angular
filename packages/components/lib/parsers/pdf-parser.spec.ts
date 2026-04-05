@@ -541,7 +541,7 @@ describe('parsePdf', () => {
             const pdf = new PdfBuilder()
                 .addFont('F1', 'Helvetica')
                 .setContent(
-                    'BT /F1 12 Tf 100 700 Td (Hello \\(world\\)) Tj ET'
+                    String.raw`BT /F1 12 Tf 100 700 Td (Hello \(world\)) Tj ET`
                 )
                 .build();
 

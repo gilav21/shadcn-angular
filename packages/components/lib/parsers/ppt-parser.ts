@@ -109,6 +109,27 @@ function scanForSlideListTexts(stream: Uint8Array): SlideTextBlocks[] {
     return slides;
 }
 
+function handleSlideRecord(
+    header: RecordHeader,
+    stream: Uint8Array,
+    dataOffset: number,
+    currentTexts: string[],
+    slides: SlideTextBlocks[],
+): string[] {
+    if (header.recType === RT_SLIDE_PERSIST_ATOM) {
+        if (currentTexts.length > 0) {
+            slides.push({ texts: [...currentTexts] });
+        }
+        return [];
+    }
+
+    const text = extractTextFromRecord(stream, dataOffset, header);
+    if (text !== null && text.trim().length > 0) {
+        currentTexts.push(text);
+    }
+    return currentTexts;
+}
+
 function parseSlideListContainer(
     stream: Uint8Array,
     containerStart: number,
@@ -127,19 +148,7 @@ function parseSlideListContainer(
         if (!header) break;
 
         const dataOffset = offset + RECORD_HEADER_SIZE;
-
-        if (header.recType === RT_SLIDE_PERSIST_ATOM) {
-            if (currentTexts.length > 0) {
-                slides.push({ texts: [...currentTexts] });
-            }
-            currentTexts = [];
-        } else {
-            const text = extractTextFromRecord(stream, dataOffset, header);
-            if (text !== null && text.trim().length > 0) {
-                currentTexts.push(text);
-            }
-        }
-
+        currentTexts = handleSlideRecord(header, stream, dataOffset, currentTexts, slides);
         offset = dataOffset + header.recLen;
     }
 

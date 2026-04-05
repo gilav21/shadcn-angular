@@ -10,6 +10,32 @@ type PptxTabAlignment = 'l' | 'ctr' | 'r' | 'dec';
 type PptxFontAlign = 'auto' | 't' | 'ctr' | 'base' | 'b';
 type PptxCapType = 'all' | 'small';
 
+// --- Options Types ---
+
+interface BuildParagraphPropertiesOptions {
+    readonly pPr: Element;
+    readonly runs: PptxTextRun[];
+    readonly lvl: string | null;
+    readonly level: number;
+    readonly themeColors: ThemeColorMap;
+    readonly mediaRels?: Map<string, string>;
+    readonly files?: Map<string, Uint8Array>;
+    readonly baseDir?: string;
+}
+
+interface BuildConnectorResultOptions {
+    readonly pos: { x: number; y: number; width: number; height: number };
+    readonly color: string | undefined;
+    readonly lineWidth: number | undefined;
+    readonly flipH: boolean;
+    readonly flipV: boolean;
+    readonly rotation: number | undefined;
+    readonly connectorType: string;
+    readonly dashStyle: string | undefined;
+    readonly headEnd: boolean;
+    readonly tailEnd: boolean;
+}
+
 // --- Interfaces ---
 
 export interface PptxGradientStop {
@@ -280,8 +306,7 @@ function getChildNS(parent: Element, ns: string, localName: string): Element | n
 }
 
 function getDirectChildNS(parent: Element, ns: string, localName: string): Element | null {
-    for (let i = 0; i < parent.children.length; i++) {
-        const child = parent.children[i];
+    for (const child of Array.from(parent.children)) {
         if (child.namespaceURI === ns && child.localName === localName) {
             return child;
         }
@@ -290,12 +315,7 @@ function getDirectChildNS(parent: Element, ns: string, localName: string): Eleme
 }
 
 function getAllChildrenNS(parent: Element, ns: string, localName: string): Element[] {
-    const nodeList = parent.getElementsByTagNameNS(ns, localName);
-    const result: Element[] = [];
-    for (let i = 0; i < nodeList.length; i++) {
-        result.push(nodeList[i]);
-    }
-    return result;
+    return Array.from(parent.getElementsByTagNameNS(ns, localName));
 }
 
 function emuToPixels(emu: string | null): number {
@@ -531,9 +551,9 @@ function getSlideRelationships(files: Map<string, Uint8Array>): Map<string, stri
     const rels = doc.getElementsByTagName('Relationship');
     const map = new Map<string, string>();
 
-    for (let i = 0; i < rels.length; i++) {
-        const id = rels[i].getAttribute('Id') ?? '';
-        const target = rels[i].getAttribute('Target') ?? '';
+    for (const rel of Array.from(rels)) {
+        const id = rel.getAttribute('Id') ?? '';
+        const target = rel.getAttribute('Target') ?? '';
         map.set(id, target);
     }
 
@@ -549,9 +569,9 @@ function getSlideMediaRelationships(files: Map<string, Uint8Array>, slideIndex: 
     const rels = doc.getElementsByTagName('Relationship');
     const map = new Map<string, string>();
 
-    for (let i = 0; i < rels.length; i++) {
-        const id = rels[i].getAttribute('Id') ?? '';
-        const target = rels[i].getAttribute('Target') ?? '';
+    for (const rel of Array.from(rels)) {
+        const id = rel.getAttribute('Id') ?? '';
+        const target = rel.getAttribute('Target') ?? '';
         map.set(id, target);
     }
 
@@ -635,8 +655,8 @@ function parseGradientFill(
     const path = getChildNS(gradFill, NS_A, 'path');
     if (path) {
         const pathType = path.getAttribute('path') ?? 'circle';
-        const mapped: PptxGradientType = pathType === 'rect' ? 'rect'
-            : pathType === 'shape' ? 'shape' : 'radial';
+        const innerType: PptxGradientType = pathType === 'shape' ? 'shape' : 'radial';
+        const mapped: PptxGradientType = pathType === 'rect' ? 'rect' : innerType;
         return { type: mapped, stops };
     }
 
@@ -1023,8 +1043,7 @@ function parseTextRun(
     return buildTextRunFromProps(text, merged);
 }
 
-function buildTextRunFromProps(text: string, props: TextRunProperties): PptxTextRun {
-    const result: Record<string, unknown> = { text };
+function applyTextStyleProps(result: Record<string, unknown>, props: TextRunProperties): void {
     if (props.bold) result['bold'] = true;
     if (props.italic) result['italic'] = true;
     if (props.underline) result['underline'] = true;
@@ -1036,6 +1055,9 @@ function buildTextRunFromProps(text: string, props: TextRunProperties): PptxText
     if (props.cap) result['cap'] = props.cap;
     if (props.spc != null) result['spc'] = props.spc;
     if (props.highlight) result['highlight'] = props.highlight;
+}
+
+function applyTextFillProps(result: Record<string, unknown>, props: TextRunProperties): void {
     if (props.isHyperlink) result['isHyperlink'] = true;
     if (props.hoverTooltip) result['hoverTooltip'] = props.hoverTooltip;
     if (props.gradientFill) result['gradientFill'] = props.gradientFill;
@@ -1046,7 +1068,45 @@ function buildTextRunFromProps(text: string, props: TextRunProperties): PptxText
     if (props.underlineStyle) result['underlineStyle'] = props.underlineStyle;
     if (props.effects) result['effects'] = props.effects;
     if (props.symFont) result['symFont'] = props.symFont;
+}
+
+function buildTextRunFromProps(text: string, props: TextRunProperties): PptxTextRun {
+    const result: Record<string, unknown> = { text };
+    applyTextStyleProps(result, props);
+    applyTextFillProps(result, props);
     return result as unknown as PptxTextRun;
+}
+
+function extractFieldRuns(
+    paragraph: Element,
+    themeColors: ThemeColorMap,
+    inherited?: TextRunProperties,
+    mediaRels?: Map<string, string>,
+    files?: Map<string, Uint8Array>,
+    baseDir?: string,
+): PptxTextRun[] {
+    const runs: PptxTextRun[] = [];
+    const fldElements = getAllChildrenNS(paragraph, NS_A, 'fld');
+    for (const fld of fldElements) {
+        const t = getChildNS(fld, NS_A, 't');
+        if (!t?.textContent?.trim()) continue;
+        const fldRPr = getChildNS(fld, NS_A, 'rPr');
+        const explicit = fldRPr ? extractRunProperties(fldRPr, themeColors, mediaRels, files, baseDir) : {};
+        const merged = inherited ? mergeTextRunDefaults(explicit, inherited) : explicit;
+        runs.push(buildTextRunFromProps(t.textContent, merged));
+    }
+    return runs;
+}
+
+function extractFallbackRuns(
+    paragraph: Element,
+    inherited?: TextRunProperties,
+): PptxTextRun[] {
+    const brElements = getAllChildrenNS(paragraph, NS_A, 'br');
+    if (brElements.length > 0) return [];
+    const directText = paragraph.textContent?.trim();
+    if (!directText) return [];
+    return [inherited ? buildTextRunFromProps(directText, inherited) : { text: directText }];
 }
 
 function extractParagraphRuns(
@@ -1064,22 +1124,10 @@ function extractParagraphRuns(
         runs.push(parseTextRun(r, themeColors, inherited, mediaRels, files, baseDir));
     }
 
-    const fldElements = getAllChildrenNS(paragraph, NS_A, 'fld');
-    for (const fld of fldElements) {
-        const t = getChildNS(fld, NS_A, 't');
-        if (t?.textContent?.trim()) {
-            const fldRPr = getChildNS(fld, NS_A, 'rPr');
-            const explicit = fldRPr ? extractRunProperties(fldRPr, themeColors, mediaRels, files, baseDir) : {};
-            const merged = inherited ? mergeTextRunDefaults(explicit, inherited) : explicit;
-            runs.push(buildTextRunFromProps(t.textContent, merged));
-        }
-    }
+    runs.push(...extractFieldRuns(paragraph, themeColors, inherited, mediaRels, files, baseDir));
 
     if (runs.length === 0) {
-        const brElements = getAllChildrenNS(paragraph, NS_A, 'br');
-        if (brElements.length > 0) return [];
-        const directText = paragraph.textContent?.trim();
-        if (directText) runs.push(inherited ? buildTextRunFromProps(directText, inherited) : { text: directText });
+        runs.push(...extractFallbackRuns(paragraph, inherited));
     }
 
     return runs;
@@ -1250,33 +1298,25 @@ function parseLstStyleDefaults(
     return extractRunProperties(defRPr, themeColors);
 }
 
-function parseParagraph(
+function buildInheritedRunProps(
     paragraph: Element,
     themeColors: ThemeColorMap,
     txBody?: Element,
     masterDefaults?: TextRunProperties,
-    mediaRels?: Map<string, string>,
-    files?: Map<string, Uint8Array>,
-    baseDir?: string,
-): PptxParagraph {
-    const pPr = getChildNS(paragraph, NS_A, 'pPr');
-
-    // Build inheritance chain: paraDefRPr > lstStyle > masterDefaults
-    const lvl = pPr?.getAttribute('lvl');
-    const level = lvl ? Number.parseInt(lvl, 10) : 0;
-
+    level?: number,
+): TextRunProperties {
     const paraDefaults = parseParagraphDefaultRunProps(paragraph, themeColors);
-    const lstStyleDefaults = txBody ? parseLstStyleDefaults(txBody, level, themeColors) : undefined;
+    const lstStyleDefaults = txBody ? parseLstStyleDefaults(txBody, level ?? 0, themeColors) : undefined;
 
     let inherited: TextRunProperties = {};
     if (masterDefaults) inherited = mergeTextRunDefaults(inherited, masterDefaults);
     if (lstStyleDefaults) inherited = mergeTextRunDefaults(lstStyleDefaults, inherited);
     if (paraDefaults) inherited = mergeTextRunDefaults(paraDefaults, inherited);
+    return inherited;
+}
 
-    const runs = extractParagraphRuns(paragraph, themeColors, inherited, mediaRels, files, baseDir);
-
-    if (!pPr) return { runs };
-
+function buildParagraphProperties(options: BuildParagraphPropertiesOptions): PptxParagraph {
+    const { pPr, runs, lvl, level, themeColors, mediaRels, files, baseDir } = options;
     const algn = pPr.getAttribute('algn') as PptxAlignment | null;
     const marL = pPr.getAttribute('marL');
     const indent = pPr.getAttribute('indent');
@@ -1301,6 +1341,28 @@ function parseParagraph(
         ...(defTabSz ? { defaultTabSize: emuToPixels(defTabSz) } : {}),
         ...(tabs ? { tabs } : {}),
     };
+}
+
+function parseParagraph(
+    paragraph: Element,
+    themeColors: ThemeColorMap,
+    txBody?: Element,
+    masterDefaults?: TextRunProperties,
+    mediaRels?: Map<string, string>,
+    files?: Map<string, Uint8Array>,
+    baseDir?: string,
+): PptxParagraph {
+    const pPr = getChildNS(paragraph, NS_A, 'pPr');
+
+    const lvl = pPr?.getAttribute('lvl') ?? null;
+    const level = lvl ? Number.parseInt(lvl, 10) : 0;
+
+    const inherited = buildInheritedRunProps(paragraph, themeColors, txBody, masterDefaults, level);
+    const runs = extractParagraphRuns(paragraph, themeColors, inherited, mediaRels, files, baseDir);
+
+    if (!pPr) return { runs };
+
+    return buildParagraphProperties({ pPr, runs, lvl, level, themeColors, mediaRels, files, baseDir });
 }
 
 // --- Position & Geometry ---
@@ -1490,6 +1552,52 @@ const LINE_SHAPE_TYPES: ReadonlySet<string> = new Set([
     'curvedConnector4', 'curvedConnector5',
 ]);
 
+interface LineProperties {
+    readonly color?: string;
+    readonly lineWidth?: number;
+    readonly dashStyle?: string;
+    readonly headEnd: boolean;
+    readonly tailEnd: boolean;
+}
+
+function parseLineProperties(ln: Element, themeColors: ThemeColorMap): LineProperties {
+    let color: string | undefined;
+    let lineWidth: number | undefined;
+    let dashStyle: string | undefined;
+    let headEnd = false;
+    let tailEnd = false;
+
+    const w = ln.getAttribute('w');
+    if (w) lineWidth = Math.round(Number.parseInt(w, 10) / 12700);
+    const lnFill = getChildNS(ln, NS_A, 'solidFill');
+    if (lnFill) color = resolveColorWithModifiers(lnFill, themeColors);
+    const prstDash = getChildNS(ln, NS_A, 'prstDash');
+    if (prstDash) dashStyle = prstDash.getAttribute('val') ?? undefined;
+    const headEndEl = getChildNS(ln, NS_A, 'headEnd');
+    if (headEndEl && headEndEl.getAttribute('type') !== 'none') headEnd = true;
+    const tailEndEl = getChildNS(ln, NS_A, 'tailEnd');
+    if (tailEndEl && tailEndEl.getAttribute('type') !== 'none') tailEnd = true;
+
+    return { color, lineWidth, dashStyle, headEnd, tailEnd };
+}
+
+function buildConnectorResult(options: BuildConnectorResultOptions): PptxConnectorElement {
+    const { pos, color, lineWidth, flipH, flipV, rotation, connectorType, dashStyle, headEnd, tailEnd } = options;
+    return {
+        type: 'connector',
+        ...pos,
+        ...(color ? { color } : {}),
+        ...(lineWidth ? { lineWidth } : {}),
+        ...(flipH ? { flipH } : {}),
+        ...(flipV ? { flipV } : {}),
+        ...(rotation ? { rotation } : {}),
+        connectorType,
+        ...(dashStyle ? { dashStyle } : {}),
+        ...(headEnd ? { headEnd } : {}),
+        ...(tailEnd ? { tailEnd } : {}),
+    };
+}
+
 function parseShapeAsConnector(
     sp: Element,
     themeColors: ThemeColorMap,
@@ -1506,25 +1614,11 @@ function parseShapeAsConnector(
     const flipV = xfrm?.getAttribute('flipV') === '1';
     const rotation = xfrm ? parseRotation(xfrm) : undefined;
 
-    let color: string | undefined;
-    let lineWidth: number | undefined;
-    let dashStyle: string | undefined;
-    let headEnd = false;
-    let tailEnd = false;
-
     const ln = getChildNS(spPr, NS_A, 'ln');
-    if (ln) {
-        const w = ln.getAttribute('w');
-        if (w) lineWidth = Math.round(Number.parseInt(w, 10) / 12700);
-        const lnFill = getChildNS(ln, NS_A, 'solidFill');
-        if (lnFill) color = resolveColorWithModifiers(lnFill, themeColors);
-        const prstDash = getChildNS(ln, NS_A, 'prstDash');
-        if (prstDash) dashStyle = prstDash.getAttribute('val') ?? undefined;
-        const headEndEl = getChildNS(ln, NS_A, 'headEnd');
-        if (headEndEl && headEndEl.getAttribute('type') !== 'none') headEnd = true;
-        const tailEndEl = getChildNS(ln, NS_A, 'tailEnd');
-        if (tailEndEl && tailEndEl.getAttribute('type') !== 'none') tailEnd = true;
-    }
+    const linePr = ln ? parseLineProperties(ln, themeColors) : { headEnd: false, tailEnd: false };
+
+    let color = linePr.color;
+    let lineWidth = linePr.lineWidth;
 
     if (!color) {
         const styleRef = parseStyleRef(sp, themeColors);
@@ -1534,19 +1628,7 @@ function parseShapeAsConnector(
 
     if (!color) color = '#000';
 
-    return {
-        type: 'connector',
-        ...pos,
-        color,
-        ...(lineWidth ? { lineWidth } : {}),
-        ...(flipH ? { flipH } : {}),
-        ...(flipV ? { flipV } : {}),
-        ...(rotation ? { rotation } : {}),
-        connectorType,
-        ...(dashStyle ? { dashStyle } : {}),
-        ...(headEnd ? { headEnd } : {}),
-        ...(tailEnd ? { tailEnd } : {}),
-    };
+    return buildConnectorResult({ pos, color, lineWidth, flipH, flipV, rotation, connectorType, dashStyle: linePr.dashStyle, headEnd: linePr.headEnd, tailEnd: linePr.tailEnd });
 }
 
 function parseShapeGeometry(
@@ -1599,56 +1681,26 @@ function parseConnector(cxnSp: Element, themeColors: ThemeColorMap): PptxConnect
 
     const xfrm = getChildNS(spPr, NS_A, 'xfrm');
     const pos = xfrm ? parsePosition(xfrm) : { x: 0, y: 0, width: 0, height: 0 };
-
-    // Extract flip and rotation attributes for correct line direction
     const flipH = xfrm?.getAttribute('flipH') === '1';
     const flipV = xfrm?.getAttribute('flipV') === '1';
     const rotation = xfrm ? parseRotation(xfrm) : undefined;
 
-    // Connector preset geometry (straight, bentConnector, curvedConnector)
     const prstGeom = getChildNS(spPr, NS_A, 'prstGeom');
     const connectorType = prstGeom?.getAttribute('prst') ?? 'line';
 
-    let color: string | undefined;
-    let lineWidth: number | undefined;
-    let dashStyle: string | undefined;
-    let headEnd = false;
-    let tailEnd = false;
-
     const ln = getChildNS(spPr, NS_A, 'ln');
-    if (ln) {
-        const w = ln.getAttribute('w');
-        if (w) lineWidth = Math.round(Number.parseInt(w, 10) / 12700);
-        const lnFill = getChildNS(ln, NS_A, 'solidFill');
-        if (lnFill) color = resolveColorWithModifiers(lnFill, themeColors);
-        const prstDash = getChildNS(ln, NS_A, 'prstDash');
-        if (prstDash) dashStyle = prstDash.getAttribute('val') ?? undefined;
-        const headEndEl = getChildNS(ln, NS_A, 'headEnd');
-        if (headEndEl && headEndEl.getAttribute('type') !== 'none') headEnd = true;
-        const tailEndEl = getChildNS(ln, NS_A, 'tailEnd');
-        if (tailEndEl && tailEndEl.getAttribute('type') !== 'none') tailEnd = true;
-    }
+    const linePr = ln ? parseLineProperties(ln, themeColors) : { headEnd: false, tailEnd: false };
 
-    // Fallback: get color from style reference
+    let color = linePr.color;
+    let lineWidth = linePr.lineWidth;
+
     if (!color) {
         const lnRefColor = parseConnectorStyleRef(cxnSp, themeColors);
         if (lnRefColor.color) color = lnRefColor.color;
         if (lnRefColor.lineWidth && !lineWidth) lineWidth = lnRefColor.lineWidth;
     }
 
-    return {
-        type: 'connector',
-        ...pos,
-        ...(color ? { color } : {}),
-        ...(lineWidth ? { lineWidth } : {}),
-        ...(flipH ? { flipH } : {}),
-        ...(flipV ? { flipV } : {}),
-        ...(rotation ? { rotation } : {}),
-        connectorType,
-        ...(dashStyle ? { dashStyle } : {}),
-        ...(headEnd ? { headEnd } : {}),
-        ...(tailEnd ? { tailEnd } : {}),
-    };
+    return buildConnectorResult({ pos, color, lineWidth, flipH, flipV, rotation, connectorType, dashStyle: linePr.dashStyle, headEnd: linePr.headEnd, tailEnd: linePr.tailEnd });
 }
 
 function parseConnectorStyleRef(
@@ -1746,6 +1798,37 @@ function resolvePlaceholderPosition(
 }
 
 
+function resolveMasterDefaults(
+    masterStyles: MasterTextStyles | undefined,
+    phType: string | undefined,
+): TextRunProperties | undefined {
+    if (!masterStyles) return undefined;
+    if (phType === 'title' || phType === 'ctrTitle') return masterStyles.title;
+    return masterStyles.body;
+}
+
+function resolveTextFramePosition(
+    sp: Element,
+    themeColors: ThemeColorMap,
+    phPositions?: PlaceholderPositionMap,
+    mediaRels?: Map<string, string>,
+    files?: Map<string, Uint8Array>,
+    baseDir?: string,
+): { pos: { x: number; y: number; width: number; height: number }; rotation?: number; styling: ShapeStylingResult } {
+    const spPr = getChildNS(sp, NS_P, 'spPr') ?? getChildNS(sp, NS_A, 'spPr');
+    const xfrm = spPr ? getChildNS(spPr, NS_A, 'xfrm') : null;
+    const phFallback = resolvePlaceholderPosition(sp, phPositions);
+    const pos = xfrm ? parsePosition(xfrm) : (phFallback ?? { x: 0, y: 0, width: 300, height: 50 });
+    const rotation = xfrm ? parseRotation(xfrm) : undefined;
+    const styling = spPr ? parseShapeStyling(spPr, themeColors, mediaRels, files, baseDir) : {};
+
+    const styleRef = parseStyleRef(sp, themeColors);
+    styleRef.fillColor = undefined;
+    mergeStyleRefIntoStyling(styling, styleRef);
+
+    return { pos, rotation, styling };
+}
+
 function parseTextFrame(
     sp: Element,
     themeColors: ThemeColorMap,
@@ -1759,23 +1842,11 @@ function parseTextFrame(
         ?? getChildNS(sp, NS_A, 'txBody');
     if (!txBody) return null;
 
-    // Determine master defaults based on placeholder type
     const phType = getPlaceholderType(sp);
-    let masterDefaults: TextRunProperties | undefined;
-    if (masterStyles) {
-        if (phType === 'title' || phType === 'ctrTitle') {
-            masterDefaults = masterStyles.title;
-        } else {
-            masterDefaults = masterStyles.body;
-        }
-    }
+    const masterDefaults = resolveMasterDefaults(masterStyles, phType);
 
     const pElements = getAllChildrenNS(txBody, NS_A, 'p');
-    const paragraphs: PptxParagraph[] = [];
-
-    for (const p of pElements) {
-        paragraphs.push(parseParagraph(p, themeColors, txBody, masterDefaults, mediaRels, files, baseDir));
-    }
+    const paragraphs = pElements.map(p => parseParagraph(p, themeColors, txBody, masterDefaults, mediaRels, files, baseDir));
 
     const hasContent = paragraphs.some(para => para.runs.some(r => r.text.trim()));
     if (!hasContent) return null;
@@ -1785,16 +1856,7 @@ function parseTextFrame(
     const fontScaleAttr = normAutofit?.getAttribute('fontScale');
     const fontScale = fontScaleAttr ? Number.parseInt(fontScaleAttr, 10) / 100000 : undefined;
 
-    const spPr = getChildNS(sp, NS_P, 'spPr') ?? getChildNS(sp, NS_A, 'spPr');
-    const xfrm = spPr ? getChildNS(spPr, NS_A, 'xfrm') : null;
-    const phFallback = resolvePlaceholderPosition(sp, phPositions);
-    const pos = xfrm ? parsePosition(xfrm) : (phFallback ?? { x: 0, y: 0, width: 300, height: 50 });
-    const rotation = xfrm ? parseRotation(xfrm) : undefined;
-    const styling = spPr ? parseShapeStyling(spPr, themeColors, mediaRels, files, baseDir) : {};
-
-    const styleRef = parseStyleRef(sp, themeColors);
-    styleRef.fillColor = undefined;
-    mergeStyleRefIntoStyling(styling, styleRef);
+    const { pos, rotation, styling } = resolveTextFramePosition(sp, themeColors, phPositions, mediaRels, files, baseDir);
 
     return {
         type: 'text',
@@ -1844,8 +1906,10 @@ function parseImage(
 
 // --- Table Parsing ---
 
-function extractTableCellText(tc: Element, themeColors: ThemeColorMap): PptxTableCell {
-    const paragraphs = getAllChildrenNS(tc, NS_A, 'p');
+function extractCellParagraphContent(
+    paragraphs: Element[],
+    themeColors: ThemeColorMap,
+): { textParts: string[]; bold?: boolean; color?: string } {
     const textParts: string[] = [];
     let bold: boolean | undefined;
     let color: string | undefined;
@@ -1861,12 +1925,16 @@ function extractTableCellText(tc: Element, themeColors: ThemeColorMap): PptxTabl
         }
     }
 
+    return { textParts, bold, color };
+}
+
+function extractTableCellText(tc: Element, themeColors: ThemeColorMap): PptxTableCell {
+    const paragraphs = getAllChildrenNS(tc, NS_A, 'p');
+    const { textParts, bold, color } = extractCellParagraphContent(paragraphs, themeColors);
+
     const tcPr = getChildNS(tc, NS_A, 'tcPr');
-    let fillColor: string | undefined;
-    if (tcPr) {
-        const sf = getChildNS(tcPr, NS_A, 'solidFill');
-        if (sf) fillColor = resolveColorWithModifiers(sf, themeColors);
-    }
+    const sf = tcPr ? getChildNS(tcPr, NS_A, 'solidFill') : null;
+    const fillColor = sf ? resolveColorWithModifiers(sf, themeColors) : undefined;
 
     return {
         text: textParts.join('\n'),
@@ -1971,10 +2039,16 @@ function extractShapeElements(
         if (connector) elements.push(connector);
     }
 
-    extractGroupedShapes(root, mediaRels, files, themeColors, elements, masterStyles, dir, phPositions);
+    extractGroupedShapes(root, mediaRels, files, themeColors, elements, { masterStyles, baseDir: dir, phPositions });
     extractGraphicFrames(root, themeColors, elements);
 
     return elements;
+}
+
+interface ExtractGroupedShapesOptions {
+    readonly masterStyles?: MasterTextStyles;
+    readonly baseDir?: string;
+    readonly phPositions?: PlaceholderPositionMap;
 }
 
 function extractGroupedShapes(
@@ -1983,14 +2057,12 @@ function extractGroupedShapes(
     files: Map<string, Uint8Array>,
     themeColors: ThemeColorMap,
     elements: PptxSlideElement[],
-    masterStyles?: MasterTextStyles,
-    baseDir?: string,
-    phPositions?: PlaceholderPositionMap,
+    options?: ExtractGroupedShapesOptions,
 ): void {
     const grpSpElements = getDirectElements(root, NS_P, 'grpSp');
     for (const grpSp of grpSpElements) {
         const transform = parseGroupTransform(grpSp);
-        const innerElements = extractShapeElements(grpSp, mediaRels, files, themeColors, masterStyles, baseDir, phPositions);
+        const innerElements = extractShapeElements(grpSp, mediaRels, files, themeColors, options?.masterStyles, options?.baseDir, options?.phPositions);
         for (const el of innerElements) {
             elements.push(applyGroupTransform(el, transform));
         }
@@ -2158,8 +2230,8 @@ function getMediaRelsForPath(files: Map<string, Uint8Array>, xmlPath: string): M
     const doc = parseXml(new TextDecoder().decode(relsFile));
     const rels = doc.getElementsByTagName('Relationship');
     const map = new Map<string, string>();
-    for (let i = 0; i < rels.length; i++) {
-        map.set(rels[i].getAttribute('Id') ?? '', rels[i].getAttribute('Target') ?? '');
+    for (const rel of Array.from(rels)) {
+        map.set(rel.getAttribute('Id') ?? '', rel.getAttribute('Target') ?? '');
     }
     return map;
 }
@@ -2230,10 +2302,10 @@ function getSlideLayoutPath(files: Map<string, Uint8Array>, slideIndex: number):
     const doc = parseXml(new TextDecoder().decode(relsFile));
     const rels = doc.getElementsByTagName('Relationship');
 
-    for (let i = 0; i < rels.length; i++) {
-        const relType = rels[i].getAttribute('Type') ?? '';
+    for (const rel of Array.from(rels)) {
+        const relType = rel.getAttribute('Type') ?? '';
         if (relType.includes('slideLayout')) {
-            const target = rels[i].getAttribute('Target') ?? '';
+            const target = rel.getAttribute('Target') ?? '';
             return target.startsWith('/') ? target.substring(1) : normalizePath(`ppt/slides/${target}`);
         }
     }
@@ -2280,7 +2352,7 @@ function extractNonPlaceholderElements(
         if (connector) elements.push(connector);
     }
 
-    extractGroupedShapes(slideRoot, mediaRels, files, themeColors, elements, undefined, baseDir);
+    extractGroupedShapes(slideRoot, mediaRels, files, themeColors, elements, { baseDir });
 
     return elements;
 }
@@ -2424,6 +2496,42 @@ function parseSlide(
 
 // --- Main Export ---
 
+function parseSlidesFromRIds(
+    slideRIds: string[],
+    presRels: Map<string, string>,
+    files: Map<string, Uint8Array>,
+    width: number,
+    height: number,
+    themeColors: ThemeColorMap,
+): PptxSlide[] {
+    const slides: PptxSlide[] = [];
+    for (let i = 0; i < slideRIds.length; i++) {
+        const target = presRels.get(slideRIds[i]);
+        if (!target) continue;
+        const slidePath = target.startsWith('/') ? target.substring(1) : `ppt/${target}`;
+        const slideData = files.get(slidePath);
+        if (!slideData) continue;
+        slides.push(parseSlide(slideData, i, files, width, height, themeColors));
+    }
+    return slides;
+}
+
+function parseSlidesFromFileSystem(
+    files: Map<string, Uint8Array>,
+    width: number,
+    height: number,
+    themeColors: ThemeColorMap,
+): PptxSlide[] {
+    const slides: PptxSlide[] = [];
+    for (let i = 1; i <= 500; i++) {
+        const slidePath = `ppt/slides/slide${i}.xml`;
+        const slideData = files.get(slidePath);
+        if (!slideData) break;
+        slides.push(parseSlide(slideData, i - 1, files, width, height, themeColors));
+    }
+    return slides;
+}
+
 export function parsePptx(data: Uint8Array): PptxParseResult {
     const files = readZip(data);
     const { width, height } = parseSlideSize(files);
@@ -2432,26 +2540,12 @@ export function parsePptx(data: Uint8Array): PptxParseResult {
     const slideRIds = getSlideList(files);
     const presRels = getSlideRelationships(files);
 
-    const slides: PptxSlide[] = [];
-
-    if (slideRIds.length > 0) {
-        for (let i = 0; i < slideRIds.length; i++) {
-            const target = presRels.get(slideRIds[i]);
-            if (!target) continue;
-            const slidePath = target.startsWith('/') ? target.substring(1) : `ppt/${target}`;
-            const slideData = files.get(slidePath);
-            if (!slideData) continue;
-            slides.push(parseSlide(slideData, i, files, width, height, themeColors));
-        }
-    }
+    let slides = slideRIds.length > 0
+        ? parseSlidesFromRIds(slideRIds, presRels, files, width, height, themeColors)
+        : [];
 
     if (slides.length === 0) {
-        for (let i = 1; i <= 500; i++) {
-            const slidePath = `ppt/slides/slide${i}.xml`;
-            const slideData = files.get(slidePath);
-            if (!slideData) break;
-            slides.push(parseSlide(slideData, i - 1, files, width, height, themeColors));
-        }
+        slides = parseSlidesFromFileSystem(files, width, height, themeColors);
     }
 
     return { slides, slideWidth: width, slideHeight: height };

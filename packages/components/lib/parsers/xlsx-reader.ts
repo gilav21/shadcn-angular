@@ -38,12 +38,11 @@ function parseSharedStrings(files: Map<string, Uint8Array>): string[] {
     const siElements = doc.getElementsByTagName('si');
     const strings: string[] = [];
 
-    for (let i = 0; i < siElements.length; i++) {
-        const si = siElements[i];
+    for (const si of Array.from(siElements)) {
         const tElements = si.getElementsByTagName('t');
         let text = '';
-        for (let j = 0; j < tElements.length; j++) {
-            text += getTextContent(tElements[j]);
+        for (const tEl of Array.from(tElements)) {
+            text += getTextContent(tEl);
         }
         strings.push(text);
     }
@@ -84,10 +83,10 @@ function parseSheetRelationships(files: Map<string, Uint8Array>): Map<string, st
     const rels = doc.getElementsByTagName('Relationship');
     const map = new Map<string, string>();
 
-    for (let i = 0; i < rels.length; i++) {
-        const id = rels[i].getAttribute('Id') ?? '';
-        const target = rels[i].getAttribute('Target') ?? '';
-        const relType = rels[i].getAttribute('Type') ?? '';
+    for (const rel of Array.from(rels)) {
+        const id = rel.getAttribute('Id') ?? '';
+        const target = rel.getAttribute('Target') ?? '';
+        const relType = rel.getAttribute('Type') ?? '';
         if (relType.includes('worksheet') || target.includes('worksheet')) {
             const fullPath = target.startsWith('/') ? target.substring(1) : `xl/${target}`;
             map.set(id, fullPath);
@@ -101,11 +100,30 @@ function parseCellReference(ref: string): { col: number; row: number } {
     let col = 0;
     let i = 0;
     while (i < ref.length && ref[i] >= 'A' && ref[i] <= 'Z') {
-        col = col * 26 + (ref.charCodeAt(i) - 64);
+        col = col * 26 + ((ref.codePointAt(i) ?? 0) - 64);
         i++;
     }
     const row = Number.parseInt(ref.substring(i), 10);
     return { col: col - 1, row: row - 1 };
+}
+
+function getInlineStringValue(cell: Element): string {
+    const isElement = cell.getElementsByTagName('is')[0];
+    if (!isElement) return '';
+
+    const tElements = isElement.getElementsByTagName('t');
+    let text = '';
+    for (const tEl of Array.from(tElements)) {
+        text += getTextContent(tEl);
+    }
+    return text;
+}
+
+function getUntypedCellValue(cell: Element, rawValue: string): string {
+    const fElement = cell.getElementsByTagName('f')[0];
+    if (fElement && rawValue) return rawValue;
+    if (fElement) return '';
+    return rawValue;
 }
 
 function getCellValue(cell: Element, sharedStrings: string[]): string {
@@ -121,16 +139,7 @@ function getCellValue(cell: Element, sharedStrings: string[]): string {
         return rawValue === '1' ? 'TRUE' : 'FALSE';
     }
     if (type === 'inlineStr') {
-        const isElement = cell.getElementsByTagName('is')[0];
-        if (isElement) {
-            const tElements = isElement.getElementsByTagName('t');
-            let text = '';
-            for (let i = 0; i < tElements.length; i++) {
-                text += getTextContent(tElements[i]);
-            }
-            return text;
-        }
-        return '';
+        return getInlineStringValue(cell);
     }
     if (type === 'str') {
         return rawValue;
@@ -138,11 +147,8 @@ function getCellValue(cell: Element, sharedStrings: string[]): string {
     if (type === 'e') {
         return rawValue || '#ERROR';
     }
-
     if (!type) {
-        const fElement = cell.getElementsByTagName('f')[0];
-        if (fElement && rawValue) return rawValue;
-        if (fElement) return '';
+        return getUntypedCellValue(cell, rawValue);
     }
 
     return rawValue;
@@ -151,11 +157,35 @@ function getCellValue(cell: Element, sharedStrings: string[]): string {
 function parseMergedCells(sheetDoc: Document): Array<{ ref: string }> {
     const mergeCells = sheetDoc.getElementsByTagName('mergeCell');
     const merged: Array<{ ref: string }> = [];
-    for (let i = 0; i < mergeCells.length; i++) {
-        const ref = mergeCells[i].getAttribute('ref');
+    for (const mergeCell of Array.from(mergeCells)) {
+        const ref = mergeCell.getAttribute('ref');
         if (ref) merged.push({ ref });
     }
     return merged;
+}
+
+function parseRowCells(
+    row: Element,
+    rowData: string[],
+    sharedStrings: string[],
+    maxColumns: number,
+): number {
+    let maxCol = 0;
+    const cells = row.getElementsByTagName('c');
+    for (const cell of Array.from(cells)) {
+        const ref = cell.getAttribute('r');
+        if (!ref) continue;
+
+        const { col } = parseCellReference(ref);
+        if (col >= maxColumns) continue;
+
+        while (rowData.length <= col) {
+            rowData.push('');
+        }
+        rowData[col] = getCellValue(cell, sharedStrings);
+        if (col + 1 > maxCol) maxCol = col + 1;
+    }
+    return maxCol;
 }
 
 function parseSheet(
@@ -178,21 +208,8 @@ function parseSheet(
             data.push([]);
         }
 
-        const cells = row.getElementsByTagName('c');
-        for (let c = 0; c < cells.length; c++) {
-            const cell = cells[c];
-            const ref = cell.getAttribute('r');
-            if (!ref) continue;
-
-            const { col } = parseCellReference(ref);
-            if (col >= maxColumns) continue;
-
-            while (data[rowIndex].length <= col) {
-                data[rowIndex].push('');
-            }
-            data[rowIndex][col] = getCellValue(cell, sharedStrings);
-            if (col + 1 > maxCol) maxCol = col + 1;
-        }
+        const colCount = parseRowCells(row, data[rowIndex], sharedStrings, maxColumns);
+        if (colCount > maxCol) maxCol = colCount;
     }
 
     const mergedCells = parseMergedCells(doc);

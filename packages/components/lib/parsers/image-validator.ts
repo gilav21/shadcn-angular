@@ -27,7 +27,7 @@ function isSvgContent(bytes: Uint8Array): boolean {
     const length = Math.min(bytes.length, SVG_CHECK_LENGTH);
     let text = '';
     for (let i = offset; i < length; i++) {
-        text += String.fromCharCode(bytes[i]);
+        text += String.fromCodePoint(bytes[i]);
     }
     const trimmed = text.trimStart().toLowerCase();
     return trimmed.startsWith('<svg') || trimmed.startsWith('<?xml');
@@ -50,7 +50,7 @@ export function isValidImageDataUrl(dataUrl: string): boolean {
             const decoded = atob(svgChunk);
             const bytes = new Uint8Array(decoded.length);
             for (let i = 0; i < decoded.length; i++) {
-                bytes[i] = decoded.charCodeAt(i);
+                bytes[i] = decoded.codePointAt(i)!;
             }
             return isSvgContent(bytes);
         } catch {
@@ -64,7 +64,7 @@ export function isValidImageDataUrl(dataUrl: string): boolean {
         const decoded = atob(chunk);
         const bytes = new Uint8Array(decoded.length);
         for (let i = 0; i < decoded.length; i++) {
-            bytes[i] = decoded.charCodeAt(i);
+            bytes[i] = decoded.codePointAt(i)!;
         }
         return isValidImageMagicBytes(bytes);
     } catch {

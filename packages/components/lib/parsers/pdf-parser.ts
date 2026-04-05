@@ -27,7 +27,7 @@ function ascii85CollectGroup(text: string, startIndex: number): { group: number[
     while (group.length < 5 && i < text.length) {
         if (text[i] === '~') break;
         if (!' \t\r\n\0\f'.includes(text[i])) {
-            group.push(text.codePointAt(i)! - 33);
+            group.push((text.codePointAt(i) ?? 0) - 33);
         }
         i++;
     }
@@ -830,9 +830,9 @@ export class PdfReader {
     private parseXRefStream(offset: number): void {
         const result = this.parseObjectAt(offset);
         const obj = result.obj;
-        if (obj.type !== 'stream') throw new Error('Expected xref stream');
+        if (obj.type !== 'stream' || !obj.stream) throw new Error('Expected xref stream');
         const dict = obj.value as Record<string, PdfObject>;
-        const streamData = obj.stream!;
+        const streamData = obj.stream;
 
         this.trailer ??= dict;
 
@@ -1122,7 +1122,8 @@ export class PdfReader {
     resolveRef(obj: PdfObject): PdfObject {
         if (obj.type !== 'ref') return obj;
         const key = obj.value as string;
-        if (this.parsedObjects.has(key)) return this.parsedObjects.get(key)!;
+        const cached = this.parsedObjects.get(key);
+        if (cached) return cached;
 
         const entry = this.objects.get(key);
         if (!entry) {
@@ -1334,13 +1335,15 @@ const PDF_DOC_ENCODING: Record<number, string> = {
 };
 
 function decodeTwoByteChar(code: number, toUnicode: Map<number, string>): string {
-    if (toUnicode.has(code)) {
-        return toUnicode.get(code)!;
+    const mapped = toUnicode.get(code);
+    if (mapped !== undefined) {
+        return mapped;
     }
 
     const lo = code & 0xFF;
-    if (toUnicode.has(lo)) {
-        return toUnicode.get(lo)!;
+    const loMapped = toUnicode.get(lo);
+    if (loMapped !== undefined) {
+        return loMapped;
     }
 
     if (code >= 0x20 && code < 0xFFFE) {
@@ -1390,8 +1393,9 @@ function decodeSingleByteString(raw: string, toUnicode?: Map<number, string>): {
     for (let i = 0; i < raw.length; i++) {
         const code = raw.codePointAt(i) ?? 0;
         charCodes.push(code);
-        if (toUnicode?.has(code)) {
-            result += toUnicode.get(code)!;
+        const unicodeMapped = toUnicode?.get(code);
+        if (unicodeMapped !== undefined) {
+            result += unicodeMapped;
         } else if (PDF_DOC_ENCODING[code]) {
             result += PDF_DOC_ENCODING[code];
         } else {
@@ -1421,13 +1425,48 @@ function parseBfCharEntries(text: string, map: Map<number, string>): void {
             const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(entry.trim());
             if (!parts) continue;
             const srcCode = Number.parseInt(parts[1], 16);
-            const dstHex = parts[2];
-            let dstStr = '';
-            for (let i = 0; i < dstHex.length; i += 4) {
-                dstStr += String.fromCodePoint(Number.parseInt(dstHex.substring(i, i + 4), 16));
-            }
-            map.set(srcCode, dstStr);
+            map.set(srcCode, hexToUnicodeStr(parts[2]));
         }
+    }
+}
+
+function hexToUnicodeStr(hex: string): string {
+    let result = '';
+    for (let i = 0; i < hex.length; i += 4) {
+        result += String.fromCodePoint(Number.parseInt(hex.substring(i, i + 4), 16));
+    }
+    return result;
+}
+
+function parseBfRangeArrayEntry(arrayParts: RegExpExecArray, map: Map<number, string>): void {
+    const start = Number.parseInt(arrayParts[1], 16);
+    const end = Number.parseInt(arrayParts[2], 16);
+    const values = [...arrayParts[3].matchAll(/<([0-9a-fA-F]+)>/g)];
+    const count = Math.min(values.length, end - start + 1);
+    for (let i = 0; i < count; i++) {
+        map.set(start + i, hexToUnicodeStr(values[i][1]));
+    }
+}
+
+function parseBfRangeSimpleEntry(parts: RegExpExecArray, map: Map<number, string>): void {
+    const start = Number.parseInt(parts[1], 16);
+    const end = Number.parseInt(parts[2], 16);
+    if (end - start > 10000) return;
+    let dstStart = Number.parseInt(parts[3], 16);
+    for (let code = start; code <= end; code++) {
+        map.set(code, String.fromCodePoint(dstStart++));
+    }
+}
+
+function parseBfRangeEntry(trimmed: string, map: Map<number, string>): void {
+    const arrayParts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*\[((?:\s*<[\dA-Fa-f]+>\s*)+)\]/.exec(trimmed);
+    if (arrayParts) {
+        parseBfRangeArrayEntry(arrayParts, map);
+        return;
+    }
+    const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(trimmed);
+    if (parts) {
+        parseBfRangeSimpleEntry(parts, map);
     }
 }
 
@@ -1436,35 +1475,23 @@ function parseBfRangeEntries(text: string, map: Map<number, string>): void {
     let match: RegExpExecArray | null;
     while ((match = bfRangeRe.exec(text)) !== null) {
         for (const entry of match[1].trim().split('\n')) {
-            const trimmed = entry.trim();
-            const arrayParts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*\[((?:\s*<[\dA-Fa-f]+>\s*)+)\]/.exec(trimmed);
-            if (arrayParts) {
-                const start = Number.parseInt(arrayParts[1], 16);
-                const end = Number.parseInt(arrayParts[2], 16);
-                const values = [...arrayParts[3].matchAll(/<([0-9a-fA-F]+)>/g)];
-                const count = Math.min(values.length, end - start + 1);
-                for (let i = 0; i < count; i++) {
-                    const dstHex = values[i][1];
-                    let dstStr = '';
-                    for (let j = 0; j < dstHex.length; j += 4) {
-                        dstStr += String.fromCodePoint(Number.parseInt(dstHex.substring(j, j + 4), 16));
-                    }
-                    map.set(start + i, dstStr);
-                }
-                continue;
-            }
-
-            const parts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>/.exec(trimmed);
-            if (!parts) continue;
-            const start = Number.parseInt(parts[1], 16);
-            const end = Number.parseInt(parts[2], 16);
-            if (end - start > 10000) continue;
-            let dstStart = Number.parseInt(parts[3], 16);
-            for (let code = start; code <= end; code++) {
-                map.set(code, String.fromCodePoint(dstStart++));
-            }
+            parseBfRangeEntry(entry.trim(), map);
         }
     }
+}
+
+function canInterpolateGap(
+    prevGlyph: number, nextGlyph: number, prevUnicode: string, nextUnicode: string,
+): { prevCode: number; glyphGap: number } | null {
+    const glyphGap = nextGlyph - prevGlyph;
+    if (glyphGap <= 1 || glyphGap > 32) return null;
+    if (prevGlyph < 0x20 || nextGlyph < 0x20) return null;
+    if (prevUnicode.length !== 1 || nextUnicode.length !== 1) return null;
+    const prevCode = prevUnicode.codePointAt(0) ?? 0;
+    const nextCode = nextUnicode.codePointAt(0) ?? 0;
+    if (prevCode < 0x20 || nextCode < 0x20) return null;
+    if (nextCode - prevCode !== glyphGap) return null;
+    return { prevCode, glyphGap };
 }
 
 function fillToUnicodeGaps(map: Map<number, string>): void {
@@ -1472,17 +1499,11 @@ function fillToUnicodeGaps(map: Map<number, string>): void {
     for (let i = 1; i < entries.length; i++) {
         const [prevGlyph, prevUnicode] = entries[i - 1];
         const [nextGlyph, nextUnicode] = entries[i];
-        const glyphGap = nextGlyph - prevGlyph;
-        if (glyphGap <= 1 || glyphGap > 32) continue;
-        if (prevGlyph < 0x20 || nextGlyph < 0x20) continue;
-        if (prevUnicode.length !== 1 || nextUnicode.length !== 1) continue;
-        const prevCode = prevUnicode.codePointAt(0)!;
-        const nextCode = nextUnicode.codePointAt(0)!;
-        if (prevCode < 0x20 || nextCode < 0x20) continue;
-        if (nextCode - prevCode !== glyphGap) continue;
+        const gap = canInterpolateGap(prevGlyph, nextGlyph, prevUnicode, nextUnicode);
+        if (!gap) continue;
         for (let g = prevGlyph + 1; g < nextGlyph; g++) {
             if (!map.has(g)) {
-                map.set(g, String.fromCodePoint(prevCode + (g - prevGlyph)));
+                map.set(g, String.fromCodePoint(gap.prevCode + (g - prevGlyph)));
             }
         }
     }
@@ -1646,6 +1667,23 @@ function findLtrStart(text: string): number {
     return -1;
 }
 
+function tryReattachPrefix(
+    unit: string, next: string, ltrStart: number, result: string[],
+): boolean {
+    const charBeforeLtr = unit.codePointAt(ltrStart - 1) ?? 0;
+    if (charBeforeLtr === 0x22) {
+        const hebrewPrefix = unit.substring(0, ltrStart - 1);
+        const ltrSuffix = unit.substring(ltrStart) + '"';
+        result.push(hebrewPrefix + next, ltrSuffix);
+        return true;
+    }
+    if (isRTLChar(charBeforeLtr)) {
+        result.push(unit.substring(0, ltrStart) + next, unit.substring(ltrStart));
+        return true;
+    }
+    return false;
+}
+
 function reattachHebrewPrefixes(units: string[]): string[] {
     const result: string[] = [];
     for (let i = 0; i < units.length; i++) {
@@ -1653,21 +1691,8 @@ function reattachHebrewPrefixes(units: string[]): string[] {
         const next = i + 1 < units.length ? units[i + 1] : null;
         if (next !== null && hasLatinChar(unit) && hasRTLText(unit) && !hasRTLText(next)) {
             const ltrStart = findLtrStart(unit);
-            if (ltrStart > 0) {
-                const charBeforeLtr = unit.codePointAt(ltrStart - 1) ?? 0;
-                if (charBeforeLtr === 0x22) {
-                    const hebrewPrefix = unit.substring(0, ltrStart - 1);
-                    const ltrSuffix = unit.substring(ltrStart) + '"';
-                    result.push(hebrewPrefix + next, ltrSuffix);
-                    i++;
-                } else if (isRTLChar(charBeforeLtr)) {
-                    result.push(unit.substring(0, ltrStart) + next, unit.substring(ltrStart));
-                    i++;
-                } else {
-                    // Hyphen, bracket, or other connector: keep the unit intact (e.g. ה-data:).
-                    result.push(unit);
-                    continue;
-                }
+            if (ltrStart > 0 && tryReattachPrefix(unit, next, ltrStart, result)) {
+                i++;
                 continue;
             }
         }
@@ -1714,34 +1739,39 @@ function hasMatchingCloseBracket(text: string, openCode: number): boolean {
     return false;
 }
 
+function fixSquareBracketUnit(unit: string, firstCode: number): string {
+    const lastCode = unit.codePointAt(unit.length - 1) ?? 0;
+    const mirroredFirst = mirrorBracketCode(firstCode);
+    if (isBracketCode(lastCode) && mirroredFirst === lastCode) {
+        const mirroredLast = mirrorBracketCode(lastCode);
+        return String.fromCodePoint(mirroredFirst) + unit.slice(1, -1) + String.fromCodePoint(mirroredLast);
+    }
+    return String.fromCodePoint(mirroredFirst) + unit.slice(1);
+}
+
+function fixRoundBracketUnit(unit: string, firstCode: number): string {
+    const rest = unit.slice(1);
+    const mirrored = String.fromCodePoint(mirrorBracketCode(firstCode));
+    let insertPos = rest.length;
+    while (insertPos > 0) {
+        const code = rest.codePointAt(insertPos - 1) ?? 0;
+        if (code === 0x2E || code === 0x21 || code === 0x3F) insertPos--;
+        else break;
+    }
+    return rest.slice(0, insertPos) + mirrored + rest.slice(insertPos);
+}
+
+function fixLeadingBracketInUnit(unit: string): string {
+    if (unit.length < 2 || hasRTLText(unit)) return unit;
+    const firstCode = unit.codePointAt(0) ?? 0;
+    if (!isBracketCode(firstCode)) return unit;
+    if (isSquareBracketCode(firstCode)) return fixSquareBracketUnit(unit, firstCode);
+    if (hasMatchingCloseBracket(unit, firstCode)) return unit;
+    return fixRoundBracketUnit(unit, firstCode);
+}
+
 function fixLeadingBracketsInLtrTokens(units: string[]): string[] {
-    return units.map(unit => {
-        if (unit.length < 2 || hasRTLText(unit)) return unit;
-        const firstCode = unit.codePointAt(0) ?? 0;
-        if (!isBracketCode(firstCode)) return unit;
-
-        if (isSquareBracketCode(firstCode)) {
-            const lastCode = unit.codePointAt(unit.length - 1) ?? 0;
-            const mirroredFirst = mirrorBracketCode(firstCode);
-            if (isBracketCode(lastCode) && mirroredFirst === lastCode) {
-                const mirroredLast = mirrorBracketCode(lastCode);
-                return String.fromCodePoint(mirroredFirst) + unit.slice(1, -1) + String.fromCodePoint(mirroredLast);
-            }
-            return String.fromCodePoint(mirroredFirst) + unit.slice(1);
-        }
-
-        if (hasMatchingCloseBracket(unit, firstCode)) return unit;
-
-        const rest = unit.slice(1);
-        const mirrored = String.fromCodePoint(mirrorBracketCode(firstCode));
-        let insertPos = rest.length;
-        while (insertPos > 0) {
-            const code = rest.codePointAt(insertPos - 1) ?? 0;
-            if (code === 0x2E || code === 0x21 || code === 0x3F) insertPos--;
-            else break;
-        }
-        return rest.slice(0, insertPos) + mirrored + rest.slice(insertPos);
-    });
+    return units.map(fixLeadingBracketInUnit);
 }
 
 function reverseRTLWordOrder(text: string): string {
@@ -2376,6 +2406,66 @@ function processTextShow(
     gs.textMatrix[4] += advance;
 }
 
+interface PerCharContext {
+    readonly baseCombined: number[];
+    readonly effectiveFontSize: number;
+    readonly tm: readonly [number, number, number, number];
+    readonly fontInfo: FontInfo | undefined;
+    readonly gs: GraphicsState;
+    readonly pageIndex: number;
+    readonly currentMcid: number;
+}
+
+function buildPerCharItem(
+    text: string, charX: number, charEndX: number,
+    isSpaceOffset: boolean, ctx: PerCharContext,
+): TextItem {
+    return {
+        text,
+        fontSize: ctx.effectiveFontSize,
+        x: charX,
+        y: ctx.baseCombined[5],
+        endX: charEndX,
+        page: ctx.pageIndex,
+        color: ctx.gs.fillColor,
+        bold: ctx.fontInfo?.isBold ?? false,
+        italic: ctx.fontInfo?.isItalic ?? false,
+        fontFamily: ctx.fontInfo?.familyName ?? '',
+        fontName: ctx.gs.fontName,
+        mcid: ctx.currentMcid,
+        charSpacing: ctx.gs.charSpacing,
+        wordSpacing: ctx.gs.wordSpacing,
+        textRise: ctx.gs.textRise,
+        horizontalScaling: ctx.gs.horizontalScaling,
+        textRenderMode: ctx.gs.textRenderMode,
+        strokeColor: ctx.gs.strokeColor,
+        transformMatrix: ctx.tm,
+        isSpaceOffset,
+    };
+}
+
+interface ProcessOneCharOptions {
+    readonly code: number;
+    readonly ch: string;
+    readonly fontInfo: FontInfo | undefined;
+    readonly dw: number;
+    readonly gs: GraphicsState;
+    readonly isSingleByte: boolean;
+    readonly charX: number;
+    readonly ctx: PerCharContext;
+}
+
+function processOneChar(opts: ProcessOneCharOptions): { readonly item: TextItem; readonly totalAdvance: number } {
+    const { code, ch, fontInfo, dw, gs, isSingleByte, charX, ctx } = opts;
+    const w = fontInfo ? (fontInfo.widths.get(code) ?? dw) : 600;
+    const charAdvance = (w / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+    const spacing = gs.charSpacing + (code === 32 ? gs.wordSpacing : 0);
+    const charEndX = charX + charAdvance;
+    const isSpace = isSingleByte && (code === 32);
+    const item = buildPerCharItem(isSpace ? '' : ch, charX, charEndX, isSpace, ctx);
+    return { item, totalAdvance: charAdvance + spacing };
+}
+
 function processTextShowPerChar(
     raw: string, gs: GraphicsState, fontInfoMap: Map<string, FontInfo>,
     textItems: TextItem[], pageIndex: number, currentMcid: number,
@@ -2395,87 +2485,31 @@ function processTextShowPerChar(
 
     const riseMatrix: number[] = [1, 0, 0, 1, 0, gs.textRise];
     const baseCombined = multiplyMatrix(multiplyMatrix(riseMatrix, gs.textMatrix), gs.ctm);
-    const effectiveFontSize = getEffectiveFontSize(gs);
     const scaleX = Math.hypot(baseCombined[0], baseCombined[1]);
     const scaleY = Math.hypot(baseCombined[2], baseCombined[3]);
-    const normA = scaleX > 0 ? baseCombined[0] / scaleX : 1;
-    const normB = scaleX > 0 ? baseCombined[1] / scaleX : 0;
-    const normC = scaleY > 0 ? baseCombined[2] / scaleY : 0;
-    const normD = scaleY > 0 ? baseCombined[3] / scaleY : 1;
-    const tm: readonly [number, number, number, number] = [normA, normB, normC, normD];
+    const ctx: PerCharContext = {
+        baseCombined,
+        effectiveFontSize: getEffectiveFontSize(gs),
+        tm: [
+            scaleX > 0 ? baseCombined[0] / scaleX : 1,
+            scaleX > 0 ? baseCombined[1] / scaleX : 0,
+            scaleY > 0 ? baseCombined[2] / scaleY : 0,
+            scaleY > 0 ? baseCombined[3] / scaleY : 1,
+        ],
+        fontInfo, gs, pageIndex, currentMcid,
+    };
 
     const dw = fontInfo ? fontInfo.defaultWidth : 600;
+    const isSingleByte = !(fontInfo?.isTwoByte);
     let xAccum = 0;
 
     for (let i = 0; i < charCodes.length; i++) {
         const ch = rawDecoded[i];
         if (ch === undefined) break;
 
-        const code = charCodes[i];
-        const w = fontInfo ? (fontInfo.widths.get(code) ?? dw) : 600;
-        const charAdvance = (w / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
-        const spacing = gs.charSpacing + (code === 32 ? gs.wordSpacing : 0);
-
-        const charX = baseCombined[4] + xAccum;
-        const charEndX = charX + charAdvance;
-
-        // Mirrors pdf2htmlEX text.cc lines 121-134:
-        // Space detection: only for single-byte fonts where the raw byte is 0x20
-        // For CID/two-byte fonts, n > 1 so is_space is always false in the C++ code
-        // (spaces render as regular glyphs using the embedded font)
-        const isSingleByte = !(fontInfo?.isTwoByte);
-        const isSpace = isSingleByte && (code === 32);
-        if (!isSpace) {
-            textItems.push({
-                text: ch,
-                fontSize: effectiveFontSize,
-                x: charX,
-                y: baseCombined[5],
-                endX: charEndX,
-                page: pageIndex,
-                color: gs.fillColor,
-                bold: fontInfo?.isBold ?? false,
-                italic: fontInfo?.isItalic ?? false,
-                fontFamily: fontInfo?.familyName ?? '',
-                fontName: gs.fontName,
-                mcid: currentMcid,
-                charSpacing: gs.charSpacing,
-                wordSpacing: gs.wordSpacing,
-                textRise: gs.textRise,
-                horizontalScaling: gs.horizontalScaling,
-                textRenderMode: gs.textRenderMode,
-                strokeColor: gs.strokeColor,
-                transformMatrix: tm,
-                isSpaceOffset: false,
-            });
-        } else {
-            // Space: emit a marker item that the pixel-perfect renderer
-            // converts to an offset (matching pdf2htmlEX's space_as_offset behavior)
-            textItems.push({
-                text: '',
-                fontSize: effectiveFontSize,
-                x: charX,
-                y: baseCombined[5],
-                endX: charEndX,
-                page: pageIndex,
-                color: gs.fillColor,
-                bold: fontInfo?.isBold ?? false,
-                italic: fontInfo?.isItalic ?? false,
-                fontFamily: fontInfo?.familyName ?? '',
-                fontName: gs.fontName,
-                mcid: currentMcid,
-                charSpacing: gs.charSpacing,
-                wordSpacing: gs.wordSpacing,
-                textRise: gs.textRise,
-                horizontalScaling: gs.horizontalScaling,
-                textRenderMode: gs.textRenderMode,
-                strokeColor: gs.strokeColor,
-                transformMatrix: tm,
-                isSpaceOffset: true,
-            });
-        }
-
-        xAccum += charAdvance + spacing;
+        const result = processOneChar({ code: charCodes[i], ch, fontInfo, dw, gs, isSingleByte, charX: baseCombined[4] + xAccum, ctx });
+        textItems.push(result.item);
+        xAccum += result.totalAdvance;
     }
 
     gs.textMatrix[4] += fullAdvance;
@@ -2485,11 +2519,7 @@ function processTJOperatorPerChar(
     operandStack: string[], gs: GraphicsState, fontInfoMap: Map<string, FontInfo>,
     textItems: TextItem[], pageIndex: number, currentMcid: number,
 ): void {
-    const arrTokens: string[] = [];
-    while (operandStack.length > 0) {
-        arrTokens.unshift(operandStack.pop()!);
-    }
-    const fontInfo = fontInfoMap.get(gs.fontName);
+    const arrTokens = drainOperandStack(operandStack);
     let pendingDisplacement = 0;
 
     for (const t of arrTokens) {
@@ -2513,20 +2543,19 @@ function processTJOperatorPerChar(
     }
 }
 
-function processTJOperator(
-    operandStack: string[], gs: GraphicsState, fontInfoMap: Map<string, FontInfo>,
-    textItems: TextItem[], pageIndex: number, currentMcid: number,
-): void {
-    const arrTokens: string[] = [];
+function drainOperandStack(operandStack: string[]): string[] {
+    const tokens: string[] = [];
     while (operandStack.length > 0) {
-        arrTokens.unshift(operandStack.pop()!);
+        tokens.unshift(operandStack.pop() ?? '');
     }
-    const fontInfo = fontInfoMap.get(gs.fontName);
-    const dw = fontInfo ? fontInfo.defaultWidth : 600;
+    return tokens;
+}
+
+function processTJTokens(
+    arrTokens: string[], dw: number, gs: GraphicsState, fontInfo: FontInfo | undefined,
+): { combinedText: string; pendingDisplacement: number } {
     let combinedText = '';
     let pendingDisplacement = 0;
-    const startTm = gs.textMatrix.slice();
-
     for (const t of arrTokens) {
         if (t === '[' || t === ']') continue;
         if (t.startsWith('(')) {
@@ -2539,22 +2568,23 @@ function processTJOperator(
             }
         }
     }
-    if (pendingDisplacement !== 0) {
-        gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
-    }
+    return { combinedText, pendingDisplacement };
+}
 
-    if (isInvisibleTextMode(gs.textRenderMode) || gs.fillOpacity < 0.01) return;
-    if (!combinedText.trim()) return;
+function emitTJTextItem(
+    combinedText: string, startTm: number[], gs: GraphicsState,
+    fontInfo: FontInfo | undefined, textItems: TextItem[],
+    pageIndex: number, currentMcid: number,
+): void {
     const riseMatrix: number[] = [1, 0, 0, 1, 0, gs.textRise];
     const combined = multiplyMatrix(multiplyMatrix(riseMatrix, startTm), gs.ctm);
     const endCombined = multiplyMatrix(gs.textMatrix, gs.ctm);
-    const effectiveFontSize = getEffectiveFontSize(gs);
     const tjScaleX = Math.hypot(combined[0], combined[1]);
     const tjScaleY = Math.hypot(combined[2], combined[3]);
 
     textItems.push({
         text: combinedText,
-        fontSize: effectiveFontSize,
+        fontSize: getEffectiveFontSize(gs),
         x: combined[4],
         y: combined[5],
         endX: endCombined[4],
@@ -2579,6 +2609,25 @@ function processTJOperator(
         ],
         isSpaceOffset: false,
     });
+}
+
+function processTJOperator(
+    operandStack: string[], gs: GraphicsState, fontInfoMap: Map<string, FontInfo>,
+    textItems: TextItem[], pageIndex: number, currentMcid: number,
+): void {
+    const arrTokens = drainOperandStack(operandStack);
+    const fontInfo = fontInfoMap.get(gs.fontName);
+    const dw = fontInfo ? fontInfo.defaultWidth : 600;
+    const startTm = gs.textMatrix.slice();
+
+    const { combinedText, pendingDisplacement } = processTJTokens(arrTokens, dw, gs, fontInfo);
+    if (pendingDisplacement !== 0) {
+        gs.textMatrix[4] -= (pendingDisplacement / 1000) * gs.fontSize * (gs.horizontalScaling / 100);
+    }
+
+    if (isInvisibleTextMode(gs.textRenderMode) || gs.fillOpacity < 0.01) return;
+    if (!combinedText.trim()) return;
+    emitTJTextItem(combinedText, startTm, gs, fontInfo, textItems, pageIndex, currentMcid);
 }
 
 function applyTJStringFragment(
@@ -2695,7 +2744,7 @@ function processColorOperator(
         case 'sc': {
             const values: number[] = [];
             while (operandStack.length > 0) {
-                const v = operandStack.pop()!;
+                const v = operandStack.pop() ?? '';
                 if (v.startsWith('/')) continue;
                 const num = Number.parseFloat(v);
                 if (!Number.isNaN(num)) values.unshift(num);
@@ -2752,7 +2801,8 @@ function processFormXObject(parentCtx: ContentExtractionContext, formObj: PdfObj
     if (parentCtx.formDepth >= 10) return;
 
     const dict = formObj.value as Record<string, PdfObject>;
-    const decoded = parentCtx.reader.decodeStreamData(dict, formObj.stream!);
+    if (!formObj.stream) return;
+    const decoded = parentCtx.reader.decodeStreamData(dict, formObj.stream);
     if (decoded.length === 0) return;
 
     const resources = dict['Resources'] ? parentCtx.reader.getDict(dict['Resources']) : {};
@@ -3047,10 +3097,47 @@ function pathOpsToSvg(ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
     });
 }
 
-function emitBoundingBoxRect(
-    ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
-    stroked: boolean, filled: boolean,
-): void {
+function extractPathOpPoints(
+    op: PathOp, curX: number, curY: number,
+): { points: Array<{ x: number; y: number }>; newX: number; newY: number } {
+    switch (op.op) {
+        case 'm':
+        case 'l':
+            return { points: [{ x: op.args[0], y: op.args[1] }], newX: op.args[0], newY: op.args[1] };
+        case 'c':
+            return {
+                points: [
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                    { x: op.args[4], y: op.args[5] },
+                ],
+                newX: op.args[4], newY: op.args[5],
+            };
+        case 'v':
+            return {
+                points: [
+                    { x: curX, y: curY },
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                ],
+                newX: op.args[2], newY: op.args[3],
+            };
+        case 'y':
+            return {
+                points: [
+                    { x: op.args[0], y: op.args[1] },
+                    { x: op.args[2], y: op.args[3] },
+                ],
+                newX: op.args[2], newY: op.args[3],
+            };
+        default:
+            return { points: [], newX: curX, newY: curY };
+    }
+}
+
+function computePathBounds(
+    ops: ReadonlyArray<PathOp>, ctm: number[],
+): { minX: number; minY: number; maxX: number; maxY: number; hasPoints: boolean } {
     let minX = Infinity;
     let minY = Infinity;
     let maxX = -Infinity;
@@ -3060,39 +3147,11 @@ function emitBoundingBoxRect(
     let hasPoints = false;
 
     for (const op of ops) {
-        const points: Array<{ x: number; y: number }> = [];
-        switch (op.op) {
-            case 'm':
-            case 'l':
-                points.push({ x: op.args[0], y: op.args[1] });
-                curX = op.args[0]; curY = op.args[1];
-                break;
-            case 'c':
-                points.push(
-                    { x: op.args[0], y: op.args[1] },
-                    { x: op.args[2], y: op.args[3] },
-                    { x: op.args[4], y: op.args[5] },
-                );
-                curX = op.args[4]; curY = op.args[5];
-                break;
-            case 'v':
-                points.push(
-                    { x: curX, y: curY },
-                    { x: op.args[0], y: op.args[1] },
-                    { x: op.args[2], y: op.args[3] },
-                );
-                curX = op.args[2]; curY = op.args[3];
-                break;
-            case 'y':
-                points.push(
-                    { x: op.args[0], y: op.args[1] },
-                    { x: op.args[2], y: op.args[3] },
-                );
-                curX = op.args[2]; curY = op.args[3];
-                break;
-        }
+        const { points, newX, newY } = extractPathOpPoints(op, curX, curY);
+        curX = newX;
+        curY = newY;
         for (const p of points) {
-            const { tx, ty } = transformPoint(p.x, p.y, ctx.gs.ctm);
+            const { tx, ty } = transformPoint(p.x, p.y, ctm);
             if (tx < minX) minX = tx;
             if (ty < minY) minY = ty;
             if (tx > maxX) maxX = tx;
@@ -3100,7 +3159,14 @@ function emitBoundingBoxRect(
             hasPoints = true;
         }
     }
+    return { minX, minY, maxX, maxY, hasPoints };
+}
 
+function emitBoundingBoxRect(
+    ops: ReadonlyArray<PathOp>, ctx: ContentExtractionContext,
+    stroked: boolean, filled: boolean,
+): void {
+    const { minX, minY, maxX, maxY, hasPoints } = computePathBounds(ops, ctx.gs.ctm);
     if (!hasPoints) return;
     const width = maxX - minX;
     const height = maxY - minY;
@@ -3272,7 +3338,7 @@ function popString(ctx: ContentExtractionContext): string {
 function processDashOperator(ctx: ContentExtractionContext): void {
     const phase = popNumber(ctx);
     const arrTokens: string[] = [];
-    while (ctx.operandStack.length > 0) arrTokens.unshift(ctx.operandStack.pop()!);
+    while (ctx.operandStack.length > 0) arrTokens.unshift(ctx.operandStack.pop() ?? '');
     const nums: number[] = [];
     for (const t of arrTokens) {
         if (t === '[' || t === ']') continue;
@@ -3453,7 +3519,7 @@ function processStrokeColorSpaceOperator(token: string, ctx: ContentExtractionCo
 
     const values: number[] = [];
     while (ctx.operandStack.length > 0) {
-        const v = ctx.operandStack.pop()!;
+        const v = ctx.operandStack.pop() ?? '';
         if (v.startsWith('/')) continue;
         const num = Number.parseFloat(v);
         if (!Number.isNaN(num)) values.unshift(num);
@@ -3706,8 +3772,9 @@ export function resolveImageFilterName(reader: PdfReader, dict: Record<string, P
     if (filterResolved.type === 'name') return filterResolved.value as string;
     if (filterResolved.type !== 'array') return '';
     const arr = filterResolved.value as PdfObject[];
-    if (arr.length === 0) return '';
-    const last = reader.resolveDeep(arr.at(-1)!);
+    const lastEntry = arr.at(-1);
+    if (!lastEntry) return '';
+    const last = reader.resolveDeep(lastEntry);
     return last.type === 'name' ? last.value as string : '';
 }
 
@@ -3716,10 +3783,12 @@ export function buildImageDataUrl(
     width: number, height: number, dict: Record<string, PdfObject>,
 ): string | null {
     if (filterName === 'DCTDecode') {
-        return `data:image/jpeg;base64,${uint8ArrayToBase64(xObj.stream!)}`;
+        if (!xObj.stream) return null;
+        return `data:image/jpeg;base64,${uint8ArrayToBase64(xObj.stream)}`;
     }
     if (filterName === 'JPXDecode') {
-        return `data:image/jp2;base64,${uint8ArrayToBase64(xObj.stream!)}`;
+        if (!xObj.stream) return null;
+        return `data:image/jp2;base64,${uint8ArrayToBase64(xObj.stream)}`;
     }
     const decoded = reader.getStreamData(xObj);
     if (decoded.length === 0) return null;
@@ -5020,11 +5089,35 @@ interface HtmlLineOptions {
     readonly bodySize: number;
 }
 
+function appendToParagraph(
+    line: TextLine, bodySize: number, bodyFont: string,
+    state: HtmlBuilderState, options: HtmlLineOptions,
+    rtl: boolean,
+): void {
+    const { isParagraphBreak, isPageBreak } = options;
+    closeList(state);
+    if (isParagraphBreak || isPageBreak) {
+        flushParagraph(state);
+    }
+    if (rtl) state.currentParagraphRTL = true;
+    state.currentParagraphLineXs.push(line.minX);
+    if (!isParagraphBreak && !isPageBreak && options.lineSpacing > 0) {
+        state.currentParagraphLineSpacings.push(options.lineSpacing);
+        if (state.currentParagraphBodySize === 0) state.currentParagraphBodySize = bodySize;
+    }
+    state.currentParagraph.push(lineToHtmlContent(line, bodyFont, bodySize, state.annotations));
+    detectParagraphIndent(state);
+}
+
+function isNumberedLine(lineText: string, rtl: boolean): boolean {
+    return NUMBERED_PATTERN.test(lineText) || (rtl && NUMBERED_PATTERN_RTL_END.test(lineText));
+}
+
 function processHtmlLine(
     line: TextLine, lineText: string, bodySize: number, bodyFont: string,
     state: HtmlBuilderState, options: HtmlLineOptions,
 ): void {
-    const { isParagraphBreak, isPageBreak, structureMap } = options;
+    const { structureMap } = options;
     const largeGapIdx = findLargeGapIndex(line);
     const rtl = isLineRTL(line);
 
@@ -5049,23 +5142,12 @@ function processHtmlLine(
         renderLineAsBullet(state, line, lineText, bodyFont, bodySize);
         return;
     }
-    if (NUMBERED_PATTERN.test(lineText) || (rtl && NUMBERED_PATTERN_RTL_END.test(lineText))) {
+    if (isNumberedLine(lineText, rtl)) {
         renderLineAsNumbered(state, line, lineText, bodyFont, bodySize);
         return;
     }
 
-    closeList(state);
-    if (isParagraphBreak || isPageBreak) {
-        flushParagraph(state);
-    }
-    if (rtl) state.currentParagraphRTL = true;
-    state.currentParagraphLineXs.push(line.minX);
-    if (!isParagraphBreak && !isPageBreak && options.lineSpacing > 0) {
-        state.currentParagraphLineSpacings.push(options.lineSpacing);
-        if (state.currentParagraphBodySize === 0) state.currentParagraphBodySize = bodySize;
-    }
-    state.currentParagraph.push(lineToHtmlContent(line, bodyFont, bodySize, state.annotations));
-    detectParagraphIndent(state);
+    appendToParagraph(line, bodySize, bodyFont, state, options, rtl);
 }
 
 interface HtmlLineWithUnderlinesOptions extends HtmlLineOptions {
@@ -5136,8 +5218,10 @@ function clusterValues(values: number[], tolerance: number): number[] {
     const sorted = [...values].sort((a, b) => a - b);
     const clusters: number[][] = [[sorted[0]]];
     for (let i = 1; i < sorted.length; i++) {
-        const lastCluster = clusters.at(-1)!;
-        if (sorted[i] - lastCluster.at(-1)! <= tolerance) {
+        const lastCluster = clusters.at(-1);
+        if (!lastCluster) continue;
+        const lastVal = lastCluster.at(-1) ?? sorted[i];
+        if (sorted[i] - lastVal <= tolerance) {
             lastCluster.push(sorted[i]);
         } else {
             clusters.push([sorted[i]]);
@@ -5222,7 +5306,7 @@ function segmentsIntersectOrTouch(a: LineSegment, b: LineSegment, tolerance: num
 
 function expandGroup(segments: LineSegment[], visited: boolean[], queue: number[], group: LineSegment[], tolerance: number): void {
     while (queue.length > 0) {
-        const cur = queue.pop()!;
+        const cur = queue.pop() ?? 0;
         for (let j = 0; j < segments.length; j++) {
             if (visited[j]) continue;
             if (segmentsIntersectOrTouch(segments[cur], segments[j], tolerance)) {
@@ -5318,7 +5402,8 @@ function mergeAdjacentBorderBoxes(boxes: PathRect[]): PathRect[] {
     const sorted = [...boxes].sort((a, b) => b.y - a.y);
     const merged: PathRect[] = [{ ...sorted[0] }];
     for (let i = 1; i < sorted.length; i++) {
-        const prev = merged.at(-1)!;
+        const prev = merged.at(-1);
+        if (!prev) continue;
         const curr = sorted[i];
         const sameX = Math.abs(prev.x - curr.x) < 5 && Math.abs(prev.width - curr.width) < 10;
         const prevTop = prev.y + prev.height;
@@ -5474,7 +5559,8 @@ function groupFooterLinesByY(lines: TextLine[]): TextLine[][] {
     const sorted = [...lines].sort((a, b) => b.y - a.y);
     const groups: TextLine[][] = [[sorted[0]]];
     for (let i = 1; i < sorted.length; i++) {
-        const lastGroup = groups.at(-1)!;
+        const lastGroup = groups.at(-1);
+        if (!lastGroup) continue;
         const lastY = lastGroup[0].y;
         if (Math.abs(sorted[i].y - lastY) < 3) {
             lastGroup.push(sorted[i]);

@@ -16,21 +16,21 @@ const CRC32_TABLE = makeCrc32Table();
 
 function crc32(data: Uint8Array): number {
   let crc = 0xffffffff;
-  for (let i = 0; i < data.length; i++) {
-    crc = CRC32_TABLE[(crc ^ data[i]) & 0xff] ^ (crc >>> 8);
+  for (const byte of data) {
+    crc = CRC32_TABLE[(crc ^ byte) & 0xff] ^ (crc >>> 8);
   }
   return (crc ^ 0xffffffff) >>> 0;
 }
 
 function escapeXml(s: string): string {
-  return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
+  return s.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
 }
 
 function columnLetter(col: number): string {
   let s = '';
   let c = col;
   while (c >= 0) {
-    s = String.fromCharCode(65 + (c % 26)) + s;
+    s = String.fromCodePoint(65 + (c % 26)) + s;
     c = Math.floor(c / 26) - 1;
   }
   return s;

@@ -82,8 +82,7 @@ class PdfBuilder {
             allObjects.push({
                 num: pc.pageNum,
                 content: `<< /Type /Page /Parent ${pagesObj} 0 R /MediaBox [0 0 ${pc.w} ${pc.h}] /Resources ${resourcesDict} /Contents ${pc.contentNum} 0 R >>`,
-            });
-            allObjects.push({
+            }, {
                 num: pc.contentNum,
                 content: `<< /Length ${pc.stream.length} >>\nstream\n${pc.stream}\nendstream`,
             });
@@ -116,13 +115,13 @@ class PdfBuilder {
 // ── Helper: parse CSS class values from generated CSS ─────────────────
 
 function extractCssValue(css: string, className: string): string | null {
-    const re = new RegExp(`\\.${className}\\{([^}]+)\\}`);
+    const re = new RegExp(String.raw`\.${className}\{([^}]+)\}`);
     const m = re.exec(css);
     return m ? m[1] : null;
 }
 
 function extractAllClasses(css: string, prefix: string): Map<string, string> {
-    const re = new RegExp(`\\.${prefix}([0-9a-f]+)\\{([^}]+)\\}`, 'g');
+    const re = new RegExp(String.raw`\.${prefix}([0-9a-f]+)\{([^}]+)\}`, 'g');
     const map = new Map<string, string>();
     let m;
     while ((m = re.exec(css)) !== null) {
@@ -132,8 +131,8 @@ function extractAllClasses(css: string, prefix: string): Map<string, string> {
 }
 
 function countDivsByClass(html: string, cls: string): number {
-    const re = new RegExp(`class="[^"]*\\b${cls}\\b`, 'g');
-    return (html.match(re) || []).length;
+    const re = new RegExp(String.raw`class="[^"]*\b${cls}\b`, 'g');
+    return [...html.matchAll(re)].length;
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -150,16 +149,16 @@ describe('NumericStateManager', () => {
 
     it('should deduplicate values within epsilon', () => {
         const mgr = new NumericStateManager(0.5);
-        const id1 = mgr.install(12.0);
+        const id1 = mgr.install(12);
         const id2 = mgr.install(12.3);
-        const id3 = mgr.install(14.0);
+        const id3 = mgr.install(14);
         expect(id1).toBe(id2);
         expect(id3).not.toBe(id1);
     });
 
     it('should not deduplicate values outside epsilon', () => {
         const mgr = new NumericStateManager(0.01);
-        const id1 = mgr.install(10.0);
+        const id1 = mgr.install(10);
         const id2 = mgr.install(10.02);
         expect(id1).not.toBe(id2);
     });
@@ -494,7 +493,7 @@ describe('renderPixelPerfectPaged', () => {
                 return m ? Number.parseFloat(m[1]) : 0;
             });
             const sorted = [...bottomValues].sort((a, b) => a - b);
-            expect(sorted[sorted.length - 1] - sorted[0]).toBeGreaterThanOrEqual(90);
+            expect(sorted.at(-1)! - sorted[0]).toBeGreaterThanOrEqual(90);
         });
 
         it('should assign font-size CSS class to text lines', async () => {
@@ -1013,7 +1012,7 @@ describe('renderPixelPerfectPaged', () => {
             const html = result.pages[0].html;
             const spanMatch = /<span class="(fc[0-9a-f]+)"/.exec(html);
             expect(spanMatch).not.toBeNull();
-            expect(spanMatch![1]).not.toContain('fs');
+            expect(spanMatch?.[1]).not.toContain('fs');
         });
     });
 

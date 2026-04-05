@@ -4,7 +4,7 @@ import type {
     DocxParseResult, DocxElement, DocxParagraph, DocxRun, DocxRunStyle,
     DocxTable, DocxTableRow, DocxTableCell, DocxTableCellStyle, DocxTableRowStyle,
     DocxTableBorder, DocxImage, DocxBorder, DocxParagraphBorders,
-    DocxVertAlign, DocxBreakType, DocxListType,
+    DocxVertAlign, DocxListType,
 } from './docx-parser';
 
 // ── Section A: Constants & Binary Readers ──────────────────────────────
@@ -394,46 +394,64 @@ function parseSingleStyle(data: Uint8Array, start: number, end: number, istd: nu
         return { istd, name: '', istdBase, styleKind, charSprms: null, paraSprms: null };
     }
 
-    // Skip stk-specific fields: 6 more bytes in the fixed part
     offset = start + 10;
     if (offset > end) offset = start + 4;
 
-    // Read style name
+    const nameResult = readStyleName(data, offset, end, sti);
+    const name = nameResult.name;
+    offset = nameResult.offset;
+
+    const upxResult = parseUpxArrays(data, offset, end, styleKind);
+
+    return { istd, name, istdBase, styleKind, charSprms: upxResult.charSprms, paraSprms: upxResult.paraSprms };
+}
+
+function readStyleName(
+    data: Uint8Array,
+    startOffset: number,
+    end: number,
+    sti: number,
+): { readonly name: string; readonly offset: number } {
+    let offset = startOffset;
     let name = '';
+
     if (offset < end) {
         const nameLen = readU16(data, offset);
         offset += 2;
         if (offset + nameLen * 2 <= end) {
             name = readUtf16String(data, offset, offset + nameLen * 2);
             offset += nameLen * 2;
-            // Skip null terminator
             if (offset + 2 <= end) offset += 2;
         }
     }
 
-    // Fallback name from built-in style index
     if (!name && sti < 10) {
         name = getBuiltInStyleName(sti);
     }
 
-    // Parse UPX arrays (style definition SPRMs)
+    return { name, offset };
+}
+
+function parseUpxArrays(
+    data: Uint8Array,
+    startOffset: number,
+    end: number,
+    styleKind: number,
+): { readonly paraSprms: Uint8Array | null; readonly charSprms: Uint8Array | null } {
+    let offset = startOffset;
     let paraSprms: Uint8Array | null = null;
     let charSprms: Uint8Array | null = null;
 
-    // UPX1: paragraph properties (for paragraph styles)
     if (styleKind === 1 && offset + 2 <= end) {
         const cbUpx = readU16(data, offset);
         offset += 2;
         if (cbUpx > 2 && offset + cbUpx <= end) {
-            // First 2 bytes are istd, rest are SPRMs
             paraSprms = data.subarray(offset + 2, offset + cbUpx);
         }
         offset += cbUpx;
-        // Align to word boundary
         if (offset % 2 !== 0) offset++;
     }
 
-    // UPX2 (or UPX1 for character styles): character properties
     if (offset + 2 <= end) {
         const cbUpx = readU16(data, offset);
         offset += 2;
@@ -442,7 +460,7 @@ function parseSingleStyle(data: Uint8Array, start: number, end: number, istd: nu
         }
     }
 
-    return { istd, name, istdBase, styleKind, charSprms, paraSprms };
+    return { paraSprms, charSprms };
 }
 
 function getBuiltInStyleName(sti: number): string {
@@ -554,27 +572,46 @@ function parseGrpprl(data: Uint8Array, offset: number, length: number): Readonly
         const size = getSprmOperandSize(opcode);
 
         if (size === -1) {
-            // Variable length
-            if (pos >= end) break;
-            const cb = readU8(data, pos);
-            pos += 1;
-            if (pos + cb > end) break;
-            const operandBytes = data.subarray(pos, pos + cb);
-            entries.push({ opcode, operand: cb, operandBytes });
-            pos += cb;
+            const result = parseVariableLengthSprm(data, pos, end, opcode);
+            if (!result) break;
+            entries.push(result.entry);
+            pos = result.nextPos;
         } else {
             if (pos + size > end) break;
-            let operand = 0;
-            if (size === 1) operand = readU8(data, pos);
-            else if (size === 2) operand = readU16(data, pos);
-            else if (size === 4) operand = readU32(data, pos);
-            else if (size === 3) operand = data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16);
-            entries.push({ opcode, operand, operandBytes: size >= 3 ? data.subarray(pos, pos + size) : null });
+            entries.push(parseFixedLengthSprm(data, pos, opcode, size));
             pos += size;
         }
     }
 
     return entries;
+}
+
+function parseVariableLengthSprm(
+    data: Uint8Array,
+    pos: number,
+    end: number,
+    opcode: number,
+): { readonly entry: SprmEntry; readonly nextPos: number } | null {
+    if (pos >= end) return null;
+    const cb = readU8(data, pos);
+    pos += 1;
+    if (pos + cb > end) return null;
+    const operandBytes = data.subarray(pos, pos + cb);
+    return { entry: { opcode, operand: cb, operandBytes }, nextPos: pos + cb };
+}
+
+function parseFixedLengthSprm(data: Uint8Array, pos: number, opcode: number, size: number): SprmEntry {
+    const operand = readFixedOperand(data, pos, size);
+    const operandBytes = size >= 3 ? data.subarray(pos, pos + size) : null;
+    return { opcode, operand, operandBytes };
+}
+
+function readFixedOperand(data: Uint8Array, pos: number, size: number): number {
+    if (size === 1) return readU8(data, pos);
+    if (size === 2) return readU16(data, pos);
+    if (size === 4) return readU32(data, pos);
+    if (size === 3) return data[pos] | (data[pos + 1] << 8) | (data[pos + 2] << 16);
+    return 0;
 }
 
 function applyCharSprms(sprms: ReadonlyArray<SprmEntry>, base: CharProps): CharProps {
@@ -967,7 +1004,7 @@ function assembleRuns(
 
         const text = pieceResult.text.substring(cpStart, cpEnd);
         const fc = cpToFc(cpStart, pieces);
-        const props = fc !== null ? findChpxProps(fc, chpxEntries) : {};
+        const props = fc === null ? {} : findChpxProps(fc, chpxEntries);
 
         runs.push({ cpStart, cpEnd, text, props });
     }
@@ -989,7 +1026,8 @@ function mergeAdjacentRuns(runs: ReadonlyArray<TextRun>): ReadonlyArray<TextRun>
 
     const merged: TextRun[] = [runs[0]];
     for (let i = 1; i < runs.length; i++) {
-        const prev = merged[merged.length - 1];
+        const prev = merged.at(-1);
+        if (!prev) continue;
         const curr = runs[i];
         if (charPropsEqual(prev.props, curr.props)) {
             merged[merged.length - 1] = {
@@ -1043,14 +1081,15 @@ function assembleParagraphs(
 
     for (let i = 0; i <= text.length; i++) {
         const isEnd = i === text.length;
-        const code = !isEnd ? (text.codePointAt(i) ?? 0) : 0;
+        const code = isEnd ? 0 : (text.codePointAt(i) ?? 0);
         const isCellMark = code === CELL_MARK;
         const isBoundary = code === PARAGRAPH_MARK || isCellMark;
 
         if (!isBoundary && !isEnd) continue;
 
         const paraEnd = isEnd ? i : i + 1;
-        const textEnd = isEnd ? i : (isCellMark ? i + 1 : i);
+        const cellMarkOffset = isCellMark ? i + 1 : i;
+        const textEnd = isEnd ? i : cellMarkOffset;
         const paraText = text.substring(paraStart, textEnd);
         const paraRuns = collectRunsForRange(runs, paraStart, paraEnd);
         const paraProps = findParaProps(isEnd ? Math.max(0, i - 1) : i, papxEntries, pieces);
@@ -1179,7 +1218,6 @@ function buildParagraphElement(
     styleCharProps: CharProps,
     outputElements: DocxElement[],
 ): void {
-    // Check for page break character
     if (para.text === '\x0C') {
         outputElements.push(createPageBreakParagraph());
         return;
@@ -1188,42 +1226,63 @@ function buildParagraphElement(
     const extractedImages: DocxImage[] = [];
     const docxRuns = convertRuns(para.runs, fonts, dataStream, wordDoc, styleCharProps, extractedImages);
 
-    // Emit extracted images as top-level elements
     for (const img of extractedImages) {
         outputElements.push(img);
     }
 
-    // If no text runs remain, skip the paragraph
     if (docxRuns.length === 0 && para.text.trim().length === 0) return;
 
+    const paragraph = buildParagraphObject(para, docxRuns);
+    outputElements.push(paragraph);
+}
+
+function buildParagraphObject(para: DocParaInfo, docxRuns: ReadonlyArray<DocxRun>): DocxParagraph {
     const style = mapStyleName(para.styleName);
     const borders = buildParaBorders(para.paraProps);
-
     const rtl = para.paraProps.rtl || isRtlText(para.text);
+    const indentProps = buildIndentProps(para.paraProps);
+    const listProps = buildListProps(para.paraProps);
 
-    outputElements.push({
+    return {
         type: 'paragraph',
         runs: docxRuns,
         style,
-        ...(para.paraProps.listLevel !== undefined && para.paraProps.listId ? { listLevel: para.paraProps.listLevel, listType: detectListType(para.paraProps.listId) } : {}),
+        ...listProps,
         ...(rtl ? { rtl: true } : {}),
         ...(para.paraProps.alignment ? { alignment: para.paraProps.alignment } : {}),
         ...(para.paraProps.spacingBefore ? { spacingBefore: para.paraProps.spacingBefore } : {}),
         ...(para.paraProps.spacingAfter ? { spacingAfter: para.paraProps.spacingAfter } : {}),
         ...(para.paraProps.lineSpacing ? { lineSpacing: para.paraProps.lineSpacing } : {}),
-        ...(para.paraProps.indentLeft ? { indentLeft: para.paraProps.indentLeft } : {}),
-        ...(para.paraProps.indentRight ? { indentRight: para.paraProps.indentRight } : {}),
-        ...(para.paraProps.indentFirst !== undefined && para.paraProps.indentFirst < 0 ? { indentHanging: Math.abs(para.paraProps.indentFirst) } : {}),
-        ...(para.paraProps.indentFirst !== undefined && para.paraProps.indentFirst > 0 ? { indentFirstLine: para.paraProps.indentFirst } : {}),
+        ...indentProps,
         ...(para.paraProps.shading ? { shading: para.paraProps.shading } : {}),
         ...(borders ? { borders } : {}),
-    });
+    };
+}
+
+function buildIndentProps(props: ParaProps): Record<string, number> {
+    const result: Record<string, number> = {};
+    if (props.indentLeft) result['indentLeft'] = props.indentLeft;
+    if (props.indentRight) result['indentRight'] = props.indentRight;
+    if (props.indentFirst !== undefined && props.indentFirst < 0) {
+        result['indentHanging'] = Math.abs(props.indentFirst);
+    }
+    if (props.indentFirst !== undefined && props.indentFirst > 0) {
+        result['indentFirstLine'] = props.indentFirst;
+    }
+    return result;
+}
+
+function buildListProps(props: ParaProps): Record<string, unknown> {
+    if (props.listLevel !== undefined && props.listId) {
+        return { listLevel: props.listLevel, listType: detectListType(props.listId) };
+    }
+    return {};
 }
 
 function createPageBreakParagraph(): DocxParagraph {
     return {
         type: 'paragraph',
-        runs: [{ text: '', style: {}, breakType: 'page' as DocxBreakType }],
+        runs: [{ text: '', style: {}, breakType: 'page' }],
         style: '',
     };
 }
@@ -1285,7 +1344,7 @@ function convertRuns(
 
         // Handle page break char
         if (cleanText === '\x0C') {
-            result.push({ text: '', style, breakType: 'page' as DocxBreakType });
+            result.push({ text: '', style, breakType: 'page' });
             continue;
         }
 
@@ -1335,7 +1394,14 @@ function mergeCharProps(styleProps: CharProps, directProps: CharProps): CharProp
 }
 
 function buildRunStyle(props: CharProps, fonts: ReadonlyArray<string>): DocxRunStyle {
-    const style: DocxRunStyle = {
+    return {
+        ...buildRunToggleStyles(props),
+        ...buildRunValueStyles(props, fonts),
+    };
+}
+
+function buildRunToggleStyles(props: CharProps): Partial<DocxRunStyle> {
+    return {
         ...(props.bold ? { bold: true } : {}),
         ...(props.italic ? { italic: true } : {}),
         ...(props.underline ? { underline: true } : {}),
@@ -1343,15 +1409,24 @@ function buildRunStyle(props: CharProps, fonts: ReadonlyArray<string>): DocxRunS
         ...(props.doubleStrikethrough ? { doubleStrikethrough: true } : {}),
         ...(props.caps ? { caps: true } : {}),
         ...(props.smallCaps ? { smallCaps: true } : {}),
+    };
+}
+
+function buildRunValueStyles(props: CharProps, fonts: ReadonlyArray<string>): Partial<DocxRunStyle> {
+    const fontFamily = props.fontIndex !== undefined && props.fontIndex < fonts.length
+        ? fonts[props.fontIndex]
+        : undefined;
+    const color = props.color && props.color !== '#000000' ? props.color : undefined;
+
+    return {
         ...(props.fontSize ? { fontSize: props.fontSize } : {}),
-        ...(props.color && props.color !== '#000000' ? { color: props.color } : {}),
-        ...(props.fontIndex !== undefined && props.fontIndex < fonts.length ? { fontFamily: fonts[props.fontIndex] } : {}),
+        ...(color ? { color } : {}),
+        ...(fontFamily ? { fontFamily } : {}),
         ...(props.highlight ? { highlight: props.highlight } : {}),
         ...(props.backgroundColor ? { backgroundColor: props.backgroundColor } : {}),
         ...(props.vertAlign ? { vertAlign: props.vertAlign } : {}),
         ...(props.charSpacing ? { charSpacing: props.charSpacing } : {}),
     };
-    return style;
 }
 
 // ── Table Building ─────────────────────────────────────────────────────

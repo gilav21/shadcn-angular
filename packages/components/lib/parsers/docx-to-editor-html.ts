@@ -40,7 +40,7 @@ function renderElements(elements: ReadonlyArray<DocxElement>): string {
             parts.push(renderTable(el));
             i++;
         } else {
-            parts.push(renderImage(el as DocxImage));
+            parts.push(renderImage(el));
             i++;
         }
     }
@@ -50,14 +50,28 @@ function renderElements(elements: ReadonlyArray<DocxElement>): string {
 
 // --- List grouping ---
 
+function hasNestedListChild(
+    elements: ReadonlyArray<DocxElement>,
+    index: number,
+    baseLevel: number,
+): boolean {
+    if (index + 1 >= elements.length) return false;
+    const next = elements[index + 1];
+    return next.type === 'paragraph' &&
+        next.listLevel != null &&
+        next.listType != null &&
+        next.listLevel > baseLevel;
+}
+
 function renderListGroup(
     elements: ReadonlyArray<DocxElement>,
     startIndex: number,
     output: string[],
 ): number {
-    const first = elements[startIndex] as DocxParagraph;
-    const listType = first.listType!;
-    const baseLevel = first.listLevel!;
+    const first = elements[startIndex];
+    if (first.type !== 'paragraph') return startIndex;
+    const listType = first.listType ?? 'bullet';
+    const baseLevel = first.listLevel ?? 0;
     const tag = listType === 'numbered' ? 'ol' : 'ul';
 
     output.push(`<${tag}>`);
@@ -69,19 +83,7 @@ function renderListGroup(
         if (el.listLevel < baseLevel) break;
 
         if (el.listLevel === baseLevel && el.listType === listType) {
-            output.push(`<li>${renderRuns(el.runs)}`);
-            // Check if next items are deeper nested
-            if (i + 1 < elements.length) {
-                const next = elements[i + 1];
-                if (next.type === 'paragraph' && next.listLevel != null &&
-                    next.listType != null && next.listLevel > baseLevel) {
-                    i = renderListGroup(elements, i + 1, output);
-                    output.push('</li>');
-                    continue;
-                }
-            }
-            output.push('</li>');
-            i++;
+            i = renderListItem(elements, i, baseLevel, output);
         } else if (el.listLevel > baseLevel) {
             i = renderListGroup(elements, i, output);
         } else {
@@ -91,6 +93,26 @@ function renderListGroup(
 
     output.push(`</${tag}>`);
     return i;
+}
+
+function renderListItem(
+    elements: ReadonlyArray<DocxElement>,
+    index: number,
+    baseLevel: number,
+    output: string[],
+): number {
+    const el = elements[index];
+    if (el.type !== 'paragraph') return index + 1;
+    output.push(`<li>${renderRuns(el.runs)}`);
+
+    if (hasNestedListChild(elements, index, baseLevel)) {
+        const nextIndex = renderListGroup(elements, index + 1, output);
+        output.push('</li>');
+        return nextIndex;
+    }
+
+    output.push('</li>');
+    return index + 1;
 }
 
 // --- Paragraph rendering ---
@@ -323,9 +345,7 @@ function renderTable(table: DocxTable): string {
         parts.push(renderTableRow(row, false, borderFallbacks, rowIndex, totalRows));
         rowIndex++;
     }
-    parts.push('</tbody>');
-
-    parts.push('</table>');
+    parts.push('</tbody>', '</table>');
     return parts.join('');
 }
 

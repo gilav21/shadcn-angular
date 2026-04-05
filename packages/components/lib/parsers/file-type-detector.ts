@@ -76,7 +76,7 @@ function isSvg(data: Uint8Array): boolean {
     const length = Math.min(data.length, 256);
     let text = '';
     for (let i = offset; i < length; i++) {
-        text += String.fromCharCode(data[i]);
+        text += String.fromCodePoint(data[i]);
     }
     const trimmed = text.trimStart().toLowerCase();
     return trimmed.startsWith('<svg') || trimmed.startsWith('<?xml');
@@ -206,7 +206,7 @@ function readOle2DirectoryNames(data: Uint8Array, sectorSize: number, firstDirSe
         let name = '';
         const charCount = (nameLen - 2) / 2;
         for (let c = 0; c < charCount; c++) {
-            name += String.fromCharCode(readU16LE(data, entryOffset + c * 2));
+            name += String.fromCodePoint(readU16LE(data, entryOffset + c * 2));
         }
         names.add(name);
     }

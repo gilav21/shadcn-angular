@@ -395,7 +395,8 @@ function fixCidToUnicodeWidths(
     font: TtfFont, fontInfo: FontInfo, glyphAdvances: Map<number, number>,
 ): void {
     for (const [code, unicodeStr] of fontInfo.toUnicode) {
-        if (glyphAdvances.has(code) && glyphAdvances.get(code)! > 0) continue;
+        const existingAdv = glyphAdvances.get(code);
+        if (existingAdv !== undefined && existingAdv > 0) continue;
         const cp = unicodeStr.codePointAt(0) ?? 0;
         if (cp <= 0 || cp > 0xFFFF) continue;
         const metrics = font.charToGlyphMetrics(cp);
@@ -409,7 +410,8 @@ function fixAsciiFallbackWidths(
     font: TtfFont, fb: TtfFont | null, unitsPerEm: number, glyphAdvances: Map<number, number>,
 ): void {
     for (let lo = 0x20; lo <= 0x7E; lo++) {
-        if (glyphAdvances.has(lo) && glyphAdvances.get(lo)! > 0) continue;
+        const existingLoAdv = glyphAdvances.get(lo);
+        if (existingLoAdv !== undefined && existingLoAdv > 0) continue;
         const metrics = font.charToGlyphMetrics(lo);
         if (metrics.advanceWidth > 0 && metrics.index > 0) {
             glyphAdvances.set(lo, metrics.advanceWidth);
@@ -965,9 +967,11 @@ function mapSymbolPua(unicode: string): string {
 }
 
 function decodeTwoByteChar(code: number, toUnicode: Map<number, string>): string {
-    if (toUnicode.has(code)) return mapSymbolPua(toUnicode.get(code)!);
+    const codeMapped = toUnicode.get(code);
+    if (codeMapped !== undefined) return mapSymbolPua(codeMapped);
     const lo = code & 0xFF;
-    if (toUnicode.has(lo)) return toUnicode.get(lo)!;
+    const loMapped = toUnicode.get(lo);
+    if (loMapped !== undefined) return loMapped;
     if (code >= 0x20 && code < 0xFFFE) {
         if (isValidDecodedChar(code)) return String.fromCodePoint(code);
     }
@@ -997,8 +1001,9 @@ function pdfStringToCharacters(
         for (let i = 0; i < raw.length; i++) {
             const code = raw.codePointAt(i) ?? 0;
             charCodes.push(code);
-            if (toUnicode?.has(code)) {
-                unicodes.push(toUnicode.get(code)!);
+            const mapped = toUnicode?.get(code);
+            if (mapped !== undefined) {
+                unicodes.push(mapped);
             } else if (PDF_DOC_ENCODING[code]) {
                 unicodes.push(PDF_DOC_ENCODING[code]);
             } else {
@@ -1445,8 +1450,9 @@ class TextLine {
         while (offsetIdx > 0 && this.text[offsetIdx - 1] === 0) {
             --offsetIdx;
         }
-        if (this.offsets.length > 0 && this.offsets.at(-1)!.startIdx === offsetIdx) {
-            this.offsets.at(-1)!.width += width;
+        const lastOffset = this.offsets.at(-1);
+        if (lastOffset?.startIdx === offsetIdx) {
+            lastOffset.width += width;
         } else {
             this.offsets.push({ startIdx: offsetIdx, width });
         }
@@ -1455,10 +1461,11 @@ class TextLine {
 
     // F3: append_state (HTMLTextLine.cc:71-84) — reuses last if same position
     appendState(textState: TextState): void {
-        if (this.states.length === 0 || this.states.at(-1)!.installed?.startIdx !== this.text.length) {
+        const lastState = this.states.at(-1);
+        if (!lastState || lastState.installed?.startIdx !== this.text.length) {
             this.states.push({ textState, installed: null });
         } else {
-            this.states.at(-1)!.textState = textState;
+            lastState.textState = textState;
         }
     }
 
@@ -1518,9 +1525,10 @@ class TextLine {
     // Builds new_offsets list and swaps at end (C++ line 537).
     optimizeNormal(mgr: AllStateManager, hEps: number, spaceThreshold: number, z: number): void {
         // C++ line 366-367: remove useless states at end
-        while (this.states.length > 0 &&
-            (this.states.at(-1)!.installed?.startIdx ?? 0) >= this.text.length) {
+        let lastSt = this.states.at(-1);
+        while (lastSt && (lastSt.installed?.startIdx ?? 0) >= this.text.length) {
             this.states.pop();
+            lastSt = this.states.at(-1);
         }
         if (this.states.length === 0) return;
 
@@ -1582,9 +1590,10 @@ class TextLine {
             return { offsetCount, letterSpaceDiff };
         }
 
+        if (!stateEntry.installed) return { offsetCount, letterSpaceDiff };
         const oldLs = ts.letterSpace * z;
         const lsResult = mgr.letterSpace.installAndSnap(oldLs + mostUsedWidth);
-        stateEntry.installed!.letterSpaceId = lsResult.id;
+        stateEntry.installed.letterSpaceId = lsResult.id;
         ts.letterSpace = lsResult.snapped / z;
         letterSpaceDiff = oldLs - lsResult.snapped;
 
@@ -1610,10 +1619,11 @@ class TextLine {
     ): void {
         const { mgr, stateEntry, textIdx1, textIdx2, widthMap, z } = opts;
         if (this.text.slice(textIdx1, textIdx2).includes(0x20)) return;
+        if (!stateEntry.installed) return;
 
         const ts = stateEntry.textState;
         if (offsetCount === 0) {
-            stateEntry.installed!.wordSpaceFree = true;
+            stateEntry.installed.wordSpaceFree = true;
             return;
         }
 
@@ -1624,16 +1634,16 @@ class TextLine {
         );
 
         if (maxCount === 0) {
-            stateEntry.installed!.wordSpaceFree = true;
+            stateEntry.installed.wordSpaceFree = true;
             return;
         }
 
         ts.wordSpace = 0;
         const singleSpaceOff = ts.letterSpace * z + (ts.spaceWidth / 1000) * ts.fontSize * z;
         const wsResult = mgr.wordSpace.installAndSnap(mostUsedWidth - singleSpaceOff);
-        stateEntry.installed!.wordSpaceId = wsResult.id;
+        stateEntry.installed.wordSpaceId = wsResult.id;
         ts.wordSpace = wsResult.snapped / z;
-        stateEntry.installed!.wordSpaceFree = false;
+        stateEntry.installed.wordSpaceFree = false;
     }
 
     /**
@@ -1698,9 +1708,10 @@ class TextLine {
         const ctx = { dx: 0, lastTextPosWithNegativeOffset: 0, curTextIdx: 0, curOffsetIdx: 0 };
 
         for (let si = 0; si < this.states.length; si++) {
-            if (si > 0 && this.states[si].installed) {
+            const siInstalled = this.states[si].installed;
+            if (si > 0 && siInstalled) {
                 this.applyGreedyStateChange(
-                    parts, stateStack, this.states[si].installed!, ctx.lastTextPosWithNegativeOffset,
+                    parts, stateStack, siInstalled, ctx.lastTextPosWithNegativeOffset,
                 );
             }
 
@@ -2403,6 +2414,7 @@ class PixelPerfectProcessor {
     }
 
     private processDrawChar(code: number, unicode: string, fi: FontInfo | undefined, isTwoByte: boolean): number {
+        if (!this.currentLine) return 0;
         const w = fi ? (fi.widths.get(code) ?? fi.defaultWidth) : 1000;
         const ddx = (w / 1000) * this.fontSize + this.charSpace;
         const isSpace = !isTwoByte && code === 0x20;
@@ -2411,12 +2423,12 @@ class PixelPerfectProcessor {
         let cp = unicode.codePointAt(0) ?? code;
         const fixup = this.fontRegistry.getGlyphFixup(this.fontName, code);
         if (fixup !== undefined) cp = fixup;
-        this.currentLine!.appendUnicodes([cp], charWidth);
+        this.currentLine.appendUnicodes([cp], charWidth);
 
         const isUnicodeSpace = cp === 0x20;
         const spaceCount = (isSpace ? 1 : 0) - (isUnicodeSpace ? 1 : 0);
         if (spaceCount !== 0) {
-            this.currentLine!.appendOffset(
+            this.currentLine.appendOffset(
                 this.wordSpace * this.drawTextScale * this.zoom * spaceCount,
             );
         }

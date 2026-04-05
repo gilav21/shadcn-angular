@@ -1284,7 +1284,7 @@ function fixRowSpans(rows: ReadonlyArray<DocxTableRow>): void {
     for (let col = 0; col < maxCols; col++) {
         let startRow = -1;
         for (let row = 0; row < rows.length; row++) {
-            const cell = rows[row].cells[col] as DocxTableCell | undefined;
+            const cell: DocxTableCell | undefined = rows[row].cells[col];
             if (!cell) continue;
 
             if (cell.rowSpan === 0 && startRow >= 0) {
@@ -1511,7 +1511,8 @@ function resolveStyleChain(
     defaultRunStyle: DocxRunStyle,
     themeColors?: ThemeColorMap,
 ): ResolvedStyle {
-    if (resolved.has(styleId)) return resolved.get(styleId)!;
+    const cached = resolved.get(styleId);
+    if (cached !== undefined) return cached;
     if (resolving.has(styleId)) return {};
     resolving.add(styleId);
 
