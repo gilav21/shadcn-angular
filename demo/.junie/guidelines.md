@@ -88,7 +88,7 @@ All interactive elements MUST work on touch-only devices (no mouse, no keyboard)
 - **No hover-only interactions**: If `(mouseenter)` reveals UI, add a tap/click
   alternative
 - **No mouse-only drag**: Every `(mousedown)` for dragging needs `(touchstart)`
-  + `touch-action: none`
+  - `touch-action: none`
 - **No right-click-only menus**: `(contextmenu)` needs long-press alternative
   on touch
 - **No double-click-only actions**: `(dblclick)` needs double-tap alternative
