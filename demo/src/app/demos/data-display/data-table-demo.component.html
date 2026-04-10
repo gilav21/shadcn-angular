@@ -1,3 +1,294 @@
+<!-- Quick Reference Guide -->
+<section class="space-y-4 sm:space-y-6">
+  <div>
+    <h2 id="guide" class="text-2xl font-semibold scroll-m-20">Data Table Guide</h2>
+    <p class="text-muted-foreground mt-1">
+      Everything the data table can do, organized by feature. Click any feature to jump to its live demo.
+    </p>
+  </div>
+
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+
+    <!-- Data & Rendering -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Data & Rendering</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <a href="#data-table" (click)="scrollTo('data-table', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Client-side table</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[data]</code> <code class="bg-muted px-1 rounded">[columns]</code></span>
+        </li>
+        <li>
+          <a href="#data-table-custom" (click)="scrollTo('data-table-custom', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Custom cell components</a>
+          <span class="block"><code class="bg-muted px-1 rounded">component</code> <code class="bg-muted px-1 rounded">componentInputs</code> on ColumnDef</span>
+        </li>
+        <li>
+          <a href="#data-table-builder" (click)="scrollTo('data-table-builder', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Column builder API</a>
+          <span class="block"><code class="bg-muted px-1 rounded">columnHelper&lt;T&gt;()</code> fluent builder</span>
+        </li>
+        <li>
+          <a href="#data-table-rtl" (click)="scrollTo('data-table-rtl', $event)" class="text-foreground font-medium hover:underline cursor-pointer">RTL / i18n</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[locale]</code> + <code class="bg-muted px-1 rounded">dir="rtl"</code> on wrapper</span>
+        </li>
+        <li>
+          <a href="#data-table-footer" (click)="scrollTo('data-table-footer', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Footer aggregations</a>
+          <span class="block"><code class="bg-muted px-1 rounded">aggregateFn</code> (sum, avg, count, min, max) on ColumnDef</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Server-Side & Loading -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Server-Side & Loading</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <a href="#data-table-server" (click)="scrollTo('data-table-server', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Server-side pagination</a>
+          <span class="block">
+            <code class="bg-muted px-1 rounded">[localSorting]="false"</code>
+            <code class="bg-muted px-1 rounded">[localPagination]="false"</code>
+            <code class="bg-muted px-1 rounded">[total]</code>
+          </span>
+        </li>
+        <li>
+          <a href="#data-table-ops" (click)="scrollTo('data-table-ops', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Custom loader per trigger</a>
+          <span class="block">
+            <code class="bg-muted px-1 rounded">[loaderComponent]</code>
+            <code class="bg-muted px-1 rounded">[loadingVisibility]</code>
+          </span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Event outputs</span>
+          <span class="block">
+            <code class="bg-muted px-1 rounded">(sortChange)</code>
+            <code class="bg-muted px-1 rounded">(pageChange)</code>
+            <code class="bg-muted px-1 rounded">(filterChange)</code>
+          </span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Export</span>
+          <span class="block">
+            <code class="bg-muted px-1 rounded">exportToCsv()</code>
+            <code class="bg-muted px-1 rounded">exportToExcel()</code>
+            <code class="bg-muted px-1 rounded">[exportDataProvider]</code>
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Sorting & Filtering -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Sorting & Filtering</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <span class="text-foreground font-medium">Column sorting</span>
+          <span class="block"><code class="bg-muted px-1 rounded">enableSorting</code> on ColumnDef, <code class="bg-muted px-1 rounded">[(sortState)]</code></span>
+        </li>
+        <li>
+          <a href="#data-table-ops" (click)="scrollTo('data-table-ops', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Multi-column sort</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableMultiSort]</code> + Shift+Click, <code class="bg-muted px-1 rounded">[(multiSortState)]</code></span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Global filter</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[(globalFilter)]</code> <code class="bg-muted px-1 rounded">[globalFilterFn]</code></span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Column filters</span>
+          <span class="block"><code class="bg-muted px-1 rounded">filterComponent</code> <code class="bg-muted px-1 rounded">filterFn</code> on ColumnDef</span>
+        </li>
+        <li>
+          <a href="#data-table-floating-filters" (click)="scrollTo('data-table-floating-filters', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Floating filters</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableFloatingFilters]</code> always-visible filter row</span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Filter debounce</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[filterDebounce]</code> ms delay (default: 0)</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Selection & Interaction -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Selection & Interaction</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <a href="#data-table" (click)="scrollTo('data-table', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Row selection</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableRowSelection]</code> <code class="bg-muted px-1 rounded">[(rowSelection)]</code></span>
+        </li>
+        <li>
+          <a href="#data-table-range" (click)="scrollTo('data-table-range', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Cell range selection</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableCellRangeSelection]</code> Shift+Click range, Ctrl+C copy</span>
+        </li>
+        <li>
+          <a href="#data-table-editing" (click)="scrollTo('data-table-editing', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Inline editing</a>
+          <span class="block"><code class="bg-muted px-1 rounded">editable</code> <code class="bg-muted px-1 rounded">editType</code> on ColumnDef, <code class="bg-muted px-1 rounded">(cellEdit)</code></span>
+        </li>
+        <li>
+          <a href="#data-table-disabled" (click)="scrollTo('data-table-disabled', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Disabled rows</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[isRowDisabled]</code> or <code class="bg-muted px-1 rounded">[disabledRowIds]</code> (OR-combined)</span>
+        </li>
+        <li>
+          <a href="#data-table" (click)="scrollTo('data-table', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Row actions / context menu</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[rowActions]</code> <code class="bg-muted px-1 rounded">[showRowActionsColumn]</code></span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Copy</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableCopy]</code> Ctrl+C on focused cell</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Columns -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Column Features</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <a href="#data-table-resizable" (click)="scrollTo('data-table-resizable', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Resizable columns</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableColumnResize]</code> <code class="bg-muted px-1 rounded">(columnResize)</code></span>
+        </li>
+        <li>
+          <a href="#data-table-ops" (click)="scrollTo('data-table-ops', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Reorder columns</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableColumnReorder]</code> <code class="bg-muted px-1 rounded">[(columnOrder)]</code> drag headers</span>
+        </li>
+        <li>
+          <a href="#data-table-column-menu" (click)="scrollTo('data-table-column-menu', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Column menu</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableColumnMenu]</code> sort/pin/hide per column</span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Column pinning</span>
+          <span class="block"><code class="bg-muted px-1 rounded">pin: 'left' | 'right'</code> on ColumnDef</span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Column visibility</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[(columnVisibility)]</code> <code class="bg-muted px-1 rounded">[showColumnVisibilityToggle]</code></span>
+        </li>
+        <li>
+          <a href="#data-table-ops" (click)="scrollTo('data-table-ops', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Layout persistence</a>
+          <span class="block"><code class="bg-muted px-1 rounded">getColumnState()</code> / <code class="bg-muted px-1 rounded">applyColumnState()</code></span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Expansion & Tree -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Expansion & Tree Data</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <a href="#data-table-ops" (click)="scrollTo('data-table-ops', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Row detail panel</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableRowExpansion]</code> <code class="bg-muted px-1 rounded">[rowDetailTemplate]</code> or <code class="bg-muted px-1 rounded">[rowDetailComponent]</code></span>
+        </li>
+        <li>
+          <a href="#data-table-tree" (click)="scrollTo('data-table-tree', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Sub-rows (tree)</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableSubRows]</code> <code class="bg-muted px-1 rounded">[getChildren]</code> <code class="bg-muted px-1 rounded">[subRowDefaultExpanded]</code></span>
+        </li>
+        <li>
+          <a href="#data-table-tree" (click)="scrollTo('data-table-tree', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Cascading selection</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[subRowSelectionMode]</code> self | descendants | filteredDescendants</span>
+        </li>
+        <li>
+          <a href="#data-table-tree" (click)="scrollTo('data-table-tree', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Tree-aware filtering</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[subRowFilterMode]</code> includeParentOnChildMatch | includeChildren | excludeChildren</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Row Drag -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Row Drag & Reorder</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <a href="#data-table-drag" (click)="scrollTo('data-table-drag', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Flat drag</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableRowDrag]</code> <code class="bg-muted px-1 rounded">(rowReorder)</code></span>
+        </li>
+        <li>
+          <a href="#data-table-tree" (click)="scrollTo('data-table-tree', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Tree drag (reparent)</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[rowDragMode]="'tree'"</code> reparent across depths</span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Drop validation</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[rowDragAllowDrop]</code> predicate function</span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Local reorder</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[localReorder]</code> apply reorder to data (default: true)</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Virtual Scroll -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Virtual Scroll</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <a href="#data-table-virtual" (click)="scrollTo('data-table-virtual', $event)" class="text-foreground font-medium hover:underline cursor-pointer">2D virtual scroll</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableVirtualScroll]</code> true | 'auto'</span>
+        </li>
+        <li>
+          <a href="#data-table-virtual" (click)="scrollTo('data-table-virtual', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Variable row heights</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[virtualVariableRowHeight]</code> ResizeObserver-based</span>
+        </li>
+        <li>
+          <a href="#data-table-virtual" (click)="scrollTo('data-table-virtual', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Component recycling</a>
+          <span class="block"><code class="bg-muted px-1 rounded">[virtualRecycleComponents]</code> object pool for cells</span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Tuning</span>
+          <span class="block">
+            <code class="bg-muted px-1 rounded">[virtualRowHeight]</code>
+            <code class="bg-muted px-1 rounded">[virtualRowBuffer]</code>
+            <code class="bg-muted px-1 rounded">[virtualColumnBuffer]</code>
+          </span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- Display Options -->
+    <div class="rounded-lg border p-3 sm:p-4 space-y-2">
+      <h3 class="text-sm font-semibold">Display & UI</h3>
+      <ul class="text-xs text-muted-foreground space-y-1.5">
+        <li>
+          <span class="text-foreground font-medium">Toolbar</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[showToolbar]</code> global filter + column visibility toggle</span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Pagination</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[showPagination]</code> <code class="bg-muted px-1 rounded">[pageSizeOptions]</code> <code class="bg-muted px-1 rounded">[(paginationState)]</code></span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Borders</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[showRowBorders]</code> <code class="bg-muted px-1 rounded">[showColumnBorders]</code></span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Empty state</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[emptyStateComponent]</code> custom empty view</span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Full-width rows</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[fullWidthRow]</code> predicate + <code class="bg-muted px-1 rounded">[fullWidthRowTemplate]</code></span>
+        </li>
+        <li>
+          <span class="text-foreground font-medium">Cell flash</span>
+          <span class="block"><code class="bg-muted px-1 rounded">[enableCellFlash]</code> <code class="bg-muted px-1 rounded">[cellFlashDuration]</code> highlight on value change</span>
+        </li>
+      </ul>
+    </div>
+
+  </div>
+
+  <!-- Gotchas -->
+  <div class="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 sm:p-4 space-y-2">
+    <h3 class="text-sm font-semibold">Watch Out</h3>
+    <ul class="text-xs text-muted-foreground space-y-1">
+      <li><code class="bg-muted px-1 rounded">enableVirtualScroll="auto"</code> won't activate while pagination is on (the default). Set <code class="bg-muted px-1 rounded">[showPagination]="false"</code> first.</li>
+      <li><code class="bg-muted px-1 rounded">enableSubRows</code> and <code class="bg-muted px-1 rounded">enableRowExpansion</code> are different features: tree children vs. detail panel. Using both adds two expanders per row.</li>
+      <li>Provide a custom <code class="bg-muted px-1 rounded">[getRowId]</code> when using sub-rows, cell flash, or row selection with server-side data. The default falls back to <code class="bg-muted px-1 rounded">JSON.stringify</code>.</li>
+      <li>Setting <code class="bg-muted px-1 rounded">cell</code>, <code class="bg-muted px-1 rounded">template</code>, and <code class="bg-muted px-1 rounded">component</code> on the same column? Only one is used (priority: component > template > cell).</li>
+      <li>Editable columns without a <code class="bg-muted px-1 rounded">valueSetter</code> will mutate your data directly. Provide one for immutable updates.</li>
+      <li><code class="bg-muted px-1 rounded">isRowDisabled</code> and <code class="bg-muted px-1 rounded">disabledRowIds</code> are OR-combined. Both work together.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- Demos -->
+
 <section class="space-y-4">
   <h2 id="data-table" class="text-2xl font-semibold scroll-m-20">Data Table (Client-Side)</h2>
   <p class="text-muted-foreground">
@@ -36,7 +327,7 @@
 
 <!-- Server-Side Data Table Section -->
 <section class="space-y-4">
-  <h2 class="text-2xl font-semibold scroll-m-20">Data Table (Server-Side)</h2>
+  <h2 id="data-table-server" class="text-2xl font-semibold scroll-m-20">Data Table (Server-Side)</h2>
   <p class="text-muted-foreground">
     Simulated server-side sorting, filtering, and pagination with 1s delay.
   </p>
@@ -69,7 +360,7 @@
 </section>
 
 <section class="space-y-4">
-  <h2 class="text-2xl font-semibold scroll-m-20">Data Table (Operations Console)</h2>
+  <h2 id="data-table-ops" class="text-2xl font-semibold scroll-m-20">Data Table (Operations Console)</h2>
   <p class="text-muted-foreground">
     Realistic incident operations grid using server-mode pagination/filter/sort, multi-sort (Shift+Click),
     right/left pinning, row expansion, layout persistence, and trigger-aware custom loaders.

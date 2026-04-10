@@ -77,10 +77,14 @@ import {
 } from "./data-table.utils";
 import { ComponentPoolService } from "./component-pool.service";
 
-// Angular's development mode flag - defined globally by Angular
 declare const ngDevMode: boolean | undefined;
 
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
+
+const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
+  const rec = row as Record<string, unknown>;
+  return rec['id'] != null ? String(rec['id']) : String(JSON.stringify(row));
+};
 
 @Component({
   selector: "ui-data-table",
@@ -1323,6 +1327,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private _isRtlResize = false;
 
   readonly data = input.required<T[]>();
+  /** @see columnHelper for a type-safe fluent builder API */
   readonly columns = input.required<ColumnDef<T>[]>();
 
   readonly showToolbar = input(true);
@@ -1363,12 +1368,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   readonly enableRowSelection = input(false);
   readonly rowSelection = model<Record<string, boolean>>({});
-  readonly getRowId = input<(row: T) => string>(
-    (row: T) => {
-      const rec = row as Record<string, unknown>;
-      return rec['id'] != null ? String(rec['id']) : String(JSON.stringify(row));
-    },
-  );
+  readonly getRowId = input<(row: T) => string>(DEFAULT_GET_ROW_ID);
   readonly enableCopy = input(true);
   readonly isRowDisabled = input<((row: T) => boolean) | undefined>(undefined);
   readonly disabledRowIds = input<ReadonlySet<string> | readonly string[]>([]);
@@ -1482,19 +1482,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly isVirtualScrollActive = computed(() => {
     const mode = this.enableVirtualScroll();
 
-    // Explicit false - never enable
     if (mode === false) return false;
 
-    // If pagination is active, virtual scroll is incompatible
-    // (unless explicitly forced with enableVirtualScroll: true)
     if (this.localPagination() && this.showPagination()) {
       if (mode === "auto") return false;
-      // mode === true: user explicitly wants virtual scroll
     }
 
     if (mode === true) return true;
 
-    // Auto mode - check thresholds
     const threshold = this.virtualAutoThreshold();
     const totalRows = this.virtualTotalRows();
     const nonPinnedColCount = this.scrollableColumns().length;
@@ -1531,7 +1526,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return cols.map((col) => {
       const key = String(col.accessorKey);
       const w = widths[key] || col._width || col.width || "auto";
-      // For virtual scroll calculations, auto columns need a pixel estimate
       if (w === "auto") return autoWidth;
       return Number.parseInt(String(w), 10) || autoWidth;
     });
@@ -2194,12 +2188,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
    * Validates configuration and logs warnings for conflicting options in development mode.
    */
   private validateConfiguration(): void {
-    // Skip validation in production (ngDevMode is undefined or false)
     if (typeof ngDevMode === 'undefined' || !ngDevMode) return;
 
     const warnings: string[] = [];
 
-    // Pagination + Virtual Scroll conflict
     if (
       this.localPagination() &&
       this.showPagination() &&
@@ -2212,7 +2204,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       );
     }
 
-    // Server-side pagination without total
     if (!this.localPagination() && this.total() === 0 && this.data().length > 0) {
       warnings.push(
         '[ui-data-table] Using server-side pagination (localPagination=false) ' +
@@ -2220,7 +2211,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       );
     }
 
-    // Variable row height without virtual scroll
     if (this.virtualVariableRowHeight() && !this.isVirtualScrollActive()) {
       warnings.push(
         '[ui-data-table] virtualVariableRowHeight is enabled but virtual scroll ' +
@@ -2228,11 +2218,96 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       );
     }
 
-    // Component recycling without virtual scroll
     if (this.virtualRecycleComponents() && !this.isVirtualScrollActive()) {
       warnings.push(
         '[ui-data-table] virtualRecycleComponents is enabled but virtual scroll ' +
           'is not active. This option has no effect.'
+      );
+    }
+
+    if (
+      this.enableVirtualScroll() === 'auto' &&
+      this.localPagination() &&
+      this.showPagination()
+    ) {
+      warnings.push(
+        '[ui-data-table] enableVirtualScroll="auto" has no effect when pagination is active. ' +
+          'Set [showPagination]="false" or [localPagination]="false" for virtual scroll to auto-activate.'
+      );
+    }
+
+    if (this.enableSubRows() && this.enableRowExpansion()) {
+      warnings.push(
+        '[ui-data-table] Both enableSubRows and enableRowExpansion are enabled. ' +
+          'This creates two separate expander controls per row (tree toggle + detail panel). ' +
+          'If this is unintentional, disable one of them.'
+      );
+    }
+
+    const isDefaultGetRowId = this.getRowId() === DEFAULT_GET_ROW_ID;
+
+    if (this.enableSubRows() && isDefaultGetRowId) {
+      warnings.push(
+        '[ui-data-table] enableSubRows is active with the default getRowId. ' +
+          'The default uses JSON.stringify as fallback, which produces unstable IDs for tree data. ' +
+          'Provide a custom [getRowId] function that returns a stable unique identifier.'
+      );
+    }
+
+    if (this.enableCellFlash() && isDefaultGetRowId) {
+      warnings.push(
+        '[ui-data-table] enableCellFlash is active with the default getRowId. ' +
+          'Cell flash detection requires stable row IDs across data updates. ' +
+          'Provide a custom [getRowId] function.'
+      );
+    }
+
+    const cols = this.columns();
+
+    if (this.enableFloatingFilters() && !cols.some((c) => c.enableFiltering)) {
+      warnings.push(
+        '[ui-data-table] enableFloatingFilters is true but no columns have enableFiltering set. ' +
+          'The floating filter row will be empty.'
+      );
+    }
+
+    const editableCols = cols.filter((c) => c.editable && !c.valueSetter);
+    if (editableCols.length > 0) {
+      const keys = editableCols.map((c) => String(c.accessorKey)).join(', ');
+      warnings.push(
+        `[ui-data-table] Columns [${keys}] have editable=true but no valueSetter. ` +
+          'Edits will directly mutate the row object. Provide a valueSetter for immutable updates.'
+      );
+    }
+
+    const accessorKeys = cols.map((c) => String(c.accessorKey)).filter((k) => k !== 'undefined');
+    const duplicates = accessorKeys.filter((k, i) => accessorKeys.indexOf(k) !== i);
+    if (duplicates.length > 0) {
+      const unique = [...new Set(duplicates)];
+      warnings.push(
+        `[ui-data-table] Duplicate accessorKey values found: [${unique.join(', ')}]. ` +
+          'Each column must have a unique accessorKey. Duplicates cause broken sorting, visibility, and width tracking.'
+      );
+    }
+
+    const stickyAndPinned = cols.filter((c) => c.sticky && c.pin);
+    if (stickyAndPinned.length > 0) {
+      const keys = stickyAndPinned.map((c) => String(c.accessorKey)).join(', ');
+      warnings.push(
+        `[ui-data-table] Columns [${keys}] have both sticky and pin set. ` +
+          'Use pin="left" instead of sticky=true. sticky is deprecated in favor of pin.'
+      );
+    }
+
+    const multiRenderCols = cols.filter((c) => {
+      const count = [c.cell, c.template, c.component].filter(Boolean).length;
+      return count > 1;
+    });
+    if (multiRenderCols.length > 0) {
+      const keys = multiRenderCols.map((c) => String(c.accessorKey)).join(', ');
+      warnings.push(
+        `[ui-data-table] Columns [${keys}] have multiple rendering strategies (cell/template/component). ` +
+          'Only one will be used (priority: component > template > cell). Remove the unused ones.'
       );
     }
 
@@ -2458,15 +2533,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     let currentRight = 0;
     const rightOffsets = new Map<number, number>();
 
-    // For pinned columns, we need pixel widths for sticky position calculations
-    // For non-pinned columns, default width is "auto" (flex to fill space)
     const DEFAULT_PINNED_WIDTH = 150;
 
     for (let i = computedCols.length - 1; i >= 0; i -= 1) {
       const col = computedCols[i];
       const key = String(col.accessorKey);
-      const widthStr = widths[key] || col.width;
-      // Pinned columns need pixel widths for sticky position calculation
+      const widthStr = widths[key] ?? col.width;
       const widthVal = Number.parseInt(widthStr, 10) || DEFAULT_PINNED_WIDTH;
       if (col.pin === "right") {
         rightOffsets.set(i, currentRight);
@@ -2482,7 +2554,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const isPinnedLeft = resolvedPin === "left";
       const isPinnedRight = resolvedPin === "right";
       const isPinned = isPinnedLeft || isPinnedRight || isSticky;
-      // Pinned columns need explicit pixel width; non-pinned default to "auto"
       const widthStr = widths[key] || col.width || (isPinned ? `${DEFAULT_PINNED_WIDTH}px` : "auto");
       const widthVal = Number.parseInt(widthStr, 10) || DEFAULT_PINNED_WIDTH;
       const isStickyLeft = isSticky || isPinnedLeft;
@@ -2937,7 +3008,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   selectAll() {
-    this.toggleAll();
+    const nextSelection = { ...this.rowSelection() };
+    this.selectableRowIds().forEach((id) => {
+      nextSelection[id] = true;
+    });
+    this.rowSelection.set(nextSelection);
   }
 
   onPaginationChange(state: PaginationState) {
@@ -4754,7 +4829,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const key = String(col.accessorKey);
     this.resizingColumn = col;
     this.resizeStartX = clientX;
-    // For auto columns, get the actual rendered width from the element
     const actualWidth = this.getColumnActualWidth(key);
     this.resizeStartWidth = Number.parseInt(col._width, 10) || actualWidth || 150;
     this.resizeOldWidth = this.columnWidths()[key] || col._width || "auto";
