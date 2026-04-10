@@ -607,6 +607,11 @@ class OpsTicketDetailComponent {
 export class DataTableDemoComponent {
   private readonly toastService = inject(ToastService);
 
+  scrollTo(id: string, event: Event) {
+    event.preventDefault();
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+
   // Virtual Scroll Demo
   readonly virtualCellMode = signal<'light' | 'heavy'>('light');
   readonly virtualVariableRows = signal(false);
