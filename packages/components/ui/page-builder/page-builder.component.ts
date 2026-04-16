@@ -355,6 +355,9 @@ export class PageBuilderComponent {
     class = input('');
     components = input<ComponentMeta[]>([]);
 
+    /** Initial layout to load into the builder. Changes to this input reset the board (like `importJson()`). Omit or pass `undefined` to start empty. */
+    readonly data = input<PageData | undefined>(undefined);
+
     /** Show the "Save" button in the toolbar. Clicking it emits the current layout via the (save) output. Default: true. */
     readonly enableSave = input<boolean>(true);
     /** Show the "Export" button in the toolbar. Clicking it downloads the current layout as a JSON file. Default: false. */
@@ -386,6 +389,7 @@ export class PageBuilderComponent {
 
     simulatingData = signal<boolean>(false);
     private simulationInterval?: any;
+    private lastAppliedData: PageData | undefined;
 
     constructor() {
         effect(() => {
@@ -393,6 +397,14 @@ export class PageBuilderComponent {
                 const height = this.gridRowHeight();
                 this.gridColumnWidth.set(height);
             }
+        }, { allowSignalWrites: true });
+
+        effect(() => {
+            const incoming = this.data();
+            const comps = this.components();
+            if (!incoming || incoming === this.lastAppliedData || comps.length === 0) return;
+            this.lastAppliedData = incoming;
+            this.applyLayout(incoming);
         }, { allowSignalWrites: true });
     }
 
@@ -683,37 +695,46 @@ export class PageBuilderComponent {
                 return;
             }
 
-            if (data.grid.cols) this.gridCols.set(data.grid.cols);
-            if (data.grid.rowHeight) this.gridRowHeight.set(data.grid.rowHeight);
-            if (data.grid.columnWidth) this.gridColumnWidth.set(data.grid.columnWidth);
-            if (data.grid.gap) this.gridGap.set(data.grid.gap);
-            if (data.grid.showBorders !== undefined) this.gridShowBorders.set(data.grid.showBorders);
-            if (data.grid.borderRadius) this.gridBorderRadius.set(data.grid.borderRadius);
-            if (data.grid.itemPadding) this.gridItemPadding.set(data.grid.itemPadding);
-            if (data.grid.squareCells !== undefined) this.gridSquareCells.set(data.grid.squareCells);
+            this.lastAppliedData = data as PageData;
+            this.applyLayout(data as PageData);
+        } catch (err) {
+            console.error('Failed to parse layout file:', err);
+            alert('Failed to parse layout file');
+        }
+    }
 
-            const newItems: DashboardItem[] = data.items.map((item: any) => {
-                const componentMeta = this.components().find(c => c.id === item.componentId);
+    private applyLayout(data: PageData) {
+        const grid = data.grid;
+        if (grid.cols) this.gridCols.set(grid.cols);
+        if (grid.rowHeight) this.gridRowHeight.set(grid.rowHeight);
+        if (grid.columnWidth) this.gridColumnWidth.set(grid.columnWidth);
+        if (grid.gap) this.gridGap.set(grid.gap);
+        if (grid.showBorders !== undefined) this.gridShowBorders.set(grid.showBorders);
+        if (grid.borderRadius) this.gridBorderRadius.set(grid.borderRadius);
+        if (grid.itemPadding) this.gridItemPadding.set(grid.itemPadding);
+        if (grid.squareCells !== undefined) this.gridSquareCells.set(grid.squareCells);
+
+        const comps = this.components();
+        const newItems: DashboardItem[] = data.items
+            .map((item): DashboardItem | null => {
+                const meta = comps.find(c => c.id === item.componentId);
+                if (!meta) return null;
                 return {
                     id: item.id,
                     x: item.x,
                     y: item.y,
                     cols: item.cols,
                     rows: item.rows,
-                    content: componentMeta ? componentMeta.component : null,
-                    inputs: item.inputs || {},
-                    bindings: item.bindings || {}
+                    content: meta.component,
+                    inputs: item.inputs ?? {},
+                    bindings: item.bindings ?? {},
                 };
-            }).filter((item: DashboardItem) => item.content !== null);
+            })
+            .filter((item): item is DashboardItem => item !== null);
 
-            this.items.set(newItems);
-            this.selectedItemId.set(null);
-            this.instanceMap.set(new Map());
-
-        } catch (err) {
-            console.error('Failed to parse layout file:', err);
-            alert('Failed to parse layout file');
-        }
+        this.items.set(newItems);
+        this.selectedItemId.set(null);
+        this.instanceMap.set(new Map());
     }
 
     clearBoard() {
