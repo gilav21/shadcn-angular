@@ -14,7 +14,7 @@ const ANIMATION_COMPONENTS = new Set([
 
 const KANBAN_COMPONENTS = new Set(['kanban']);
 
-const LAYOUT_COMPONENTS = new Set(['bento-grid', 'page-builder']);
+const LAYOUT_COMPONENTS = new Set(['bento-grid', 'page-builder', 'page-renderer']);
 
 function categorize(name: string): Category {
   if (!(name in registry)) return 'UI';

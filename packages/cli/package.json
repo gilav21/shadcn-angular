@@ -1,6 +1,6 @@
 {
     "name": "@gilav21/shadcn-angular",
-    "version": "0.0.27",
+    "version": "0.0.28",
     "description": "CLI for adding shadcn-angular components to your project",
     "bin": {
         "shadcn-angular": "./dist/index.js"
@@ -10,7 +10,9 @@
     "scripts": {
         "build": "tsc",
         "dev": "tsc --watch",
-        "start": "node dist/index.js"
+        "start": "node dist/index.js",
+        "sync-registry": "tsx scripts/sync-registry.ts",
+        "sync-registry:fix": "tsx scripts/sync-registry.ts --fix"
     },
     "keywords": [
         "angular",
