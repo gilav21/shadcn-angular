@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PageBuilderComponent } from './page-builder.component';
-import { ComponentMeta } from './page-builder.types';
+import { ComponentMeta, PageBuilderViewMode, PageData } from './page-builder.types';
 import { By } from '@angular/platform-browser';
 import { BentoGridComponent } from '../bento-grid.component';
 import { Component } from '@angular/core';
@@ -98,5 +98,62 @@ describe('PageBuilderComponent', () => {
 
         expect(component.items().length).toBe(0);
         expect(component.selectedItemId()).toBeNull();
+    });
+
+    it('should default gridRowHeight to 20px and gridSquareCells to true', () => {
+        expect(component.gridRowHeight()).toBe('20px');
+        expect(component.gridSquareCells()).toBe(true);
+    });
+
+    it('should show the Save button by default and hide the Export button', () => {
+        const saveBtn = fixture.debugElement.query(By.css('button[title="Save Layout"]'));
+        const exportBtn = fixture.debugElement.query(By.css('button[title="Export Layout as File"]'));
+        expect(saveBtn).toBeTruthy();
+        expect(exportBtn).toBeNull();
+    });
+
+    it('should show the Export button when enableExport is true', () => {
+        fixture.componentRef.setInput('enableExport', true);
+        fixture.detectChanges();
+        const exportBtn = fixture.debugElement.query(By.css('button[title="Export Layout as File"]'));
+        expect(exportBtn).toBeTruthy();
+    });
+
+    it('should hide the Save button when enableSave is false', () => {
+        fixture.componentRef.setInput('enableSave', false);
+        fixture.detectChanges();
+        const saveBtn = fixture.debugElement.query(By.css('button[title="Save Layout"]'));
+        expect(saveBtn).toBeNull();
+    });
+
+    it('should emit (save) with the current layout when Save is clicked', () => {
+        component.addItem(mockComponents[0]);
+        fixture.detectChanges();
+
+        let emitted: PageData | undefined;
+        component.save.subscribe((payload: PageData) => { emitted = payload; });
+
+        const saveBtn = fixture.debugElement.query(By.css('button[title="Save Layout"]'));
+        saveBtn.nativeElement.click();
+
+        expect(emitted).toBeDefined();
+        expect(emitted!.items.length).toBe(1);
+        expect(emitted!.items[0].componentId).toBe('mock-widget');
+        expect(emitted!.grid.rowHeight).toBe('20px');
+        expect(emitted!.grid.squareCells).toBe(true);
+        expect(typeof emitted!.timestamp).toBe('string');
+    });
+
+    it('should emit (viewModeChange) when toggling view mode', () => {
+        const emitted: PageBuilderViewMode[] = [];
+        component.viewModeChange.subscribe((mode: PageBuilderViewMode) => emitted.push(mode));
+
+        component.toggleViewMode();
+        expect(component.viewMode()).toBe('preview');
+        expect(emitted).toEqual(['preview']);
+
+        component.toggleViewMode();
+        expect(component.viewMode()).toBe('edit');
+        expect(emitted).toEqual(['preview', 'edit']);
     });
 });

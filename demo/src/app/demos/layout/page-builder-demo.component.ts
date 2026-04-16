@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import {
   AccordionComponent,
   BadgeComponent,
@@ -11,6 +11,8 @@ import {
   InputComponent,
   PageBuilderComponent,
   ComponentMeta,
+  PageBuilderViewMode,
+  PageData,
   ProgressComponent,
   RadioGroupComponent,
   RatingComponent,
@@ -33,12 +35,77 @@ import {
 @Component({
   selector: 'app-page-builder-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [PageBuilderComponent],
+  imports: [PageBuilderComponent, CodeBlockComponent],
   template: `
-    <ui-page-builder [components]="pageBuilderComponents()" />
+    <ui-page-builder
+      [components]="pageBuilderComponents()"
+      [enableSave]="true"
+      [enableExport]="true"
+      (save)="onSave($event)"
+      (viewModeChange)="onViewModeChange($event)"
+    />
+
+    <aside
+      class="fixed left-0 right-0 bottom-0 z-40 bg-card border-t border-border shadow-xl flex flex-col transition-[height,transform] duration-300 ease-out"
+      [style.height.px]="panelOpen() ? 288 : 40"
+    >
+      <button
+        type="button"
+        (click)="togglePanel()"
+        class="h-10 shrink-0 px-4 flex items-center justify-between border-b border-border/60 bg-background/80 backdrop-blur hover:bg-accent hover:text-accent-foreground transition-colors"
+        [attr.aria-expanded]="panelOpen()"
+      >
+        <span class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Saved Layout (from (save) output)
+          @if (savedAt(); as at) {
+            <span class="normal-case tracking-normal font-normal text-[11px] text-muted-foreground/80">
+              · saved {{ at }} · view mode: {{ viewMode() }}
+            </span>
+          }
+        </span>
+        <span class="text-[11px] text-muted-foreground">
+          {{ panelOpen() ? 'Hide' : 'Show' }}
+        </span>
+      </button>
+      @if (panelOpen()) {
+        <div class="flex-1 min-h-0 overflow-auto">
+          @if (savedJson(); as json) {
+            <ui-code-block [code]="json" language="json" class="block" />
+          } @else {
+            <div class="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
+              Click "Save" in the toolbar to capture the layout JSON here.
+            </div>
+          }
+        </div>
+      }
+    </aside>
   `,
 })
 export class PageBuilderDemoComponent {
+  readonly savedLayout = signal<PageData | null>(null);
+  readonly savedAt = signal<string | null>(null);
+  readonly viewMode = signal<PageBuilderViewMode>('edit');
+  readonly panelOpen = signal<boolean>(false);
+
+  readonly savedJson = computed(() => {
+    const layout = this.savedLayout();
+    return layout ? JSON.stringify(layout, null, 2) : '';
+  });
+
+  onSave(layout: PageData) {
+    this.savedLayout.set(layout);
+    this.savedAt.set(new Date().toLocaleTimeString());
+    this.panelOpen.set(true);
+  }
+
+  onViewModeChange(mode: PageBuilderViewMode) {
+    this.viewMode.set(mode);
+  }
+
+  togglePanel() {
+    this.panelOpen.update(v => !v);
+  }
+
   readonly pageBuilderComponents = signal<ComponentMeta[]>([
     {
       id: 'card',

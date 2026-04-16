@@ -2,6 +2,8 @@ import { Type } from '@angular/core';
 
 export type InputType = 'string' | 'number' | 'boolean' | 'select' | 'json' | 'color';
 
+export type PageBuilderViewMode = 'edit' | 'preview';
+
 export interface InputDefinition {
     name: string;
     type: InputType;

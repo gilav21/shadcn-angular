@@ -65,6 +65,16 @@ type Story = StoryObj<PageBuilderComponent>;
 
 export const Default: Story = {
     args: {
-        components: mockComponents
+        components: mockComponents,
+        enableSave: true,
+        enableExport: false
+    },
+};
+
+export const WithExport: Story = {
+    args: {
+        components: mockComponents,
+        enableSave: true,
+        enableExport: true
     },
 };

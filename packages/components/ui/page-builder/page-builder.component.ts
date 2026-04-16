@@ -2,6 +2,7 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
+    output,
     signal,
     computed,
     effect,
@@ -18,6 +19,8 @@ import {
     ComponentMeta,
     InputDefinition,
     InputType,
+    PageBuilderViewMode,
+    PageData,
     WindowWithFileSystem
 } from './page-builder.types';
 import { FormsModule } from '@angular/forms';
@@ -96,8 +99,8 @@ import { IconComponent } from '../icon.component';
                             </button>
                         </div>
 
-                        <button 
-                            (click)="viewMode.set(viewMode() === 'edit' ? 'preview' : 'edit')"
+                        <button
+                            (click)="toggleViewMode()"
                             class="h-9 px-3 rounded-md hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm transition-colors"
                             [class.bg-accent]="viewMode() === 'preview'"
                             [title]="viewMode() === 'preview' ? 'Switch to Edit Mode' : 'Switch to Preview Mode'"
@@ -106,7 +109,7 @@ import { IconComponent } from '../icon.component';
                             <span>{{ viewMode() === 'preview' ? 'Edit' : 'Preview' }}</span>
                         </button>
                         <div class="h-4 w-px bg-border mx-2"></div>
-                        <button 
+                        <button
                             (click)="clearBoard()"
                             class="h-9 px-3 rounded-md hover:bg-destructive/10 hover:text-destructive flex items-center gap-2 text-sm transition-colors"
                             title="Clear Board"
@@ -114,7 +117,7 @@ import { IconComponent } from '../icon.component';
                             <ui-icon name="trash-2" class="h-4 w-4"></ui-icon>
                             <span>Clear</span>
                         </button>
-                        <button 
+                        <button
                             (click)="importJson()"
                             class="h-9 px-3 rounded-md hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm transition-colors mr-2"
                             title="Import Layout"
@@ -122,13 +125,26 @@ import { IconComponent } from '../icon.component';
                             <ui-icon name="upload" class="h-4 w-4"></ui-icon>
                             Import
                         </button>
-                        <button 
-                            (click)="exportJson()"
-                            class="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
-                        >
-                            <ui-icon name="download" class="h-4 w-4"></ui-icon>
-                            Export
-                        </button>
+                        @if (enableSave()) {
+                            <button
+                                (click)="saveJson()"
+                                class="h-9 px-4 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
+                                title="Save Layout"
+                            >
+                                <ui-icon name="save" class="h-4 w-4"></ui-icon>
+                                Save
+                            </button>
+                        }
+                        @if (enableExport()) {
+                            <button
+                                (click)="exportJson()"
+                                class="h-9 px-4 rounded-md border border-border bg-background hover:bg-accent hover:text-accent-foreground flex items-center gap-2 text-sm font-medium transition-colors shadow-sm"
+                                title="Export Layout as File"
+                            >
+                                <ui-icon name="download" class="h-4 w-4"></ui-icon>
+                                Export
+                            </button>
+                        }
                     </div>
                 </header>
 
@@ -339,7 +355,17 @@ export class PageBuilderComponent {
     class = input('');
     components = input<ComponentMeta[]>([]);
 
-    viewMode = signal<'edit' | 'preview'>('edit');
+    /** Show the "Save" button in the toolbar. Clicking it emits the current layout via the (save) output. Default: true. */
+    readonly enableSave = input<boolean>(true);
+    /** Show the "Export" button in the toolbar. Clicking it downloads the current layout as a JSON file. Default: false. */
+    readonly enableExport = input<boolean>(false);
+
+    /** Emits the current layout (grid settings + items) when the user clicks the Save button. */
+    readonly save = output<PageData>();
+    /** Emits whenever the view mode changes between 'edit' and 'preview'. */
+    readonly viewModeChange = output<PageBuilderViewMode>();
+
+    viewMode = signal<PageBuilderViewMode>('edit');
     items = signal<DashboardItem[]>([]);
     selectedItemId = signal<string | null>(null);
     instanceMap = signal<Map<string, any>>(new Map());
@@ -347,14 +373,14 @@ export class PageBuilderComponent {
 
 
 
-    gridRowHeight = signal<string>('120px');
+    gridRowHeight = signal<string>('20px');
     gridColumnWidth = signal<string>('1fr');
     gridCols = signal<number>(12);
     gridGap = signal<string>('1.5rem');
     gridShowBorders = signal<boolean>(true);
     gridBorderRadius = signal<string>('0.75rem');
     gridItemPadding = signal<string>('1rem');
-    gridSquareCells = signal<boolean>(false);
+    gridSquareCells = signal<boolean>(true);
 
 
 
@@ -532,8 +558,19 @@ export class PageBuilderComponent {
         }
     }
 
-    async exportJson() {
-        const data = {
+    toggleViewMode() {
+        const next: PageBuilderViewMode = this.viewMode() === 'edit' ? 'preview' : 'edit';
+        this.viewMode.set(next);
+        this.viewModeChange.emit(next);
+    }
+
+    /** Emits the current layout via the (save) output. */
+    saveJson() {
+        this.save.emit(this.buildLayout());
+    }
+
+    private buildLayout(): PageData {
+        return {
             grid: {
                 cols: this.gridCols(),
                 rowHeight: this.gridRowHeight(),
@@ -550,12 +587,16 @@ export class PageBuilderComponent {
                 y: item.y,
                 cols: item.cols,
                 rows: item.rows,
-                componentId: this.getComponentMeta(item)?.id,
+                componentId: this.getComponentMeta(item)?.id ?? '',
                 inputs: item.inputs,
                 bindings: item.bindings
             })),
             timestamp: new Date().toISOString()
         };
+    }
+
+    async exportJson() {
+        const data = this.buildLayout();
 
         const fileName = `page-builder-export.json`;
         const jsonString = JSON.stringify(data, null, 2);
