@@ -144,6 +144,57 @@ describe('PageBuilderComponent', () => {
         expect(typeof emitted!.timestamp).toBe('string');
     });
 
+    it('should load initial state from [data] input', () => {
+        const initial: PageData = {
+            grid: {
+                cols: 8,
+                rowHeight: '40px',
+                columnWidth: '40px',
+                gap: '2rem',
+                showBorders: false,
+                borderRadius: '1rem',
+                itemPadding: '0.5rem',
+                squareCells: true,
+            },
+            items: [
+                { id: 'seed-1', x: 1, y: 2, cols: 3, rows: 3, componentId: 'mock-widget', inputs: { label: 'hello' } },
+            ],
+        };
+
+        fixture.componentRef.setInput('data', initial);
+        fixture.detectChanges();
+
+        expect(component.gridCols()).toBe(8);
+        expect(component.gridRowHeight()).toBe('40px');
+        expect(component.gridGap()).toBe('2rem');
+        expect(component.items().length).toBe(1);
+        const loaded = component.items()[0];
+        expect(loaded.id).toBe('seed-1');
+        expect(loaded.content).toBe(MockWidgetComponent);
+        expect(loaded.inputs?.['label']).toBe('hello');
+    });
+
+    it('should re-apply layout when [data] input reference changes', () => {
+        const first: PageData = {
+            grid: { cols: 12, rowHeight: '20px', columnWidth: '20px', gap: '1rem', showBorders: true, borderRadius: '0.5rem', itemPadding: '1rem', squareCells: true },
+            items: [{ id: 'a', x: 0, y: 0, cols: 2, rows: 2, componentId: 'mock-widget' }],
+        };
+        fixture.componentRef.setInput('data', first);
+        fixture.detectChanges();
+        expect(component.items().map(i => i.id)).toEqual(['a']);
+
+        const second: PageData = {
+            ...first,
+            items: [
+                { id: 'b', x: 0, y: 0, cols: 2, rows: 2, componentId: 'mock-widget' },
+                { id: 'c', x: 2, y: 0, cols: 2, rows: 2, componentId: 'mock-widget' },
+            ],
+        };
+        fixture.componentRef.setInput('data', second);
+        fixture.detectChanges();
+        expect(component.items().map(i => i.id)).toEqual(['b', 'c']);
+    });
+
     it('should emit (viewModeChange) when toggling view mode', () => {
         const emitted: PageBuilderViewMode[] = [];
         component.viewModeChange.subscribe((mode: PageBuilderViewMode) => emitted.push(mode));
