@@ -1,61 +1,61 @@
 {
-    "name": "shadcn-angular",
-    "version": "0.0.1",
-    "description": "Angular port of shadcn/ui - beautifully designed components",
-    "private": true,
-    "workspaces": [
-        "packages/*",
-        "demo"
-    ],
-    "scripts": {
-        "build:cli": "cd packages/cli && npm run build",
-        "publish:cli": "cd packages/cli && npm version patch && npm publish",
-        "build:demo": "cd demo && npm run build",
-        "dev": "cd demo && npm run start",
-        "test": "vitest",
-        "test:headless": "vitest --config vitest.config.headless.ts",
-        "test:ci": "HEADLESS=1 vitest --run",
-        "storybook": "npm run docs:json && ng run demo:storybook",
-        "build-storybook": "npm run docs:json && ng run demo:build-storybook",
-        "test-visual": "vitest --browser=chromium",
-        "test:cli": "vitest --config vitest.config.cli.ts",
-        "docs:json": "compodoc -p tsconfig.json -e json -d ."
-    },
-    "keywords": [
-        "angular",
-        "shadcn",
-        "ui",
-        "components",
-        "tailwind"
-    ],
-    "author": "",
-    "license": "MIT",
-    "devDependencies": {
-        "@analogjs/platform": "^2.2.1",
-        "@analogjs/vite-plugin-angular": "^2.2.1",
-        "@analogjs/vitest-angular": "^2.2.1",
-        "@compodoc/compodoc": "^1.1.32",
-        "@storybook/addon-a11y": "^10.1.11",
-        "@storybook/addon-docs": "^10.1.11",
-        "@storybook/addon-onboarding": "^10.1.11",
-        "@storybook/angular": "^10.1.11",
-        "@storybook/test-runner": "^0.24.2",
-        "@tailwindcss/postcss": "^4.1.18",
-        "@vitest/browser": "^4.0.17",
-        "@vitest/browser-playwright": "^4.0.17",
-        "axe-playwright": "^2.2.2",
-        "esbuild": "^0.27.2",
-        "jsdom": "^27.4.0",
-        "playwright": "^1.57.0",
-        "postcss": "^8.5.6",
-        "rollup": "^4.60.1",
-        "storybook": "^10.3.5",
-        "tailwindcss": "^4.1.18",
-        "typescript": "~5.9.2",
-        "vite": "^7.3.2",
-        "vitest": "^4.0.17"
-    },
-    "dependencies": {
-        "lightningcss": "^1.30.2"
-    }
+  "name": "shadcn-angular",
+  "version": "0.0.1",
+  "description": "Angular port of shadcn/ui - beautifully designed components",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "demo"
+  ],
+  "scripts": {
+    "build:cli": "cd packages/cli && npm run build",
+    "publish:cli": "cd packages/cli && npm version patch && npm publish",
+    "build:demo": "cd demo && npm run build",
+    "dev": "cd demo && npm run start",
+    "test": "vitest",
+    "test:headless": "vitest --config vitest.config.headless.ts",
+    "test:ci": "HEADLESS=1 vitest --run",
+    "storybook": "npm run docs:json && ng run demo:storybook",
+    "build-storybook": "npm run docs:json && ng run demo:build-storybook",
+    "test-visual": "vitest --browser=chromium",
+    "test:cli": "vitest --config vitest.config.cli.ts",
+    "docs:json": "compodoc -p tsconfig.json -e json -d ."
+  },
+  "keywords": [
+    "angular",
+    "shadcn",
+    "ui",
+    "components",
+    "tailwind"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@analogjs/platform": "^2.5.0",
+    "@analogjs/vite-plugin-angular": "^2.5.0",
+    "@analogjs/vitest-angular": "^2.5.0",
+    "@compodoc/compodoc": "^1.1.32",
+    "@storybook/addon-a11y": "^10.1.11",
+    "@storybook/addon-docs": "^10.1.11",
+    "@storybook/addon-onboarding": "^10.1.11",
+    "@storybook/angular": "^10.1.11",
+    "@storybook/test-runner": "^0.24.2",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@vitest/browser": "^4.0.17",
+    "@vitest/browser-playwright": "^4.0.17",
+    "axe-playwright": "^2.2.2",
+    "esbuild": "^0.27.2",
+    "jsdom": "^27.4.0",
+    "playwright": "^1.57.0",
+    "postcss": "^8.5.6",
+    "rollup": "^4.60.1",
+    "storybook": "^10.3.5",
+    "tailwindcss": "^4.1.18",
+    "typescript": "~5.9.2",
+    "vite": "^7.3.2",
+    "vitest": "^4.0.17"
+  },
+  "dependencies": {
+    "lightningcss": "^1.30.2"
+  }
 }
