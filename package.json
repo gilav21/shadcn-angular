@@ -44,7 +44,7 @@
     "@vitest/browser": "^4.0.17",
     "@vitest/browser-playwright": "^4.0.17",
     "axe-playwright": "^2.2.2",
-    "esbuild": "^0.27.2",
+    "esbuild": "0.27.3",
     "jsdom": "^27.4.0",
     "playwright": "^1.57.0",
     "postcss": "^8.5.6",
