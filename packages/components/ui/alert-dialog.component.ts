@@ -4,7 +4,7 @@ import {
     input,
     output,
     computed,
-    signal,
+    model,
     inject,
     AfterViewInit,
     ElementRef,
@@ -20,23 +20,18 @@ import { cn } from '../lib/utils';
     host: { class: 'contents' },
 })
 export class AlertDialogComponent {
-    open = signal(false);
-    openChange = output<boolean>();
+    open = model(false);
 
     show() {
         this.open.set(true);
-        this.openChange.emit(true);
     }
 
     hide() {
         this.open.set(false);
-        this.openChange.emit(false);
     }
 
     toggle() {
-        const newState = !this.open();
-        this.open.set(newState);
-        this.openChange.emit(newState);
+        this.open.update(v => !v);
     }
 }
 
