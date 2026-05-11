@@ -222,6 +222,83 @@ describe('CodeBlockComponent', () => {
             );
             expect(tagSpan).toBeTruthy();
         });
+
+        describe('xml language', () => {
+            function setXml(code: string) {
+                fixture.componentRef.setInput('language', 'xml');
+                fixture.componentRef.setInput('code', code);
+                fixture.detectChanges();
+            }
+
+            function findSpan(text: string) {
+                return fixture.debugElement
+                    .queryAll(By.css('code span'))
+                    .filter(s => !s.nativeElement.querySelector('span'))
+                    .find(s => s.nativeElement.textContent === text);
+            }
+
+            it('tokenizes the XML prolog as a decorator', () => {
+                setXml('<?xml version="1.0"?>');
+                const span = findSpan('<?xml version="1.0"?>');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('text-yellow-400');
+            });
+
+            it('tokenizes namespaced tag names', () => {
+                setXml('<soap:Envelope>');
+                const span = findSpan('<soap:Envelope');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('text-pink-400');
+            });
+
+            it('tokenizes attribute names with namespaces', () => {
+                setXml('<root xmlns:xsi="http://example.com"></root>');
+                const span = findSpan('xmlns:xsi');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('text-blue-400');
+            });
+
+            it('tokenizes single- and double-quoted attribute values', () => {
+                setXml(`<a href="x" title='y'/>`);
+                expect(findSpan('"x"')).toBeTruthy();
+                expect(findSpan("'y'")).toBeTruthy();
+            });
+
+            it('tokenizes entity references', () => {
+                setXml('<p>a &amp; b &#10; c &#xA;</p>');
+                const amp = findSpan('&amp;');
+                const decimal = findSpan('&#10;');
+                const hex = findSpan('&#xA;');
+                expect(amp).toBeTruthy();
+                expect(decimal).toBeTruthy();
+                expect(hex).toBeTruthy();
+                expect(amp!.nativeElement.className).toContain('font-bold');
+            });
+
+            it('tokenizes <!DOCTYPE> and CDATA blocks as decorators', () => {
+                setXml('<!DOCTYPE note><root><![CDATA[<raw>data</raw>]]></root>');
+                const doctype = findSpan('<!DOCTYPE note>');
+                const cdata = findSpan('<![CDATA[<raw>data</raw>]]>');
+                expect(doctype).toBeTruthy();
+                expect(cdata).toBeTruthy();
+                expect(doctype!.nativeElement.className).toContain('text-yellow-400');
+                expect(cdata!.nativeElement.className).toContain('text-yellow-400');
+            });
+
+            it('tokenizes XML comments', () => {
+                setXml('<!-- a comment -->');
+                const span = findSpan('<!-- a comment -->');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('italic');
+            });
+
+            it('tokenizes numbers inside element text', () => {
+                setXml('<v>42</v>');
+                const span = findSpan('42');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('text-orange-400');
+            });
+        });
     });
 
     describe('language fallback', () => {
@@ -364,6 +441,22 @@ describe('CodeBlockComponent', () => {
             fixture.componentRef.setInput('collapseScope', true);
             fixture.detectChanges();
             expect(chevrons(fixture).length).toBe(1);
+        });
+
+        it('detects XML tag-pair scopes including namespaced tags', () => {
+            const xmlSrc = [
+                '<soap:Envelope>',
+                '  <soap:Body>',
+                '    <getStock>IBM</getStock>',
+                '  </soap:Body>',
+                '</soap:Envelope>',
+            ].join('\n');
+
+            fixture.componentRef.setInput('language', 'xml');
+            fixture.componentRef.setInput('code', xmlSrc);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(chevrons(fixture).length).toBe(2);
         });
 
         it('detects JSON scopes via braces and brackets', () => {
@@ -574,6 +667,15 @@ describe('CodeBlockComponent', () => {
             ]);
             expect(ranges).toContainEqual({ startLine: 0, endLine: 3, depth: 0 });
             expect(ranges).toContainEqual({ startLine: 1, endLine: 2, depth: 1 });
+        });
+
+        it('tagScopeDetector pairs namespaced XML tags', () => {
+            const ranges = tagScopeDetector([
+                '<a:root>',
+                '  <a:child/>',
+                '</a:root>',
+            ]);
+            expect(ranges).toContainEqual({ startLine: 0, endLine: 2, depth: 0 });
         });
 
         it('tagScopeDetector matches paired tags and skips void tags', () => {

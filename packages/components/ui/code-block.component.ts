@@ -292,6 +292,15 @@ export class CodeBlockComponent {
             { type: 'attr', regex: /[a-z0-9-]+(?==)/i },
             { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
         ],
+        xml: [
+            { type: 'comment', regex: /<!--[\s\S]*?-->/ },
+            { type: 'decorator', regex: /<\?xml[\s\S]*?\?>|<!\[CDATA\[[\s\S]*?\]\]>|<!DOCTYPE[^>]*>/i },
+            { type: 'string', regex: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/ },
+            { type: 'tag', regex: /<\/?[a-zA-Z_][\w.\-:]*/ },
+            { type: 'attr', regex: /[a-zA-Z_][\w.\-:]*(?==)/ },
+            { type: 'keyword', regex: /&(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);/ },
+            { type: 'number', regex: /\b\d+\b/ },
+        ],
         css: [
             { type: 'comment', regex: /\/\*[\s\S]*?\*\// },
             { type: 'selector', regex: /[.#]?[a-zA-Z0-9_-]+(?=\{)/ },

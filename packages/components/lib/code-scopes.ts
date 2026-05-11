@@ -120,7 +120,7 @@ export const indentScopeDetector: ScopeDetector = (lines) => {
     return ranges;
 };
 
-const TAG_TOKEN_REGEX = /<\/?([a-zA-Z][\w-]*)\b[^>]*?(\/?)>/g;
+const TAG_TOKEN_REGEX = /<\/?([a-zA-Z_][\w.\-:]*)\b[^>]*?(\/?)>/g;
 const VOID_HTML_TAGS = new Set([
     'area', 'base', 'br', 'col', 'embed', 'hr', 'img', 'input',
     'link', 'meta', 'source', 'track', 'wbr',
@@ -161,4 +161,5 @@ export const BUILTIN_SCOPE_DETECTORS: Readonly<Record<string, ScopeDetector>> = 
     python: indentScopeDetector,
     yaml: indentScopeDetector,
     html: tagScopeDetector,
+    xml: tagScopeDetector,
 };

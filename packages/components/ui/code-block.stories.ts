@@ -41,6 +41,26 @@ const jsonCode = `{
   }
 }`;
 
+const xmlCode = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- Maven project descriptor -->
+<!DOCTYPE project>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>demo</artifactId>
+  <version>1.0.0</version>
+  <description>A sample project &amp; build descriptor.</description>
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>`;
+
 const meta: Meta<CodeBlockComponent> = {
     title: 'UI/CodeBlock',
     component: CodeBlockComponent,
@@ -53,7 +73,7 @@ const meta: Meta<CodeBlockComponent> = {
     argTypes: {
         language: {
             control: 'select',
-            options: ['typescript', 'javascript', 'python', 'java', 'html', 'css', 'json', 'bash', 'csharp', 'yaml'],
+            options: ['typescript', 'javascript', 'python', 'java', 'html', 'xml', 'css', 'json', 'bash', 'csharp', 'yaml'],
         },
         code: { control: 'text' },
         theme: {
@@ -108,6 +128,17 @@ export const Json: Story = {
     args: {
         code: jsonCode,
         language: 'json',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" />`,
+    }),
+};
+
+export const Xml: Story = {
+    args: {
+        code: xmlCode,
+        language: 'xml',
     },
     render: (args) => ({
         props: args,
@@ -248,6 +279,18 @@ export const FoldableHTML: Story = {
     args: {
         code: foldableHtml,
         language: 'html',
+        collapseScope: true,
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" [collapseScope]="collapseScope" />`,
+    }),
+};
+
+export const FoldableXML: Story = {
+    args: {
+        code: xmlCode,
+        language: 'xml',
         collapseScope: true,
     },
     render: (args) => ({

@@ -26,6 +26,9 @@ import {
       <h3 class="mt-4 font-semibold">HTML</h3>
       <ui-code-block [code]="codeBlockHtml" language="html" />
 
+      <h3 class="mt-4 font-semibold">XML</h3>
+      <ui-code-block [code]="codeBlockXml" language="xml" />
+
       <h3 class="mt-4 font-semibold">CSS</h3>
       <ui-code-block [code]="codeBlockCss" language="css" />
 
@@ -63,6 +66,9 @@ import {
 
       <h4 class="mt-4 font-semibold">HTML &mdash; tag-pair scopes</h4>
       <ui-code-block [code]="foldableHtml" language="html" [collapseScope]="true" />
+
+      <h4 class="mt-4 font-semibold">XML &mdash; tag-pair scopes (namespaced)</h4>
+      <ui-code-block [code]="codeBlockXml" language="xml" [collapseScope]="true" />
 
       <h4 class="mt-4 font-semibold">Custom language &mdash; SQL with BEGIN/END scopes</h4>
       <ui-code-block
@@ -153,6 +159,26 @@ console.log(greeting);`;
     <h1 id="title">Welcome</h1>
     <p data-info="intro">This is a demo.</p>
 </div>`;
+
+  readonly codeBlockXml = `<?xml version="1.0" encoding="UTF-8"?>
+<!-- Maven project descriptor -->
+<!DOCTYPE project>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>com.example</groupId>
+  <artifactId>demo</artifactId>
+  <version>1.0.0</version>
+  <description>A sample project &amp; build descriptor.</description>
+  <dependencies>
+    <dependency>
+      <groupId>org.junit.jupiter</groupId>
+      <artifactId>junit-jupiter</artifactId>
+      <version>5.10.0</version>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>`;
 
   readonly codeBlockCss = `/* Main Container Style */
 .container {
