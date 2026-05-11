@@ -2,6 +2,13 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 import { CodeBlockComponent, CODE_BLOCK_THEMES } from './code-block.component';
+import {
+    braceScopeDetector,
+    braceBracketScopeDetector,
+    indentScopeDetector,
+    tagScopeDetector,
+    type ScopeDetector,
+} from '../lib/code-scopes';
 
 describe('CodeBlockComponent', () => {
     let component: CodeBlockComponent;
@@ -215,6 +222,83 @@ describe('CodeBlockComponent', () => {
             );
             expect(tagSpan).toBeTruthy();
         });
+
+        describe('xml language', () => {
+            function setXml(code: string) {
+                fixture.componentRef.setInput('language', 'xml');
+                fixture.componentRef.setInput('code', code);
+                fixture.detectChanges();
+            }
+
+            function findSpan(text: string) {
+                return fixture.debugElement
+                    .queryAll(By.css('code span'))
+                    .filter(s => !s.nativeElement.querySelector('span'))
+                    .find(s => s.nativeElement.textContent === text);
+            }
+
+            it('tokenizes the XML prolog as a decorator', () => {
+                setXml('<?xml version="1.0"?>');
+                const span = findSpan('<?xml version="1.0"?>');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('text-yellow-400');
+            });
+
+            it('tokenizes namespaced tag names', () => {
+                setXml('<soap:Envelope>');
+                const span = findSpan('<soap:Envelope');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('text-pink-400');
+            });
+
+            it('tokenizes attribute names with namespaces', () => {
+                setXml('<root xmlns:xsi="http://example.com"></root>');
+                const span = findSpan('xmlns:xsi');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('text-blue-400');
+            });
+
+            it('tokenizes single- and double-quoted attribute values', () => {
+                setXml(`<a href="x" title='y'/>`);
+                expect(findSpan('"x"')).toBeTruthy();
+                expect(findSpan("'y'")).toBeTruthy();
+            });
+
+            it('tokenizes entity references', () => {
+                setXml('<p>a &amp; b &#10; c &#xA;</p>');
+                const amp = findSpan('&amp;');
+                const decimal = findSpan('&#10;');
+                const hex = findSpan('&#xA;');
+                expect(amp).toBeTruthy();
+                expect(decimal).toBeTruthy();
+                expect(hex).toBeTruthy();
+                expect(amp!.nativeElement.className).toContain('font-bold');
+            });
+
+            it('tokenizes <!DOCTYPE> and CDATA blocks as decorators', () => {
+                setXml('<!DOCTYPE note><root><![CDATA[<raw>data</raw>]]></root>');
+                const doctype = findSpan('<!DOCTYPE note>');
+                const cdata = findSpan('<![CDATA[<raw>data</raw>]]>');
+                expect(doctype).toBeTruthy();
+                expect(cdata).toBeTruthy();
+                expect(doctype!.nativeElement.className).toContain('text-yellow-400');
+                expect(cdata!.nativeElement.className).toContain('text-yellow-400');
+            });
+
+            it('tokenizes XML comments', () => {
+                setXml('<!-- a comment -->');
+                const span = findSpan('<!-- a comment -->');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('italic');
+            });
+
+            it('tokenizes numbers inside element text', () => {
+                setXml('<v>42</v>');
+                const span = findSpan('42');
+                expect(span).toBeTruthy();
+                expect(span!.nativeElement.className).toContain('text-orange-400');
+            });
+        });
     });
 
     describe('language fallback', () => {
@@ -247,6 +331,363 @@ describe('CodeBlockComponent', () => {
 
             const langLabel = fixture.debugElement.query(By.css('.text-xs.text-zinc-400'));
             expect(langLabel.nativeElement.textContent.trim()).toBe('brainfuck');
+        });
+    });
+
+    describe('collapseScope', () => {
+        const tsCode = [
+            'function greet(name) {',
+            '  const message = "hi";',
+            '  return message + name;',
+            '}',
+            '',
+            'function farewell() {',
+            '  return "bye";',
+            '}',
+        ].join('\n');
+
+        const yamlCode = [
+            'jobs:',
+            '  build:',
+            '    steps:',
+            '      - run: echo hi',
+            '  test:',
+            '    steps:',
+            '      - run: echo bye',
+        ].join('\n');
+
+        const htmlCode = [
+            '<div>',
+            '  <span>inner</span>',
+            '</div>',
+        ].join('\n');
+
+        const jsonCode = [
+            '{',
+            '  "name": "x",',
+            '  "items": [',
+            '    1,',
+            '    2',
+            '  ]',
+            '}',
+        ].join('\n');
+
+        function chevrons(f: ComponentFixture<CodeBlockComponent>) {
+            return f.debugElement.queryAll(By.css('[data-slot="code-block-chevron"][role="button"]'));
+        }
+
+        function collapsedMarkers(f: ComponentFixture<CodeBlockComponent>) {
+            return f.debugElement.queryAll(By.css('[data-slot="code-block-collapsed-marker"]'));
+        }
+
+        function visibleLineCount(f: ComponentFixture<CodeBlockComponent>) {
+            return f.componentInstance.visibleLines().length;
+        }
+
+        it('renders no chevrons when collapseScope is false (default)', () => {
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.detectChanges();
+            expect(chevrons(fixture).length).toBe(0);
+        });
+
+        it('renders one chevron per brace-detected scope in TS', () => {
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(chevrons(fixture).length).toBe(2);
+        });
+
+        it('toggleScope hides interior lines and shows the collapsed marker', () => {
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+
+            const before = visibleLineCount(fixture);
+            component.toggleScope(0);
+            fixture.detectChanges();
+
+            expect(visibleLineCount(fixture)).toBeLessThan(before);
+            expect(component.isCollapsed(0)).toBe(true);
+            expect(collapsedMarkers(fixture).length).toBe(1);
+
+            component.toggleScope(0);
+            fixture.detectChanges();
+            expect(visibleLineCount(fixture)).toBe(before);
+            expect(component.isCollapsed(0)).toBe(false);
+        });
+
+        it('clicking the chevron toggles the scope', () => {
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+
+            const firstChevron = chevrons(fixture)[0];
+            firstChevron.nativeElement.click();
+            fixture.detectChanges();
+            expect(component.isCollapsed(0)).toBe(true);
+        });
+
+        it('detects YAML scopes via indentation', () => {
+            fixture.componentRef.setInput('language', 'yaml');
+            fixture.componentRef.setInput('code', yamlCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(chevrons(fixture).length).toBeGreaterThan(0);
+        });
+
+        it('detects HTML scopes via tag pairs', () => {
+            fixture.componentRef.setInput('language', 'html');
+            fixture.componentRef.setInput('code', htmlCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(chevrons(fixture).length).toBe(1);
+        });
+
+        it('detects XML tag-pair scopes including namespaced tags', () => {
+            const xmlSrc = [
+                '<soap:Envelope>',
+                '  <soap:Body>',
+                '    <getStock>IBM</getStock>',
+                '  </soap:Body>',
+                '</soap:Envelope>',
+            ].join('\n');
+
+            fixture.componentRef.setInput('language', 'xml');
+            fixture.componentRef.setInput('code', xmlSrc);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(chevrons(fixture).length).toBe(2);
+        });
+
+        it('detects JSON scopes via braces and brackets', () => {
+            fixture.componentRef.setInput('language', 'json');
+            fixture.componentRef.setInput('code', jsonCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(chevrons(fixture).length).toBe(2);
+        });
+
+        it('seeds initial collapsed state from defaultCollapsed=0', () => {
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.componentRef.setInput('defaultCollapsed', 0);
+            fixture.detectChanges();
+
+            expect(component.isCollapsed(0)).toBe(true);
+            expect(component.isCollapsed(5)).toBe(true);
+            expect(collapsedMarkers(fixture).length).toBe(2);
+        });
+
+        it('does not collapse outermost scopes when defaultCollapsed=1', () => {
+            fixture.componentRef.setInput('language', 'json');
+            fixture.componentRef.setInput('code', jsonCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.componentRef.setInput('defaultCollapsed', 1);
+            fixture.detectChanges();
+
+            expect(component.isCollapsed(0)).toBe(false);
+            expect(component.isCollapsed(2)).toBe(true);
+        });
+
+        it('uses scopes detector from a custom language config', () => {
+            const customScopes: ScopeDetector = (lines) => {
+                const ranges: { startLine: number; endLine: number; depth: number }[] = [];
+                let start = -1;
+                for (let i = 0; i < lines.length; i++) {
+                    if (/^BEGIN/.test(lines[i])) { start = i; }
+                    else if (/^END/.test(lines[i]) && start !== -1) {
+                        ranges.push({ startLine: start, endLine: i, depth: 0 });
+                        start = -1;
+                    }
+                }
+                return ranges;
+            };
+
+            fixture.componentRef.setInput('language', 'mylang');
+            fixture.componentRef.setInput('code', 'BEGIN\nbody1\nbody2\nEND');
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.componentRef.setInput('customLanguages', {
+                mylang: { patterns: [], scopes: customScopes },
+            });
+            fixture.detectChanges();
+
+            expect(chevrons(fixture).length).toBe(1);
+            component.toggleScope(0);
+            fixture.detectChanges();
+            expect(visibleLineCount(fixture)).toBe(1);
+        });
+
+        it('renders no chevrons for languages without a detector', () => {
+            fixture.componentRef.setInput('language', 'brainfuck');
+            fixture.componentRef.setInput('code', '+++[->+++<]\n+++');
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(chevrons(fixture).length).toBe(0);
+        });
+
+        it('clears collapsed state when collapseScope is turned off', () => {
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.componentRef.setInput('defaultCollapsed', 0);
+            fixture.detectChanges();
+            expect(component.isCollapsed(0)).toBe(true);
+
+            fixture.componentRef.setInput('collapseScope', false);
+            fixture.detectChanges();
+            expect(component.isCollapsed(0)).toBe(false);
+        });
+    });
+
+    describe('lineNumbers', () => {
+        const sample = ['line one', 'line two', 'line three'].join('\n');
+
+        function lineNumberEls(f: ComponentFixture<CodeBlockComponent>) {
+            return f.debugElement.queryAll(By.css('[data-slot="code-block-line-number"]'));
+        }
+
+        it('renders one line number per line by default', () => {
+            fixture.componentRef.setInput('code', sample);
+            fixture.detectChanges();
+
+            const els = lineNumberEls(fixture);
+            expect(els.length).toBe(3);
+            expect(els.map(e => e.nativeElement.textContent.trim())).toEqual(['1', '2', '3']);
+        });
+
+        it('omits line numbers when lineNumbers is false', () => {
+            fixture.componentRef.setInput('code', sample);
+            fixture.componentRef.setInput('lineNumbers', false);
+            fixture.detectChanges();
+
+            expect(lineNumberEls(fixture).length).toBe(0);
+        });
+
+        it('hides line numbers for lines inside a collapsed scope', () => {
+            const tsCode = [
+                'function greet() {',
+                '  const a = 1;',
+                '  const b = 2;',
+                '}',
+            ].join('\n');
+
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(lineNumberEls(fixture).length).toBe(4);
+
+            component.toggleScope(0);
+            fixture.detectChanges();
+            const visible = lineNumberEls(fixture).map(e => e.nativeElement.textContent.trim());
+            expect(visible).toEqual(['1']);
+        });
+
+        it('preserves source line numbers across a collapsed scope', () => {
+            const tsCode = [
+                'function greet() {',   // 1
+                '  const a = 1;',       // 2 (hidden)
+                '  const b = 2;',       // 3 (hidden)
+                '}',                    // 4 (hidden, end of scope)
+                '',                     // 5
+                'const z = 99;',        // 6
+            ].join('\n');
+
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            component.toggleScope(0);
+            fixture.detectChanges();
+
+            const visible = lineNumberEls(fixture).map(e => e.nativeElement.textContent.trim());
+            expect(visible).toEqual(['1', '5', '6']);
+        });
+
+        it('widens the gutter to fit larger line counts', () => {
+            const big = Array.from({ length: 12 }, (_, i) => `row ${i}`).join('\n');
+            fixture.componentRef.setInput('code', big);
+            fixture.detectChanges();
+            expect(component.lineNumberWidth()).toBe('2ch');
+        });
+
+        it('marks line numbers as decorative for screen readers', () => {
+            fixture.componentRef.setInput('code', sample);
+            fixture.detectChanges();
+
+            const first = lineNumberEls(fixture)[0];
+            expect(first.nativeElement.getAttribute('aria-hidden')).toBe('true');
+        });
+    });
+
+    describe('built-in scope detectors', () => {
+        it('braceScopeDetector returns ranges for paired braces', () => {
+            const ranges = braceScopeDetector(['function f() {', '  return 1;', '}']);
+            expect(ranges).toEqual([{ startLine: 0, endLine: 2, depth: 0 }]);
+        });
+
+        it('braceScopeDetector ignores braces inside strings and comments', () => {
+            const ranges = braceScopeDetector([
+                'const a = "{ not a scope }";',
+                '// { also not }',
+                'function f() {',
+                '  return 1;',
+                '}',
+            ]);
+            expect(ranges).toEqual([{ startLine: 2, endLine: 4, depth: 0 }]);
+        });
+
+        it('braceScopeDetector tracks nested depth', () => {
+            const ranges = braceScopeDetector([
+                'class A {',
+                '  m() {',
+                '    return 1;',
+                '  }',
+                '}',
+            ]);
+            expect(ranges).toContainEqual({ startLine: 0, endLine: 4, depth: 0 });
+            expect(ranges).toContainEqual({ startLine: 1, endLine: 3, depth: 1 });
+        });
+
+        it('braceBracketScopeDetector handles both braces and brackets', () => {
+            const ranges = braceBracketScopeDetector([
+                '{',
+                '  "items": [',
+                '    1',
+                '  ]',
+                '}',
+            ]);
+            expect(ranges).toContainEqual({ startLine: 0, endLine: 4, depth: 0 });
+            expect(ranges).toContainEqual({ startLine: 1, endLine: 3, depth: 1 });
+        });
+
+        it('indentScopeDetector returns ranges based on indentation', () => {
+            const ranges = indentScopeDetector([
+                'a:',
+                '  b:',
+                '    c: 1',
+                '  d: 2',
+            ]);
+            expect(ranges).toContainEqual({ startLine: 0, endLine: 3, depth: 0 });
+            expect(ranges).toContainEqual({ startLine: 1, endLine: 2, depth: 1 });
+        });
+
+        it('tagScopeDetector pairs namespaced XML tags', () => {
+            const ranges = tagScopeDetector([
+                '<a:root>',
+                '  <a:child/>',
+                '</a:root>',
+            ]);
+            expect(ranges).toContainEqual({ startLine: 0, endLine: 2, depth: 0 });
+        });
+
+        it('tagScopeDetector matches paired tags and skips void tags', () => {
+            const ranges = tagScopeDetector([
+                '<div>',
+                '  <img src="x" />',
+                '  <br>',
+                '  <span>hi</span>',
+                '</div>',
+            ]);
+            expect(ranges).toContainEqual({ startLine: 0, endLine: 4, depth: 0 });
+            expect(ranges.every(r => !(r.startLine === 1 && r.endLine === 1))).toBe(true);
         });
     });
 });
