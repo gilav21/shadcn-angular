@@ -445,6 +445,85 @@ describe('CodeBlockComponent', () => {
         });
     });
 
+    describe('lineNumbers', () => {
+        const sample = ['line one', 'line two', 'line three'].join('\n');
+
+        function lineNumberEls(f: ComponentFixture<CodeBlockComponent>) {
+            return f.debugElement.queryAll(By.css('[data-slot="code-block-line-number"]'));
+        }
+
+        it('renders one line number per line by default', () => {
+            fixture.componentRef.setInput('code', sample);
+            fixture.detectChanges();
+
+            const els = lineNumberEls(fixture);
+            expect(els.length).toBe(3);
+            expect(els.map(e => e.nativeElement.textContent.trim())).toEqual(['1', '2', '3']);
+        });
+
+        it('omits line numbers when lineNumbers is false', () => {
+            fixture.componentRef.setInput('code', sample);
+            fixture.componentRef.setInput('lineNumbers', false);
+            fixture.detectChanges();
+
+            expect(lineNumberEls(fixture).length).toBe(0);
+        });
+
+        it('hides line numbers for lines inside a collapsed scope', () => {
+            const tsCode = [
+                'function greet() {',
+                '  const a = 1;',
+                '  const b = 2;',
+                '}',
+            ].join('\n');
+
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            expect(lineNumberEls(fixture).length).toBe(4);
+
+            component.toggleScope(0);
+            fixture.detectChanges();
+            const visible = lineNumberEls(fixture).map(e => e.nativeElement.textContent.trim());
+            expect(visible).toEqual(['1']);
+        });
+
+        it('preserves source line numbers across a collapsed scope', () => {
+            const tsCode = [
+                'function greet() {',   // 1
+                '  const a = 1;',       // 2 (hidden)
+                '  const b = 2;',       // 3 (hidden)
+                '}',                    // 4 (hidden, end of scope)
+                '',                     // 5
+                'const z = 99;',        // 6
+            ].join('\n');
+
+            fixture.componentRef.setInput('code', tsCode);
+            fixture.componentRef.setInput('collapseScope', true);
+            fixture.detectChanges();
+            component.toggleScope(0);
+            fixture.detectChanges();
+
+            const visible = lineNumberEls(fixture).map(e => e.nativeElement.textContent.trim());
+            expect(visible).toEqual(['1', '5', '6']);
+        });
+
+        it('widens the gutter to fit larger line counts', () => {
+            const big = Array.from({ length: 12 }, (_, i) => `row ${i}`).join('\n');
+            fixture.componentRef.setInput('code', big);
+            fixture.detectChanges();
+            expect(component.lineNumberWidth()).toBe('2ch');
+        });
+
+        it('marks line numbers as decorative for screen readers', () => {
+            fixture.componentRef.setInput('code', sample);
+            fixture.detectChanges();
+
+            const first = lineNumberEls(fixture)[0];
+            expect(first.nativeElement.getAttribute('aria-hidden')).toBe('true');
+        });
+    });
+
     describe('built-in scope detectors', () => {
         it('braceScopeDetector returns ranges for paired braces', () => {
             const ranges = braceScopeDetector(['function f() {', '  return 1;', '}']);

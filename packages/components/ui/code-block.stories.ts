@@ -68,12 +68,14 @@ const meta: Meta<CodeBlockComponent> = {
         },
         collapseScope: { control: 'boolean' },
         defaultCollapsed: { control: { type: 'number', min: 0, max: 5, step: 1 } },
+        lineNumbers: { control: 'boolean' },
     },
     args: {
         language: 'typescript',
         code: typescriptCode,
         theme: null,
         collapseScope: false,
+        lineNumbers: true,
     },
 };
 
@@ -276,5 +278,17 @@ export const FoldableCustom: Story = {
     render: (args) => ({
         props: { ...args, customLanguages: sqlPatterns },
         template: `<ui-code-block [code]="code" [language]="language" [collapseScope]="collapseScope" [customLanguages]="customLanguages" />`,
+    }),
+};
+
+export const NoLineNumbers: Story = {
+    args: {
+        code: typescriptCode,
+        language: 'typescript',
+        lineNumbers: false,
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" [lineNumbers]="lineNumbers" />`,
     }),
 };

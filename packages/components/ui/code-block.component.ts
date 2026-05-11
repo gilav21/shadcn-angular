@@ -108,7 +108,12 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
       </div>
       <div class="p-4 overflow-auto font-mono text-sm bg-zinc-950 text-zinc-50">
         <pre><code [class]="'language-' + language()">@for (line of visibleLines(); track line.index) {<div class="flex items-start"
-          >@if (collapseScope()) {<span
+          >@if (lineNumbers()) {<span
+            class="inline-block mr-3 select-none text-zinc-600 leading-5 text-right tabular-nums"
+            [style.width]="lineNumberWidth()"
+            data-slot="code-block-line-number"
+            aria-hidden="true"
+          >{{ line.index + 1 }}</span>}@if (collapseScope()) {<span
             class="inline-block w-4 mr-2 select-none text-zinc-500 leading-5 text-center"
             [class.cursor-pointer]="line.foldStart !== undefined"
             [class.hover:text-zinc-300]="line.foldStart !== undefined"
@@ -133,8 +138,15 @@ export class CodeBlockComponent {
     readonly customLanguages = input<Record<string, LanguagePattern | LanguageConfig> | null>(null);
     readonly collapseScope = input(false);
     readonly defaultCollapsed = input<number | undefined>(undefined);
+    readonly lineNumbers = input(true);
 
     readonly copied = signal(false);
+
+    readonly lineNumberWidth = computed(() => {
+        const total = this.lineTokens().length;
+        const digits = total > 0 ? Math.floor(Math.log10(total)) + 1 : 1;
+        return `${digits}ch`;
+    });
 
     private readonly collapsed = signal<ReadonlySet<number>>(new Set<number>());
 
@@ -146,8 +158,10 @@ export class CodeBlockComponent {
     private readonly resolvedLanguage = computed(() => this.normalizeLanguage(this.language()));
 
     private readonly lineTokens = computed<Token[][]>(() => {
+        const code = this.code();
+        if (!code) { return []; }
         const patterns = this.resolvedLanguage().patterns;
-        return this.code().split('\n').map(line => this.highlight(line, patterns));
+        return code.split('\n').map(line => this.highlight(line, patterns));
     });
 
     private readonly scopes = computed<ScopeRange[]>(() => {

@@ -72,6 +72,22 @@ import {
         [customLanguages]="sqlWithScopes"
       />
 
+      <h3 class="mt-8 text-xl font-bold">Line Numbers</h3>
+      <p class="text-muted-foreground">
+        On by default. Pass <code>[lineNumbers]="false"</code> to hide the gutter.
+        Numbers stay anchored to the source line, so collapsing a scope leaves the
+        following numbers intact (e.g. 1, 5, 6 if lines 2&ndash;4 are folded).
+      </p>
+
+      <h4 class="mt-4 font-semibold">Default (numbers on)</h4>
+      <ui-code-block [code]="codeBlockSample" language="typescript" />
+
+      <h4 class="mt-4 font-semibold">Numbers + collapse together</h4>
+      <ui-code-block [code]="foldableTypescript" language="typescript" [collapseScope]="true" />
+
+      <h4 class="mt-4 font-semibold">Numbers off</h4>
+      <ui-code-block [code]="codeBlockSample" language="typescript" [lineNumbers]="false" />
+
       <h3 class="mt-8 text-xl font-bold">Theme Presets</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
