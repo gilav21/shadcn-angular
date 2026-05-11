@@ -4,13 +4,34 @@ import {
     input,
     signal,
     computed,
+    effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
+import {
+    BUILTIN_SCOPE_DETECTORS,
+    type ScopeDetector,
+    type ScopeRange,
+} from '../lib/code-scopes';
 import { ButtonComponent } from './button.component';
 
+export type { ScopeDetector, ScopeRange } from '../lib/code-scopes';
+export { BUILTIN_SCOPE_DETECTORS } from '../lib/code-scopes';
 
 export type CodeBlockTheme = Record<string, string>;
 export type LanguagePattern = { type: string; regex: RegExp }[];
+export type LanguageConfig = {
+    patterns: LanguagePattern;
+    scopes?: ScopeDetector;
+};
+
+type Token = { type: string; text: string };
+
+type RenderLine = {
+    index: number;
+    tokens: Token[];
+    foldStart?: number;
+    isOpen?: boolean;
+};
 
 export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
     vscode: {
@@ -64,12 +85,12 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [ButtonComponent],
     template: `
-    <div [class]="classes()">
+    <div [class]="classes()" [attr.data-slot]="'code-block'">
       <div class="flex items-center justify-between bg-zinc-900 px-4 py-2 border-b border-zinc-800">
         <span class="text-xs text-zinc-400 font-mono">{{ language() }}</span>
-        <ui-button 
-            variant="ghost" 
-            size="icon" 
+        <ui-button
+            variant="ghost"
+            size="icon"
             class="h-6 w-6 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
             (click)="copyToClipboard()"
         >
@@ -86,37 +107,124 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
         </ui-button>
       </div>
       <div class="p-4 overflow-auto font-mono text-sm bg-zinc-950 text-zinc-50">
-        <pre><code [class]="'language-' + language()">@for (token of tokens(); track $index) {<span [class]="getTokenClass(token)">{{ token.text }}</span>}</code></pre>
+        <pre><code [class]="'language-' + language()">@for (line of visibleLines(); track line.index) {<div class="flex items-start"
+          >@if (collapseScope()) {<span
+            class="inline-block w-4 mr-2 select-none text-zinc-500 leading-5 text-center"
+            [class.cursor-pointer]="line.foldStart !== undefined"
+            [class.hover:text-zinc-300]="line.foldStart !== undefined"
+            (click)="onChevronClick(line.foldStart)"
+            (keydown.enter)="onChevronClick(line.foldStart)"
+            (keydown.space)="onChevronClick(line.foldStart)"
+            [attr.role]="line.foldStart !== undefined ? 'button' : null"
+            [attr.tabindex]="line.foldStart !== undefined ? 0 : null"
+            [attr.aria-expanded]="line.foldStart !== undefined ? line.isOpen : null"
+            [attr.aria-label]="line.foldStart !== undefined ? (line.isOpen ? 'Collapse scope' : 'Expand scope') : null"
+            data-slot="code-block-chevron"
+          >@if (line.foldStart !== undefined) { @if (line.isOpen) { ▾ } @else { ▸ } }</span>}<span class="flex-1 whitespace-pre">@for (token of line.tokens; track $index) {<span [class]="getTokenClass(token)">{{ token.text }}</span>}@if (line.foldStart !== undefined && !line.isOpen) {<span class="text-zinc-500 ml-1" data-slot="code-block-collapsed-marker">…</span>}</span></div>}</code></pre>
       </div>
     </div>
   `,
 })
 export class CodeBlockComponent {
-    code = input('');
-    language = input('typescript');
-    class = input('');
-    theme = input<CodeBlockTheme | null>(null);
-    customLanguages = input<Record<string, LanguagePattern> | null>(null);
-    copied = signal(false);
+    readonly code = input('');
+    readonly language = input('typescript');
+    readonly class = input('');
+    readonly theme = input<CodeBlockTheme | null>(null);
+    readonly customLanguages = input<Record<string, LanguagePattern | LanguageConfig> | null>(null);
+    readonly collapseScope = input(false);
+    readonly defaultCollapsed = input<number | undefined>(undefined);
 
-    tokens = computed(() => this.highlight(this.code()));
+    readonly copied = signal(false);
 
-    classes = computed(() => cn('relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 my-4 text-left', this.class()));
+    private readonly collapsed = signal<ReadonlySet<number>>(new Set<number>());
+
+    readonly classes = computed(() => cn(
+        'relative overflow-hidden rounded-lg border border-zinc-800 bg-zinc-950 my-4 text-left',
+        this.class()
+    ));
+
+    private readonly resolvedLanguage = computed(() => this.normalizeLanguage(this.language()));
+
+    private readonly lineTokens = computed<Token[][]>(() => {
+        const patterns = this.resolvedLanguage().patterns;
+        return this.code().split('\n').map(line => this.highlight(line, patterns));
+    });
+
+    private readonly scopes = computed<ScopeRange[]>(() => {
+        if (!this.collapseScope()) { return []; }
+        const detector = this.resolvedLanguage().scopes;
+        if (!detector) { return []; }
+        return detector(this.code().split('\n'));
+    });
+
+    readonly visibleLines = computed<RenderLine[]>(() => {
+        const all = this.lineTokens();
+        const scopes = this.scopes();
+        const collapsed = this.collapsed();
+        const scopesByStart = new Map<number, ScopeRange>();
+        for (const scope of scopes) { scopesByStart.set(scope.startLine, scope); }
+        const result: RenderLine[] = [];
+        let skipUntil = -1;
+        for (let i = 0; i < all.length; i++) {
+            if (i <= skipUntil) { continue; }
+            const scope = scopesByStart.get(i);
+            const isFold = scope !== undefined;
+            const isOpen = isFold ? !collapsed.has(i) : undefined;
+            result.push({
+                index: i,
+                tokens: all[i],
+                foldStart: isFold ? i : undefined,
+                isOpen,
+            });
+            if (isFold && !isOpen) { skipUntil = scope.endLine; }
+        }
+        return result;
+    });
+
+    constructor() {
+        effect(() => {
+            const depth = this.defaultCollapsed();
+            if (depth === undefined || !this.collapseScope()) {
+                this.collapsed.set(new Set());
+                return;
+            }
+            const seeded = new Set<number>();
+            for (const scope of this.scopes()) {
+                if (scope.depth >= depth) { seeded.add(scope.startLine); }
+            }
+            this.collapsed.set(seeded);
+        });
+    }
 
     copyToClipboard() {
-        if (!navigator?.clipboard) return;
-
+        if (!navigator?.clipboard) { return; }
         navigator.clipboard.writeText(this.code()).then(() => {
             this.copied.set(true);
             setTimeout(() => this.copied.set(false), 2000);
         });
     }
 
-    getTokenClass(token: { type: string, text: string }): string {
-        const theme = this.theme();
-        if (theme && theme[token.type]) {
-            return theme[token.type];
+    toggleScope(startLine: number) {
+        const next = new Set(this.collapsed());
+        if (next.has(startLine)) {
+            next.delete(startLine);
+        } else {
+            next.add(startLine);
         }
+        this.collapsed.set(next);
+    }
+
+    isCollapsed(startLine: number): boolean {
+        return this.collapsed().has(startLine);
+    }
+
+    onChevronClick(startLine: number | undefined) {
+        if (startLine !== undefined) { this.toggleScope(startLine); }
+    }
+
+    getTokenClass(token: Token): string {
+        const theme = this.theme();
+        if (theme?.[token.type]) { return theme[token.type]; }
 
         switch (token.type) {
             case 'keyword': return 'text-pink-400 font-bold';
@@ -133,7 +241,7 @@ export class CodeBlockComponent {
         }
     }
 
-    private readonly LANGUAGE_PATTERNS: Record<string, { type: string, regex: RegExp }[]> = {
+    private readonly LANGUAGE_PATTERNS: Readonly<Record<string, LanguagePattern>> = {
         typescript: [
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
@@ -186,7 +294,7 @@ export class CodeBlockComponent {
         csharp: [
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
-            { type: 'decorator', regex: /\[[a-zA-Z]\w*\]/ }, // Attributes like [HttpGet]
+            { type: 'decorator', regex: /\[[a-zA-Z]\w*\]/ },
             { type: 'keyword', regex: /\b(public|private|protected|internal|class|struct|record|interface|enum|delegate|event|void|int|string|bool|var|async|await|Task|return|if|else|for|foreach|while|do|switch|case|default|break|continue|try|catch|finally|throw|new|this|base|using|namespace|static|readonly|const|override|virtual|abstract|sealed|get|set|value)\b/ },
             { type: 'number', regex: /\b\d+\b/ },
             { type: 'function', regex: /\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\()/ },
@@ -194,7 +302,7 @@ export class CodeBlockComponent {
         yaml: [
             { type: 'comment', regex: /#.*/ },
             { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
-            { type: 'attr', regex: /[a-zA-Z0-9_-]+(?=:)/ }, // Keys
+            { type: 'attr', regex: /[a-zA-Z0-9_-]+(?=:)/ },
             { type: 'keyword', regex: /\b(true|false|null|yes|no|on|off)\b/ },
             { type: 'number', regex: /\b\d+(\.\d+)?\b/ },
         ],
@@ -206,43 +314,53 @@ export class CodeBlockComponent {
         ]
     };
 
-    private highlight(code: string): { type: string, text: string }[] {
-        if (!code) return [];
+    private normalizeLanguage(lang: string): { patterns: LanguagePattern; scopes?: ScopeDetector } {
+        const key = lang.toLowerCase();
+        const customEntry = this.customLanguages()?.[key];
+        if (customEntry) {
+            const config = Array.isArray(customEntry) ? { patterns: customEntry } : customEntry;
+            const fallbackScopes = config.scopes ?? BUILTIN_SCOPE_DETECTORS[key];
+            return { patterns: config.patterns, scopes: fallbackScopes };
+        }
+        const builtinPatterns = this.LANGUAGE_PATTERNS[key] ?? this.LANGUAGE_PATTERNS['typescript'];
+        return { patterns: builtinPatterns, scopes: BUILTIN_SCOPE_DETECTORS[key] };
+    }
 
-        const tokens: { type: string, text: string }[] = [];
-        let current = 0;
+    private highlight(line: string, patterns: LanguagePattern): Token[] {
+        if (!line) { return []; }
+        const tokens: Token[] = [];
+        let cursor = 0;
 
-        const lang = this.language().toLowerCase();
-
-        // Use custom languages if available, else fallback to builtin
-        const custom = this.customLanguages();
-        const patterns = (custom && custom[lang]) || this.LANGUAGE_PATTERNS[lang] || this.LANGUAGE_PATTERNS['typescript'];
-
-        while (current < code.length) {
-            let bestMatch: { type: string, match: RegExpMatchArray, index: number } | null = null;
-            const remaining = code.slice(current);
-
-            for (const p of patterns) {
-                const match = remaining.match(p.regex);
-                if (match && match.index !== undefined) {
-                    if (bestMatch === null || match.index < bestMatch.index) {
-                        bestMatch = { type: p.type, match, index: match.index };
-                    }
-                }
-            }
+        while (cursor < line.length) {
+            const remaining = line.slice(cursor);
+            const bestMatch = this.findBestMatch(remaining, patterns);
 
             if (bestMatch && bestMatch.index === 0) {
-                tokens.push({ type: bestMatch.type, text: bestMatch.match[0] });
-                current += bestMatch.match[0].length;
+                tokens.push({ type: bestMatch.type, text: bestMatch.text });
+                cursor += bestMatch.text.length;
             } else if (bestMatch) {
                 tokens.push({ type: 'text', text: remaining.slice(0, bestMatch.index) });
-                current += bestMatch.index;
+                cursor += bestMatch.index;
             } else {
                 tokens.push({ type: 'text', text: remaining });
-                current += remaining.length;
+                cursor += remaining.length;
             }
         }
 
         return tokens;
+    }
+
+    private findBestMatch(
+        remaining: string,
+        patterns: LanguagePattern,
+    ): { type: string; text: string; index: number } | null {
+        let best: { type: string; text: string; index: number } | null = null;
+        for (const p of patterns) {
+            const match = p.regex.exec(remaining);
+            if (match && match.index !== undefined && (best === null || match.index < best.index)) {
+                best = { type: p.type, text: match[0], index: match.index };
+            }
+        }
+        return best;
     }
 }

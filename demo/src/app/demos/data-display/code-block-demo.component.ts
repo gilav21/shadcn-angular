@@ -41,6 +41,37 @@ import {
       <h3 class="mt-4 font-semibold text-blue-400">Custom Language (SQL)</h3>
       <ui-code-block [code]="codeBlockSql" language="sql" [customLanguages]="sqlPatterns" />
 
+      <h3 class="mt-8 text-xl font-bold">Collapsible Scopes</h3>
+      <p class="text-muted-foreground">
+        Set <code>[collapseScope]="true"</code> to enable a fold gutter. Use
+        <code>[defaultCollapsed]="N"</code> to start with everything at depth N or deeper folded.
+      </p>
+
+      <h4 class="mt-4 font-semibold">TypeScript &mdash; click ▾ to collapse a function</h4>
+      <ui-code-block [code]="foldableTypescript" language="typescript" [collapseScope]="true" />
+
+      <h4 class="mt-4 font-semibold">JSON &mdash; everything below the root collapsed by default</h4>
+      <ui-code-block
+        [code]="foldableJson"
+        language="json"
+        [collapseScope]="true"
+        [defaultCollapsed]="1"
+      />
+
+      <h4 class="mt-4 font-semibold">YAML &mdash; indentation-based scopes</h4>
+      <ui-code-block [code]="foldableYaml" language="yaml" [collapseScope]="true" />
+
+      <h4 class="mt-4 font-semibold">HTML &mdash; tag-pair scopes</h4>
+      <ui-code-block [code]="foldableHtml" language="html" [collapseScope]="true" />
+
+      <h4 class="mt-4 font-semibold">Custom language &mdash; SQL with BEGIN/END scopes</h4>
+      <ui-code-block
+        [code]="foldableSql"
+        language="sql"
+        [collapseScope]="true"
+        [customLanguages]="sqlWithScopes"
+      />
+
       <h3 class="mt-8 text-xl font-bold">Theme Presets</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
@@ -152,4 +183,75 @@ ng build --prod`;
 FROM users
 WHERE status = 'active'
 ORDER BY created_at DESC;`;
+
+  readonly foldableTypescript = `function greet(name: string) {
+  const message = "Hello, " + name;
+  return message;
+}
+
+function farewell(name: string) {
+  const message = "Goodbye, " + name;
+  return message;
+}`;
+
+  readonly foldableJson = `{
+  "name": "shadcn-angular",
+  "scripts": {
+    "build": "ng build",
+    "test": "vitest"
+  },
+  "dependencies": {
+    "@angular/core": "^20.0.0",
+    "tailwindcss": "^3.4.0"
+  }
+}`;
+
+  readonly foldableYaml = `services:
+  api:
+    image: node:20
+    ports:
+      - 3000:3000
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: secret`;
+
+  readonly foldableHtml = `<section class="card">
+  <header>
+    <h2>Title</h2>
+  </header>
+  <div class="body">
+    <p>Body copy.</p>
+  </div>
+</section>`;
+
+  readonly foldableSql = `CREATE PROCEDURE add_user(name TEXT)
+BEGIN
+  INSERT INTO users(name) VALUES (name);
+  COMMIT;
+END;`;
+
+  readonly sqlWithScopes = {
+    sql: {
+      patterns: [
+        { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON|AS|GROUP|BY|ORDER|LIMIT|CREATE|PROCEDURE|BEGIN|END|VALUES|INTO|COMMIT|TEXT)\b/i },
+        { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
+        { type: 'number', regex: /\b\d+\b/ },
+        { type: 'comment', regex: /--.*/ },
+      ],
+      scopes: (lines: readonly string[]) => {
+        const ranges: { startLine: number; endLine: number; depth: number }[] = [];
+        let start = -1;
+        for (let i = 0; i < lines.length; i++) {
+          const trimmed = lines[i].trim();
+          if (/^BEGIN\b/i.test(trimmed)) { start = i; }
+          else if (/^END\b/i.test(trimmed) && start !== -1) {
+            ranges.push({ startLine: start, endLine: i, depth: 0 });
+            start = -1;
+          }
+        }
+        return ranges;
+      },
+    },
+  };
 }

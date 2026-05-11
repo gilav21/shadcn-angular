@@ -66,11 +66,14 @@ const meta: Meta<CodeBlockComponent> = {
                 monokai: CODE_BLOCK_THEMES['monokai'],
             },
         },
+        collapseScope: { control: 'boolean' },
+        defaultCollapsed: { control: { type: 'number', min: 0, max: 5, step: 1 } },
     },
     args: {
         language: 'typescript',
         code: typescriptCode,
         theme: null,
+        collapseScope: false,
     },
 };
 
@@ -140,5 +143,138 @@ export const MonokaiTheme: Story = {
     render: (args) => ({
         props: { ...args, theme: CODE_BLOCK_THEMES['monokai'] },
         template: `<ui-code-block [code]="code" [language]="language" [theme]="theme" />`,
+    }),
+};
+
+const foldableTypescript = `function greet(name: string) {
+  const message = "Hello, " + name;
+  return message;
+}
+
+function farewell(name: string) {
+  const message = "Goodbye, " + name;
+  return message;
+}`;
+
+const foldableYaml = `services:
+  api:
+    image: node:20
+    ports:
+      - 3000:3000
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_PASSWORD: secret`;
+
+const foldableHtml = `<section class="card">
+  <header>
+    <h2>Title</h2>
+  </header>
+  <div class="body">
+    <p>Body copy.</p>
+  </div>
+</section>`;
+
+const sqlScopes = (lines: readonly string[]) => {
+    const ranges: { startLine: number; endLine: number; depth: number }[] = [];
+    let start = -1;
+    for (let i = 0; i < lines.length; i++) {
+        if (/^BEGIN\b/i.test(lines[i].trim())) { start = i; }
+        else if (/^END\b/i.test(lines[i].trim()) && start !== -1) {
+            ranges.push({ startLine: start, endLine: i, depth: 0 });
+            start = -1;
+        }
+    }
+    return ranges;
+};
+
+const sqlCode = `CREATE PROCEDURE add_user(name TEXT)
+BEGIN
+  INSERT INTO users(name) VALUES (name);
+  COMMIT;
+END;`;
+
+const sqlPatterns = {
+    sql: {
+        patterns: [
+            { type: 'keyword', regex: /\b(SELECT|FROM|WHERE|INSERT|UPDATE|DELETE|JOIN|AND|OR|ON|AS|GROUP|BY|ORDER|LIMIT|CREATE|PROCEDURE|BEGIN|END|VALUES|INTO|COMMIT|TEXT)\b/i },
+            { type: 'string', regex: /'(?:[^'\\]|\\.)*'/ },
+            { type: 'number', regex: /\b\d+\b/ },
+            { type: 'comment', regex: /--.*/ },
+        ],
+        scopes: sqlScopes,
+    },
+};
+
+export const Foldable: Story = {
+    args: {
+        code: foldableTypescript,
+        language: 'typescript',
+        collapseScope: true,
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" [collapseScope]="collapseScope" />`,
+    }),
+};
+
+export const FoldableJSON: Story = {
+    args: {
+        code: jsonCode,
+        language: 'json',
+        collapseScope: true,
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" [collapseScope]="collapseScope" />`,
+    }),
+};
+
+export const FoldableYAML: Story = {
+    args: {
+        code: foldableYaml,
+        language: 'yaml',
+        collapseScope: true,
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" [collapseScope]="collapseScope" />`,
+    }),
+};
+
+export const FoldableHTML: Story = {
+    args: {
+        code: foldableHtml,
+        language: 'html',
+        collapseScope: true,
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" [collapseScope]="collapseScope" />`,
+    }),
+};
+
+export const InitialCollapseDepth: Story = {
+    args: {
+        code: jsonCode,
+        language: 'json',
+        collapseScope: true,
+        defaultCollapsed: 1,
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-code-block [code]="code" [language]="language" [collapseScope]="collapseScope" [defaultCollapsed]="defaultCollapsed" />`,
+    }),
+};
+
+export const FoldableCustom: Story = {
+    args: {
+        code: sqlCode,
+        language: 'sql',
+        collapseScope: true,
+    },
+    render: (args) => ({
+        props: { ...args, customLanguages: sqlPatterns },
+        template: `<ui-code-block [code]="code" [language]="language" [collapseScope]="collapseScope" [customLanguages]="customLanguages" />`,
     }),
 };

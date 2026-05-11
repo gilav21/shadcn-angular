@@ -139,6 +139,7 @@ export const registry = defineRegistry({
   'code-block': {
     name: 'code-block',
     files: ['code-block.component.ts'],
+    libFiles: ['code-scopes.ts'],
     dependencies: ['button'],
   },
   'text-reveal': {
