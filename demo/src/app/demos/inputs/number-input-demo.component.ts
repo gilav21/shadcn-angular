@@ -21,10 +21,14 @@ import {
         <section class="space-y-8 max-w-md">
             <div>
                 <h2 id="number-input" class="text-2xl font-semibold scroll-m-20">Number Input</h2>
-                <p class="text-muted-foreground mt-1">Numeric input with increment/decrement controls.</p>
+                <p class="text-muted-foreground mt-1">
+                    Numeric input with increment/decrement controls. Use the native spinner arrows,
+                    <kbd class="px-1 py-0.5 rounded border bg-muted text-xs">↑</kbd> /
+                    <kbd class="px-1 py-0.5 rounded border bg-muted text-xs">↓</kbd> keys, or scroll
+                    the mouse wheel over a focused input to step the value.
+                </p>
             </div>
 
-            <!-- Default -->
             <div class="space-y-3">
                 <h3 class="text-lg font-medium">Default</h3>
                 <ui-number-input
@@ -34,7 +38,6 @@ import {
                 <p class="text-sm text-muted-foreground">Value: {{ defaultValue() ?? 'null' }}</p>
             </div>
 
-            <!-- Min / Max / Step -->
             <div class="space-y-3">
                 <h3 class="text-lg font-medium">Min / Max / Step</h3>
                 <p class="text-sm text-muted-foreground">Range 0–100, step 5</p>
@@ -62,7 +65,6 @@ import {
                 <p class="text-sm text-muted-foreground">Value: {{ decimalValue() ?? 'null' }}</p>
             </div>
 
-            <!-- Variants -->
             <div class="space-y-3">
                 <h3 class="text-lg font-medium">Variants</h3>
                 <div class="space-y-3">
@@ -81,13 +83,11 @@ import {
                 </div>
             </div>
 
-            <!-- Disabled -->
             <div class="space-y-3">
                 <h3 class="text-lg font-medium">Disabled</h3>
                 <ui-number-input [value]="42" [disabled]="true" />
             </div>
 
-            <!-- Inside ui-field -->
             <div class="space-y-3">
                 <h3 class="text-lg font-medium">Inside Field</h3>
                 <ui-field>

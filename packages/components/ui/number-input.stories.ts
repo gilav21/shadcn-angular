@@ -5,6 +5,14 @@ const meta: Meta<NumberInputComponent> = {
     title: 'UI/NumberInput',
     component: NumberInputComponent,
     tags: ['autodocs'],
+    parameters: {
+        docs: {
+            description: {
+                component:
+                    'Numeric input wrapping a native `type="number"` field. Step the value using the spinner arrows, the ArrowUp/ArrowDown keys, or by scrolling the mouse wheel while the input is focused.',
+            },
+        },
+    },
     argTypes: {
         variant: {
             control: 'select',
@@ -92,5 +100,16 @@ export const Ghost: Story = {
     render: (args) => ({
         props: args,
         template: `<div class="max-w-xs"><ui-number-input [value]="value" [variant]="variant" /></div>`,
+    }),
+};
+
+export const CustomClass: Story = {
+    args: {
+        value: 5,
+        class: 'w-32',
+    },
+    render: (args) => ({
+        props: args,
+        template: `<ui-number-input [value]="value" [class]="class" />`,
     }),
 };
