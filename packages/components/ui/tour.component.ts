@@ -261,19 +261,26 @@ export class TourComponent {
     private currentTargetEl: HTMLElement | null = null;
     private savedTargetStyles: HighlightSavedStyles | null = null;
 
+    private wasActive = false;
+
     constructor() {
         effect(() => {
             const isActive = this.active();
             untracked(() => {
-                if (isActive) {
+                if (isActive && !this.wasActive) {
+                    this.wasActive = true;
                     this.goToStep(0);
-                } else {
+                } else if (!isActive && this.wasActive) {
+                    this.wasActive = false;
                     this.teardown();
                 }
             });
         });
 
-        this.destroyRef.onDestroy(() => this.teardown());
+        this.destroyRef.onDestroy(() => {
+            this.wasActive = false;
+            this.teardown();
+        });
     }
 
     next(): void {
