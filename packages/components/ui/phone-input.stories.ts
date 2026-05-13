@@ -9,22 +9,19 @@ const meta: Meta<PhoneInputComponent> = {
         docs: {
             description: {
                 component:
-                    'International phone input with country selector built on `ui-input-group`. ' +
-                    'Select a country to set the dial code, then type the local number. ' +
-                    'Emits E.164 format (+15551234567). Supports light mode (no dependencies) and ' +
-                    'full mode (libphonenumber-js format-as-you-type + validation).',
+                    'International phone input built on `ui-input-group`. Pick a country to set the dial code, ' +
+                    'then type the local number. The input is masked per country using `uiInputMask` so invalid ' +
+                    'characters cannot be entered. Emits E.164 format (e.g. `+15551234567`).',
             },
         },
     },
     argTypes: {
-        mode: { control: 'select', options: ['light', 'full'] },
         variant: { control: 'select', options: ['outline', 'underline', 'ghost'] },
         defaultCountry: { control: 'text' },
         disabled: { control: 'boolean' },
         placeholder: { control: 'text' },
     },
     args: {
-        mode: 'light',
         variant: 'outline',
         defaultCountry: 'US',
         disabled: false,
@@ -37,7 +34,7 @@ type Story = StoryObj<PhoneInputComponent>;
 export const Default: Story = {
     render: (args) => ({
         props: args,
-        template: `<div class="max-w-xs"><ui-phone-input [mode]="mode" [variant]="variant" [defaultCountry]="defaultCountry" [disabled]="disabled" /></div>`,
+        template: `<div class="max-w-xs"><ui-phone-input [variant]="variant" [defaultCountry]="defaultCountry" [disabled]="disabled" /></div>`,
     }),
 };
 
@@ -46,14 +43,6 @@ export const DefaultGB: Story = {
     render: (args) => ({
         props: args,
         template: `<div class="max-w-xs"><ui-phone-input [defaultCountry]="defaultCountry" /></div>`,
-    }),
-};
-
-export const FullMode: Story = {
-    args: { mode: 'full' },
-    render: (args) => ({
-        props: args,
-        template: `<div class="max-w-xs"><ui-phone-input mode="full" /></div>`,
     }),
 };
 

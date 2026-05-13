@@ -124,6 +124,22 @@ describe('PhoneInputComponent', () => {
         expect(component.searchQuery()).toBe('');
     });
 
+    it('should clear nationalNumber when a different country is selected', () => {
+        component.onNationalChange('5551234567');
+        expect(component.nationalNumber()).toBe('5551234567');
+
+        const de = DEFAULT_COUNTRIES.find(c => c.code === 'DE')!;
+        component.selectCountry(de);
+        expect(component.nationalNumber()).toBe('');
+    });
+
+    it('should expose mask on the selected country', () => {
+        expect(component.selectedCountry().mask).toBe('(000) 000-0000');
+        const gb = DEFAULT_COUNTRIES.find(c => c.code === 'GB')!;
+        component.selectCountry(gb);
+        expect(component.selectedCountry().mask).toBe('0000 000000');
+    });
+
     it('should use country placeholder when no placeholder input is given', () => {
         expect(component.effectivePlaceholder()).toBe('(555) 000-0000');
     });

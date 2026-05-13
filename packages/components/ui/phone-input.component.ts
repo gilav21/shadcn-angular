@@ -14,26 +14,15 @@ import { InputComponent } from './input.component';
 import { InputGroupComponent, InputGroupAddonComponent } from './input-group.component';
 import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
 import { UI_INPUT_GROUP } from './input-group.token';
+import { InputMaskDirective } from './input-mask.directive';
 import { PhoneCountry, DEFAULT_COUNTRIES } from './phone-input-data';
 
 export type { PhoneCountry };
 
 export type PhoneInputVariant = 'outline' | 'underline' | 'ghost';
-export type PhoneInputMode = 'light' | 'full';
 
-type LibPhoneNumber = typeof import('libphonenumber-js');
-
-let libphonenumber: LibPhoneNumber | null = null;
-
-async function loadLib(): Promise<LibPhoneNumber> {
-    if (!libphonenumber) {
-        libphonenumber = await import('libphonenumber-js');
-    }
-    return libphonenumber;
-}
-
-function buildE164(dialCode: string, national: string): string {
-    const digits = national.replaceAll(/\D/g, '');
+function buildE164(dialCode: string, masked: string): string {
+    const digits = masked.replaceAll(/\D/g, '');
     return digits ? `${dialCode}${digits}` : '';
 }
 
@@ -41,30 +30,28 @@ function findCountryByCode(countries: PhoneCountry[], code: string): PhoneCountr
     return countries.find(c => c.code === code);
 }
 
-function parseE164(value: string, countries: PhoneCountry[], currentCountry: PhoneCountry): { country: PhoneCountry; national: string } {
-    if (!value.startsWith('+')) {
-        return { country: currentCountry, national: value };
-    }
-
+function findCountryByLongestDialCode(value: string, countries: PhoneCountry[]): PhoneCountry | undefined {
     let bestMatch: PhoneCountry | undefined;
     let bestLen = 0;
-
     for (const c of countries) {
         if (value.startsWith(c.dialCode) && c.dialCode.length > bestLen) {
             bestLen = c.dialCode.length;
             bestMatch = c;
         }
     }
+    return bestMatch;
+}
 
-    if (!bestMatch) {
+function parseE164(value: string, countries: PhoneCountry[], currentCountry: PhoneCountry): { country: PhoneCountry; national: string } {
+    if (!value.startsWith('+')) {
         return { country: currentCountry, national: value };
     }
-
-    if (bestMatch.dialCode === currentCountry.dialCode) {
+    const match = findCountryByLongestDialCode(value, countries);
+    if (!match) return { country: currentCountry, national: value };
+    if (match.dialCode === currentCountry.dialCode) {
         return { country: currentCountry, national: value.slice(currentCountry.dialCode.length) };
     }
-
-    return { country: bestMatch, national: value.slice(bestMatch.dialCode.length) };
+    return { country: match, national: value.slice(match.dialCode.length) };
 }
 
 @Component({
@@ -78,6 +65,7 @@ function parseE164(value: string, countries: PhoneCountry[], currentCountry: Pho
         PopoverComponent,
         PopoverTriggerComponent,
         PopoverContentComponent,
+        InputMaskDirective,
     ],
     providers: [
         {
@@ -138,6 +126,7 @@ function parseE164(value: string, countries: PhoneCountry[], currentCountry: Pho
             </ui-input-group-addon>
             <ui-input
                 type="tel"
+                [uiInputMask]="selectedCountry().mask"
                 [disabled]="isDisabled()"
                 [placeholder]="effectivePlaceholder()"
                 [ngModel]="nationalNumber()"
@@ -149,7 +138,6 @@ function parseE164(value: string, countries: PhoneCountry[], currentCountry: Pho
     host: { class: 'contents' },
 })
 export class PhoneInputComponent implements ControlValueAccessor {
-    readonly mode = input<PhoneInputMode>('light');
     readonly defaultCountry = input<string>('US');
     readonly disabled = input<boolean>(false);
     readonly placeholder = input<string | undefined>(undefined);
@@ -174,7 +162,7 @@ export class PhoneInputComponent implements ControlValueAccessor {
     readonly isDisabled = computed(() => this.disabled() || this._formDisabled());
 
     readonly effectivePlaceholder = computed(
-        () => this.placeholder() ?? this.selectedCountry().placeholder ?? ''
+        () => this.placeholder() ?? this.selectedCountry().placeholder ?? this.selectedCountry().mask
     );
 
     readonly filteredCountries = computed(() => {
@@ -225,6 +213,7 @@ export class PhoneInputComponent implements ControlValueAccessor {
         this._userPickedCountry.set(true);
         this._selectedCountry.set(country);
         this._searchQuery.set('');
+        this._nationalNumber.set('');
         this.emitValue();
     }
 
@@ -233,18 +222,11 @@ export class PhoneInputComponent implements ControlValueAccessor {
     }
 
     onNationalChange(raw: string): void {
-        if (this.mode() === 'full') {
-            this.applyFullModeFormat(raw);
-        } else {
-            this._nationalNumber.set(raw);
-            this.emitValue();
-        }
+        this._nationalNumber.set(raw);
+        this.emitValue();
     }
 
     onBlur(): void {
-        if (this.mode() === 'full') {
-            this.validateFullMode();
-        }
         this.onTouched();
     }
 
@@ -278,28 +260,5 @@ export class PhoneInputComponent implements ControlValueAccessor {
         const e164 = buildE164(this._selectedCountry().dialCode, this._nationalNumber());
         this.onChange(e164);
         this.valueChange.emit(e164);
-    }
-
-    private applyFullModeFormat(raw: string): void {
-        loadLib().then(lib => {
-            const code = this._selectedCountry().code as import('libphonenumber-js').CountryCode;
-            const formatter = new lib.AsYouType(code);
-            const formatted = formatter.input(raw);
-            this._nationalNumber.set(formatted);
-            this.emitValue();
-        }).catch(() => {
-            this._nationalNumber.set(raw);
-            this.emitValue();
-        });
-    }
-
-    private validateFullMode(): void {
-        loadLib().then(lib => {
-            const raw = `${this._selectedCountry().dialCode}${this._nationalNumber()}`;
-            const parsed = lib.parsePhoneNumberFromString(raw);
-            if (parsed && !parsed.isValid()) {
-                this._nationalNumber.set(this._nationalNumber());
-            }
-        }).catch(() => { });
     }
 }

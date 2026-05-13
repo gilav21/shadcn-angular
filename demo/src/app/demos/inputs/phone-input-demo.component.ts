@@ -11,23 +11,19 @@ import { PhoneInputComponent } from '../../../../../packages/components/ui';
             <div>
                 <h2 id="phone-input" class="text-2xl font-semibold scroll-m-20">Phone Input</h2>
                 <p class="text-muted-foreground mt-1">
-                    International phone input with country selector. Pick a country to set the dial code,
-                    then type the local number.
+                    International phone input built on <code>ui-input-group</code>. Pick a country to set the
+                    dial code, then type the local number. The field is masked per country — invalid
+                    characters cannot be entered, and separators are inserted automatically.
                 </p>
             </div>
 
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Light mode</h3>
-                <p class="text-sm text-muted-foreground">No external dependency; just prepends the dial code.</p>
+                <h3 class="text-lg font-medium">Basic usage</h3>
+                <p class="text-sm text-muted-foreground">
+                    Try typing letters — they're rejected. Switch the country and watch the mask change.
+                </p>
                 <ui-phone-input [(ngModel)]="lightValue" />
                 <p class="text-sm text-muted-foreground">E.164 value: {{ lightValue() || '(empty)' }}</p>
-            </div>
-
-            <div class="space-y-3">
-                <h3 class="text-lg font-medium">Full mode (libphonenumber-js)</h3>
-                <p class="text-sm text-muted-foreground">Format-as-you-type and validate on blur.</p>
-                <ui-phone-input mode="full" [(ngModel)]="fullValue" />
-                <p class="text-sm text-muted-foreground">E.164 value: {{ fullValue() || '(empty)' }}</p>
             </div>
 
             <div class="space-y-3">
@@ -71,7 +67,6 @@ import { PhoneInputComponent } from '../../../../../packages/components/ui';
 })
 export class PhoneInputDemoComponent {
     readonly lightValue = signal('');
-    readonly fullValue = signal('');
     readonly gbValue = signal('');
     readonly phoneControl = new FormControl('');
 }

@@ -39,7 +39,6 @@
     "clsx": "^2.1.1",
     "rxjs": "~7.8.0",
     "tailwind-merge": "^3.4.0",
-    "libphonenumber-js": "^1.11.0",
     "tslib": "^2.3.0"
   },
   "devDependencies": {
