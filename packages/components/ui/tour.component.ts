@@ -12,9 +12,12 @@ import {
     ElementRef,
     viewChild,
     NgZone,
+    afterNextRender,
+    untracked,
+    Injector,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn, prefersReducedMotion, isRtl } from '../lib/utils';
+import { cn, isRtl } from '../lib/utils';
 import { ButtonComponent } from './button.component';
 
 export interface TourStep {
@@ -46,22 +49,21 @@ interface CardSize {
 }
 
 const CARD_GAP = 12;
-const SPOTLIGHT_PAD = 4;
+const SPOTLIGHT_PAD = 6;
 const VIEWPORT_MARGIN = 8;
-const ESTIMATED_CARD_HEIGHT = 160;
-const CARD_WIDTH = 320;
+const DEFAULT_CARD_WIDTH = 320;
+const DEFAULT_CARD_HEIGHT = 160;
+const TARGET_HIGHLIGHT_CLASS = 'ui-tour-target-highlight';
 
 function chooseSide(targetRect: Rect, cardSize: CardSize, preferred: TourSide | undefined): TourSide {
-    const vp = {
-        width: globalThis.window?.innerWidth ?? 0,
-        height: globalThis.window?.innerHeight ?? 0,
-    };
-    const below = vp.height - targetRect.bottom;
+    if (preferred) return preferred;
+    const vw = globalThis.window?.innerWidth ?? 0;
+    const vh = globalThis.window?.innerHeight ?? 0;
+    const below = vh - targetRect.bottom;
     const above = targetRect.top;
-    const right = vp.width - targetRect.right;
+    const right = vw - targetRect.right;
     const left = targetRect.left;
 
-    if (preferred) return preferred;
     if (below >= cardSize.height + CARD_GAP) return 'bottom';
     if (above >= cardSize.height + CARD_GAP) return 'top';
     if (right >= cardSize.width + CARD_GAP) return 'right';
@@ -105,24 +107,24 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [ButtonComponent],
     template: `
-        @if (active() && currentStep()) {
+        @if (active() && isReady() && currentStep()) {
             <div
-                class="fixed rounded-md pointer-events-none transition-all duration-200"
+                class="fixed rounded-md pointer-events-none transition-all duration-150"
                 [style.top.px]="spotlightRect().top"
                 [style.left.px]="spotlightRect().left"
                 [style.width.px]="spotlightRect().width"
                 [style.height.px]="spotlightRect().height"
-                style="z-index:9999;box-shadow:0 0 0 9999px rgba(0,0,0,0.6);"
+                style="z-index:9999;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);"
                 [attr.data-slot]="'tour-spotlight'"
             ></div>
             <div
+                #cardEl
                 class="fixed w-80 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none"
                 [style.top.px]="cardPos().top"
                 [style.left.px]="cardPos().left"
                 style="z-index:10000;"
                 [attr.data-slot]="'tour-card'"
                 tabindex="-1"
-                #cardEl
                 (keydown)="onKeydown($event)"
             >
                 <div class="text-xs text-muted-foreground mb-1">{{ currentIndex() + 1 }} / {{ steps().length }}</div>
@@ -135,9 +137,9 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
                         <ui-button variant="ghost" size="sm" (click)="skip()">{{ skipLabel() }}</ui-button>
                     }
                     @if (currentIndex() > 0) {
-                        <ui-button variant="outline" size="sm" (click)="previous()">{{ isRtlLayout() ? nextLabel() : prevLabel() }}</ui-button>
+                        <ui-button variant="outline" size="sm" (click)="previous()">{{ prevLabel() }}</ui-button>
                     }
-                    <ui-button size="sm" (click)="next()">{{ isLastStep() ? finishLabel() : (isRtlLayout() ? prevLabel() : nextLabel()) }}</ui-button>
+                    <ui-button size="sm" (click)="next()">{{ isLastStep() ? finishLabel() : nextLabel() }}</ui-button>
                 </div>
             </div>
         }
@@ -149,6 +151,7 @@ export class TourComponent {
     private readonly destroyRef = inject(DestroyRef);
     private readonly zone = inject(NgZone);
     private readonly hostEl = inject(ElementRef<HTMLElement>);
+    private readonly injector = inject(Injector);
 
     readonly steps = input<TourStep[]>([]);
     readonly active = model<boolean>(false);
@@ -168,7 +171,9 @@ export class TourComponent {
     readonly currentIndex = this._currentIndex.asReadonly();
 
     private readonly _targetRect = signal<Rect>({ top: 0, left: 0, width: 0, height: 0, bottom: 0, right: 0 });
-    private readonly _cardSize = signal<CardSize>({ width: CARD_WIDTH, height: ESTIMATED_CARD_HEIGHT });
+    private readonly _cardSize = signal<CardSize>({ width: DEFAULT_CARD_WIDTH, height: DEFAULT_CARD_HEIGHT });
+    private readonly _isReady = signal(false);
+    readonly isReady = this._isReady.asReadonly();
 
     readonly currentStep = computed(() => {
         const s = this.steps();
@@ -197,18 +202,22 @@ export class TourComponent {
     readonly classes = computed(() => cn(this.class()));
 
     private resizeObserver: ResizeObserver | null = null;
-    private removeScrollListener: (() => void) | null = null;
-    private removeResizeListener: (() => void) | null = null;
+    private removeReposition: (() => void) | null = null;
+    private currentTargetEl: HTMLElement | null = null;
 
     constructor() {
+        this.ensureHighlightStyle();
+
         effect(() => {
             const isActive = this.active();
-            if (isActive) {
-                this._currentIndex.set(0);
-                this.goToStep(0);
-            } else {
-                this.teardown();
-            }
+            untracked(() => {
+                if (isActive) {
+                    this._currentIndex.set(0);
+                    this.goToStep(0);
+                } else {
+                    this.teardown();
+                }
+            });
         });
 
         this.destroyRef.onDestroy(() => this.teardown());
@@ -265,16 +274,17 @@ export class TourComponent {
             return;
         }
 
+        this._isReady.set(false);
+        this.clearCurrentHighlight();
         this._currentIndex.set(safeIndex);
         this.stepChange.emit(safeIndex);
-        this.updatePosition();
+        this.setupPositionForStep(safeIndex);
     }
 
     private findNextValidStep(startIndex: number, originalIndex: number): number {
         const steps = this.steps();
         let idx = startIndex;
         let attempts = 0;
-
         while (attempts < steps.length) {
             if (idx >= steps.length) idx = 0;
             const step = steps[idx];
@@ -286,29 +296,33 @@ export class TourComponent {
         return -1;
     }
 
-    private updatePosition(): void {
-        const step = this.steps()[this._currentIndex()];
+    private setupPositionForStep(index: number): void {
+        const step = this.steps()[index];
         if (!step) return;
 
         const targetEl = this.document.querySelector<HTMLElement>(step.target);
-        if (!targetEl) return;
-
-        targetEl.scrollIntoView({
-            block: 'center',
-            behavior: prefersReducedMotion() ? 'auto' : 'smooth',
-        });
+        if (!targetEl) {
+            this.finish();
+            return;
+        }
 
         this.teardownObservers();
-        this.setupObservers(targetEl);
-        this.readAndSetRect(targetEl);
+        this.applyHighlight(targetEl);
+        this.currentTargetEl = targetEl;
 
-        requestAnimationFrame(() => {
-            this.readAndSetRect(targetEl);
-            setTimeout(() => {
+        targetEl.scrollIntoView({ block: 'center', inline: 'center', behavior: 'auto' });
+        this.readAndSetRect(targetEl);
+        this.setupObservers(targetEl);
+
+        afterNextRender(
+            () => {
+                this.readAndSetRect(targetEl);
                 this.measureCard();
+                this._isReady.set(true);
                 this.focusCard();
-            }, 0);
-        });
+            },
+            { injector: this.injector }
+        );
     }
 
     private readAndSetRect(targetEl: HTMLElement): void {
@@ -326,15 +340,15 @@ export class TourComponent {
     private measureCard(): void {
         const cardEl = this.cardElRef()?.nativeElement;
         if (!cardEl) return;
-        this._cardSize.set({
-            width: cardEl.offsetWidth || CARD_WIDTH,
-            height: cardEl.offsetHeight || ESTIMATED_CARD_HEIGHT,
-        });
+        const width = cardEl.offsetWidth || DEFAULT_CARD_WIDTH;
+        const height = cardEl.offsetHeight || DEFAULT_CARD_HEIGHT;
+        if (width === this._cardSize().width && height === this._cardSize().height) return;
+        this._cardSize.set({ width, height });
     }
 
     private focusCard(): void {
         const cardEl = this.cardElRef()?.nativeElement;
-        cardEl?.focus();
+        cardEl?.focus({ preventScroll: true });
     }
 
     private setupObservers(targetEl: HTMLElement): void {
@@ -349,10 +363,8 @@ export class TourComponent {
             globalThis.window?.addEventListener('scroll', onReposition, { passive: true, capture: true });
             globalThis.window?.addEventListener('resize', onReposition, { passive: true });
 
-            this.removeScrollListener = () => {
+            this.removeReposition = () => {
                 globalThis.window?.removeEventListener('scroll', onReposition, { capture: true });
-            };
-            this.removeResizeListener = () => {
                 globalThis.window?.removeEventListener('resize', onReposition);
             };
         });
@@ -361,13 +373,31 @@ export class TourComponent {
     private teardownObservers(): void {
         this.resizeObserver?.disconnect();
         this.resizeObserver = null;
-        this.removeScrollListener?.();
-        this.removeScrollListener = null;
-        this.removeResizeListener?.();
-        this.removeResizeListener = null;
+        this.removeReposition?.();
+        this.removeReposition = null;
     }
 
     private teardown(): void {
         this.teardownObservers();
+        this.clearCurrentHighlight();
+        this._isReady.set(false);
+    }
+
+    private applyHighlight(targetEl: HTMLElement): void {
+        targetEl.classList.add(TARGET_HIGHLIGHT_CLASS);
+    }
+
+    private clearCurrentHighlight(): void {
+        this.currentTargetEl?.classList.remove(TARGET_HIGHLIGHT_CLASS);
+        this.currentTargetEl = null;
+    }
+
+    private ensureHighlightStyle(): void {
+        const styleId = 'ui-tour-highlight-style';
+        if (this.document.getElementById(styleId)) return;
+        const styleEl = this.document.createElement('style');
+        styleEl.id = styleId;
+        styleEl.textContent = `.${TARGET_HIGHLIGHT_CLASS}{position:relative;z-index:10001;outline:2px solid var(--ring,#0ea5e9);outline-offset:4px;border-radius:6px;transition:outline 0.15s ease;}`;
+        this.document.head.appendChild(styleEl);
     }
 }
