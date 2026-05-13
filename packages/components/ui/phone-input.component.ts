@@ -79,7 +79,7 @@ function parseE164(value: string, countries: PhoneCountry[], currentCountry: Pho
         },
     ],
     template: `
-        <ui-input-group [variant]="variant()" [disabled]="isDisabled()" [attr.data-slot]="'phone-input'">
+        <ui-input-group [variant]="variant()" [disabled]="isDisabled()" [class]="class()" [attr.data-slot]="'phone-input'">
             <ui-input-group-addon class="!pr-0">
                 <ui-popover>
                     <ui-popover-trigger>
@@ -177,8 +177,7 @@ export class PhoneInputComponent implements ControlValueAccessor {
         cn(
             'flex items-center gap-1.5 px-2 py-1 rounded-l text-sm transition-colors',
             'hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
-            'disabled:pointer-events-none disabled:opacity-50',
-            this.class()
+            'disabled:pointer-events-none disabled:opacity-50'
         )
     );
 
