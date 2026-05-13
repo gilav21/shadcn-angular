@@ -300,6 +300,7 @@ export class TourComponent {
 
         this.teardownObservers();
         this.setupObservers(targetEl);
+        this.readAndSetRect(targetEl);
 
         requestAnimationFrame(() => {
             this.readAndSetRect(targetEl);
