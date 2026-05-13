@@ -18,7 +18,7 @@ import {
     ViewEncapsulation,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn, isRtl } from '../lib/utils';
+import { cn } from '../lib/utils';
 import { ButtonComponent } from './button.component';
 
 export interface TourStep {
@@ -131,7 +131,7 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
             ></div>
             <div
                 #cardEl
-                class="fixed w-80 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none"
+                [class]="cardClasses()"
                 [style.top.px]="cardPos().top"
                 [style.left.px]="cardPos().left"
                 style="z-index:10000;"
@@ -162,7 +162,6 @@ export class TourComponent {
     private readonly document = inject(DOCUMENT);
     private readonly destroyRef = inject(DestroyRef);
     private readonly zone = inject(NgZone);
-    private readonly hostEl = inject(ElementRef<HTMLElement>);
     private readonly injector = inject(Injector);
 
     readonly steps = input<TourStep[]>([]);
@@ -195,8 +194,6 @@ export class TourComponent {
 
     readonly isLastStep = computed(() => this._currentIndex() === this.steps().length - 1);
 
-    readonly isRtlLayout = computed(() => isRtl(this.hostEl.nativeElement));
-
     readonly spotlightRect = computed(() => {
         const r = this._targetRect();
         return {
@@ -211,7 +208,12 @@ export class TourComponent {
         computeCardPos(this._targetRect(), this._cardSize(), this.currentStep()?.side)
     );
 
-    readonly classes = computed(() => cn(this.class()));
+    readonly cardClasses = computed(() =>
+        cn(
+            'fixed w-80 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none',
+            this.class()
+        )
+    );
 
     private resizeObserver: ResizeObserver | null = null;
     private removeReposition: (() => void) | null = null;
@@ -222,7 +224,6 @@ export class TourComponent {
             const isActive = this.active();
             untracked(() => {
                 if (isActive) {
-                    this._currentIndex.set(0);
                     this.goToStep(0);
                 } else {
                     this.teardown();
@@ -275,35 +276,11 @@ export class TourComponent {
     }
 
     private goToStep(index: number): void {
-        const steps = this.steps();
-        if (steps.length === 0) return;
-
-        const safeIndex = this.findNextValidStep(index, index);
-        if (safeIndex === -1) {
-            this.finish();
-            return;
-        }
+        if (this.steps().length === 0) return;
 
         this._isReady.set(false);
         this.clearCurrentHighlight();
-        this._currentIndex.set(safeIndex);
-        this.stepChange.emit(safeIndex);
-        this.setupPositionForStep(safeIndex);
-    }
-
-    private findNextValidStep(startIndex: number, originalIndex: number): number {
-        const steps = this.steps();
-        let idx = startIndex;
-        let attempts = 0;
-        while (attempts < steps.length) {
-            if (idx >= steps.length) idx = 0;
-            const step = steps[idx];
-            if (step && this.document.querySelector(step.target)) return idx;
-            idx++;
-            attempts++;
-            if (idx === originalIndex && attempts > 0) break;
-        }
-        return -1;
+        this.setupPositionForStep(index);
     }
 
     private resolveTarget(startIndex: number): { targetEl: HTMLElement; finalIndex: number } | null {
@@ -328,10 +305,8 @@ export class TourComponent {
             return;
         }
         const { targetEl, finalIndex } = resolved;
-        if (finalIndex !== index) {
-            this._currentIndex.set(finalIndex);
-            this.stepChange.emit(finalIndex);
-        }
+        this._currentIndex.set(finalIndex);
+        this.stepChange.emit(finalIndex);
 
         this.teardownObservers();
         this.applyHighlight(targetEl);
