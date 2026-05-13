@@ -107,6 +107,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'dock', loadComponent: () => import('./demos/advanced/dock-demo.component').then(m => m.DockDemoComponent) },
   { path: 'animations', loadComponent: () => import('./demos/advanced/animations-demo.component').then(m => m.AnimationsDemoComponent) },
   { path: 'kanban', loadComponent: () => import('./demos/advanced/kanban-demo.component').then(m => m.KanbanDemoComponent) },
+  { path: 'tour', loadComponent: () => import('./demos/advanced/tour-demo.component').then(m => m.TourDemoComponent) },
 
   // Wildcard
   { path: '**', redirectTo: '' },

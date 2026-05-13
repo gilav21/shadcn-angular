@@ -120,6 +120,9 @@ export * from './particles.component';
 // Kanban
 export * from './kanban.component';
 
+// Tour
+export * from './tour.component';
+
 // File Viewer
 export * from './file-viewer.component';
 export { inflate, zlibInflate } from '../lib/parsers/inflate';

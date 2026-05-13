@@ -200,6 +200,7 @@ export class AppComponent {
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
     { id: 'animations', name: 'Animations', category: 'Advanced', icon: '🎬' },
     { id: 'kanban', name: 'Kanban Board', category: 'Advanced', icon: '📋' },
+    { id: 'tour', name: 'Tour', category: 'Advanced', icon: '🧭' },
     { id: 'icon', name: 'Icon', category: 'Data Display', icon: '🎯' },
   ];
 
