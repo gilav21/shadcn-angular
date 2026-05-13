@@ -84,7 +84,7 @@ export class TourDemoComponent {
     }
 
     onDone(): void {
-        // Tour finished naturally or was skipped
+        this.lastStep.set(-1);
     }
 
     onStepChange(index: number): void {

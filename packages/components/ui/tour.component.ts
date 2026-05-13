@@ -300,6 +300,7 @@ export class TourComponent {
 
         const targetEl = this.document.querySelector<HTMLElement>(step.target);
         if (!targetEl) {
+            globalThis.console?.warn(`[ui-tour] target not found: "${step.target}" — ending tour.`);
             this.finish();
             return;
         }
