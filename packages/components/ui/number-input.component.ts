@@ -59,6 +59,7 @@ export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
             <ui-input
                 #inputRef
                 type="number"
+                class="px-3"
                 [disabled]="isDisabled()"
                 [placeholder]="placeholder()"
                 [ngModel]="displayValue()"
