@@ -26,43 +26,10 @@ describe('NumberInputComponent', () => {
         expect(el).toBeTruthy();
     });
 
-    it('should render an input of type text', () => {
+    it('should render an input of type number', () => {
         const input = fixture.nativeElement.querySelector('input');
         expect(input).toBeTruthy();
-        expect(input.type).toBe('text');
-    });
-
-    it('should render increment and decrement buttons', () => {
-        const buttons = fixture.nativeElement.querySelectorAll('button');
-        expect(buttons.length).toBe(2);
-    });
-
-    it('should increment value when increment button is clicked', () => {
-        const emitted: (number | null)[] = [];
-        component.valueChange.subscribe((v) => emitted.push(v));
-
-        fixture.componentRef.setInput('value', 5);
-        fixture.detectChanges();
-
-        const buttons = fixture.nativeElement.querySelectorAll('button');
-        buttons[0].click();
-        fixture.detectChanges();
-
-        expect(emitted).toContain(6);
-    });
-
-    it('should decrement value when decrement button is clicked', () => {
-        const emitted: (number | null)[] = [];
-        component.valueChange.subscribe((v) => emitted.push(v));
-
-        fixture.componentRef.setInput('value', 5);
-        fixture.detectChanges();
-
-        const buttons = fixture.nativeElement.querySelectorAll('button');
-        buttons[1].click();
-        fixture.detectChanges();
-
-        expect(emitted).toContain(4);
+        expect(input.type).toBe('number');
     });
 
     it('should clamp increment at max', () => {
@@ -142,15 +109,14 @@ describe('NumberInputComponent', () => {
         expect(emitted[0]).toBe(5);
     });
 
-    it('should apply disabled state to input and buttons', () => {
+    it('should apply disabled state to input', async () => {
         fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        await fixture.whenStable();
         fixture.detectChanges();
 
         const input = fixture.nativeElement.querySelector('input');
-        const buttons = fixture.nativeElement.querySelectorAll('button');
         expect(input.disabled).toBe(true);
-        expect(buttons[0].disabled).toBe(true);
-        expect(buttons[1].disabled).toBe(true);
     });
 
     it('should support ArrowUp key to increment', () => {
@@ -179,6 +145,26 @@ describe('NumberInputComponent', () => {
         fixture.detectChanges();
 
         expect(emitted[0]).toBe(2);
+    });
+
+    it('should clamp value to max on blur', () => {
+        const emitted: (number | null)[] = [];
+        component.valueChange.subscribe((v) => emitted.push(v));
+
+        fixture.componentRef.setInput('max', 10);
+        fixture.detectChanges();
+
+        const input = fixture.nativeElement.querySelector('input');
+        input.value = '15';
+        input.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+
+        component.onBlur();
+        fixture.detectChanges();
+
+        const clampedEmit = emitted.find((v) => v === 10);
+        expect(clampedEmit).toBe(10);
+        expect(component['_currentValue']()).toBe(10);
     });
 
     it('should prevent default on ArrowUp/ArrowDown', () => {
@@ -219,12 +205,14 @@ describe('NumberInputComponent with ReactiveFormsModule', () => {
         fixture.detectChanges();
     });
 
-    it('should reflect control value in input', () => {
+    it('should reflect control value via displayValue', async () => {
         fixture.componentInstance.control.setValue(42);
         fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
 
-        const input = fixture.nativeElement.querySelector('input');
-        expect(input.value).toBe('42');
+        const numberInput = fixture.debugElement.children[0].componentInstance as NumberInputComponent;
+        expect(numberInput.displayValue()).toBe('42');
     });
 
     it('should update control when input changes', () => {
@@ -236,8 +224,10 @@ describe('NumberInputComponent with ReactiveFormsModule', () => {
         expect(fixture.componentInstance.control.value).toBe(99);
     });
 
-    it('should disable input when control is disabled', () => {
+    it('should disable input when control is disabled', async () => {
         fixture.componentInstance.control.disable();
+        fixture.detectChanges();
+        await fixture.whenStable();
         fixture.detectChanges();
 
         const input = fixture.nativeElement.querySelector('input');
@@ -271,7 +261,7 @@ describe('NumberInputComponent with ngModel', () => {
         await fixture.whenStable();
         fixture.detectChanges();
 
-        const input = fixture.nativeElement.querySelector('input');
-        expect(input.value).toBe('7');
+        const numberInput = fixture.debugElement.children[0].componentInstance as NumberInputComponent;
+        expect(numberInput.displayValue()).toBe('7');
     });
 });

@@ -7,13 +7,15 @@ import {
     signal,
     forwardRef,
     viewChild,
-    ElementRef,
     effect,
+    DestroyRef,
+    inject,
 } from '@angular/core';
-import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
+import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cva } from 'class-variance-authority';
 import { cn } from '../lib/utils';
-import { IconComponent } from './icon.component';
+import { InputComponent } from './input.component';
+import { UI_INPUT_GROUP } from './input-group.token';
 
 const numberInputWrapperVariants = cva(
     'relative flex items-center border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] aria-disabled:pointer-events-none aria-disabled:opacity-50',
@@ -36,12 +38,16 @@ export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
 @Component({
     selector: 'ui-number-input',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [IconComponent],
+    imports: [InputComponent, FormsModule],
     providers: [
         {
             provide: NG_VALUE_ACCESSOR,
             useExisting: forwardRef(() => NumberInputComponent),
             multi: true,
+        },
+        {
+            provide: UI_INPUT_GROUP,
+            useExisting: forwardRef(() => NumberInputComponent),
         },
     ],
     template: `
@@ -50,39 +56,16 @@ export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
             [attr.data-slot]="'number-input'"
             [attr.aria-disabled]="isDisabled() || null"
         >
-            <input
+            <ui-input
                 #inputRef
-                type="text"
-                inputmode="decimal"
-                class="h-full w-full min-w-0 bg-transparent py-1 pl-3 pr-10 text-base outline-none placeholder:text-muted-foreground md:text-sm"
+                type="number"
                 [disabled]="isDisabled()"
                 [placeholder]="placeholder()"
-                [value]="displayValue()"
-                (input)="onInputChange($event)"
+                [ngModel]="displayValue()"
+                (ngModelChange)="onInputChange($event)"
                 (blur)="onBlur()"
                 (keydown)="onKeydown($event)"
-                (wheel)="onWheel($event)"
             />
-            <div class="absolute right-0 flex h-full flex-col border-l border-input">
-                <button
-                    type="button"
-                    class="flex flex-1 items-center justify-center px-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-tr-lg transition-colors disabled:pointer-events-none disabled:opacity-50"
-                    [disabled]="isDisabled()"
-                    [attr.aria-label]="'Increment'"
-                    (click)="increment()"
-                >
-                    <ui-icon name="chevron-up" size="xs" />
-                </button>
-                <button
-                    type="button"
-                    class="flex flex-1 items-center justify-center px-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-br-lg transition-colors disabled:pointer-events-none disabled:opacity-50 border-t border-input"
-                    [disabled]="isDisabled()"
-                    [attr.aria-label]="'Decrement'"
-                    (click)="decrement()"
-                >
-                    <ui-icon name="chevron-down" size="xs" />
-                </button>
-            </div>
         </div>
     `,
     host: { class: 'contents' },
@@ -99,7 +82,7 @@ export class NumberInputComponent implements ControlValueAccessor {
 
     readonly valueChange = output<number | null>();
 
-    readonly inputRef = viewChild.required<ElementRef<HTMLInputElement>>('inputRef');
+    readonly inputRef = viewChild.required<InputComponent>('inputRef');
 
     private readonly _currentValue = signal<number | null>(null);
     private readonly _formDisabled = signal(false);
@@ -115,6 +98,7 @@ export class NumberInputComponent implements ControlValueAccessor {
         cn(numberInputWrapperVariants({ variant: this.variant() }), this.class())
     );
 
+    private readonly destroyRef = inject(DestroyRef);
     private onChange: (value: number | null) => void = () => { };
     private onTouched: () => void = () => { };
 
@@ -122,10 +106,17 @@ export class NumberInputComponent implements ControlValueAccessor {
         effect(() => {
             this._currentValue.set(this.value());
         });
+        effect(() => {
+            const nativeInput = this.inputRef().inputRef().nativeElement;
+            const handler = (e: WheelEvent) => {
+                if (globalThis.document.activeElement === nativeInput) e.preventDefault();
+            };
+            nativeInput.addEventListener('wheel', handler, { passive: false });
+            this.destroyRef.onDestroy(() => nativeInput.removeEventListener('wheel', handler));
+        });
     }
 
-    onInputChange(event: Event): void {
-        const raw = (event.target as HTMLInputElement).value;
+    onInputChange(raw: string): void {
         const parsed = this.parseValue(raw);
         this._currentValue.set(parsed);
         this.onChange(parsed);
@@ -152,13 +143,6 @@ export class NumberInputComponent implements ControlValueAccessor {
         }
     }
 
-    onWheel(event: WheelEvent): void {
-        const inputEl = this.inputRef().nativeElement;
-        if (document.activeElement === inputEl) {
-            event.preventDefault();
-        }
-    }
-
     increment(): void {
         const current = this._currentValue() ?? 0;
         const next = this.clamp(this.roundStep(current + this.step()));
@@ -172,7 +156,7 @@ export class NumberInputComponent implements ControlValueAccessor {
     }
 
     writeValue(value: number | null): void {
-        this._currentValue.set(value ?? null);
+        this._currentValue.set(value);
     }
 
     registerOnChange(fn: (value: number | null) => void): void {
@@ -188,7 +172,7 @@ export class NumberInputComponent implements ControlValueAccessor {
     }
 
     focus(): void {
-        this.inputRef().nativeElement.focus();
+        this.inputRef().focus();
     }
 
     private parseValue(raw: string): number | null {
