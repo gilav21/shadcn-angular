@@ -306,22 +306,31 @@ export class TourComponent {
         return -1;
     }
 
-    private setupPositionForStep(index: number): void {
-        const step = this.steps()[index];
-        if (!step) return;
-
-        const targetEl = this.document.querySelector<HTMLElement>(step.target);
-        if (!targetEl) {
-            globalThis.console?.warn(`[ui-tour] target not found: "${step.target}" — skipping step.`);
-            const next = this.findNextValidStep(index + 1, index);
-            if (next === -1) {
-                this.finish();
-                return;
+    private resolveTarget(startIndex: number): { targetEl: HTMLElement; finalIndex: number } | null {
+        const steps = this.steps();
+        let idx = startIndex;
+        while (idx < steps.length) {
+            const step = steps[idx];
+            if (step) {
+                const el = this.document.querySelector<HTMLElement>(step.target);
+                if (el) return { targetEl: el, finalIndex: idx };
+                globalThis.console?.warn(`[ui-tour] target not found: "${step.target}" — skipping step.`);
             }
-            this._currentIndex.set(next);
-            this.stepChange.emit(next);
-            this.setupPositionForStep(next);
+            idx++;
+        }
+        return null;
+    }
+
+    private setupPositionForStep(index: number): void {
+        const resolved = this.resolveTarget(index);
+        if (!resolved) {
+            this.finish();
             return;
+        }
+        const { targetEl, finalIndex } = resolved;
+        if (finalIndex !== index) {
+            this._currentIndex.set(finalIndex);
+            this.stepChange.emit(finalIndex);
         }
 
         this.teardownObservers();
