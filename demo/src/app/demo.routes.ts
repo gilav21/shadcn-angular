@@ -37,6 +37,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'autocomplete', loadComponent: () => import('./demos/inputs/autocomplete-demo.component').then(m => m.AutocompleteDemoComponent) },
   { path: 'tree-select', loadComponent: () => import('./demos/inputs/tree-select-demo.component').then(m => m.TreeSelectDemoComponent) },
   { path: 'number-input', loadComponent: () => import('./demos/inputs/number-input-demo.component').then(m => m.NumberInputDemoComponent) },
+  { path: 'phone-input', loadComponent: () => import('./demos/inputs/phone-input-demo.component').then(m => m.PhoneInputDemoComponent) },
   { path: 'form', loadComponent: () => import('./demos/inputs/form-demo.component').then(m => m.FormDemoComponent) },
 
   // Overlay

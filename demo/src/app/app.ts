@@ -132,6 +132,7 @@ export class AppComponent {
     { id: 'form', name: 'Form', category: 'Inputs', icon: '📋' },
     { id: 'input', name: 'Input', category: 'Inputs', icon: '✏️' },
     { id: 'number-input', name: 'Number Input', category: 'Inputs', icon: '🔢' },
+    { id: 'phone-input', name: 'Phone Input', category: 'Inputs', icon: '📞' },
     { id: 'input-mask', name: 'Input Mask', category: 'Inputs', icon: '🎭' },
     { id: 'split-button', name: 'Split Button', category: 'Inputs', icon: '🔽' },
     { id: 'chip-list', name: 'Chip List', category: 'Inputs', icon: '🏷️' },
