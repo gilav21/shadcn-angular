@@ -189,6 +189,68 @@ describe('PhoneInputComponent writeValue', () => {
 });
 
 @Component({
+    selector: 'app-test-host-mask',
+    imports: [PhoneInputComponent, FormsModule],
+    template: `<ui-phone-input [(ngModel)]="value" />`,
+})
+class TestHostMaskComponent {
+    value = '';
+}
+
+describe('PhoneInputComponent mask enforcement (via InputMaskDirective)', () => {
+    let fixture: ComponentFixture<TestHostMaskComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [TestHostMaskComponent],
+        }).compileComponents();
+        fixture = TestBed.createComponent(TestHostMaskComponent);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+    });
+
+    it('should reject letters typed into the masked tel input', async () => {
+        const telInput = fixture.nativeElement.querySelector('input[type="tel"]') as HTMLInputElement;
+        expect(telInput).toBeTruthy();
+
+        telInput.value = 'abc';
+        telInput.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(telInput.value).not.toContain('a');
+        expect(telInput.value).not.toContain('b');
+        expect(telInput.value).not.toContain('c');
+    });
+
+    it('should format raw digits according to the US mask', async () => {
+        const telInput = fixture.nativeElement.querySelector('input[type="tel"]') as HTMLInputElement;
+
+        telInput.value = '5551234567';
+        telInput.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(telInput.value).toBe('(555) 123-4567');
+    });
+
+    it('should strip letters from a mixed input and keep only digits formatted', async () => {
+        const telInput = fixture.nativeElement.querySelector('input[type="tel"]') as HTMLInputElement;
+
+        telInput.value = '5a5b5c1234567';
+        telInput.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(telInput.value).toBe('(555) 123-4567');
+    });
+});
+
+@Component({
     selector: 'app-test-reactive',
     imports: [PhoneInputComponent, ReactiveFormsModule],
     template: `<ui-phone-input [formControl]="control" />`,

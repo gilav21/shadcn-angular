@@ -206,8 +206,6 @@ export class TourComponent {
     private currentTargetEl: HTMLElement | null = null;
 
     constructor() {
-        this.ensureHighlightStyle();
-
         effect(() => {
             const isActive = this.active();
             untracked(() => {
@@ -384,6 +382,7 @@ export class TourComponent {
     }
 
     private applyHighlight(targetEl: HTMLElement): void {
+        this.ensureHighlightStyle();
         targetEl.classList.add(TARGET_HIGHLIGHT_CLASS);
     }
 
