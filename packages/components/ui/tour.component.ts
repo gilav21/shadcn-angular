@@ -15,6 +15,7 @@ import {
     afterNextRender,
     untracked,
     Injector,
+    ViewEncapsulation,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn, isRtl } from '../lib/utils';
@@ -105,7 +106,18 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
 @Component({
     selector: 'ui-tour',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    encapsulation: ViewEncapsulation.None,
     imports: [ButtonComponent],
+    styles: [`
+        .ui-tour-target-highlight {
+            position: relative;
+            z-index: 10001;
+            outline: 2px solid var(--ring, #0ea5e9);
+            outline-offset: 4px;
+            border-radius: 6px;
+            transition: outline 0.15s ease;
+        }
+    `],
     template: `
         @if (active() && isReady() && currentStep()) {
             <div
@@ -300,8 +312,15 @@ export class TourComponent {
 
         const targetEl = this.document.querySelector<HTMLElement>(step.target);
         if (!targetEl) {
-            globalThis.console?.warn(`[ui-tour] target not found: "${step.target}" — ending tour.`);
-            this.finish();
+            globalThis.console?.warn(`[ui-tour] target not found: "${step.target}" — skipping step.`);
+            const next = this.findNextValidStep(index + 1, index);
+            if (next === -1) {
+                this.finish();
+                return;
+            }
+            this._currentIndex.set(next);
+            this.stepChange.emit(next);
+            this.setupPositionForStep(next);
             return;
         }
 
@@ -383,21 +402,11 @@ export class TourComponent {
     }
 
     private applyHighlight(targetEl: HTMLElement): void {
-        this.ensureHighlightStyle();
         targetEl.classList.add(TARGET_HIGHLIGHT_CLASS);
     }
 
     private clearCurrentHighlight(): void {
         this.currentTargetEl?.classList.remove(TARGET_HIGHLIGHT_CLASS);
         this.currentTargetEl = null;
-    }
-
-    private ensureHighlightStyle(): void {
-        const styleId = 'ui-tour-highlight-style';
-        if (this.document.getElementById(styleId)) return;
-        const styleEl = this.document.createElement('style');
-        styleEl.id = styleId;
-        styleEl.textContent = `.${TARGET_HIGHLIGHT_CLASS}{position:relative;z-index:10001;outline:2px solid var(--ring,#0ea5e9);outline-offset:4px;border-radius:6px;transition:outline 0.15s ease;}`;
-        this.document.head.appendChild(styleEl);
     }
 }
