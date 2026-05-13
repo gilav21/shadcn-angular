@@ -21,6 +21,26 @@ export type { PhoneCountry };
 
 export type PhoneInputVariant = 'outline' | 'underline' | 'ghost';
 
+/**
+ * International phone number input built on `ui-input-group`.
+ *
+ * The country selector (flag + dial code) is a popover trigger; the inner
+ * `ui-input` is wrapped by `InputMaskDirective` with the selected country's
+ * mask, so the user physically cannot type characters that don't fit the
+ * format. The component emits an E.164 string (`+15551234567`) via
+ * `valueChange` and `ControlValueAccessor`.
+ *
+ * @example Basic usage with two-way binding
+ * ```html
+ * <ui-phone-input [(ngModel)]="phone" />
+ * ```
+ *
+ * @example With a default country and reactive form
+ * ```html
+ * <ui-phone-input defaultCountry="GB" [formControl]="phoneCtrl" />
+ * ```
+ */
+
 function buildE164(dialCode: string, masked: string): string {
     const digits = masked.replaceAll(/\D/g, '');
     return digits ? `${dialCode}${digits}` : '';
@@ -138,14 +158,22 @@ function parseE164(value: string, countries: PhoneCountry[], currentCountry: Pho
     host: { class: 'contents' },
 })
 export class PhoneInputComponent implements ControlValueAccessor {
+    /** ISO 3166-1 alpha-2 code of the initially selected country. Defaults to `'US'`. */
     readonly defaultCountry = input<string>('US');
+    /** Disables both the country selector and the number input. */
     readonly disabled = input<boolean>(false);
+    /** Overrides the country's example placeholder. */
     readonly placeholder = input<string | undefined>(undefined);
+    /** Extra CSS classes for the outer wrapper (the `ui-input-group`). */
     readonly class = input('');
+    /** Visual style of the wrapping `ui-input-group`. */
     readonly variant = input<PhoneInputVariant>('outline');
+    /** Country list shown in the dropdown. Defaults to {@link DEFAULT_COUNTRIES}. */
     readonly countries = input<PhoneCountry[]>(DEFAULT_COUNTRIES);
+    /** External value (E.164 string). Use this for one-way binding without forms. */
     readonly value = input<string | null>(null);
 
+    /** Emits the E.164-formatted phone number on every change (`''` when empty). */
     readonly valueChange = output<string>();
 
     private readonly _selectedCountry = signal<PhoneCountry>(DEFAULT_COUNTRIES[0]);

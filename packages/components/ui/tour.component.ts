@@ -21,6 +21,16 @@ import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
 import { ButtonComponent } from './button.component';
 
+/**
+ * One step of a guided tour.
+ *
+ * - `target` is a CSS selector resolved at the moment the step activates.
+ *   If no matching element exists, the tour logs a console warning and
+ *   skips forward to the next step.
+ * - `title` and `description` populate the tooltip card.
+ * - `side` forces tooltip placement; when omitted, the tour picks the
+ *   side with the most available viewport room.
+ */
 export interface TourStep {
     target: string;
     title: string;
@@ -158,22 +168,53 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
     `,
     host: { class: 'contents' },
 })
+/**
+ * Declarative guided tour with a spotlight overlay and a positioned step card.
+ *
+ * Set `[steps]` and toggle `[(active)]` to start the tour. Each step's target
+ * is resolved via `document.querySelector`; missing targets are skipped with
+ * a console warning. The tour scrolls the target into view, places the card
+ * on the side with the most room (overridable per step), and applies a
+ * `.ui-tour-target-highlight` outline class to the active element.
+ *
+ * @example
+ * ```html
+ * <ui-tour
+ *   [steps]="[
+ *     { target: '#save', title: 'Save', description: 'Saves your work.' },
+ *     { target: '#sidebar', title: 'Sidebar', description: 'Navigate here.' }
+ *   ]"
+ *   [(active)]="showTour"
+ *   (done)="showTour = false"
+ * />
+ * ```
+ */
 export class TourComponent {
     private readonly document = inject(DOCUMENT);
     private readonly destroyRef = inject(DestroyRef);
     private readonly zone = inject(NgZone);
     private readonly injector = inject(Injector);
 
+    /** Steps shown in order. Missing-target steps are skipped with a warning. */
     readonly steps = input<TourStep[]>([]);
+    /** Two-way activation flag. Setting to `false` cancels the tour without emitting `done`. */
     readonly active = model<boolean>(false);
+    /** Whether the Skip button is shown on intermediate steps. */
     readonly showSkip = input<boolean>(true);
+    /** Label for the forward button on non-final steps. */
     readonly nextLabel = input<string>('Next');
+    /** Label for the back button on non-first steps. */
     readonly prevLabel = input<string>('Previous');
+    /** Label for the forward button on the final step. */
     readonly finishLabel = input<string>('Done');
+    /** Label for the skip button. */
     readonly skipLabel = input<string>('Skip');
+    /** Extra CSS classes applied to the floating step card. */
     readonly class = input('');
 
+    /** Emitted when the tour finishes naturally or is skipped. Not emitted when the parent flips `active` off externally. */
     readonly done = output<void>();
+    /** Emitted whenever the visible step index changes. */
     readonly stepChange = output<number>();
 
     private readonly cardElRef = viewChild<ElementRef<HTMLDivElement>>('cardEl');
