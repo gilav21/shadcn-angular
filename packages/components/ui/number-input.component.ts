@@ -110,7 +110,10 @@ export class NumberInputComponent implements ControlValueAccessor {
         effect(() => {
             const nativeInput = this.inputRef().inputRef().nativeElement;
             const handler = (e: WheelEvent) => {
-                if (globalThis.document.activeElement === nativeInput) e.preventDefault();
+                if (globalThis.document.activeElement !== nativeInput) return;
+                e.preventDefault();
+                if (e.deltaY < 0) this.increment();
+                else if (e.deltaY > 0) this.decrement();
             };
             nativeInput.addEventListener('wheel', handler, { passive: false });
             this.destroyRef.onDestroy(() => nativeInput.removeEventListener('wheel', handler));
