@@ -1,5 +1,6 @@
 export * from './button.component';
 export * from './input.component';
+export * from './number-input.component';
 export * from './input-mask.directive';
 export * from './split-button.component';
 export * from './card.component';
