@@ -212,6 +212,15 @@ classes = computed(() => cn(
 })
 ```
 
+**NEVER use `ViewEncapsulation.None`.** Component styles leak to the entire
+application and break the rest of the library's encapsulation guarantees.
+If you need to style an element outside the component's own DOM tree
+(e.g., a `document.body` overlay, or a queried target element), do it via
+inline styles applied imperatively in TypeScript — save the original
+values on the element before mutating, and restore them on teardown. The
+tour component (`packages/components/ui/tour.component.ts`) is the
+reference implementation for this pattern.
+
 ### ❌ Only Data-Driven (Don't Do This)
 
 ```html
