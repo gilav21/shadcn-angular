@@ -15,7 +15,6 @@ import {
     afterNextRender,
     untracked,
     Injector,
-    ViewEncapsulation,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
@@ -64,7 +63,16 @@ const SPOTLIGHT_PAD = 6;
 const VIEWPORT_MARGIN = 8;
 const DEFAULT_CARD_WIDTH = 320;
 const DEFAULT_CARD_HEIGHT = 160;
-const TARGET_HIGHLIGHT_CLASS = 'ui-tour-target-highlight';
+const TOUR_HIGHLIGHT_ATTR = 'data-ui-tour-highlight';
+
+interface HighlightSavedStyles {
+    readonly outline: string;
+    readonly outlineOffset: string;
+    readonly position: string;
+    readonly zIndex: string;
+    readonly borderRadius: string;
+    readonly transition: string;
+}
 
 function chooseSide(targetRect: Rect, cardSize: CardSize, preferred: TourSide | undefined): TourSide {
     if (preferred) return preferred;
@@ -116,34 +124,26 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
 @Component({
     selector: 'ui-tour',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    encapsulation: ViewEncapsulation.None,
     imports: [ButtonComponent],
-    styles: [`
-        .ui-tour-target-highlight {
-            position: relative;
-            z-index: 10001;
-            outline: 2px solid var(--ring, #0ea5e9);
-            outline-offset: 4px;
-            border-radius: 6px;
-            transition: outline 0.15s ease;
-        }
-    `],
     template: `
-        @if (active() && isReady() && currentStep(); as step) {
-            <div
-                class="fixed rounded-md pointer-events-none transition-all duration-150"
-                [style.top.px]="spotlightRect().top"
-                [style.left.px]="spotlightRect().left"
-                [style.width.px]="spotlightRect().width"
-                [style.height.px]="spotlightRect().height"
-                style="z-index:9999;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);"
-                [attr.data-slot]="'tour-spotlight'"
-            ></div>
+        @if (active() && currentStep(); as step) {
+            @if (isReady()) {
+                <div
+                    class="fixed rounded-md pointer-events-none transition-all duration-150"
+                    [style.top.px]="spotlightRect().top"
+                    [style.left.px]="spotlightRect().left"
+                    [style.width.px]="spotlightRect().width"
+                    [style.height.px]="spotlightRect().height"
+                    style="z-index:9999;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);"
+                    [attr.data-slot]="'tour-spotlight'"
+                ></div>
+            }
             <div
                 #cardEl
                 [class]="cardClasses()"
                 [style.top.px]="cardPos().top"
                 [style.left.px]="cardPos().left"
+                [style.visibility]="isReady() ? 'visible' : 'hidden'"
                 style="z-index:10000;"
                 [attr.data-slot]="'tour-card'"
                 tabindex="-1"
@@ -259,6 +259,7 @@ export class TourComponent {
     private resizeObserver: ResizeObserver | null = null;
     private removeReposition: (() => void) | null = null;
     private currentTargetEl: HTMLElement | null = null;
+    private savedTargetStyles: HighlightSavedStyles | null = null;
 
     constructor() {
         effect(() => {
@@ -362,7 +363,10 @@ export class TourComponent {
                 this.readAndSetRect(targetEl);
                 this.measureCard();
                 this._isReady.set(true);
-                this.focusCard();
+                afterNextRender(
+                    () => this.focusCard(),
+                    { injector: this.injector }
+                );
             },
             { injector: this.injector }
         );
@@ -427,11 +431,39 @@ export class TourComponent {
     }
 
     private applyHighlight(targetEl: HTMLElement): void {
-        targetEl.classList.add(TARGET_HIGHLIGHT_CLASS);
+        this.savedTargetStyles = {
+            outline: targetEl.style.outline,
+            outlineOffset: targetEl.style.outlineOffset,
+            position: targetEl.style.position,
+            zIndex: targetEl.style.zIndex,
+            borderRadius: targetEl.style.borderRadius,
+            transition: targetEl.style.transition,
+        };
+        targetEl.setAttribute(TOUR_HIGHLIGHT_ATTR, '');
+        const computedPosition = globalThis.window?.getComputedStyle(targetEl).position;
+        if (computedPosition === 'static' || !computedPosition) {
+            targetEl.style.position = 'relative';
+        }
+        targetEl.style.zIndex = '10001';
+        targetEl.style.outline = '2px solid var(--ring, #0ea5e9)';
+        targetEl.style.outlineOffset = '4px';
+        targetEl.style.borderRadius = '6px';
+        targetEl.style.transition = 'outline 0.15s ease';
     }
 
     private clearCurrentHighlight(): void {
-        this.currentTargetEl?.classList.remove(TARGET_HIGHLIGHT_CLASS);
+        const el = this.currentTargetEl;
+        const saved = this.savedTargetStyles;
+        if (el && saved) {
+            el.style.outline = saved.outline;
+            el.style.outlineOffset = saved.outlineOffset;
+            el.style.position = saved.position;
+            el.style.zIndex = saved.zIndex;
+            el.style.borderRadius = saved.borderRadius;
+            el.style.transition = saved.transition;
+            el.removeAttribute(TOUR_HIGHLIGHT_ATTR);
+        }
         this.currentTargetEl = null;
+        this.savedTargetStyles = null;
     }
 }

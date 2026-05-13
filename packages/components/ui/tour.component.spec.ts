@@ -261,15 +261,16 @@ describe('TourComponent', () => {
         expect(tour.currentIndex()).toBe(0);
     });
 
-    it('should apply highlight class to target while active', async () => {
+    it('should highlight target while active (data attribute + outline)', async () => {
         host.active.set(true);
         await flush(fixture);
 
         const target = document.getElementById('step1');
-        expect(target?.classList.contains('ui-tour-target-highlight')).toBe(true);
+        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(true);
+        expect(target?.style.outline).toContain('2px');
     });
 
-    it('should remove highlight from previous target when advancing', async () => {
+    it('should move highlight from previous target when advancing', async () => {
         host.active.set(true);
         await flush(fixture);
 
@@ -279,11 +280,11 @@ describe('TourComponent', () => {
 
         const previousTarget = document.getElementById('step1');
         const currentTarget = document.getElementById('step2');
-        expect(previousTarget?.classList.contains('ui-tour-target-highlight')).toBe(false);
-        expect(currentTarget?.classList.contains('ui-tour-target-highlight')).toBe(true);
+        expect(previousTarget?.hasAttribute('data-ui-tour-highlight')).toBe(false);
+        expect(currentTarget?.hasAttribute('data-ui-tour-highlight')).toBe(true);
     });
 
-    it('should remove all highlights on teardown', async () => {
+    it('should remove highlight on teardown', async () => {
         host.active.set(true);
         await flush(fixture);
 
@@ -291,7 +292,8 @@ describe('TourComponent', () => {
         fixture.detectChanges();
 
         const target = document.getElementById('step1');
-        expect(target?.classList.contains('ui-tour-target-highlight')).toBe(false);
+        expect(target?.hasAttribute('data-ui-tour-highlight')).toBe(false);
+        expect(target?.style.outline).toBe('');
     });
 });
 
