@@ -119,7 +119,7 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
         }
     `],
     template: `
-        @if (active() && isReady() && currentStep()) {
+        @if (active() && isReady() && currentStep(); as step) {
             <div
                 class="fixed rounded-md pointer-events-none transition-all duration-150"
                 [style.top.px]="spotlightRect().top"
@@ -140,9 +140,9 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
                 (keydown)="onKeydown($event)"
             >
                 <div class="text-xs text-muted-foreground mb-1">{{ currentIndex() + 1 }} / {{ steps().length }}</div>
-                <h3 class="font-semibold">{{ currentStep()!.title }}</h3>
-                @if (currentStep()!.description) {
-                    <p class="text-sm text-muted-foreground mt-1">{{ currentStep()!.description }}</p>
+                <h3 class="font-semibold">{{ step.title }}</h3>
+                @if (step.description) {
+                    <p class="text-sm text-muted-foreground mt-1">{{ step.description }}</p>
                 }
                 <div class="flex flex-wrap gap-2 mt-4 justify-end">
                     @if (showSkip() && !isLastStep()) {
