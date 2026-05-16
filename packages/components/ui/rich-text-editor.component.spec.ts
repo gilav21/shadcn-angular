@@ -1880,16 +1880,28 @@ describe('RichTextEditorComponent', () => {
             expect(component.effectiveOutlineMode()).toBe('popover');
         });
 
-        it('editableClasses includes ps-64 only while the docked panel is open', () => {
+        it('editableClasses insets the content past the docked panel only while it is open', () => {
             fixture.componentRef.setInput('outlineMode', 'panel');
             fixture.detectChanges();
-            expect(component.editableClasses()).not.toContain('ps-64');
+            expect(component.editableClasses()).not.toContain('ps-[calc(16rem+3px)]');
 
             component.setOutlinePanelOpen(true);
-            expect(component.editableClasses()).toContain('ps-64');
+            expect(component.editableClasses()).toContain('ps-[calc(16rem+3px)]');
 
             component.setOutlinePanelOpen(false);
-            expect(component.editableClasses()).not.toContain('ps-64');
+            expect(component.editableClasses()).not.toContain('ps-[calc(16rem+3px)]');
+        });
+
+        it('renders the outline corner button and the history button in one shared container', () => {
+            fixture.componentRef.setInput('showOutline', true);
+            fixture.componentRef.setInput('showHistoryPanel', true);
+            fixture.componentRef.setInput('showHistoryButton', true);
+            fixture.detectChanges();
+
+            const container: HTMLElement | null =
+                fixture.nativeElement.querySelector('div.absolute.top-2.flex.items-center');
+            expect(container).toBeTruthy();
+            expect(container!.querySelectorAll('ui-button').length).toBeGreaterThanOrEqual(2);
         });
 
         it('exposes a /outline slash command that opens the docked panel', () => {
