@@ -34,6 +34,7 @@ export interface RichTextLocale {
         outdent: string;
         taskList: string;
         horizontalRule: string;
+        outline: string;
     };
 
     findReplace: {
@@ -141,6 +142,13 @@ export interface RichTextLocale {
         selectTag: string;
     };
 
+    outline: {
+        title: string;
+        empty: string;
+        ariaOpen: string;
+        ariaClose: string;
+    };
+
     table: {
         insertTable: string;
         rows: string;
@@ -234,6 +242,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Decrease Indent',
             taskList: 'Task List',
             horizontalRule: 'Horizontal Rule',
+            outline: 'Document Outline',
         },
         findReplace: {
             find: 'Find',
@@ -331,6 +340,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Select a user',
             selectTag: 'Select a tag',
         },
+        outline: {
+            title: 'Document Outline',
+            empty: 'No headings yet',
+            ariaOpen: 'Open document outline',
+            ariaClose: 'Close document outline',
+        },
         table: {
             insertTable: 'Insert Table',
             rows: 'Rows',
@@ -416,6 +431,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'הקטנת הזחה',
             taskList: 'רשימת משימות',
             horizontalRule: 'קו אופקי',
+            outline: 'מתאר מסמך',
         },
         findReplace: {
             find: 'חיפוש',
@@ -513,6 +529,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'בחירת משתמש',
             selectTag: 'בחירת תגית',
         },
+        outline: {
+            title: 'מתאר מסמך',
+            empty: 'אין כותרות עדיין',
+            ariaOpen: 'פתיחת מתאר המסמך',
+            ariaClose: 'סגירת מתאר המסמך',
+        },
         table: {
             insertTable: 'הוספת טבלה',
             rows: 'שורות',
@@ -598,6 +620,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'تقليل المسافة البادئة',
             taskList: 'قائمة المهام',
             horizontalRule: 'خط أفقي',
+            outline: 'مخطط المستند',
         },
         findReplace: {
             find: 'بحث',
@@ -695,6 +718,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'اختيار مستخدم',
             selectTag: 'اختيار وسم',
         },
+        outline: {
+            title: 'مخطط المستند',
+            empty: 'لا توجد عناوين بعد',
+            ariaOpen: 'فتح مخطط المستند',
+            ariaClose: 'إغلاق مخطط المستند',
+        },
         table: {
             insertTable: 'إدراج جدول',
             rows: 'صفوف',
@@ -780,6 +809,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Einzug verkleinern',
             taskList: 'Aufgabenliste',
             horizontalRule: 'Horizontale Linie',
+            outline: 'Dokumentgliederung',
         },
         findReplace: {
             find: 'Suchen',
@@ -877,6 +907,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Benutzer auswählen',
             selectTag: 'Tag auswählen',
         },
+        outline: {
+            title: 'Dokumentgliederung',
+            empty: 'Noch keine Überschriften',
+            ariaOpen: 'Dokumentgliederung öffnen',
+            ariaClose: 'Dokumentgliederung schließen',
+        },
         table: {
             insertTable: 'Tabelle einfügen',
             rows: 'Zeilen',
@@ -962,6 +998,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Diminuer le retrait',
             taskList: 'Liste de tâches',
             horizontalRule: 'Ligne horizontale',
+            outline: 'Plan du document',
         },
         findReplace: {
             find: 'Rechercher',
@@ -1059,6 +1096,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Sélectionner un utilisateur',
             selectTag: 'Sélectionner un tag',
         },
+        outline: {
+            title: 'Plan du document',
+            empty: 'Aucun titre pour le moment',
+            ariaOpen: 'Ouvrir le plan du document',
+            ariaClose: 'Fermer le plan du document',
+        },
         table: {
             insertTable: 'Insérer un tableau',
             rows: 'Lignes',
@@ -1144,6 +1187,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Disminuir sangría',
             taskList: 'Lista de tareas',
             horizontalRule: 'Línea horizontal',
+            outline: 'Esquema del documento',
         },
         findReplace: {
             find: 'Buscar',
@@ -1241,6 +1285,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Seleccionar un usuario',
             selectTag: 'Seleccionar una etiqueta',
         },
+        outline: {
+            title: 'Esquema del documento',
+            empty: 'Aún no hay encabezados',
+            ariaOpen: 'Abrir el esquema del documento',
+            ariaClose: 'Cerrar el esquema del documento',
+        },
         table: {
             insertTable: 'Insertar tabla',
             rows: 'Filas',
@@ -1326,6 +1376,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'インデントを減らす',
             taskList: 'タスクリスト',
             horizontalRule: '水平線',
+            outline: 'ドキュメントアウトライン',
         },
         findReplace: {
             find: '検索',
@@ -1423,6 +1474,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'ユーザーを選択',
             selectTag: 'タグを選択',
         },
+        outline: {
+            title: 'ドキュメントアウトライン',
+            empty: '見出しがまだありません',
+            ariaOpen: 'ドキュメントアウトラインを開く',
+            ariaClose: 'ドキュメントアウトラインを閉じる',
+        },
         table: {
             insertTable: 'テーブルを挿入',
             rows: '行',
@@ -1508,6 +1565,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: '减少缩进',
             taskList: '任务列表',
             horizontalRule: '水平线',
+            outline: '文档大纲',
         },
         findReplace: {
             find: '查找',
@@ -1605,6 +1663,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: '选择用户',
             selectTag: '选择标签',
         },
+        outline: {
+            title: '文档大纲',
+            empty: '暂无标题',
+            ariaOpen: '打开文档大纲',
+            ariaClose: '关闭文档大纲',
+        },
         table: {
             insertTable: '插入表格',
             rows: '行',
@@ -1690,6 +1754,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Уменьшить отступ',
             taskList: 'Список задач',
             horizontalRule: 'Горизонтальная линия',
+            outline: 'Структура документа',
         },
         findReplace: {
             find: 'Найти',
@@ -1787,6 +1852,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             selectUser: 'Выбрать пользователя',
             selectTag: 'Выбрать тег',
         },
+        outline: {
+            title: 'Структура документа',
+            empty: 'Заголовков пока нет',
+            ariaOpen: 'Открыть структуру документа',
+            ariaClose: 'Закрыть структуру документа',
+        },
         table: {
             insertTable: 'Вставить таблицу',
             rows: 'Строки',
@@ -1872,6 +1943,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Diminuir recuo',
             taskList: 'Lista de tarefas',
             horizontalRule: 'Linha horizontal',
+            outline: 'Estrutura do documento',
         },
         findReplace: {
             find: 'Localizar',
@@ -1968,6 +2040,12 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'Nenhuma tag encontrada',
             selectUser: 'Selecionar um usuário',
             selectTag: 'Selecionar uma tag',
+        },
+        outline: {
+            title: 'Estrutura do documento',
+            empty: 'Nenhum título ainda',
+            ariaOpen: 'Abrir estrutura do documento',
+            ariaClose: 'Fechar estrutura do documento',
         },
         table: {
             insertTable: 'Inserir tabela',

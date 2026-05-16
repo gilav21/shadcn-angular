@@ -16,7 +16,7 @@ import {
     model,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { DOCUMENT, DatePipe } from '@angular/common';
+import { DOCUMENT, DatePipe, NgTemplateOutlet } from '@angular/common';
 import { cn } from '../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
@@ -431,6 +431,29 @@ interface SerializedSelection {
     endOffset: number;
 }
 
+/** A single entry in the document outline (table of contents). */
+export interface OutlineHeading {
+    /** Heading level, 1-6, derived from the tag name (h1-h6). */
+    level: number;
+    /** Trimmed text content of the heading. */
+    text: string;
+    /** Zero-based position of the heading within the document's heading list. */
+    index: number;
+}
+
+/** CSS selector matching every heading element used by the outline. */
+const OUTLINE_HEADING_SELECTOR = 'h1,h2,h3,h4,h5,h6';
+
+/** Maps a heading element to an {@link OutlineHeading} entry. */
+function toOutlineHeading(element: Element, index: number): OutlineHeading {
+    const level = Number.parseInt(element.tagName.charAt(1), 10);
+    return {
+        level,
+        text: (element.textContent ?? '').trim(),
+        index,
+    };
+}
+
 /**
  * The default toolbar layout used when `[toolbarItems]` is not provided.
  * Groups: formatting | block type | lists | alignment | colors/size | insert | code | clear.
@@ -606,6 +629,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         DatePipe,
+        NgTemplateOutlet,
         RichTextToolbarComponent,
         RichTextMentionPopoverComponent,
         RichTextImageResizerComponent,
@@ -740,6 +764,99 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
             </ui-popover-content>
           </ui-popover>
         </div>
+      }
+
+      @if (outlineEnabled()) {
+        @if (showOutline() && !readonly()) {
+          <div #outlineShortcutAnchor class="absolute top-2 z-30 ltr:left-2 rtl:right-2">
+            @if (outlineMode() === 'popover') {
+              <ui-popover [open]="outlinePanelOpen()" (openChange)="outlinePanelOpen.set($event)">
+                <ui-popover-trigger>
+                  <ui-button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    class="h-8 w-8 p-0"
+                    [disabled]="disabled()"
+                    [attr.aria-label]="resolvedLocale().outline.ariaOpen"
+                  >
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                    </svg>
+                  </ui-button>
+                </ui-popover-trigger>
+                <ui-popover-content class="w-80 max-sm:w-[calc(100vw-2rem)] p-0" align="start" side="bottom" [restoreFocus]="false">
+                  <ng-container [ngTemplateOutlet]="outlineBody" />
+                </ui-popover-content>
+              </ui-popover>
+            } @else {
+              <ui-button
+                type="button"
+                variant="outline"
+                size="sm"
+                class="h-8 w-8 p-0"
+                [disabled]="disabled()"
+                [attr.aria-label]="outlinePanelOpen() ? resolvedLocale().outline.ariaClose : resolvedLocale().outline.ariaOpen"
+                (click)="outlinePanelOpen.set(!outlinePanelOpen())"
+              >
+                <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+                </svg>
+              </ui-button>
+            }
+          </div>
+        }
+
+        @if (outlineMode() === 'panel' && outlinePanelOpen()) {
+          <div
+            class="absolute top-0 bottom-0 z-20 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto bg-popover ltr:left-0 ltr:border-r rtl:right-0 rtl:border-l"
+            [attr.data-slot]="'rich-text-outline-panel'"
+          >
+            <ng-container [ngTemplateOutlet]="outlineBody" />
+          </div>
+        }
+
+        <ng-template #outlineBody>
+          <div class="flex items-center justify-between border-b px-3 py-2">
+            <div class="text-sm font-medium">{{ resolvedLocale().outline.title }}</div>
+            <ui-button
+              type="button"
+              variant="ghost"
+              size="sm"
+              class="h-7 w-7 p-0"
+              (click)="outlinePanelOpen.set(false)"
+              [attr.aria-label]="resolvedLocale().outline.ariaClose"
+            >
+              <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </ui-button>
+          </div>
+          <ui-scroll-area [class]="'max-h-72 p-2'">
+            @if (outlineHeadings().length === 0) {
+              <p class="px-2 py-3 text-xs text-muted-foreground" data-slot="rich-text-outline-empty">
+                {{ resolvedLocale().outline.empty }}
+              </p>
+            } @else {
+              <div class="space-y-0.5 pr-2" data-slot="rich-text-outline-list">
+                @for (heading of outlineHeadings(); track heading.index) {
+                  <div
+                    role="button"
+                    tabindex="0"
+                    class="w-full cursor-pointer truncate rounded-md px-2 py-1.5 text-left text-sm transition-colors hover:bg-accent/60"
+                    [attr.data-outline-entry]="'true'"
+                    [attr.data-outline-level]="heading.level"
+                    [style.padding-inline-start.rem]="0.5 + (heading.level - 1) * 0.75"
+                    (click)="scrollHeadingIntoView(heading.index)"
+                    (keydown)="onOutlineEntryKeydown($event, heading.index)"
+                  >
+                    {{ heading.text }}
+                  </div>
+                }
+              </div>
+            }
+          </ui-scroll-area>
+        </ng-template>
       }
 
       <ui-dialog [(open)]="historyPreviewOpen">
@@ -1385,6 +1502,14 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /** Show the "Revisions" button in the top-right corner. Only visible when `showHistoryPanel` is `true`. */
     showHistoryButton = input<boolean>(true);
 
+    // ── Outline ─────────────────────────────────────────────────
+
+    /** When true, shows a standalone outline toggle button in the editor corner. */
+    showOutline = input<boolean>(false);
+
+    /** Whether the outline renders as a docked side `panel` or a `popover`. */
+    outlineMode = input<'panel' | 'popover'>('popover');
+
     // ── Slash commands ──────────────────────────────────────────
 
     /** Enable the `/slash` command feature. When `true`, typing `/` opens a command menu. */
@@ -1553,6 +1678,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     autoUploadErrors = signal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>(new Map());
 
     historyPanelOpen = signal<boolean>(false);
+    outlinePanelOpen = signal<boolean>(false);
     historyPreviewOpen = model<boolean>(false);
     historyBrowserOpen = model<boolean>(false);
     selectedHistoryIndex = signal<number | null>(null);
@@ -1649,6 +1775,43 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     interpolateLocale(template: string, values: Record<string, string | number>): string {
         return interpolate(template, values);
+    }
+
+    /** True when the outline UI should render — via `showOutline` or the `'outline'` toolbar item. */
+    outlineEnabled = computed(() => this.showOutline() || this.toolbarItems().includes('outline'));
+
+    /** Live table of contents derived from the editor's heading elements, in document order. */
+    outlineHeadings = computed<OutlineHeading[]>(() => {
+        this.htmlContent();
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) {
+            return [];
+        }
+        return Array.from(editor.querySelectorAll(OUTLINE_HEADING_SELECTOR)).map(toOutlineHeading);
+    });
+
+    /**
+     * Smoothly scrolls the heading at the given outline index into view.
+     * Read-only: never mutates editor content.
+     */
+    scrollHeadingIntoView(index: number): void {
+        const editor = this.editorDiv?.nativeElement;
+        if (!editor) {
+            return;
+        }
+        const headings = editor.querySelectorAll(OUTLINE_HEADING_SELECTOR);
+        const target = headings[index];
+        if (target) {
+            target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        }
+    }
+
+    /** Handles keyboard activation (Enter/Space) on an outline entry row. */
+    onOutlineEntryKeydown(event: KeyboardEvent, index: number): void {
+        if (event.key === 'Enter' || event.key === ' ') {
+            event.preventDefault();
+            this.scrollHeadingIntoView(index);
+        }
     }
 
     filteredMentionItems = computed(() => {
@@ -2592,6 +2755,12 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     onFormatCommand(command: string): void {
         if (this.readonly() || this.disabled()) return;
+
+        if (command === 'outline') {
+            this.outlinePanelOpen.update(open => !open);
+            return;
+        }
+
         this.restoreSelection();
         this.flushPendingHistoryPush();
 

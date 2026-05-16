@@ -1774,4 +1774,78 @@ describe('RichTextEditorComponent', () => {
             expect(component.fontFamiliesStrategy()).toBe('append');
         });
     });
+
+    describe('document outline', () => {
+        const seedHeadings = () => {
+            editor.innerHTML =
+                '<h1>Intro</h1><p>text</p><h2>Setup</h2><h3>Details</h3><h2>Done</h2>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+        };
+
+        it('outlineHeadings returns an entry per heading in document order', () => {
+            seedHeadings();
+
+            const headings = component.outlineHeadings();
+            expect(headings.map(h => h.text)).toEqual(['Intro', 'Setup', 'Details', 'Done']);
+            expect(headings.map(h => h.level)).toEqual([1, 2, 3, 2]);
+            expect(headings.map(h => h.index)).toEqual([0, 1, 2, 3]);
+        });
+
+        it('outlineHeadings is empty for content without headings', () => {
+            editor.innerHTML = '<p>just a paragraph</p>';
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            fixture.detectChanges();
+
+            expect(component.outlineHeadings()).toEqual([]);
+        });
+
+        it('outlineEnabled is true when showOutline is true', () => {
+            expect(component.outlineEnabled()).toBe(false);
+
+            fixture.componentRef.setInput('showOutline', true);
+            fixture.detectChanges();
+
+            expect(component.outlineEnabled()).toBe(true);
+        });
+
+        it('outlineEnabled is true when outline is in toolbarItems', () => {
+            fixture.componentRef.setInput('toolbarItems', ['bold', 'outline']);
+            fixture.detectChanges();
+
+            expect(component.outlineEnabled()).toBe(true);
+        });
+
+        it('outline format command toggles outlinePanelOpen without mutating content', () => {
+            seedHeadings();
+            const before = editor.innerHTML;
+
+            expect(component.outlinePanelOpen()).toBe(false);
+
+            component.onFormatCommand('outline');
+            expect(component.outlinePanelOpen()).toBe(true);
+
+            component.onFormatCommand('outline');
+            expect(component.outlinePanelOpen()).toBe(false);
+
+            expect(editor.innerHTML).toBe(before);
+        });
+
+        it('scrollHeadingIntoView scrolls the matching heading and does not throw', () => {
+            seedHeadings();
+            const headings = editor.querySelectorAll('h1,h2,h3,h4,h5,h6');
+            const spy = vi.fn();
+            headings.forEach(h => {
+                (h as HTMLElement).scrollIntoView = spy;
+            });
+
+            expect(() => component.scrollHeadingIntoView(2)).not.toThrow();
+            expect(spy).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+        });
+
+        it('scrollHeadingIntoView does not throw for an out-of-range index', () => {
+            seedHeadings();
+            expect(() => component.scrollHeadingIntoView(99)).not.toThrow();
+        });
+    });
 });
