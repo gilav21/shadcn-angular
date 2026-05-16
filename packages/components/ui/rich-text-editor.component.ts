@@ -444,6 +444,9 @@ export interface OutlineHeading {
 /** CSS selector matching every heading element used by the outline. */
 const OUTLINE_HEADING_SELECTOR = 'h1,h2,h3,h4,h5,h6';
 
+/** Gap (px) left above a heading when the outline scrolls it into view. */
+const OUTLINE_SCROLL_MARGIN = 12;
+
 /** Maps a heading element to an {@link OutlineHeading} entry. */
 function toOutlineHeading(element: Element, index: number): OutlineHeading {
     const level = Number.parseInt(element.tagName.charAt(1), 10);
@@ -766,11 +769,11 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
         </div>
       }
 
-      @if (outlineEnabled()) {
-        @if (showOutline() && !readonly()) {
+      @if (outlineEnabled() || outlinePanelOpen()) {
+        @if (showOutline() && !readonly() && !(effectiveOutlineMode() === 'panel' && outlinePanelOpen())) {
           <div #outlineShortcutAnchor class="absolute top-2 z-30 ltr:left-2 rtl:right-2">
-            @if (outlineMode() === 'popover') {
-              <ui-popover [open]="outlinePanelOpen()" (openChange)="outlinePanelOpen.set($event)">
+            @if (effectiveOutlineMode() === 'popover') {
+              <ui-popover [open]="outlinePanelOpen()" (openChange)="setOutlinePanelOpen($event)">
                 <ui-popover-trigger>
                   <ui-button
                     type="button"
@@ -797,7 +800,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
                 class="h-8 w-8 p-0"
                 [disabled]="disabled()"
                 [attr.aria-label]="outlinePanelOpen() ? resolvedLocale().outline.ariaClose : resolvedLocale().outline.ariaOpen"
-                (click)="outlinePanelOpen.set(!outlinePanelOpen())"
+                (click)="setOutlinePanelOpen(!outlinePanelOpen())"
               >
                 <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
                   <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
@@ -807,7 +810,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
           </div>
         }
 
-        @if (outlineMode() === 'panel' && outlinePanelOpen()) {
+        @if (effectiveOutlineMode() === 'panel' && outlinePanelOpen()) {
           <div
             class="absolute top-0 bottom-0 z-20 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto bg-popover ltr:left-0 ltr:border-r rtl:right-0 rtl:border-l"
             [attr.data-slot]="'rich-text-outline-panel'"
@@ -824,7 +827,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
               variant="ghost"
               size="sm"
               class="h-7 w-7 p-0"
-              (click)="outlinePanelOpen.set(false)"
+              (click)="setOutlinePanelOpen(false)"
               [attr.aria-label]="resolvedLocale().outline.ariaClose"
             >
               <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1551,9 +1554,23 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     isRtl = computed(() => !!this.resolvedLocale().rtl);
 
-    localizedSlashCommands = computed(() =>
-        buildDefaultSlashCommands(this.resolvedLocale().slashCommands)
-    );
+    localizedSlashCommands = computed(() => [
+        ...buildDefaultSlashCommands(this.resolvedLocale().slashCommands),
+        this.buildOutlineSlashCommand(),
+    ]);
+
+    /** Builds the `/outline` slash command, which opens the document outline docked. */
+    private buildOutlineSlashCommand(): RichTextSlashCommand {
+        const l = this.resolvedLocale().slashCommands;
+        return {
+            id: 'view.outline',
+            label: l.outline,
+            description: l.outlineDescription,
+            keywords: ['outline', 'toc', 'headings', 'contents'],
+            order: 125,
+            run: () => this.openOutlineDocked(),
+        };
+    }
 
     resolvedFontFamilies = computed<string[]>(() => {
         const custom = this.fontFamilies();
@@ -1679,6 +1696,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     historyPanelOpen = signal<boolean>(false);
     outlinePanelOpen = signal<boolean>(false);
+    /** When true, forces the outline into docked `panel` mode regardless of the `outlineMode` input. */
+    private readonly outlineDockOverride = signal<boolean>(false);
     historyPreviewOpen = model<boolean>(false);
     historyBrowserOpen = model<boolean>(false);
     selectedHistoryIndex = signal<number | null>(null);
@@ -1751,7 +1770,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_summary]:bg-muted/40 [&_summary]:px-3 [&_summary]:py-2 [&_summary]:cursor-pointer [&_summary]:font-medium [&_summary]:outline-none',
             '[&_details>:not(summary)]:px-3 [&_details>:not(summary)]:py-2',
             '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
-            'disabled:cursor-not-allowed'
+            'disabled:cursor-not-allowed',
+            'transition-[padding] duration-150',
+            this.effectiveOutlineMode() === 'panel' && this.outlinePanelOpen() ? 'ps-64' : ''
         )
     );
 
@@ -1780,6 +1801,25 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /** True when the outline UI should render — via `showOutline` or the `'outline'` toolbar item. */
     outlineEnabled = computed(() => this.showOutline() || this.toolbarItems().includes('outline'));
 
+    /** Resolved outline mode: docked `panel` while an override is active (e.g. the `/outline` slash command), otherwise the `outlineMode` input. */
+    readonly effectiveOutlineMode = computed<'panel' | 'popover'>(
+        () => this.outlineDockOverride() ? 'panel' : this.outlineMode()
+    );
+
+    /** Opens the outline in docked `panel` mode. Used by the `/outline` slash command. */
+    openOutlineDocked(): void {
+        this.outlineDockOverride.set(true);
+        this.outlinePanelOpen.set(true);
+    }
+
+    /** Sets the outline panel open state; closing clears any docked-mode override. */
+    setOutlinePanelOpen(open: boolean): void {
+        this.outlinePanelOpen.set(open);
+        if (!open) {
+            this.outlineDockOverride.set(false);
+        }
+    }
+
     /** Live table of contents derived from the editor's heading elements, in document order. */
     outlineHeadings = computed<OutlineHeading[]>(() => {
         this.htmlContent();
@@ -1791,7 +1831,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     });
 
     /**
-     * Smoothly scrolls the heading at the given outline index into view.
+     * Smoothly scrolls the heading at the given outline index to the top of the
+     * editor's own scroll container. Never calls `Element.scrollIntoView()`, so
+     * it cannot scroll the page or any ancestor — only the editor moves.
      * Read-only: never mutates editor content.
      */
     scrollHeadingIntoView(index: number): void {
@@ -1799,11 +1841,13 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!editor) {
             return;
         }
-        const headings = editor.querySelectorAll(OUTLINE_HEADING_SELECTOR);
+        const headings = editor.querySelectorAll<HTMLElement>(OUTLINE_HEADING_SELECTOR);
         const target = headings[index];
-        if (target) {
-            target.scrollIntoView({ block: 'start', behavior: 'smooth' });
+        if (!target) {
+            return;
         }
+        const delta = target.getBoundingClientRect().top - editor.getBoundingClientRect().top;
+        editor.scrollBy({ top: delta - OUTLINE_SCROLL_MARGIN, behavior: 'smooth' });
     }
 
     /** Handles keyboard activation (Enter/Space) on an outline entry row. */
@@ -2757,7 +2801,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.readonly() || this.disabled()) return;
 
         if (command === 'outline') {
-            this.outlinePanelOpen.update(open => !open);
+            this.setOutlinePanelOpen(!this.outlinePanelOpen());
             return;
         }
 

@@ -114,6 +114,8 @@ export interface RichTextLocale {
         toggleDescription: string;
         horizontalRule: string;
         horizontalRuleDescription: string;
+        outline: string;
+        outlineDescription: string;
     };
 
     history: {
@@ -315,6 +317,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Insert a collapsible block',
             horizontalRule: 'Horizontal Rule',
             horizontalRuleDescription: 'Insert a horizontal divider',
+            outline: 'Outline',
+            outlineDescription: 'Open the document outline',
         },
         history: {
             button: 'History ({count})',
@@ -504,6 +508,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'הוספת בלוק מתקפל',
             horizontalRule: 'קו אופקי',
             horizontalRuleDescription: 'הכנסת קו מפריד אופקי',
+            outline: 'תוכן עניינים',
+            outlineDescription: 'פתיחת תוכן העניינים של המסמך',
         },
         history: {
             button: 'היסטוריה ({count})',
@@ -693,6 +699,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'إدراج كتلة قابلة للطي',
             horizontalRule: 'خط أفقي',
             horizontalRuleDescription: 'إدراج فاصل أفقي',
+            outline: 'المخطط التفصيلي',
+            outlineDescription: 'فتح المخطط التفصيلي للمستند',
         },
         history: {
             button: 'السجل ({count})',
@@ -882,6 +890,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Einklappbaren Block einfügen',
             horizontalRule: 'Horizontale Linie',
             horizontalRuleDescription: 'Horizontalen Trenner einfügen',
+            outline: 'Gliederung',
+            outlineDescription: 'Dokumentgliederung öffnen',
         },
         history: {
             button: 'Verlauf ({count})',
@@ -1071,6 +1081,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Insérer un bloc dépliable',
             horizontalRule: 'Ligne horizontale',
             horizontalRuleDescription: 'Insérer un séparateur horizontal',
+            outline: 'Plan',
+            outlineDescription: 'Ouvrir le plan du document',
         },
         history: {
             button: 'Historique ({count})',
@@ -1260,6 +1272,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Insertar un bloque plegable',
             horizontalRule: 'Línea horizontal',
             horizontalRuleDescription: 'Insertar un separador horizontal',
+            outline: 'Esquema',
+            outlineDescription: 'Abrir el esquema del documento',
         },
         history: {
             button: 'Historial ({count})',
@@ -1449,6 +1463,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: '折りたたみブロックを挿入',
             horizontalRule: '水平線',
             horizontalRuleDescription: '水平の区切り線を挿入',
+            outline: 'アウトライン',
+            outlineDescription: 'ドキュメントのアウトラインを開く',
         },
         history: {
             button: '履歴 ({count})',
@@ -1638,6 +1654,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: '插入可折叠块',
             horizontalRule: '水平线',
             horizontalRuleDescription: '插入水平分隔线',
+            outline: '大纲',
+            outlineDescription: '打开文档大纲',
         },
         history: {
             button: '历史 ({count})',
@@ -1827,6 +1845,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Вставить сворачиваемый блок',
             horizontalRule: 'Горизонтальная линия',
             horizontalRuleDescription: 'Вставить горизонтальный разделитель',
+            outline: 'Структура',
+            outlineDescription: 'Открыть структуру документа',
         },
         history: {
             button: 'История ({count})',
@@ -2016,6 +2036,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Inserir um bloco recolhível',
             horizontalRule: 'Linha horizontal',
             horizontalRuleDescription: 'Inserir um separador horizontal',
+            outline: 'Estrutura de tópicos',
+            outlineDescription: 'Abrir a estrutura de tópicos do documento',
         },
         history: {
             button: 'Histórico ({count})',

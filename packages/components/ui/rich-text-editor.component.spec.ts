@@ -1831,21 +1831,93 @@ describe('RichTextEditorComponent', () => {
             expect(editor.innerHTML).toBe(before);
         });
 
-        it('scrollHeadingIntoView scrolls the matching heading and does not throw', () => {
+        it('scrollHeadingIntoView scrolls the editor container, not any heading or the page', () => {
             seedHeadings();
-            const headings = editor.querySelectorAll('h1,h2,h3,h4,h5,h6');
-            const spy = vi.fn();
-            headings.forEach(h => {
-                (h as HTMLElement).scrollIntoView = spy;
+            const scrollBySpy = vi.fn();
+            editor.scrollBy = scrollBySpy as unknown as typeof editor.scrollBy;
+            const intoViewSpy = vi.fn();
+            editor.querySelectorAll('h1,h2,h3,h4,h5,h6').forEach(h => {
+                (h as HTMLElement).scrollIntoView = intoViewSpy;
             });
 
             expect(() => component.scrollHeadingIntoView(2)).not.toThrow();
-            expect(spy).toHaveBeenCalledWith({ block: 'start', behavior: 'smooth' });
+            expect(scrollBySpy).toHaveBeenCalled();
+            expect(intoViewSpy).not.toHaveBeenCalled();
         });
 
         it('scrollHeadingIntoView does not throw for an out-of-range index', () => {
             seedHeadings();
             expect(() => component.scrollHeadingIntoView(99)).not.toThrow();
+        });
+
+        it('effectiveOutlineMode follows the outlineMode input by default', () => {
+            expect(component.effectiveOutlineMode()).toBe('popover');
+
+            fixture.componentRef.setInput('outlineMode', 'panel');
+            fixture.detectChanges();
+            expect(component.effectiveOutlineMode()).toBe('panel');
+        });
+
+        it('openOutlineDocked forces panel mode regardless of the outlineMode input', () => {
+            fixture.componentRef.setInput('outlineMode', 'popover');
+            fixture.detectChanges();
+
+            component.openOutlineDocked();
+
+            expect(component.effectiveOutlineMode()).toBe('panel');
+            expect(component.outlinePanelOpen()).toBe(true);
+        });
+
+        it('closing the outline panel clears the docked override', () => {
+            fixture.componentRef.setInput('outlineMode', 'popover');
+            fixture.detectChanges();
+            component.openOutlineDocked();
+            expect(component.effectiveOutlineMode()).toBe('panel');
+
+            component.setOutlinePanelOpen(false);
+
+            expect(component.outlinePanelOpen()).toBe(false);
+            expect(component.effectiveOutlineMode()).toBe('popover');
+        });
+
+        it('editableClasses includes ps-64 only while the docked panel is open', () => {
+            fixture.componentRef.setInput('outlineMode', 'panel');
+            fixture.detectChanges();
+            expect(component.editableClasses()).not.toContain('ps-64');
+
+            component.setOutlinePanelOpen(true);
+            expect(component.editableClasses()).toContain('ps-64');
+
+            component.setOutlinePanelOpen(false);
+            expect(component.editableClasses()).not.toContain('ps-64');
+        });
+
+        it('exposes a /outline slash command that opens the docked panel', () => {
+            const command = component.localizedSlashCommands().find(c => c.id === 'view.outline');
+            expect(command).toBeTruthy();
+
+            command!.run({
+                query: '',
+                selectedText: '',
+                executeToolbarCommand: () => undefined,
+                insertText: () => undefined,
+                insertHtml: () => undefined,
+                showLinkDialog: () => undefined,
+                focusEditor: () => undefined,
+            });
+
+            expect(component.outlinePanelOpen()).toBe(true);
+            expect(component.effectiveOutlineMode()).toBe('panel');
+        });
+
+        it('renders the outline panel when opened even if outline is otherwise disabled', () => {
+            expect(component.outlineEnabled()).toBe(false);
+
+            component.openOutlineDocked();
+            fixture.detectChanges();
+
+            const panel = fixture.nativeElement.querySelector('[data-slot="rich-text-outline-panel"]');
+            expect(panel).toBeTruthy();
         });
     });
 });
