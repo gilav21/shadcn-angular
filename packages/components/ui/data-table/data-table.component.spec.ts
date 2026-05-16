@@ -2438,3 +2438,177 @@ describe('DataTableComponent - Date filter integration', () => {
         });
     });
 });
+
+describe('DataTableComponent - Row Grouping', () => {
+    interface OrderData {
+        id: string;
+        status: string;
+        amount: number;
+    }
+
+    const ORDER_DATA: OrderData[] = [
+        { id: 'o1', status: 'pending', amount: 10 },
+        { id: 'o2', status: 'shipped', amount: 20 },
+        { id: 'o3', status: 'pending', amount: 30 },
+        { id: 'o4', status: 'delivered', amount: 40 },
+        { id: 'o5', status: 'shipped', amount: 50 },
+    ];
+
+    const ORDER_COLUMNS: ColumnDef<OrderData>[] = [
+        { accessorKey: 'id', header: 'ID' },
+        { accessorKey: 'status', header: 'Status' },
+        { accessorKey: 'amount', header: 'Amount', aggregateFn: 'sum' },
+    ];
+
+    let fixture: ComponentFixture<DataTableComponent<OrderData>>;
+    let component: DataTableComponent<OrderData>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [DataTableComponent],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(DataTableComponent<OrderData>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', ORDER_DATA);
+        fixture.componentRef.setInput('columns', ORDER_COLUMNS);
+        fixture.componentRef.setInput('groupBy', 'status');
+        fixture.detectChanges();
+    });
+
+    it('partitions rows into insertion-ordered groups', () => {
+        const rows = component.groupedDisplayRows();
+        const groupKeys = rows
+            .filter((r) => r.kind === 'group')
+            .map((r) => (r as { groupKey: string }).groupKey);
+        expect(groupKeys).toEqual(['pending', 'shipped', 'delivered']);
+
+        const pendingGroup = rows.find(
+            (r) => r.kind === 'group' && r.groupKey === 'pending',
+        ) as { count: number };
+        expect(pendingGroup.count).toBe(2);
+    });
+
+    it('emits group header followed by its data rows', () => {
+        const rows = component.groupedDisplayRows();
+        expect(rows[0].kind).toBe('group');
+        expect(rows[1].kind).toBe('data');
+        expect(rows[2].kind).toBe('data');
+        expect(rows[3].kind).toBe('group');
+    });
+
+    it('hides a collapsed group\'s data rows from the display list', () => {
+        fixture.componentRef.setInput('collapsedGroups', { pending: true });
+        fixture.detectChanges();
+
+        const rows = component.groupedDisplayRows();
+        const dataRowsForPending = rows.filter(
+            (r) => r.kind === 'data' && r.row.status === 'pending',
+        );
+        expect(dataRowsForPending.length).toBe(0);
+
+        const pendingGroup = rows.find(
+            (r) => r.kind === 'group' && r.groupKey === 'pending',
+        ) as { collapsed: boolean };
+        expect(pendingGroup.collapsed).toBe(true);
+    });
+
+    it('computes per-group aggregates correctly', () => {
+        const rows = component.groupedDisplayRows();
+        const shippedGroup = rows.find(
+            (r) => r.kind === 'group' && r.groupKey === 'shipped',
+        ) as { aggregates: Map<string, string> };
+        expect(shippedGroup.aggregates.get('amount')).toBe('70');
+
+        const pendingGroup = rows.find(
+            (r) => r.kind === 'group' && r.groupKey === 'pending',
+        ) as { aggregates: Map<string, string> };
+        expect(pendingGroup.aggregates.get('amount')).toBe('40');
+    });
+
+    it('omits aggregates when groupAggregates is false', () => {
+        fixture.componentRef.setInput('groupAggregates', false);
+        fixture.detectChanges();
+
+        const rows = component.groupedDisplayRows();
+        const shippedGroup = rows.find(
+            (r) => r.kind === 'group' && r.groupKey === 'shipped',
+        ) as { aggregates: Map<string, string> };
+        expect(shippedGroup.aggregates.size).toBe(0);
+    });
+
+    it('disables grouping and warns when combined with enableSubRows', () => {
+        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const globalScope = globalThis as { ngDevMode?: unknown };
+        const previousDevMode = globalScope.ngDevMode;
+        globalScope.ngDevMode = true;
+
+        fixture.componentRef.setInput('enableSubRows', true);
+        fixture.detectChanges();
+        component.ngAfterViewInit();
+
+        expect(component.groupingActive()).toBe(false);
+        expect(component.groupedDisplayRows().length).toBe(0);
+        expect(
+            warnSpy.mock.calls.some((call) =>
+                String(call[0]).includes('groupBy is set together with'),
+            ),
+        ).toBe(true);
+
+        globalScope.ngDevMode = previousDevMode;
+        warnSpy.mockRestore();
+    });
+
+    it('collapseAllGroups collapses every group, expandAllGroups clears state', () => {
+        component.collapseAllGroups();
+        fixture.detectChanges();
+        expect(component.collapsedGroups()).toEqual({
+            pending: true,
+            shipped: true,
+            delivered: true,
+        });
+
+        const collapsedRows = component.groupedDisplayRows();
+        expect(collapsedRows.every((r) => r.kind === 'group')).toBe(true);
+
+        component.expandAllGroups();
+        fixture.detectChanges();
+        expect(component.collapsedGroups()).toEqual({});
+        expect(component.groupedDisplayRows().length).toBe(8);
+    });
+
+    it('paginator total reflects groupedDisplayRows length in grouped mode', () => {
+        expect(component.activeTotalItems()).toBe(component.groupedDisplayRows().length);
+        expect(component.activeTotalItems()).toBe(8);
+
+        component.collapseAllGroups();
+        fixture.detectChanges();
+        expect(component.activeTotalItems()).toBe(3);
+    });
+
+    it('pagedGroupedDisplayRows slices by the current page', () => {
+        fixture.componentRef.setInput('paginationState', { pageIndex: 0, pageSize: 3 });
+        fixture.detectChanges();
+        const page0 = component.pagedGroupedDisplayRows();
+        expect(page0.length).toBe(3);
+        expect(page0[0].kind).toBe('group');
+        expect((page0[0] as { groupKey: string }).groupKey).toBe('pending');
+        expect((page0[1] as { row: OrderData }).row.id).toBe('o1');
+        expect((page0[2] as { row: OrderData }).row.id).toBe('o3');
+
+        fixture.componentRef.setInput('paginationState', { pageIndex: 1, pageSize: 3 });
+        fixture.detectChanges();
+        const page1 = component.pagedGroupedDisplayRows();
+        expect(page1.length).toBe(3);
+        expect((page1[0] as { groupKey: string }).groupKey).toBe('shipped');
+        expect((page1[1] as { row: OrderData }).row.id).toBe('o2');
+        expect((page1[2] as { row: OrderData }).row.id).toBe('o5');
+
+        fixture.componentRef.setInput('paginationState', { pageIndex: 2, pageSize: 3 });
+        fixture.detectChanges();
+        const page2 = component.pagedGroupedDisplayRows();
+        expect(page2.length).toBe(2);
+        expect((page2[0] as { groupKey: string }).groupKey).toBe('delivered');
+        expect((page2[1] as { row: OrderData }).row.id).toBe('o4');
+    });
+});

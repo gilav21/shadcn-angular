@@ -209,3 +209,16 @@ export interface VirtualScrollState2D {
     scrollTop: number;
     scrollLeft: number;
 }
+
+export interface GroupRow {
+    kind: 'group';
+    groupKey: string;
+    groupValue: unknown;
+    count: number;
+    aggregates: Map<string, string>;
+    collapsed: boolean;
+}
+
+export type DataTableDisplayRow<T> =
+    | GroupRow
+    | { kind: 'data'; row: T };
