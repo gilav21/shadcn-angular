@@ -17,6 +17,7 @@ Angular and TypeScript best practices.
 - Use signals for state management
 - Implement lazy loading for feature routes
 - Do NOT use the `@HostBinding` and `@HostListener` decorators. Put host bindings inside the `host` object of the `@Component` or `@Directive` decorator instead
+- Do NOT set `encapsulation: ViewEncapsulation.None` on components. It leaks styles globally and breaks the rest of the library's encapsulation guarantees. If you need to style an element outside the component tree, set inline styles imperatively on that element (save/restore them on teardown) instead.
 - Use `NgOptimizedImage` for all static images.
   - `NgOptimizedImage` does not work for inline base64 images.
 

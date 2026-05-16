@@ -36,6 +36,8 @@ export const DEMO_ROUTES: Routes = [
   { path: 'label', loadComponent: () => import('./demos/inputs/label-demo.component').then(m => m.LabelDemoComponent) },
   { path: 'autocomplete', loadComponent: () => import('./demos/inputs/autocomplete-demo.component').then(m => m.AutocompleteDemoComponent) },
   { path: 'tree-select', loadComponent: () => import('./demos/inputs/tree-select-demo.component').then(m => m.TreeSelectDemoComponent) },
+  { path: 'number-input', loadComponent: () => import('./demos/inputs/number-input-demo.component').then(m => m.NumberInputDemoComponent) },
+  { path: 'phone-input', loadComponent: () => import('./demos/inputs/phone-input-demo.component').then(m => m.PhoneInputDemoComponent) },
   { path: 'form', loadComponent: () => import('./demos/inputs/form-demo.component').then(m => m.FormDemoComponent) },
 
   // Overlay
@@ -105,6 +107,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'dock', loadComponent: () => import('./demos/advanced/dock-demo.component').then(m => m.DockDemoComponent) },
   { path: 'animations', loadComponent: () => import('./demos/advanced/animations-demo.component').then(m => m.AnimationsDemoComponent) },
   { path: 'kanban', loadComponent: () => import('./demos/advanced/kanban-demo.component').then(m => m.KanbanDemoComponent) },
+  { path: 'tour', loadComponent: () => import('./demos/advanced/tour-demo.component').then(m => m.TourDemoComponent) },
 
   // Wildcard
   { path: '**', redirectTo: '' },

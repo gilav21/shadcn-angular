@@ -131,6 +131,8 @@ export class AppComponent {
     { id: 'streaming-text', name: 'Streaming Text', category: 'Advanced', icon: '⌨️' },
     { id: 'form', name: 'Form', category: 'Inputs', icon: '📋' },
     { id: 'input', name: 'Input', category: 'Inputs', icon: '✏️' },
+    { id: 'number-input', name: 'Number Input', category: 'Inputs', icon: '🔢' },
+    { id: 'phone-input', name: 'Phone Input', category: 'Inputs', icon: '📞' },
     { id: 'input-mask', name: 'Input Mask', category: 'Inputs', icon: '🎭' },
     { id: 'split-button', name: 'Split Button', category: 'Inputs', icon: '🔽' },
     { id: 'chip-list', name: 'Chip List', category: 'Inputs', icon: '🏷️' },
@@ -198,6 +200,7 @@ export class AppComponent {
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
     { id: 'animations', name: 'Animations', category: 'Advanced', icon: '🎬' },
     { id: 'kanban', name: 'Kanban Board', category: 'Advanced', icon: '📋' },
+    { id: 'tour', name: 'Tour', category: 'Advanced', icon: '🧭' },
     { id: 'icon', name: 'Icon', category: 'Data Display', icon: '🎯' },
   ];
 

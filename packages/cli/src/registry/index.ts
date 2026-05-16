@@ -252,6 +252,11 @@ export const registry = defineRegistry({
     files: ['navigation-menu.component.ts'],
     libFiles: ['touch.ts'],
   },
+  'number-input': {
+    name: 'number-input',
+    files: ['input-group.token.ts', 'number-input.component.ts'],
+    dependencies: ['input'],
+  },
   'number-ticker': {
     name: 'number-ticker',
     files: ['number-ticker.component.ts'],
@@ -259,6 +264,11 @@ export const registry = defineRegistry({
   pagination: {
     name: 'pagination',
     files: ['pagination.component.ts'],
+  },
+  'phone-input': {
+    name: 'phone-input',
+    files: ['input-group.token.ts', 'phone-input-data.ts', 'phone-input.component.ts'],
+    dependencies: ['input', 'input-group', 'input-mask', 'popover'],
   },
   popover: {
     name: 'popover',
@@ -524,6 +534,11 @@ export const registry = defineRegistry({
     files: ['shortcut-bindings-dialog.component.ts'],
     libFiles: ['shortcut-binding.service.ts'],
     dependencies: ['accordion', 'badge', 'button', 'dialog', 'scroll-area'],
+  },
+  tour: {
+    name: 'tour',
+    files: ['tour.component.ts'],
+    dependencies: ['button'],
   },
 });
 

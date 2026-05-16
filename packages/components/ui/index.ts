@@ -1,5 +1,8 @@
 export * from './button.component';
 export * from './input.component';
+export * from './number-input.component';
+export * from './phone-input.component';
+export * from './phone-input-data';
 export * from './input-mask.directive';
 export * from './split-button.component';
 export * from './card.component';
@@ -116,6 +119,9 @@ export * from './particles.component';
 
 // Kanban
 export * from './kanban.component';
+
+// Tour
+export * from './tour.component';
 
 // File Viewer
 export * from './file-viewer.component';
