@@ -39,6 +39,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'number-input', loadComponent: () => import('./demos/inputs/number-input-demo.component').then(m => m.NumberInputDemoComponent) },
   { path: 'phone-input', loadComponent: () => import('./demos/inputs/phone-input-demo.component').then(m => m.PhoneInputDemoComponent) },
   { path: 'form', loadComponent: () => import('./demos/inputs/form-demo.component').then(m => m.FormDemoComponent) },
+  { path: 'sortable', loadComponent: () => import('./demos/inputs/sortable-demo.component').then(m => m.SortableDemoComponent) },
 
   // Overlay
   { path: 'dialog', loadComponent: () => import('./demos/overlay/dialog-demo.component').then(m => m.DialogDemoComponent) },

@@ -97,6 +97,7 @@ export * from './component-outlet.directive';
 export * from './icon.component';
 export * from './icon.token';
 export * from './comparison-slider.component';
+export * from './sortable.component';
 
 export * from './charts';
 
