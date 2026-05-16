@@ -96,6 +96,7 @@ export * from './page-builder/page-builder.types';
 export * from './component-outlet.directive';
 export * from './icon.component';
 export * from './icon.token';
+export * from './comparison-slider.component';
 
 export * from './charts';
 

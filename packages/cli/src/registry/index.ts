@@ -540,6 +540,11 @@ export const registry = defineRegistry({
     files: ['tour.component.ts'],
     dependencies: ['button'],
   },
+  'comparison-slider': {
+    name: 'comparison-slider',
+    files: ['comparison-slider.component.ts'],
+    libFiles: ['touch.ts'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

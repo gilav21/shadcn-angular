@@ -69,6 +69,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'page-builder', loadComponent: () => import('./demos/layout/page-builder-demo.component').then(m => m.PageBuilderDemoComponent) },
   { path: 'page-renderer', loadComponent: () => import('./demos/layout/page-renderer-demo.component').then(m => m.PageRendererDemoComponent) },
   { path: 'virtual-scroll', loadComponent: () => import('./demos/layout/virtual-scroll-demo.component').then(m => m.VirtualScrollDemoComponent) },
+  { path: 'comparison-slider', loadComponent: () => import('./demos/layout/comparison-slider-demo.component').then(m => m.ComparisonSliderDemoComponent) },
 
   // Charts
   { path: 'charts', loadComponent: () => import('./demos/charts/charts-demo.component').then(m => m.ChartsDemoComponent) },
