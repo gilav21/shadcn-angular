@@ -1721,7 +1721,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
             'disabled:cursor-not-allowed',
             'transition-[padding] duration-150',
-            this.outlinePanelOpen() ? 'ps-[calc(18rem+8px)]' : ''
+            this.outlinePanelOpen() ? 'md:ps-[calc(18rem+8px)]' : ''
         )
     );
 
