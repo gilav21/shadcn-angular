@@ -34,6 +34,7 @@ export interface RichTextLocale {
         outdent: string;
         taskList: string;
         horizontalRule: string;
+        outline: string;
     };
 
     findReplace: {
@@ -113,6 +114,8 @@ export interface RichTextLocale {
         toggleDescription: string;
         horizontalRule: string;
         horizontalRuleDescription: string;
+        outline: string;
+        outlineDescription: string;
     };
 
     history: {
@@ -139,6 +142,12 @@ export interface RichTextLocale {
         noTagsFound: string;
         selectUser: string;
         selectTag: string;
+    };
+
+    outline: {
+        title: string;
+        empty: string;
+        ariaClose: string;
     };
 
     table: {
@@ -234,6 +243,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Decrease Indent',
             taskList: 'Task List',
             horizontalRule: 'Horizontal Rule',
+            outline: 'Document Outline',
         },
         findReplace: {
             find: 'Find',
@@ -306,6 +316,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Insert a collapsible block',
             horizontalRule: 'Horizontal Rule',
             horizontalRuleDescription: 'Insert a horizontal divider',
+            outline: 'Outline',
+            outlineDescription: 'Open the document outline',
         },
         history: {
             button: 'History ({count})',
@@ -330,6 +342,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'No tags found',
             selectUser: 'Select a user',
             selectTag: 'Select a tag',
+        },
+        outline: {
+            title: 'Document Outline',
+            empty: 'No headings yet',
+            ariaClose: 'Close document outline',
         },
         table: {
             insertTable: 'Insert Table',
@@ -416,6 +433,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'הקטנת הזחה',
             taskList: 'רשימת משימות',
             horizontalRule: 'קו אופקי',
+            outline: 'מתאר מסמך',
         },
         findReplace: {
             find: 'חיפוש',
@@ -488,6 +506,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'הוספת בלוק מתקפל',
             horizontalRule: 'קו אופקי',
             horizontalRuleDescription: 'הכנסת קו מפריד אופקי',
+            outline: 'תוכן עניינים',
+            outlineDescription: 'פתיחת תוכן העניינים של המסמך',
         },
         history: {
             button: 'היסטוריה ({count})',
@@ -512,6 +532,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'לא נמצאו תגיות',
             selectUser: 'בחירת משתמש',
             selectTag: 'בחירת תגית',
+        },
+        outline: {
+            title: 'מתאר מסמך',
+            empty: 'אין כותרות עדיין',
+            ariaClose: 'סגירת מתאר המסמך',
         },
         table: {
             insertTable: 'הוספת טבלה',
@@ -598,6 +623,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'تقليل المسافة البادئة',
             taskList: 'قائمة المهام',
             horizontalRule: 'خط أفقي',
+            outline: 'مخطط المستند',
         },
         findReplace: {
             find: 'بحث',
@@ -670,6 +696,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'إدراج كتلة قابلة للطي',
             horizontalRule: 'خط أفقي',
             horizontalRuleDescription: 'إدراج فاصل أفقي',
+            outline: 'المخطط التفصيلي',
+            outlineDescription: 'فتح المخطط التفصيلي للمستند',
         },
         history: {
             button: 'السجل ({count})',
@@ -694,6 +722,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'لم يتم العثور على وسوم',
             selectUser: 'اختيار مستخدم',
             selectTag: 'اختيار وسم',
+        },
+        outline: {
+            title: 'مخطط المستند',
+            empty: 'لا توجد عناوين بعد',
+            ariaClose: 'إغلاق مخطط المستند',
         },
         table: {
             insertTable: 'إدراج جدول',
@@ -780,6 +813,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Einzug verkleinern',
             taskList: 'Aufgabenliste',
             horizontalRule: 'Horizontale Linie',
+            outline: 'Dokumentgliederung',
         },
         findReplace: {
             find: 'Suchen',
@@ -852,6 +886,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Einklappbaren Block einfügen',
             horizontalRule: 'Horizontale Linie',
             horizontalRuleDescription: 'Horizontalen Trenner einfügen',
+            outline: 'Gliederung',
+            outlineDescription: 'Dokumentgliederung öffnen',
         },
         history: {
             button: 'Verlauf ({count})',
@@ -876,6 +912,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'Keine Tags gefunden',
             selectUser: 'Benutzer auswählen',
             selectTag: 'Tag auswählen',
+        },
+        outline: {
+            title: 'Dokumentgliederung',
+            empty: 'Noch keine Überschriften',
+            ariaClose: 'Dokumentgliederung schließen',
         },
         table: {
             insertTable: 'Tabelle einfügen',
@@ -962,6 +1003,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Diminuer le retrait',
             taskList: 'Liste de tâches',
             horizontalRule: 'Ligne horizontale',
+            outline: 'Plan du document',
         },
         findReplace: {
             find: 'Rechercher',
@@ -1034,6 +1076,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Insérer un bloc dépliable',
             horizontalRule: 'Ligne horizontale',
             horizontalRuleDescription: 'Insérer un séparateur horizontal',
+            outline: 'Plan',
+            outlineDescription: 'Ouvrir le plan du document',
         },
         history: {
             button: 'Historique ({count})',
@@ -1058,6 +1102,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'Aucun tag trouvé',
             selectUser: 'Sélectionner un utilisateur',
             selectTag: 'Sélectionner un tag',
+        },
+        outline: {
+            title: 'Plan du document',
+            empty: 'Aucun titre pour le moment',
+            ariaClose: 'Fermer le plan du document',
         },
         table: {
             insertTable: 'Insérer un tableau',
@@ -1144,6 +1193,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Disminuir sangría',
             taskList: 'Lista de tareas',
             horizontalRule: 'Línea horizontal',
+            outline: 'Esquema del documento',
         },
         findReplace: {
             find: 'Buscar',
@@ -1216,6 +1266,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Insertar un bloque plegable',
             horizontalRule: 'Línea horizontal',
             horizontalRuleDescription: 'Insertar un separador horizontal',
+            outline: 'Esquema',
+            outlineDescription: 'Abrir el esquema del documento',
         },
         history: {
             button: 'Historial ({count})',
@@ -1240,6 +1292,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'No se encontraron etiquetas',
             selectUser: 'Seleccionar un usuario',
             selectTag: 'Seleccionar una etiqueta',
+        },
+        outline: {
+            title: 'Esquema del documento',
+            empty: 'Aún no hay encabezados',
+            ariaClose: 'Cerrar el esquema del documento',
         },
         table: {
             insertTable: 'Insertar tabla',
@@ -1326,6 +1383,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'インデントを減らす',
             taskList: 'タスクリスト',
             horizontalRule: '水平線',
+            outline: 'ドキュメントアウトライン',
         },
         findReplace: {
             find: '検索',
@@ -1398,6 +1456,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: '折りたたみブロックを挿入',
             horizontalRule: '水平線',
             horizontalRuleDescription: '水平の区切り線を挿入',
+            outline: 'アウトライン',
+            outlineDescription: 'ドキュメントのアウトラインを開く',
         },
         history: {
             button: '履歴 ({count})',
@@ -1422,6 +1482,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'タグが見つかりません',
             selectUser: 'ユーザーを選択',
             selectTag: 'タグを選択',
+        },
+        outline: {
+            title: 'ドキュメントアウトライン',
+            empty: '見出しがまだありません',
+            ariaClose: 'ドキュメントアウトラインを閉じる',
         },
         table: {
             insertTable: 'テーブルを挿入',
@@ -1508,6 +1573,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: '减少缩进',
             taskList: '任务列表',
             horizontalRule: '水平线',
+            outline: '文档大纲',
         },
         findReplace: {
             find: '查找',
@@ -1580,6 +1646,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: '插入可折叠块',
             horizontalRule: '水平线',
             horizontalRuleDescription: '插入水平分隔线',
+            outline: '大纲',
+            outlineDescription: '打开文档大纲',
         },
         history: {
             button: '历史 ({count})',
@@ -1604,6 +1672,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: '未找到标签',
             selectUser: '选择用户',
             selectTag: '选择标签',
+        },
+        outline: {
+            title: '文档大纲',
+            empty: '暂无标题',
+            ariaClose: '关闭文档大纲',
         },
         table: {
             insertTable: '插入表格',
@@ -1690,6 +1763,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Уменьшить отступ',
             taskList: 'Список задач',
             horizontalRule: 'Горизонтальная линия',
+            outline: 'Структура документа',
         },
         findReplace: {
             find: 'Найти',
@@ -1762,6 +1836,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Вставить сворачиваемый блок',
             horizontalRule: 'Горизонтальная линия',
             horizontalRuleDescription: 'Вставить горизонтальный разделитель',
+            outline: 'Структура',
+            outlineDescription: 'Открыть структуру документа',
         },
         history: {
             button: 'История ({count})',
@@ -1786,6 +1862,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'Теги не найдены',
             selectUser: 'Выбрать пользователя',
             selectTag: 'Выбрать тег',
+        },
+        outline: {
+            title: 'Структура документа',
+            empty: 'Заголовков пока нет',
+            ariaClose: 'Закрыть структуру документа',
         },
         table: {
             insertTable: 'Вставить таблицу',
@@ -1872,6 +1953,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             outdent: 'Diminuir recuo',
             taskList: 'Lista de tarefas',
             horizontalRule: 'Linha horizontal',
+            outline: 'Estrutura do documento',
         },
         findReplace: {
             find: 'Localizar',
@@ -1944,6 +2026,8 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             toggleDescription: 'Inserir um bloco recolhível',
             horizontalRule: 'Linha horizontal',
             horizontalRuleDescription: 'Inserir um separador horizontal',
+            outline: 'Estrutura de tópicos',
+            outlineDescription: 'Abrir a estrutura de tópicos do documento',
         },
         history: {
             button: 'Histórico ({count})',
@@ -1968,6 +2052,11 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
             noTagsFound: 'Nenhuma tag encontrada',
             selectUser: 'Selecionar um usuário',
             selectTag: 'Selecionar uma tag',
+        },
+        outline: {
+            title: 'Estrutura do documento',
+            empty: 'Nenhum título ainda',
+            ariaClose: 'Fechar estrutura do documento',
         },
         table: {
             insertTable: 'Inserir tabela',

@@ -1347,6 +1347,29 @@ export class DataTableDemoComponent {
     { accessorKey: 'status', header: 'Status', width: '130px' },
   ];
 
+  // ── Row Grouping Demo ──
+  readonly groupCollapsed = signal<Record<string, boolean>>({});
+  readonly groupingColumns: ColumnDef<Payment>[] = [
+    { accessorKey: 'id', header: 'ID', width: '100px' },
+    { accessorKey: 'clientName', header: 'Client', width: 'auto' },
+    { accessorKey: 'email', header: 'Email', width: 'auto' },
+    {
+      accessorKey: 'amount',
+      header: 'Amount',
+      width: '140px',
+      aggregateFn: 'sum',
+      cell: (row) => `$${row.amount.toFixed(2)}`,
+    },
+    { accessorKey: 'status', header: 'Status', width: '140px', aggregateFn: 'count' },
+  ];
+  readonly groupTableRef = viewChild<DataTableComponent<Payment>>('groupTable');
+  expandAllGroups(): void {
+    this.groupTableRef()?.expandAllGroups();
+  }
+  collapseAllGroups(): void {
+    this.groupTableRef()?.collapseAllGroups();
+  }
+
   // ── Column Header Menu Demo ──
   readonly menuColumns: ColumnDef<Payment>[] = [
     { accessorKey: 'id', header: 'ID', width: '100px' },

@@ -39,6 +39,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'number-input', loadComponent: () => import('./demos/inputs/number-input-demo.component').then(m => m.NumberInputDemoComponent) },
   { path: 'phone-input', loadComponent: () => import('./demos/inputs/phone-input-demo.component').then(m => m.PhoneInputDemoComponent) },
   { path: 'form', loadComponent: () => import('./demos/inputs/form-demo.component').then(m => m.FormDemoComponent) },
+  { path: 'sortable', loadComponent: () => import('./demos/inputs/sortable-demo.component').then(m => m.SortableDemoComponent) },
 
   // Overlay
   { path: 'dialog', loadComponent: () => import('./demos/overlay/dialog-demo.component').then(m => m.DialogDemoComponent) },
@@ -69,6 +70,7 @@ export const DEMO_ROUTES: Routes = [
   { path: 'page-builder', loadComponent: () => import('./demos/layout/page-builder-demo.component').then(m => m.PageBuilderDemoComponent) },
   { path: 'page-renderer', loadComponent: () => import('./demos/layout/page-renderer-demo.component').then(m => m.PageRendererDemoComponent) },
   { path: 'virtual-scroll', loadComponent: () => import('./demos/layout/virtual-scroll-demo.component').then(m => m.VirtualScrollDemoComponent) },
+  { path: 'comparison-slider', loadComponent: () => import('./demos/layout/comparison-slider-demo.component').then(m => m.ComparisonSliderDemoComponent) },
 
   // Charts
   { path: 'charts', loadComponent: () => import('./demos/charts/charts-demo.component').then(m => m.ChartsDemoComponent) },

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { delay, of } from 'rxjs';
 import {
@@ -6,6 +6,7 @@ import {
   SwitchComponent,
   MentionItem,
   TagItem,
+  ToolbarItem,
 } from '../../../../../packages/components/ui';
 
 @Component({
@@ -84,6 +85,27 @@ import {
       </div>
 
       <div class="space-y-2">
+        <h3 class="text-lg font-medium">Document Outline</h3>
+        <p class="text-sm text-muted-foreground">
+          Auto-generated table of contents that opens as a docked side panel.
+          Click an entry to scroll to the heading; the outline updates live as you
+          edit. Open it from the <code>outline</code> toolbar button — or with the
+          <code>/outline</code> slash command, which works even without the toolbar item.
+        </p>
+        <div class="flex items-center gap-2">
+          <ui-switch id="richTextOutlineShowToolbarItem" [checked]="richTextOutlineShowToolbarItem()"
+            (checkedChange)="richTextOutlineShowToolbarItem.set($event)" />
+          <label for="richTextOutlineShowToolbarItem" class="text-sm font-medium">
+            Outline toolbar item (off — use /outline)
+          </label>
+        </div>
+        <ui-rich-text-editor mode="html" toolbar="top"
+          [toolbarItems]="outlineToolbarItems()"
+          [(ngModel)]="richTextOutlineContent"
+          minHeight="320px" />
+      </div>
+
+      <div class="space-y-2">
         <h3 class="text-lg font-medium">HTML Mode (contentEditable)</h3>
         <ui-rich-text-editor mode="html" toolbar="top" placeholder="True WYSIWYG with contentEditable..."
           minHeight="120px" />
@@ -148,8 +170,39 @@ export class RichTextEditorDemoComponent {
   richTextContent = '';
   richTextHtml = '';
   readonly richTextShowHistoryButton = signal(true);
+  readonly richTextOutlineShowToolbarItem = signal(true);
   lastAutoUploadUrl = '';
   lastAutoUploadError = '';
+
+  private readonly outlineToolbarBase: ToolbarItem[] = [
+    'bold', 'italic', 'underline',
+    'separator',
+    'paragraph', 'heading1', 'heading2', 'heading3',
+    'separator',
+    'bulletList', 'orderedList',
+  ];
+
+  readonly outlineToolbarItems = computed<ToolbarItem[]>(() =>
+    this.richTextOutlineShowToolbarItem()
+      ? [...this.outlineToolbarBase, 'separator', 'outline']
+      : this.outlineToolbarBase
+  );
+
+  richTextOutlineContent =
+    '<h1>Getting Started</h1>' +
+    '<p>Welcome to the rich text editor. Use the outline button to navigate.</p>' +
+    '<h2>Installation</h2>' +
+    '<p>Install the package and import the component.</p>' +
+    '<h3>Prerequisites</h3>' +
+    '<p>Make sure you have a recent version of Angular.</p>' +
+    '<h3>Package Setup</h3>' +
+    '<p>Add the component to your imports array.</p>' +
+    '<h2>Configuration</h2>' +
+    '<p>Configure the editor with inputs and outputs.</p>' +
+    '<h3>Toolbar Options</h3>' +
+    '<p>Customize which toolbar buttons appear.</p>' +
+    '<h2>Advanced Usage</h2>' +
+    '<p>Explore mentions, tables, history, and the document outline.</p>';
 
   readonly fakeImageUploader = (_file: File) =>
     of('https://upload.wikimedia.org/wikipedia/commons/thumb/4/4d/Cat_November_2010-1a.jpg/1200px-Cat_November_2010-1a.jpg')

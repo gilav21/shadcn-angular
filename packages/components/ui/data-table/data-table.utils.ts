@@ -246,3 +246,36 @@ export function buildTreeFromFlat<T>(
     const roots = childrenMap.get(null) ?? [];
     return roots.map(attachChildren);
 }
+
+export interface RowGroup<T> {
+    readonly groupKey: string;
+    readonly groupValue: unknown;
+    readonly rows: T[];
+}
+
+/**
+ * Partitions a flat row list into insertion-ordered groups keyed by the
+ * stringified value returned by `getGroupValue`. The first time a group key is
+ * seen determines that group's position in the result.
+ */
+export function partitionIntoGroups<T>(
+    rows: readonly T[],
+    getGroupValue: (row: T) => unknown
+): RowGroup<T>[] {
+    const groups = new Map<string, { groupValue: unknown; rows: T[] }>();
+    for (const row of rows) {
+        const groupValue = getGroupValue(row);
+        const groupKey = String(groupValue);
+        const existing = groups.get(groupKey);
+        if (existing) {
+            existing.rows.push(row);
+        } else {
+            groups.set(groupKey, { groupValue, rows: [row] });
+        }
+    }
+    return Array.from(groups, ([groupKey, value]) => ({
+        groupKey,
+        groupValue: value.groupValue,
+        rows: value.rows,
+    }));
+}

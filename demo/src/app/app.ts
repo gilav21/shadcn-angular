@@ -198,6 +198,8 @@ export class AppComponent {
     { id: 'page-builder', name: 'Page Builder', category: 'Layout', icon: '🏗️' },
     { id: 'page-renderer', name: 'Page Renderer', icon: '📄', category: 'Layout' },
     { id: 'virtual-scroll', name: 'Virtual Scroll', category: 'Layout', icon: '📜' },
+    { id: 'comparison-slider', name: 'Comparison Slider', category: 'Layout', icon: '↔️' },
+    { id: 'sortable', name: 'Sortable', category: 'Inputs', icon: '↕️' },
     { id: 'animations', name: 'Animations', category: 'Advanced', icon: '🎬' },
     { id: 'kanban', name: 'Kanban Board', category: 'Advanced', icon: '📋' },
     { id: 'tour', name: 'Tour', category: 'Advanced', icon: '🧭' },

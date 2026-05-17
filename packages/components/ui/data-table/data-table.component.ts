@@ -68,12 +68,15 @@ import {
   CellRange,
   CellFlashDirection,
   CellStyleColumn,
+  GroupRow,
+  DataTableDisplayRow,
 } from "./data-table.types";
 import {
   computeRowRange,
   computeColumnRange,
   computeVariableRowRange,
   buildPrefixSums,
+  partitionIntoGroups,
 } from "./data-table.utils";
 import { ComponentPoolService } from "./component-pool.service";
 
@@ -1157,6 +1160,98 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
               } @else {
                 <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
               }
+            } @else if (groupingActive()) {
+              @if (pagedGroupedDisplayRows().length > 0) {
+                @for (
+                  displayRow of pagedGroupedDisplayRows();
+                  track groupTrackBy(displayRow);
+                  let i = $index
+                ) {
+                  @if (isGroupRow(displayRow)) {
+                    <ui-table-row
+                      class="border-0 bg-muted/40 cursor-pointer select-none"
+                      data-slot="table-group-row"
+                      [attr.data-group-key]="displayRow.groupKey"
+                      [attr.aria-expanded]="!displayRow.collapsed"
+                      (click)="toggleGroupCollapsed(displayRow.groupKey)"
+                    >
+                      <ui-table-cell
+                        class="flex-1 border-b font-medium"
+                        style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;"
+                      >
+                        <div class="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                            [attr.aria-label]="
+                              displayRow.collapsed ? 'Expand group' : 'Collapse group'
+                            "
+                            (click)="
+                              $event.stopPropagation();
+                              toggleGroupCollapsed(displayRow.groupKey)
+                            "
+                          >
+                            <ui-icon
+                              [name]="isRtl() ? 'chevron-left' : 'chevron-right'"
+                              size="xs"
+                              class="transition-transform duration-200"
+                              [class.rotate-90]="!displayRow.collapsed && !isRtl()"
+                              [class.-rotate-90]="!displayRow.collapsed && isRtl()"
+                            />
+                          </button>
+                          <span class="truncate">{{ groupRowValueLabel(displayRow) }}</span>
+                          <span class="text-xs text-muted-foreground">({{ displayRow.count }})</span>
+                          @if (groupAggregates()) {
+                            @for (entry of displayRow.aggregates | keyvalue: keepGroupAggregateOrder; track entry.key) {
+                              <span class="text-xs text-muted-foreground">
+                                {{ groupAggregateLabel(entry.key) }}: {{ entry.value }}
+                              </span>
+                            }
+                          }
+                        </div>
+                      </ui-table-cell>
+                    </ui-table-row>
+                  } @else {
+                    <ui-table-row
+                      [attr.data-state]="isRowSelected(displayRow.row) ? 'selected' : null"
+                      [attr.data-disabled]="isDisabled(displayRow.row) || null"
+                      [class.opacity-50]="isDisabled(displayRow.row)"
+                      [attr.data-row-id]="getRowId()(displayRow.row)"
+                      data-slot="table-group-data-row"
+                      class="border-0"
+                    >
+                      @for (col of enhancedColumns(); track col.accessorKey) {
+                        <ui-table-cell
+                          [class]="getCellClass(col, i)"
+                          [attr.data-column]="String(col.accessorKey)"
+                          [style]="getCellStyle(col)"
+                        >
+                          <ng-container
+                            *ngTemplateOutlet="
+                              cellTpl;
+                              context: {
+                                $implicit: col,
+                                row: displayRow.row,
+                                rowIndex: i,
+                                treeRow: null,
+                                recycle: false,
+                              }
+                            "
+                          ></ng-container>
+                        </ui-table-cell>
+                      }
+                      @if (!hasFlexibleColumns()) {
+                        <ui-table-cell
+                          class="flex-1 pointer-events-none"
+                          [class]="getCellClass({ _width: 'auto' })"
+                        ></ui-table-cell>
+                      }
+                    </ui-table-row>
+                  }
+                }
+              } @else {
+                <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
+              }
             } @else if (processedData().length > 0) {
               @for (
                 row of (dragPreviewData() ?? processedData());
@@ -1392,6 +1487,19 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly subRowIndentSize = input(20);
   readonly subRowsPaginated = input(false);
   readonly subRowExpandedRows = model<Record<string, boolean>>({});
+
+  /**
+   * Group rows by this column accessorKey. Renders collapsible group headers
+   * with per-group aggregation. Mutually exclusive with `enableSubRows` and
+   * virtual scroll (ignored, with a console warning, when combined). In grouped
+   * mode inline cell editing, cell-range selection, keyboard cell-nav, and row
+   * drag are disabled.
+   */
+  readonly groupBy = input<string | undefined>();
+  /** Per-group collapsed state, keyed by the stringified group value. */
+  readonly collapsedGroups = model<Record<string, boolean>>({});
+  /** When true, group header rows display per-column aggregate values. */
+  readonly groupAggregates = input<boolean>(true);
 
   readonly enableColumnResize = input(false);
   readonly enableColumnReorder = input(false);
@@ -2014,6 +2122,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   });
 
   readonly activeTotalItems = computed(() => {
+    if (this.groupingActive()) {
+      return this.localPagination()
+        ? this.groupedDisplayRows().length
+        : this.total();
+    }
     if (this.enableSubRows()) {
       if (!this.localPagination()) return this.total();
       if (this.subRowsPaginated()) {
@@ -2022,6 +2135,98 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       return this.sortedTreeData().length;
     }
     return this.localPagination() ? this.filteredData().length : this.total();
+  });
+
+  /**
+   * True when grouping should drive rendering: a `groupBy` column is set and
+   * neither tree mode nor virtual scroll is active.
+   */
+  readonly groupingActive = computed(
+    () =>
+      !!this.groupBy() &&
+      !this.enableSubRows() &&
+      !this.isVirtualScrollActive(),
+  );
+
+  private readonly groupByColumn = computed(() => {
+    const key = this.groupBy();
+    if (!key) return undefined;
+    return this.enhancedColumns().find(
+      (col) => String(col.accessorKey) === key,
+    );
+  });
+
+  /**
+   * Flat display list of group-header rows and their (non-collapsed) data
+   * rows, partitioned from `sortedData()` in insertion order. Empty when
+   * grouping is not active.
+   */
+  readonly groupedDisplayRows = computed<DataTableDisplayRow<T>[]>(() => {
+    if (!this.groupingActive()) return [];
+    const key = this.groupBy();
+    if (!key) return [];
+
+    const column = this.groupByColumn();
+    const collapsedMap = this.collapsedGroups();
+    const groups = partitionIntoGroups(this.sortedData(), (row) =>
+      this.getCellValue(row, key, column),
+    );
+
+    const result: DataTableDisplayRow<T>[] = [];
+    for (const group of groups) {
+      const collapsed = collapsedMap[group.groupKey] === true;
+      result.push(this.buildGroupRow(group.groupKey, group.groupValue, group.rows, collapsed));
+      if (!collapsed) {
+        for (const row of group.rows) {
+          result.push({ kind: 'data', row });
+        }
+      }
+    }
+    return result;
+  });
+
+  private buildGroupRow(
+    groupKey: string,
+    groupValue: unknown,
+    rows: T[],
+    collapsed: boolean,
+  ): GroupRow {
+    const aggregates = new Map<string, string>();
+    if (this.groupAggregates()) {
+      for (const col of this.enhancedColumns()) {
+        if (col.aggregateFn) {
+          aggregates.set(String(col.accessorKey), this.computeAggregate(rows, col));
+        }
+      }
+    }
+    return {
+      kind: 'group',
+      groupKey,
+      groupValue,
+      count: rows.length,
+      aggregates,
+      collapsed,
+    };
+  }
+
+  /**
+   * `keyvalue` pipe comparator that preserves the Map's insertion order.
+   * The group aggregates Map is built in `enhancedColumns()` order, so this
+   * keeps the group-header aggregate chips aligned with the column order
+   * instead of the pipe's default alphabetical key sort.
+   */
+  protected readonly keepGroupAggregateOrder = (): number => 0;
+
+  /**
+   * `groupedDisplayRows()` sliced for the current page when local pagination
+   * is enabled. Group header rows count toward the page size.
+   */
+  readonly pagedGroupedDisplayRows = computed<DataTableDisplayRow<T>[]>(() => {
+    const rows = this.groupedDisplayRows();
+    if (!this.localPagination()) return rows;
+    const { pageIndex, pageSize } = this.paginationState();
+    const start = pageIndex * pageSize;
+    return rows.slice(start, start + pageSize);
   });
 
   private readonly filteredRowIds = computed(() => {
@@ -2140,7 +2345,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
       const { pageIndex, pageSize } = this.paginationState();
       const sanitizedPageSize = pageSize > 0 ? pageSize : 10;
-      const totalItems = this.filteredData().length;
+      const totalItems = this.groupingActive()
+        ? this.groupedDisplayRows().length
+        : this.filteredData().length;
       const maxPageIndex = Math.max(
         0,
         Math.ceil(totalItems / sanitizedPageSize) - 1,
@@ -2241,6 +2448,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         '[ui-data-table] Both enableSubRows and enableRowExpansion are enabled. ' +
           'This creates two separate expander controls per row (tree toggle + detail panel). ' +
           'If this is unintentional, disable one of them.'
+      );
+    }
+
+    if (this.groupBy() && (this.enableSubRows() || this.isVirtualScrollActive())) {
+      warnings.push(
+        '[ui-data-table] groupBy is set together with enableSubRows or virtual scroll. ' +
+          'Row grouping is mutually exclusive with these features and will be ignored.'
       );
     }
 
@@ -4461,6 +4675,55 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       next[String(col.accessorKey)] = true;
     }
     this.columnVisibility.set(next);
+  }
+
+  /** Expands every group, clearing all collapsed-group state. */
+  expandAllGroups(): void {
+    this.collapsedGroups.set({});
+  }
+
+  /** Collapses every group in the current grouped display list. */
+  collapseAllGroups(): void {
+    const next: Record<string, boolean> = {};
+    for (const displayRow of this.groupedDisplayRows()) {
+      if (displayRow.kind === 'group') {
+        next[displayRow.groupKey] = true;
+      }
+    }
+    this.collapsedGroups.set(next);
+  }
+
+  /** Toggles the collapsed state of a single group by its key. */
+  toggleGroupCollapsed(groupKey: string): void {
+    this.collapsedGroups.update((state) => ({
+      ...state,
+      [groupKey]: !state[groupKey],
+    }));
+  }
+
+  protected isGroupRow(
+    displayRow: DataTableDisplayRow<T>,
+  ): displayRow is GroupRow {
+    return displayRow.kind === 'group';
+  }
+
+  protected groupTrackBy(displayRow: DataTableDisplayRow<T>): string {
+    return displayRow.kind === 'group'
+      ? `g:${displayRow.groupKey}`
+      : `r:${this.getRowId()(displayRow.row)}`;
+  }
+
+  protected groupRowValueLabel(group: GroupRow): string {
+    const value = group.groupValue;
+    if (value === null || value === undefined) return '';
+    return String(value);
+  }
+
+  protected groupAggregateLabel(accessorKey: string): string {
+    const column = this.enhancedColumns().find(
+      (col) => String(col.accessorKey) === accessorKey,
+    );
+    return column?.header ?? accessorKey;
   }
 
   readonly draggedRowId = signal<string | null>(null);

@@ -33,6 +33,10 @@
           <a href="#data-table-footer" (click)="scrollTo('data-table-footer', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Footer aggregations</a>
           <span class="block"><code class="bg-muted px-1 rounded">aggregateFn</code> (sum, avg, count, min, max) on ColumnDef</span>
         </li>
+        <li>
+          <a href="#data-table-grouping" (click)="scrollTo('data-table-grouping', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Row grouping</a>
+          <span class="block">Collapsible group headers with per-group aggregation via <code class="bg-muted px-1 rounded">groupBy</code></span>
+        </li>
       </ul>
     </div>
 
@@ -648,6 +652,36 @@
       [data]="payments()"
       [columns]="footerColumns"
       [showFooter]="true"
+      [showToolbar]="false"
+    />
+  </div>
+</section>
+
+<!-- Row Grouping Demo -->
+<section class="space-y-4">
+  <h2 id="data-table-grouping" class="text-2xl font-semibold scroll-m-20">Row Grouping</h2>
+  <p class="text-muted-foreground">
+    Set <code class="text-xs bg-muted px-1 rounded">groupBy</code> to a column's accessorKey to render
+    collapsible group-header rows with per-group aggregation. Click a group header to collapse it.
+    Group headers count toward pagination.
+  </p>
+  <p class="text-sm text-muted-foreground">
+    Grouping is mutually exclusive with tree mode (<code class="text-xs bg-muted px-1 rounded">enableSubRows</code>)
+    and virtual scroll &mdash; combining them logs a warning and ignores grouping. In grouped mode inline cell
+    editing, cell-range selection, keyboard cell-navigation, and row drag are disabled.
+  </p>
+  <div class="flex flex-wrap items-center gap-2">
+    <ui-button size="sm" variant="outline" (click)="expandAllGroups()">Expand all</ui-button>
+    <ui-button size="sm" variant="outline" (click)="collapseAllGroups()">Collapse all</ui-button>
+  </div>
+  <div class="h-[300px] sm:h-[400px]">
+    <ui-data-table
+      #groupTable
+      [data]="payments()"
+      [columns]="groupingColumns"
+      groupBy="status"
+      [groupAggregates]="true"
+      [(collapsedGroups)]="groupCollapsed"
       [showToolbar]="false"
     />
   </div>
