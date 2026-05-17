@@ -771,7 +771,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
 
       @if (outlinePanelOpen()) {
         <div
-          class="absolute top-0 bottom-0 z-20 w-72 max-w-[calc(100vw-2rem)] overflow-y-auto bg-popover ltr:left-0 ltr:border-r rtl:right-0 rtl:border-l"
+          class="absolute top-0 bottom-0 z-20 w-64 lg:w-80 max-w-[calc(100vw-2rem)] overflow-y-auto bg-popover ltr:left-0 ltr:border-r rtl:right-0 rtl:border-l"
           [attr.data-slot]="'rich-text-outline-panel'"
         >
           <ng-container [ngTemplateOutlet]="outlineBody" />
@@ -1721,7 +1721,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
             'disabled:cursor-not-allowed',
             'transition-[padding] duration-150',
-            this.outlinePanelOpen() ? 'md:ps-[calc(18rem+8px)]' : ''
+            this.outlinePanelOpen() ? 'md:ps-[calc(16rem+8px)] lg:ps-[calc(20rem+8px)]' : ''
         )
     );
 

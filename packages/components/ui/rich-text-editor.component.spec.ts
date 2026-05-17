@@ -1843,13 +1843,15 @@ describe('RichTextEditorComponent', () => {
         });
 
         it('editableClasses insets the content past the docked panel (md+ only) while it is open', () => {
-            expect(component.editableClasses()).not.toContain('md:ps-[calc(18rem+8px)]');
+            expect(component.editableClasses()).not.toContain('md:ps-[calc(16rem+8px)]');
 
             component.outlinePanelOpen.set(true);
-            expect(component.editableClasses()).toContain('md:ps-[calc(18rem+8px)]');
+            const open = component.editableClasses();
+            expect(open).toContain('md:ps-[calc(16rem+8px)]');
+            expect(open).toContain('lg:ps-[calc(20rem+8px)]');
 
             component.outlinePanelOpen.set(false);
-            expect(component.editableClasses()).not.toContain('md:ps-[calc(18rem+8px)]');
+            expect(component.editableClasses()).not.toContain('md:ps-[calc(16rem+8px)]');
         });
 
         it('exposes a /outline slash command that opens the docked panel', () => {
