@@ -1800,22 +1800,6 @@ describe('RichTextEditorComponent', () => {
             expect(component.outlineHeadings()).toEqual([]);
         });
 
-        it('outlineEnabled is true when showOutline is true', () => {
-            expect(component.outlineEnabled()).toBe(false);
-
-            fixture.componentRef.setInput('showOutline', true);
-            fixture.detectChanges();
-
-            expect(component.outlineEnabled()).toBe(true);
-        });
-
-        it('outlineEnabled is true when outline is in toolbarItems', () => {
-            fixture.componentRef.setInput('toolbarItems', ['bold', 'outline']);
-            fixture.detectChanges();
-
-            expect(component.outlineEnabled()).toBe(true);
-        });
-
         it('outline format command toggles outlinePanelOpen without mutating content', () => {
             seedHeadings();
             const before = editor.innerHTML;
@@ -1850,58 +1834,22 @@ describe('RichTextEditorComponent', () => {
             expect(() => component.scrollHeadingIntoView(99)).not.toThrow();
         });
 
-        it('effectiveOutlineMode follows the outlineMode input by default', () => {
-            expect(component.effectiveOutlineMode()).toBe('popover');
-
-            fixture.componentRef.setInput('outlineMode', 'panel');
-            fixture.detectChanges();
-            expect(component.effectiveOutlineMode()).toBe('panel');
-        });
-
-        it('openOutlineDocked forces panel mode regardless of the outlineMode input', () => {
-            fixture.componentRef.setInput('outlineMode', 'popover');
-            fixture.detectChanges();
+        it('openOutlineDocked opens the docked panel', () => {
+            expect(component.outlinePanelOpen()).toBe(false);
 
             component.openOutlineDocked();
 
-            expect(component.effectiveOutlineMode()).toBe('panel');
             expect(component.outlinePanelOpen()).toBe(true);
         });
 
-        it('closing the outline panel clears the docked override', () => {
-            fixture.componentRef.setInput('outlineMode', 'popover');
-            fixture.detectChanges();
-            component.openOutlineDocked();
-            expect(component.effectiveOutlineMode()).toBe('panel');
-
-            component.setOutlinePanelOpen(false);
-
-            expect(component.outlinePanelOpen()).toBe(false);
-            expect(component.effectiveOutlineMode()).toBe('popover');
-        });
-
         it('editableClasses insets the content past the docked panel only while it is open', () => {
-            fixture.componentRef.setInput('outlineMode', 'panel');
-            fixture.detectChanges();
             expect(component.editableClasses()).not.toContain('ps-[calc(16rem+3px)]');
 
-            component.setOutlinePanelOpen(true);
+            component.outlinePanelOpen.set(true);
             expect(component.editableClasses()).toContain('ps-[calc(16rem+3px)]');
 
-            component.setOutlinePanelOpen(false);
+            component.outlinePanelOpen.set(false);
             expect(component.editableClasses()).not.toContain('ps-[calc(16rem+3px)]');
-        });
-
-        it('renders the outline corner button and the history button in one shared container', () => {
-            fixture.componentRef.setInput('showOutline', true);
-            fixture.componentRef.setInput('showHistoryPanel', true);
-            fixture.componentRef.setInput('showHistoryButton', true);
-            fixture.detectChanges();
-
-            const container: HTMLElement | null =
-                fixture.nativeElement.querySelector('div.absolute.top-2.flex.items-center');
-            expect(container).toBeTruthy();
-            expect(container!.querySelectorAll('ui-button').length).toBeGreaterThanOrEqual(2);
         });
 
         it('exposes a /outline slash command that opens the docked panel', () => {
@@ -1919,11 +1867,10 @@ describe('RichTextEditorComponent', () => {
             });
 
             expect(component.outlinePanelOpen()).toBe(true);
-            expect(component.effectiveOutlineMode()).toBe('panel');
         });
 
-        it('renders the outline panel when opened even if outline is otherwise disabled', () => {
-            expect(component.outlineEnabled()).toBe(false);
+        it('renders the docked outline panel whenever it is open', () => {
+            expect(fixture.nativeElement.querySelector('[data-slot="rich-text-outline-panel"]')).toBeNull();
 
             component.openOutlineDocked();
             fixture.detectChanges();

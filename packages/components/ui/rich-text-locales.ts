@@ -147,7 +147,6 @@ export interface RichTextLocale {
     outline: {
         title: string;
         empty: string;
-        ariaOpen: string;
         ariaClose: string;
     };
 
@@ -347,7 +346,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'Document Outline',
             empty: 'No headings yet',
-            ariaOpen: 'Open document outline',
             ariaClose: 'Close document outline',
         },
         table: {
@@ -538,7 +536,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'מתאר מסמך',
             empty: 'אין כותרות עדיין',
-            ariaOpen: 'פתיחת מתאר המסמך',
             ariaClose: 'סגירת מתאר המסמך',
         },
         table: {
@@ -729,7 +726,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'مخطط المستند',
             empty: 'لا توجد عناوين بعد',
-            ariaOpen: 'فتح مخطط المستند',
             ariaClose: 'إغلاق مخطط المستند',
         },
         table: {
@@ -920,7 +916,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'Dokumentgliederung',
             empty: 'Noch keine Überschriften',
-            ariaOpen: 'Dokumentgliederung öffnen',
             ariaClose: 'Dokumentgliederung schließen',
         },
         table: {
@@ -1111,7 +1106,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'Plan du document',
             empty: 'Aucun titre pour le moment',
-            ariaOpen: 'Ouvrir le plan du document',
             ariaClose: 'Fermer le plan du document',
         },
         table: {
@@ -1302,7 +1296,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'Esquema del documento',
             empty: 'Aún no hay encabezados',
-            ariaOpen: 'Abrir el esquema del documento',
             ariaClose: 'Cerrar el esquema del documento',
         },
         table: {
@@ -1493,7 +1486,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'ドキュメントアウトライン',
             empty: '見出しがまだありません',
-            ariaOpen: 'ドキュメントアウトラインを開く',
             ariaClose: 'ドキュメントアウトラインを閉じる',
         },
         table: {
@@ -1684,7 +1676,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: '文档大纲',
             empty: '暂无标题',
-            ariaOpen: '打开文档大纲',
             ariaClose: '关闭文档大纲',
         },
         table: {
@@ -1875,7 +1866,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'Структура документа',
             empty: 'Заголовков пока нет',
-            ariaOpen: 'Открыть структуру документа',
             ariaClose: 'Закрыть структуру документа',
         },
         table: {
@@ -2066,7 +2056,6 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         outline: {
             title: 'Estrutura do documento',
             empty: 'Nenhum título ainda',
-            ariaOpen: 'Abrir estrutura do documento',
             ariaClose: 'Fechar estrutura do documento',
         },
         table: {

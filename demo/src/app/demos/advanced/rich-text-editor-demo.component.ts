@@ -87,38 +87,20 @@ import {
       <div class="space-y-2">
         <h3 class="text-lg font-medium">Document Outline</h3>
         <p class="text-sm text-muted-foreground">
-          Auto-generated table of contents. Click an entry to scroll to the heading;
-          the outline updates live as you edit. Toggle the floating button and the
-          toolbar item independently — and try the <code>/outline</code> slash command,
-          which opens the docked panel even when both are off.
+          Auto-generated table of contents that opens as a docked side panel.
+          Click an entry to scroll to the heading; the outline updates live as you
+          edit. Open it from the <code>outline</code> toolbar button — or with the
+          <code>/outline</code> slash command, which works even without the toolbar item.
         </p>
-        <div class="flex flex-wrap items-center gap-4">
-          <div class="flex items-center gap-2">
-            <ui-switch id="richTextOutlineShowButton" [checked]="richTextOutlineShowButton()"
-              (checkedChange)="richTextOutlineShowButton.set($event)" />
-            <label for="richTextOutlineShowButton" class="text-sm font-medium">
-              Floating outline button
-            </label>
-          </div>
-          <div class="flex items-center gap-2">
-            <ui-switch id="richTextOutlineShowToolbarItem" [checked]="richTextOutlineShowToolbarItem()"
-              (checkedChange)="richTextOutlineShowToolbarItem.set($event)" />
-            <label for="richTextOutlineShowToolbarItem" class="text-sm font-medium">
-              Outline toolbar item
-            </label>
-          </div>
-          <div class="flex items-center gap-2">
-            <ui-switch id="richTextOutlinePanelMode" [checked]="richTextOutlinePanelMode()"
-              (checkedChange)="richTextOutlinePanelMode.set($event)" />
-            <label for="richTextOutlinePanelMode" class="text-sm font-medium">
-              Docked panel mode (off = popover)
-            </label>
-          </div>
+        <div class="flex items-center gap-2">
+          <ui-switch id="richTextOutlineShowToolbarItem" [checked]="richTextOutlineShowToolbarItem()"
+            (checkedChange)="richTextOutlineShowToolbarItem.set($event)" />
+          <label for="richTextOutlineShowToolbarItem" class="text-sm font-medium">
+            Outline toolbar item (off — use /outline)
+          </label>
         </div>
         <ui-rich-text-editor mode="html" toolbar="top"
           [toolbarItems]="outlineToolbarItems()"
-          [showOutline]="richTextOutlineShowButton()"
-          [outlineMode]="richTextOutlinePanelMode() ? 'panel' : 'popover'"
           [(ngModel)]="richTextOutlineContent"
           minHeight="320px" />
       </div>
@@ -188,8 +170,6 @@ export class RichTextEditorDemoComponent {
   richTextContent = '';
   richTextHtml = '';
   readonly richTextShowHistoryButton = signal(true);
-  readonly richTextOutlinePanelMode = signal(false);
-  readonly richTextOutlineShowButton = signal(true);
   readonly richTextOutlineShowToolbarItem = signal(true);
   lastAutoUploadUrl = '';
   lastAutoUploadError = '';

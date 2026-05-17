@@ -682,49 +682,8 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
     }
 
     <div [class]="editorContainerClasses()" [dir]="isRtl() ? 'rtl' : 'ltr'">
-      @if (hasCornerActions()) {
-        <div class="absolute top-2 z-30 ltr:right-2 rtl:left-2 flex items-center gap-2">
-          @if (showOutline() && !readonly() && !(effectiveOutlineMode() === 'panel' && outlinePanelOpen())) {
-            <div #outlineShortcutAnchor>
-              @if (effectiveOutlineMode() === 'popover') {
-                <ui-popover [open]="outlinePanelOpen()" (openChange)="setOutlinePanelOpen($event)">
-                  <ui-popover-trigger>
-                    <ui-button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      class="h-8 w-8 p-0"
-                      [disabled]="disabled()"
-                      [attr.aria-label]="resolvedLocale().outline.ariaOpen"
-                    >
-                      <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                        <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                      </svg>
-                    </ui-button>
-                  </ui-popover-trigger>
-                  <ui-popover-content class="w-80 max-sm:w-[calc(100vw-2rem)] p-0" align="start" side="bottom" [restoreFocus]="false">
-                    <ng-container [ngTemplateOutlet]="outlineBody" />
-                  </ui-popover-content>
-                </ui-popover>
-              } @else {
-                <ui-button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  class="h-8 w-8 p-0"
-                  [disabled]="disabled()"
-                  [attr.aria-label]="outlinePanelOpen() ? resolvedLocale().outline.ariaClose : resolvedLocale().outline.ariaOpen"
-                  (click)="setOutlinePanelOpen(!outlinePanelOpen())"
-                >
-                  <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
-                  </svg>
-                </ui-button>
-              }
-            </div>
-          }
-          @if (showHistoryPanel() && !readonly() && showHistoryButton()) {
-            <div #historyShortcutAnchor>
+      @if (showHistoryPanel() && !readonly() && showHistoryButton()) {
+        <div #historyShortcutAnchor class="absolute top-2 z-30 ltr:right-2 rtl:left-2">
           <ui-popover
             [open]="historyPanelOpen()"
             (openChange)="onHistoryPanelOpenChange($event)"
@@ -807,20 +766,16 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
               </ui-scroll-area>
             </ui-popover-content>
           </ui-popover>
-            </div>
-          }
         </div>
       }
 
-      @if (outlineEnabled() || outlinePanelOpen()) {
-        @if (effectiveOutlineMode() === 'panel' && outlinePanelOpen()) {
-          <div
-            class="absolute top-0 bottom-0 z-20 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto bg-popover ltr:left-0 ltr:border-r rtl:right-0 rtl:border-l"
-            [attr.data-slot]="'rich-text-outline-panel'"
-          >
-            <ng-container [ngTemplateOutlet]="outlineBody" />
-          </div>
-        }
+      @if (outlinePanelOpen()) {
+        <div
+          class="absolute top-0 bottom-0 z-20 w-64 max-w-[calc(100vw-2rem)] overflow-y-auto bg-popover ltr:left-0 ltr:border-r rtl:right-0 rtl:border-l"
+          [attr.data-slot]="'rich-text-outline-panel'"
+        >
+          <ng-container [ngTemplateOutlet]="outlineBody" />
+        </div>
       }
 
       <ng-template #outlineBody>
@@ -831,7 +786,7 @@ export const RICH_TEXT_SHORTCUT_DEFINITIONS = [
               variant="ghost"
               size="sm"
               class="h-7 w-7 p-0"
-              (click)="setOutlinePanelOpen(false)"
+              (click)="outlinePanelOpen.set(false)"
               [attr.aria-label]="resolvedLocale().outline.ariaClose"
             >
               <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -1508,14 +1463,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /** Show the "Revisions" button in the top-right corner. Only visible when `showHistoryPanel` is `true`. */
     showHistoryButton = input<boolean>(true);
 
-    // ── Outline ─────────────────────────────────────────────────
-
-    /** When true, shows a standalone outline toggle button in the editor corner. */
-    showOutline = input<boolean>(false);
-
-    /** Whether the outline renders as a docked side `panel` or a `popover`. */
-    outlineMode = input<'panel' | 'popover'>('popover');
-
     // ── Slash commands ──────────────────────────────────────────
 
     /** Enable the `/slash` command feature. When `true`, typing `/` opens a command menu. */
@@ -1698,9 +1645,8 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     autoUploadErrors = signal<Map<string, { dataUrl: string; imgElement: HTMLImageElement }>>(new Map());
 
     historyPanelOpen = signal<boolean>(false);
+    /** Whether the docked document-outline panel is open. */
     outlinePanelOpen = signal<boolean>(false);
-    /** When true, forces the outline into docked `panel` mode regardless of the `outlineMode` input. */
-    private readonly outlineDockOverride = signal<boolean>(false);
     historyPreviewOpen = model<boolean>(false);
     historyBrowserOpen = model<boolean>(false);
     selectedHistoryIndex = signal<number | null>(null);
@@ -1775,7 +1721,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             '[&_hr]:border-t [&_hr]:border-border [&_hr]:my-4',
             'disabled:cursor-not-allowed',
             'transition-[padding] duration-150',
-            this.effectiveOutlineMode() === 'panel' && this.outlinePanelOpen() ? 'ps-[calc(16rem+3px)]' : ''
+            this.outlinePanelOpen() ? 'ps-[calc(16rem+3px)]' : ''
         )
     );
 
@@ -1801,34 +1747,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         return interpolate(template, values);
     }
 
-    /** True when the outline UI should render — via `showOutline` or the `'outline'` toolbar item. */
-    outlineEnabled = computed(() => this.showOutline() || this.toolbarItems().includes('outline'));
-
-    /** Resolved outline mode: docked `panel` while an override is active (e.g. the `/outline` slash command), otherwise the `outlineMode` input. */
-    readonly effectiveOutlineMode = computed<'panel' | 'popover'>(
-        () => this.outlineDockOverride() ? 'panel' : this.outlineMode()
-    );
-
-    /** True when the floating outline button or the history button should render in the shared top corner. */
-    protected readonly hasCornerActions = computed(() =>
-        !this.readonly() && (
-            (this.showHistoryPanel() && this.showHistoryButton()) ||
-            (this.showOutline() && !(this.effectiveOutlineMode() === 'panel' && this.outlinePanelOpen()))
-        )
-    );
-
-    /** Opens the outline in docked `panel` mode. Used by the `/outline` slash command. */
+    /** Opens the docked document-outline panel. Used by the `/outline` slash command. */
     openOutlineDocked(): void {
-        this.outlineDockOverride.set(true);
         this.outlinePanelOpen.set(true);
-    }
-
-    /** Sets the outline panel open state; closing clears any docked-mode override. */
-    setOutlinePanelOpen(open: boolean): void {
-        this.outlinePanelOpen.set(open);
-        if (!open) {
-            this.outlineDockOverride.set(false);
-        }
     }
 
     /** Live table of contents derived from the editor's heading elements, in document order. */
@@ -2812,7 +2733,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (this.readonly() || this.disabled()) return;
 
         if (command === 'outline') {
-            this.setOutlinePanelOpen(!this.outlinePanelOpen());
+            this.outlinePanelOpen.set(!this.outlinePanelOpen());
             return;
         }
 
