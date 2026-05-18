@@ -128,6 +128,12 @@ export class RichTextSanitizerService {
     // Event handler attributes pattern
     private readonly EVENT_HANDLER_PATTERN = /^on\w+$/i;
 
+    // Control, whitespace, and zero-width / bidi / format characters that
+    // browsers ignore or normalize inside URLs; stripped before a URL scheme
+    // is inspected so they cannot mask a dangerous protocol.
+    private readonly URL_STRIP_PATTERN =
+        /[\u0000-\u0020\u007f-\u00a0\u00ad\u1680\u2000-\u200f\u2028-\u202f\u205f\u2060-\u206f\u3000\ufeff\ufff9-\ufffb]/g;
+
     /**
      * Sanitize HTML string, removing all dangerous content.
      * Returns clean, safe HTML.
@@ -162,20 +168,25 @@ export class RichTextSanitizerService {
     }
 
     /**
-     * Check if a URL is safe (not javascript:, vbscript:, or suspicious data:)
+     * Check if a URL is safe for use in an href/src attribute (not
+     * javascript:, vbscript:, or a suspicious data: URL).
+     *
+     * Browsers ignore or strip whitespace, control, and zero-width / bidi
+     * characters inside URLs while navigating, so a dangerous scheme can be
+     * smuggled past a naive check by inserting them (e.g. a tab or zero-width
+     * space inside `javascript:`). All such characters are removed before the
+     * protocol is compared against the blocklist.
      */
     isUrlSafe(url: string): boolean {
         if (!url || typeof url !== 'string') {
             return false;
         }
 
-        const trimmed = url.trim().toLowerCase();
+        const probe = url.replace(this.URL_STRIP_PATTERN, '').toLowerCase();
 
-        // Check for dangerous protocols
         for (const protocol of this.DANGEROUS_PROTOCOLS) {
-            if (trimmed.startsWith(protocol)) {
-                // Exception: allow safe data:image/* URLs
-                if (protocol === 'data:' && this.isAllowedDataUrl(trimmed)) {
+            if (probe.startsWith(protocol)) {
+                if (protocol === 'data:' && this.isAllowedDataUrl(probe)) {
                     return true;
                 }
                 return false;
@@ -199,6 +210,10 @@ export class RichTextSanitizerService {
     /**
      * Sanitize image source URL.
      * More restrictive: only allows https, relative, or safe data:image/*.
+     * Protocol-relative URLs (`//host`) are rejected — they look relative but
+     * load an arbitrary external host. Prefix checks run on a control-char
+     * stripped copy so obfuscated forms are caught, while the original input
+     * is returned so legitimate paths keep characters browsers resolve.
      */
     sanitizeImageSrc(src: string): string | null {
         if (!src || typeof src !== 'string') {
@@ -206,9 +221,15 @@ export class RichTextSanitizerService {
         }
 
         const trimmed = src.trim();
+        const probe = trimmed.replace(this.URL_STRIP_PATTERN, '');
+
+        // Reject protocol-relative URLs that load an arbitrary external host
+        if (probe.startsWith('//') || probe.startsWith('/\\')) {
+            return null;
+        }
 
         // Allow relative URLs
-        if (trimmed.startsWith('/') || trimmed.startsWith('./') || trimmed.startsWith('../')) {
+        if (probe.startsWith('/') || probe.startsWith('./') || probe.startsWith('../')) {
             return trimmed;
         }
 

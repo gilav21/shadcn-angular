@@ -192,4 +192,85 @@ describe('RichTextSanitizerService Security Audit', () => {
             }
         });
     });
+
+    describe('XSS via Whitespace/Control-Char Obfuscated Schemes', () => {
+        it('should strip javascript: links with an embedded tab', () => {
+            const output = sanitize('<a href="java&#9;script:alert(1)">Link</a>');
+            expect(output).not.toContain('href');
+            expect(output).not.toContain('alert');
+        });
+
+        it('should strip javascript: links with an embedded newline', () => {
+            const output = sanitize('<a href="java&#10;script:alert(1)">Link</a>');
+            expect(output).not.toContain('href');
+            expect(output).not.toContain('alert');
+        });
+
+        it('should strip javascript: links with an embedded carriage return', () => {
+            const output = sanitize('<a href="java&#13;script:alert(1)">Link</a>');
+            expect(output).not.toContain('href');
+            expect(output).not.toContain('alert');
+        });
+
+        it('should strip javascript: links hidden with a zero-width space', () => {
+            const output = sanitize('<a href="java&#8203;script:alert(1)">Link</a>');
+            expect(output).not.toContain('href');
+            expect(output).not.toContain('alert');
+        });
+
+        it('should strip javascript: links hidden with a soft hyphen', () => {
+            const output = sanitize('<a href="java&#173;script:alert(1)">Link</a>');
+            expect(output).not.toContain('href');
+            expect(output).not.toContain('alert');
+        });
+
+        it('should strip javascript: links with a leading control character', () => {
+            const output = sanitize('<a href="&#1;javascript:alert(1)">Link</a>');
+            expect(output).not.toContain('href');
+            expect(output).not.toContain('alert');
+        });
+
+        it('should strip vbscript: links with embedded whitespace', () => {
+            const output = sanitize('<a href="vb&#9;script:alert(1)">Link</a>');
+            expect(output).not.toContain('href');
+            expect(output).not.toContain('vbscript');
+        });
+
+        it('should report obfuscated schemes as unsafe via isUrlSafe', () => {
+            expect(service.isUrlSafe('java' + String.fromCodePoint(9) + 'script:alert(1)')).toBe(false);
+            expect(service.isUrlSafe('java' + String.fromCodePoint(10) + 'script:alert(1)')).toBe(false);
+            expect(service.isUrlSafe(String.fromCodePoint(1) + 'javascript:alert(1)')).toBe(false);
+            expect(service.isUrlSafe('java' + String.fromCodePoint(0x200b) + 'script:alert(1)')).toBe(false);
+        });
+
+        it('should keep a normal safe link intact', () => {
+            const output = sanitize('<a href="https://example.com/page">Link</a>');
+            expect(output).toContain('href="https://example.com/page"');
+        });
+    });
+
+    describe('Protocol-relative image sources', () => {
+        it('should reject //host image sources', () => {
+            expect(service.sanitizeImageSrc('//evil.com/track.png')).toBeNull();
+        });
+
+        it('should reject /\\host image sources', () => {
+            expect(service.sanitizeImageSrc('/\\evil.com/track.png')).toBeNull();
+        });
+
+        it('should reject //host hidden behind whitespace', () => {
+            const src = '/' + String.fromCodePoint(9) + '/evil.com/track.png';
+            expect(service.sanitizeImageSrc(src)).toBeNull();
+        });
+
+        it('should still allow genuine relative image paths', () => {
+            expect(service.sanitizeImageSrc('/assets/logo.png')).toBe('/assets/logo.png');
+            expect(service.sanitizeImageSrc('./logo.png')).toBe('./logo.png');
+        });
+
+        it('should strip <img> with a protocol-relative src', () => {
+            const output = sanitize('<img src="//evil.com/track.png">');
+            expect(output).not.toContain('evil.com');
+        });
+    });
 });
