@@ -62,7 +62,9 @@ import {
   RowActionContext,
   VirtualAutoThreshold,
   CellEditEvent,
+  CellEditErrorEvent,
   EditingCell,
+  CellEditError,
   RowReorderEvent,
   RowDragPosition,
   CellRange,
@@ -83,6 +85,9 @@ import { ComponentPoolService } from "./component-pool.service";
 declare const ngDevMode: boolean | undefined;
 
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
+
+/** Per-instance counter for unique element ids (e.g. inline edit-error links). */
+let dataTableUid = 0;
 
 const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   const rec = row as Record<string, unknown>;
@@ -279,6 +284,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 
     <!-- Reusable: cell edit mode -->
     <ng-template #cellEditTpl let-col let-row="row" let-rowIndex="rowIndex">
+      @let editErr = editErrorFor(rowIndex, col);
       @if (col.editComponent) {
         <div
           [uiComponentOutlet]="col.editComponent"
@@ -306,12 +312,19 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
       } @else if (col.editType === "checkbox") {
         <ui-checkbox
           [checked]="!!editValue()"
+          [ariaInvalid]="editErr ? true : undefined"
+          [ariaDescribedby]="editErr ? cellEditErrorId : undefined"
           (checkedChange)="onEditValueChange($event); commitEdit()"
         />
       } @else if (col.editType === "select" && col.editOptions) {
         <select
           data-edit-input
           class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          [class.ring-1]="editErr"
+          [class.ring-inset]="editErr"
+          [class.ring-destructive]="editErr"
+          [attr.aria-invalid]="editErr ? true : null"
+          [attr.aria-describedby]="editErr ? cellEditErrorId : null"
           [value]="editValue()"
           (change)="onEditValueChange($any($event.target).value); commitEdit()"
           (keydown)="onEditKeydown($event)"
@@ -325,11 +338,26 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
           data-edit-input
           [type]="col.editType === 'number' ? 'number' : 'text'"
           class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          [class.ring-1]="editErr"
+          [class.ring-inset]="editErr"
+          [class.ring-destructive]="editErr"
+          [attr.aria-invalid]="editErr ? true : null"
+          [attr.aria-describedby]="editErr ? cellEditErrorId : null"
           [value]="editValue()"
           (input)="onEditValueChange($any($event.target).value)"
           (keydown)="onEditKeydown($event)"
           (blur)="editingCell() ? commitEdit() : null"
         />
+      }
+      @if (editErr) {
+        <p
+          [id]="cellEditErrorId"
+          class="mt-0.5 px-1 text-xs text-destructive"
+          role="alert"
+          data-slot="cell-edit-error"
+        >
+          {{ editErr }}
+        </p>
       }
     </ng-template>
 
@@ -1421,7 +1449,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
   private _isRtlResize = false;
 
-  readonly data = input.required<T[]>();
+  readonly data = model.required<T[]>();
   /** @see columnHelper for a type-safe fluent builder API */
   readonly columns = input.required<ColumnDef<T>[]>();
 
@@ -1458,8 +1486,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly filterChange = output<string>();
 
   readonly cellEdit = output<CellEditEvent<T>>();
+  readonly editError = output<CellEditErrorEvent<T>>();
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
+  readonly cellEditError = signal<CellEditError | null>(null);
+  /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
+  readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
 
   readonly enableRowSelection = input(false);
   readonly rowSelection = model<Record<string, boolean>>({});
@@ -2490,7 +2522,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const keys = editableCols.map((c) => String(c.accessorKey)).join(', ');
       warnings.push(
         `[ui-data-table] Columns [${keys}] have editable=true but no valueSetter. ` +
-          'Edits will directly mutate the row object. Provide a valueSetter for immutable updates.'
+          'Inline edits will emit (cellEdit) only and will not update the table data. ' +
+          'Provide a valueSetter to apply edits immutably, or handle (cellEdit) yourself.'
       );
     }
 
@@ -3958,6 +3991,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (this.isDisabled(row)) return;
 
     const currentValue = this.getCellValue(row, col.accessorKey, col);
+    this.cellEditError.set(null);
     this.editValue.set(currentValue);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -3994,13 +4028,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (col.editValidator) {
-      const result = col.editValidator(newValue, row);
-      if (result !== true) {
-        return;
-      }
+    if (!this.validateEdit(col, row, newValue, editing)) {
+      return;
     }
 
+    this.cellEditError.set(null);
     this.cellEdit.emit({
       row,
       column: col,
@@ -4008,26 +4040,88 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       newValue,
       rowIndex: editing.rowIndex,
     });
-
-    if (col.valueSetter) {
-      const updatedRow = col.valueSetter(row, newValue);
-      const data = [...this.data()];
-      const dataIndex = data.findIndex(
-        (r) => this.getRowId()(r) === this.getRowId()(row),
-      );
-      if (dataIndex !== -1) {
-        data[dataIndex] = updatedRow;
-      }
-    }
+    this.applyValueSetter(col, row, newValue);
 
     this.editingCell.set(null);
     this.refocusTable();
   }
 
+  /**
+   * Runs the column's `editValidator`. On rejection, records the inline error
+   * state and emits `editError`. Returns `true` when the edit may proceed.
+   */
+  private validateEdit(
+    col: ColumnDef<T>,
+    row: T,
+    newValue: unknown,
+    editing: EditingCell,
+  ): boolean {
+    if (!col.editValidator) return true;
+
+    const result = col.editValidator(newValue, row);
+    if (result === true) return true;
+
+    const existing = this.cellEditError();
+    const alreadyReported =
+      existing !== null &&
+      existing.rowIndex === editing.rowIndex &&
+      existing.columnKey === editing.columnKey &&
+      existing.value === newValue;
+    if (alreadyReported) return false;
+
+    const message = typeof result === 'string' ? result : 'Invalid value';
+    this.cellEditError.set({
+      rowIndex: editing.rowIndex,
+      columnKey: editing.columnKey,
+      value: newValue,
+      message,
+    });
+    this.editError.emit({
+      row,
+      column: col,
+      value: newValue,
+      rowIndex: editing.rowIndex,
+      message,
+    });
+    return false;
+  }
+
+  /**
+   * Writes a committed edit back into the table data using the column's
+   * `valueSetter`. `data` is a model, so the resulting array is published
+   * to consumers and reflected by the table.
+   */
+  private applyValueSetter(col: ColumnDef<T>, row: T, newValue: unknown): void {
+    if (!col.valueSetter) return;
+
+    const updatedRow = col.valueSetter(row, newValue);
+    const data = [...this.data()];
+    const getId = this.getRowId();
+    const dataIndex = data.findIndex((r) => getId(r) === getId(row));
+    if (dataIndex !== -1) {
+      data[dataIndex] = updatedRow;
+      this.data.set(data);
+    }
+  }
+
   cancelEdit(): void {
     this.editingCell.set(null);
     this.editValue.set(null);
+    this.cellEditError.set(null);
     this.refocusTable();
+  }
+
+  /** Returns the inline validation message for a cell, or `null` if valid. */
+  editErrorFor(rowIndex: number, col: ColumnDef<T>): string | null {
+    const err = this.cellEditError();
+    if (
+      err &&
+      err.rowIndex === rowIndex &&
+      err.columnKey === String(col.accessorKey)
+    ) {
+      return err.message;
+    }
+    return null;
   }
 
   private refocusTable(): void {
@@ -4038,6 +4132,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   onEditValueChange(value: unknown): void {
     this.editValue.set(value);
+    this.cellEditError.set(null);
   }
 
   onEditKeydown(event: KeyboardEvent): void {

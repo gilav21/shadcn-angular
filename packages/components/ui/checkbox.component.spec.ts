@@ -64,6 +64,19 @@ describe('CheckboxComponent', () => {
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.className).toContain('custom-class');
     });
+
+    it('should forward ariaDescribedby and ariaInvalid to the control', () => {
+        const button = fixture.debugElement.query(By.css('button'));
+        expect(button.nativeElement.hasAttribute('aria-describedby')).toBe(false);
+        expect(button.nativeElement.hasAttribute('aria-invalid')).toBe(false);
+
+        fixture.componentRef.setInput('ariaDescribedby', 'err-1');
+        fixture.componentRef.setInput('ariaInvalid', true);
+        fixture.detectChanges();
+
+        expect(button.nativeElement.getAttribute('aria-describedby')).toBe('err-1');
+        expect(button.nativeElement.getAttribute('aria-invalid')).toBe('true');
+    });
 });
 
 describe('CheckboxComponent with Label', () => {

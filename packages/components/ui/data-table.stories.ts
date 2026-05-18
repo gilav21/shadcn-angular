@@ -1083,3 +1083,60 @@ export const VirtualScrollPerformance: VirtualStory = {
         virtualAutoThreshold: { rows: 500, columns: 20 },
     } as Record<string, unknown>,
 };
+
+const editableColumns: ColumnDef<User>[] = [
+    { accessorKey: 'id', header: 'ID', width: '70px' },
+    {
+        accessorKey: 'name',
+        header: 'Name',
+        editable: true,
+        editType: 'text',
+        editValidator: (val) => String(val).trim().length > 0 || 'Name is required',
+        valueSetter: (row, val) => ({ ...row, name: String(val) }),
+    },
+    {
+        accessorKey: 'email',
+        header: 'Email',
+        editable: true,
+        editType: 'text',
+        editValidator: (val) => String(val).includes('@') || 'Email must contain "@"',
+        valueSetter: (row, val) => ({ ...row, email: String(val) }),
+    },
+    {
+        accessorKey: 'role',
+        header: 'Role',
+        editable: true,
+        editType: 'select',
+        editOptions: [
+            { label: 'Admin', value: 'Admin' },
+            { label: 'User', value: 'User' },
+            { label: 'Manager', value: 'Manager' },
+        ],
+        valueSetter: (row, val) => ({ ...row, role: String(val) }),
+    },
+];
+
+export const InlineEditing: Story = {
+    render: (args) => ({
+        props: args,
+        template: `
+            <div class="h-[600px] w-full p-4">
+                <p class="mb-2 text-sm text-muted-foreground">
+                    Focus a cell and press Enter (or double-click) to edit. Committed edits are written
+                    back through each column's valueSetter. The Name column rejects empty values and
+                    Email requires an "@" — invalid edits show an inline error and emit (editError).
+                </p>
+                <ui-data-table
+                    [(data)]="data"
+                    [columns]="columns"
+                    [showToolbar]="false"
+                    [showPagination]="false"
+                />
+            </div>
+        `,
+    }),
+    args: {
+        data: sampleData.slice(0, 6),
+        columns: editableColumns,
+    },
+};

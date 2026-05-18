@@ -37,6 +37,7 @@ import {
   ToggleGroupComponent,
   ToggleGroupItemComponent,
   CellEditEvent,
+  CellEditErrorEvent,
   RowReorderEvent,
   columnHelper,
   dateFilterFn,
@@ -1308,16 +1309,19 @@ export class DataTableDemoComponent {
     {
       accessorKey: 'clientName', header: 'Client Name', width: 'auto',
       editable: true, editType: 'text',
+      editValidator: (val) => String(val).trim().length > 0 || 'Client name is required',
       valueSetter: (row, val) => ({ ...row, clientName: String(val) }),
     },
     {
       accessorKey: 'email', header: 'Email', width: 'auto',
       editable: true, editType: 'text',
+      editValidator: (val) => String(val).includes('@') || 'Enter a valid email address',
       valueSetter: (row, val) => ({ ...row, email: String(val) }),
     },
     {
       accessorKey: 'amount', header: 'Amount', width: '120px',
       editable: true, editType: 'number',
+      editValidator: (val) => Number(val) > 0 || 'Amount must be greater than zero',
       valueSetter: (row, val) => ({ ...row, amount: Number(val) }),
       cell: (row) => `$${row.amount.toFixed(2)}`,
     },
@@ -1336,6 +1340,9 @@ export class DataTableDemoComponent {
   readonly editLog = signal<string[]>([]);
   onCellEdit(event: CellEditEvent<Payment>): void {
     this.editLog.update(log => [`${String(event.column.accessorKey)}: "${String(event.oldValue)}" → "${String(event.newValue)}"`, ...log.slice(0, 4)]);
+  }
+  onCellEditError(event: CellEditErrorEvent<Payment>): void {
+    this.editLog.update(log => [`⚠ ${String(event.column.accessorKey)} rejected: ${event.message}`, ...log.slice(0, 4)]);
   }
 
   // ── Footer Aggregations Demo ──

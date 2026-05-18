@@ -760,8 +760,9 @@ describe('DataTableComponent', () => {
         expect(component.editingCell()).toBeNull();
     });
 
-    it('should reject edit when validator returns false', () => {
+    it('should reject edit and surface an error when validator returns false', () => {
         const editSpy = vi.fn();
+        const errorSpy = vi.fn();
         fixture.componentRef.setInput('columns', [
             { accessorKey: 'id', header: 'ID' },
             { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => false },
@@ -769,6 +770,7 @@ describe('DataTableComponent', () => {
         ]);
         fixture.detectChanges();
         component.cellEdit.subscribe(editSpy);
+        component.editError.subscribe(errorSpy);
 
         component.startEditing(0, 'name');
         component.onEditValueChange('Bad Value');
@@ -776,6 +778,109 @@ describe('DataTableComponent', () => {
 
         expect(editSpy).not.toHaveBeenCalled();
         expect(component.editingCell()).not.toBeNull();
+        expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({
+            value: 'Bad Value',
+            rowIndex: 0,
+            message: 'Invalid value',
+        }));
+        expect(component.cellEditError()?.message).toBe('Invalid value');
+    });
+
+    it('should surface the validator message when editValidator returns a string', () => {
+        const errorSpy = vi.fn();
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => 'Name is too short' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+        component.editError.subscribe(errorSpy);
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('X');
+        component.commitEdit();
+
+        expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ message: 'Name is too short' }));
+        expect(component.cellEditError()?.message).toBe('Name is too short');
+    });
+
+    it('should render an inline error message when an edit is rejected', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => 'Bad name' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('whatever');
+        component.commitEdit();
+        fixture.detectChanges();
+
+        const errorEl = fixture.nativeElement.querySelector('[data-slot="cell-edit-error"]');
+        expect(errorEl).toBeTruthy();
+        expect(errorEl?.textContent).toContain('Bad name');
+
+        const input = fixture.nativeElement.querySelector('input[data-edit-input]');
+        expect(input?.getAttribute('aria-invalid')).toBe('true');
+        expect(errorEl?.getAttribute('id')).toBeTruthy();
+        expect(input?.getAttribute('aria-describedby')).toBe(errorEl?.getAttribute('id'));
+    });
+
+    it('should not re-emit editError when committing the same rejected value', () => {
+        const errorSpy = vi.fn();
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => false },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+        component.editError.subscribe(errorSpy);
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Bad Value');
+        component.commitEdit();
+        component.commitEdit();
+        component.commitEdit();
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        expect(component.editingCell()).not.toBeNull();
+    });
+
+    it('should clear the edit error when the edit value changes', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: (v: unknown) => v === 'ok' || 'Invalid' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('bad');
+        component.commitEdit();
+        expect(component.cellEditError()).not.toBeNull();
+
+        component.onEditValueChange('still typing');
+        expect(component.cellEditError()).toBeNull();
+    });
+
+    it('should apply the valueSetter result back into the table data on commit', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            {
+                accessorKey: 'name', header: 'Name', editable: true,
+                valueSetter: (row: TestData, val: unknown) => ({ ...row, name: String(val) }),
+            },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Alice Renamed');
+        component.commitEdit();
+
+        expect(component.data()[0].name).toBe('Alice Renamed');
+        expect(component.editingCell()).toBeNull();
     });
 
     it('should pin column via pinColumn method', () => {
