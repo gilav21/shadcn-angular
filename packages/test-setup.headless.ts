@@ -84,6 +84,88 @@ if (typeof Element.prototype.animate !== 'function') {
 	};
 }
 
+if (typeof Range.prototype.getBoundingClientRect !== 'function') {
+	Range.prototype.getBoundingClientRect = function () {
+		return new DOMRect(0, 0, 0, 0);
+	};
+}
+
+function isCssIdentifierSafe(codePoint: number): boolean {
+	return (
+		codePoint >= 0x0080 ||
+		codePoint === 0x002d ||
+		codePoint === 0x005f ||
+		(codePoint >= 0x0030 && codePoint <= 0x0039) ||
+		(codePoint >= 0x0041 && codePoint <= 0x005a) ||
+		(codePoint >= 0x0061 && codePoint <= 0x007a)
+	);
+}
+
+function escapeCssCodePoint(
+	codePoint: number,
+	index: number,
+	length: number,
+	firstCodePoint: number,
+): string {
+	if (codePoint === 0) {
+		return '�';
+	}
+	const isDigit = codePoint >= 0x0030 && codePoint <= 0x0039;
+	const needsHexEscape =
+		(codePoint >= 0x0001 && codePoint <= 0x001f) ||
+		codePoint === 0x007f ||
+		(index === 0 && isDigit) ||
+		(index === 1 && isDigit && firstCodePoint === 0x002d);
+	if (needsHexEscape) {
+		return `\\${codePoint.toString(16)} `;
+	}
+	if (index === 0 && length === 1 && codePoint === 0x002d) {
+		return '\\-';
+	}
+	if (isCssIdentifierSafe(codePoint)) {
+		return String.fromCodePoint(codePoint);
+	}
+	return `\\${String.fromCodePoint(codePoint)}`;
+}
+
+function escapeCssIdentifier(value: string): string {
+	const chars = Array.from(value);
+	const { length } = chars;
+	const firstCodePoint = chars[0]?.codePointAt(0) ?? 0;
+	let result = '';
+	for (const [index, ch] of chars.entries()) {
+		result += escapeCssCodePoint(ch.codePointAt(0) ?? 0, index, length, firstCodePoint);
+	}
+	return result;
+}
+
+if (typeof globalThis.CSS === 'undefined') {
+	globalThis.CSS = {
+		escape: escapeCssIdentifier,
+	} as unknown as typeof globalThis.CSS;
+}
+
+if (!('isContentEditable' in HTMLElement.prototype)) {
+	Object.defineProperty(HTMLElement.prototype, 'isContentEditable', {
+		configurable: true,
+		get(this: HTMLElement): boolean {
+			let node: HTMLElement | null = this;
+			while (node) {
+				const attr = node.getAttribute('contenteditable');
+				const value = attr === null ? 'inherit' : attr.toLowerCase();
+				if (value === '' || value === 'true' || value === 'plaintext-only') {
+					return true;
+				}
+				if (value === 'false') {
+					return false;
+				}
+				node = node.parentElement;
+			}
+			return false;
+		},
+	});
+}
+
 if (typeof HTMLElement.prototype.showPopover === 'undefined') {
 	HTMLElement.prototype.showPopover = function () {};
 	HTMLElement.prototype.hidePopover = function () {};
