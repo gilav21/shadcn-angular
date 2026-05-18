@@ -1207,6 +1207,36 @@ describe('DataTableComponent', () => {
             expect(resizeHandles.length).toBeGreaterThan(0);
         });
 
+        it('should give the resize handle a wide touch hit area with a thin visual line', () => {
+            fixture.componentRef.setInput('enableColumnResize', true);
+            fixture.detectChanges();
+
+            const handle = fixture.nativeElement.querySelector('[role="separator"]');
+            expect(handle).toBeTruthy();
+            expect(handle.className).toContain('w-4');
+            expect(handle.className).toContain('touch-none');
+
+            const visualLine = handle.querySelector('div');
+            expect(visualLine).toBeTruthy();
+            expect(visualLine.className).toContain('w-px');
+        });
+
+        it('should keep the resize handle highlighted for the whole drag', () => {
+            fixture.componentRef.setInput('enableColumnResize', true);
+            fixture.detectChanges();
+
+            const nameCol = component.enhancedColumns().find(c => c.accessorKey === 'name');
+            expect(nameCol).toBeTruthy();
+            expect(component.isResizingColumn(nameCol!)).toBe(false);
+
+            component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), nameCol!);
+            expect(component.isResizingColumn(nameCol!)).toBe(true);
+            expect(component.resizeLineClass(nameCol!)).toContain('bg-primary/70');
+
+            document.dispatchEvent(new MouseEvent('mouseup'));
+            expect(component.isResizingColumn(nameCol!)).toBe(false);
+        });
+
         it('should track column widths in signal', () => {
             fixture.componentRef.setInput('enableColumnResize', true);
             fixture.detectChanges();

@@ -718,7 +718,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
                     col.accessorKey !== "_selection"
                   ) {
                     <div
-                      class="absolute top-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary/70 z-40 select-none"
+                      class="group/resize absolute top-0 w-4 h-full cursor-col-resize touch-none z-40 select-none"
                       [class.right-0]="!isRtl()"
                       [class.translate-x-1/2]="!isRtl()"
                       [class.left-0]="isRtl()"
@@ -727,7 +727,12 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
                       (touchstart)="onResizeTouchStart($event, col)"
                       role="separator"
                       [attr.aria-label]="'Resize ' + col.header + ' column'"
-                    ></div>
+                    >
+                      <div
+                        [class]="resizeLineClass(col)"
+                        aria-hidden="true"
+                      ></div>
+                    </div>
                   }
                 </ui-table-head>
               }
@@ -5164,7 +5169,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return pos === 'above' ? 'top' : 'bottom';
   }
 
-  private resizingColumn: CellStyleColumn | null = null;
+  private readonly _resizingColumn = signal<CellStyleColumn | null>(null);
   private resizeStartX = 0;
   private resizeStartWidth = 0;
   private resizeOldWidth = "auto";
@@ -5183,9 +5188,27 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** True while the given column is actively being resized. */
+  isResizingColumn(col: CellStyleColumn): boolean {
+    const resizing = this._resizingColumn();
+    return (
+      resizing !== null &&
+      String(resizing.accessorKey) === String(col.accessorKey)
+    );
+  }
+
+  /** Classes for the resize handle's 1px visual line — solid while dragging. */
+  resizeLineClass(col: CellStyleColumn): string {
+    const base = "absolute inset-y-0 left-1/2 w-px -translate-x-1/2";
+    if (this.isResizingColumn(col)) {
+      return `${base} bg-primary/70`;
+    }
+    return `${base} bg-transparent group-hover/resize:bg-primary/50`;
+  }
+
   private startResize(clientX: number, col: CellStyleColumn) {
     const key = String(col.accessorKey);
-    this.resizingColumn = col;
+    this._resizingColumn.set(col);
     this.resizeStartX = clientX;
     const actualWidth = this.getColumnActualWidth(key);
     this.resizeStartWidth = Number.parseInt(col._width, 10) || actualWidth || 150;
@@ -5220,13 +5243,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   private onResizeMove(clientX: number) {
-    if (!this.resizingColumn) return;
+    const resizing = this._resizingColumn();
+    if (!resizing) return;
 
     const delta = clientX - this.resizeStartX;
     const effectiveDelta = this._isRtlResize ? -delta : delta;
-    const minWidth = Number.parseInt(this.resizingColumn._minWidth || "50", 10) || 50;
+    const minWidth = Number.parseInt(resizing._minWidth || "50", 10) || 50;
     const newWidth = Math.max(minWidth, this.resizeStartWidth + effectiveDelta);
-    const key = String(this.resizingColumn.accessorKey);
+    const key = String(resizing.accessorKey);
 
     this.columnWidths.update((widths) => ({
       ...widths,
@@ -5235,8 +5259,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   private onResizeEnd() {
-    if (this.resizingColumn) {
-      const key = String(this.resizingColumn.accessorKey);
+    const resizing = this._resizingColumn();
+    if (resizing) {
+      const key = String(resizing.accessorKey);
       const newWidth = this.columnWidths()[key] || this.resizeOldWidth;
 
       this.columnResize.emit({
@@ -5245,7 +5270,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         newWidth,
       });
 
-      this.resizingColumn = null;
+      this._resizingColumn.set(null);
     }
   }
 
