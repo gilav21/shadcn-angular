@@ -476,7 +476,7 @@ export const registry = defineRegistry({
   },
   meteors: {
     name: 'meteors',
-    files: ['meteors.component.ts'],
+    files: ['meteors/index.ts', 'meteors/meteors.component.ts'],
   },
   'shine-border': {
     name: 'shine-border',

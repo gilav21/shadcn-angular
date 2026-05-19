@@ -101,7 +101,7 @@ export * from './charts';
 // Animations
 export * from './gradient-text';
 export * from './flip-text';
-export * from './meteors.component';
+export * from './meteors';
 export * from './shine-border.component';
 export * from './scroll-progress.component';
 export * from './blur-fade';
