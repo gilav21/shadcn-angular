@@ -102,7 +102,11 @@ const meta: Meta = {
     title: 'Advanced/Tour',
     decorators: [
         moduleMetadata({
-            imports: [TourComponent, ButtonComponent, CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent],
+            imports: [
+                TourComponent, ButtonComponent,
+                CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent,
+                TourBasicDemoComponent, TourCustomLabelsDemoComponent, TourNoSkipDemoComponent,
+            ],
         }),
     ],
 };
@@ -112,19 +116,19 @@ type Story = StoryObj;
 
 export const Basic: Story = {
     render: () => ({
-        component: TourBasicDemoComponent,
+        template: '<tour-basic-demo></tour-basic-demo>',
     }),
 };
 
 export const CustomLabels: Story = {
     render: () => ({
-        component: TourCustomLabelsDemoComponent,
+        template: '<tour-custom-labels-demo></tour-custom-labels-demo>',
     }),
 };
 
 export const NoSkipButton: Story = {
     render: () => ({
-        component: TourNoSkipDemoComponent,
+        template: '<tour-no-skip-demo></tour-no-skip-demo>',
     }),
 };
 
