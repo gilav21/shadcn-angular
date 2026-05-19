@@ -7,12 +7,12 @@ import {
     ElementRef,
     inject,
 } from '@angular/core';
-import { cn , prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-wobble-card',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    templateUrl: './wobble-card.component.html',
     host: {
         '[class]': 'classes()',
         '[style]': 'styles()',

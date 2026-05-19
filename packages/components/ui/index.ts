@@ -110,7 +110,7 @@ export * from './marquee';
 export * from './word-rotate';
 export * from './morphing-text';
 export * from './typing-animation';
-export * from './wobble-card.component';
+export * from './wobble-card';
 export * from './magnetic.directive';
 export * from './orbit';
 export * from './stagger-children';

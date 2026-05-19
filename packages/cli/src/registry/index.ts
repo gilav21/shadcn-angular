@@ -512,7 +512,7 @@ export const registry = defineRegistry({
   },
   'wobble-card': {
     name: 'wobble-card',
-    files: ['wobble-card.component.ts'],
+    files: ['wobble-card/index.ts', 'wobble-card/wobble-card.component.html', 'wobble-card/wobble-card.component.ts'],
   },
   magnetic: {
     name: 'magnetic',
