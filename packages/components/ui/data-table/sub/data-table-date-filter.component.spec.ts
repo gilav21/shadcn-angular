@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, it, expect } from 'vitest';
-import { DateRange } from '../../calendar.component';
+import { DateRange } from '../../calendar';
 import {
   DataTableDateFilterComponent,
   dateFilterFn,

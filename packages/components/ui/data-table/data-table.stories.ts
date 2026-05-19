@@ -8,7 +8,7 @@ import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentCo
 import { ContextMenuIntegrations } from '../context-menu-integrations';
 import { DataTableDateFilterComponent, dateFilterFn } from './sub/data-table-date-filter.component';
 import { DataTableDateRangeFilterComponent, dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
-import { DateRange } from '../calendar.component';
+import { DateRange } from '../calendar';
 
 // Filter component for stories
 @Component({

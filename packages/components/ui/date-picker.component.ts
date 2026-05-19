@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, getClippingRect } from '../lib/utils';
-import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
+import { CalendarComponent, DateRange, TimeRange } from './calendar';
 
 type PopupPosition = { offsetX: number; actualSide: 'top' | 'bottom' };
 

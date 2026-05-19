@@ -40,7 +40,7 @@ export * from './toast.component';
 export * from './resizable.component';
 export * from './pagination.component';
 export * from './input-otp.component';
-export * from './calendar.component';
+export * from './calendar';
 export * from './command.component';
 export * from './shortcut-bindings-dialog';
 export * from './menubar.component';

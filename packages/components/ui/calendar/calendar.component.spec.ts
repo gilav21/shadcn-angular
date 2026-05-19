@@ -1,13 +1,13 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
-import { ButtonComponent } from './button';
+import { ButtonComponent } from '../button';
 import {
     SelectComponent,
     SelectTriggerComponent,
     SelectValueComponent,
     SelectContentComponent,
     SelectItemComponent
-} from './select.component';
+} from '../select.component';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 

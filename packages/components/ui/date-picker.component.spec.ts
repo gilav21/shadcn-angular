@@ -3,7 +3,7 @@ import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { DatePickerComponent, DateRangePickerComponent } from './date-picker.component';
-import { CalendarComponent } from './calendar.component';
+import { CalendarComponent } from './calendar';
 
 @Component({
     template: `

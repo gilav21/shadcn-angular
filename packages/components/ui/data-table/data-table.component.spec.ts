@@ -6,7 +6,7 @@ import { ContextMenuItem } from '../context-menu.component';
 import { buildTreeFromFlat } from './data-table.utils';
 import { dateFilterFn } from './sub/data-table-date-filter.component';
 import { dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
-import { DateRange } from '../calendar.component';
+import { DateRange } from '../calendar';
 import { By } from '@angular/platform-browser';
 
 interface TestData {

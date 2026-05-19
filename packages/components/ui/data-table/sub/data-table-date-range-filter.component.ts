@@ -8,7 +8,7 @@ import {
   effect,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
-import { CalendarComponent, DateRange } from '../../calendar.component';
+import { CalendarComponent, DateRange } from '../../calendar';
 import { ButtonComponent } from '../../button';
 import { CALENDAR_LOCALES, CalendarLocale } from '../../../lib/calendar-locales';
 import { toDate, toDateOnlyTimestamp } from './data-table-date-utils';

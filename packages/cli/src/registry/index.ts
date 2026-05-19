@@ -70,7 +70,7 @@ export const registry = defineRegistry({
   },
   calendar: {
     name: 'calendar',
-    files: ['calendar.component.ts'],
+    files: ['calendar/calendar.component.html', 'calendar/calendar.component.ts', 'calendar/index.ts'],
     libFiles: ['calendar-locales.ts'],
     dependencies: ['button', 'select'],
   },
