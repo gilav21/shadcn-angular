@@ -55,7 +55,7 @@ export * from './kbd';
 export * from './button-group.component';
 export * from './input-group.component';
 export * from './field.component';
-export * from './native-select.component';
+export * from './native-select';
 export * from './chip-list.component';
 export * from './emoji-picker.component';
 export * from './speed-dial.component';

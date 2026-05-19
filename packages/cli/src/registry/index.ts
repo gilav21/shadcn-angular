@@ -248,7 +248,7 @@ export const registry = defineRegistry({
   },
   'native-select': {
     name: 'native-select',
-    files: ['native-select.component.ts'],
+    files: ['native-select/index.ts', 'native-select/native-select.component.html', 'native-select/native-select.component.ts'],
   },
   'navigation-menu': {
     name: 'navigation-menu',
