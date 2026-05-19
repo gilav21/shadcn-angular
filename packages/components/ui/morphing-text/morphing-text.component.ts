@@ -7,34 +7,13 @@ import {
     OnInit,
     OnDestroy,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-morphing-text',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <span [class]="classes()" [attr.data-slot]="'morphing-text'">
-            <span
-                class="absolute inset-0 flex items-center justify-center transition-all"
-                [style.transition-duration]="transitionDuration()"
-                [class]="currentVisible() ? 'opacity-100 blur-0' : 'opacity-0 blur-sm'"
-            >{{ currentText() }}</span>
-            <span
-                class="absolute inset-0 flex items-center justify-center transition-all"
-                [style.transition-duration]="transitionDuration()"
-                [class]="currentVisible() ? 'opacity-0 blur-sm' : 'opacity-100 blur-0'"
-            >{{ nextText() }}</span>
-            <span class="invisible">{{ longestText() }}</span>
-        </span>
-    `,
-    styles: [`
-        @media (prefers-reduced-motion: reduce) {
-            :host span {
-                transition: none !important;
-                filter: none !important;
-            }
-        }
-    `],
+    templateUrl: './morphing-text.component.html',
+    styleUrl: './morphing-text.component.css',
     host: { class: 'contents' },
 })
 export class MorphingTextComponent implements OnInit, OnDestroy {

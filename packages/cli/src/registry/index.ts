@@ -504,7 +504,7 @@ export const registry = defineRegistry({
   },
   'morphing-text': {
     name: 'morphing-text',
-    files: ['morphing-text.component.ts'],
+    files: ['morphing-text/index.ts', 'morphing-text/morphing-text.component.css', 'morphing-text/morphing-text.component.html', 'morphing-text/morphing-text.component.ts'],
   },
   'typing-animation': {
     name: 'typing-animation',

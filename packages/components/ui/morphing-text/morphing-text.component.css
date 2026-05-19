@@ -1,0 +1,6 @@
+@media (prefers-reduced-motion: reduce) {
+    :host span {
+        transition: none !important;
+        filter: none !important;
+    }
+}
