@@ -336,7 +336,7 @@ export const registry = defineRegistry({
   },
   switch: {
     name: 'switch',
-    files: ['switch.component.ts'],
+    files: ['switch/index.ts', 'switch/switch.component.html', 'switch/switch.component.ts'],
   },
   table: {
     name: 'table',

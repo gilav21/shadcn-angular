@@ -8,7 +8,7 @@ import {
     signal,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-switch',
@@ -20,46 +20,7 @@ import { cn } from '../lib/utils';
             multi: true,
         },
     ],
-    template: `
-    @if (label()) {
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          role="switch"
-          [attr.aria-checked]="checked()"
-          [class]="trackClasses()"
-          [disabled]="isDisabled()"
-          [attr.data-slot]="'switch'"
-          [attr.id]="computedId()"
-          (click)="toggle()"
-        >
-          <span [class]="thumbClasses()"></span>
-        </button>
-        <label
-          [attr.for]="computedId()"
-          class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-          (click)="toggle(); $event.preventDefault()"
-        >
-          {{ label() }}
-        </label>
-      </div>
-    } @else {
-      <button
-        type="button"
-        role="switch"
-        [attr.aria-checked]="checked()"
-        [class]="trackClasses()"
-        [disabled]="isDisabled()"
-        [attr.data-slot]="'switch'"
-        [attr.id]="elementId()"
-        [attr.aria-label]="ariaLabel()"
-        [attr.aria-labelledby]="ariaLabelledby()"
-        (click)="toggle()"
-      >
-        <span [class]="thumbClasses()"></span>
-      </button>
-    }
-  `,
+    templateUrl: './switch.component.html',
     host: {
         '[class]': '"contents"',
     },

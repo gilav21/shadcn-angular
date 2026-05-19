@@ -8,7 +8,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { DashboardItem } from '../bento-grid.component';
 import { ComponentMeta } from './page-builder.types';
-import { SwitchComponent } from '../switch.component';
+import { SwitchComponent } from '../switch';
 import {
     SelectComponent,
     SelectTriggerComponent,

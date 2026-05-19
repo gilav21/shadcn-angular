@@ -9,7 +9,7 @@ export * from './card.component';
 export * from './badge';
 export * from './label';
 export * from './separator';
-export * from './switch.component';
+export * from './switch';
 export * from './checkbox.component';
 export * from './radio-group.component';
 export * from './textarea.component';
