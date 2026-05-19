@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
@@ -6,6 +6,8 @@ import { execSync } from 'node:child_process';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..', '..');
 const REGISTRY_PATH = resolve(ROOT, 'packages/cli/src/registry/index.ts');
+const UI_DIR = resolve(ROOT, 'packages/components/ui');
+const UI_PREFIX = 'packages/components/ui/';
 
 let input = '';
 try {
@@ -59,22 +61,52 @@ function appendRegistryEntry(registrySource, name, entryFile) {
     return registrySource.slice(0, insertAt) + entry + registrySource.slice(insertAt);
 }
 
-let autoAdded = null;
-const componentName = extractEntryComponentName(normalizedPath);
-if (componentName) {
+// Path of the file relative to packages/components/ui/, preserving any
+// subdirectory (e.g. 'data-table/data-table.component.ts'). Returns null
+// when the file does not live under packages/components/ui/.
+function uiRelativePath(path) {
+    const idx = path.indexOf(UI_PREFIX);
+    return idx === -1 ? null : path.slice(idx + UI_PREFIX.length);
+}
+
+// True when the registry already lists this exact relative path inside any
+// entry's files / libFiles array.
+function registryReferencesFile(registrySource, relPath) {
+    const safe = relPath.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`['"]${safe}['"]`).test(registrySource);
+}
+
+// Appends a minimal registry entry for a genuinely new component. Skips when
+// the component is already a registry key or its file is already bundled in
+// another entry. Returns the component name when an entry was written.
+function tryAppendComponent(name, relPath) {
     let registrySource;
     try {
         registrySource = readFileSync(REGISTRY_PATH, 'utf-8');
     } catch {
-        registrySource = null;
+        return null;
     }
-    if (registrySource && !registryHasComponent(registrySource, componentName)) {
-        const entryFile = basename(normalizedPath);
-        const updated = appendRegistryEntry(registrySource, componentName, entryFile);
-        if (updated) {
-            writeFileSync(REGISTRY_PATH, updated, 'utf-8');
-            autoAdded = componentName;
-        }
+    if (registryHasComponent(registrySource, name)) return null;
+    if (registryReferencesFile(registrySource, relPath)) return null;
+    const updated = appendRegistryEntry(registrySource, name, relPath);
+    if (!updated) return null;
+    writeFileSync(REGISTRY_PATH, updated, 'utf-8');
+    return name;
+}
+
+let autoAdded = null;
+const componentName = extractEntryComponentName(normalizedPath);
+const relativePath = componentName ? uiRelativePath(normalizedPath) : null;
+if (componentName && relativePath) {
+    const absolutePath = resolve(UI_DIR, relativePath);
+    if (existsSync(absolutePath)) {
+        autoAdded = tryAppendComponent(componentName, relativePath);
+    } else {
+        process.stderr.write(
+            `validate-registry: refusing to auto-register "${componentName}" — computed path ` +
+            `"${relativePath}" does not resolve to an existing file (looked for ${absolutePath}).\n`,
+        );
+        process.exit(1);
     }
 }
 
