@@ -307,7 +307,7 @@ export const registry = defineRegistry({
   },
   separator: {
     name: 'separator',
-    files: ['separator.component.ts'],
+    files: ['separator/index.ts', 'separator/separator.component.html', 'separator/separator.component.ts'],
   },
   sheet: {
     name: 'sheet',

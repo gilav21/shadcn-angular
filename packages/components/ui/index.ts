@@ -8,7 +8,7 @@ export * from './split-button.component';
 export * from './card.component';
 export * from './badge';
 export * from './label';
-export * from './separator.component';
+export * from './separator';
 export * from './switch.component';
 export * from './checkbox.component';
 export * from './radio-group.component';

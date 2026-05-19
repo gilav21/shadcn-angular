@@ -4,12 +4,12 @@ import {
     input,
     computed,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-separator',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: ``,
+    templateUrl: './separator.component.html',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"separator"',
