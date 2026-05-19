@@ -311,6 +311,37 @@ function applyUpdates(updates: ComponentUpdate[]): void {
     console.log('Registry updated.');
 }
 
+// ── Validation ──────────────────────────────────────────────────────────
+
+function findMissingFiles(
+    label: string,
+    componentName: string,
+    files: string[],
+    rootDir: string,
+): string[] {
+    const problems: string[] = [];
+    for (const file of files) {
+        const fullPath = path.join(rootDir, file);
+        if (!existsSync(fullPath)) {
+            problems.push(`  ${componentName}: ${label} entry '${file}' -> ${fullPath} does not exist`);
+        }
+    }
+    return problems;
+}
+
+// Verifies that every files / libFiles path the registry will hold resolves
+// to a real file on disk — one problem line per missing file, however many.
+function validateRegistryFiles(updates: ComponentUpdate[]): string[] {
+    const uiDir = path.join(COMPONENTS_ROOT, 'ui');
+    const libDir = path.join(COMPONENTS_ROOT, 'lib');
+    const problems: string[] = [];
+    for (const update of updates) {
+        problems.push(...findMissingFiles('files', update.name, update.files, uiDir));
+        problems.push(...findMissingFiles('libFiles', update.name, update.libFiles, libDir));
+    }
+    return problems;
+}
+
 // ── Main ────────────────────────────────────────────────────────────────
 
 function main(): void {
@@ -327,6 +358,15 @@ function main(): void {
         const { update, changed } = analyzeComponent(entry, entryFileToComponent);
         if (changed) hasChanges = true;
         updates.push(update);
+    }
+
+    const missingFiles = validateRegistryFiles(updates);
+    if (missingFiles.length > 0) {
+        console.error('\nRegistry references files that do not exist on disk:');
+        for (const problem of missingFiles) console.error(problem);
+        console.error('\nAborting before write — correct the paths above.');
+        process.exitCode = 1;
+        return;
     }
 
     if (!hasChanges) {
