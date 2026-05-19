@@ -71,7 +71,7 @@ export type { PdfParseResult, PdfParseResultPaged, PdfPageResult } from '../lib/
 export * from './timeline.component';
 export * from './tree.component';
 export * from './tree-select.component';
-export * from './virtual-scroll.component';
+export * from './virtual-scroll';
 export * from './context-menu-integrations';
 export * from './shortcut-binding.service';
 

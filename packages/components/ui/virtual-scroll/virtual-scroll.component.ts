@@ -18,7 +18,7 @@ import {
   NgZone,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 export interface VirtualItem {
   id: string | number;
@@ -54,51 +54,8 @@ export class VirtualItemDirective {
   standalone: true,
   imports: [CommonModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div
-      #container
-      [class]="containerClasses()"
-      [attr.data-slot]="'virtual-scroll'"
-      (scroll)="onScroll($event)"
-    >
-      <!-- Content wrapper with dynamic padding -->
-      <div 
-        class="flex flex-col w-full min-h-full"
-        [style.padding-top.px]="paddingTop()"
-        [style.padding-bottom.px]="paddingBottom()"
-      >
-        @for (item of visibleItems(); track trackByFn(item)) {
-          <div
-            class="virtual-item w-full"
-            [attr.data-index]="item._virtualIndex"
-            #itemEl
-          >
-            <ng-container
-              *ngTemplateOutlet="itemTemplate()!; context: { $implicit: item, index: item._virtualIndex }"
-            />
-          </div>
-        }
-      </div>
-      
-      @if (loading()) {
-        <div [class]="loadingClasses()">
-          <ng-container *ngTemplateOutlet="loadingTemplate() || defaultLoading" />
-        </div>
-      }
-      
-      <ng-template #defaultLoading>
-        <div class="flex items-center justify-center gap-2 text-muted-foreground py-4">
-          <div class="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-          <span class="text-sm">Loading...</span>
-        </div>
-      </ng-template>
-    </div>
-  `,
-  styles: [`
-    :host {
-      display: contents;
-    }
-  `],
+  templateUrl: './virtual-scroll.component.html',
+  styleUrl: './virtual-scroll.component.css',
   host: { class: 'contents' },
 })
 export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewInit, OnDestroy {

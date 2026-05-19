@@ -3,7 +3,7 @@ import {
   VirtualScrollComponent,
   VirtualItemDirective,
   VirtualItem
-} from '../../../packages/components/ui/virtual-scroll.component';
+} from '../../../packages/components/ui/virtual-scroll';
 import { CommonModule } from '@angular/common';
 
 interface ExampleItem extends VirtualItem {

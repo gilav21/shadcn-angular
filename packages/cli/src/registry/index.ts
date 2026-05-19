@@ -174,7 +174,7 @@ export const registry = defineRegistry({
   },
   'virtual-scroll': {
     name: 'virtual-scroll',
-    files: ['virtual-scroll.component.ts'],
+    files: ['virtual-scroll/index.ts', 'virtual-scroll/virtual-scroll.component.css', 'virtual-scroll/virtual-scroll.component.html', 'virtual-scroll/virtual-scroll.component.ts'],
   },
   'input-mask': {
     name: 'input-mask',
