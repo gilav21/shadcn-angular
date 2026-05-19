@@ -4,28 +4,12 @@ import {
   input,
   computed,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
   selector: 'ui-progress',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div
-      role="progressbar"
-      [attr.aria-valuenow]="value()"
-      [attr.aria-valuemin]="0"
-      [attr.aria-valuemax]="max()"
-      [class]="classes()"
-      [attr.aria-label]="ariaLabel()"
-      [attr.aria-labelledby]="ariaLabelledby()"
-      [attr.data-slot]="'progress'"
-    >
-      <div
-        class="h-full bg-primary transition-all rounded-full"
-        [style.width.%]="percentage()"
-      ></div>
-    </div>
-  `,
+  templateUrl: './progress.component.html',
   host: { class: 'block' },
 })
 export class ProgressComponent {

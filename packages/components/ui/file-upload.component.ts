@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { ButtonComponent } from './button';
-import { ProgressComponent } from './progress.component';
+import { ProgressComponent } from './progress';
 
 export interface FileUploadItem {
   file: File;

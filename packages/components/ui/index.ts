@@ -16,7 +16,7 @@ export * from './textarea.component';
 export * from './skeleton';
 export * from './tabs.component';
 export * from './accordion';
-export * from './progress.component';
+export * from './progress';
 export * from './alert.component';
 export * from './avatar.component';
 export * from './dialog.component';

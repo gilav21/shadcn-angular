@@ -281,7 +281,7 @@ export const registry = defineRegistry({
   },
   progress: {
     name: 'progress',
-    files: ['progress.component.ts'],
+    files: ['progress/index.ts', 'progress/progress.component.html', 'progress/progress.component.ts'],
   },
   'radio-group': {
     name: 'radio-group',
