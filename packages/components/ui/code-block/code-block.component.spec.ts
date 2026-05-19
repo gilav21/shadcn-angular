@@ -8,7 +8,7 @@ import {
     indentScopeDetector,
     tagScopeDetector,
     type ScopeDetector,
-} from '../lib/code-scopes';
+} from '../../lib/code-scopes';
 
 describe('CodeBlockComponent', () => {
     let component: CodeBlockComponent;

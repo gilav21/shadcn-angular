@@ -6,16 +6,16 @@ import {
     computed,
     effect,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import {
     BUILTIN_SCOPE_DETECTORS,
     type ScopeDetector,
     type ScopeRange,
-} from '../lib/code-scopes';
-import { ButtonComponent } from './button';
+} from '../../lib/code-scopes';
+import { ButtonComponent } from '../button';
 
-export type { ScopeDetector, ScopeRange } from '../lib/code-scopes';
-export { BUILTIN_SCOPE_DETECTORS } from '../lib/code-scopes';
+export type { ScopeDetector, ScopeRange } from '../../lib/code-scopes';
+export { BUILTIN_SCOPE_DETECTORS } from '../../lib/code-scopes';
 
 export type CodeBlockTheme = Record<string, string>;
 export type LanguagePattern = { type: string; regex: RegExp }[];
@@ -84,51 +84,7 @@ export const CODE_BLOCK_THEMES: Record<string, CodeBlockTheme> = {
     selector: 'ui-code-block',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [ButtonComponent],
-    template: `
-    <div [class]="classes()" [attr.data-slot]="'code-block'">
-      <div class="flex items-center justify-between bg-zinc-900 px-4 py-2 border-b border-zinc-800">
-        <span class="text-xs text-zinc-400 font-mono">{{ language() }}</span>
-        <ui-button
-            variant="ghost"
-            size="icon"
-            class="h-6 w-6 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
-            (click)="copyToClipboard()"
-        >
-            @if (copied()) {
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3 text-green-500">
-                    <polyline points="20 6 9 17 4 12"/>
-                </svg>
-            } @else {
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3">
-                    <rect width="14" height="14" x="8" y="8" rx="2" ry="2"/>
-                    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/>
-                </svg>
-            }
-        </ui-button>
-      </div>
-      <div class="p-4 overflow-auto font-mono text-sm bg-zinc-950 text-zinc-50">
-        <pre><code [class]="'language-' + language()">@for (line of visibleLines(); track line.index) {<div class="flex items-start"
-          >@if (lineNumbers()) {<span
-            class="inline-block mr-3 select-none text-zinc-600 leading-5 text-right tabular-nums"
-            [style.width]="lineNumberWidth()"
-            data-slot="code-block-line-number"
-            aria-hidden="true"
-          >{{ line.index + 1 }}</span>}@if (collapseScope()) {<span
-            class="inline-block w-4 mr-2 select-none text-zinc-500 leading-5 text-center"
-            [class.cursor-pointer]="line.foldStart !== undefined"
-            [class.hover:text-zinc-300]="line.foldStart !== undefined"
-            (click)="onChevronClick(line.foldStart)"
-            (keydown.enter)="onChevronClick(line.foldStart)"
-            (keydown.space)="onChevronClick(line.foldStart)"
-            [attr.role]="line.foldStart !== undefined ? 'button' : null"
-            [attr.tabindex]="line.foldStart !== undefined ? 0 : null"
-            [attr.aria-expanded]="line.foldStart !== undefined ? line.isOpen : null"
-            [attr.aria-label]="line.foldStart !== undefined ? (line.isOpen ? 'Collapse scope' : 'Expand scope') : null"
-            data-slot="code-block-chevron"
-          >@if (line.foldStart !== undefined) { @if (line.isOpen) { ▾ } @else { ▸ } }</span>}<span class="flex-1 whitespace-pre">@for (token of line.tokens; track $index) {<span [class]="getTokenClass(token)">{{ token.text }}</span>}@if (line.foldStart !== undefined && !line.isOpen) {<span class="text-zinc-500 ml-1" data-slot="code-block-collapsed-marker">…</span>}</span></div>}</code></pre>
-      </div>
-    </div>
-  `,
+    templateUrl: './code-block.component.html',
 })
 export class CodeBlockComponent {
     readonly code = input('');

@@ -85,7 +85,7 @@ export * from './data-table';
 export * from './chat.component';
 export * from './streaming-text.component';
 export * from './sparkles.component';
-export * from './code-block.component';
+export * from './code-block';
 export * from './text-reveal.component';
 export * from './dock.component';
 export * from './dock-item.component';
