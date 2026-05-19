@@ -4,7 +4,7 @@ import {
     InputGroupAddonComponent,
     InputGroupTextComponent,
 } from './input-group.component';
-import { InputComponent } from './input.component';
+import { InputComponent } from './input';
 
 const meta: Meta<InputGroupComponent> = {
     title: 'UI/InputGroup',
