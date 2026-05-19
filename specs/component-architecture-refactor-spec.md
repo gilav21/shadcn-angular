@@ -134,10 +134,47 @@ half-migrated tree (flat + folder layouts coexisting) stays correct.
 - [ ] **1.6** `validateRegistryFiles` already validates every `files` /
   `libFiles` path; confirm it also covers `.html` / `.css` entries (it resolves
   any path under `ui/` — should already work).
-- [ ] **1.7** CLI — verify `add` and `diff` copy `.html` / `.css` files and
-  nested folder paths correctly (`packages/cli/src/commands/`).
-- [ ] **1.8** Add unit tests for 1.1–1.4; update `.claude/CLAUDE.md` with the
+- [ ] **1.7** CLI `add` — gate the `../lib/` → alias import rewrite in
+  `fetchAndTransform` to `.ts` files only; `.html` / `.css` are copied verbatim.
+- [ ] **1.8** CLI `add` — every file writer must create nested directories.
+  `writeComponentFiles` already calls `fs.ensureDir`; add it to `writePeerFiles`
+  and audit `installLibFiles` / `installSingleLibFile`.
+- [ ] **1.9** CLI `add` / `diff` — `classifyComponent`, `detectConflicts`,
+  `checkFileConflict`, and `showConflictDiffs` all iterate `component.files`;
+  confirm `.html` / `.css` and `sub/` paths flow through unchanged (plain-text
+  diff, no `.ts`-only assumptions). `sub/` files need no special handling — they
+  are ordinary `files[]` entries.
+- [ ] **1.10** CLI `add` — post-install messaging and import hints point at the
+  component folder / barrel (`@/components/ui/<name>`), not the old flat path;
+  confirm the remote registry base URL serves `.html` / `.css` (GitHub raw does).
+- [ ] **1.11** Add unit tests for 1.1–1.10 (extend `add.spec.ts` with a
+  trio + `sub/` component fixture); update `.claude/CLAUDE.md` with the
   conventions above and the resolved decisions.
+
+### CLI `add` / `diff` changes
+
+The CLI installs a component by iterating its registry `files[]` and writing
+each entry to `path.join(targetDir, file)`, so folder-prefixed paths
+(`accordion/accordion.component.ts`, `accordion/sub/accordion-item.component.ts`,
+`accordion/accordion.component.html`) and the directory structure are preserved
+in the consumer's project automatically — **`sub/` needs no special CLI logic;
+it is just more `files[]` entries.** The required changes are narrow:
+
+- **Transform scope.** `fetchAndTransform` rewrites `../lib/` imports to the
+  user's alias via `replaceAll(/(\.\.\/)+lib\//g, …)`. The `(\.\.\/)+` already
+  matches the extra `../` that folder nesting introduces, so `.ts` rewriting
+  keeps working — but the transform must not run on `.html` / `.css` (today it
+  is a harmless no-op; gate it by extension so future transforms stay safe).
+- **Directory creation.** Nested paths require `fs.ensureDir` before every
+  write, on *all* writers (task 1.8).
+- **No other behavioural change.** Conflict detection, diffing, and overwrite
+  prompts are file-path agnostic and work on `.html` / `.css` as plain text once
+  1.8 and 1.9 are confirmed.
+
+Cross-component imports resolve correctly in the consumer project because the
+CLI preserves the folder layout: `from '../button'` in
+`<targetDir>/accordion/accordion.component.ts` resolves to
+`<targetDir>/button/index.ts`.
 
 ## Phase 2 — Pilot migration
 
@@ -257,8 +294,8 @@ and folder move (Batch A).
   boundary handling.
 - `.claude/hooks/validate-registry.mjs` — directory-based classification.
 - `.claude/CLAUDE.md` — conventions and examples.
-- `packages/cli/src/commands/*` — verify copying of `.html`/`.css` and nested
-  paths.
+- `packages/cli/src/commands/add.ts` (and `diff.ts`) — transform scope,
+  `ensureDir` on all writers, post-install messaging (Phase 1, tasks 1.7–1.11).
 - All `*.stories.ts`, `*.spec.ts`, and any demo/docs app importing components.
 
 ## Completion log
