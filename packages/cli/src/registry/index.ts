@@ -468,7 +468,7 @@ export const registry = defineRegistry({
   // Animations
   'gradient-text': {
     name: 'gradient-text',
-    files: ['gradient-text.component.ts'],
+    files: ['gradient-text/gradient-text.component.html', 'gradient-text/gradient-text.component.ts', 'gradient-text/index.ts'],
   },
   'flip-text': {
     name: 'flip-text',

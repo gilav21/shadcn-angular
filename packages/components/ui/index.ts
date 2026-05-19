@@ -99,7 +99,7 @@ export * from './sortable.component';
 export * from './charts';
 
 // Animations
-export * from './gradient-text.component';
+export * from './gradient-text';
 export * from './flip-text';
 export * from './meteors.component';
 export * from './shine-border.component';
