@@ -113,7 +113,7 @@ export * from './typing-animation.component';
 export * from './wobble-card.component';
 export * from './magnetic.directive';
 export * from './orbit';
-export * from './stagger-children.component';
+export * from './stagger-children';
 export * from './particles';
 
 // Kanban

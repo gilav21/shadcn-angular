@@ -524,7 +524,7 @@ export const registry = defineRegistry({
   },
   'stagger-children': {
     name: 'stagger-children',
-    files: ['stagger-children.component.ts'],
+    files: ['stagger-children/index.ts', 'stagger-children/stagger-children.component.html', 'stagger-children/stagger-children.component.ts'],
   },
   particles: {
     name: 'particles',

@@ -9,12 +9,12 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn , prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-stagger-children',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    templateUrl: './stagger-children.component.html',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"stagger-children"',
