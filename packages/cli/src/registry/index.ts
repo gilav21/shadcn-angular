@@ -484,7 +484,7 @@ export const registry = defineRegistry({
   },
   'scroll-progress': {
     name: 'scroll-progress',
-    files: ['scroll-progress.component.ts'],
+    files: ['scroll-progress/index.ts', 'scroll-progress/scroll-progress.component.html', 'scroll-progress/scroll-progress.component.ts'],
   },
   'blur-fade': {
     name: 'blur-fade',

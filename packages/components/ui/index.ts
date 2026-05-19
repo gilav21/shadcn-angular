@@ -103,7 +103,7 @@ export * from './gradient-text';
 export * from './flip-text';
 export * from './meteors';
 export * from './shine-border.component';
-export * from './scroll-progress.component';
+export * from './scroll-progress';
 export * from './blur-fade';
 export * from './ripple.directive';
 export * from './marquee';

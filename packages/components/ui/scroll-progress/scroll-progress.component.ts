@@ -10,14 +10,12 @@ import {
     ElementRef,
     ViewChild,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-scroll-progress',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <div [class]="classes()" [attr.data-slot]="'scroll-progress'" #bar></div>
-    `,
+    templateUrl: './scroll-progress.component.html',
     host: { class: 'contents' },
 })
 export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
