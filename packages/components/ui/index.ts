@@ -78,7 +78,7 @@ export * from './shortcut-binding.service';
 export * from './rating';
 export * from './stepper.component';
 export * from './file-upload';
-export * from './color-picker.component';
+export * from './color-picker';
 export * from './confetti.directive';
 export * from './number-ticker.component';
 export * from './data-table';

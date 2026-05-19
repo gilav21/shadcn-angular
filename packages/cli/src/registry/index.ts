@@ -92,7 +92,7 @@ export const registry = defineRegistry({
   },
   'color-picker': {
     name: 'color-picker',
-    files: ['color-picker.component.ts'],
+    files: ['color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/index.ts'],
     dependencies: ['input', 'popover', 'tabs'],
     libFiles: ['touch.ts'],
   },
