@@ -8,17 +8,12 @@ import {
     output,
     OnDestroy,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-streaming-text',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <span [class]="classes()">{{ displayedText() }}</span>
-    @if (showCursor() && isTyping()) {
-        <span class="animate-pulse font-bold ml-0.5">|</span>
-    }
-  `,
+    templateUrl: './streaming-text.component.html',
 })
 export class StreamingTextComponent implements OnDestroy {
     text = input('');

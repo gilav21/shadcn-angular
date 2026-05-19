@@ -130,7 +130,7 @@ export const registry = defineRegistry({
   },
   'streaming-text': {
     name: 'streaming-text',
-    files: ['streaming-text.component.ts'],
+    files: ['streaming-text/index.ts', 'streaming-text/streaming-text.component.html', 'streaming-text/streaming-text.component.ts'],
   },
   sparkles: {
     name: 'sparkles',

@@ -81,7 +81,7 @@ export * from './confetti.directive';
 export * from './number-ticker.component';
 export * from './data-table';
 export * from './chat.component';
-export * from './streaming-text.component';
+export * from './streaming-text';
 export * from './sparkles.component';
 export * from './code-block';
 export * from './text-reveal.component';
