@@ -324,7 +324,7 @@ export const registry = defineRegistry({
   },
   slider: {
     name: 'slider',
-    files: ['slider.component.ts'],
+    files: ['slider/index.ts', 'slider/slider.component.html', 'slider/slider.component.ts'],
   },
   spinner: {
     name: 'spinner',
