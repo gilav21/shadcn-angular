@@ -109,7 +109,7 @@ export * from './ripple.directive';
 export * from './marquee';
 export * from './word-rotate.component';
 export * from './morphing-text';
-export * from './typing-animation.component';
+export * from './typing-animation';
 export * from './wobble-card.component';
 export * from './magnetic.directive';
 export * from './orbit';

@@ -8,39 +8,15 @@ import {
     OnDestroy,
     output,
 } from '@angular/core';
-import { cn , prefersReducedMotion } from '../lib/utils';
-
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 type TypingState = 'typing' | 'pausing' | 'deleting' | 'waiting';
 
 @Component({
     selector: 'ui-typing-animation',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <span [class]="classes()" [attr.data-slot]="'typing-animation'">
-            <span>{{ displayText() }}</span>
-            @if (cursor()) {
-                <span class="inline-block w-[2px] h-[1em] bg-current ml-0.5 align-text-bottom"
-                    [class]="blinkClass()"></span>
-            }
-        </span>
-    `,
-    styles: [`
-        .cursor-blink {
-            animation: cursor-blink 0.8s step-end infinite;
-        }
-
-        @keyframes cursor-blink {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0; }
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .cursor-blink {
-                animation: none;
-            }
-        }
-    `],
+    templateUrl: './typing-animation.component.html',
+    styleUrl: './typing-animation.component.css',
     host: { class: 'contents' },
 })
 export class TypingAnimationComponent implements OnInit, OnDestroy {

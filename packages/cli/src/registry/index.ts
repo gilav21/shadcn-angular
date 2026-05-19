@@ -508,7 +508,7 @@ export const registry = defineRegistry({
   },
   'typing-animation': {
     name: 'typing-animation',
-    files: ['typing-animation.component.ts'],
+    files: ['typing-animation/index.ts', 'typing-animation/typing-animation.component.css', 'typing-animation/typing-animation.component.html', 'typing-animation/typing-animation.component.ts'],
   },
   'wobble-card': {
     name: 'wobble-card',
