@@ -89,9 +89,29 @@ export interface CellEditEvent<T> {
     rowIndex: number;
 }
 
+/** Emitted when an inline cell edit is rejected by the column's `editValidator`. */
+export interface CellEditErrorEvent<T> {
+    row: T;
+    column: ColumnDef<T>;
+    /** The rejected value the user attempted to commit. */
+    value: unknown;
+    rowIndex: number;
+    /** Human-readable reason — the validator's returned string, or a default. */
+    message: string;
+}
+
 export interface EditingCell {
     rowIndex: number;
     columnKey: string;
+}
+
+/** Inline validation error state for the cell currently being edited. */
+export interface CellEditError {
+    rowIndex: number;
+    columnKey: string;
+    /** The rejected value — used to suppress duplicate error emissions. */
+    value: unknown;
+    message: string;
 }
 
 export interface DataTableRowEvent<T> {

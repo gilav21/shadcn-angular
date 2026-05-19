@@ -113,6 +113,79 @@ describe('DataTableComponent', () => {
         expect(dataDesc[4].name).toBe('Alice');
     });
 
+    it('should expose aria-sort state for header cells', () => {
+        fixture.detectChanges();
+        const nameCol = component.enhancedColumns().find(c => c.accessorKey === 'name')!;
+        expect(component.getAriaSort(nameCol)).toBe('none');
+
+        component.onSortChange('name', 'asc');
+        expect(component.getAriaSort(nameCol)).toBe('ascending');
+
+        component.onSortChange('name', 'desc');
+        expect(component.getAriaSort(nameCol)).toBe('descending');
+    });
+
+    it('should not expose aria-sort for non-sortable columns', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID', enableSorting: false },
+            { accessorKey: 'name', header: 'Name' },
+        ]);
+        fixture.detectChanges();
+
+        const idCol = component.enhancedColumns().find(c => c.accessorKey === 'id')!;
+        expect(component.getAriaSort(idCol)).toBeNull();
+    });
+
+    it('should announce sort changes to screen readers', () => {
+        fixture.detectChanges();
+        expect(component.srAnnouncement()).toBe('');
+
+        component.onSortChange('name', 'asc');
+        expect(component.srAnnouncement()).toContain('Name');
+        expect(component.srAnnouncement()).toContain('ascending');
+
+        component.onSortChange('name', null);
+        expect(component.srAnnouncement()).toContain('Sorting removed');
+    });
+
+    it('should not announce when clearing an already-unsorted column', () => {
+        fixture.detectChanges();
+        expect(component.srAnnouncement()).toBe('');
+
+        component.onSortChange('id', null);
+        expect(component.srAnnouncement()).toBe('');
+    });
+
+    it('should announce filter result counts to screen readers', () => {
+        vi.useFakeTimers();
+        try {
+            component.onFilterChange('Alice');
+            vi.advanceTimersByTime(600);
+            expect(component.srAnnouncement()).toContain('result');
+
+            component.onFilterChange('');
+            vi.advanceTimersByTime(600);
+            expect(component.srAnnouncement()).toContain('Filter cleared');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('should debounce filter announcements during rapid typing', () => {
+        vi.useFakeTimers();
+        try {
+            component.onFilterChange('A');
+            component.onFilterChange('Al');
+            component.onFilterChange('Ali');
+            expect(component.srAnnouncement()).toBe('');
+
+            vi.advanceTimersByTime(600);
+            expect(component.srAnnouncement()).toContain('"Ali"');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('should reset to first page when sorting changes', () => {
         component.paginationState.set({ pageIndex: 2, pageSize: 2 });
         fixture.detectChanges();
@@ -760,8 +833,9 @@ describe('DataTableComponent', () => {
         expect(component.editingCell()).toBeNull();
     });
 
-    it('should reject edit when validator returns false', () => {
+    it('should reject edit and surface an error when validator returns false', () => {
         const editSpy = vi.fn();
+        const errorSpy = vi.fn();
         fixture.componentRef.setInput('columns', [
             { accessorKey: 'id', header: 'ID' },
             { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => false },
@@ -769,6 +843,7 @@ describe('DataTableComponent', () => {
         ]);
         fixture.detectChanges();
         component.cellEdit.subscribe(editSpy);
+        component.editError.subscribe(errorSpy);
 
         component.startEditing(0, 'name');
         component.onEditValueChange('Bad Value');
@@ -776,6 +851,109 @@ describe('DataTableComponent', () => {
 
         expect(editSpy).not.toHaveBeenCalled();
         expect(component.editingCell()).not.toBeNull();
+        expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({
+            value: 'Bad Value',
+            rowIndex: 0,
+            message: 'Invalid value',
+        }));
+        expect(component.cellEditError()?.message).toBe('Invalid value');
+    });
+
+    it('should surface the validator message when editValidator returns a string', () => {
+        const errorSpy = vi.fn();
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => 'Name is too short' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+        component.editError.subscribe(errorSpy);
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('X');
+        component.commitEdit();
+
+        expect(errorSpy).toHaveBeenCalledWith(expect.objectContaining({ message: 'Name is too short' }));
+        expect(component.cellEditError()?.message).toBe('Name is too short');
+    });
+
+    it('should render an inline error message when an edit is rejected', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => 'Bad name' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('whatever');
+        component.commitEdit();
+        fixture.detectChanges();
+
+        const errorEl = fixture.nativeElement.querySelector('[data-slot="cell-edit-error"]');
+        expect(errorEl).toBeTruthy();
+        expect(errorEl?.textContent).toContain('Bad name');
+
+        const input = fixture.nativeElement.querySelector('input[data-edit-input]');
+        expect(input?.getAttribute('aria-invalid')).toBe('true');
+        expect(errorEl?.getAttribute('id')).toBeTruthy();
+        expect(input?.getAttribute('aria-describedby')).toBe(errorEl?.getAttribute('id'));
+    });
+
+    it('should not re-emit editError when committing the same rejected value', () => {
+        const errorSpy = vi.fn();
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: () => false },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+        component.editError.subscribe(errorSpy);
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Bad Value');
+        component.commitEdit();
+        component.commitEdit();
+        component.commitEdit();
+
+        expect(errorSpy).toHaveBeenCalledTimes(1);
+        expect(component.editingCell()).not.toBeNull();
+    });
+
+    it('should clear the edit error when the edit value changes', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, editValidator: (v: unknown) => v === 'ok' || 'Invalid' },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('bad');
+        component.commitEdit();
+        expect(component.cellEditError()).not.toBeNull();
+
+        component.onEditValueChange('still typing');
+        expect(component.cellEditError()).toBeNull();
+    });
+
+    it('should apply the valueSetter result back into the table data on commit', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            {
+                accessorKey: 'name', header: 'Name', editable: true,
+                valueSetter: (row: TestData, val: unknown) => ({ ...row, name: String(val) }),
+            },
+            { accessorKey: 'role', header: 'Role' },
+        ]);
+        fixture.detectChanges();
+
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Alice Renamed');
+        component.commitEdit();
+
+        expect(component.data()[0].name).toBe('Alice Renamed');
+        expect(component.editingCell()).toBeNull();
     });
 
     it('should pin column via pinColumn method', () => {
@@ -1100,6 +1278,36 @@ describe('DataTableComponent', () => {
             // Should have resize handles for columns (not selection column, not auto-width columns)
             const resizeHandles = fixture.debugElement.queryAll(By.css('[role="separator"]'));
             expect(resizeHandles.length).toBeGreaterThan(0);
+        });
+
+        it('should give the resize handle a wide touch hit area with a thin visual line', () => {
+            fixture.componentRef.setInput('enableColumnResize', true);
+            fixture.detectChanges();
+
+            const handle = fixture.nativeElement.querySelector('[role="separator"]');
+            expect(handle).toBeTruthy();
+            expect(handle.className).toContain('w-4');
+            expect(handle.className).toContain('touch-none');
+
+            const visualLine = handle.querySelector('div');
+            expect(visualLine).toBeTruthy();
+            expect(visualLine.className).toContain('w-px');
+        });
+
+        it('should keep the resize handle highlighted for the whole drag', () => {
+            fixture.componentRef.setInput('enableColumnResize', true);
+            fixture.detectChanges();
+
+            const nameCol = component.enhancedColumns().find(c => c.accessorKey === 'name');
+            expect(nameCol).toBeTruthy();
+            expect(component.isResizingColumn(nameCol!)).toBe(false);
+
+            component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), nameCol!);
+            expect(component.isResizingColumn(nameCol!)).toBe(true);
+            expect(component.resizeLineClass(nameCol!)).toContain('bg-primary/70');
+
+            document.dispatchEvent(new MouseEvent('mouseup'));
+            expect(component.isResizingColumn(nameCol!)).toBe(false);
         });
 
         it('should track column widths in signal', () => {

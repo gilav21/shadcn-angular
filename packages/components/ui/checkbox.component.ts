@@ -31,6 +31,8 @@ import { cn } from '../lib/utils';
           [class]="classes()"
           [disabled]="isDisabled()"
           [attr.id]="computedId()"
+          [attr.aria-describedby]="ariaDescribedby()"
+          [attr.aria-invalid]="ariaInvalid()"
           [attr.data-slot]="'checkbox'"
           (click)="toggle()"
         >
@@ -63,6 +65,8 @@ import { cn } from '../lib/utils';
         [attr.id]="elementId()"
         [attr.aria-label]="ariaLabel()"
         [attr.aria-labelledby]="ariaLabelledby()"
+        [attr.aria-describedby]="ariaDescribedby()"
+        [attr.aria-invalid]="ariaInvalid()"
         [attr.data-slot]="'checkbox'"
         (click)="toggle()"
       >
@@ -93,6 +97,8 @@ export class CheckboxComponent implements ControlValueAccessor {
   elementId = input<string | undefined>(undefined);
   ariaLabel = input<string | undefined>(undefined);
   ariaLabelledby = input<string | undefined>(undefined);
+  ariaDescribedby = input<string | undefined>(undefined);
+  ariaInvalid = input<boolean | undefined>(undefined);
   checked = model<boolean>(false);
   indeterminate = input(false);
 

@@ -28,6 +28,7 @@ import { cn } from '../../lib/utils';
           variant="ghost"
           size="sm"
           class="-ms-3 h-8 data-[state=open]:bg-accent"
+          [ariaLabel]="sortAriaLabel()"
           (click)="toggleSort($event)"
         >
           <span>{{ title() }}</span>
@@ -39,7 +40,10 @@ import { cn } from '../../lib/utils';
             <ui-icon name="chevrons-up-down" class="ms-2 h-4 w-4" />
           }
           @if (sortIndex() !== null) {
-            <span class="ms-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] leading-none">
+            <span
+              class="ms-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-muted px-1 text-[10px] leading-none"
+              aria-hidden="true"
+            >
               {{ (sortIndex() ?? 0) + 1 }}
             </span>
           }
@@ -60,6 +64,21 @@ export class DataTableColumnHeaderComponent {
   sortMeta = output<{ direction: SortDirection; multi: boolean }>();
 
   containerClasses = computed(() => cn('flex items-center gap-x-2', this.class()));
+
+  /** Accessible label for the sort button — conveys current state and next action. */
+  readonly sortAriaLabel = computed(() => {
+    const title = this.title();
+    const index = this.sortIndex();
+    const priority = index !== null ? `, sort priority ${index + 1}` : '';
+    const direction = this.direction();
+    if (direction === 'asc') {
+      return `${title}, sorted ascending${priority}. Activate to sort descending.`;
+    }
+    if (direction === 'desc') {
+      return `${title}, sorted descending${priority}. Activate to remove sort.`;
+    }
+    return `${title}, not sorted. Activate to sort ascending.`;
+  });
 
   toggleSort(event: MouseEvent) {
     const current = this.direction();

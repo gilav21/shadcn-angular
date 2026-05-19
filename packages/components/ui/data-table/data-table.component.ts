@@ -62,7 +62,9 @@ import {
   RowActionContext,
   VirtualAutoThreshold,
   CellEditEvent,
+  CellEditErrorEvent,
   EditingCell,
+  CellEditError,
   RowReorderEvent,
   RowDragPosition,
   CellRange,
@@ -83,6 +85,9 @@ import { ComponentPoolService } from "./component-pool.service";
 declare const ngDevMode: boolean | undefined;
 
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
+
+/** Per-instance counter for unique element ids (e.g. inline edit-error links). */
+let dataTableUid = 0;
 
 const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   const rec = row as Record<string, unknown>;
@@ -279,6 +284,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
 
     <!-- Reusable: cell edit mode -->
     <ng-template #cellEditTpl let-col let-row="row" let-rowIndex="rowIndex">
+      @let editErr = editErrorFor(rowIndex, col);
       @if (col.editComponent) {
         <div
           [uiComponentOutlet]="col.editComponent"
@@ -306,12 +312,19 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
       } @else if (col.editType === "checkbox") {
         <ui-checkbox
           [checked]="!!editValue()"
+          [ariaInvalid]="editErr ? true : undefined"
+          [ariaDescribedby]="editErr ? cellEditErrorId : undefined"
           (checkedChange)="onEditValueChange($event); commitEdit()"
         />
       } @else if (col.editType === "select" && col.editOptions) {
         <select
           data-edit-input
           class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          [class.ring-1]="editErr"
+          [class.ring-inset]="editErr"
+          [class.ring-destructive]="editErr"
+          [attr.aria-invalid]="editErr ? true : null"
+          [attr.aria-describedby]="editErr ? cellEditErrorId : null"
           [value]="editValue()"
           (change)="onEditValueChange($any($event.target).value); commitEdit()"
           (keydown)="onEditKeydown($event)"
@@ -325,11 +338,26 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
           data-edit-input
           [type]="col.editType === 'number' ? 'number' : 'text'"
           class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          [class.ring-1]="editErr"
+          [class.ring-inset]="editErr"
+          [class.ring-destructive]="editErr"
+          [attr.aria-invalid]="editErr ? true : null"
+          [attr.aria-describedby]="editErr ? cellEditErrorId : null"
           [value]="editValue()"
           (input)="onEditValueChange($any($event.target).value)"
           (keydown)="onEditKeydown($event)"
           (blur)="editingCell() ? commitEdit() : null"
         />
+      }
+      @if (editErr) {
+        <p
+          [id]="cellEditErrorId"
+          class="mt-0.5 px-1 text-xs text-destructive"
+          role="alert"
+          data-slot="cell-edit-error"
+        >
+          {{ editErr }}
+        </p>
       }
     </ng-template>
 
@@ -378,6 +406,15 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     </ng-template>
 
     <div class="flex flex-col w-full h-full space-y-4">
+      <div
+        class="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-slot="data-table-announcer"
+      >
+        {{ srAnnouncement() }}
+      </div>
       @if (showToolbar()) {
         <div class="flex flex-wrap items-center justify-between gap-2 flex-none">
           <div class="flex flex-1 items-center space-x-2">
@@ -492,6 +529,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
                   [class.opacity-70]="isDraggingColumn(col)"
                   [class.relative]="isDropTargetColumn(col)"
                   [attr.data-column-id]="String(col.accessorKey)"
+                  [attr.aria-sort]="getAriaSort(col)"
                   [attr.draggable]="isColumnDraggable(col) ? 'true' : null"
                   [style]="getHeaderCellStyle(col)"
                   (dragstart)="onColumnDragStart($event, col)"
@@ -690,7 +728,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
                     col.accessorKey !== "_selection"
                   ) {
                     <div
-                      class="absolute top-0 w-1 h-full cursor-col-resize hover:bg-primary/50 active:bg-primary/70 z-40 select-none"
+                      class="group/resize absolute top-0 w-4 h-full cursor-col-resize touch-none z-40 select-none"
                       [class.right-0]="!isRtl()"
                       [class.translate-x-1/2]="!isRtl()"
                       [class.left-0]="isRtl()"
@@ -699,7 +737,12 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
                       (touchstart)="onResizeTouchStart($event, col)"
                       role="separator"
                       [attr.aria-label]="'Resize ' + col.header + ' column'"
-                    ></div>
+                    >
+                      <div
+                        [class]="resizeLineClass(col)"
+                        aria-hidden="true"
+                      ></div>
+                    </div>
                   }
                 </ui-table-head>
               }
@@ -1421,7 +1464,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
   private _isRtlResize = false;
 
-  readonly data = input.required<T[]>();
+  readonly data = model.required<T[]>();
   /** @see columnHelper for a type-safe fluent builder API */
   readonly columns = input.required<ColumnDef<T>[]>();
 
@@ -1458,8 +1501,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly filterChange = output<string>();
 
   readonly cellEdit = output<CellEditEvent<T>>();
+  readonly editError = output<CellEditErrorEvent<T>>();
   readonly editingCell = signal<EditingCell | null>(null);
   readonly editValue = signal<unknown>(null);
+  readonly cellEditError = signal<CellEditError | null>(null);
+  /** Stable id for the inline edit-error message, linked via `aria-describedby`. */
+  readonly cellEditErrorId = `ui-data-table-cell-edit-error-${dataTableUid++}`;
 
   readonly enableRowSelection = input(false);
   readonly rowSelection = model<Record<string, boolean>>({});
@@ -1578,6 +1625,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private observedElements = new Set<Element>();
   private rafId = 0;
   private filterDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private filterAnnounceTimer: ReturnType<typeof setTimeout> | undefined;
   private viewportObserver?: ResizeObserver;
   private readonly rowResizeObserver?: ResizeObserver;
 
@@ -1785,6 +1833,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     Record<string, "left" | "right" | undefined>
   >({});
   readonly exporting = signal(false);
+  /** Visually-hidden live-region text announcing sort/filter changes to AT. */
+  readonly srAnnouncement = signal("");
   readonly globalFilter = model("");
   readonly columnFilters = model<Record<string, unknown>>({});
   readonly sortState = model<SortState>({ column: "", direction: null });
@@ -2490,7 +2540,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const keys = editableCols.map((c) => String(c.accessorKey)).join(', ');
       warnings.push(
         `[ui-data-table] Columns [${keys}] have editable=true but no valueSetter. ` +
-          'Edits will directly mutate the row object. Provide a valueSetter for immutable updates.'
+          'Inline edits will emit (cellEdit) only and will not update the table data. ' +
+          'Provide a valueSetter to apply edits immutably, or handle (cellEdit) yourself.'
       );
     }
 
@@ -2533,6 +2584,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   ngOnDestroy() {
     cancelAnimationFrame(this.rafId);
     clearTimeout(this.filterDebounceTimer);
+    clearTimeout(this.filterAnnounceTimer);
     this.flashTimers.forEach((t) => clearTimeout(t));
     this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true } as EventListenerOptions);
     this._document.removeEventListener('drag', this.dragEventHandler);
@@ -2643,6 +2695,58 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this._sortLookup().get(String(columnKey))?.direction ?? null;
   }
 
+  /** ARIA `aria-sort` value for a header cell — `null` for non-sortable columns. */
+  getAriaSort(
+    col: ColumnDef<T>,
+  ): "ascending" | "descending" | "none" | null {
+    const key = String(col.accessorKey);
+    const isSpecialColumn =
+      key === "_selection" || key === "_actions" || key === "_expander";
+    if (isSpecialColumn || col.enableSorting === false) {
+      return null;
+    }
+    const direction = this.getSortDirection(col.accessorKey);
+    if (direction === "asc") return "ascending";
+    if (direction === "desc") return "descending";
+    return "none";
+  }
+
+  private columnHeaderLabel(columnKey: string): string {
+    const col = this.enhancedColumns().find(
+      (c) => String(c.accessorKey) === columnKey,
+    );
+    return col?.header || columnKey;
+  }
+
+  /**
+   * Announces a sort change. Called before the sort state mutates, so
+   * `getSortDirection` still reflects the previous state — used to skip a
+   * spurious "removed" announcement when the column was not sorted.
+   */
+  private announceSortChange(columnKey: string, direction: SortDirection): void {
+    const label = this.columnHeaderLabel(columnKey);
+    if (direction === "asc") {
+      this.srAnnouncement.set(`Table sorted by ${label}, ascending`);
+    } else if (direction === "desc") {
+      this.srAnnouncement.set(`Table sorted by ${label}, descending`);
+    } else if (this.getSortDirection(columnKey) !== null) {
+      this.srAnnouncement.set(`Sorting removed from ${label}`);
+    }
+  }
+
+  private announceFilterChange(value: string): void {
+    clearTimeout(this.filterAnnounceTimer);
+    this.filterAnnounceTimer = setTimeout(() => {
+      if (!value.trim()) {
+        this.srAnnouncement.set("Filter cleared, showing all rows");
+        return;
+      }
+      const count = this.filteredData().length;
+      const noun = count === 1 ? "result" : "results";
+      this.srAnnouncement.set(`${count} ${noun} found for "${value}"`);
+    }, 500);
+  }
+
   getSortIndex(columnKey: string | keyof T): number | null {
     if (!this.enableMultiSort()) {
       return null;
@@ -2657,6 +2761,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   ) {
     this.loadingTrigger.set("sorting");
     const key = String(columnKey);
+    this.announceSortChange(key, direction);
     const currentPagination = this.paginationState();
     const shouldResetPage = currentPagination.pageIndex !== 0;
 
@@ -3264,6 +3369,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.globalFilter.set(value);
     this.paginationState.update((state) => ({ ...state, pageIndex: 0 }));
     this.filterChange.emit(value);
+    this.announceFilterChange(value);
   }
 
   onColumnFilterChange(columnKey: string | keyof T, value: unknown) {
@@ -3958,6 +4064,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (this.isDisabled(row)) return;
 
     const currentValue = this.getCellValue(row, col.accessorKey, col);
+    this.cellEditError.set(null);
     this.editValue.set(currentValue);
     this.editingCell.set({ rowIndex, columnKey });
     this.focusEditInput();
@@ -3994,13 +4101,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       return;
     }
 
-    if (col.editValidator) {
-      const result = col.editValidator(newValue, row);
-      if (result !== true) {
-        return;
-      }
+    if (!this.validateEdit(col, row, newValue, editing)) {
+      return;
     }
 
+    this.cellEditError.set(null);
     this.cellEdit.emit({
       row,
       column: col,
@@ -4008,26 +4113,88 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       newValue,
       rowIndex: editing.rowIndex,
     });
-
-    if (col.valueSetter) {
-      const updatedRow = col.valueSetter(row, newValue);
-      const data = [...this.data()];
-      const dataIndex = data.findIndex(
-        (r) => this.getRowId()(r) === this.getRowId()(row),
-      );
-      if (dataIndex !== -1) {
-        data[dataIndex] = updatedRow;
-      }
-    }
+    this.applyValueSetter(col, row, newValue);
 
     this.editingCell.set(null);
     this.refocusTable();
   }
 
+  /**
+   * Runs the column's `editValidator`. On rejection, records the inline error
+   * state and emits `editError`. Returns `true` when the edit may proceed.
+   */
+  private validateEdit(
+    col: ColumnDef<T>,
+    row: T,
+    newValue: unknown,
+    editing: EditingCell,
+  ): boolean {
+    if (!col.editValidator) return true;
+
+    const result = col.editValidator(newValue, row);
+    if (result === true) return true;
+
+    const existing = this.cellEditError();
+    const alreadyReported =
+      existing !== null &&
+      existing.rowIndex === editing.rowIndex &&
+      existing.columnKey === editing.columnKey &&
+      existing.value === newValue;
+    if (alreadyReported) return false;
+
+    const message = typeof result === 'string' ? result : 'Invalid value';
+    this.cellEditError.set({
+      rowIndex: editing.rowIndex,
+      columnKey: editing.columnKey,
+      value: newValue,
+      message,
+    });
+    this.editError.emit({
+      row,
+      column: col,
+      value: newValue,
+      rowIndex: editing.rowIndex,
+      message,
+    });
+    return false;
+  }
+
+  /**
+   * Writes a committed edit back into the table data using the column's
+   * `valueSetter`. `data` is a model, so the resulting array is published
+   * to consumers and reflected by the table.
+   */
+  private applyValueSetter(col: ColumnDef<T>, row: T, newValue: unknown): void {
+    if (!col.valueSetter) return;
+
+    const updatedRow = col.valueSetter(row, newValue);
+    const data = [...this.data()];
+    const getId = this.getRowId();
+    const dataIndex = data.findIndex((r) => getId(r) === getId(row));
+    if (dataIndex !== -1) {
+      data[dataIndex] = updatedRow;
+      this.data.set(data);
+    }
+  }
+
   cancelEdit(): void {
     this.editingCell.set(null);
     this.editValue.set(null);
+    this.cellEditError.set(null);
     this.refocusTable();
+  }
+
+  /** Returns the inline validation message for a cell, or `null` if valid. */
+  editErrorFor(rowIndex: number, col: ColumnDef<T>): string | null {
+    const err = this.cellEditError();
+    if (
+      err &&
+      err.rowIndex === rowIndex &&
+      err.columnKey === String(col.accessorKey)
+    ) {
+      return err.message;
+    }
+    return null;
   }
 
   private refocusTable(): void {
@@ -4038,6 +4205,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   onEditValueChange(value: unknown): void {
     this.editValue.set(value);
+    this.cellEditError.set(null);
   }
 
   onEditKeydown(event: KeyboardEvent): void {
@@ -5069,7 +5237,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return pos === 'above' ? 'top' : 'bottom';
   }
 
-  private resizingColumn: CellStyleColumn | null = null;
+  private readonly _resizingColumn = signal<CellStyleColumn | null>(null);
   private resizeStartX = 0;
   private resizeStartWidth = 0;
   private resizeOldWidth = "auto";
@@ -5088,9 +5256,27 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
+  /** True while the given column is actively being resized. */
+  isResizingColumn(col: CellStyleColumn): boolean {
+    const resizing = this._resizingColumn();
+    return (
+      resizing !== null &&
+      String(resizing.accessorKey) === String(col.accessorKey)
+    );
+  }
+
+  /** Classes for the resize handle's 1px visual line — solid while dragging. */
+  resizeLineClass(col: CellStyleColumn): string {
+    const base = "absolute inset-y-0 left-1/2 w-px -translate-x-1/2";
+    if (this.isResizingColumn(col)) {
+      return `${base} bg-primary/70`;
+    }
+    return `${base} bg-transparent group-hover/resize:bg-primary/50`;
+  }
+
   private startResize(clientX: number, col: CellStyleColumn) {
     const key = String(col.accessorKey);
-    this.resizingColumn = col;
+    this._resizingColumn.set(col);
     this.resizeStartX = clientX;
     const actualWidth = this.getColumnActualWidth(key);
     this.resizeStartWidth = Number.parseInt(col._width, 10) || actualWidth || 150;
@@ -5125,13 +5311,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   private onResizeMove(clientX: number) {
-    if (!this.resizingColumn) return;
+    const resizing = this._resizingColumn();
+    if (!resizing) return;
 
     const delta = clientX - this.resizeStartX;
     const effectiveDelta = this._isRtlResize ? -delta : delta;
-    const minWidth = Number.parseInt(this.resizingColumn._minWidth || "50", 10) || 50;
+    const minWidth = Number.parseInt(resizing._minWidth || "50", 10) || 50;
     const newWidth = Math.max(minWidth, this.resizeStartWidth + effectiveDelta);
-    const key = String(this.resizingColumn.accessorKey);
+    const key = String(resizing.accessorKey);
 
     this.columnWidths.update((widths) => ({
       ...widths,
@@ -5140,8 +5327,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   }
 
   private onResizeEnd() {
-    if (this.resizingColumn) {
-      const key = String(this.resizingColumn.accessorKey);
+    const resizing = this._resizingColumn();
+    if (resizing) {
+      const key = String(resizing.accessorKey);
       const newWidth = this.columnWidths()[key] || this.resizeOldWidth;
 
       this.columnResize.emit({
@@ -5150,7 +5338,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         newWidth,
       });
 
-      this.resizingColumn = null;
+      this._resizingColumn.set(null);
     }
   }
 
