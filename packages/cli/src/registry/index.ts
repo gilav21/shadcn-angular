@@ -488,7 +488,7 @@ export const registry = defineRegistry({
   },
   'blur-fade': {
     name: 'blur-fade',
-    files: ['blur-fade.component.ts'],
+    files: ['blur-fade/blur-fade.component.html', 'blur-fade/blur-fade.component.ts', 'blur-fade/index.ts'],
   },
   ripple: {
     name: 'ripple',

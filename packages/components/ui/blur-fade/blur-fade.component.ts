@@ -11,12 +11,12 @@ import {
     NgZone,
     output,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-blur-fade',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
+    templateUrl: './blur-fade.component.html',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"blur-fade"',

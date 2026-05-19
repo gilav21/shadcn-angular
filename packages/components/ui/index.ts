@@ -104,7 +104,7 @@ export * from './flip-text.component';
 export * from './meteors.component';
 export * from './shine-border.component';
 export * from './scroll-progress.component';
-export * from './blur-fade.component';
+export * from './blur-fade';
 export * from './ripple.directive';
 export * from './marquee.component';
 export * from './word-rotate.component';
