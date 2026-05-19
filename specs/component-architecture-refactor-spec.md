@@ -203,11 +203,11 @@ Phase 1 tooling before bulk work.
 
 ### Phase 2 Tasks
 
-- [ ] **2.1** `accordion` — flat compound (4 components) → `ui/accordion/` with
+- [x] **2.1** `accordion` — flat compound (4 components) → `ui/accordion/` with
   `sub/`.
-- [ ] **2.2** `data-table` — already a folder, compound → move its
+- [x] **2.2** `data-table` — already a folder, compound → move its
   sub-components into `data-table/sub/`, extract templates.
-- [ ] **2.3** Verify for both: build passes, unit tests pass, Storybook renders,
+- [x] **2.3** Verify for both: build passes, unit tests pass, Storybook renders,
   `npx tsx sync-registry.ts` reports clean, the hook behaves on edits, and
   `cli add accordion` into a scratch project produces a working component.
 
@@ -326,6 +326,6 @@ reviewer score if a review gate is run).
 | Phase | Status | Reviewer score | Notes |
 | --- | --- | --- | --- |
 | 1 — Tooling | Done (2026-05-19) | 94/100 ⚠️ | Tasks 1.1–1.11 and decisions D1–D6 implemented and empirically verified: sync reports "All components are in sync." (exit 0), `--fix` produces a zero-line registry diff, 93 CLI tests pass, and both `tsc --noEmit` and `typecheck:scripts` are clean. Pure helpers extracted into `sync-registry-lib.ts` / `registry-classify.mjs` with risk-proportional tests (`resolveImport`, `walkTree`, `classifyImport`, classification, trio+`sub/` install path); the 1.3 lint surfaced a genuine pre-existing boundary violation (`component-outlet` → `data-table/component-pool.service.ts`). ⚠️ Review gate ran the full 5 iterations (93/94/93/94/94) without reaching the ≥95 bar; every reviewer rated it "ships as-is" and the final review found no actionable defect — the only standing nit is a deliberate, documented helper overlap between the `node`-run hook and the `tsx`-run script that cannot be cleanly merged. Score 94 accepted by the maintainer. |
-| 2 — Pilot | | | |
+| 2 — Pilot | Done (2026-05-19) | 95/100 | Tasks 2.1–2.3: `accordion` (flat 4-component file) migrated to `ui/accordion/` + `sub/`; `data-table` sub-components moved to `data-table/sub/` with the two-component `data-table-date-filter` file split one-per-file (shared helpers extracted to a private `data-table-date-utils.ts`, not duplicated). Templates extracted to `.component.html` content-identically; barrels, registry, and all import paths correct. All verification green: sync "All components are in sync." (exit 0), 339 component tests, 98 CLI tests, `tsc` clean; `cli add accordion` installs the folder structure end-to-end. **Recipe note for Phase 3:** before `sync --fix`, seed a migrated entry's `files` with `['<name>/index.ts']` — the sync derives the entry file from the current registry, so it cannot find a moved component otherwise. Pilot surfaced and fixed two pre-existing tooling bugs: `getEntryFile` foreign-`index.ts` match and the `getLocalComponentsDir` path depth. |
 | 3 — Bulk migration | | | |
 | 4 — Cleanup | | | |
