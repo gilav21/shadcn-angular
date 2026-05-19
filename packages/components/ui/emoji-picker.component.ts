@@ -18,7 +18,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
 import { InputComponent } from './input.component';
-import { ScrollAreaComponent } from './scroll-area.component';
+import { ScrollAreaComponent } from './scroll-area';
 import { TooltipDirective } from './tooltip.component';
 import { EMOJI_DATA } from './emoji-data';
 

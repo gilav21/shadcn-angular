@@ -23,7 +23,7 @@ import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
 import { BadgeComponent } from './badge';
 import { AvatarComponent } from './avatar.component';
-import { ScrollAreaComponent } from './scroll-area.component';
+import { ScrollAreaComponent } from './scroll-area';
 import { SeparatorComponent } from './separator';
 import { ButtonComponent } from './button';
 import { InputComponent } from './input.component';

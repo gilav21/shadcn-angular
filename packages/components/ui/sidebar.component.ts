@@ -12,7 +12,7 @@ import {
   effect,
 } from '@angular/core';
 import { cn } from '../lib/utils';
-import { ScrollAreaComponent } from './scroll-area.component';
+import { ScrollAreaComponent } from './scroll-area';
 import { TooltipDirective } from './tooltip.component';
 
 /**

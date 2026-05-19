@@ -6,7 +6,7 @@ import {
     DialogHeaderComponent,
     DialogTitleComponent,
 } from './dialog.component';
-import { ScrollAreaComponent } from './scroll-area.component';
+import { ScrollAreaComponent } from './scroll-area';
 import { ButtonComponent } from './button';
 import { BadgeComponent } from './badge';
 import { ShortcutBindingService, ShortcutBindingView, ShortcutCatalogItem, ShortcutOverrideSchema } from '../lib/shortcut-binding.service';

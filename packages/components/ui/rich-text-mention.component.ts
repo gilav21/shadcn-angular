@@ -15,7 +15,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
-import { ScrollAreaComponent } from './scroll-area.component';
+import { ScrollAreaComponent } from './scroll-area';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 
 /**

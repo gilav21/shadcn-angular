@@ -298,7 +298,7 @@ export const registry = defineRegistry({
   },
   'scroll-area': {
     name: 'scroll-area',
-    files: ['scroll-area.component.ts'],
+    files: ['scroll-area/index.ts', 'scroll-area/scroll-area.component.html', 'scroll-area/scroll-area.component.ts'],
     libFiles: ['touch.ts'],
   },
   select: {

@@ -30,7 +30,7 @@ export * from './slider';
 export * from './collapsible.component';
 export * from './toggle';
 export * from './toggle-group.component';
-export * from './scroll-area.component';
+export * from './scroll-area';
 export * from './table.component';
 export * from './breadcrumb.component';
 export * from './hover-card.component';

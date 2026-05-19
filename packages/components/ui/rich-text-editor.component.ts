@@ -39,7 +39,7 @@ import {
     DialogDescriptionComponent,
     DialogFooterComponent,
 } from './dialog.component';
-import { ScrollAreaComponent } from './scroll-area.component';
+import { ScrollAreaComponent } from './scroll-area';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../lib/shortcut-binding.service';
 import {
     RichTextCommandRegistry,
