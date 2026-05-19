@@ -94,47 +94,63 @@ function tryAppendComponent(name, relPath) {
     return name;
 }
 
-let autoAdded = null;
-const componentName = extractEntryComponentName(normalizedPath);
-const relativePath = componentName ? uiRelativePath(normalizedPath) : null;
-if (componentName && relativePath) {
-    const absolutePath = resolve(UI_DIR, relativePath);
-    if (existsSync(absolutePath)) {
-        autoAdded = tryAppendComponent(componentName, relativePath);
-    } else {
-        process.stderr.write(
-            `validate-registry: refusing to auto-register "${componentName}" — computed path ` +
-            `"${relativePath}" does not resolve to an existing file (looked for ${absolutePath}).\n`,
-        );
-        process.exit(1);
-    }
-}
-
-try {
+// Runs the registry sync; returns its stdout. Throws on a non-zero exit.
+function runSync() {
     const result = execSync('npx tsx packages/cli/scripts/sync-registry.ts --fix', {
         cwd: ROOT,
         timeout: 30000,
         stdio: ['pipe', 'pipe', 'pipe'],
     });
-    const output = result.toString().trim();
-    const updated = output.includes('Registry updated');
-    if (autoAdded || updated) {
-        const lines = [];
+    return result.toString().trim();
+}
+
+const componentName = extractEntryComponentName(normalizedPath);
+const relativePath = componentName ? uiRelativePath(normalizedPath) : null;
+
+let autoAdded = null;
+let registryUpdated = false;
+
+try {
+    // Sync first so every registered component's own import walk claims its
+    // sub-files — a new data-table sub-component is absorbed by the
+    // data-table walk, not registered standalone. Only a file that no walk
+    // reaches is treated as a new top-level component below.
+    if (runSync().includes('Registry updated')) registryUpdated = true;
+
+    if (componentName && relativePath) {
+        const absolutePath = resolve(UI_DIR, relativePath);
+        if (!existsSync(absolutePath)) {
+            process.stderr.write(
+                `validate-registry: refusing to auto-register "${componentName}" — computed path ` +
+                `"${relativePath}" does not resolve to an existing file (looked for ${absolutePath}).\n`,
+            );
+            process.exit(1);
+        }
+        autoAdded = tryAppendComponent(componentName, relativePath);
         if (autoAdded) {
-            lines.push(`Auto-registered new component "${autoAdded}" in packages/cli/src/registry/index.ts.`);
+            // The new entry holds only its seed file; a second pass resolves
+            // its import tree.
+            if (runSync().includes('Registry updated')) registryUpdated = true;
         }
-        if (updated) {
-            lines.push('The sync-registry hook detected and auto-fixed registry changes. The registry file has been updated on disk — no action needed.');
-        }
-        const msg = JSON.stringify({
-            hookSpecificOutput: {
-                hookEventName: 'PostToolUse',
-                additionalContext: lines.join(' '),
-            },
-        });
-        process.stdout.write(msg);
     }
 } catch (err) {
     const stderr = err.stderr?.toString() ?? '';
     if (stderr) process.stderr.write(stderr);
+}
+
+if (autoAdded || registryUpdated) {
+    const lines = [];
+    if (autoAdded) {
+        lines.push(`Auto-registered new component "${autoAdded}" in packages/cli/src/registry/index.ts.`);
+    }
+    if (registryUpdated) {
+        lines.push('The sync-registry hook detected and auto-fixed registry changes. The registry file has been updated on disk — no action needed.');
+    }
+    const msg = JSON.stringify({
+        hookSpecificOutput: {
+            hookEventName: 'PostToolUse',
+            additionalContext: lines.join(' '),
+        },
+    });
+    process.stdout.write(msg);
 }
