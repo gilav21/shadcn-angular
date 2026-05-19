@@ -1,0 +1,12 @@
+<button
+  type="button"
+  [class]="classes()"
+  [disabled]="disabled()"
+  [attr.aria-pressed]="pressed()"
+  [attr.data-state]="pressed() ? 'on' : 'off'"
+  [attr.data-slot]="'toggle'"
+  (click)="onClick()"
+  (touchend)="onTouchEnd($event)"
+>
+  <ng-content />
+</button>

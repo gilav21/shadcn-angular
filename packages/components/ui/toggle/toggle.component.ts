@@ -6,7 +6,7 @@ import {
     computed,
     signal,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const toggleVariants = cva(
@@ -37,20 +37,7 @@ export type ToggleSize = VariantProps<typeof toggleVariants>['size'];
 @Component({
     selector: 'ui-toggle',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <button
-      type="button"
-      [class]="classes()"
-      [disabled]="disabled()"
-      [attr.aria-pressed]="pressed()"
-      [attr.data-state]="pressed() ? 'on' : 'off'"
-      [attr.data-slot]="'toggle'"
-      (click)="onClick()"
-      (touchend)="onTouchEnd($event)"
-    >
-      <ng-content />
-    </button>
-  `,
+    templateUrl: './toggle.component.html',
     host: { class: 'contents' },
 })
 export class ToggleComponent {
