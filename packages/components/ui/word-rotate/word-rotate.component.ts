@@ -7,29 +7,13 @@ import {
     OnInit,
     OnDestroy,
 } from '@angular/core';
-import { cn } from '../lib/utils';
-import { prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-word-rotate',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <span [class]="classes()" [attr.data-slot]="'word-rotate'">
-            @for (word of words(); track $index) {
-                <span
-                    class="absolute inset-0 flex items-center justify-center transition-all duration-300"
-                    [class]="wordClasses($index)"
-                >{{ word }}</span>
-            }
-        </span>
-    `,
-    styles: [`
-        @media (prefers-reduced-motion: reduce) {
-            :host span {
-                transition: none !important;
-            }
-        }
-    `],
+    templateUrl: './word-rotate.component.html',
+    styleUrl: './word-rotate.component.css',
     host: { class: 'contents' },
 })
 export class WordRotateComponent implements OnInit, OnDestroy {

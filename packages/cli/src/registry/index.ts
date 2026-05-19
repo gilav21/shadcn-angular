@@ -500,7 +500,7 @@ export const registry = defineRegistry({
   },
   'word-rotate': {
     name: 'word-rotate',
-    files: ['word-rotate.component.ts'],
+    files: ['word-rotate/index.ts', 'word-rotate/word-rotate.component.css', 'word-rotate/word-rotate.component.html', 'word-rotate/word-rotate.component.ts'],
   },
   'morphing-text': {
     name: 'morphing-text',

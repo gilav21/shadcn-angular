@@ -1,0 +1,8 @@
+<span [class]="classes()" [attr.data-slot]="'word-rotate'">
+    @for (word of words(); track $index) {
+        <span
+            class="absolute inset-0 flex items-center justify-center transition-all duration-300"
+            [class]="wordClasses($index)"
+        >{{ word }}</span>
+    }
+</span>
