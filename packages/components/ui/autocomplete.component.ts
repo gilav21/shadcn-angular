@@ -20,7 +20,7 @@ import { cn, getClippingRect } from '../lib/utils';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from './popover.component';
 import { CommandComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent, CommandService } from './command.component';
 import { HighlightPipe } from './highlight.pipe';
-import { BadgeComponent } from './badge.component';
+import { BadgeComponent } from './badge';
 
 let autocompleteIdCounter = 0;
 

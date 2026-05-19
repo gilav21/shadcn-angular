@@ -6,7 +6,7 @@ export * from './phone-input-data';
 export * from './input-mask.directive';
 export * from './split-button.component';
 export * from './card.component';
-export * from './badge.component';
+export * from './badge';
 export * from './label.component';
 export * from './separator.component';
 export * from './switch.component';

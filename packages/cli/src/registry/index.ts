@@ -53,7 +53,7 @@ export const registry = defineRegistry({
   },
   badge: {
     name: 'badge',
-    files: ['badge.component.ts'],
+    files: ['badge/badge.component.html', 'badge/badge.component.ts', 'badge/index.ts'],
   },
   breadcrumb: {
     name: 'breadcrumb',

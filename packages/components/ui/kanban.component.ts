@@ -21,7 +21,7 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
-import { BadgeComponent } from './badge.component';
+import { BadgeComponent } from './badge';
 import { AvatarComponent } from './avatar.component';
 import { ScrollAreaComponent } from './scroll-area.component';
 import { SeparatorComponent } from './separator.component';

@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
-import { BadgeComponent, type BadgeVariant } from './badge.component';
+import { BadgeComponent, type BadgeVariant } from './badge';
 import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
 import { UI_INPUT_GROUP } from '../lib/input-group.token';

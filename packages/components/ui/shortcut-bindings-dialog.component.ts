@@ -8,7 +8,7 @@ import {
 } from './dialog.component';
 import { ScrollAreaComponent } from './scroll-area.component';
 import { ButtonComponent } from './button.component';
-import { BadgeComponent } from './badge.component';
+import { BadgeComponent } from './badge';
 import { ShortcutBindingService, ShortcutBindingView, ShortcutCatalogItem, ShortcutOverrideSchema } from '../lib/shortcut-binding.service';
 import { AccordionComponent, AccordionContentComponent, AccordionItemComponent, AccordionTriggerComponent } from './accordion';
 
