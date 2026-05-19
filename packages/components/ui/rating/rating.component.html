@@ -1,0 +1,90 @@
+<div
+    [class]="classes()"
+    [attr.data-slot]="'rating'"
+    [attr.data-readonly]="readonly() || null"
+    [attr.data-disabled]="isDisabled() || null"
+    style="touch-action: none"
+    role="slider"
+    [attr.aria-valuenow]="value()"
+    [attr.aria-valuemin]="0"
+    [attr.aria-valuemax]="max()"
+    [attr.aria-label]="ariaLabel()"
+    [attr.tabindex]="isDisabled() || readonly() ? -1 : 0"
+    (keydown)="onKeydown($event)"
+    (mouseleave)="onMouseLeave()"
+    (touchmove)="onTouchMove($event)"
+    (touchend)="onTouchEnd($event)"
+>
+    @for (star of stars(); track star.index) {
+        <button
+            type="button"
+            data-star
+            [class]="starClasses(star)"
+            [attr.aria-label]="'Rate ' + (star.index + 1) + ' out of ' + max()"
+            [disabled]="isDisabled() || readonly()"
+            (mousemove)="onStarHover($event, star.index)"
+            (click)="onStarClick($event, star.index)"
+            (touchstart)="onStarTouchStart($event, star.index)"
+        >
+            @if (getStarFill(star) === 'full') {
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="currentColor"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="h-5 w-5"
+                >
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+            } @else if (getStarFill(star) === 'half') {
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    class="h-5 w-5"
+                >
+                    <defs>
+                        <linearGradient [id]="'half-' + star.index">
+                            @if (isRtl()) {
+                                <stop offset="50%" stop-color="transparent"/>
+                                <stop offset="50%" stop-color="currentColor"/>
+                            } @else {
+                                <stop offset="50%" stop-color="currentColor"/>
+                                <stop offset="50%" stop-color="transparent"/>
+                            }
+                        </linearGradient>
+                    </defs>
+                    <polygon
+                        points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"
+                        [attr.fill]="'url(#half-' + star.index + ')'"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    />
+                </svg>
+            } @else {
+                <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="24"
+                    height="24"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    class="h-5 w-5"
+                >
+                    <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+            }
+        </button>
+    }
+</div>

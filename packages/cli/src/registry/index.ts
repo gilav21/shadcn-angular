@@ -289,7 +289,7 @@ export const registry = defineRegistry({
   },
   rating: {
     name: 'rating',
-    files: ['rating.component.ts'],
+    files: ['rating/index.ts', 'rating/rating.component.html', 'rating/rating.component.ts'],
     libFiles: ['touch.ts'],
   },
   resizable: {

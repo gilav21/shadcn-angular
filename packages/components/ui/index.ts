@@ -75,7 +75,7 @@ export * from './virtual-scroll.component';
 export * from './context-menu-integrations';
 export * from './shortcut-binding.service';
 
-export * from './rating.component';
+export * from './rating';
 export * from './stepper.component';
 export * from './file-upload.component';
 export * from './color-picker.component';
