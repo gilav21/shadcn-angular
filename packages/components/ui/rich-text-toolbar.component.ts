@@ -22,7 +22,7 @@ import {
   EmojiPickerTriggerComponent,
   EmojiPickerContentComponent,
 } from './emoji-picker.component';
-import { AutocompleteComponent } from './autocomplete.component';
+import { AutocompleteComponent } from './autocomplete';
 import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
 import { RichTextCustomToolbarItem } from './rich-text-editor.component';
 

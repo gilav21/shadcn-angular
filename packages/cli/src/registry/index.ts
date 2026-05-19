@@ -32,7 +32,7 @@ export const registry = defineRegistry({
   },
   autocomplete: {
     name: 'autocomplete',
-    files: ['autocomplete.component.ts', 'highlight.pipe.ts'],
+    files: ['autocomplete/autocomplete.component.html', 'autocomplete/autocomplete.component.ts', 'autocomplete/highlight.pipe.ts', 'autocomplete/index.ts'],
     dependencies: ['badge', 'command', 'popover'],
   },
   alert: {

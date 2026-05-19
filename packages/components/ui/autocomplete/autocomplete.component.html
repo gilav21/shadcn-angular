@@ -1,0 +1,86 @@
+<ui-popover [open]="open()" (openChange)="onOpenChange($event)">
+  <ui-popover-trigger class="w-full">
+    <div
+      [class]="containerClasses()"
+      [attr.data-state]="open() ? 'open' : 'closed'"
+      [attr.data-disabled]="isDisabled() || null"
+      (click)="onContainerClick($event)"
+    >
+      @if (multiple()) {
+         <div class="flex flex-wrap items-center gap-1 w-full">
+            @for (item of selectedItems(); track item; let i = $index) {
+               <ui-badge variant="secondary" class="gap-1 ltr:pr-0.5 rtl:pl-0.5">
+                  {{ getDisplayValue(item) }}
+                  <span
+                    class="cursor-pointer rounded-full p-0.5 hover:bg-secondary-foreground/20 inline-flex items-center"
+                    role="button"
+                    data-slot="chip-remove"
+                    (click)="removeItem(item, $event)"
+                  >
+                     <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-3 w-3"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+                  </span>
+               </ui-badge>
+            }
+            <input
+              #inputEl
+              type="text"
+              role="combobox"
+              aria-autocomplete="list"
+              [attr.aria-expanded]="open()"
+              [attr.aria-controls]="listId"
+              [attr.aria-activedescendant]="activeItemId()"
+              [class]="multiInputClasses()"
+              [placeholder]="selectedItems().length === 0 ? placeholder() : ''"
+              [disabled]="isDisabled()"
+              [(ngModel)]="searchTerm"
+              (input)="onInput($event)"
+              (keydown)="onKeydown($event)"
+              (blur)="onTouched()"
+            />
+         </div>
+      } @else {
+         <div class="flex items-center w-full gap-2">
+             <input
+                #inputEl
+                type="text"
+                role="combobox"
+                aria-autocomplete="list"
+                [attr.aria-expanded]="open()"
+                [attr.aria-controls]="listId"
+                [attr.aria-activedescendant]="activeItemId()"
+                [class]="singleInputClasses()"
+                [placeholder]="placeholder()"
+                [disabled]="isDisabled()"
+                [value]="inputValue()"
+                (input)="onInput($event)"
+                (keydown)="onKeydown($event)"
+                (blur)="onBlur()"
+                (focus)="onFocus()"
+             />
+             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4 opacity-50 shrink-0"><path d="m6 9 6 6 6-6"/></svg>
+         </div>
+      }
+    </div>
+  </ui-popover-trigger>
+  <ui-popover-content [side]="dropdownSide()" class="w-[--radix-popover-trigger-width] p-0" align="start" [restoreFocus]="false">
+     <ui-command [shouldFilter]="filter()" [search]="searchTerm()">
+        <ui-command-list [attr.id]="listId" role="listbox">
+          <ui-command-empty>No results found.</ui-command-empty>
+
+           @for (option of options(); track getTrackBy(option)) {
+              <ui-command-item
+                [value]="getSearchValue(option)"
+                [selected]="isSelected(option)"
+                (select)="onSelect(option)"
+                class="ltr:pr-8 rtl:pl-8"
+              >
+               <span [innerHTML]="getDisplayValue(option) | highlight: searchTerm()"></span>
+               <span class="absolute ltr:right-2 rtl:left-2 flex h-3.5 w-3.5 items-center justify-center opacity-0" [class.opacity-100]="isSelected(option)">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4"><polyline points="20 6 9 17 4 12"/></svg>
+               </span>
+             </ui-command-item>
+           }
+        </ui-command-list>
+     </ui-command>
+  </ui-popover-content>
+</ui-popover>

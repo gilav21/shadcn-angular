@@ -30,7 +30,7 @@ import { InputComponent } from './input';
 import { TextareaComponent } from './textarea';
 import { LabelComponent } from './label';
 import { ChipListComponent } from './chip-list';
-import { AutocompleteComponent } from './autocomplete.component';
+import { AutocompleteComponent } from './autocomplete';
 import {
     DialogComponent,
     DialogContentComponent,
