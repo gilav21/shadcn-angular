@@ -10,7 +10,7 @@ import {
   AlertDialogActionComponent,
   AlertDialogCancelComponent,
 } from './alert-dialog.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 
 const meta: Meta<AlertDialogComponent & { title: string; description: string; actionText: string; cancelText: string }> = {
   title: 'UI/AlertDialog',

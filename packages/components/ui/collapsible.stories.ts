@@ -4,7 +4,7 @@ import {
     CollapsibleTriggerComponent,
     CollapsibleContentComponent,
 } from './collapsible.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<CollapsibleComponent> = {

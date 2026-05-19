@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { CALENDAR_LOCALES, CalendarLocale } from '../lib/calendar-locales';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import {
   SelectComponent,
   SelectTriggerComponent,

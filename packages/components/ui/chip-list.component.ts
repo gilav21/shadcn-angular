@@ -11,7 +11,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
 import { BadgeComponent, type BadgeVariant } from './badge';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { InputComponent } from './input.component';
 import { UI_INPUT_GROUP } from '../lib/input-group.token';
 import { cva, type VariantProps } from 'class-variance-authority';

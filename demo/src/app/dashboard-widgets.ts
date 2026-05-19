@@ -4,7 +4,7 @@ import { CardComponent, CardContentComponent, CardHeaderComponent, CardTitleComp
 import { CalendarComponent } from '../../../packages/components/ui/calendar.component';
 import { AvatarComponent, AvatarImageComponent, AvatarFallbackComponent } from '../../../packages/components/ui/avatar.component';
 import { BadgeComponent } from '../../../packages/components/ui/badge';
-import { ButtonComponent } from '../../../packages/components/ui/button.component';
+import { ButtonComponent } from '../../../packages/components/ui/button';
 
 @Component({
   selector: 'demo-metric-widget',

@@ -43,7 +43,7 @@ import {
   ContextMenuComponent,
   ContextMenuItem,
 } from "../context-menu.component";
-import { ButtonComponent } from "../button.component";
+import { ButtonComponent } from "../button";
 import { IconComponent } from "../icon.component";
 import {
   ColumnDef,

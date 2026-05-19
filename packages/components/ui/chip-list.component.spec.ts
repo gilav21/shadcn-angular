@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChipListComponent } from './chip-list.component';
 import { BadgeComponent } from './badge';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';

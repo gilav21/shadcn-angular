@@ -4,7 +4,7 @@ import {
     EmojiPickerTriggerComponent,
     EmojiPickerContentComponent,
 } from './emoji-picker.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { Component, signal } from '@angular/core';
 
 @Component({

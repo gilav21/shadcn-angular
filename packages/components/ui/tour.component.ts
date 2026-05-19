@@ -18,7 +18,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 
 /**
  * One step of a guided tour.

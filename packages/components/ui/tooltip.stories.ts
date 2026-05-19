@@ -5,7 +5,7 @@ import {
   TooltipContentComponent,
   TooltipDirective,
 } from './tooltip.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 
 const meta: Meta<TooltipComponent> = {
   title: 'UI/Tooltip',

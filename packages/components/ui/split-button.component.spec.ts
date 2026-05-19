@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { SplitButtonComponent, SplitButtonPrimaryComponent, SplitButtonMenuComponent, SplitButtonItemComponent } from './split-button.component';
-import { ButtonComponent, ButtonVariant } from './button.component';
+import { ButtonComponent, ButtonVariant } from './button';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 @Component({

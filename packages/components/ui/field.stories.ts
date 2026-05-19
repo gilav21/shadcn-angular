@@ -10,7 +10,7 @@ import {
     FieldSeparatorComponent,
 } from './field.component';
 import { InputComponent } from './input.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 
 const meta: Meta<FieldComponent> = {
     title: 'UI/Field',

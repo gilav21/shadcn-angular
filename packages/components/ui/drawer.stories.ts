@@ -9,7 +9,7 @@ import {
   DrawerFooterComponent,
   DrawerCloseComponent,
 } from './drawer.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 
 const meta: Meta<DrawerComponent & { title: string; description: string }> = {
   title: 'UI/Drawer',

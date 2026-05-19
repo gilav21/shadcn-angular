@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../lib/utils';
-import { ButtonVariant, ButtonSize, ButtonComponent } from './button.component';
+import { ButtonVariant, ButtonSize, ButtonComponent } from './button';
 
 /**
  * SplitButton Item interface for data-driven mode

@@ -7,7 +7,7 @@ import {
   CardContentComponent,
   CardFooterComponent,
 } from './card.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { InputComponent } from './input.component';
 import { FormsModule } from '@angular/forms';
 

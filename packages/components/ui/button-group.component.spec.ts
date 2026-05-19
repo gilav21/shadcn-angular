@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ButtonGroupComponent, ButtonGroupTextComponent, ButtonGroupSeparatorComponent } from './button-group.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

@@ -10,7 +10,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { cn } from '../lib/utils';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { SeparatorComponent } from './separator.component';
 import {
   PopoverComponent,

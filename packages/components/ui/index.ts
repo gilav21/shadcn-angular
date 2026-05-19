@@ -1,4 +1,4 @@
-export * from './button.component';
+export * from './button';
 export * from './input.component';
 export * from './number-input.component';
 export * from './phone-input.component';

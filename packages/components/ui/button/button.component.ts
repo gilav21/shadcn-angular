@@ -6,8 +6,8 @@ import {
     computed,
 } from '@angular/core';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../lib/utils';
-import { UiRippleDirective } from './ripple.directive';
+import { cn } from '../../lib/utils';
+import { UiRippleDirective } from '../ripple.directive';
 
 const buttonVariants = cva(
     'focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive rounded-lg border border-transparent text-sm font-medium focus-visible:ring-[3px] aria-invalid:ring-[3px] inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 shrink-0 outline-none select-none cursor-pointer',
@@ -44,25 +44,7 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
     selector: 'ui-button',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [UiRippleDirective],
-    template: `
-    <button
-      uiRipple
-      [uiRippleDisabled]="!ripple()"
-      [uiRippleColor]="rippleColor()"
-      [class]="classes()"
-      [disabled]="disabled()"
-      [type]="type()"
-      [attr.data-slot]="'button'"
-      [attr.aria-label]="ariaLabel()"
-      (click)="clicked.emit($event)"
-    >
-      @if (label()) {
-        {{ label() }}
-      } @else {
-        <ng-content />
-      }
-    </button>
-  `,
+    templateUrl: './button.component.html',
     host: {
         '[class]': '"contents"',
     },

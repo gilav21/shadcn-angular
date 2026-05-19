@@ -9,7 +9,7 @@ import {
   SheetFooterComponent,
   SheetCloseComponent,
 } from './sheet.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { InputComponent } from './input.component';
 import { LabelComponent } from './label.component';
 

@@ -12,7 +12,7 @@ import {
     type ScopeDetector,
     type ScopeRange,
 } from '../lib/code-scopes';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 
 export type { ScopeDetector, ScopeRange } from '../lib/code-scopes';
 export { BUILTIN_SCOPE_DETECTORS } from '../lib/code-scopes';

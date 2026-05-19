@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { CalendarComponent, DateRange } from '../../calendar.component';
-import { ButtonComponent } from '../../button.component';
+import { ButtonComponent } from '../../button';
 import { CALENDAR_LOCALES, CalendarLocale } from '../../../lib/calendar-locales';
 import { toDate, toDateOnlyTimestamp } from './data-table-date-utils';
 

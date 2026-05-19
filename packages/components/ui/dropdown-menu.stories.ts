@@ -10,7 +10,7 @@ import {
   DropdownMenuSubTriggerComponent,
   DropdownMenuSubContentComponent,
 } from './dropdown-menu.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 
 const meta: Meta<DropdownMenuComponent> = {
   title: 'UI/DropdownMenu',

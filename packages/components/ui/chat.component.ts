@@ -13,7 +13,7 @@ import {
   OnDestroy,
 } from '@angular/core';
 import { cn } from '../lib/utils';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { TextareaComponent } from './textarea.component';
 import { ScrollAreaComponent } from './scroll-area.component';
 import { AvatarComponent, AvatarFallbackComponent, AvatarImageComponent } from './avatar.component';

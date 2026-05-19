@@ -25,7 +25,7 @@ import { BadgeComponent } from './badge';
 import { AvatarComponent } from './avatar.component';
 import { ScrollAreaComponent } from './scroll-area.component';
 import { SeparatorComponent } from './separator.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { InputComponent } from './input.component';
 import { TextareaComponent } from './textarea.component';
 import { LabelComponent } from './label.component';

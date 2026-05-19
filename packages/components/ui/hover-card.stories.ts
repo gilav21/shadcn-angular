@@ -4,7 +4,7 @@ import {
     HoverCardTriggerComponent,
     HoverCardContentComponent,
 } from './hover-card.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { AvatarComponent, AvatarImageComponent, AvatarFallbackComponent } from './avatar.component';
 import { moduleMetadata } from '@storybook/angular';
 

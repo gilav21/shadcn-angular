@@ -61,7 +61,7 @@ export const registry = defineRegistry({
   },
   button: {
     name: 'button',
-    files: ['button.component.ts'],
+    files: ['button/button.component.html', 'button/button.component.ts', 'button/index.ts'],
     dependencies: ['ripple'],
   },
   'button-group': {

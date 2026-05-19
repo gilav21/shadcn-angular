@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import {
     SelectComponent,
     SelectTriggerComponent,

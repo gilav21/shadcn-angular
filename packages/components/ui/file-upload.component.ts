@@ -9,7 +9,7 @@ import {
   viewChild,
 } from '@angular/core';
 import { cn } from '../lib/utils';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { ProgressComponent } from './progress.component';
 
 export interface FileUploadItem {

@@ -6,7 +6,7 @@ import {
   signal
 } from '@angular/core';
 import { cn } from '../lib/utils';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 
 interface Sparkle {
   id: string;
