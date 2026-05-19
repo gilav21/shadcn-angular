@@ -145,7 +145,7 @@ export const registry = defineRegistry({
   },
   'text-reveal': {
     name: 'text-reveal',
-    files: ['text-reveal.component.ts'],
+    files: ['text-reveal/index.ts', 'text-reveal/text-reveal.component.css', 'text-reveal/text-reveal.component.html', 'text-reveal/text-reveal.component.ts'],
   },
   'data-table': {
     name: 'data-table',

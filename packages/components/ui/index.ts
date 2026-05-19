@@ -84,7 +84,7 @@ export * from './chat.component';
 export * from './streaming-text';
 export * from './sparkles.component';
 export * from './code-block';
-export * from './text-reveal.component';
+export * from './text-reveal';
 export * from './dock.component';
 export * from './dock-item.component';
 export * from './dock-icon.component';

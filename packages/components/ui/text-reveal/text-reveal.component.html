@@ -1,0 +1,11 @@
+<div [class]="classes()">
+  @for (word of words(); track $index) {
+    <span
+      class="inline-block transition-all duration-500 will-change-[transform,opacity,filter]"
+      [style.animation-delay]="$index * delay() + 'ms'"
+      [class]="'opacity-0 animate-blur-in'"
+    >
+      {{ word }}&nbsp;
+    </span>
+  }
+</div>
