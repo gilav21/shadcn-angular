@@ -239,7 +239,7 @@ export const registry = defineRegistry({
   },
   label: {
     name: 'label',
-    files: ['label.component.ts'],
+    files: ['label/index.ts', 'label/label.component.html', 'label/label.component.ts'],
   },
   menubar: {
     name: 'menubar',

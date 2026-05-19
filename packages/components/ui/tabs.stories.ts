@@ -7,7 +7,7 @@ import {
 } from './tabs.component';
 import { ButtonComponent } from './button';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent } from './card.component';
-import { LabelComponent } from './label.component';
+import { LabelComponent } from './label';
 import { InputComponent } from './input.component';
 
 const meta: Meta<TabsComponent> = {

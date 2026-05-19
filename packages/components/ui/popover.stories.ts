@@ -7,7 +7,7 @@ import {
 } from './popover.component';
 import { ButtonComponent } from './button';
 import { InputComponent } from './input.component';
-import { LabelComponent } from './label.component';
+import { LabelComponent } from './label';
 
 const meta: Meta<PopoverComponent & { align: string; side: string; sideOffset: number }> = {
   title: 'UI/Popover',

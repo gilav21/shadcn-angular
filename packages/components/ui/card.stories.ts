@@ -15,7 +15,7 @@ import { FormsModule } from '@angular/forms';
 // I'll check if Label exists. If NOT, I'll remove it from the template.
 // Checking file list: label.component.ts exists (Step 5).
 
-import { LabelComponent as RealLabelComponent } from './label.component';
+import { LabelComponent as RealLabelComponent } from './label';
 
 const meta: Meta<CardComponent> = {
   title: 'UI/Card',

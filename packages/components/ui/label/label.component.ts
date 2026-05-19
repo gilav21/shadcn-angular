@@ -4,16 +4,12 @@ import {
     input,
     computed,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-label',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <label [class]="classes()" [attr.for]="for()" [attr.data-slot]="'label'">
-      <ng-content />
-    </label>
-  `,
+    templateUrl: './label.component.html',
     host: {
         '[class]': '"contents"',
     },

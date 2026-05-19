@@ -10,7 +10,7 @@ import {
 } from './dialog.component';
 import { ButtonComponent } from './button';
 import { InputComponent } from './input.component';
-import { LabelComponent } from './label.component';
+import { LabelComponent } from './label';
 
 const meta: Meta<DialogComponent & { rtl: boolean; title: string; description: string }> = {
   title: 'UI/Dialog',

@@ -7,7 +7,7 @@ export * from './input-mask.directive';
 export * from './split-button.component';
 export * from './card.component';
 export * from './badge';
-export * from './label.component';
+export * from './label';
 export * from './separator.component';
 export * from './switch.component';
 export * from './checkbox.component';

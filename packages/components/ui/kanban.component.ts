@@ -28,7 +28,7 @@ import { SeparatorComponent } from './separator.component';
 import { ButtonComponent } from './button';
 import { InputComponent } from './input.component';
 import { TextareaComponent } from './textarea.component';
-import { LabelComponent } from './label.component';
+import { LabelComponent } from './label';
 import { ChipListComponent } from './chip-list.component';
 import { AutocompleteComponent } from './autocomplete.component';
 import {
