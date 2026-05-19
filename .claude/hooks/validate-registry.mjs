@@ -2,6 +2,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve, dirname, basename } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execSync } from 'node:child_process';
+import { registryHasComponent, classifyComponentFile } from './registry-classify.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..', '..');
@@ -41,14 +42,6 @@ function extractEntryComponentName(path) {
     return match ? match[1] : null;
 }
 
-// True when the registry already declares this component as a key.
-// Matches both `name: {` and `'name': {` forms.
-function registryHasComponent(registrySource, name) {
-    const safe = name.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`^\\s*['"]?${safe}['"]?\\s*:\\s*\\{`, 'm');
-    return pattern.test(registrySource);
-}
-
 // Insert a minimal registry entry just before the closing `});` of the
 // defineRegistry call. The sync script will then walk imports and fill
 // in libFiles / dependencies / extra files via --fix.
@@ -69,16 +62,11 @@ function uiRelativePath(path) {
     return idx === -1 ? null : path.slice(idx + UI_PREFIX.length);
 }
 
-// True when the registry already lists this exact relative path inside any
-// entry's files / libFiles array.
-function registryReferencesFile(registrySource, relPath) {
-    const safe = relPath.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    return new RegExp(`['"]${safe}['"]`).test(registrySource);
-}
-
-// Appends a minimal registry entry for a genuinely new component. Skips when
-// the component is already a registry key or its file is already bundled in
-// another entry. Returns the component name when an entry was written.
+// Appends a minimal registry entry for a genuinely new top-level component.
+// Skips when the component is already a registry key, or when directory-based
+// classification shows the file is already referenced, lives under a `sub/`
+// directory, or sits in a single-owner directory (i.e. it is a sub-component).
+// Returns the component name when an entry was written.
 function tryAppendComponent(name, relPath) {
     let registrySource;
     try {
@@ -87,7 +75,7 @@ function tryAppendComponent(name, relPath) {
         return null;
     }
     if (registryHasComponent(registrySource, name)) return null;
-    if (registryReferencesFile(registrySource, relPath)) return null;
+    if (classifyComponentFile(relPath, registrySource) !== 'new-component') return null;
     const updated = appendRegistryEntry(registrySource, name, relPath);
     if (!updated) return null;
     writeFileSync(REGISTRY_PATH, updated, 'utf-8');
