@@ -320,7 +320,7 @@ export const registry = defineRegistry({
   },
   skeleton: {
     name: 'skeleton',
-    files: ['skeleton.component.ts'],
+    files: ['skeleton/index.ts', 'skeleton/skeleton.component.css', 'skeleton/skeleton.component.ts'],
   },
   slider: {
     name: 'slider',
