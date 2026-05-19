@@ -9,7 +9,7 @@ import { cn } from '../../lib/utils';
 @Component({
     selector: 'ui-separator',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    templateUrl: './separator.component.html',
+    template: ``,
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"separator"',
