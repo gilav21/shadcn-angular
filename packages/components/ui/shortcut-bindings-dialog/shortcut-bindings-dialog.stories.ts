@@ -1,10 +1,10 @@
 import { Component, OnDestroy, signal, inject } from '@angular/core';
 import type { Meta, StoryObj } from '@storybook/angular';
 import { moduleMetadata } from '@storybook/angular';
-import { ButtonComponent } from './button';
-import { CommandDialogComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent } from './command.component';
+import { ButtonComponent } from '../button';
+import { CommandDialogComponent, CommandInputComponent, CommandListComponent, CommandEmptyComponent, CommandGroupComponent, CommandItemComponent } from '../command.component';
 import { ShortcutBindingsDialogComponent } from './shortcut-bindings-dialog.component';
-import { ShortcutBindingService } from '../lib/shortcut-binding.service';
+import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 
 @Component({
     selector: 'ui-shortcut-dialog-story-host',
