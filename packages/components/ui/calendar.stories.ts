@@ -1,6 +1,6 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { CalendarComponent } from './calendar.component';
-import { CALENDAR_LOCALES } from './calendar-locales';
+import { CALENDAR_LOCALES } from '../lib/calendar-locales';
 
 const meta: Meta<CalendarComponent> = {
     title: 'UI/Calendar',

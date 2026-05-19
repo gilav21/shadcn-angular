@@ -15,7 +15,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
 import { cva } from 'class-variance-authority';
 import { cn } from '../lib/utils';
 import { InputComponent } from './input.component';
-import { UI_INPUT_GROUP } from './input-group.token';
+import { UI_INPUT_GROUP } from '../lib/input-group.token';
 
 const numberInputWrapperVariants = cva(
     'relative flex items-center border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] aria-disabled:pointer-events-none aria-disabled:opacity-50',

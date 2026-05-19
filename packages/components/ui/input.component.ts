@@ -31,7 +31,7 @@ const inputVariants = cva(
 
 export type InputVariant = VariantProps<typeof inputVariants>['variant'];
 
-import { UI_INPUT_GROUP } from './input-group.token';
+import { UI_INPUT_GROUP } from '../lib/input-group.token';
 
 @Component({
     selector: 'ui-input',

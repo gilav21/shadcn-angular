@@ -29,7 +29,7 @@ const textareaVariants = cva(
 
 export type TextareaVariant = VariantProps<typeof textareaVariants>['variant'];
 
-import { UI_INPUT_GROUP } from './input-group.token';
+import { UI_INPUT_GROUP } from '../lib/input-group.token';
 
 @Component({
     selector: 'ui-textarea',

@@ -70,7 +70,8 @@ export const registry = defineRegistry({
   },
   calendar: {
     name: 'calendar',
-    files: ['calendar-locales.ts', 'calendar.component.ts'],
+    files: ['calendar.component.ts'],
+    libFiles: ['calendar-locales.ts'],
     dependencies: ['button', 'select'],
   },
   card: {
@@ -148,12 +149,12 @@ export const registry = defineRegistry({
   },
   'data-table': {
     name: 'data-table',
-    files: ['calendar-locales.ts', 'data-table/component-pool.service.ts', 'data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
+    files: ['data-table/component-pool.service.ts', 'data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
     peerFiles: [
       'context-menu-integrations.ts',
     ],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'table'],
-    libFiles: ['parsers/xlsx.ts', 'touch.ts'],
+    libFiles: ['calendar-locales.ts', 'parsers/xlsx.ts', 'touch.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
     ],
@@ -220,11 +221,13 @@ export const registry = defineRegistry({
   },
   input: {
     name: 'input',
-    files: ['input-group.token.ts', 'input.component.ts'],
+    files: ['input.component.ts'],
+    libFiles: ['input-group.token.ts'],
   },
   'input-group': {
     name: 'input-group',
-    files: ['input-group.component.ts', 'input-group.token.ts'],
+    files: ['input-group.component.ts'],
+    libFiles: ['input-group.token.ts'],
   },
   'input-otp': {
     name: 'input-otp',
@@ -254,7 +257,8 @@ export const registry = defineRegistry({
   },
   'number-input': {
     name: 'number-input',
-    files: ['input-group.token.ts', 'number-input.component.ts'],
+    files: ['number-input.component.ts'],
+    libFiles: ['input-group.token.ts'],
     dependencies: ['input'],
   },
   'number-ticker': {
@@ -267,7 +271,8 @@ export const registry = defineRegistry({
   },
   'phone-input': {
     name: 'phone-input',
-    files: ['input-group.token.ts', 'phone-input-data.ts', 'phone-input.component.ts'],
+    files: ['phone-input-data.ts', 'phone-input.component.ts'],
+    libFiles: ['input-group.token.ts'],
     dependencies: ['input', 'input-group', 'input-mask', 'popover'],
   },
   popover: {
@@ -343,7 +348,8 @@ export const registry = defineRegistry({
   },
   textarea: {
     name: 'textarea',
-    files: ['input-group.token.ts', 'textarea.component.ts'],
+    files: ['textarea.component.ts'],
+    libFiles: ['input-group.token.ts'],
   },
   timeline: {
     name: 'timeline',
@@ -379,7 +385,8 @@ export const registry = defineRegistry({
   },
   'chip-list': {
     name: 'chip-list',
-    files: ['chip-list.component.ts', 'input-group.token.ts'],
+    files: ['chip-list.component.ts'],
+    libFiles: ['input-group.token.ts'],
     dependencies: ['badge', 'button', 'input'],
   },
   'emoji-picker': {

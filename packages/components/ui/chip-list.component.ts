@@ -13,7 +13,7 @@ import { cn } from '../lib/utils';
 import { BadgeComponent, type BadgeVariant } from './badge.component';
 import { ButtonComponent } from './button.component';
 import { InputComponent } from './input.component';
-import { UI_INPUT_GROUP } from './input-group.token';
+import { UI_INPUT_GROUP } from '../lib/input-group.token';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const chipListVariants = cva(

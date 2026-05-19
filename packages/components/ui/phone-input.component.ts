@@ -13,7 +13,7 @@ import { cn } from '../lib/utils';
 import { InputComponent } from './input.component';
 import { InputGroupComponent, InputGroupAddonComponent } from './input-group.component';
 import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
-import { UI_INPUT_GROUP } from './input-group.token';
+import { UI_INPUT_GROUP } from '../lib/input-group.token';
 import { InputMaskDirective } from './input-mask.directive';
 import { PhoneCountry, DEFAULT_COUNTRIES } from './phone-input-data';
 

@@ -10,7 +10,7 @@ import {
   untracked,
 } from '@angular/core';
 import { cn } from '../lib/utils';
-import { CALENDAR_LOCALES, CalendarLocale } from './calendar-locales';
+import { CALENDAR_LOCALES, CalendarLocale } from '../lib/calendar-locales';
 import { ButtonComponent } from './button.component';
 import {
   SelectComponent,

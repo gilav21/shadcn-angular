@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
-import { UI_INPUT_GROUP } from './input-group.token';
+import { UI_INPUT_GROUP } from '../lib/input-group.token';
 
 import { cva, type VariantProps } from 'class-variance-authority';
 
