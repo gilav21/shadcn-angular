@@ -1,0 +1,31 @@
+:host ::ng-deep .pdf-page {
+    line-height: normal;
+    word-wrap: break-word;
+    overflow-wrap: break-word;
+    box-sizing: border-box;
+}
+:host ::ng-deep .pdf-page img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    margin: 0 auto;
+}
+:host ::ng-deep .pdf-page p {
+    margin: 0;
+}
+:host ::ng-deep .pdf-page h1, :host ::ng-deep .pdf-page h2, :host ::ng-deep .pdf-page h3,
+:host ::ng-deep .pdf-page h4, :host ::ng-deep .pdf-page h5, :host ::ng-deep .pdf-page h6 {
+    margin: 0;
+}
+:host ::ng-deep .pdf-page table {
+    margin: 0.5em 0;
+}
+:host ::ng-deep .pdf-page td {
+    vertical-align: top;
+}
+:host ::ng-deep .pdf-page ul, :host ::ng-deep .pdf-page ol {
+    margin: 0.25em 0;
+    padding-inline-start: 1.5em;
+}
+:host ::ng-deep .pdf-page ul { list-style-type: disc; }
+:host ::ng-deep .pdf-page ol { list-style-type: decimal; }

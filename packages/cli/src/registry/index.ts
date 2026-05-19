@@ -210,7 +210,7 @@ export const registry = defineRegistry({
   },
   'file-viewer': {
     name: 'file-viewer',
-    files: ['file-viewer.component.ts'],
+    files: ['file-viewer/file-viewer.component.css', 'file-viewer/file-viewer.component.html', 'file-viewer/file-viewer.component.ts', 'file-viewer/index.ts'],
     dependencies: ['spinner'],
     libFiles: ['parsers/doc-enhanced-parser.ts', 'parsers/docx-parser.ts', 'parsers/file-type-detector.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/ole2-reader.ts', 'parsers/pdf-parser.ts', 'parsers/pdf-pixel-perfect.ts', 'parsers/ppt-parser.ts', 'parsers/pptx-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/ttf-builder.ts', 'parsers/ttf-parser.ts', 'parsers/xlsx-reader.ts', 'parsers/zip-reader.ts'],
   },

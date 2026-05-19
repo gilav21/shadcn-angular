@@ -13,16 +13,16 @@ import {
     ElementRef,
 } from '@angular/core';
 import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-browser';
-import type { PixelPerfectPage } from '../lib/parsers/pdf-pixel-perfect';
-import { cn } from '../lib/utils';
-import { SpinnerComponent } from './spinner.component';
-import type { FileViewerType, FileTypeResult } from '../lib/parsers/file-type-detector';
+import type { PixelPerfectPage } from '../../lib/parsers/pdf-pixel-perfect';
+import { cn } from '../../lib/utils';
+import { SpinnerComponent } from '../spinner.component';
+import type { FileViewerType, FileTypeResult } from '../../lib/parsers/file-type-detector';
 import type {
     PptxTextFrame, PptxTextRun, PptxBullet,
     PptxShapeElement, PptxConnectorElement, PptxTableElement,
     PptxParagraph, PptxGradientFill, PptxPatternFill, PptxEffects,
     PptxUnderlineStyle, PptxTabStop,
-} from '../lib/parsers/pptx-parser';
+} from '../../lib/parsers/pptx-parser';
 
 type ViewerState = 'idle' | 'loading' | 'loaded' | 'error';
 
@@ -57,254 +57,8 @@ const HEADING_CLASSES: Record<number, string> = {
     selector: 'ui-file-viewer',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [SpinnerComponent],
-    styles: `
-        :host ::ng-deep .pdf-page {
-            line-height: normal;
-            word-wrap: break-word;
-            overflow-wrap: break-word;
-            box-sizing: border-box;
-        }
-        :host ::ng-deep .pdf-page img {
-            max-width: 100%;
-            height: auto;
-            display: block;
-            margin: 0 auto;
-        }
-        :host ::ng-deep .pdf-page p {
-            margin: 0;
-        }
-        :host ::ng-deep .pdf-page h1, :host ::ng-deep .pdf-page h2, :host ::ng-deep .pdf-page h3,
-        :host ::ng-deep .pdf-page h4, :host ::ng-deep .pdf-page h5, :host ::ng-deep .pdf-page h6 {
-            margin: 0;
-        }
-        :host ::ng-deep .pdf-page table {
-            margin: 0.5em 0;
-        }
-        :host ::ng-deep .pdf-page td {
-            vertical-align: top;
-        }
-        :host ::ng-deep .pdf-page ul, :host ::ng-deep .pdf-page ol {
-            margin: 0.25em 0;
-            padding-inline-start: 1.5em;
-        }
-        :host ::ng-deep .pdf-page ul { list-style-type: disc; }
-        :host ::ng-deep .pdf-page ol { list-style-type: decimal; }
-    `,
-    template: `
-        <div [class]="containerClasses()" [attr.data-slot]="'file-viewer'" [style.height]="height()">
-            @if (hasCustomContent()) {
-                <ng-content />
-            } @else {
-                <!-- Toolbar -->
-                <div [attr.data-slot]="'file-viewer-toolbar'" class="flex items-center justify-between gap-2 border-b bg-muted/30 px-3 py-2 text-sm">
-                    <div class="flex items-center gap-2 min-w-0">
-                        <span class="truncate font-medium">{{ displayFilename() }}</span>
-                        @if (detectedType() && detectedType() !== 'unknown') {
-                            <span class="text-muted-foreground text-xs uppercase">{{ detectedType() }}</span>
-                        }
-                    </div>
-                    <div class="flex items-center gap-1 shrink-0">
-                        @if (isPaginated()) {
-                            <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
-                                    [disabled]="currentPage() <= 1"
-                                    (click)="prevPage()">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
-                            </button>
-                            <span class="text-xs text-muted-foreground tabular-nums min-w-[60px] text-center">
-                                {{ currentPage() }} / {{ totalPages() }}
-                            </span>
-                            <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
-                                    [disabled]="currentPage() >= totalPages()"
-                                    (click)="nextPage()">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
-                            </button>
-                        }
-                        @if (isZoomable()) {
-                            <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
-                                    [disabled]="currentZoom() <= 0.25"
-                                    (click)="zoomOut()">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
-                            </button>
-                            <span class="text-xs text-muted-foreground tabular-nums min-w-[40px] text-center">
-                                {{ zoomPercent() }}%
-                            </span>
-                            <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
-                                    [disabled]="currentZoom() >= 3"
-                                    (click)="zoomIn()">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
-                            </button>
-                        }
-                        @if (downloadUrl()) {
-                            <a [href]="downloadUrl()"
-                               [download]="displayFilename()"
-                               class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted"
-                               title="Download">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                            </a>
-                        }
-                    </div>
-                </div>
-
-                <!-- Content area -->
-                <div class="flex-1 overflow-auto relative" [attr.data-slot]="'file-viewer-content'">
-                    @switch (state()) {
-                        @case ('loading') {
-                            <div class="absolute inset-0 flex items-center justify-center">
-                                <ui-spinner size="lg" />
-                            </div>
-                        }
-                        @case ('error') {
-                            <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-                                <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>
-                                <p class="text-sm text-muted-foreground max-w-xs">{{ errorMessage() }}</p>
-                                @if (downloadUrl()) {
-                                    <a [href]="downloadUrl()" [download]="displayFilename()"
-                                       class="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" x2="12" y1="15" y2="3"/></svg>
-                                        Download file
-                                    </a>
-                                }
-                            </div>
-                        }
-                        @case ('loaded') {
-                            @switch (detectedType()) {
-                                @case ('image') {
-                                    <div class="flex items-center justify-center p-4 min-h-full">
-                                        <img [src]="imageSrc()"
-                                             [alt]="displayFilename()"
-                                             class="max-w-full max-h-full object-contain transition-transform"
-                                             [style.transform]="'scale(' + currentZoom() + ')'"
-                                             [style.transform-origin]="'center center'"
-                                             (error)="onMediaError('Failed to load image')" />
-                                    </div>
-                                }
-                                @case ('pdf') {
-                                    <div class="overflow-auto h-full bg-muted/40 flex justify-center items-start py-4 sm:py-6"
-                                         [style.zoom]="currentZoom()">
-                                        <div class="pdf-page"
-                                             [innerHTML]="currentPdfPageHtml()">
-                                        </div>
-                                    </div>
-                                }
-                                @case ('xlsx') {
-                                    <div class="flex flex-col h-full">
-                                        @if (xlsxTruncated()) {
-                                            <div class="px-3 py-1.5 bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 text-xs border-b">
-                                                Showing first 10,000 rows. Download the file to see all data.
-                                            </div>
-                                        }
-                                        <div class="flex-1 overflow-auto">
-                                            <table class="w-full border-collapse text-sm">
-                                                <thead class="sticky top-0 bg-muted z-10">
-                                                    @if (xlsxHeaderRow(); as headerRow) {
-                                                        <tr>
-                                                            @for (cell of headerRow; track $index) {
-                                                                <th class="border border-border px-2 py-1.5 text-left font-medium text-xs whitespace-nowrap">{{ cell }}</th>
-                                                            }
-                                                        </tr>
-                                                    }
-                                                </thead>
-                                                <tbody>
-                                                    @for (row of xlsxDataRows(); track $index) {
-                                                        <tr class="hover:bg-muted/50">
-                                                            @for (cell of row; track $index) {
-                                                                <td class="border border-border px-2 py-1 text-xs whitespace-nowrap">{{ cell }}</td>
-                                                            }
-                                                        </tr>
-                                                    }
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                        @if (xlsxSheetNames().length > 1) {
-                                            <div class="flex items-center gap-0.5 border-t bg-muted/30 px-2 py-1 overflow-x-auto" [attr.data-slot]="'file-viewer-sheet-tabs'">
-                                                @for (name of xlsxSheetNames(); track $index) {
-                                                    <button class="px-3 py-1 text-xs rounded-t whitespace-nowrap transition-colors"
-                                                            [class]="$index === activeSheetIndex() ? 'bg-background text-foreground font-medium border border-b-0 border-border' : 'text-muted-foreground hover:text-foreground'"
-                                                            (click)="setActiveSheet($index)">
-                                                        {{ name }}
-                                                    </button>
-                                                }
-                                            </div>
-                                        }
-                                    </div>
-                                }
-                                @case ('docx') {
-                                    <div class="p-6 max-w-4xl mx-auto"
-                                         [style.zoom]="currentZoom()"
-                                         [attr.dir]="docxRtl() ? 'rtl' : null"
-                                         [innerHTML]="docxHtml()">
-                                    </div>
-                                }
-                                @case ('doc') {
-                                    <div class="p-6 max-w-4xl mx-auto"
-                                         [style.zoom]="currentZoom()"
-                                         [attr.dir]="docxRtl() ? 'rtl' : null"
-                                         [innerHTML]="docxHtml()">
-                                    </div>
-                                }
-                                @case ('pptx') {
-                                    <div class="flex items-center justify-center p-4">
-                                        <div class="bg-white rounded shadow-lg overflow-hidden"
-                                             [style.width.px]="pptxDisplayWidth()"
-                                             [style.height.px]="pptxDisplayHeight()"
-                                             [style.transform]="'scale(' + currentZoom() + ')'"
-                                             [style.transform-origin]="'center center'"
-                                             [innerHTML]="currentSlideHtml()">
-                                        </div>
-                                    </div>
-                                }
-                                @case ('ppt') {
-                                    <div class="flex items-center justify-center p-4">
-                                        <div class="bg-white rounded shadow-lg overflow-hidden"
-                                             [style.width.px]="pptxDisplayWidth()"
-                                             [style.height.px]="pptxDisplayHeight()"
-                                             [style.transform]="'scale(' + currentZoom() + ')'"
-                                             [style.transform-origin]="'center center'"
-                                             [innerHTML]="currentSlideHtml()">
-                                        </div>
-                                    </div>
-                                }
-                                @case ('text') {
-                                    <div class="p-4 overflow-auto font-mono text-sm"
-                                         [style.zoom]="currentZoom()">
-                                        <pre class="whitespace-pre-wrap break-words">{{ textContent() }}</pre>
-                                    </div>
-                                }
-                                @case ('video') {
-                                    <div class="flex items-center justify-center p-4 h-full">
-                                        <video controls class="max-w-full max-h-full" [src]="mediaSrc()"
-                                               (error)="onMediaError('Failed to load video. The format may not be supported by your browser.')">
-                                            Your browser does not support the video element.
-                                        </video>
-                                    </div>
-                                }
-                                @case ('audio') {
-                                    <div class="flex items-center justify-center p-6">
-                                        <audio controls [src]="mediaSrc()" class="w-full max-w-lg"
-                                               (error)="onMediaError('Failed to load audio. The format may not be supported by your browser.')">
-                                            Your browser does not support the audio element.
-                                        </audio>
-                                    </div>
-                                }
-                                @default {
-                                    <div class="absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center">
-                                        <svg xmlns="http://www.w3.org/2000/svg" width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" class="text-muted-foreground"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/></svg>
-                                        <p class="text-sm text-muted-foreground">Preview not available for this file type.</p>
-                                        @if (downloadUrl()) {
-                                            <a [href]="downloadUrl()" [download]="displayFilename()"
-                                               class="inline-flex items-center gap-1.5 text-sm text-primary hover:underline">
-                                                Download file
-                                            </a>
-                                        }
-                                    </div>
-                                }
-                            }
-                        }
-                    }
-                </div>
-            }
-        </div>
-    `,
+    styleUrl: './file-viewer.component.css',
+    templateUrl: './file-viewer.component.html',
     host: { class: 'contents' },
 })
 export class FileViewerComponent implements AfterContentInit, OnDestroy {
@@ -573,7 +327,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async detectTypeResult(bytes: Uint8Array): Promise<FileTypeResult> {
-        const { detectFileType } = await import('../lib/parsers/file-type-detector');
+        const { detectFileType } = await import('../../lib/parsers/file-type-detector');
         return detectFileType(bytes);
     }
 
@@ -616,7 +370,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
         const isSvg = this.checkIfSvg(bytes);
         if (isSvg) {
             const svgText = new TextDecoder().decode(bytes);
-            const { sanitizeSvg } = await import('../lib/parsers/svg-sanitizer');
+            const { sanitizeSvg } = await import('../../lib/parsers/svg-sanitizer');
             const sanitized = sanitizeSvg(svgText);
             if (!sanitized) throw new Error('Invalid or unsafe SVG file');
             const blob = new Blob([sanitized], { type: 'image/svg+xml' });
@@ -645,7 +399,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processPdf(bytes: Uint8Array): Promise<void> {
-        const { renderPixelPerfectPaged } = await import('../lib/parsers/pdf-pixel-perfect');
+        const { renderPixelPerfectPaged } = await import('../../lib/parsers/pdf-pixel-perfect');
         const result = await renderPixelPerfectPaged(bytes.buffer as ArrayBuffer);
         this.pdfPages.set(result.pages);
         this.pdfGlobalCss.set(result.globalCss);
@@ -654,14 +408,14 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processXlsx(bytes: Uint8Array): Promise<void> {
-        const { parseXlsx } = await import('../lib/parsers/xlsx-reader');
+        const { parseXlsx } = await import('../../lib/parsers/xlsx-reader');
         const result = parseXlsx(bytes);
         this.xlsxData.set(result);
         this.activeSheetIndex.set(0);
     }
 
     private async processDocx(bytes: Uint8Array): Promise<void> {
-        const { parseDocx } = await import('../lib/parsers/docx-parser');
+        const { parseDocx } = await import('../../lib/parsers/docx-parser');
         const result = parseDocx(bytes);
         this.docxRtl.set(this.detectDocumentRtl(result.elements));
         const headerHtml = this.renderDocxHeadersFooters(result.headers, 'header');
@@ -673,7 +427,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processDoc(bytes: Uint8Array): Promise<void> {
-        const { parseDocEnhanced } = await import('../lib/parsers/doc-enhanced-parser');
+        const { parseDocEnhanced } = await import('../../lib/parsers/doc-enhanced-parser');
         const result = parseDocEnhanced(bytes);
         this.docxRtl.set(this.detectDocumentRtl(result.elements));
         this.docxRenderedHtml.set(this.renderDocxToHtml(result.elements));
@@ -1134,7 +888,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processPptx(bytes: Uint8Array): Promise<void> {
-        const { parsePptx } = await import('../lib/parsers/pptx-parser');
+        const { parsePptx } = await import('../../lib/parsers/pptx-parser');
         const result = parsePptx(bytes);
 
         const slides = result.slides.map(slide => ({
@@ -1149,7 +903,7 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
     }
 
     private async processLegacyPpt(bytes: Uint8Array): Promise<void> {
-        const { parsePpt } = await import('../lib/parsers/ppt-parser');
+        const { parsePpt } = await import('../../lib/parsers/ppt-parser');
         const result = parsePpt(bytes);
 
         const slides = result.slides.map(slide => ({

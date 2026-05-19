@@ -125,7 +125,7 @@ export * from './kanban.component';
 export * from './tour.component';
 
 // File Viewer
-export * from './file-viewer.component';
+export * from './file-viewer';
 export { inflate, zlibInflate } from '../lib/parsers/inflate';
 export { readZip, listZipEntries, extractZipEntry } from '../lib/parsers/zip-reader';
 export type { ZipEntry, ZipReadOptions } from '../lib/parsers/zip-reader';
