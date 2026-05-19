@@ -1,7 +1,7 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { TextareaComponent } from './textarea.component';
 import { FormsModule } from '@angular/forms';
-import { LabelComponent } from './label';
+import { LabelComponent } from '../label';
 
 const meta: Meta<TextareaComponent> = {
     title: 'UI/Textarea',

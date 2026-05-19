@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 const textareaVariants = cva(
     'flex min-h-[48px] sm:min-h-[60px] w-full border-input bg-transparent text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
@@ -29,7 +29,7 @@ const textareaVariants = cva(
 
 export type TextareaVariant = VariantProps<typeof textareaVariants>['variant'];
 
-import { UI_INPUT_GROUP } from '../lib/input-group.token';
+import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 @Component({
     selector: 'ui-textarea',
@@ -42,18 +42,7 @@ import { UI_INPUT_GROUP } from '../lib/input-group.token';
             multi: true,
         },
     ],
-    template: `
-    <textarea
-      [class]="classes()"
-      [disabled]="disabled()"
-      [placeholder]="placeholder()"
-      [rows]="rows()"
-      [attr.data-slot]="'textarea'"
-      [ngModel]="value()"
-      (ngModelChange)="onValueChange($event)"
-      (blur)="onTouched()"
-    ></textarea>
-  `,
+    templateUrl: './textarea.component.html',
     host: {
         '[class]': '"contents"',
     },

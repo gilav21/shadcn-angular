@@ -348,7 +348,7 @@ export const registry = defineRegistry({
   },
   textarea: {
     name: 'textarea',
-    files: ['textarea.component.ts'],
+    files: ['textarea/index.ts', 'textarea/textarea.component.html', 'textarea/textarea.component.ts'],
     libFiles: ['input-group.token.ts'],
   },
   timeline: {

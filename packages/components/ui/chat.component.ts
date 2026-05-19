@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { ButtonComponent } from './button';
-import { TextareaComponent } from './textarea.component';
+import { TextareaComponent } from './textarea';
 import { ScrollAreaComponent } from './scroll-area';
 import { AvatarComponent, AvatarFallbackComponent, AvatarImageComponent } from './avatar.component';
 import { FormsModule } from '@angular/forms';

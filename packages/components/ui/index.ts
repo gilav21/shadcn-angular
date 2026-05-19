@@ -12,7 +12,7 @@ export * from './separator';
 export * from './switch';
 export * from './checkbox';
 export * from './radio-group.component';
-export * from './textarea.component';
+export * from './textarea';
 export * from './skeleton';
 export * from './tabs.component';
 export * from './accordion';

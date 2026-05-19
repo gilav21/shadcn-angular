@@ -1,0 +1,10 @@
+<textarea
+  [class]="classes()"
+  [disabled]="disabled()"
+  [placeholder]="placeholder()"
+  [rows]="rows()"
+  [attr.data-slot]="'textarea'"
+  [ngModel]="value()"
+  (ngModelChange)="onValueChange($event)"
+  (blur)="onTouched()"
+></textarea>
