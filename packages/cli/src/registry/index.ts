@@ -28,7 +28,7 @@ function defineRegistry<T extends Record<string, ComponentDefinition>>(reg: T): 
 export const registry = defineRegistry({
   accordion: {
     name: 'accordion',
-    files: ['accordion.component.ts'],
+    files: ['accordion/accordion.component.html', 'accordion/accordion.component.ts', 'accordion/index.ts', 'accordion/sub/accordion-content.component.html', 'accordion/sub/accordion-content.component.ts', 'accordion/sub/accordion-item.component.html', 'accordion/sub/accordion-item.component.ts', 'accordion/sub/accordion-trigger.component.html', 'accordion/sub/accordion-trigger.component.ts'],
   },
   autocomplete: {
     name: 'autocomplete',

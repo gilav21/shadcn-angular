@@ -15,7 +15,7 @@ export * from './radio-group.component';
 export * from './textarea.component';
 export * from './skeleton.component';
 export * from './tabs.component';
-export * from './accordion.component';
+export * from './accordion';
 export * from './progress.component';
 export * from './alert.component';
 export * from './avatar.component';

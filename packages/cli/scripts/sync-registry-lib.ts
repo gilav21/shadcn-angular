@@ -148,6 +148,24 @@ export function classifyImport(
     return { kind: 'own' };
 }
 
+/**
+ * Pick a registry entry's walk entry file. Prefers the component's own barrel
+ * `<name>/index.ts`; a foreign `other/index.ts` that leaked into `files[]`
+ * mid-migration must never be treated as the entry. Falls back to the
+ * `<name>.component.ts` / `<name>.directive.ts` convention, then `files[0]`.
+ */
+export function getEntryFile(name: string, files: readonly string[]): string {
+    const baseName = name.split('/').at(-1) ?? name;
+
+    const barrel = files.find(f => f === `${baseName}/index.ts`);
+    if (barrel) return barrel;
+
+    const conventionFile = files.find(f =>
+        f.endsWith(`${baseName}.component.ts`) || f.endsWith(`${baseName}.directive.ts`),
+    );
+    return conventionFile ?? files[0];
+}
+
 /** A cross-component import that reached another component's internal file. */
 export interface DeepImport {
     /** The file containing the offending import. */

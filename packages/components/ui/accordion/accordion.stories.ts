@@ -4,7 +4,7 @@ import {
   AccordionItemComponent,
   AccordionTriggerComponent,
   AccordionContentComponent,
-} from './accordion.component';
+} from './index';
 
 const meta: Meta<AccordionComponent & { rtl: boolean }> = {
   title: 'UI/Accordion',

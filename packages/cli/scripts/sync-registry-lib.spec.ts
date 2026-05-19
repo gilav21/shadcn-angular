@@ -8,6 +8,7 @@ import {
     parseDecoratorUrls,
     buildDirOwners,
     classifyImport,
+    getEntryFile,
     walkTree,
     type BoundaryContext,
 } from './sync-registry-lib';
@@ -278,5 +279,40 @@ describe('walkTree', () => {
             importedFile: 'ui/accordion/accordion.component.ts',
             owner: 'accordion',
         });
+    });
+});
+
+// ---------------------------------------------------------------------------
+// getEntryFile
+// ---------------------------------------------------------------------------
+
+describe('getEntryFile', () => {
+    it('prefers the component own barrel index.ts', () => {
+        expect(
+            getEntryFile('accordion', ['accordion/accordion.component.ts', 'accordion/index.ts']),
+        ).toBe('accordion/index.ts');
+    });
+
+    it('never treats a foreign component barrel as the entry file', () => {
+        // Regression: a files[] polluted mid-migration with another
+        // component's index.ts must not hijack the entry-file derivation.
+        expect(
+            getEntryFile('shortcut-bindings-dialog', [
+                'accordion/index.ts',
+                'shortcut-bindings-dialog.component.ts',
+            ]),
+        ).toBe('shortcut-bindings-dialog.component.ts');
+    });
+
+    it('falls back to the <name>.component.ts convention', () => {
+        expect(getEntryFile('badge', ['badge.component.ts'])).toBe('badge.component.ts');
+    });
+
+    it('falls back to the <name>.directive.ts convention', () => {
+        expect(getEntryFile('ripple', ['ripple.directive.ts'])).toBe('ripple.directive.ts');
+    });
+
+    it('falls back to the first file when no convention matches', () => {
+        expect(getEntryFile('mystery', ['some-helper.ts'])).toBe('some-helper.ts');
     });
 });

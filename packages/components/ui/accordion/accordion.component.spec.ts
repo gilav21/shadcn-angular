@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent } from './accordion.component';
+import { AccordionComponent, AccordionItemComponent, AccordionTriggerComponent, AccordionContentComponent } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

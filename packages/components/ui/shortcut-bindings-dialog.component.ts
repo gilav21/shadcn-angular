@@ -10,7 +10,7 @@ import { ScrollAreaComponent } from './scroll-area.component';
 import { ButtonComponent } from './button.component';
 import { BadgeComponent } from './badge.component';
 import { ShortcutBindingService, ShortcutBindingView, ShortcutCatalogItem, ShortcutOverrideSchema } from '../lib/shortcut-binding.service';
-import { AccordionComponent, AccordionContentComponent, AccordionItemComponent, AccordionTriggerComponent } from './accordion.component';
+import { AccordionComponent, AccordionContentComponent, AccordionItemComponent, AccordionTriggerComponent } from './accordion';
 
 interface ShortcutDialogInstance {
     componentId: string;

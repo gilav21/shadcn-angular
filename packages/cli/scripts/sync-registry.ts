@@ -15,6 +15,7 @@ import { fileURLToPath } from 'node:url';
 import {
     walkTree,
     buildDirOwners,
+    getEntryFile,
     type BoundaryContext,
     type DeepImport,
 } from './sync-registry-lib';
@@ -90,19 +91,6 @@ function splitFiles(allFiles: Set<string>): { uiFiles: string[]; libFiles: strin
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-function getEntryFile(entry: RegistryEntry): string {
-    // Barrel index.ts re-exports everything — use it when available
-    const indexFile = entry.files.find(f => f.endsWith('index.ts'));
-    if (indexFile) return indexFile;
-
-    // Convention: main file is {name}.component.ts or {name}.directive.ts
-    const baseName = entry.name.split('/').at(-1) ?? entry.name;
-    const conventionFile = entry.files.find(f =>
-        f.endsWith(`${baseName}.component.ts`) || f.endsWith(`${baseName}.directive.ts`),
-    );
-    return conventionFile ?? entry.files[0];
-}
-
 interface ComponentUpdate {
     name: string;
     files: string[];
@@ -113,7 +101,7 @@ interface ComponentUpdate {
 function buildBoundaryMap(entries: RegistryEntry[]): Map<string, string> {
     const map = new Map<string, string>();
     for (const entry of entries) {
-        map.set('ui/' + getEntryFile(entry), entry.name);
+        map.set('ui/' + getEntryFile(entry.name, entry.files), entry.name);
     }
     return map;
 }
@@ -122,7 +110,7 @@ function analyzeComponent(
     entry: RegistryEntry,
     ctx: BoundaryContext,
 ): { update: ComponentUpdate; changed: boolean; deepImports: DeepImport[] } {
-    const entryFile = 'ui/' + getEntryFile(entry);
+    const entryFile = 'ui/' + getEntryFile(entry.name, entry.files);
     const { ownFiles, discoveredDeps, deepImports } =
         walkTree(entryFile, entry.name, ctx, COMPONENTS_ROOT);
     const { uiFiles, libFiles: discoveredLibs } = splitFiles(ownFiles);
