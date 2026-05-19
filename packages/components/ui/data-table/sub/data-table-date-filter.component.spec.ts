@@ -1,12 +1,14 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, it, expect } from 'vitest';
-import { DateRange } from '../calendar.component';
+import { DateRange } from '../../calendar.component';
 import {
   DataTableDateFilterComponent,
-  DataTableDateRangeFilterComponent,
   dateFilterFn,
-  dateRangeFilterFn,
 } from './data-table-date-filter.component';
+import {
+  DataTableDateRangeFilterComponent,
+  dateRangeFilterFn,
+} from './data-table-date-range-filter.component';
 
 describe('DataTableDateFilterComponent', () => {
   let component: DataTableDateFilterComponent;

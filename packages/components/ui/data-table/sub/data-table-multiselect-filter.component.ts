@@ -7,7 +7,7 @@ import {
   signal,
   effect,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 import {
   CommandComponent,
   CommandInputComponent,
@@ -15,10 +15,10 @@ import {
   CommandEmptyComponent,
   CommandItemComponent,
   CommandSeparatorComponent,
-} from '../command.component';
-import { CheckboxComponent } from '../checkbox.component';
-import { BadgeComponent } from '../badge.component';
-import { ButtonComponent } from '../button.component';
+} from '../../command.component';
+import { CheckboxComponent } from '../../checkbox.component';
+import { BadgeComponent } from '../../badge.component';
+import { ButtonComponent } from '../../button.component';
 
 @Component({
   selector: 'ui-data-table-multiselect-filter',
@@ -34,46 +34,7 @@ import { ButtonComponent } from '../button.component';
     BadgeComponent,
     ButtonComponent,
   ],
-  template: `
-    <div [class]="classes()" [attr.data-slot]="'multiselect-filter'">
-      @if (title()) {
-        <div class="flex items-center justify-between px-2 pb-2">
-          <span class="text-sm font-medium">{{ title() }}</span>
-          @if (selectedCount() > 0) {
-            <ui-badge variant="secondary" [label]="String(selectedCount())" class="text-xs" />
-          }
-        </div>
-      }
-      <ui-command [shouldFilter]="true">
-        <ui-command-input [placeholder]="placeholder()" />
-        <div class="flex items-center gap-1 px-2 py-1.5">
-          <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="selectAll()">
-            Select all
-          </ui-button>
-          <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clearAll()">
-            Clear
-          </ui-button>
-        </div>
-        <ui-command-separator />
-        <ui-command-list class="max-h-64">
-          <ui-command-empty>No results.</ui-command-empty>
-          @for (option of options(); track trackOption(option)) {
-            <ui-command-item
-              [value]="getDisplayLabel(option)"
-              (select)="toggleOption(option)"
-              class="gap-2"
-            >
-              <ui-checkbox
-                [checked]="isSelected(option)"
-                [ariaLabel]="getDisplayLabel(option)"
-              />
-              <span>{{ getDisplayLabel(option) }}</span>
-            </ui-command-item>
-          }
-        </ui-command-list>
-      </ui-command>
-    </div>
-  `,
+  templateUrl: './data-table-multiselect-filter.component.html',
   host: { class: 'contents' },
 })
 export class DataTableMultiselectFilterComponent<T = unknown> {

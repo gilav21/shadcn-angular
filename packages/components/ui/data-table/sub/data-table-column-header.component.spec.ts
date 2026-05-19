@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
-import { SortDirection } from './data-table.types';
+import { SortDirection } from '../data-table.types';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 

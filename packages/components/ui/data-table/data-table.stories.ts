@@ -1,13 +1,14 @@
 import { Meta, StoryObj, moduleMetadata, applicationConfig } from '@storybook/angular';
-import { DataTableComponent } from './data-table/data-table.component';
-import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, VirtualAutoThreshold } from './data-table/data-table.types';
+import { DataTableComponent } from './data-table.component';
+import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, VirtualAutoThreshold } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { InputComponent } from './input.component';
-import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from './context-menu.component';
-import { ContextMenuIntegrations } from './context-menu-integrations';
-import { DataTableDateFilterComponent, DataTableDateRangeFilterComponent, dateFilterFn, dateRangeFilterFn } from './data-table/data-table-date-filter.component';
-import { DateRange } from './calendar.component';
+import { InputComponent } from '../input.component';
+import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from '../context-menu.component';
+import { ContextMenuIntegrations } from '../context-menu-integrations';
+import { DataTableDateFilterComponent, dateFilterFn } from './sub/data-table-date-filter.component';
+import { DataTableDateRangeFilterComponent, dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
+import { DateRange } from '../calendar.component';
 
 // Filter component for stories
 @Component({

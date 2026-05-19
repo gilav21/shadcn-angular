@@ -1,7 +1,7 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { moduleMetadata } from '@storybook/angular';
 import { DataTableColumnHeaderComponent } from './data-table-column-header.component';
-import { SortDirection } from './data-table.types';
+import { SortDirection } from '../data-table.types';
 
 const meta: Meta<DataTableColumnHeaderComponent> = {
     title: 'UI/DataTable/ColumnHeader',

@@ -1,0 +1,1330 @@
+    <!-- Reusable: cell content rendering (component/template/cell/default) -->
+    <ng-template
+      #cellContentTpl
+      let-col
+      let-row="row"
+      let-treeRow="treeRow"
+      let-recycle="recycle"
+    >
+      @if (col.component) {
+        <div
+          [uiComponentOutlet]="col.component"
+          [inputs]="
+            treeRow
+              ? getSubRowComponentInputs(col, treeRow)
+              : col.componentInputs
+                ? col.componentInputs(row)
+                : EMPTY_RECORD
+          "
+          [outputs]="
+            col.componentOutputs ? col.componentOutputs(row) : EMPTY_RECORD
+          "
+          [recycle]="recycle"
+        ></div>
+      } @else if (col.template) {
+        @if (treeRow) {
+          <ng-container
+            *ngTemplateOutlet="
+              col.template;
+              context: {
+                $implicit: row,
+                depth: treeRow.depth,
+                parentRow: treeRow.parentRow,
+                parentId: treeRow.parentId,
+                path: treeRow.path,
+                isLeaf: treeRow.isLeaf,
+                childCount: treeRow.childCount,
+              }
+            "
+          ></ng-container>
+        } @else {
+          <ng-container
+            *ngTemplateOutlet="col.template; context: { $implicit: row }"
+          ></ng-container>
+        }
+      } @else if (col.cell) {
+        {{ col.cell(row) }}
+      } @else {
+        {{ getCellValue(row, col.accessorKey, col) }}
+      }
+    </ng-template>
+
+    <!-- Reusable: full cell rendering (special columns + content) -->
+    <ng-template
+      #cellTpl
+      let-col
+      let-row="row"
+      let-rowIndex="rowIndex"
+      let-treeRow="treeRow"
+      let-recycle="recycle"
+    >
+      @if (col.accessorKey === "_selection") {
+        <ui-checkbox
+          [checked]="isRowSelected(row)"
+          [disabled]="isDisabled(row)"
+          [indeterminate]="
+            treeRow ? isSubRowSelectionIndeterminate(row) : false
+          "
+          (checkedChange)="treeRow ? toggleRowWithCascade(row) : toggleRow(row)"
+          ariaLabel="Select row"
+        />
+      } @else if (col._isTreeExpanderHost && treeRow) {
+        <div
+          class="flex items-center gap-1 min-w-0"
+          [style.padding-inline-start.px]="treeRow.depth * subRowIndentSize()"
+        >
+          @if (!treeRow.isLeaf) {
+            <button
+              type="button"
+              class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+              [attr.aria-label]="
+                treeRow.isExpanded ? 'Collapse sub-rows' : 'Expand sub-rows'
+              "
+              (click)="toggleSubRowExpanded(treeRow.row, $event)"
+            >
+              <ui-icon
+                [name]="isRtl() ? 'chevron-left' : 'chevron-right'"
+                size="xs"
+                class="transition-transform duration-200"
+                [class.rotate-90]="treeRow.isExpanded && !isRtl()"
+                [class.-rotate-90]="treeRow.isExpanded && isRtl()"
+              />
+            </button>
+          } @else {
+            <span class="inline-block h-6 w-6 shrink-0"></span>
+          }
+          <span class="truncate">
+            <ng-container
+              *ngTemplateOutlet="
+                cellContentTpl;
+                context: {
+                  $implicit: col,
+                  row: row,
+                  treeRow: treeRow,
+                  recycle: recycle,
+                }
+              "
+            ></ng-container>
+          </span>
+        </div>
+      } @else if (col.accessorKey === "_expander") {
+        <button
+          type="button"
+          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+          [attr.aria-label]="isRowExpanded(row) ? 'Collapse row' : 'Expand row'"
+          [attr.aria-expanded]="isRowExpanded(row)"
+          (click)="toggleRowExpanded(row, $event)"
+        >
+          @if (isRowExpanded(row)) {
+            <ui-icon name="chevron-up" size="xs" />
+          } @else {
+            <ui-icon name="chevron-down" size="xs" />
+          }
+        </button>
+      } @else if (col.accessorKey === "_actions") {
+        @if (!isDisabled(row)) {
+          <ui-button
+            variant="ghost"
+            size="icon"
+            class="h-8 w-8"
+            ariaLabel="Row actions"
+            (click)="onActionsButtonClick($event, row, rowIndex)"
+          >
+            <ui-icon name="more-vertical" size="sm" />
+          </ui-button>
+        }
+      } @else if (
+        col.editable && isEditing(rowIndex, String(col.accessorKey))
+      ) {
+        <ng-container
+          *ngTemplateOutlet="
+            cellEditTpl;
+            context: { $implicit: col, row: row, rowIndex: rowIndex }
+          "
+        ></ng-container>
+      } @else {
+        <ng-container
+          *ngTemplateOutlet="
+            cellContentTpl;
+            context: {
+              $implicit: col,
+              row: row,
+              treeRow: treeRow,
+              recycle: recycle,
+            }
+          "
+        ></ng-container>
+      }
+    </ng-template>
+
+    <!-- Reusable: cell edit mode -->
+    <ng-template #cellEditTpl let-col let-row="row" let-rowIndex="rowIndex">
+      @let editErr = editErrorFor(rowIndex, col);
+      @if (col.editComponent) {
+        <div
+          [uiComponentOutlet]="col.editComponent"
+          [inputs]="{ value: editValue(), row: row, column: col }"
+          [outputs]="{
+            valueChange: onEditValueChange.bind(this),
+            commit: commitEdit.bind(this),
+            cancel: cancelEdit.bind(this),
+          }"
+        ></div>
+      } @else if (col.editTemplate) {
+        <ng-container
+          *ngTemplateOutlet="
+            col.editTemplate;
+            context: {
+              $implicit: editValue(),
+              row: row,
+              column: col,
+              setValue: onEditValueChange.bind(this),
+              commit: commitEdit.bind(this),
+              cancel: cancelEdit.bind(this),
+            }
+          "
+        ></ng-container>
+      } @else if (col.editType === "checkbox") {
+        <ui-checkbox
+          [checked]="!!editValue()"
+          [ariaInvalid]="editErr ? true : undefined"
+          [ariaDescribedby]="editErr ? cellEditErrorId : undefined"
+          (checkedChange)="onEditValueChange($event); commitEdit()"
+        />
+      } @else if (col.editType === "select" && col.editOptions) {
+        <select
+          data-edit-input
+          class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          [class.ring-1]="editErr"
+          [class.ring-inset]="editErr"
+          [class.ring-destructive]="editErr"
+          [attr.aria-invalid]="editErr ? true : null"
+          [attr.aria-describedby]="editErr ? cellEditErrorId : null"
+          [value]="editValue()"
+          (change)="onEditValueChange($any($event.target).value); commitEdit()"
+          (keydown)="onEditKeydown($event)"
+        >
+          @for (opt of col.editOptions; track opt.value) {
+            <option [value]="opt.value">{{ opt.label }}</option>
+          }
+        </select>
+      } @else {
+        <input
+          data-edit-input
+          [type]="col.editType === 'number' ? 'number' : 'text'"
+          class="w-full h-full bg-background border-0 outline-none text-sm px-1"
+          [class.ring-1]="editErr"
+          [class.ring-inset]="editErr"
+          [class.ring-destructive]="editErr"
+          [attr.aria-invalid]="editErr ? true : null"
+          [attr.aria-describedby]="editErr ? cellEditErrorId : null"
+          [value]="editValue()"
+          (input)="onEditValueChange($any($event.target).value)"
+          (keydown)="onEditKeydown($event)"
+          (blur)="editingCell() ? commitEdit() : null"
+        />
+      }
+      @if (editErr) {
+        <p
+          [id]="cellEditErrorId"
+          class="mt-0.5 px-1 text-xs text-destructive"
+          role="alert"
+          data-slot="cell-edit-error"
+        >
+          {{ editErr }}
+        </p>
+      }
+    </ng-template>
+
+    <!-- Reusable: row detail/expansion panel -->
+    <ng-template #rowDetailTpl let-row>
+      @if (rowDetailTemplate()) {
+        <ng-container
+          *ngTemplateOutlet="
+            rowDetailTemplate();
+            context: { $implicit: row, row: row }
+          "
+        ></ng-container>
+      } @else if (rowDetailComponent()) {
+        <div
+          [uiComponentOutlet]="rowDetailComponent()"
+          [inputs]="getRowDetailComponentInputs(row)"
+        ></div>
+      } @else {
+        <pre class="text-xs text-muted-foreground whitespace-pre-wrap">{{
+          row | json
+        }}</pre>
+      }
+    </ng-template>
+
+    <!-- Reusable: empty state -->
+    <ng-template #emptyStateTpl>
+      <ui-table-row class="hover:bg-transparent justify-center w-full">
+        <ui-table-cell
+          class="h-48 sm:h-96 text-center w-full p-0 border-none justify-center"
+        >
+          @if (emptyStateComponent()) {
+            <ng-container
+              [uiComponentOutlet]="emptyStateComponent()"
+              [inputs]="emptyStateComponentInputs()"
+            ></ng-container>
+          } @else {
+            <div
+              class="flex h-full flex-col items-center justify-center py-10 text-center text-muted-foreground w-full"
+            >
+              <ui-icon name="circle-off" size="xl" class="mb-4 opacity-20" />
+              <p>{{ noResultsLabel() }}</p>
+            </div>
+          }
+        </ui-table-cell>
+      </ui-table-row>
+    </ng-template>
+
+    <div class="flex flex-col w-full h-full space-y-4">
+      <div
+        class="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-slot="data-table-announcer"
+      >
+        {{ srAnnouncement() }}
+      </div>
+      @if (showToolbar()) {
+        <div class="flex flex-wrap items-center justify-between gap-2 flex-none">
+          <div class="flex flex-1 items-center space-x-2">
+            <ui-input
+              [placeholder]="filterPlaceholder()"
+              [ngModel]="globalFilter()"
+              (ngModelChange)="onFilterChange($event)"
+              class="h-8 w-full sm:w-[150px] lg:w-[250px]"
+            />
+          </div>
+          @if (showColumnVisibilityToggle() && hideableColumns().length > 0) {
+            <ui-popover>
+              <ui-popover-trigger>
+                <button
+                  type="button"
+                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
+                  aria-label="Toggle columns"
+                >
+                  {{ columnsLabel() }}
+                </button>
+              </ui-popover-trigger>
+              <ui-popover-content class="w-56 p-2">
+                <div class="space-y-1">
+                  @for (col of hideableColumns(); track col.accessorKey) {
+                    <label
+                      class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
+                    >
+                      <ui-checkbox
+                        [checked]="isColumnVisible(col.accessorKey)"
+                        (checkedChange)="
+                          setColumnVisibility(col.accessorKey, $event)
+                        "
+                        [ariaLabel]="'Toggle ' + col.header + ' column'"
+                      />
+                      <span>{{ col.header }}</span>
+                    </label>
+                  }
+                </div>
+              </ui-popover-content>
+            </ui-popover>
+          }
+        </div>
+      }
+
+      <div
+        #scrollContainer
+        class="rounded-md border relative flex-1 min-h-0 overflow-auto w-full"
+        [class.contain-strict]="isVirtualScrollActive()"
+        [class.will-change-scroll]="isVirtualScrollActive()"
+        (keydown)="onTableKeydown($event)"
+        (click)="onTableClick()"
+        (contextmenu)="onRowContextMenu($event)"
+        (scroll)="isVirtualScrollActive() ? onVirtualScroll($event) : null"
+        (dragover)="onContainerDragOver($event)"
+        (drop)="onRowDrop($event)"
+        tabindex="0"
+      >
+        @if (isLoaderVisible()) {
+          <div
+            class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
+          >
+            @if (loaderTemplate()) {
+              <ng-container
+                *ngTemplateOutlet="
+                  loaderTemplate();
+                  context: {
+                    $implicit: loadingTrigger(),
+                    trigger: loadingTrigger(),
+                  }
+                "
+              ></ng-container>
+            } @else if (loaderComponent()) {
+              <ng-container
+                [uiComponentOutlet]="loaderComponent()"
+                [inputs]="resolvedLoaderComponentInputs()"
+              ></ng-container>
+            } @else {
+              <div
+                class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground"
+              >
+                <span
+                  class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"
+                ></span>
+                <span>Loading...</span>
+              </div>
+            }
+          </div>
+        }
+        @if (exporting()) {
+          <div
+            class="absolute inset-0 z-40 flex items-center justify-center bg-background/70 backdrop-blur-[1px]"
+          >
+            <div
+              class="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-sm text-muted-foreground"
+            >
+              <span
+                class="inline-block h-3 w-3 animate-spin rounded-full border-2 border-muted-foreground/30 border-t-muted-foreground"
+              ></span>
+              <span>Exporting...</span>
+            </div>
+          </div>
+        }
+        <ui-table>
+          <ui-table-header class="bg-background">
+            <ui-table-row>
+              @for (col of enhancedColumns(); track col.accessorKey) {
+                <ui-table-head
+                  [class]="getHeaderClass(col)"
+                  class="group/head"
+                  [class.cursor-grab]="isColumnDraggable(col)"
+                  [class.cursor-grabbing]="isDraggingColumn(col)"
+                  [class.opacity-70]="isDraggingColumn(col)"
+                  [class.relative]="isDropTargetColumn(col)"
+                  [attr.data-column-id]="String(col.accessorKey)"
+                  [attr.aria-sort]="getAriaSort(col)"
+                  [attr.draggable]="isColumnDraggable(col) ? 'true' : null"
+                  [style]="getHeaderCellStyle(col)"
+                  (dragstart)="onColumnDragStart($event, col)"
+                  (dragover)="onColumnDragOver($event, col)"
+                  (drop)="onColumnDrop($event, col)"
+                  (dragend)="onColumnDragEnd()"
+                >
+                  @if (isDropTargetColumn(col)) {
+                    <div
+                      class="pointer-events-none absolute inset-0 z-30 border-2 border-primary/70 bg-primary/10"
+                    ></div>
+                  }
+                  <div class="flex items-center w-full h-full">
+                    <div class="flex-1 min-w-0">
+                      @if (col.accessorKey === "_selection") {
+                        <ui-checkbox
+                          [checked]="isAllSelected()"
+                          [indeterminate]="isIndeterminate()"
+                          (checkedChange)="toggleAll()"
+                          ariaLabel="Select all"
+                        />
+                      } @else if (col._isTreeExpanderHost) {
+                        <div class="flex items-center gap-1">
+                          <button
+                            type="button"
+                            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                            [attr.aria-label]="
+                              isAllSubRowsExpanded()
+                                ? 'Collapse all sub-rows'
+                                : 'Expand all sub-rows'
+                            "
+                            (click)="
+                              isAllSubRowsExpanded()
+                                ? collapseAllSubRows()
+                                : expandAllSubRows(-1)
+                            "
+                          >
+                            @if (isAllSubRowsExpanded()) {
+                              <ui-icon name="chevrons-up" size="xs" />
+                            } @else {
+                              <ui-icon name="chevrons-down" size="xs" />
+                            }
+                          </button>
+                          @if (col.enableSorting !== false) {
+                            <ui-data-table-column-header
+                              [title]="col.header"
+                              [column]="String(col.accessorKey)"
+                              [direction]="getSortDirection(col.accessorKey)"
+                              [sortIndex]="getSortIndex(col.accessorKey)"
+                              (sortMeta)="
+                                onSortChange(
+                                  col.accessorKey,
+                                  $event.direction,
+                                  $event.multi
+                                )
+                              "
+                            />
+                          } @else {
+                            <span>{{ col.header }}</span>
+                          }
+                        </div>
+                      } @else if (col.accessorKey === "_expander") {
+                        <button
+                          type="button"
+                          class="inline-flex h-7 w-7 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                          [attr.aria-label]="
+                            isAllExpanded()
+                              ? 'Collapse all rows'
+                              : 'Expand all rows'
+                          "
+                          (click)="toggleAllExpanded()"
+                        >
+                          @if (isAllExpanded()) {
+                            <ui-icon name="chevrons-up" size="xs" />
+                          } @else {
+                            <ui-icon name="chevrons-down" size="xs" />
+                          }
+                        </button>
+                      } @else if (col.accessorKey === "_actions") {
+                        <span class="sr-only">Actions</span>
+                      } @else if (col.headerTemplate) {
+                        <ng-container
+                          *ngTemplateOutlet="
+                            col.headerTemplate;
+                            context: { $implicit: col }
+                          "
+                        ></ng-container>
+                      } @else if (col.enableSorting !== false) {
+                        <div class="flex items-center gap-2">
+                          <ui-data-table-column-header
+                            [title]="col.header"
+                            [column]="String(col.accessorKey)"
+                            [direction]="getSortDirection(col.accessorKey)"
+                            [sortIndex]="getSortIndex(col.accessorKey)"
+                            (sortMeta)="
+                              onSortChange(
+                                col.accessorKey,
+                                $event.direction,
+                                $event.multi
+                              )
+                            "
+                          />
+                          @if (col.enableFiltering && col.filterComponent) {
+                            <ui-popover [closeOnScroll]="true">
+                              <ui-popover-trigger>
+                                <button
+                                  class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  [class.text-primary]="
+                                    isColumnFilterActive(col)
+                                  "
+                                  [attr.aria-label]="'Filter ' + col.header"
+                                >
+                                  @if (isColumnFilterActive(col)) {
+                                    <ui-icon
+                                      name="filter"
+                                      size="sm"
+                                      weight="solid"
+                                    />
+                                  } @else {
+                                    <ui-icon name="filter" size="sm" />
+                                  }
+                                </button>
+                              </ui-popover-trigger>
+                              <ui-popover-content
+                                class="w-80 max-w-[calc(100vw-2rem)]"
+                                strategy="fixed"
+                                align="end"
+                              >
+                                <div
+                                  [uiComponentOutlet]="col.filterComponent"
+                                  [inputs]="getFilterInputs(col)"
+                                  [outputs]="getFilterOutputs(col)"
+                                ></div>
+                              </ui-popover-content>
+                            </ui-popover>
+                          }
+                        </div>
+                      } @else {
+                        <div class="flex items-center gap-2">
+                          <span>{{ col.header }}</span>
+                          @if (col.enableFiltering && col.filterComponent) {
+                            <ui-popover>
+                              <ui-popover-trigger>
+                                <button
+                                  class="relative inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground h-8 w-8"
+                                  [class.text-primary]="
+                                    isColumnFilterActive(col)
+                                  "
+                                  [attr.aria-label]="'Filter ' + col.header"
+                                >
+                                  @if (isColumnFilterActive(col)) {
+                                    <ui-icon
+                                      name="filter"
+                                      size="sm"
+                                      weight="solid"
+                                    />
+                                  } @else {
+                                    <ui-icon name="filter" size="sm" />
+                                  }
+                                </button>
+                              </ui-popover-trigger>
+                              <ui-popover-content
+                                class="w-80 max-w-[calc(100vw-2rem)]"
+                                strategy="fixed"
+                                align="end"
+                              >
+                                <div
+                                  [uiComponentOutlet]="col.filterComponent"
+                                  [inputs]="getFilterInputs(col)"
+                                  [outputs]="getFilterOutputs(col)"
+                                ></div>
+                              </ui-popover-content>
+                            </ui-popover>
+                          }
+                        </div>
+                      }
+                    </div>
+                    @if (
+                      enableColumnMenu() &&
+                      col.accessorKey !== "_selection" &&
+                      col.accessorKey !== "_expander" &&
+                      col.accessorKey !== "_actions"
+                    ) {
+                      <button
+                        type="button"
+                        class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md opacity-0 group-hover/head:opacity-100 touch-visible hover:bg-accent hover:text-accent-foreground transition-opacity"
+                        [attr.aria-label]="'Column menu for ' + col.header"
+                        (click)="onColumnMenuClick($event, col)"
+                      >
+                        <ui-icon name="more-vertical" size="xs" />
+                      </button>
+                    }
+                  </div>
+                  @if (
+                    enableColumnResize() &&
+                    col.accessorKey !== "_selection"
+                  ) {
+                    <div
+                      class="group/resize absolute top-0 w-4 h-full cursor-col-resize touch-none z-40 select-none"
+                      [class.right-0]="!isRtl()"
+                      [class.translate-x-1/2]="!isRtl()"
+                      [class.left-0]="isRtl()"
+                      [class.-translate-x-1/2]="isRtl()"
+                      (mousedown)="onResizeStart($event, col)"
+                      (touchstart)="onResizeTouchStart($event, col)"
+                      role="separator"
+                      [attr.aria-label]="'Resize ' + col.header + ' column'"
+                    >
+                      <div
+                        [class]="resizeLineClass(col)"
+                        aria-hidden="true"
+                      ></div>
+                    </div>
+                  }
+                </ui-table-head>
+              }
+              @if (!hasFlexibleColumns()) {
+                <ui-table-head
+                  class="flex-1 pointer-events-none"
+                  [class]="getHeaderClass({ _width: 'auto' })"
+                ></ui-table-head>
+              }
+            </ui-table-row>
+            @if (enableFloatingFilters() && hasAnyFloatingFilter()) {
+              <ui-table-row class="border-0">
+                @for (col of enhancedColumns(); track col.accessorKey) {
+                  <ui-table-head
+                    [style]="getHeaderCellStyle(col)"
+                    class="sticky top-[var(--header-height,41px)] z-20 bg-muted/50 py-1 px-1 overflow-hidden"
+                  >
+                    @if (
+                      col.floatingFilter !== false &&
+                      col.accessorKey !== "_selection" &&
+                      col.accessorKey !== "_expander" &&
+                      col.accessorKey !== "_actions"
+                    ) {
+                      @if (col.floatingFilterComponent) {
+                        <div
+                          [uiComponentOutlet]="col.floatingFilterComponent"
+                          [inputs]="getFilterInputs(col)"
+                          [outputs]="getFilterOutputs(col)"
+                        ></div>
+                      } @else if (col.floatingFilterTemplate) {
+                        <ng-container
+                          *ngTemplateOutlet="
+                            col.floatingFilterTemplate;
+                            context: {
+                              $implicit: col,
+                              value: columnFilters()[String(col.accessorKey)],
+                              change: getFloatingFilterChange(col),
+                            }
+                          "
+                        ></ng-container>
+                      } @else if (col.enableFiltering) {
+                        <ui-input
+                          class="h-7 text-xs"
+                          [placeholder]="col.header"
+                          [ngModel]="
+                            columnFilters()[String(col.accessorKey)] || ''
+                          "
+                          (ngModelChange)="
+                            onColumnFilterChange(col.accessorKey, $event)
+                          "
+                        />
+                      }
+                    }
+                  </ui-table-head>
+                }
+                @if (!hasFlexibleColumns()) {
+                  <ui-table-head
+                    class="flex-1 pointer-events-none sticky top-[var(--header-height,41px)] z-20 bg-muted/50"
+                  ></ui-table-head>
+                }
+              </ui-table-row>
+            }
+          </ui-table-header>
+          <ui-table-body>
+            @if (isVirtualScrollActive()) {
+              <div
+                [style.height.px]="virtualPaddingTop()"
+                class="flex-shrink-0"
+              ></div>
+              @if (enableSubRows()) {
+                @for (
+                  treeRow of virtualVisibleTreeRows();
+                  track getRowId()(treeRow.row);
+                  let i = $index
+                ) {
+                  <ui-table-row
+                    #virtualRow
+                    [attr.data-state]="
+                      isRowSelected(treeRow.row) ? 'selected' : null
+                    "
+                    [attr.data-disabled]="isDisabled(treeRow.row) || null"
+                    [class.opacity-50]="isDisabled(treeRow.row)"
+                    [attr.data-row-index]="getVirtualRowIndex(i)"
+                    [attr.data-row-id]="getRowId()(treeRow.row)"
+                    [attr.data-virtual-row-index]="getVirtualRowIndex(i)"
+                    [attr.data-depth]="treeRow.depth"
+                    [attr.aria-level]="treeRow.depth + 1"
+                    [attr.aria-expanded]="
+                      treeRow.isLeaf ? null : treeRow.isExpanded
+                    "
+                    [style.height.px]="
+                      virtualVariableRowHeight() ? null : virtualRowHeight()
+                    "
+                    class="border-0"
+                  >
+                    @for (col of pinnedLeftColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="
+                          getCellClass(
+                            col,
+                            getVirtualRowIndex(i),
+                            treeRow.depth
+                          )
+                        "
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getTreeCellStyle(col, treeRow.depth)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: treeRow.row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: treeRow,
+                              recycle: virtualRecycleComponents(),
+                            }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    }
+                    <div
+                      [style.min-width.px]="virtualPaddingLeft()"
+                      class="flex-shrink-0"
+                    ></div>
+                    @for (
+                      col of virtualVisibleMiddleColumns();
+                      track col.accessorKey
+                    ) {
+                      <ui-table-cell
+                        [class]="
+                          getCellClass(
+                            col,
+                            getVirtualRowIndex(i),
+                            treeRow.depth
+                          )
+                        "
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getTreeCellStyle(col, treeRow.depth)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: treeRow.row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: treeRow,
+                              recycle: virtualRecycleComponents(),
+                            }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    }
+                    <div
+                      [style.min-width.px]="virtualPaddingRight()"
+                      class="flex-shrink-0"
+                    ></div>
+                    @for (col of pinnedRightColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="
+                          getCellClass(
+                            col,
+                            getVirtualRowIndex(i),
+                            treeRow.depth
+                          )
+                        "
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getTreeCellStyle(col, treeRow.depth)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: treeRow.row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: treeRow,
+                              recycle: virtualRecycleComponents(),
+                            }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    }
+                  </ui-table-row>
+                }
+              } @else {
+                @for (
+                  row of virtualVisibleRows();
+                  track getRowId()(row);
+                  let i = $index
+                ) {
+                  <ui-table-row
+                    #virtualRow
+                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [attr.data-disabled]="isDisabled(row) || null"
+                    [class.opacity-50]="isDisabled(row)"
+                    [class.opacity-30]="isRowBeingDragged(row)"
+                    [attr.data-row-index]="getVirtualRowIndex(i)"
+                    [attr.data-row-id]="getRowId()(row)"
+                    [attr.data-virtual-row-index]="getVirtualRowIndex(i)"
+                    [attr.draggable]="enableRowDrag() && !isDisabled(row) ? 'true' : null"
+                    (dragstart)="onRowDragStart($event, row)"
+                    (dragover)="onRowDragOver($event, getVirtualRowIndex(i))"
+                    (drop)="onRowDrop($event)"
+                    (dragend)="onRowDragEnd()"
+                    [style.height.px]="
+                      virtualVariableRowHeight() ? null : virtualRowHeight()
+                    "
+                    class="border-0 relative"
+                  >
+                    @switch (getDropEdge(getVirtualRowIndex(i))) {
+                      @case ('top') {
+                        <div class="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 bg-primary shadow-[0_0_4px_0] shadow-primary"></div>
+                      }
+                      @case ('bottom') {
+                        <div class="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-0.5 bg-primary shadow-[0_0_4px_0] shadow-primary"></div>
+                      }
+                      @case ('on') {
+                        <div class="pointer-events-none absolute inset-0 z-30 border-2 border-primary/50 rounded-sm bg-primary/5"></div>
+                      }
+                    }
+                    @for (col of pinnedLeftColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i))"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getCellStyle(col)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: null,
+                              recycle: virtualRecycleComponents(),
+                            }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    }
+                    <div
+                      [style.min-width.px]="virtualPaddingLeft()"
+                      class="flex-shrink-0"
+                    ></div>
+                    @for (
+                      col of virtualVisibleMiddleColumns();
+                      track col.accessorKey
+                    ) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i))"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getCellStyle(col)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: null,
+                              recycle: virtualRecycleComponents(),
+                            }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    }
+                    <div
+                      [style.min-width.px]="virtualPaddingRight()"
+                      class="flex-shrink-0"
+                    ></div>
+                    @for (col of pinnedRightColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, getVirtualRowIndex(i))"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getCellStyle(col)"
+                        (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (dblclick)="
+                          onCellDblClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (touchend)="
+                          onCellTouchEnd($event, getVirtualRowIndex(i), col)
+                        "
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: row,
+                              rowIndex: getVirtualRowIndex(i),
+                              treeRow: null,
+                              recycle: virtualRecycleComponents(),
+                            }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    }
+                  </ui-table-row>
+                  @if (enableRowExpansion() && isRowExpanded(row)) {
+                    <ui-table-row class="border-0 bg-muted/20">
+                      <ui-table-cell
+                        class="flex-1 border-b"
+                        style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            rowDetailTpl;
+                            context: { $implicit: row }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    </ui-table-row>
+                  }
+                }
+              }
+              @if (virtualTotalRows() === 0) {
+                <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
+              }
+              <div
+                [style.height.px]="virtualPaddingBottom()"
+                class="flex-shrink-0"
+              ></div>
+            } @else if (enableSubRows()) {
+              @if (processedTreeRows().length > 0) {
+                @for (
+                  treeRow of processedTreeRows();
+                  track getRowId()(treeRow.row);
+                  let i = $index
+                ) {
+                  <ui-table-row
+                    [attr.data-state]="isRowSelected(treeRow.row) ? 'selected' : null"
+                    [attr.data-disabled]="isDisabled(treeRow.row) || null"
+                    [class.opacity-50]="isDisabled(treeRow.row)"
+                    [class.opacity-30]="isRowBeingDragged(treeRow.row)"
+                    [class.ring-2]="isRowBeingDragged(treeRow.row)"
+                    [class.ring-primary/30]="isRowBeingDragged(treeRow.row)"
+                    [class.ring-inset]="isRowBeingDragged(treeRow.row)"
+                    [class.bg-primary/5]="isRowBeingDragged(treeRow.row)"
+                    [attr.data-row-index]="i"
+                    [attr.data-row-id]="getRowId()(treeRow.row)"
+                    [attr.data-depth]="treeRow.depth"
+                    [attr.aria-level]="treeRow.depth + 1"
+                    [attr.aria-expanded]="treeRow.isLeaf ? null : treeRow.isExpanded"
+                    [attr.draggable]="enableRowDrag() && !isDisabled(treeRow.row) ? 'true' : null"
+                    (dragstart)="onRowDragStart($event, treeRow.row)"
+                    (dragover)="onRowDragOver($event, i)"
+                    (drop)="onRowDrop($event)"
+                    (dragend)="onRowDragEnd()"
+                    class="border-0 relative"
+                  >
+                    @switch (getDropEdge(i)) {
+                      @case ('top') {
+                        <div class="pointer-events-none absolute inset-x-0 top-0 z-30 h-0.5 bg-primary shadow-[0_0_4px_0] shadow-primary"></div>
+                      }
+                      @case ('bottom') {
+                        <div class="pointer-events-none absolute inset-x-0 bottom-0 z-30 h-0.5 bg-primary shadow-[0_0_4px_0] shadow-primary"></div>
+                      }
+                      @case ('on') {
+                        <div class="pointer-events-none absolute inset-0 z-30 border-2 border-primary/50 rounded-sm bg-primary/5"></div>
+                      }
+                    }
+                    @for (col of enhancedColumns(); track col.accessorKey) {
+                      <ui-table-cell
+                        [class]="getCellClass(col, i, treeRow.depth)"
+                        [attr.data-column]="String(col.accessorKey)"
+                        [style]="getTreeCellStyle(col, treeRow.depth)"
+                        (click)="onCellClick(i, col, $event)"
+                        (dblclick)="onCellDblClick(i, col, $event)"
+                        (touchend)="onCellTouchEnd($event, i, col)"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            cellTpl;
+                            context: {
+                              $implicit: col,
+                              row: treeRow.row,
+                              rowIndex: i,
+                              treeRow: treeRow,
+                              recycle: false,
+                            }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    }
+                    @if (!hasFlexibleColumns()) {
+                      <ui-table-cell
+                        class="flex-1 pointer-events-none"
+                        [class]="getCellClass({ _width: 'auto' })"
+                      ></ui-table-cell>
+                    }
+                  </ui-table-row>
+                  @if (enableRowExpansion() && isRowExpanded(treeRow.row)) {
+                    <ui-table-row class="border-0 bg-muted/20">
+                      <ui-table-cell
+                        class="flex-1 border-b"
+                        style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;"
+                      >
+                        <ng-container
+                          *ngTemplateOutlet="
+                            rowDetailTpl;
+                            context: { $implicit: treeRow.row }
+                          "
+                        ></ng-container>
+                      </ui-table-cell>
+                    </ui-table-row>
+                  }
+                }
+              } @else {
+                <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
+              }
+            } @else if (groupingActive()) {
+              @if (pagedGroupedDisplayRows().length > 0) {
+                @for (
+                  displayRow of pagedGroupedDisplayRows();
+                  track groupTrackBy(displayRow);
+                  let i = $index
+                ) {
+                  @if (isGroupRow(displayRow)) {
+                    <ui-table-row
+                      class="border-0 bg-muted/40 cursor-pointer select-none"
+                      data-slot="table-group-row"
+                      [attr.data-group-key]="displayRow.groupKey"
+                      [attr.aria-expanded]="!displayRow.collapsed"
+                      (click)="toggleGroupCollapsed(displayRow.groupKey)"
+                    >
+                      <ui-table-cell
+                        class="flex-1 border-b font-medium"
+                        style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;"
+                      >
+                        <div class="flex flex-wrap items-center gap-2">
+                          <button
+                            type="button"
+                            class="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-md hover:bg-accent hover:text-accent-foreground"
+                            [attr.aria-label]="
+                              displayRow.collapsed ? 'Expand group' : 'Collapse group'
+                            "
+                            (click)="
+                              $event.stopPropagation();
+                              toggleGroupCollapsed(displayRow.groupKey)
+                            "
+                          >
+                            <ui-icon
+                              [name]="isRtl() ? 'chevron-left' : 'chevron-right'"
+                              size="xs"
+                              class="transition-transform duration-200"
+                              [class.rotate-90]="!displayRow.collapsed && !isRtl()"
+                              [class.-rotate-90]="!displayRow.collapsed && isRtl()"
+                            />
+                          </button>
+                          <span class="truncate">{{ groupRowValueLabel(displayRow) }}</span>
+                          <span class="text-xs text-muted-foreground">({{ displayRow.count }})</span>
+                          @if (groupAggregates()) {
+                            @for (entry of displayRow.aggregates | keyvalue: keepGroupAggregateOrder; track entry.key) {
+                              <span class="text-xs text-muted-foreground">
+                                {{ groupAggregateLabel(entry.key) }}: {{ entry.value }}
+                              </span>
+                            }
+                          }
+                        </div>
+                      </ui-table-cell>
+                    </ui-table-row>
+                  } @else {
+                    <ui-table-row
+                      [attr.data-state]="isRowSelected(displayRow.row) ? 'selected' : null"
+                      [attr.data-disabled]="isDisabled(displayRow.row) || null"
+                      [class.opacity-50]="isDisabled(displayRow.row)"
+                      [attr.data-row-id]="getRowId()(displayRow.row)"
+                      data-slot="table-group-data-row"
+                      class="border-0"
+                    >
+                      @for (col of enhancedColumns(); track col.accessorKey) {
+                        <ui-table-cell
+                          [class]="getCellClass(col, i)"
+                          [attr.data-column]="String(col.accessorKey)"
+                          [style]="getCellStyle(col)"
+                        >
+                          <ng-container
+                            *ngTemplateOutlet="
+                              cellTpl;
+                              context: {
+                                $implicit: col,
+                                row: displayRow.row,
+                                rowIndex: i,
+                                treeRow: null,
+                                recycle: false,
+                              }
+                            "
+                          ></ng-container>
+                        </ui-table-cell>
+                      }
+                      @if (!hasFlexibleColumns()) {
+                        <ui-table-cell
+                          class="flex-1 pointer-events-none"
+                          [class]="getCellClass({ _width: 'auto' })"
+                        ></ui-table-cell>
+                      }
+                    </ui-table-row>
+                  }
+                }
+              } @else {
+                <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
+              }
+            } @else if (processedData().length > 0) {
+              @for (
+                row of (dragPreviewData() ?? processedData());
+                track getRowId()(row);
+                let i = $index
+              ) {
+                @if (isFullWidthRow(row)) {
+                  <ui-table-row
+                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [attr.data-disabled]="isDisabled(row) || null"
+                    [class.opacity-50]="isDisabled(row)"
+                    [attr.data-row-index]="i"
+                    [attr.data-row-id]="getRowId()(row)"
+                    class="border-0"
+                  >
+                    <ui-table-cell
+                      class="flex-1 border-b"
+                      style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;"
+                    >
+                      @if (fullWidthRowTemplate()) {
+                        <ng-container
+                          *ngTemplateOutlet="
+                            fullWidthRowTemplate();
+                            context: { $implicit: row, index: i }
+                          "
+                        ></ng-container>
+                      } @else if (fullWidthRowComponent()) {
+                        <div
+                          [uiComponentOutlet]="fullWidthRowComponent()"
+                          [inputs]="{ row: row, index: i }"
+                        ></div>
+                      }
+                    </ui-table-cell>
+                  </ui-table-row>
+                } @else {
+                  <ui-table-row
+                    [attr.data-state]="isRowSelected(row) ? 'selected' : null"
+                    [attr.data-disabled]="isDisabled(row) || null"
+                    [class.opacity-50]="isDisabled(row)"
+                    [class.opacity-30]="isRowBeingDragged(row)"
+                    [class.ring-2]="isRowBeingDragged(row)"
+                    [class.ring-primary/30]="isRowBeingDragged(row)"
+                    [class.ring-inset]="isRowBeingDragged(row)"
+                    [class.bg-primary/5]="isRowBeingDragged(row)"
+                    [attr.data-row-index]="i"
+                    [attr.data-row-id]="getRowId()(row)"
+                    [attr.draggable]="enableRowDrag() && !isDisabled(row) ? 'true' : null"
+                    (dragstart)="onRowDragStart($event, row)"
+                    (dragover)="onRowDragOver($event, i)"
+                    (drop)="onRowDrop($event)"
+                    (dragend)="onRowDragEnd()"
+                    class="border-0"
+                  >
+                    @for (col of enhancedColumns(); track col.accessorKey) {
+                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)" (touchend)="onCellTouchEnd($event, i, col)">
+                        <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: col, row: row, rowIndex: i, treeRow: null, recycle: false }"></ng-container>
+                      </ui-table-cell>
+                    }
+                    @if (!hasFlexibleColumns()) {
+                      <ui-table-cell class="flex-1 pointer-events-none" [class]="getCellClass({ _width: 'auto' })"></ui-table-cell>
+                    }
+                  </ui-table-row>
+                  @if (enableRowExpansion() && isRowExpanded(row)) {
+                    <ui-table-row class="border-0 bg-muted/20">
+                      <ui-table-cell class="flex-1 border-b" style="min-width: 0; max-width: none; width: 100%; flex-basis: 100%;">
+                        <ng-container *ngTemplateOutlet="rowDetailTpl; context: { $implicit: row }"></ng-container>
+                      </ui-table-cell>
+                    </ui-table-row>
+                  }
+                }
+              }
+            } @else {
+              <ng-container *ngTemplateOutlet="emptyStateTpl"></ng-container>
+            }
+            <ui-table-row class="h-full">
+              @for (col of enhancedColumns(); track col.accessorKey) {
+                <ui-table-cell
+                  [class]="getCellClass(col)"
+                  [style]="getCellStyle(col)"
+                  class="bg-background border-0 p-0"
+                ></ui-table-cell>
+              }
+            </ui-table-row>
+          </ui-table-body>
+          @if (hasFooter()) {
+            <div
+              class="sticky bottom-0 z-20 bg-background border-t"
+              data-slot="table-footer"
+            >
+              <ui-table-row>
+                @for (col of enhancedColumns(); track col.accessorKey) {
+                  <ui-table-cell
+                    [style]="getCellStyle(col)"
+                    class="whitespace-nowrap overflow-hidden text-ellipsis text-sm font-medium text-muted-foreground"
+                  >
+                    @if (col.footerComponent) {
+                      <div
+                        [uiComponentOutlet]="col.footerComponent"
+                        [inputs]="{
+                          column: col,
+                          rows: filteredData(),
+                          value:
+                            footerValues().get(String(col.accessorKey)) || '',
+                        }"
+                      ></div>
+                    } @else if (col.footerTemplate) {
+                      <ng-container
+                        *ngTemplateOutlet="
+                          col.footerTemplate;
+                          context: {
+                            $implicit: col,
+                            rows: filteredData(),
+                            value:
+                              footerValues().get(String(col.accessorKey)) || '',
+                          }
+                        "
+                      ></ng-container>
+                    } @else {
+                      {{ footerValues().get(String(col.accessorKey)) || "" }}
+                    }
+                  </ui-table-cell>
+                }
+                @if (!hasFlexibleColumns()) {
+                  <ui-table-cell
+                    class="flex-1 pointer-events-none"
+                  ></ui-table-cell>
+                }
+              </ui-table-row>
+            </div>
+          }
+        </ui-table>
+      </div>
+
+      @if (showPagination()) {
+        <ui-data-table-pagination
+          class="flex-none"
+          [total]="activeTotalItems()"
+          [state]="paginationState()"
+          [pageSizeOptions]="pageSizeOptions()"
+          [showPageSizeSelector]="showPageSizeSelector()"
+          [rowsPerPageLabel]="rowsPerPageLabel()"
+          [pageLabel]="pageLabel()"
+          [ofLabel]="ofLabel()"
+          (paginationChange)="onPaginationChange($event)"
+        />
+      }
+    </div>
+    @if (rowActions()) {
+      <ui-context-menu
+        #rowActionsContextMenu
+        [items]="activeContextMenuItems()"
+      >
+      </ui-context-menu>
+    }
+    @if (enableColumnMenu()) {
+      <ui-context-menu #columnMenuContextMenu [items]="activeColumnMenuItems()">
+      </ui-context-menu>
+    }

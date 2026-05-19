@@ -148,7 +148,7 @@ export const registry = defineRegistry({
   },
   'data-table': {
     name: 'data-table',
-    files: ['calendar-locales.ts', 'data-table/component-pool.service.ts', 'data-table/data-table-column-builder.ts', 'data-table/data-table-column-header.component.ts', 'data-table/data-table-date-filter.component.ts', 'data-table/data-table-multiselect-filter.component.ts', 'data-table/data-table-pagination.component.ts', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts'],
+    files: ['calendar-locales.ts', 'data-table/component-pool.service.ts', 'data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
     peerFiles: [
       'context-menu-integrations.ts',
     ],
