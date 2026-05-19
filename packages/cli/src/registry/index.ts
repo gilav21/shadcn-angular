@@ -45,7 +45,7 @@ export const registry = defineRegistry({
   },
   'aspect-ratio': {
     name: 'aspect-ratio',
-    files: ['aspect-ratio.component.ts'],
+    files: ['aspect-ratio/aspect-ratio.component.html', 'aspect-ratio/aspect-ratio.component.ts', 'aspect-ratio/index.ts'],
   },
   avatar: {
     name: 'avatar',

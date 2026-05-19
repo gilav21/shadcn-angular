@@ -8,11 +8,7 @@ import {
 @Component({
   selector: 'ui-aspect-ratio',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div [style]="containerStyles()" [attr.data-slot]="'aspect-ratio'">
-      <ng-content />
-    </div>
-  `,
+  templateUrl: './aspect-ratio.component.html',
   host: { class: 'contents' },
 })
 export class AspectRatioComponent {
