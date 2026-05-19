@@ -528,7 +528,7 @@ export const registry = defineRegistry({
   },
   particles: {
     name: 'particles',
-    files: ['particles.component.ts'],
+    files: ['particles/index.ts', 'particles/particles.component.ts'],
   },
   kanban: {
     name: 'kanban',

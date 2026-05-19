@@ -114,7 +114,7 @@ export * from './wobble-card.component';
 export * from './magnetic.directive';
 export * from './orbit.component';
 export * from './stagger-children.component';
-export * from './particles.component';
+export * from './particles';
 
 // Kanban
 export * from './kanban.component';
