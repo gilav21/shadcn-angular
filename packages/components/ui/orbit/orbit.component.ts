@@ -9,16 +9,12 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-orbit',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <div class="orbit-item" #item [style]="itemStyles()">
-            <ng-content />
-        </div>
-    `,
+    templateUrl: './orbit.component.html',
     host: {
         '[class]': 'hostClasses()',
         '[attr.data-slot]': '"orbit"',

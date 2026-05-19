@@ -112,7 +112,7 @@ export * from './morphing-text.component';
 export * from './typing-animation.component';
 export * from './wobble-card.component';
 export * from './magnetic.directive';
-export * from './orbit.component';
+export * from './orbit';
 export * from './stagger-children.component';
 export * from './particles';
 

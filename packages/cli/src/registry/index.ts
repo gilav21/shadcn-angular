@@ -520,7 +520,7 @@ export const registry = defineRegistry({
   },
   orbit: {
     name: 'orbit',
-    files: ['orbit.component.ts'],
+    files: ['orbit/index.ts', 'orbit/orbit.component.html', 'orbit/orbit.component.ts'],
   },
   'stagger-children': {
     name: 'stagger-children',
