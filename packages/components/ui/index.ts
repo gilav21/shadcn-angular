@@ -100,7 +100,7 @@ export * from './charts';
 
 // Animations
 export * from './gradient-text.component';
-export * from './flip-text.component';
+export * from './flip-text';
 export * from './meteors.component';
 export * from './shine-border.component';
 export * from './scroll-progress.component';

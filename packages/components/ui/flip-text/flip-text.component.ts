@@ -6,50 +6,13 @@ import {
     ElementRef,
     inject,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-flip-text',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <span [class]="classes()" [attr.data-slot]="'flip-text'">
-            @for (char of characters(); track $index) {
-                <span
-                    class="inline-block animate-flip-in"
-                    [style.animationDelay]="$index * delay() + 'ms'"
-                    [style.animationDuration]="duration() + 'ms'"
-                >{{ char === ' ' ? '\u00A0' : char }}</span>
-            }
-        </span>
-    `,
-    styles: [`
-        @keyframes flip-in {
-            0% {
-                opacity: 0;
-                transform: rotateX(90deg);
-                filter: blur(4px);
-            }
-            100% {
-                opacity: 1;
-                transform: rotateX(0deg);
-                filter: blur(0);
-            }
-        }
-
-        .animate-flip-in {
-            opacity: 0;
-            animation: flip-in forwards cubic-bezier(0.2, 0.6, 0.35, 1);
-        }
-
-        @media (prefers-reduced-motion: reduce) {
-            .animate-flip-in {
-                animation: none;
-                opacity: 1;
-                transform: none;
-                filter: none;
-            }
-        }
-    `],
+    templateUrl: './flip-text.component.html',
+    styleUrl: './flip-text.component.css',
     host: { class: 'contents' },
 })
 export class FlipTextComponent {
@@ -62,6 +25,10 @@ export class FlipTextComponent {
 
     classes = computed(() => cn('inline-flex', this.class()));
     characters = computed(() => this.text().split(''));
+
+    displayChar(char: string): string {
+        return char === ' ' ? ' ' : char;
+    }
 
     playAnimation() {
         const host = this.el.nativeElement as HTMLElement;

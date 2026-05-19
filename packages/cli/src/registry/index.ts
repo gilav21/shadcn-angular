@@ -472,7 +472,7 @@ export const registry = defineRegistry({
   },
   'flip-text': {
     name: 'flip-text',
-    files: ['flip-text.component.ts'],
+    files: ['flip-text/flip-text.component.css', 'flip-text/flip-text.component.html', 'flip-text/flip-text.component.ts', 'flip-text/index.ts'],
   },
   meteors: {
     name: 'meteors',
