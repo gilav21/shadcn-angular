@@ -1,6 +1,6 @@
 export * from './button';
 export * from './input';
-export * from './number-input.component';
+export * from './number-input';
 export * from './phone-input.component';
 export * from './phone-input-data';
 export * from './input-mask.directive';

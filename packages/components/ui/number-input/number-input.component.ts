@@ -13,9 +13,9 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cva } from 'class-variance-authority';
-import { cn } from '../lib/utils';
-import { InputComponent } from './input';
-import { UI_INPUT_GROUP } from '../lib/input-group.token';
+import { cn } from '../../lib/utils';
+import { InputComponent } from '../input';
+import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 const numberInputWrapperVariants = cva(
     'relative flex items-center border-input bg-transparent transition-colors focus-within:border-ring focus-within:ring-ring/50 focus-within:ring-[3px] aria-disabled:pointer-events-none aria-disabled:opacity-50',
@@ -50,25 +50,7 @@ export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
             useExisting: forwardRef(() => NumberInputComponent),
         },
     ],
-    template: `
-        <div
-            [class]="wrapperClasses()"
-            [attr.data-slot]="'number-input'"
-            [attr.aria-disabled]="isDisabled() || null"
-        >
-            <ui-input
-                #inputRef
-                type="number"
-                class="px-3"
-                [disabled]="isDisabled()"
-                [placeholder]="placeholder()"
-                [ngModel]="displayValue()"
-                (ngModelChange)="onInputChange($event)"
-                (blur)="onBlur()"
-                (keydown)="onKeydown($event)"
-            />
-        </div>
-    `,
+    templateUrl: './number-input.component.html',
     host: { class: 'contents' },
 })
 export class NumberInputComponent implements ControlValueAccessor {
