@@ -1,7 +1,7 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { SwitchComponent } from './switch.component';
 import { FormsModule } from '@angular/forms';
-import { LabelComponent } from './label';
+import { LabelComponent } from '../label';
 
 const meta: Meta<SwitchComponent> = {
     title: 'UI/Switch',
