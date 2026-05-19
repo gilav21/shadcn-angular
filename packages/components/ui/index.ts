@@ -102,7 +102,7 @@ export * from './charts';
 export * from './gradient-text';
 export * from './flip-text';
 export * from './meteors';
-export * from './shine-border.component';
+export * from './shine-border';
 export * from './scroll-progress';
 export * from './blur-fade';
 export * from './ripple.directive';

@@ -9,18 +9,12 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn , prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-shine-border',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <div [class]="wrapperClasses()" [attr.data-slot]="'shine-border'" #wrapper>
-            <div [class]="innerClasses()">
-                <ng-content />
-            </div>
-        </div>
-    `,
+    templateUrl: './shine-border.component.html',
     host: { class: 'contents' },
 })
 export class ShineBorderComponent implements AfterViewInit, OnDestroy {

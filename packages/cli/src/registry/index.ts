@@ -480,7 +480,7 @@ export const registry = defineRegistry({
   },
   'shine-border': {
     name: 'shine-border',
-    files: ['shine-border.component.ts'],
+    files: ['shine-border/index.ts', 'shine-border/shine-border.component.html', 'shine-border/shine-border.component.ts'],
   },
   'scroll-progress': {
     name: 'scroll-progress',
