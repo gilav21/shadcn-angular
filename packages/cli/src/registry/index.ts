@@ -271,7 +271,7 @@ export const registry = defineRegistry({
   },
   'phone-input': {
     name: 'phone-input',
-    files: ['phone-input-data.ts', 'phone-input.component.ts'],
+    files: ['phone-input/index.ts', 'phone-input/phone-input-data.ts', 'phone-input/phone-input.component.html', 'phone-input/phone-input.component.ts'],
     libFiles: ['input-group.token.ts'],
     dependencies: ['input', 'input-group', 'input-mask', 'popover'],
   },

@@ -9,12 +9,12 @@ import {
     forwardRef,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
-import { cn } from '../lib/utils';
-import { InputComponent } from './input';
-import { InputGroupComponent, InputGroupAddonComponent } from './input-group.component';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
-import { UI_INPUT_GROUP } from '../lib/input-group.token';
-import { InputMaskDirective } from './input-mask.directive';
+import { cn } from '../../lib/utils';
+import { InputComponent } from '../input';
+import { InputGroupComponent, InputGroupAddonComponent } from '../input-group.component';
+import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover.component';
+import { UI_INPUT_GROUP } from '../../lib/input-group.token';
+import { InputMaskDirective } from '../input-mask.directive';
 import { PhoneCountry, DEFAULT_COUNTRIES } from './phone-input-data';
 
 export type { PhoneCountry };
@@ -98,63 +98,7 @@ function parseE164(value: string, countries: PhoneCountry[], currentCountry: Pho
             useExisting: forwardRef(() => PhoneInputComponent),
         },
     ],
-    template: `
-        <ui-input-group [variant]="variant()" [disabled]="isDisabled()" [class]="class()" [attr.data-slot]="'phone-input'">
-            <ui-input-group-addon class="!pr-0">
-                <ui-popover>
-                    <ui-popover-trigger>
-                        <button
-                            type="button"
-                            [class]="triggerClasses()"
-                            [disabled]="isDisabled()"
-                        >
-                            <span>{{ selectedCountry().flag }}</span>
-                            <span class="text-foreground font-medium">{{ selectedCountry().dialCode }}</span>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="opacity-60" aria-hidden="true">
-                                <path d="m6 9 6 6 6-6"/>
-                            </svg>
-                        </button>
-                    </ui-popover-trigger>
-                    <ui-popover-content class="w-64 p-0" align="start">
-                        <div class="p-2 border-b">
-                            <input
-                                type="text"
-                                [value]="searchQuery()"
-                                (input)="onSearchInput($event)"
-                                placeholder="Search country..."
-                                class="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
-                            />
-                        </div>
-                        <div class="max-h-64 overflow-y-auto">
-                            @for (country of filteredCountries(); track country.code) {
-                                <button
-                                    type="button"
-                                    (click)="selectCountry(country)"
-                                    [class]="countryRowClasses(country)"
-                                >
-                                    <span class="text-base">{{ country.flag }}</span>
-                                    <span class="flex-1 truncate text-sm">{{ country.name }}</span>
-                                    <span class="text-xs text-muted-foreground shrink-0">{{ country.dialCode }}</span>
-                                </button>
-                            }
-                            @if (filteredCountries().length === 0) {
-                                <p class="px-3 py-4 text-sm text-muted-foreground text-center">No countries found</p>
-                            }
-                        </div>
-                    </ui-popover-content>
-                </ui-popover>
-            </ui-input-group-addon>
-            <ui-input
-                type="tel"
-                [uiInputMask]="selectedCountry().mask"
-                [disabled]="isDisabled()"
-                [placeholder]="effectivePlaceholder()"
-                [ngModel]="nationalNumber()"
-                (ngModelChange)="onNationalChange($event)"
-                (blur)="onBlur()"
-            />
-        </ui-input-group>
-    `,
+    templateUrl: './phone-input.component.html',
     host: { class: 'contents' },
 })
 export class PhoneInputComponent implements ControlValueAccessor {
