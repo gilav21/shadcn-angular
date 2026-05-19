@@ -205,7 +205,7 @@ export const registry = defineRegistry({
 
   'file-upload': {
     name: 'file-upload',
-    files: ['file-upload.component.ts'],
+    files: ['file-upload/file-upload.component.html', 'file-upload/file-upload.component.ts', 'file-upload/index.ts'],
     dependencies: ['button', 'progress'],
   },
   'file-viewer': {
