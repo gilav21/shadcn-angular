@@ -385,7 +385,7 @@ export const registry = defineRegistry({
   },
   'chip-list': {
     name: 'chip-list',
-    files: ['chip-list.component.ts'],
+    files: ['chip-list/chip-list.component.html', 'chip-list/chip-list.component.ts', 'chip-list/index.ts'],
     libFiles: ['input-group.token.ts'],
     dependencies: ['badge', 'button', 'input'],
   },

@@ -9,11 +9,11 @@ import {
   viewChild,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
-import { cn } from '../lib/utils';
-import { BadgeComponent, type BadgeVariant } from './badge';
-import { ButtonComponent } from './button';
-import { InputComponent } from './input';
-import { UI_INPUT_GROUP } from '../lib/input-group.token';
+import { cn } from '../../lib/utils';
+import { BadgeComponent, type BadgeVariant } from '../badge';
+import { ButtonComponent } from '../button';
+import { InputComponent } from '../input';
+import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const chipListVariants = cva(
@@ -46,63 +46,7 @@ export type ChipListVariant = VariantProps<typeof chipListVariants>['variant'];
     },
     { provide: UI_INPUT_GROUP, useExisting: forwardRef(() => ChipListComponent) }
   ],
-  template: `
-    <div
-      [class]="containerClasses()"
-      [style.max-height]="maxHeightStyle()"
-      [attr.data-slot]="'chip-list'"
-      [attr.data-disabled]="disabled() || null"
-      (click)="focusInput()"
-    >
-      @for (chip of chips(); track chip; let i = $index) {
-        <ui-badge
-          [variant]="chipColors()[chip] ? 'default' : badgeVariant()"
-          [class]="'shrink-0 gap-1' + (disabled() ? '' : ' ltr:pr-1 rtl:pl-1')"
-          [style.backgroundColor]="chipColors()[chip] || null"
-          [style.color]="chipColors()[chip] ? 'white' : null"
-          [style.borderColor]="chipColors()[chip] || null"
-          [attr.data-slot]="'chip'"
-        >
-          <span class="max-w-[120px] sm:max-w-[200px] truncate">{{ chip }}</span>
-          @if (!disabled()) {
-            <ui-button
-              variant="ghost"
-              size="icon"
-              class="h-4 w-4 p-0 hover:bg-black/10 dark:hover:bg-white/10 rounded-full"
-              [ariaLabel]="'Remove ' + chip"
-              (click)="removeChip(i, $event)"
-            >
-              <svg
-                class="h-3 w-3"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
-              </svg>
-            </ui-button>
-          }
-        </ui-badge>
-      }
-      
-      <ui-input
-        #inputRef
-        [placeholder]="chips().length === 0 ? placeholder() : ''"
-        [disabled]="disabled()"
-        [ngModel]="inputValue()"
-        (ngModelChange)="onInputChange($event)"
-        (keydown)="onKeyDown($event)"
-        (blur)="onBlur()"
-        class="flex-1 min-w-[80px] bg-transparent border-none outline-none shadow-none focus-visible:ring-0 p-0 h-auto"
-        variant="ghost"
-      />
-    </div>
-  `,
+  templateUrl: './chip-list.component.html',
   host: {
     '[class]': '"contents"',
   },

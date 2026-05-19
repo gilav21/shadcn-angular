@@ -29,7 +29,7 @@ import { ButtonComponent } from './button';
 import { InputComponent } from './input';
 import { TextareaComponent } from './textarea';
 import { LabelComponent } from './label';
-import { ChipListComponent } from './chip-list.component';
+import { ChipListComponent } from './chip-list';
 import { AutocompleteComponent } from './autocomplete.component';
 import {
     DialogComponent,

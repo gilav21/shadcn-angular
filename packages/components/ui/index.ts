@@ -55,7 +55,7 @@ export * from './button-group.component';
 export * from './input-group.component';
 export * from './field.component';
 export * from './native-select';
-export * from './chip-list.component';
+export * from './chip-list';
 export * from './emoji-picker.component';
 export * from './speed-dial.component';
 export * from './autocomplete.component';
