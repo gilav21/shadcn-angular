@@ -496,7 +496,7 @@ export const registry = defineRegistry({
   },
   marquee: {
     name: 'marquee',
-    files: ['marquee.component.ts'],
+    files: ['marquee/index.ts', 'marquee/marquee.component.html', 'marquee/marquee.component.ts'],
   },
   'word-rotate': {
     name: 'word-rotate',

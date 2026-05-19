@@ -106,7 +106,7 @@ export * from './shine-border.component';
 export * from './scroll-progress.component';
 export * from './blur-fade';
 export * from './ripple.directive';
-export * from './marquee.component';
+export * from './marquee';
 export * from './word-rotate.component';
 export * from './morphing-text.component';
 export * from './typing-animation.component';

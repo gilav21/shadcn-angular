@@ -10,27 +10,12 @@ import {
     inject,
     NgZone,
 } from '@angular/core';
-import { cn, prefersReducedMotion } from '../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-marquee',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <div
-            [class]="classes()"
-            [attr.data-slot]="'marquee'"
-            (mouseenter)="onMouseEnter()"
-            (mouseleave)="onMouseLeave()"
-            (touchstart)="onMouseEnter()"
-            (touchend)="onMouseLeave()"
-        >
-            <div #track [style.gap.px]="gap()">
-                <div class="shrink-0" [style.display]="'flex'" [style.gap.px]="gap()" #segment>
-                    <ng-content />
-                </div>
-            </div>
-        </div>
-    `,
+    templateUrl: './marquee.component.html',
     host: { class: 'block' },
 })
 export class MarqueeComponent implements AfterViewInit, OnDestroy {
