@@ -4,7 +4,7 @@ import {
     input,
     computed,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 /**
  * Kbd - Keyboard shortcut display component
@@ -22,11 +22,7 @@ import { cn } from '../lib/utils';
 @Component({
     selector: 'ui-kbd',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <kbd [class]="classes()" [attr.data-slot]="'kbd'">
-      <ng-content />
-    </kbd>
-  `,
+    templateUrl: './kbd.component.html',
     host: { class: 'contents' },
 })
 export class KbdComponent {

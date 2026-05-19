@@ -235,7 +235,7 @@ export const registry = defineRegistry({
   },
   kbd: {
     name: 'kbd',
-    files: ['kbd.component.ts'],
+    files: ['kbd/index.ts', 'kbd/kbd.component.html', 'kbd/kbd.component.ts'],
   },
   label: {
     name: 'label',

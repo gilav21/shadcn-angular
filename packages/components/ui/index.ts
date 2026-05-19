@@ -51,7 +51,7 @@ export * from './date-picker.component';
 export * from './sidebar.component';
 export * from './spinner.component';
 export * from './empty.component';
-export * from './kbd.component';
+export * from './kbd';
 export * from './button-group.component';
 export * from './input-group.component';
 export * from './field.component';
