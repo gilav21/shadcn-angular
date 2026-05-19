@@ -30,7 +30,7 @@ import {
   TableCellComponent,
 } from "../table.component";
 import { InputComponent } from "../input.component";
-import { CheckboxComponent } from "../checkbox.component";
+import { CheckboxComponent } from "../checkbox";
 import {
   PopoverComponent,
   PopoverTriggerComponent,

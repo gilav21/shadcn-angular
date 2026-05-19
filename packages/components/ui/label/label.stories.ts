@@ -1,6 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { LabelComponent } from './label.component';
-import { CheckboxComponent } from './checkbox.component';
+import { CheckboxComponent } from '../checkbox';
 
 const meta: Meta<LabelComponent> = {
     title: 'UI/Label',

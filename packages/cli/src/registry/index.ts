@@ -84,7 +84,7 @@ export const registry = defineRegistry({
   },
   checkbox: {
     name: 'checkbox',
-    files: ['checkbox.component.ts'],
+    files: ['checkbox/checkbox.component.html', 'checkbox/checkbox.component.ts', 'checkbox/index.ts'],
   },
   collapsible: {
     name: 'collapsible',

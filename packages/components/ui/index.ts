@@ -10,7 +10,7 @@ export * from './badge';
 export * from './label';
 export * from './separator';
 export * from './switch';
-export * from './checkbox.component';
+export * from './checkbox';
 export * from './radio-group.component';
 export * from './textarea.component';
 export * from './skeleton';
