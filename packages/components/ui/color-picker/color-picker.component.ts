@@ -14,7 +14,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
 import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
 import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover.component';
-import { InputComponent } from '../input.component';
+import { InputComponent } from '../input';
 import { TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent } from '../tabs.component';
 
 interface HSL {

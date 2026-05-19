@@ -1,5 +1,5 @@
 export * from './button';
-export * from './input.component';
+export * from './input';
 export * from './number-input.component';
 export * from './phone-input.component';
 export * from './phone-input-data';

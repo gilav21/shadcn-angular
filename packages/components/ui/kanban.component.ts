@@ -26,7 +26,7 @@ import { AvatarComponent } from './avatar.component';
 import { ScrollAreaComponent } from './scroll-area';
 import { SeparatorComponent } from './separator';
 import { ButtonComponent } from './button';
-import { InputComponent } from './input.component';
+import { InputComponent } from './input';
 import { TextareaComponent } from './textarea.component';
 import { LabelComponent } from './label';
 import { ChipListComponent } from './chip-list.component';

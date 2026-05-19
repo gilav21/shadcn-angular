@@ -10,7 +10,7 @@ import {
   SheetCloseComponent,
 } from './sheet.component';
 import { ButtonComponent } from './button';
-import { InputComponent } from './input.component';
+import { InputComponent } from './input';
 import { LabelComponent } from './label';
 
 const meta: Meta<SheetComponent & { side: string; title: string; description: string }> = {

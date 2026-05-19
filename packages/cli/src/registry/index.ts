@@ -221,7 +221,7 @@ export const registry = defineRegistry({
   },
   input: {
     name: 'input',
-    files: ['input.component.ts'],
+    files: ['input/index.ts', 'input/input.component.html', 'input/input.component.ts'],
     libFiles: ['input-group.token.ts'],
   },
   'input-group': {

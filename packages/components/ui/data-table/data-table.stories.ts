@@ -3,7 +3,7 @@ import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, SortState, DataTableLoadingVisibility, RowActionContext, VirtualAutoThreshold } from './data-table.types';
 import { Component, ChangeDetectionStrategy, output, input, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { InputComponent } from '../input.component';
+import { InputComponent } from '../input';
 import { ContextMenuComponent, ContextMenuTriggerDirective, ContextMenuContentComponent, ContextMenuItemComponent, ContextMenuShortcutComponent, ContextMenuSeparatorComponent, ContextMenuItem } from '../context-menu.component';
 import { ContextMenuIntegrations } from '../context-menu-integrations';
 import { DataTableDateFilterComponent, dateFilterFn } from './sub/data-table-date-filter.component';

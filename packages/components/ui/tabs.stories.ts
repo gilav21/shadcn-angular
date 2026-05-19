@@ -8,7 +8,7 @@ import {
 import { ButtonComponent } from './button';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent } from './card.component';
 import { LabelComponent } from './label';
-import { InputComponent } from './input.component';
+import { InputComponent } from './input';
 
 const meta: Meta<TabsComponent> = {
   title: 'UI/Tabs',

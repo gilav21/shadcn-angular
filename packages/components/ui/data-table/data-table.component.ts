@@ -29,7 +29,7 @@ import {
   TableHeadComponent,
   TableCellComponent,
 } from "../table.component";
-import { InputComponent } from "../input.component";
+import { InputComponent } from "../input";
 import { CheckboxComponent } from "../checkbox";
 import {
   PopoverComponent,

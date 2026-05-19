@@ -9,7 +9,7 @@ import {
   DialogFooterComponent,
 } from './dialog.component';
 import { ButtonComponent } from './button';
-import { InputComponent } from './input.component';
+import { InputComponent } from './input';
 import { LabelComponent } from './label';
 
 const meta: Meta<DialogComponent & { rtl: boolean; title: string; description: string }> = {

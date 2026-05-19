@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cva, type VariantProps } from 'class-variance-authority';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 const inputVariants = cva(
     'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent py-1 text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
@@ -31,7 +31,7 @@ const inputVariants = cva(
 
 export type InputVariant = VariantProps<typeof inputVariants>['variant'];
 
-import { UI_INPUT_GROUP } from '../lib/input-group.token';
+import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 @Component({
     selector: 'ui-input',
@@ -44,20 +44,7 @@ import { UI_INPUT_GROUP } from '../lib/input-group.token';
             multi: true,
         },
     ],
-    template: `
-    <input
-      [class]="classes()"
-      [type]="type()"
-      [disabled]="isDisabled()"
-      [placeholder]="placeholder()"
-      [placeholder]="placeholder()"
-      [attr.data-slot]="'input'"
-      #inputRef
-      [ngModel]="value()"
-      (ngModelChange)="onValueChange($event)"
-      (blur)="onTouched()"
-    />
-  `,
+    templateUrl: './input.component.html',
     host: {
         '[class]': '"contents"',
     },

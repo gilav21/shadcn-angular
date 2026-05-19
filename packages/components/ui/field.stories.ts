@@ -9,7 +9,7 @@ import {
     FieldErrorComponent,
     FieldSeparatorComponent,
 } from './field.component';
-import { InputComponent } from './input.component';
+import { InputComponent } from './input';
 import { ButtonComponent } from './button';
 
 const meta: Meta<FieldComponent> = {

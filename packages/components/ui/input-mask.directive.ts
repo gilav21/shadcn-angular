@@ -9,7 +9,7 @@ import {
     Renderer2
 } from '@angular/core';
 import { NgControl } from '@angular/forms';
-import { InputComponent } from './input.component';
+import { InputComponent } from './input';
 
 @Directive({
     selector: '[uiInputMask]',
