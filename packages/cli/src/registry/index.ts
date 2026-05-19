@@ -549,7 +549,7 @@ export const registry = defineRegistry({
   },
   'comparison-slider': {
     name: 'comparison-slider',
-    files: ['comparison-slider.component.ts'],
+    files: ['comparison-slider/comparison-slider.component.html', 'comparison-slider/comparison-slider.component.ts', 'comparison-slider/index.ts'],
     libFiles: ['touch.ts'],
   },
   sortable: {
