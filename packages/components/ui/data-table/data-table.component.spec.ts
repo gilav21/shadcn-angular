@@ -113,6 +113,79 @@ describe('DataTableComponent', () => {
         expect(dataDesc[4].name).toBe('Alice');
     });
 
+    it('should expose aria-sort state for header cells', () => {
+        fixture.detectChanges();
+        const nameCol = component.enhancedColumns().find(c => c.accessorKey === 'name')!;
+        expect(component.getAriaSort(nameCol)).toBe('none');
+
+        component.onSortChange('name', 'asc');
+        expect(component.getAriaSort(nameCol)).toBe('ascending');
+
+        component.onSortChange('name', 'desc');
+        expect(component.getAriaSort(nameCol)).toBe('descending');
+    });
+
+    it('should not expose aria-sort for non-sortable columns', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID', enableSorting: false },
+            { accessorKey: 'name', header: 'Name' },
+        ]);
+        fixture.detectChanges();
+
+        const idCol = component.enhancedColumns().find(c => c.accessorKey === 'id')!;
+        expect(component.getAriaSort(idCol)).toBeNull();
+    });
+
+    it('should announce sort changes to screen readers', () => {
+        fixture.detectChanges();
+        expect(component.srAnnouncement()).toBe('');
+
+        component.onSortChange('name', 'asc');
+        expect(component.srAnnouncement()).toContain('Name');
+        expect(component.srAnnouncement()).toContain('ascending');
+
+        component.onSortChange('name', null);
+        expect(component.srAnnouncement()).toContain('Sorting removed');
+    });
+
+    it('should not announce when clearing an already-unsorted column', () => {
+        fixture.detectChanges();
+        expect(component.srAnnouncement()).toBe('');
+
+        component.onSortChange('id', null);
+        expect(component.srAnnouncement()).toBe('');
+    });
+
+    it('should announce filter result counts to screen readers', () => {
+        vi.useFakeTimers();
+        try {
+            component.onFilterChange('Alice');
+            vi.advanceTimersByTime(600);
+            expect(component.srAnnouncement()).toContain('result');
+
+            component.onFilterChange('');
+            vi.advanceTimersByTime(600);
+            expect(component.srAnnouncement()).toContain('Filter cleared');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
+    it('should debounce filter announcements during rapid typing', () => {
+        vi.useFakeTimers();
+        try {
+            component.onFilterChange('A');
+            component.onFilterChange('Al');
+            component.onFilterChange('Ali');
+            expect(component.srAnnouncement()).toBe('');
+
+            vi.advanceTimersByTime(600);
+            expect(component.srAnnouncement()).toContain('"Ali"');
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it('should reset to first page when sorting changes', () => {
         component.paginationState.set({ pageIndex: 2, pageSize: 2 });
         fixture.detectChanges();

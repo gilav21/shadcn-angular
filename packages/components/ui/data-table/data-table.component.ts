@@ -406,6 +406,15 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     </ng-template>
 
     <div class="flex flex-col w-full h-full space-y-4">
+      <div
+        class="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        data-slot="data-table-announcer"
+      >
+        {{ srAnnouncement() }}
+      </div>
       @if (showToolbar()) {
         <div class="flex flex-wrap items-center justify-between gap-2 flex-none">
           <div class="flex flex-1 items-center space-x-2">
@@ -520,6 +529,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
                   [class.opacity-70]="isDraggingColumn(col)"
                   [class.relative]="isDropTargetColumn(col)"
                   [attr.data-column-id]="String(col.accessorKey)"
+                  [attr.aria-sort]="getAriaSort(col)"
                   [attr.draggable]="isColumnDraggable(col) ? 'true' : null"
                   [style]="getHeaderCellStyle(col)"
                   (dragstart)="onColumnDragStart($event, col)"
@@ -1615,6 +1625,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private observedElements = new Set<Element>();
   private rafId = 0;
   private filterDebounceTimer: ReturnType<typeof setTimeout> | undefined;
+  private filterAnnounceTimer: ReturnType<typeof setTimeout> | undefined;
   private viewportObserver?: ResizeObserver;
   private readonly rowResizeObserver?: ResizeObserver;
 
@@ -1822,6 +1833,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     Record<string, "left" | "right" | undefined>
   >({});
   readonly exporting = signal(false);
+  /** Visually-hidden live-region text announcing sort/filter changes to AT. */
+  readonly srAnnouncement = signal("");
   readonly globalFilter = model("");
   readonly columnFilters = model<Record<string, unknown>>({});
   readonly sortState = model<SortState>({ column: "", direction: null });
@@ -2571,6 +2584,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   ngOnDestroy() {
     cancelAnimationFrame(this.rafId);
     clearTimeout(this.filterDebounceTimer);
+    clearTimeout(this.filterAnnounceTimer);
     this.flashTimers.forEach((t) => clearTimeout(t));
     this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true } as EventListenerOptions);
     this._document.removeEventListener('drag', this.dragEventHandler);
@@ -2681,6 +2695,58 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this._sortLookup().get(String(columnKey))?.direction ?? null;
   }
 
+  /** ARIA `aria-sort` value for a header cell — `null` for non-sortable columns. */
+  getAriaSort(
+    col: ColumnDef<T>,
+  ): "ascending" | "descending" | "none" | null {
+    const key = String(col.accessorKey);
+    const isSpecialColumn =
+      key === "_selection" || key === "_actions" || key === "_expander";
+    if (isSpecialColumn || col.enableSorting === false) {
+      return null;
+    }
+    const direction = this.getSortDirection(col.accessorKey);
+    if (direction === "asc") return "ascending";
+    if (direction === "desc") return "descending";
+    return "none";
+  }
+
+  private columnHeaderLabel(columnKey: string): string {
+    const col = this.enhancedColumns().find(
+      (c) => String(c.accessorKey) === columnKey,
+    );
+    return col?.header || columnKey;
+  }
+
+  /**
+   * Announces a sort change. Called before the sort state mutates, so
+   * `getSortDirection` still reflects the previous state — used to skip a
+   * spurious "removed" announcement when the column was not sorted.
+   */
+  private announceSortChange(columnKey: string, direction: SortDirection): void {
+    const label = this.columnHeaderLabel(columnKey);
+    if (direction === "asc") {
+      this.srAnnouncement.set(`Table sorted by ${label}, ascending`);
+    } else if (direction === "desc") {
+      this.srAnnouncement.set(`Table sorted by ${label}, descending`);
+    } else if (this.getSortDirection(columnKey) !== null) {
+      this.srAnnouncement.set(`Sorting removed from ${label}`);
+    }
+  }
+
+  private announceFilterChange(value: string): void {
+    clearTimeout(this.filterAnnounceTimer);
+    this.filterAnnounceTimer = setTimeout(() => {
+      if (!value.trim()) {
+        this.srAnnouncement.set("Filter cleared, showing all rows");
+        return;
+      }
+      const count = this.filteredData().length;
+      const noun = count === 1 ? "result" : "results";
+      this.srAnnouncement.set(`${count} ${noun} found for "${value}"`);
+    }, 500);
+  }
+
   getSortIndex(columnKey: string | keyof T): number | null {
     if (!this.enableMultiSort()) {
       return null;
@@ -2695,6 +2761,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   ) {
     this.loadingTrigger.set("sorting");
     const key = String(columnKey);
+    this.announceSortChange(key, direction);
     const currentPagination = this.paginationState();
     const shouldResetPage = currentPagination.pageIndex !== 0;
 
@@ -3302,6 +3369,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.globalFilter.set(value);
     this.paginationState.update((state) => ({ ...state, pageIndex: 0 }));
     this.filterChange.emit(value);
+    this.announceFilterChange(value);
   }
 
   onColumnFilterChange(columnKey: string | keyof T, value: unknown) {

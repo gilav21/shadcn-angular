@@ -259,4 +259,45 @@ describe('DataTableColumnHeaderComponent', () => {
             expect(host.onSortMeta).toHaveBeenLastCalledWith({ direction: null, multi: true });
         });
     });
+
+    describe('accessible sort label', () => {
+        it('describes the unsorted state and the next action', () => {
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('aria-label')).toBe(
+                'Name, not sorted. Activate to sort ascending.',
+            );
+        });
+
+        it('describes the ascending state', async () => {
+            host.direction.set('asc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('aria-label')).toBe(
+                'Name, sorted ascending. Activate to sort descending.',
+            );
+        });
+
+        it('describes the descending state', async () => {
+            host.direction.set('desc');
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('aria-label')).toBe(
+                'Name, sorted descending. Activate to remove sort.',
+            );
+        });
+
+        it('includes the multi-sort priority', async () => {
+            host.direction.set('asc');
+            host.sortIndex.set(1);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            const button = fixture.nativeElement.querySelector('button');
+            expect(button.getAttribute('aria-label')).toContain('sort priority 2');
+        });
+    });
 });
