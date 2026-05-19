@@ -5,12 +5,12 @@ import {
     DialogDescriptionComponent,
     DialogHeaderComponent,
     DialogTitleComponent,
-} from './dialog.component';
-import { ScrollAreaComponent } from './scroll-area';
-import { ButtonComponent } from './button';
-import { BadgeComponent } from './badge';
-import { ShortcutBindingService, ShortcutBindingView, ShortcutCatalogItem, ShortcutOverrideSchema } from '../lib/shortcut-binding.service';
-import { AccordionComponent, AccordionContentComponent, AccordionItemComponent, AccordionTriggerComponent } from './accordion';
+} from '../dialog.component';
+import { ScrollAreaComponent } from '../scroll-area';
+import { ButtonComponent } from '../button';
+import { BadgeComponent } from '../badge';
+import { ShortcutBindingService, ShortcutBindingView, ShortcutCatalogItem, ShortcutOverrideSchema } from '../../lib/shortcut-binding.service';
+import { AccordionComponent, AccordionContentComponent, AccordionItemComponent, AccordionTriggerComponent } from '../accordion';
 
 interface ShortcutDialogInstance {
     componentId: string;
@@ -46,167 +46,7 @@ interface ShortcutDialogGroup {
         AccordionTriggerComponent,
         AccordionContentComponent,
     ],
-    template: `
-    <ui-dialog [(open)]="open">
-      <ui-dialog-content class="max-w-[calc(100vw-2rem)] sm:max-w-4xl p-0 overflow-hidden">
-        <ui-dialog-header class="px-5 pt-5 pb-4 border-b">
-          <ui-dialog-title>Keyboard Shortcuts</ui-dialog-title>
-          <ui-dialog-description>
-            Browse available shortcuts and rebind actions for this app.
-          </ui-dialog-description>
-          <div class="pt-3">
-            <input
-              type="text"
-              class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-              [value]="search()"
-              placeholder="Search actions, categories, components, or keys..."
-              (input)="onSearchInput($event)"
-            />
-          </div>
-          @if (allowSaveMapping()) {
-            <div class="pt-3 flex justify-end">
-              <ui-button type="button" size="sm" variant="secondary" (click)="saveMappingSchema()">
-                Save Changes
-              </ui-button>
-            </div>
-          }
-        </ui-dialog-header>
-
-        <ui-scroll-area [class]="'h-[60vh] sm:h-[70vh] px-3 sm:px-5 py-3 sm:py-4'">
-          <div class="space-y-3 pr-3">
-            <ui-accordion type="multiple" class="flex flex-col gap-2" [openValues]="searchActive() ? openGroupValues() : null">
-              @for (group of groupedBindings(); track group.componentName) {
-                <ui-accordion-item [value]="groupValue(group.componentName)" class="rounded-lg border bg-card/60 px-3">
-                  <ui-accordion-trigger class="py-2.5 text-left hover:no-underline">
-                    <div class="min-w-0 space-y-0.5">
-                      <h3 class="text-sm font-semibold tracking-tight capitalize">{{ group.componentName }}</h3>
-                      <p class="text-xs text-muted-foreground">
-                        {{ group.activeBindings }} active action{{ group.activeBindings === 1 ? '' : 's' }} / {{ group.bindings.length }} total
-                      </p>
-                    </div>
-                  </ui-accordion-trigger>
-                  <ui-accordion-content class="pt-1 pb-3">
-                    <ui-accordion type="multiple" class="flex flex-col gap-2" [openValues]="searchActive() ? openActionValuesForGroup(group.componentName) : null">
-                      @for (binding of group.bindings; track actionKey(binding.actionId, binding.componentName)) {
-                        <ui-accordion-item [value]="actionValue(binding.actionId, binding.componentName)" class="rounded-md border bg-background px-3">
-                          <ui-accordion-trigger class="py-2.5 hover:no-underline">
-                            <div class="flex w-full items-start justify-between gap-3">
-                              <div class="min-w-0 space-y-1 text-left">
-                                <div class="flex items-center gap-2">
-                                  <p class="text-sm font-medium leading-5">{{ binding.description }}</p>
-                                  @if (binding.category) {
-                                    <ui-badge variant="secondary">{{ binding.category }}</ui-badge>
-                                  }
-                                  @if (isConflicting(binding.actionId)) {
-                                    <ui-badge variant="destructive">Conflict</ui-badge>
-                                  }
-                                </div>
-                                <p class="text-xs text-muted-foreground leading-4">
-                                  <span class="font-medium">Action:</span> {{ binding.actionId }}
-                                </p>
-                                <p class="text-xs text-muted-foreground leading-4">
-                                  {{ binding.instances.length }} active instance{{ binding.instances.length === 1 ? '' : 's' }}
-                                </p>
-                              </div>
-
-                              <div class="flex items-center gap-1.5" (click)="$event.stopPropagation()" (keydown)="$event.stopPropagation()">
-                                <button
-                                  type="button"
-                                  class="inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-accent"
-                                  [class.border-primary]="capturingActionKey() === captureComponentKey(binding.actionId, binding.componentName)"
-                                  [attr.aria-label]="'Rebind all instances of ' + binding.description"
-                                  (click)="startCaptureForComponent(binding.actionId, binding.componentName, captureAllBtn)"
-                                  (keydown)="onComponentCaptureKeydown($event, binding.actionId, binding.componentName)"
-                                  #captureAllBtn
-                                >
-                                  @if (capturingActionKey() === captureComponentKey(binding.actionId, binding.componentName)) {
-                                    Press keys...
-                                  } @else {
-                                    All: {{ format(binding.effectiveShortcut) }}
-                                  }
-                                </button>
-
-                                <ui-button
-                                  type="button"
-                                  variant="ghost"
-                                  size="sm"
-                                  class="h-8 px-2 text-[11px]"
-                                  [disabled]="!isComponentOverridden(binding.actionId, binding.componentName)"
-                                  (click)="resetComponent(binding.actionId, binding.componentName)"
-                                >
-                                  Reset all
-                                </ui-button>
-                              </div>
-                            </div>
-                          </ui-accordion-trigger>
-                          <ui-accordion-content class="pt-1 pb-3">
-                            @if (binding.instances.length > 0) {
-                              <div class="space-y-2">
-                                @for (instance of binding.instances; track instance.componentId) {
-                                  <div class="rounded-md border border-dashed p-2.5">
-                                    <div class="flex items-center justify-between gap-3">
-                                      <div class="min-w-0">
-                                        <p class="text-xs font-medium">{{ instance.displayName }}</p>
-                                        <p class="text-[11px] text-muted-foreground">
-                                          Default: {{ format(instance.defaultShortcut) }}
-                                        </p>
-                                      </div>
-
-                                      <div class="flex items-center gap-1.5">
-                                        <button
-                                          type="button"
-                                          class="inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-accent"
-                                          [class.border-primary]="capturingActionKey() === captureInstanceKey(binding.actionId, instance.componentId)"
-                                          [attr.aria-label]="'Rebind instance ' + instance.displayName + ' for ' + binding.description"
-                                          (click)="startCaptureForInstance(binding.actionId, instance.componentId, captureInstanceBtn)"
-                                          (keydown)="onInstanceCaptureKeydown($event, binding.actionId, instance.componentId)"
-                                          #captureInstanceBtn
-                                        >
-                                          @if (capturingActionKey() === captureInstanceKey(binding.actionId, instance.componentId)) {
-                                            Press keys...
-                                          } @else {
-                                            {{ format(instance.effectiveShortcut) }}
-                                          }
-                                        </button>
-
-                                        <ui-button
-                                          type="button"
-                                          variant="ghost"
-                                          size="sm"
-                                          class="h-8 px-2 text-[11px]"
-                                          [disabled]="!isInstanceOverridden(binding.actionId, instance.componentId)"
-                                          (click)="resetInstance(binding.actionId, instance.componentId)"
-                                        >
-                                          Reset
-                                        </ui-button>
-                                      </div>
-                                    </div>
-                                  </div>
-                                }
-                              </div>
-                            } @else {
-                              <div class="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                                No active instances. Use the "All" control to define the shared shortcut for future instances.
-                              </div>
-                            }
-                          </ui-accordion-content>
-                        </ui-accordion-item>
-                      }
-                    </ui-accordion>
-                  </ui-accordion-content>
-                </ui-accordion-item>
-              }
-            </ui-accordion>
-            @if (groupedBindings().length === 0) {
-              <div class="rounded-md border border-dashed p-6 text-sm text-muted-foreground text-center">
-                No shortcuts matched your search.
-              </div>
-            }
-          </div>
-        </ui-scroll-area>
-      </ui-dialog-content>
-    </ui-dialog>
-  `,
+    templateUrl: './shortcut-bindings-dialog.component.html',
 })
 export class ShortcutBindingsDialogComponent {
     open = model(false);

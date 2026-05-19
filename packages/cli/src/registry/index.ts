@@ -538,7 +538,7 @@ export const registry = defineRegistry({
   },
   'shortcut-bindings-dialog': {
     name: 'shortcut-bindings-dialog',
-    files: ['shortcut-bindings-dialog.component.ts'],
+    files: ['shortcut-bindings-dialog/index.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.html', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.ts'],
     libFiles: ['shortcut-binding.service.ts'],
     dependencies: ['accordion', 'badge', 'button', 'dialog', 'scroll-area'],
   },

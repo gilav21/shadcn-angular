@@ -43,7 +43,7 @@ export * from './pagination.component';
 export * from './input-otp.component';
 export * from './calendar.component';
 export * from './command.component';
-export * from './shortcut-bindings-dialog.component';
+export * from './shortcut-bindings-dialog';
 export * from './menubar.component';
 export * from './carousel.component';
 export * from './navigation-menu.component';
