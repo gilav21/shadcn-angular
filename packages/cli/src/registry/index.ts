@@ -544,7 +544,7 @@ export const registry = defineRegistry({
   },
   tour: {
     name: 'tour',
-    files: ['tour.component.ts'],
+    files: ['tour/index.ts', 'tour/tour.component.html', 'tour/tour.component.ts'],
     dependencies: ['button'],
   },
   'comparison-slider': {

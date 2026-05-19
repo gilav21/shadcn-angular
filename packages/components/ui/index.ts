@@ -122,7 +122,7 @@ export * from './particles.component';
 export * from './kanban.component';
 
 // Tour
-export * from './tour.component';
+export * from './tour';
 
 // File Viewer
 export * from './file-viewer';

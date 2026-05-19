@@ -17,8 +17,8 @@ import {
     Injector,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../lib/utils';
-import { ButtonComponent } from './button';
+import { cn } from '../../lib/utils';
+import { ButtonComponent } from '../button';
 
 /**
  * One step of a guided tour.
@@ -125,47 +125,7 @@ function computeCardPos(targetRect: Rect, cardSize: CardSize, preferred: TourSid
     selector: 'ui-tour',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [ButtonComponent],
-    template: `
-        @if (active() && currentStep(); as step) {
-            @if (isReady()) {
-                <div
-                    class="fixed rounded-md pointer-events-none transition-all duration-150"
-                    [style.top.px]="spotlightRect().top"
-                    [style.left.px]="spotlightRect().left"
-                    [style.width.px]="spotlightRect().width"
-                    [style.height.px]="spotlightRect().height"
-                    style="z-index:9999;box-shadow:0 0 0 9999px rgba(0,0,0,0.55);"
-                    [attr.data-slot]="'tour-spotlight'"
-                ></div>
-            }
-            <div
-                #cardEl
-                [class]="cardClasses()"
-                [style.top.px]="cardPos().top"
-                [style.left.px]="cardPos().left"
-                [style.visibility]="isReady() ? 'visible' : 'hidden'"
-                style="z-index:10000;"
-                [attr.data-slot]="'tour-card'"
-                tabindex="-1"
-                (keydown)="onKeydown($event)"
-            >
-                <div class="text-xs text-muted-foreground mb-1">{{ currentIndex() + 1 }} / {{ steps().length }}</div>
-                <h3 class="font-semibold">{{ step.title }}</h3>
-                @if (step.description) {
-                    <p class="text-sm text-muted-foreground mt-1">{{ step.description }}</p>
-                }
-                <div class="flex flex-wrap gap-2 mt-4 justify-end">
-                    @if (showSkip() && !isLastStep()) {
-                        <ui-button variant="ghost" size="sm" (click)="skip()">{{ skipLabel() }}</ui-button>
-                    }
-                    @if (currentIndex() > 0) {
-                        <ui-button variant="outline" size="sm" (click)="previous()">{{ prevLabel() }}</ui-button>
-                    }
-                    <ui-button size="sm" (click)="next()">{{ isLastStep() ? finishLabel() : nextLabel() }}</ui-button>
-                </div>
-            </div>
-        }
-    `,
+    templateUrl: './tour.component.html',
     host: { class: 'contents' },
 })
 /**
