@@ -26,7 +26,7 @@ import {
 import { FormsModule } from '@angular/forms';
 import { PropertyEditorComponent } from './property-editor.component';
 import { cn } from '../../lib/utils';
-import { IconComponent } from '../icon.component';
+import { IconComponent } from '../icon';
 
 @Component({
     selector: 'ui-page-builder',

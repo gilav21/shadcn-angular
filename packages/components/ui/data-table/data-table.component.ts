@@ -44,7 +44,7 @@ import {
   ContextMenuItem,
 } from "../context-menu.component";
 import { ButtonComponent } from "../button";
-import { IconComponent } from "../icon.component";
+import { IconComponent } from "../icon";
 import {
   ColumnDef,
   SortState,

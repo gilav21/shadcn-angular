@@ -6,7 +6,7 @@ import {
     inject,
 } from '@angular/core';
 import { DomSanitizer } from '@angular/platform-browser';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { UI_CUSTOM_ICONS } from './icon.token';
 
 export const DEFAULT_ICONS = {
@@ -1214,24 +1214,8 @@ const SIZE_MAP: Record<string, string> = {
 @Component({
     selector: 'ui-icon',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <svg
-            xmlns="http://www.w3.org/2000/svg"
-            [attr.width]="resolvedSize()"
-            [attr.height]="resolvedSize()"
-            viewBox="0 0 24 24"
-            [attr.fill]="resolvedFill()"
-            [attr.stroke]="resolvedStroke()"
-            [attr.stroke-width]="resolvedStrokeWidth()"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            [class]="classes()"
-            [innerHTML]="svgContent()"
-            [attr.data-slot]="'icon'"
-            [style.color]="color() || null"
-        ></svg>
-    `,
-    styles: [`:host { display: inline-flex; }`],
+    templateUrl: './icon.component.html',
+    styleUrl: './icon.component.css',
 })
 export class IconComponent {
     readonly name = input<IconName>('');

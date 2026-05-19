@@ -94,8 +94,7 @@ export * from './dock-label.component';
 export * from './page-builder/page-builder.component';
 export * from './page-builder/page-builder.types';
 export * from './component-outlet.directive';
-export * from './icon.component';
-export * from './icon.token';
+export * from './icon';
 export * from './comparison-slider.component';
 export * from './sortable.component';
 

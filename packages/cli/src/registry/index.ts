@@ -200,7 +200,7 @@ export const registry = defineRegistry({
   },
   icon: {
     name: 'icon',
-    files: ['icon.component.ts', 'icon.token.ts'],
+    files: ['icon/icon.component.css', 'icon/icon.component.html', 'icon/icon.component.ts', 'icon/icon.token.ts', 'icon/index.ts'],
   },
 
   'file-upload': {

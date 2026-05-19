@@ -16,7 +16,7 @@ import {
     SelectContentComponent,
     SelectItemComponent
 } from '../select.component';
-import { IconComponent } from '../icon.component';
+import { IconComponent } from '../icon';
 
 @Component({
     selector: 'ui-property-editor',

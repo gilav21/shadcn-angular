@@ -8,7 +8,7 @@ import {
 import { CommonModule } from '@angular/common';
 import { SortDirection } from '../data-table.types';
 import { ButtonComponent } from '../../button';
-import { IconComponent } from '../../icon.component';
+import { IconComponent } from '../../icon';
 import { cn } from '../../../lib/utils';
 
 @Component({
