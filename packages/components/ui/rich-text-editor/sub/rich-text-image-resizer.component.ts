@@ -1,7 +1,7 @@
 import { Component, signal, input, effect, OnDestroy, ChangeDetectionStrategy, output, inject, computed } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
+import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 
 /**
  * Horizontal alignment mode for images inside the editor.
@@ -25,48 +25,7 @@ const DELETE_ICON = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="
 @Component({
     selector: 'ui-rich-text-image-resizer',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        @if (target()) {
-            <div class="absolute border-2 border-primary pointer-events-none transition-none"
-                 [style.top.px]="rect().top"
-                 [style.left.px]="rect().left"
-                 [style.width.px]="rect().width"
-                 [style.height.px]="rect().height"
-                 [style.display]="visible() ? 'block' : 'none'">
-
-                <div class="absolute -top-1.5 -left-1.5 w-3 h-3 bg-primary border border-white rounded-sm cursor-nw-resize pointer-events-auto shadow-sm"
-                     (mousedown)="startResize($event, 'nw')"></div>
-                <div class="absolute -top-1.5 -right-1.5 w-3 h-3 bg-primary border border-white rounded-sm cursor-ne-resize pointer-events-auto shadow-sm"
-                     (mousedown)="startResize($event, 'ne')"></div>
-                <div class="absolute -bottom-1.5 -left-1.5 w-3 h-3 bg-primary border border-white rounded-sm cursor-sw-resize pointer-events-auto shadow-sm"
-                     (mousedown)="startResize($event, 'sw')"></div>
-                <div class="absolute -bottom-1.5 -right-1.5 w-3 h-3 bg-primary border border-white rounded-sm cursor-se-resize pointer-events-auto shadow-sm"
-                     (mousedown)="startResize($event, 'se')"></div>
-
-                <div class="absolute -top-10 left-1/2 -translate-x-1/2 pointer-events-auto flex items-center gap-0.5 bg-popover border rounded-md shadow-md p-0.5">
-                    @for (align of alignments; track align) {
-                        <button
-                            type="button"
-                            class="p-1.5 rounded-sm hover:bg-accent transition-colors"
-                            [class.bg-accent]="currentAlignment() === align"
-                            [class.text-accent-foreground]="currentAlignment() === align"
-                            [title]="resolvedAlignmentLabels()[align]"
-                            (mousedown)="onAlignClick($event, align)">
-                            <span [innerHTML]="getAlignIcon(align)"></span>
-                        </button>
-                    }
-                    <div class="w-px h-5 bg-border mx-0.5"></div>
-                    <button
-                        type="button"
-                        class="p-1.5 rounded-sm hover:bg-destructive/10 hover:text-destructive transition-colors"
-                        [title]="locale().imageResizer.deleteImage"
-                        (mousedown)="onDeleteClick($event)">
-                        <span [innerHTML]="deleteIconHtml"></span>
-                    </button>
-                </div>
-            </div>
-        }
-    `
+    templateUrl: './rich-text-image-resizer.component.html',
 })
 export class RichTextImageResizerComponent implements OnDestroy {
     private readonly document = inject(DOCUMENT);

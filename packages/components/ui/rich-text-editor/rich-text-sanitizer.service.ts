@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { isValidImageMagicBytes } from '../lib/parsers/image-validator';
-import { sanitizeSvg } from '../lib/parsers/svg-sanitizer';
+import { isValidImageMagicBytes } from '../../lib/parsers/image-validator';
+import { sanitizeSvg } from '../../lib/parsers/svg-sanitizer';
 
 /**
  * Comprehensive HTML sanitization service for rich text editor.

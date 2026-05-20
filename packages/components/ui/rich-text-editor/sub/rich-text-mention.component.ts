@@ -14,9 +14,9 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../lib/utils';
-import { ScrollAreaComponent } from './scroll-area';
-import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
+import { cn } from '../../../lib/utils';
+import { ScrollAreaComponent } from '../../scroll-area';
+import { RichTextLocale, RICH_TEXT_LOCALES } from '../rich-text-locales';
 
 /**
  * A user/entity candidate for the `@mention` popover.
@@ -102,76 +102,7 @@ export interface TagItem {
   selector: 'ui-rich-text-mention-popover',
   changeDetection: ChangeDetectionStrategy.OnPush,
   imports: [ScrollAreaComponent],
-  template: `
-    <div
-      [class]="containerClasses()"
-      [style.left.px]="position().x"
-      [style.top.px]="position().y"
-      role="listbox"
-      [attr.aria-label]="type() === 'mention' ? locale().mentions.selectUser : locale().mentions.selectTag"
-      (keydown)="onKeydown($event)"
-    >
-      @if (items().length === 0) {
-        <div class="p-3 text-sm text-muted-foreground text-center">
-          @if (type() === 'mention') {
-            {{ locale().mentions.noUsersFound }}
-          } @else {
-            {{ locale().mentions.noTagsFound }}
-          }
-        </div>
-      } @else {
-        <ui-scroll-area class="max-h-48">
-          <div class="p-1">
-            @for (item of items(); track item.value; let i = $index) {
-              <button
-                #itemButton
-                type="button"
-                [class]="itemClasses(i)"
-                [attr.data-index]="i"
-                [attr.aria-selected]="i === selectedIndex()"
-                role="option"
-                (mousedown)="$event.preventDefault()"
-                (click)="onItemClick(item)"
-                (mouseenter)="selectedIndex.set(i)"
-              >
-                @if (type() === 'mention') {
-                  <!-- Mention item with avatar -->
-                  <div class="flex items-center gap-2">
-                    @if (asMention(item).avatar) {
-                      <img 
-                        [src]="asMention(item).avatar" 
-                        [alt]="item.label"
-                        class="w-6 h-6 rounded-full object-cover"
-                      />
-                    } @else {
-                      <div class="w-6 h-6 rounded-full bg-accent flex items-center justify-center text-xs font-medium">
-                        {{ item.label.charAt(0).toUpperCase() }}
-                      </div>
-                    }
-                    <div class="flex flex-col items-start">
-                      <span class="text-sm font-medium">{{ item.label }}</span>
-                      @if (asMention(item).description) {
-                        <span class="text-xs text-muted-foreground">{{ asMention(item).description }}</span>
-                      }
-                    </div>
-                  </div>
-                } @else {
-                  <!-- Tag item with color -->
-                  <div class="flex items-center gap-2">
-                    <div 
-                      class="w-3 h-3 rounded-full"
-                      [style.background-color]="asTag(item).color || 'var(--accent)'"
-                    ></div>
-                    <span class="text-sm">{{ item.label }}</span>
-                  </div>
-                }
-              </button>
-            }
-          </div>
-        </ui-scroll-area>
-      }
-    </div>
-  `,
+  templateUrl: './rich-text-mention.component.html',
   host: {
     class: 'contents',
   },

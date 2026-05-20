@@ -396,14 +396,14 @@ export const registry = defineRegistry({
   },
   'rich-text-editor': {
     name: 'rich-text-editor',
-    files: ['rich-text-command-registry.service.ts', 'rich-text-editor.component.ts', 'rich-text-image-resizer.component.ts', 'rich-text-locales.ts', 'rich-text-markdown.service.ts', 'rich-text-mention.component.ts', 'rich-text-paste-normalizer.service.ts', 'rich-text-sanitizer.service.ts', 'rich-text-toolbar.component.ts'],
-    dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
+    files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
+    dependencies: ['button', 'dialog', 'popover', 'scroll-area'],
     libFiles: ['parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
         componentName: 'rich-text-editor',
-        sourceFile: 'rich-text-editor.component.ts',
+        sourceFile: 'rich-text-editor/rich-text-editor.component.ts',
       },
     ],
   },
