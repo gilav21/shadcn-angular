@@ -51,7 +51,7 @@ export * from './sidebar.component';
 export * from './spinner';
 export * from './empty.component';
 export * from './kbd';
-export * from './button-group.component';
+export * from './button-group';
 export * from './input-group.component';
 export * from './field.component';
 export * from './native-select';

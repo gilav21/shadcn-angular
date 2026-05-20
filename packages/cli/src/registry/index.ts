@@ -66,7 +66,7 @@ export const registry = defineRegistry({
   },
   'button-group': {
     name: 'button-group',
-    files: ['button-group.component.ts']
+    files: ['button-group/button-group.component.html', 'button-group/button-group.component.ts', 'button-group/index.ts', 'button-group/sub/button-group-separator.component.ts', 'button-group/sub/button-group-text.component.ts']
   },
   calendar: {
     name: 'calendar',

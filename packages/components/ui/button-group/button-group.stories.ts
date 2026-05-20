@@ -1,6 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { ButtonGroupComponent, ButtonGroupTextComponent, ButtonGroupSeparatorComponent } from './button-group.component';
-import { ButtonComponent } from './button';
+import { ButtonGroupComponent, ButtonGroupTextComponent, ButtonGroupSeparatorComponent } from './index';
+import { ButtonComponent } from '../button';
 
 const meta: Meta<ButtonGroupComponent> = {
     title: 'UI/ButtonGroup',
