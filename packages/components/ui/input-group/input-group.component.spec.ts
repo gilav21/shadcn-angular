@@ -3,12 +3,10 @@ import { Component } from '@angular/core';
 import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
-import {
-    InputGroupComponent,
-    InputGroupInputComponent,
-    InputGroupAddonComponent,
-    InputGroupTextComponent
-} from './input-group.component';
+import { InputGroupComponent } from './input-group.component';
+import { InputGroupInputComponent } from './sub/input-group-input.component';
+import { InputGroupAddonComponent } from './sub/input-group-addon.component';
+import { InputGroupTextComponent } from './sub/input-group-text.component';
 
 @Component({
     template: `

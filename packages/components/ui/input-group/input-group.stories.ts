@@ -1,10 +1,8 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import {
-    InputGroupComponent,
-    InputGroupAddonComponent,
-    InputGroupTextComponent,
-} from './input-group.component';
-import { InputComponent } from './input';
+import { InputGroupComponent } from './input-group.component';
+import { InputGroupAddonComponent } from './sub/input-group-addon.component';
+import { InputGroupTextComponent } from './sub/input-group-text.component';
+import { InputComponent } from '../input';
 
 const meta: Meta<InputGroupComponent> = {
     title: 'UI/InputGroup',

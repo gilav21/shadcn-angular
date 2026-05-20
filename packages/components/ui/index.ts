@@ -52,7 +52,7 @@ export * from './spinner';
 export * from './empty.component';
 export * from './kbd';
 export * from './button-group';
-export * from './input-group.component';
+export * from './input-group';
 export * from './field.component';
 export * from './native-select';
 export * from './chip-list';
