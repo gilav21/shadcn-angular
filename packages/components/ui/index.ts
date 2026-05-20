@@ -78,7 +78,7 @@ export * from './stepper.component';
 export * from './file-upload';
 export * from './color-picker';
 export * from './confetti.directive';
-export * from './number-ticker.component';
+export * from './number-ticker';
 export * from './data-table';
 export * from './chat.component';
 export * from './streaming-text';

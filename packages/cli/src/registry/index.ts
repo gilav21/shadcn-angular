@@ -263,7 +263,7 @@ export const registry = defineRegistry({
   },
   'number-ticker': {
     name: 'number-ticker',
-    files: ['number-ticker.component.ts'],
+    files: ['number-ticker/index.ts', 'number-ticker/number-ticker.component.html', 'number-ticker/number-ticker.component.ts', 'number-ticker/sub/number-ticker-digit.component.html', 'number-ticker/sub/number-ticker-digit.component.ts'],
   },
   pagination: {
     name: 'pagination',

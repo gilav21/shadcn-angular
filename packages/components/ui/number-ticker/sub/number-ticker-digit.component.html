@@ -1,0 +1,10 @@
+<div class="relative inline-block overflow-hidden h-[1em] w-[0.6em] align-top">
+  @if (isDigit()) {
+    <div class="flex flex-col will-change-transform">
+      <span class="h-[1em] flex items-center justify-center">{{ prevDigit() }}</span>
+      <span class="h-[1em] flex items-center justify-center">{{ digit() }}</span>
+    </div>
+  } @else {
+     <span class="h-[1em] flex items-center justify-center">{{ digit() }}</span>
+  }
+</div>

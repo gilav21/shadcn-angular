@@ -1,0 +1,5 @@
+<span [class]="classes()" #ticker>
+  @for (char of displayDigits(); track $index) {
+    <ui-number-ticker-digit [digit]="char"/>
+  }
+</span>

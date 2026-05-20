@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, signal } from '@angular/core';
-import { NumberTickerComponent } from '../../../../../packages/components/ui/number-ticker.component';
+import { NumberTickerComponent } from '../../../../../packages/components/ui/number-ticker';
 
 @Component({
   selector: 'app-number-ticker-demo',
