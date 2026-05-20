@@ -7,7 +7,7 @@ import {
   PaginationPreviousComponent,
   PaginationNextComponent,
   PaginationEllipsisComponent,
-} from './pagination.component';
+} from './index';
 
 const meta: Meta<PaginationComponent> = {
   title: 'UI/Pagination',

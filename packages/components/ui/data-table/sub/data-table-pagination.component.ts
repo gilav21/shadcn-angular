@@ -22,7 +22,7 @@ import {
   PaginationContentComponent,
   PaginationItemComponent,
   PaginationLinkComponent
-} from '../../pagination.component';
+} from '../../pagination';
 import { IconComponent } from '../../icon';
 import { PaginationState } from '../data-table.types';
 import { isRtl } from '../../../lib/utils';

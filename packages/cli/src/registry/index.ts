@@ -267,7 +267,7 @@ export const registry = defineRegistry({
   },
   pagination: {
     name: 'pagination',
-    files: ['pagination.component.ts'],
+    files: ['pagination/index.ts', 'pagination/pagination.component.ts', 'pagination/sub/pagination-content.component.ts', 'pagination/sub/pagination-ellipsis.component.ts', 'pagination/sub/pagination-item.component.ts', 'pagination/sub/pagination-link.component.ts', 'pagination/sub/pagination-next.component.ts', 'pagination/sub/pagination-previous.component.ts'],
   },
   'phone-input': {
     name: 'phone-input',
