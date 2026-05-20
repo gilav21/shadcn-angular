@@ -11,7 +11,7 @@ import {
   TableHeadComponent,
   TableCellComponent,
   TableCaptionComponent
-} from './table.component';
+} from './index';
 
 @Component({
   template: `

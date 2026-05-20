@@ -8,7 +8,7 @@ import {
   TableHeadComponent,
   TableCellComponent,
   TableCaptionComponent,
-} from './table.component';
+} from './index';
 
 const meta: Meta<TableComponent & { rtl: boolean }> = {
   title: 'UI/Table',

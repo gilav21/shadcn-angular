@@ -28,7 +28,7 @@ import {
   TableRowComponent,
   TableHeadComponent,
   TableCellComponent,
-} from "../table.component";
+} from "../table";
 import { InputComponent } from "../input";
 import { CheckboxComponent } from "../checkbox";
 import {

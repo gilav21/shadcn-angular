@@ -340,7 +340,7 @@ export const registry = defineRegistry({
   },
   table: {
     name: 'table',
-    files: ['table.component.ts'],
+    files: ['table/index.ts', 'table/sub/table-body.component.ts', 'table/sub/table-caption.component.ts', 'table/sub/table-cell.component.ts', 'table/sub/table-footer.component.ts', 'table/sub/table-head.component.ts', 'table/sub/table-header-directive.ts', 'table/sub/table-header.component.ts', 'table/sub/table-row.component.ts', 'table/table.component.ts'],
   },
   tabs: {
     name: 'tabs',
