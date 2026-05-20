@@ -32,7 +32,7 @@ export * from './toggle-group';
 export * from './scroll-area';
 export * from './table.component';
 export * from './breadcrumb.component';
-export * from './hover-card.component';
+export * from './hover-card';
 export * from './context-menu.component';
 export * from './drawer.component';
 export * from './aspect-ratio';

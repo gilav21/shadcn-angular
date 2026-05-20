@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent } from './hover-card.component';
+import { HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent } from './index';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

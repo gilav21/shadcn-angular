@@ -216,7 +216,7 @@ export const registry = defineRegistry({
   },
   'hover-card': {
     name: 'hover-card',
-    files: ['hover-card.component.ts'],
+    files: ['hover-card/hover-card.component.ts', 'hover-card/index.ts', 'hover-card/sub/hover-card-content.component.ts', 'hover-card/sub/hover-card-trigger.component.ts'],
     libFiles: ['touch.ts'],
   },
   input: {
