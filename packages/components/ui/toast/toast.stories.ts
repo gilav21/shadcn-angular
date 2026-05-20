@@ -1,6 +1,7 @@
 import { Meta, StoryObj , moduleMetadata } from '@storybook/angular';
-import { ToastComponent, ToasterComponent, ToastService } from './toast.component';
-import { ButtonComponent } from './button';
+import { ToastComponent, ToastService } from './toast.component';
+import { ToasterComponent } from './sub/toaster.component';
+import { ButtonComponent } from '../button';
 
 import { Component, inject, input } from '@angular/core';
 

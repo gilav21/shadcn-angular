@@ -357,7 +357,7 @@ export const registry = defineRegistry({
   },
   toast: {
     name: 'toast',
-    files: ['toast.component.ts'],
+    files: ['toast/index.ts', 'toast/sub/toaster.component.html', 'toast/sub/toaster.component.ts', 'toast/toast.component.html', 'toast/toast.component.ts'],
   },
   toggle: {
     name: 'toggle',

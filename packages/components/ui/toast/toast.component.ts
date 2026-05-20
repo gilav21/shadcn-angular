@@ -5,11 +5,9 @@ import {
   output,
   computed,
   signal,
-  inject,
   Injectable,
-  forwardRef,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const toastVariants = cva(
@@ -115,100 +113,9 @@ export class ToastService {
 }
 
 @Component({
-  selector: 'ui-toaster',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [forwardRef(() => ToastComponent)],
-  template: `
-    <div [class]="containerClasses()" [attr.data-slot]="'toaster'">
-      @for (toast of toastService.toasts(); track toast.id) {
-        <ui-toast
-          [variant]="toast.variant"
-          [title]="toast.title"
-          [description]="toast.description"
-          [action]="toast.action"
-          [showCountdown]="toast.showCountdown"
-          [countdownSeconds]="toast.countdownSeconds"
-          [duration]="toast.duration"
-          [createdAt]="toast.createdAt"
-          (close)="toastService.dismiss(toast.id)"
-        />
-      }
-    </div>
-  `,
-  host: { class: 'contents' },
-})
-export class ToasterComponent {
-  readonly toastService = inject(ToastService);
-
-  vertical = input<'top' | 'center' | 'bottom'>('bottom');
-  horizontal = input<'start' | 'center' | 'end'>('end');
-
-  containerClasses = computed(() => {
-    const v = this.vertical();
-    const h = this.horizontal();
-
-    const verticalClasses: Record<string, string> = {
-      'top': 'top-0',
-      'center': 'top-1/2 -translate-y-1/2',
-      'bottom': 'bottom-0',
-    };
-
-    const horizontalClasses: Record<string, string> = {
-      'start': 'ltr:left-0 rtl:right-0',
-      'center': 'left-1/2 -translate-x-1/2',
-      'end': 'ltr:right-0 rtl:left-0',
-    };
-
-    return cn(
-      'fixed z-[100] flex flex-col gap-2 p-4 w-full max-w-[calc(100vw-2rem)] sm:max-w-[420px]',
-      verticalClasses[v],
-      horizontalClasses[h]
-    );
-  });
-}
-
-@Component({
   selector: 'ui-toast',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div [class]="classes()" [attr.data-slot]="'toast'" role="alert">
-      <div class="grid gap-1 flex-1">
-        @if (title()) {
-          <div class="text-sm font-semibold" [attr.data-slot]="'toast-title'">{{ title() }}</div>
-        }
-        @if (description()) {
-          <div class="text-sm opacity-90" [attr.data-slot]="'toast-description'">{{ description() }}</div>
-        }
-      </div>
-      @if (action()) {
-        <button
-          class="inline-flex h-8 shrink-0 items-center justify-center rounded-md border bg-transparent px-3 text-sm font-medium transition-colors hover:bg-secondary focus:outline-none focus:ring-1 focus:ring-ring disabled:pointer-events-none disabled:opacity-50 group-[.destructive]:border-muted/40 group-[.destructive]:hover:border-destructive/30 group-[.destructive]:hover:bg-destructive group-[.destructive]:hover:text-destructive-foreground group-[.destructive]:focus:ring-destructive"
-          (click)="action()?.onClick()"
-        >
-          {{ action()?.label }}@if (showCountdown() && countdownSeconds() != null) {
-            <span class="ltr:ml-1 rtl:mr-1">({{ countdownSeconds() }}s)</span>
-          }
-        </button>
-      }
-      <button
-        class="absolute ltr:right-1 rtl:left-1 top-1 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-1 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600"
-        (click)="close.emit()"
-        aria-label="Close"
-      >
-        <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
-        </svg>
-      </button>
-      @if (showCountdown() && duration()) {
-        <div class="absolute bottom-0 left-0 right-0 h-1 bg-black/10" data-slot="toast-progress">
-          <div
-            class="h-full bg-current opacity-30 transition-[width] duration-1000 ease-linear"
-            [style.width.%]="progressPercent()"
-          ></div>
-        </div>
-      }
-    </div>
-  `,
+  templateUrl: './toast.component.html',
   host: { class: 'contents' },
 })
 export class ToastComponent {

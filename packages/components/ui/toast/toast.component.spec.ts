@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ToastService, ToasterComponent, ToastComponent } from './toast.component';
+import { ToastService, ToastComponent } from './toast.component';
+import { ToasterComponent } from './sub/toaster.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
