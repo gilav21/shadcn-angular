@@ -1,5 +1,5 @@
 import { Component, ChangeDetectionStrategy, input, computed } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 
 @Component({
     selector: 'ui-dock-label',

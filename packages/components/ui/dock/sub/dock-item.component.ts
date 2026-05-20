@@ -8,7 +8,7 @@ import {
     signal,
     Renderer2
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 
 @Component({
     selector: 'ui-dock-item',

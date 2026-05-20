@@ -6,7 +6,7 @@ import {
   forwardRef,
   signal,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 
 /**

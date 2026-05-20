@@ -4,7 +4,7 @@ import {
   input,
   computed,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 
 /**
  * InputGroupAddon - Addon elements (icons, text, buttons) within an input group

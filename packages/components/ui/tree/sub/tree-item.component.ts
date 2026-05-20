@@ -10,7 +10,7 @@ import {
     viewChild,
     effect,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn } from '../../../lib/utils';
 import { TREE } from '../tree.component';
 
 let nextId = 0;
