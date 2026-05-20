@@ -46,7 +46,7 @@ export * from './shortcut-bindings-dialog';
 export * from './menubar.component';
 export * from './carousel.component';
 export * from './navigation-menu.component';
-export * from './date-picker.component';
+export * from './date-picker';
 export * from './sidebar.component';
 export * from './spinner';
 export * from './empty.component';

@@ -120,7 +120,7 @@ export const registry = defineRegistry({
   },
   'date-picker': {
     name: 'date-picker',
-    files: ['date-picker.component.ts'],
+    files: ['date-picker/date-picker.component.html', 'date-picker/date-picker.component.ts', 'date-picker/index.ts', 'date-picker/sub/date-range-picker.component.html', 'date-picker/sub/date-range-picker.component.ts'],
     dependencies: ['calendar'],
   },
   chat: {
