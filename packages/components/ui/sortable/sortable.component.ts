@@ -15,8 +15,11 @@ import {
     viewChild,
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { cn } from '../lib/utils';
-import { onPointerDrag } from '../lib/touch';
+import { cn } from '../../lib/utils';
+import { onPointerDrag } from '../../lib/touch';
+import { SortableItemComponent } from './sub/sortable-item.component';
+
+export { SortableItemComponent };
 
 export type SortableOrientation = 'vertical' | 'horizontal';
 
@@ -73,80 +76,6 @@ export class SortableHandleDirective {
     }
 }
 
-/** Wraps one rendered row inside ui-sortable. */
-@Component({
-    selector: 'ui-sortable-item',
-    standalone: true,
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <div
-            [class]="classes()"
-            [style]="dragStyle()"
-            [attr.data-slot]="'sortable-item'"
-            [attr.data-index]="index()"
-            [attr.tabindex]="disabled() ? null : 0"
-            aria-roledescription="sortable"
-            [attr.aria-disabled]="disabled() ? 'true' : null"
-            (mousedown)="onMouseDown($event)"
-            (touchstart)="onTouchStart($event)"
-            (keydown)="onKeyDown($event)"
-        >
-            <ng-content />
-        </div>
-    `,
-    host: { class: 'contents' },
-})
-export class SortableItemComponent {
-    readonly index = input.required<number>();
-    readonly class = input('');
-
-    private readonly parent = inject(SortableComponent, { optional: true }) as SortableComponent<unknown> | null;
-
-    readonly disabled = computed(() => this.parent?.disabled() ?? false);
-
-    readonly classes = computed(() => {
-        const idx = this.index();
-        const isSource = this.parent?.dragSource() === idx;
-        const isLifted = this.parent?.liftedIndex() === idx;
-        const bodyDraggable = !(this.parent?.handleOnly() ?? false) && !this.disabled();
-        return cn(
-            'relative flex items-center gap-2 select-none outline-none',
-            'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded',
-            bodyDraggable ? 'touch-none' : '',
-            isSource ? 'opacity-50 z-10' : '',
-            isLifted ? 'ring-2 ring-primary ring-offset-1 rounded' : '',
-            this.class(),
-        );
-    });
-
-    readonly dragStyle = computed((): Record<string, string> => {
-        const idx = this.index();
-        if (this.parent?.dragSource() !== idx) return {};
-        const delta = this.parent?.dragDelta() ?? { x: 0, y: 0 };
-        return {
-            transform: `translate(${delta.x}px, ${delta.y}px)`,
-            position: 'relative',
-            'z-index': '10',
-        };
-    });
-
-    onMouseDown(event: MouseEvent): void {
-        if (!this.parent || this.parent.handleOnly()) return;
-        this.parent.startDrag(this.index(), event.clientX, event.clientY);
-    }
-
-    onTouchStart(event: TouchEvent): void {
-        if (!this.parent || this.parent.handleOnly() || event.touches.length === 0) return;
-        event.preventDefault();
-        const touch = event.touches[0];
-        this.parent.startDrag(this.index(), touch.clientX, touch.clientY);
-    }
-
-    onKeyDown(event: KeyboardEvent): void {
-        this.parent?.handleItemKeyDown(this.index(), event);
-    }
-}
-
 /** Moves an item from index `from` to index `to` in a copy of `arr`. */
 function moveItem<T>(arr: readonly T[], from: number, to: number): T[] {
     const copy = [...arr];
@@ -181,26 +110,7 @@ function computeTargetIndex(
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [NgTemplateOutlet],
-    template: `
-        <div
-            #container
-            [class]="classes()"
-            [attr.data-slot]="'sortable'"
-            [attr.aria-disabled]="disabled() ? 'true' : null"
-        >
-            @for (item of items(); track $index) {
-                @if (shouldShowIndicatorBefore($index)) {
-                    <div [class]="indicatorClass()" aria-hidden="true"></div>
-                }
-                <ng-container
-                    *ngTemplateOutlet="itemTemplate()!; context: { $implicit: item, index: $index }"
-                />
-            }
-            @if (shouldShowIndicatorAfterLast()) {
-                <div [class]="indicatorClass()" aria-hidden="true"></div>
-            }
-        </div>
-    `,
+    templateUrl: './sortable.component.html',
     host: { class: 'contents' },
 })
 export class SortableComponent<T> {

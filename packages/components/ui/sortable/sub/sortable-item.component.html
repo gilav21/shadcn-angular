@@ -1,0 +1,14 @@
+<div
+    [class]="classes()"
+    [style]="dragStyle()"
+    [attr.data-slot]="'sortable-item'"
+    [attr.data-index]="index()"
+    [attr.tabindex]="disabled() ? null : 0"
+    aria-roledescription="sortable"
+    [attr.aria-disabled]="disabled() ? 'true' : null"
+    (mousedown)="onMouseDown($event)"
+    (touchstart)="onTouchStart($event)"
+    (keydown)="onKeyDown($event)"
+>
+    <ng-content />
+</div>

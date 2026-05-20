@@ -94,7 +94,7 @@ export * from './page-builder/page-builder.types';
 export * from './component-outlet.directive';
 export * from './icon';
 export * from './comparison-slider';
-export * from './sortable.component';
+export * from './sortable';
 
 export * from './charts';
 

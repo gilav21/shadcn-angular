@@ -554,7 +554,7 @@ export const registry = defineRegistry({
   },
   sortable: {
     name: 'sortable',
-    files: ['sortable.component.ts'],
+    files: ['sortable/index.ts', 'sortable/sortable.component.html', 'sortable/sortable.component.ts', 'sortable/sub/sortable-item.component.html', 'sortable/sub/sortable-item.component.ts'],
     libFiles: ['touch.ts'],
   },
 });
