@@ -4,8 +4,8 @@ import {
   TooltipTriggerComponent,
   TooltipContentComponent,
   TooltipDirective,
-} from './tooltip.component';
-import { ButtonComponent } from './button';
+} from './index';
+import { ButtonComponent } from '../button';
 
 const meta: Meta<TooltipComponent> = {
   title: 'UI/Tooltip',

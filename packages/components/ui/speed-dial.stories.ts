@@ -8,7 +8,7 @@ import {
   SpeedDialContextTriggerDirective,
 } from './speed-dial.component';
 import { ButtonComponent } from './button';
-import { TooltipDirective } from './tooltip.component';
+import { TooltipDirective } from './tooltip';
 
 const meta: Meta<SpeedDialComponent> = {
   title: 'UI/SpeedDial',

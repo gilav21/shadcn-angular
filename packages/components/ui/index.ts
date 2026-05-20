@@ -19,7 +19,7 @@ export * from './progress';
 export * from './alert';
 export * from './avatar';
 export * from './dialog.component';
-export * from './tooltip.component';
+export * from './tooltip';
 export * from './dropdown-menu.component';
 export * from './select.component';
 export * from './popover.component';

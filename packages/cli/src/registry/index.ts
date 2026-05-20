@@ -369,7 +369,7 @@ export const registry = defineRegistry({
   },
   tooltip: {
     name: 'tooltip',
-    files: ['tooltip.component.ts'],
+    files: ['tooltip/index.ts', 'tooltip/sub/tooltip-trigger.component.ts', 'tooltip/tooltip.component.ts'],
     libFiles: ['touch.ts'],
   },
   tree: {

@@ -19,7 +19,7 @@ import { FormsModule } from '@angular/forms';
 import { cn } from '../lib/utils';
 import { InputComponent } from './input';
 import { ScrollAreaComponent } from './scroll-area';
-import { TooltipDirective } from './tooltip.component';
+import { TooltipDirective } from './tooltip';
 import { EMOJI_DATA } from './emoji-data';
 
 interface EmojiCategory {

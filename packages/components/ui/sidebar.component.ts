@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { cn } from '../lib/utils';
 import { ScrollAreaComponent } from './scroll-area';
-import { TooltipDirective } from './tooltip.component';
+import { TooltipDirective } from './tooltip';
 
 /**
  * Sidebar Service - Manages sidebar state across components
