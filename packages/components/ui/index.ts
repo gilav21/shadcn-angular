@@ -49,7 +49,7 @@ export * from './navigation-menu.component';
 export * from './date-picker';
 export * from './sidebar.component';
 export * from './spinner';
-export * from './empty.component';
+export * from './empty';
 export * from './kbd';
 export * from './button-group';
 export * from './input-group';

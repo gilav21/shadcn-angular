@@ -192,7 +192,7 @@ export const registry = defineRegistry({
   },
   empty: {
     name: 'empty',
-    files: ['empty.component.ts'],
+    files: ['empty/empty.component.ts', 'empty/index.ts', 'empty/sub/empty-content.component.ts', 'empty/sub/empty-description.component.ts', 'empty/sub/empty-header.component.ts', 'empty/sub/empty-media.component.ts', 'empty/sub/empty-title.component.ts'],
   },
   field: {
     name: 'field',

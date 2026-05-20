@@ -6,8 +6,8 @@ import {
     EmptyTitleComponent,
     EmptyDescriptionComponent,
     EmptyContentComponent,
-} from './empty.component';
-import { ButtonComponent } from './button';
+} from './index';
+import { ButtonComponent } from '../button';
 
 const meta: Meta<EmptyComponent> = {
     title: 'UI/Empty',

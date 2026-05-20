@@ -9,7 +9,7 @@ import {
     EmptyTitleComponent,
     EmptyDescriptionComponent,
     EmptyContentComponent
-} from './empty.component';
+} from './index';
 
 @Component({
     template: `
