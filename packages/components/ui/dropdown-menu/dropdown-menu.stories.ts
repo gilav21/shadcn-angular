@@ -9,8 +9,8 @@ import {
   DropdownMenuSubComponent,
   DropdownMenuSubTriggerComponent,
   DropdownMenuSubContentComponent,
-} from './dropdown-menu.component';
-import { ButtonComponent } from './button';
+} from './index';
+import { ButtonComponent } from '../button';
 
 const meta: Meta<DropdownMenuComponent> = {
   title: 'UI/DropdownMenu',
