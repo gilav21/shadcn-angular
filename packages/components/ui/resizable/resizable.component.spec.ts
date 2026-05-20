@@ -5,7 +5,7 @@ import {
     ResizablePanelGroupComponent,
     ResizablePanelComponent,
     ResizableHandleComponent
-} from './resizable.component';
+} from './index';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 
 @Component({

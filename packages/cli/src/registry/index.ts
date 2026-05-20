@@ -294,7 +294,7 @@ export const registry = defineRegistry({
   },
   resizable: {
     name: 'resizable',
-    files: ['resizable.component.ts'],
+    files: ['resizable/index.ts', 'resizable/resizable.component.html', 'resizable/resizable.component.ts', 'resizable/sub/resizable-handle.component.ts', 'resizable/sub/resizable-panel.component.ts'],
   },
   'scroll-area': {
     name: 'scroll-area',

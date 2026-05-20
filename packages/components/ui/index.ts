@@ -37,7 +37,7 @@ export * from './context-menu.component';
 export * from './drawer.component';
 export * from './aspect-ratio';
 export * from './toast';
-export * from './resizable.component';
+export * from './resizable';
 export * from './pagination.component';
 export * from './input-otp.component';
 export * from './calendar';

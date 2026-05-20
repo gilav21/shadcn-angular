@@ -3,7 +3,7 @@ import {
   ResizablePanelGroupComponent,
   ResizablePanelComponent,
   ResizableHandleComponent,
-} from './resizable.component';
+} from './index';
 
 const meta: Meta<ResizablePanelGroupComponent> = {
   title: 'UI/Resizable',
