@@ -1,8 +1,11 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { SplitButtonComponent, SplitButtonPrimaryComponent, SplitButtonMenuComponent, SplitButtonItemComponent } from './split-button.component';
-import { ButtonComponent, ButtonVariant } from './button';
+import { SplitButtonComponent } from './split-button.component';
+import { SplitButtonPrimaryComponent } from './sub/split-button-primary.component';
+import { SplitButtonMenuComponent } from './sub/split-button-menu.component';
+import { SplitButtonItemComponent } from './sub/split-button-item.component';
+import { ButtonComponent, ButtonVariant } from '../button';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 
 @Component({

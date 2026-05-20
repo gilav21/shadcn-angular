@@ -7,11 +7,15 @@ import {
     signal,
     inject,
     ElementRef,
+    InjectionToken,
+    forwardRef,
     booleanAttribute,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn } from '../lib/utils';
-import { ButtonVariant, ButtonSize, ButtonComponent } from './button';
+import { cn } from '../../lib/utils';
+import { ButtonVariant, ButtonSize, ButtonComponent } from '../button';
+
+export const SPLIT_BUTTON = new InjectionToken<SplitButtonComponent>('SPLIT_BUTTON');
 
 /**
  * SplitButton Item interface for data-driven mode
@@ -42,6 +46,7 @@ export interface SplitButtonItem {
 @Component({
     selector: 'ui-split-button',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [{ provide: SPLIT_BUTTON, useExisting: forwardRef(() => SplitButtonComponent) }],
     imports: [ButtonComponent],
     template: `
     <div 
@@ -250,89 +255,3 @@ export class SplitButtonComponent {
     }
 }
 
-/**
- * SplitButtonPrimary - Primary action button (for content projection mode)
- */
-@Component({
-    selector: 'ui-split-button-primary',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [ButtonComponent],
-    template: `
-    <ui-button
-      [class]="classes()"
-      [variant]="splitButton.variant()"
-      [size]="splitButton.size()"
-      [disabled]="splitButton.disabled()"
-      (click)="onClick($event)"
-      type="button"
-    >
-      <ng-content />
-    </ui-button>
-  `,
-    host: { class: 'contents' },
-})
-export class SplitButtonPrimaryComponent {
-    readonly splitButton = inject(SplitButtonComponent);
-
-    classes = computed(() => cn(
-        'rounded-r-none border-r-0'
-    ));
-
-    onClick(event: MouseEvent) {
-        this.splitButton.primaryClick.emit(event);
-    }
-}
-
-/**
- * SplitButtonMenu - Menu container (for content projection mode)
- */
-@Component({
-    selector: 'ui-split-button-menu',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
-    host: { class: 'contents' },
-})
-export class SplitButtonMenuComponent { }
-
-/**
- * SplitButtonItem - Menu item (for content projection mode)
- */
-@Component({
-    selector: 'ui-split-button-item',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <button
-      [class]="classes()"
-      [disabled]="disabled()"
-      (click)="onClick($event)"
-      role="menuitem"
-      tabindex="-1"
-    >
-      <ng-content />
-    </button>
-  `,
-    host: { class: 'contents' },
-})
-export class SplitButtonItemComponent {
-    private readonly splitButton = inject(SplitButtonComponent);
-
-    disabled = input(false, { transform: booleanAttribute });
-    value = input<string>('');
-
-    classes = computed(() => cn(
-        'relative flex w-full cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none',
-        'hover:bg-accent hover:text-accent-foreground',
-        'focus:bg-accent focus:text-accent-foreground',
-        this.disabled() && 'pointer-events-none opacity-50'
-    ));
-
-    onClick(event: MouseEvent) {
-        if (!this.disabled()) {
-            this.splitButton.itemClick.emit({
-                label: '',
-                value: this.value()
-            });
-            this.splitButton.isOpen.set(false);
-        }
-    }
-}

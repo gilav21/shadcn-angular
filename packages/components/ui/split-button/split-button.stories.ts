@@ -1,5 +1,8 @@
 import { Meta, StoryObj } from '@storybook/angular';
-import { SplitButtonPrimaryComponent, SplitButtonMenuComponent, SplitButtonItemComponent, SplitButtonComponent } from './split-button.component';
+import { SplitButtonComponent } from './split-button.component';
+import { SplitButtonPrimaryComponent } from './sub/split-button-primary.component';
+import { SplitButtonMenuComponent } from './sub/split-button-menu.component';
+import { SplitButtonItemComponent } from './sub/split-button-item.component';
 
 const meta: Meta<SplitButtonComponent> = {
     title: 'Components/SplitButton',

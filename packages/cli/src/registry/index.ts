@@ -462,7 +462,7 @@ export const registry = defineRegistry({
   },
   'split-button': {
     name: 'split-button',
-    files: ['split-button.component.ts'],
+    files: ['split-button/index.ts', 'split-button/split-button.component.ts', 'split-button/sub/split-button-item.component.ts', 'split-button/sub/split-button-menu.component.ts', 'split-button/sub/split-button-primary.component.ts'],
     dependencies: ['button'],
   },
   // Animations
