@@ -1,5 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { SparklesComponent, SparklesButtonComponent } from './sparkles.component';
+import { SparklesComponent } from './sparkles.component';
+import { SparklesButtonComponent } from './sub/sparkles-button.component';
 
 const meta: Meta<SparklesButtonComponent> = {
     title: 'UI/Sparkles',

@@ -134,7 +134,7 @@ export const registry = defineRegistry({
   },
   sparkles: {
     name: 'sparkles',
-    files: ['sparkles.component.ts'],
+    files: ['sparkles/index.ts', 'sparkles/sparkles.component.css', 'sparkles/sparkles.component.html', 'sparkles/sparkles.component.ts', 'sparkles/sub/sparkles-button.component.html', 'sparkles/sub/sparkles-button.component.ts'],
     dependencies: ['button'],
   },
   'code-block': {

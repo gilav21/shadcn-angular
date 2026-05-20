@@ -82,7 +82,7 @@ export * from './number-ticker.component';
 export * from './data-table';
 export * from './chat.component';
 export * from './streaming-text';
-export * from './sparkles.component';
+export * from './sparkles';
 export * from './code-block';
 export * from './text-reveal';
 export * from './dock.component';

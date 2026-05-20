@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SparklesButtonComponent } from './sparkles.component';
+import { SparklesButtonComponent } from './sub/sparkles-button.component';
 
 describe('Sparkles Components', () => {
     describe('SparklesButtonComponent', () => {
