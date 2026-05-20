@@ -187,7 +187,7 @@ export const registry = defineRegistry({
   },
   'dropdown-menu': {
     name: 'dropdown-menu',
-    files: ['dropdown-menu.component.ts'],
+    files: ['dropdown-menu/dropdown-menu.component.ts', 'dropdown-menu/index.ts', 'dropdown-menu/sub/dropdown-menu-content.component.ts', 'dropdown-menu/sub/dropdown-menu-item.component.ts', 'dropdown-menu/sub/dropdown-menu-label.component.ts', 'dropdown-menu/sub/dropdown-menu-separator.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-content.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-trigger.component.ts', 'dropdown-menu/sub/dropdown-menu-sub.component.ts', 'dropdown-menu/sub/dropdown-menu-trigger.component.ts'],
     libFiles: ['touch.ts'],
   },
   empty: {
