@@ -6,7 +6,7 @@ import {
   TabsContentComponent,
 } from './index';
 import { ButtonComponent } from '../button';
-import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent } from '../card.component';
+import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, CardFooterComponent } from '../card';
 import { LabelComponent } from '../label';
 import { InputComponent } from '../input';
 

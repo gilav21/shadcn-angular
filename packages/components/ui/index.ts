@@ -4,7 +4,7 @@ export * from './number-input';
 export * from './phone-input';
 export * from './input-mask.directive';
 export * from './split-button';
-export * from './card.component';
+export * from './card';
 export * from './badge';
 export * from './label';
 export * from './separator';

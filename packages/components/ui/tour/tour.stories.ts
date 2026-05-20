@@ -2,7 +2,7 @@ import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { Component, signal } from '@angular/core';
 import { TourComponent, TourStep } from './tour.component';
 import { ButtonComponent } from '../button';
-import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent } from '../card.component';
+import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent } from '../card';
 
 @Component({
     selector: 'tour-basic-demo',

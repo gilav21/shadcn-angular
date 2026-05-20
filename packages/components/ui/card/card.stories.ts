@@ -6,9 +6,9 @@ import {
   CardDescriptionComponent,
   CardContentComponent,
   CardFooterComponent,
-} from './card.component';
-import { ButtonComponent } from './button';
-import { InputComponent } from './input';
+} from './index';
+import { ButtonComponent } from '../button';
+import { InputComponent } from '../input';
 import { FormsModule } from '@angular/forms';
 
 // Simple mock for Label if it doesn't exist yet, or just assume it does. 

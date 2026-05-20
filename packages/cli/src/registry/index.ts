@@ -76,7 +76,7 @@ export const registry = defineRegistry({
   },
   card: {
     name: 'card',
-    files: ['card.component.ts'],
+    files: ['card/card.component.ts', 'card/index.ts', 'card/sub/card-content.component.ts', 'card/sub/card-description.component.ts', 'card/sub/card-footer.component.ts', 'card/sub/card-header.component.ts', 'card/sub/card-title.component.ts'],
   },
   carousel: {
     name: 'carousel',

@@ -1,6 +1,6 @@
 import { Component, input, output } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { CardComponent, CardContentComponent, CardHeaderComponent, CardTitleComponent } from '../../../packages/components/ui/card.component';
+import { CardComponent, CardContentComponent, CardHeaderComponent, CardTitleComponent } from '../../../packages/components/ui/card';
 import { CalendarComponent } from '../../../packages/components/ui/calendar';
 import { AvatarComponent, AvatarImageComponent, AvatarFallbackComponent } from '../../../packages/components/ui/avatar';
 import { BadgeComponent } from '../../../packages/components/ui/badge';
