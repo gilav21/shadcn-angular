@@ -1,7 +1,7 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { PageBuilderComponent } from './page-builder.component';
 import { Component, input } from '@angular/core';
-import { ComponentMeta } from './page-builder.types';
+import { ComponentMeta } from '../../lib/page-builder.types';
 
 @Component({
     template: `

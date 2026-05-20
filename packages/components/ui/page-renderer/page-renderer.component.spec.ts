@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PageRendererComponent } from './page-renderer.component';
-import { PageData, ComponentMeta } from './page-builder.types';
+import { PageData, ComponentMeta } from '../../lib/page-builder.types';
 import { Component, input } from '@angular/core';
 
 // Mock component to be rendered

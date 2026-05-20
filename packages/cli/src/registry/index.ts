@@ -449,12 +449,14 @@ export const registry = defineRegistry({
   'page-builder': {
     name: 'page-builder',
     dependencies: ['bento-grid', 'icon', 'select', 'switch'],
-    files: ['page-builder/page-builder.component.ts', 'page-builder/page-builder.types.ts', 'page-builder/property-editor.component.ts'],
+    files: ['page-builder/index.ts', 'page-builder/page-builder.component.html', 'page-builder/page-builder.component.ts', 'page-builder/sub/property-editor.component.html', 'page-builder/sub/property-editor.component.ts'],
+    libFiles: ['page-builder.types.ts'],
   },
   'page-renderer': {
     name: 'page-renderer',
     dependencies: ['bento-grid'],
-    files: ['page-builder/page-builder.types.ts', 'page-builder/page-renderer.component.ts'],
+    files: ['page-renderer/index.ts', 'page-renderer/page-renderer.component.html', 'page-renderer/page-renderer.component.ts'],
+    libFiles: ['page-builder.types.ts'],
   },
   'component-outlet': {
     name: 'component-outlet',

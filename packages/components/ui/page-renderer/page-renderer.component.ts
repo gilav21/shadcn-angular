@@ -9,7 +9,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { BentoGridComponent, DashboardItem } from '../bento-grid';
-import { PageData, ComponentMeta } from './page-builder.types';
+import { PageData, ComponentMeta } from '../../lib/page-builder.types';
 import { cn } from '../../lib/utils';
 
 @Component({
@@ -20,23 +20,7 @@ import { cn } from '../../lib/utils';
         BentoGridComponent
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-        <div [class]="classes()">
-            <ui-bento-grid
-                [items]="dashboardItems()"
-                [cols]="gridCols()"
-                [rowHeight]="gridRowHeight()"
-                [columnWidth]="gridColumnWidth()"
-                [gap]="gridGap()"
-                [showBorders]="gridShowBorders()"
-                [borderRadius]="gridBorderRadius()"
-                [itemPadding]="gridItemPadding()"
-                [editable]="false"
-                (componentInit)="onComponentInit($event)"
-            >
-            </ui-bento-grid>
-        </div>
-    `,
+    templateUrl: './page-renderer.component.html',
     host: { class: 'block' }
 })
 export class PageRendererComponent implements OnDestroy {
