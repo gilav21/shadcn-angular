@@ -80,7 +80,7 @@ export * from './color-picker';
 export * from './confetti.directive';
 export * from './number-ticker';
 export * from './data-table';
-export * from './chat.component';
+export * from './chat';
 export * from './streaming-text';
 export * from './sparkles';
 export * from './code-block';

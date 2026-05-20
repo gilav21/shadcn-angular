@@ -1,5 +1,5 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { ChatMessageComponent, ChatListComponent, ChatInputComponent } from './chat.component';
+import { ChatMessageComponent, ChatListComponent, ChatInputComponent } from './index';
 
 const meta: Meta<ChatMessageComponent> = {
     title: 'UI/Chat',

@@ -125,7 +125,7 @@ export const registry = defineRegistry({
   },
   chat: {
     name: 'chat',
-    files: ['chat.component.ts'],
+    files: ['chat/chat.component.html', 'chat/chat.component.ts', 'chat/index.ts', 'chat/sub/chat-input.component.ts', 'chat/sub/chat-list.component.ts'],
     dependencies: ['avatar', 'button', 'scroll-area', 'textarea'],
   },
   'streaming-text': {
