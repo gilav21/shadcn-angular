@@ -7,7 +7,7 @@ import {
   input,
   output,
 } from '@angular/core';
-import { ContextMenuComponent } from './context-menu.component';
+import { ContextMenuComponent } from './context-menu';
 import { DataTableComponent } from './data-table/data-table.component';
 
 export interface ContextMenuEvent<T> {

@@ -27,7 +27,7 @@ import {
     ContextMenuSubComponent,
     ContextMenuSubTriggerComponent,
     ContextMenuSubContentComponent,
-} from '../context-menu.component';
+} from '../context-menu';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../../lib/shortcut-binding.service';
 import { type KanbanLocale, KANBAN_LOCALES } from './kanban-locales';
 import { KanbanColumnComponent } from './sub/kanban-column.component';

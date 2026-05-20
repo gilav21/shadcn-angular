@@ -42,7 +42,7 @@ import { UiComponentOutletDirective } from "../component-outlet.directive";
 import {
   ContextMenuComponent,
   ContextMenuItem,
-} from "../context-menu.component";
+} from "../context-menu";
 import { ButtonComponent } from "../button";
 import { IconComponent } from "../icon";
 import {

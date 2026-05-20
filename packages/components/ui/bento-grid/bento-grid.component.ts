@@ -17,7 +17,7 @@ import {
     ContextMenuComponent,
     ContextMenuContentComponent,
     ContextMenuItemComponent,
-} from '../context-menu.component';
+} from '../context-menu';
 import { UiComponentOutletDirective } from '../component-outlet.directive';
 import { onPointerDrag } from '../../lib/touch';
 

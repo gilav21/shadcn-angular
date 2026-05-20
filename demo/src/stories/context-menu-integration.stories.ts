@@ -5,7 +5,7 @@ import {
   ContextMenuItemComponent,
   ContextMenuSeparatorComponent,
   ContextMenuLabelComponent,
-} from '../../../packages/components/ui/context-menu.component';
+} from '../../../packages/components/ui/context-menu';
 import {
   ContextMenuAttachDirective
 } from '../../../packages/components/ui/context-menu-integrations';

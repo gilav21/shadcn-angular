@@ -12,7 +12,7 @@ import {
   ContextMenuSubTriggerComponent,
   ContextMenuSubContentComponent,
   ContextMenuItem,
-} from './context-menu.component';
+} from './';
 
 const meta: Meta<ContextMenuComponent> = {
   title: 'UI/ContextMenu',

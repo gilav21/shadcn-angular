@@ -10,7 +10,7 @@ import {
     ContextMenuItemComponent,
     ContextMenuShortcutComponent,
     ContextMenuSeparatorComponent,
-} from '../context-menu.component';
+} from '../context-menu';
 import { ContextMenuIntegrations } from '../context-menu-integrations';
 
 const meta: Meta = {

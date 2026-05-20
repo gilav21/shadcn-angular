@@ -115,7 +115,7 @@ export const registry = defineRegistry({
   },
   'context-menu': {
     name: 'context-menu',
-    files: ['context-menu.component.ts'],
+    files: ['context-menu/context-menu.component.ts', 'context-menu/index.ts', 'context-menu/sub/context-menu-content.component.ts', 'context-menu/sub/context-menu-item.component.ts', 'context-menu/sub/context-menu-label.component.ts', 'context-menu/sub/context-menu-separator.component.ts', 'context-menu/sub/context-menu-shortcut.component.ts', 'context-menu/sub/context-menu-sub-content.component.ts', 'context-menu/sub/context-menu-sub-trigger.component.ts', 'context-menu/sub/context-menu-sub.component.ts', 'context-menu/sub/context-menu-trigger.component.ts', 'context-menu/sub/context-menu-trigger.directive.ts'],
     libFiles: ['touch.ts'],
   },
   'date-picker': {

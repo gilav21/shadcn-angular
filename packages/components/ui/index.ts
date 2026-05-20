@@ -33,7 +33,7 @@ export * from './scroll-area';
 export * from './table';
 export * from './breadcrumb';
 export * from './hover-card';
-export * from './context-menu.component';
+export * from './context-menu';
 export * from './drawer';
 export * from './aspect-ratio';
 export * from './toast';
