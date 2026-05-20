@@ -10,7 +10,7 @@ import {
     KanbanCardAddEvent,
     KanbanColumnDeleteEvent,
     KanbanHistoryState,
-} from './kanban.component';
+} from '../kanban';
 
 const meta: Meta<KanbanComponent> = {
     title: 'UI/Kanban',

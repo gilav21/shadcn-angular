@@ -13,7 +13,7 @@ import {
     KanbanCardAddEvent,
     KanbanColumnDeleteEvent,
     KanbanHistoryState,
-} from './kanban.component';
+} from '../kanban';
 
 // Simple mode test host
 @Component({

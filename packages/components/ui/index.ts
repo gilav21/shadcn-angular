@@ -114,7 +114,7 @@ export * from './stagger-children';
 export * from './particles';
 
 // Kanban
-export * from './kanban.component';
+export * from './kanban';
 
 // Tour
 export * from './tour';
