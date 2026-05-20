@@ -277,7 +277,7 @@ export const registry = defineRegistry({
   },
   popover: {
     name: 'popover',
-    files: ['popover.component.ts'],
+    files: ['popover/index.ts', 'popover/popover.component.ts', 'popover/sub/popover-close.component.ts', 'popover/sub/popover-content.component.ts', 'popover/sub/popover-trigger.component.ts'],
   },
   progress: {
     name: 'progress',

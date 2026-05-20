@@ -17,7 +17,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { Subject, debounceTime as rxDebounceTime } from 'rxjs';
 import { cn, getClippingRect } from '../../lib/utils';
-import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover.component';
+import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
 import { CommandComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent, CommandService } from '../command.component';
 import { HighlightPipe } from './highlight.pipe';
 import { BadgeComponent } from '../badge';

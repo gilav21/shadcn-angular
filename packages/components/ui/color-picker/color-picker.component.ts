@@ -13,7 +13,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover.component';
+import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover';
 import { InputComponent } from '../input';
 import { TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent } from '../tabs.component';
 

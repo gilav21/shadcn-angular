@@ -1,13 +1,11 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import {
-  PopoverComponent,
-  PopoverTriggerComponent,
-  PopoverContentComponent,
-  PopoverCloseComponent,
-} from './popover.component';
-import { ButtonComponent } from './button';
-import { InputComponent } from './input';
-import { LabelComponent } from './label';
+import { PopoverComponent } from './popover.component';
+import { PopoverTriggerComponent } from './sub/popover-trigger.component';
+import { PopoverContentComponent } from './sub/popover-content.component';
+import { PopoverCloseComponent } from './sub/popover-close.component';
+import { ButtonComponent } from '../button';
+import { InputComponent } from '../input';
+import { LabelComponent } from '../label';
 
 const meta: Meta<PopoverComponent & { align: string; side: string; sideOffset: number }> = {
   title: 'UI/Popover',

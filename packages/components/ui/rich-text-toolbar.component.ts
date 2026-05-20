@@ -16,7 +16,7 @@ import {
   PopoverComponent,
   PopoverTriggerComponent,
   PopoverContentComponent,
-} from './popover.component';
+} from './popover';
 import {
   EmojiPickerComponent,
   EmojiPickerTriggerComponent,

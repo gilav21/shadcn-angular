@@ -30,7 +30,7 @@ import { RichTextToolbarComponent, ToolbarItem, DEFAULT_FONT_FAMILIES, FontFamil
 import { MentionItem, RichTextMentionPopoverComponent, TagItem } from './rich-text-mention.component';
 import { RichTextImageResizerComponent } from './rich-text-image-resizer.component';
 import { ButtonComponent } from './button';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
+import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from './popover';
 import {
     DialogComponent,
     DialogContentComponent,

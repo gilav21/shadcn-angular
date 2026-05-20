@@ -35,7 +35,7 @@ import {
   PopoverComponent,
   PopoverTriggerComponent,
   PopoverContentComponent,
-} from "../popover.component";
+} from "../popover";
 import { DataTableColumnHeaderComponent } from "./sub/data-table-column-header.component";
 import { DataTablePaginationComponent } from "./sub/data-table-pagination.component";
 import { UiComponentOutletDirective } from "../component-outlet.directive";

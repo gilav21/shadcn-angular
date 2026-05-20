@@ -22,7 +22,7 @@ export * from './dialog.component';
 export * from './tooltip';
 export * from './dropdown-menu.component';
 export * from './select.component';
-export * from './popover.component';
+export * from './popover';
 export * from './sheet.component';
 export * from './alert-dialog.component';
 export * from './slider';

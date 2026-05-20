@@ -2,133 +2,21 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     computed,
     signal,
     inject,
-    ElementRef,
-    OnDestroy,
     AfterViewInit,
+    OnDestroy,
     effect,
     ViewChild,
-    model,
-    DestroyRef,
+    ElementRef,
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
-import { cn, getClippingRect } from '../lib/utils';
+import { cn, getClippingRect } from '../../../lib/utils';
+import { POPOVER } from '../popover.component';
 
 type PopoverSide = 'top' | 'right' | 'bottom' | 'left';
 type PopoverAlign = 'start' | 'center' | 'end';
-
-@Component({
-    selector: 'ui-popover',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `<ng-content />`,
-    host: { class: 'relative inline-block' },
-})
-export class PopoverComponent implements OnDestroy {
-    private readonly el = inject(ElementRef);
-    private readonly document = inject(DOCUMENT);
-    private readonly destroyRef = inject(DestroyRef);
-
-    open = model<boolean>(false);
-    closeOnScroll = input(false);
-    openChange = output<boolean>();
-
-    private portalEl: HTMLElement | null = null;
-
-    registerPortal(el: HTMLElement | null) {
-        this.portalEl = el;
-    }
-
-    private readonly clickListener = (event: MouseEvent) => {
-        const target = event.target as Node;
-        if (this.el.nativeElement.contains(target)) return;
-        if (this.portalEl?.contains(target)) return;
-        this.hide();
-    };
-
-    private scrollCleanup: (() => void) | null = null;
-
-    constructor() {
-        this.document.addEventListener('click', this.clickListener);
-
-        effect(() => {
-            const isOpen = this.open();
-            const shouldClose = this.closeOnScroll();
-
-            this.removeScrollListener();
-
-            if (isOpen && shouldClose) {
-                setTimeout(() => {
-                    const el = this.el.nativeElement;
-                    const handler = (e: Event) => {
-                        if (!(e.target instanceof Node)) return;
-                        if (el.contains(e.target)) return;
-                        if (this.portalEl?.contains(e.target)) return;
-                        this.hide();
-                    };
-                    globalThis.window.addEventListener('scroll', handler, { capture: true, passive: true });
-                    this.scrollCleanup = () => globalThis.window.removeEventListener('scroll', handler, { capture: true });
-                }, 0);
-            }
-        });
-
-        this.destroyRef.onDestroy(() => this.removeScrollListener());
-    }
-
-    private removeScrollListener(): void {
-        if (this.scrollCleanup) {
-            this.scrollCleanup();
-            this.scrollCleanup = null;
-        }
-    }
-
-    ngOnDestroy() {
-        this.document.removeEventListener('click', this.clickListener);
-        this.removeScrollListener();
-    }
-
-    toggle() {
-        const newState = !this.open();
-        this.open.set(newState);
-        this.openChange.emit(newState);
-    }
-
-    show() {
-        this.open.set(true);
-        this.openChange.emit(true);
-    }
-
-    hide() {
-        this.open.set(false);
-        this.openChange.emit(false);
-    }
-
-    getTriggerRect(): DOMRect | null {
-        const trigger = this.el.nativeElement.querySelector('[data-slot="popover-trigger"]');
-        return trigger?.getBoundingClientRect() ?? null;
-    }
-}
-
-@Component({
-    selector: 'ui-popover-trigger',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <span (click)="onClick($event)" [attr.data-slot]="'popover-trigger'">
-      <ng-content />
-    </span>
-  `,
-    host: { class: 'contents' },
-})
-export class PopoverTriggerComponent {
-    private readonly popover = inject(PopoverComponent, { optional: true });
-
-    onClick(event: MouseEvent) {
-        event.stopPropagation();
-        this.popover?.toggle();
-    }
-}
 
 @Component({
     selector: 'ui-popover-content',
@@ -150,7 +38,7 @@ export class PopoverTriggerComponent {
     host: { class: 'contents' },
 })
 export class PopoverContentComponent implements AfterViewInit, OnDestroy {
-    readonly popover = inject(PopoverComponent, { optional: true });
+    readonly popover = inject(POPOVER, { optional: true });
     private readonly document = inject(DOCUMENT);
 
     class = input('');
@@ -415,22 +303,4 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
             this.class()
         );
     });
-}
-
-@Component({
-    selector: 'ui-popover-close',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <span (click)="onClick()" [attr.data-slot]="'popover-close'">
-      <ng-content />
-    </span>
-  `,
-    host: { class: 'contents' },
-})
-export class PopoverCloseComponent {
-    private readonly popover = inject(PopoverComponent, { optional: true });
-
-    onClick() {
-        this.popover?.hide();
-    }
 }

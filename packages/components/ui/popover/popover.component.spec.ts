@@ -1,5 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent, PopoverCloseComponent } from './popover.component';
+import { PopoverComponent } from './popover.component';
+import { PopoverTriggerComponent } from './sub/popover-trigger.component';
+import { PopoverContentComponent } from './sub/popover-content.component';
+import { PopoverCloseComponent } from './sub/popover-close.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

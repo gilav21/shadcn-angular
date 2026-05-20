@@ -12,7 +12,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
 import { cn } from '../../lib/utils';
 import { InputComponent } from '../input';
 import { InputGroupComponent, InputGroupAddonComponent } from '../input-group.component';
-import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover.component';
+import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 import { InputMaskDirective } from '../input-mask.directive';
 import { PhoneCountry, DEFAULT_COUNTRIES } from './phone-input-data';
