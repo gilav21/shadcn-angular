@@ -8,9 +8,9 @@ import {
   DialogDescriptionComponent,
   DialogFooterComponent,
 } from './index';
-import { ButtonComponent } from './button';
-import { InputComponent } from './input';
-import { LabelComponent } from './label';
+import { ButtonComponent } from '../button';
+import { InputComponent } from '../input';
+import { LabelComponent } from '../label';
 
 const meta: Meta<DialogComponent & { rtl: boolean; title: string; description: string }> = {
   title: 'UI/Dialog',
