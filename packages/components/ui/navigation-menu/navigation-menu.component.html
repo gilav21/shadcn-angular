@@ -1,0 +1,41 @@
+<nav
+  [class]="classes()"
+  [attr.data-slot]="'navigation-menu'"
+  role="navigation"
+>
+  @if (hasCustomContent()) {
+    <ng-content />
+  } @else {
+    <ui-navigation-menu-list>
+      @for (item of items(); track item.label) {
+        @if (item.children && item.children.length > 0) {
+          <ui-navigation-menu-item>
+            <ui-navigation-menu-trigger>{{ item.label }}</ui-navigation-menu-trigger>
+            <ui-navigation-menu-content>
+              <ul class="grid w-full sm:w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2">
+                @for (child of item.children; track child.href) {
+                  <li>
+                    <ui-navigation-menu-link [href]="child.href">
+                      <div class="text-sm font-medium leading-none">{{ child.title }}</div>
+                      @if (child.description) {
+                        <p class="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                          {{ child.description }}
+                        </p>
+                      }
+                    </ui-navigation-menu-link>
+                  </li>
+                }
+              </ul>
+            </ui-navigation-menu-content>
+          </ui-navigation-menu-item>
+        } @else {
+          <ui-navigation-menu-item>
+            <ui-navigation-menu-link [href]="item.href || '#'">
+              <span class="text-sm font-medium">{{ item.label }}</span>
+            </ui-navigation-menu-link>
+          </ui-navigation-menu-item>
+        }
+      }
+    </ui-navigation-menu-list>
+  }
+</nav>

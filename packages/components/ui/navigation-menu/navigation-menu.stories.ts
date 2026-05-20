@@ -8,7 +8,7 @@ import {
     NavigationMenuLinkComponent,
     NavigationMenuIndicatorComponent,
     NavigationMenuItem,
-} from './navigation-menu.component';
+} from './index';
 
 const meta: Meta<NavigationMenuComponent> = {
     title: 'UI/NavigationMenu',

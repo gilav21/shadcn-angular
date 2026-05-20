@@ -252,7 +252,7 @@ export const registry = defineRegistry({
   },
   'navigation-menu': {
     name: 'navigation-menu',
-    files: ['navigation-menu.component.ts'],
+    files: ['navigation-menu/index.ts', 'navigation-menu/navigation-menu.component.html', 'navigation-menu/navigation-menu.component.ts', 'navigation-menu/navigation-menu.service.ts', 'navigation-menu/sub/navigation-menu-content.component.ts', 'navigation-menu/sub/navigation-menu-indicator.component.ts', 'navigation-menu/sub/navigation-menu-item.component.ts', 'navigation-menu/sub/navigation-menu-link.component.ts', 'navigation-menu/sub/navigation-menu-list.component.ts', 'navigation-menu/sub/navigation-menu-trigger.component.ts'],
     libFiles: ['touch.ts'],
   },
   'number-input': {
