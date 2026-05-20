@@ -16,10 +16,10 @@ import {
     ViewChildren
 } from '@angular/core';
 import { cva } from 'class-variance-authority';
-import { cn } from '../lib/utils';
-import { DockItemComponent } from './dock-item.component';
-import { DockIconComponent } from './dock-icon.component';
-import { DockLabelComponent } from './dock-label.component';
+import { cn } from '../../lib/utils';
+import { DockItemComponent } from './sub/dock-item.component';
+import { DockIconComponent } from './sub/dock-icon.component';
+import { DockLabelComponent } from './sub/dock-label.component';
 
 const dockVariants = cva(
     'mx-auto w-max max-w-[calc(100vw-2rem)] overflow-x-auto mt-4 sm:mt-8 h-[50px] sm:h-[58px] p-1.5 sm:p-2 flex gap-1.5 sm:gap-2 rounded-2xl border supports-backdrop-blur:bg-white/10 supports-backdrop-blur:dark:bg-black/10 backdrop-blur-md',
@@ -51,24 +51,7 @@ export interface DockItemData {
     selector: 'ui-dock',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [DockItemComponent, DockIconComponent, DockLabelComponent],
-    template: `
-    <div
-      #dock
-      [class]="classes()"
-      [attr.data-slot]="'dock'"
-    >
-      @if (hasCustomContent()) {
-        <ng-content />
-      } @else {
-        @for (item of items(); track $index) {
-          <ui-dock-item [class]="item.class || ''" [active]="item.active || false">
-            @if (item.label) { <ui-dock-label>{{ item.label }}</ui-dock-label> }
-            @if (item.icon) { <ui-dock-icon>{{ item.icon }}</ui-dock-icon> }
-          </ui-dock-item>
-        }
-      }
-    </div>
-  `,
+    templateUrl: './dock.component.html',
     host: { class: 'contents' },
 })
 export class DockComponent implements OnInit, OnDestroy, AfterContentInit, AfterViewInit {

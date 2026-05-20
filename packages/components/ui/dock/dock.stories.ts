@@ -1,8 +1,8 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { DockComponent } from './dock.component';
-import { DockItemComponent } from './dock-item.component';
-import { DockIconComponent } from './dock-icon.component';
-import { DockLabelComponent } from './dock-label.component';
+import { DockItemComponent } from './sub/dock-item.component';
+import { DockIconComponent } from './sub/dock-icon.component';
+import { DockLabelComponent } from './sub/dock-label.component';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<DockComponent> = {

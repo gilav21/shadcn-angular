@@ -1,9 +1,9 @@
 import { vi } from 'vitest';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { DockComponent, DockItemData } from './dock.component';
-import { DockItemComponent } from './dock-item.component';
-import { DockIconComponent } from './dock-icon.component';
-import { DockLabelComponent } from './dock-label.component';
+import { DockItemComponent } from './sub/dock-item.component';
+import { DockIconComponent } from './sub/dock-icon.component';
+import { DockLabelComponent } from './sub/dock-label.component';
 import { Component, ViewChild, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 

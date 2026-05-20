@@ -8,19 +8,12 @@ import {
     signal,
     Renderer2
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-dock-item',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <div [attr.data-slot]="'dock-item'" class="aspect-square w-full h-full flex items-center justify-center relative">
-      <ng-content />
-      @if (active()) {
-        <div class="absolute -bottom-1 w-1 h-1 rounded-full bg-foreground/50"></div>
-      }
-    </div>
-  `,
+    templateUrl: './dock-item.component.html',
     host: {
         '[class]': 'classes()',
         '[style.width.px]': '40'

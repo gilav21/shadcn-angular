@@ -165,7 +165,7 @@ export const registry = defineRegistry({
   },
   dock: {
     name: 'dock',
-    files: ['dock-icon.component.ts', 'dock-item.component.ts', 'dock-label.component.ts', 'dock.component.ts'],
+    files: ['dock/dock.component.html', 'dock/dock.component.ts', 'dock/index.ts', 'dock/sub/dock-icon.component.html', 'dock/sub/dock-icon.component.ts', 'dock/sub/dock-item.component.html', 'dock/sub/dock-item.component.ts', 'dock/sub/dock-label.component.html', 'dock/sub/dock-label.component.ts'],
   },
   'tree-select': {
     name: 'tree-select',
