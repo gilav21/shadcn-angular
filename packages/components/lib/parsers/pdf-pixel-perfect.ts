@@ -53,6 +53,9 @@ function getFallbackFont(): TtfFont | null {
 
 declare const __non_webpack_require__: ((m: string) => unknown) | undefined;
 declare const __filename: string;
+declare const module: { require?: (m: string) => unknown };
+declare const process: { cwd: () => string };
+declare type Buffer = ArrayBufferLike;
 
 function resolveNodeRequire(): ((m: string) => unknown) | undefined {
     /* eslint-disable @typescript-eslint/no-require-imports */
