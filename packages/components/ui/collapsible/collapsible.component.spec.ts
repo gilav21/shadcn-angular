@@ -6,7 +6,7 @@ import {
     CollapsibleComponent,
     CollapsibleTriggerComponent,
     CollapsibleContentComponent
-} from './collapsible.component';
+} from './index';
 
 @Component({
     template: `

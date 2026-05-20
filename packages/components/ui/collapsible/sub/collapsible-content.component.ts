@@ -1,0 +1,34 @@
+import {
+    Component,
+    ChangeDetectionStrategy,
+    input,
+    computed,
+    inject,
+} from '@angular/core';
+import { cn } from '../../../lib/utils';
+import { CollapsibleComponent } from '../collapsible.component';
+
+@Component({
+    selector: 'ui-collapsible-content',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+    template: `
+    @if (collapsible?.open()) {
+      <div
+        [class]="classes()"
+        [attr.data-state]="collapsible?.open() ? 'open' : 'closed'"
+        [attr.data-slot]="'collapsible-content'"
+      >
+        <ng-content />
+      </div>
+    }
+  `,
+    host: { class: 'contents' },
+})
+export class CollapsibleContentComponent {
+    readonly collapsible = inject(CollapsibleComponent, { optional: true });
+    class = input('');
+
+    classes = computed(() =>
+        cn('overflow-hidden', this.class())
+    );
+}

@@ -88,7 +88,7 @@ export const registry = defineRegistry({
   },
   collapsible: {
     name: 'collapsible',
-    files: ['collapsible.component.ts'],
+    files: ['collapsible/collapsible.component.ts', 'collapsible/index.ts', 'collapsible/sub/collapsible-content.component.ts', 'collapsible/sub/collapsible-trigger.component.ts'],
   },
   'color-picker': {
     name: 'color-picker',

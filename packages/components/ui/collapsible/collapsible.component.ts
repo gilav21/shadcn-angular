@@ -6,9 +6,8 @@ import {
     computed,
     signal,
     effect,
-    inject,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
     selector: 'ui-collapsible',
@@ -59,51 +58,4 @@ export class CollapsibleComponent {
         this.open.set(false);
         this.openChange.emit(false);
     }
-}
-
-@Component({
-    selector: 'ui-collapsible-trigger',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <span
-      (click)="onClick()"
-      [attr.data-state]="collapsible?.open() ? 'open' : 'closed'"
-      [attr.data-slot]="'collapsible-trigger'"
-    >
-      <ng-content />
-    </span>
-  `,
-    host: { class: 'contents' },
-})
-export class CollapsibleTriggerComponent {
-    readonly collapsible = inject(CollapsibleComponent, { optional: true });
-
-    onClick() {
-        this.collapsible?.toggle();
-    }
-}
-
-@Component({
-    selector: 'ui-collapsible-content',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    @if (collapsible?.open()) {
-      <div
-        [class]="classes()"
-        [attr.data-state]="collapsible?.open() ? 'open' : 'closed'"
-        [attr.data-slot]="'collapsible-content'"
-      >
-        <ng-content />
-      </div>
-    }
-  `,
-    host: { class: 'contents' },
-})
-export class CollapsibleContentComponent {
-    readonly collapsible = inject(CollapsibleComponent, { optional: true });
-    class = input('');
-
-    classes = computed(() =>
-        cn('overflow-hidden', this.class())
-    );
 }

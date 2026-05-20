@@ -26,7 +26,7 @@ export * from './popover.component';
 export * from './sheet.component';
 export * from './alert-dialog.component';
 export * from './slider';
-export * from './collapsible.component';
+export * from './collapsible';
 export * from './toggle';
 export * from './toggle-group';
 export * from './scroll-area';
