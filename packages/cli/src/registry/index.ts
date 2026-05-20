@@ -381,7 +381,7 @@ export const registry = defineRegistry({
   },
   'speed-dial': {
     name: 'speed-dial',
-    files: ['speed-dial.component.ts']
+    files: ['speed-dial/index.ts', 'speed-dial/speed-dial.component.ts', 'speed-dial/sub/speed-dial-context-trigger.component.ts', 'speed-dial/sub/speed-dial-context-trigger.directive.ts', 'speed-dial/sub/speed-dial-item.component.ts', 'speed-dial/sub/speed-dial-mask.component.ts', 'speed-dial/sub/speed-dial-menu.component.ts', 'speed-dial/sub/speed-dial-trigger.component.ts']
   },
   'chip-list': {
     name: 'chip-list',

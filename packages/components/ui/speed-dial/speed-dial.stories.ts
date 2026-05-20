@@ -6,9 +6,9 @@ import {
   SpeedDialItemComponent,
   SpeedDialMaskComponent,
   SpeedDialContextTriggerDirective,
-} from './speed-dial.component';
-import { ButtonComponent } from './button';
-import { TooltipDirective } from './tooltip';
+} from './index';
+import { ButtonComponent } from '../button';
+import { TooltipDirective } from '../tooltip';
 
 const meta: Meta<SpeedDialComponent> = {
   title: 'UI/SpeedDial',

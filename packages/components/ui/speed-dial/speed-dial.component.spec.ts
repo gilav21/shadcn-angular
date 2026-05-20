@@ -5,7 +5,7 @@ import {
     SpeedDialMenuComponent,
     SpeedDialItemComponent,
     SpeedDialMaskComponent,
-} from './speed-dial.component';
+} from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';

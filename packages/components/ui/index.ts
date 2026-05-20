@@ -57,7 +57,7 @@ export * from './field.component';
 export * from './native-select';
 export * from './chip-list';
 export * from './emoji-picker';
-export * from './speed-dial.component';
+export * from './speed-dial';
 export * from './autocomplete';
 export * from './rich-text-editor.component';
 export * from './rich-text-toolbar.component';
