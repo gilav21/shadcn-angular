@@ -169,7 +169,7 @@ export const registry = defineRegistry({
   },
   'tree-select': {
     name: 'tree-select',
-    files: ['tree-select.component.ts'],
+    files: ['tree-select/index.ts', 'tree-select/sub/tree-select-content.component.ts', 'tree-select/sub/tree-select-trigger.component.ts', 'tree-select/tree-select.component.css', 'tree-select/tree-select.component.html', 'tree-select/tree-select.component.ts'],
     dependencies: ['popover', 'tree'],
   },
   'virtual-scroll': {

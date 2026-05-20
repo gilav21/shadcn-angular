@@ -1,10 +1,10 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { TreeSelectComponent } from './tree-select.component';
-import { TreeNode, TreeComponent } from './tree.component';
+import { TreeNode, TreeComponent } from '../tree.component';
 import { moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { PopoverTriggerComponent, PopoverContentComponent } from './popover.component';
+import { PopoverTriggerComponent, PopoverContentComponent } from '../popover.component';
 
 const SAMPLE_NODES: TreeNode[] = [
     {
