@@ -410,35 +410,43 @@ export const registry = defineRegistry({
   // Chart Components
   'pie-chart': {
     name: 'pie-chart',
-    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/pie-chart.component.ts'],
+    files: ['pie-chart/index.ts', 'pie-chart/pie-chart.component.html', 'pie-chart/pie-chart.component.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
   },
   'pie-chart-drilldown': {
     name: 'pie-chart-drilldown',
-    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/pie-chart-drilldown.component.ts'],
+    files: ['pie-chart-drilldown/index.ts', 'pie-chart-drilldown/pie-chart-drilldown.component.html', 'pie-chart-drilldown/pie-chart-drilldown.component.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
   },
   'bar-chart': {
     name: 'bar-chart',
-    files: ['charts/bar-chart.component.ts', 'charts/chart.types.ts', 'charts/chart.utils.ts'],
+    files: ['bar-chart/bar-chart.component.html', 'bar-chart/bar-chart.component.ts', 'bar-chart/index.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
   },
   'bar-chart-drilldown': {
     name: 'bar-chart-drilldown',
-    files: ['charts/bar-chart-drilldown.component.ts', 'charts/chart.types.ts', 'charts/chart.utils.ts'],
+    files: ['bar-chart-drilldown/bar-chart-drilldown.component.html', 'bar-chart-drilldown/bar-chart-drilldown.component.ts', 'bar-chart-drilldown/index.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
   },
   'stacked-bar-chart': {
     name: 'stacked-bar-chart',
-    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/stacked-bar-chart.component.ts'],
+    files: ['stacked-bar-chart/index.ts', 'stacked-bar-chart/stacked-bar-chart.component.html', 'stacked-bar-chart/stacked-bar-chart.component.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
   },
   'column-range-chart': {
     name: 'column-range-chart',
-    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/column-range-chart.component.ts'],
+    files: ['column-range-chart/column-range-chart.component.html', 'column-range-chart/column-range-chart.component.ts', 'column-range-chart/index.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
   },
   'bar-race-chart': {
     name: 'bar-race-chart',
-    files: ['charts/bar-race-chart.component.ts', 'charts/chart.types.ts', 'charts/chart.utils.ts'],
+    files: ['bar-race-chart/bar-race-chart.component.html', 'bar-race-chart/bar-race-chart.component.ts', 'bar-race-chart/index.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
   },
   'org-chart': {
     name: 'org-chart',
-    files: ['charts/chart.types.ts', 'charts/chart.utils.ts', 'charts/org-chart.component.ts'],
+    files: ['org-chart/index.ts', 'org-chart/org-chart.component.html', 'org-chart/org-chart.component.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts'],
   },
   'bento-grid': {
     name: 'bento-grid',

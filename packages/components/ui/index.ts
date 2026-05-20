@@ -94,7 +94,16 @@ export * from './icon';
 export * from './comparison-slider';
 export * from './sortable';
 
-export * from './charts';
+export * from './bar-chart';
+export * from './bar-chart-drilldown';
+export * from './pie-chart';
+export * from './pie-chart-drilldown';
+export * from './stacked-bar-chart';
+export * from './column-range-chart';
+export * from './bar-race-chart';
+export * from './org-chart';
+export * from '../lib/chart.types';
+export * from '../lib/chart.utils';
 
 // Animations
 export * from './gradient-text';

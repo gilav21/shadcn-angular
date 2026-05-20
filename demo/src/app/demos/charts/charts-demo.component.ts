@@ -12,7 +12,7 @@ import {
   DrilldownSeries,
   ChartSeries,
   RangeDataPoint,
-} from '../../../../../packages/components/ui/charts';
+} from '../../../../../packages/components/ui';
 
 @Component({
   selector: 'app-charts-demo',
