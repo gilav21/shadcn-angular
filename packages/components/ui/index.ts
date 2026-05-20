@@ -13,7 +13,7 @@ export * from './checkbox';
 export * from './radio-group';
 export * from './textarea';
 export * from './skeleton';
-export * from './tabs.component';
+export * from './tabs';
 export * from './accordion';
 export * from './progress';
 export * from './alert';

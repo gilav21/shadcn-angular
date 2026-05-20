@@ -15,7 +15,7 @@ import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
 import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover';
 import { InputComponent } from '../input';
-import { TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent } from '../tabs.component';
+import { TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent } from '../tabs';
 
 interface HSL {
     h: number;

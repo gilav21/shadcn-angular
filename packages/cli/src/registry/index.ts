@@ -344,7 +344,7 @@ export const registry = defineRegistry({
   },
   tabs: {
     name: 'tabs',
-    files: ['tabs.component.ts'],
+    files: ['tabs/index.ts', 'tabs/sub/tabs-content.component.ts', 'tabs/sub/tabs-list.component.ts', 'tabs/sub/tabs-trigger.component.ts', 'tabs/tabs.component.ts'],
   },
   textarea: {
     name: 'textarea',

@@ -1,5 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent } from './tabs.component';
+import { TabsComponent } from './tabs.component';
+import { TabsListComponent } from './sub/tabs-list.component';
+import { TabsTriggerComponent } from './sub/tabs-trigger.component';
+import { TabsContentComponent } from './sub/tabs-content.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
