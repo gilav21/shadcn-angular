@@ -15,7 +15,7 @@ import {
   CommandEmptyComponent,
   CommandItemComponent,
   CommandSeparatorComponent,
-} from '../../command.component';
+} from '../../command';
 import { CheckboxComponent } from '../../checkbox';
 import { BadgeComponent } from '../../badge';
 import { ButtonComponent } from '../../button';

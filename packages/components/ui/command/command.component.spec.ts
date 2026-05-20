@@ -9,7 +9,7 @@ import {
     CommandEmptyComponent,
     CommandSeparatorComponent,
     CommandShortcutComponent,
-} from './command.component';
+} from '../command';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 

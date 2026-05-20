@@ -102,14 +102,14 @@ export const registry = defineRegistry({
   },
   command: {
     name: 'command',
-    files: ['command.component.ts'],
+    files: ['command/command.component.ts', 'command/index.ts', 'command/sub/command-dialog.component.ts', 'command/sub/command-empty.component.ts', 'command/sub/command-group.component.ts', 'command/sub/command-input.component.ts', 'command/sub/command-item.component.ts', 'command/sub/command-list.component.ts', 'command/sub/command-separator.component.ts', 'command/sub/command-shortcut.component.ts'],
     dependencies: ['dialog'],
     libFiles: ['shortcut-binding.service.ts'],
     shortcutDefinitions: [
       {
         exportName: 'COMMAND_DIALOG_SHORTCUT_DEFINITIONS',
         componentName: 'command-dialog',
-        sourceFile: 'command.component.ts',
+        sourceFile: 'command/command.component.ts',
       },
     ],
   },

@@ -41,7 +41,7 @@ export * from './resizable';
 export * from './pagination';
 export * from './input-otp';
 export * from './calendar';
-export * from './command.component';
+export * from './command';
 export * from './shortcut-bindings-dialog';
 export * from './menubar.component';
 export * from './carousel';

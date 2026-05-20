@@ -18,7 +18,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
 import { Subject, debounceTime as rxDebounceTime } from 'rxjs';
 import { cn, getClippingRect } from '../../lib/utils';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
-import { CommandComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent, CommandService } from '../command.component';
+import { CommandComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent, CommandService } from '../command';
 import { HighlightPipe } from './highlight.pipe';
 import { BadgeComponent } from '../badge';
 
