@@ -16,7 +16,7 @@ import {
   model,
 } from '@angular/core';
 import { cn } from '../lib/utils';
-import { DialogComponent, DialogContentComponent } from './dialog.component';
+import { DialogComponent, DialogContentComponent } from './dialog';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../lib/shortcut-binding.service';
 
 export const COMMAND_DIALOG_SHORTCUT_DEFINITIONS = [

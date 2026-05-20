@@ -7,7 +7,7 @@ import {
   DialogTitleComponent,
   DialogDescriptionComponent,
   DialogFooterComponent,
-} from './dialog.component';
+} from './index';
 import { ButtonComponent } from './button';
 import { InputComponent } from './input';
 import { LabelComponent } from './label';

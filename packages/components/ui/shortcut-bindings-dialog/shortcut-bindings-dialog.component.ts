@@ -5,7 +5,7 @@ import {
     DialogDescriptionComponent,
     DialogHeaderComponent,
     DialogTitleComponent,
-} from '../dialog.component';
+} from '../dialog';
 import { ScrollAreaComponent } from '../scroll-area';
 import { ButtonComponent } from '../button';
 import { BadgeComponent } from '../badge';

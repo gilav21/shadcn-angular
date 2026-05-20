@@ -37,7 +37,7 @@ import {
     DialogHeaderComponent,
     DialogTitleComponent,
     DialogFooterComponent,
-} from './dialog.component';
+} from './dialog';
 import {
     AlertDialogComponent,
     AlertDialogContentComponent,

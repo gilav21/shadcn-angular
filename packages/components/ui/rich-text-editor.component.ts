@@ -38,7 +38,7 @@ import {
     DialogTitleComponent,
     DialogDescriptionComponent,
     DialogFooterComponent,
-} from './dialog.component';
+} from './dialog';
 import { ScrollAreaComponent } from './scroll-area';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../lib/shortcut-binding.service';
 import {

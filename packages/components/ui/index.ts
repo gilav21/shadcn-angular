@@ -18,7 +18,7 @@ export * from './accordion';
 export * from './progress';
 export * from './alert';
 export * from './avatar';
-export * from './dialog.component';
+export * from './dialog';
 export * from './tooltip';
 export * from './dropdown-menu.component';
 export * from './select.component';

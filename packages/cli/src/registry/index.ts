@@ -161,7 +161,7 @@ export const registry = defineRegistry({
   },
   dialog: {
     name: 'dialog',
-    files: ['dialog.component.ts'],
+    files: ['dialog/dialog.component.ts', 'dialog/index.ts', 'dialog/sub/dialog-content.component.html', 'dialog/sub/dialog-content.component.ts', 'dialog/sub/dialog-description.component.ts', 'dialog/sub/dialog-footer.component.ts', 'dialog/sub/dialog-header.component.ts', 'dialog/sub/dialog-title.component.ts', 'dialog/sub/dialog-trigger.component.ts'],
   },
   dock: {
     name: 'dock',

@@ -11,7 +11,7 @@ import {
   CommandDialogComponent,
 } from './command.component';
 import { moduleMetadata } from '@storybook/angular';
-import { DialogComponent, DialogContentComponent } from './dialog.component';
+import { DialogComponent, DialogContentComponent } from './dialog';
 
 const meta: Meta<CommandComponent> = {
   title: 'UI/Command',
