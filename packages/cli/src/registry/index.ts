@@ -443,7 +443,7 @@ export const registry = defineRegistry({
   'bento-grid': {
     name: 'bento-grid',
     dependencies: ['component-outlet', 'context-menu'],
-    files: ['bento-grid.component.ts'],
+    files: ['bento-grid/bento-grid.component.css', 'bento-grid/bento-grid.component.html', 'bento-grid/bento-grid.component.ts', 'bento-grid/index.ts', 'bento-grid/sub/bento-grid-item.component.html', 'bento-grid/sub/bento-grid-item.component.ts'],
     libFiles: ['touch.ts'],
   },
   'page-builder': {

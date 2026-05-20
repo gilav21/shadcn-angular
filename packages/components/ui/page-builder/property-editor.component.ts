@@ -6,7 +6,7 @@ import {
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { DashboardItem } from '../bento-grid.component';
+import { DashboardItem } from '../bento-grid';
 import { ComponentMeta } from './page-builder.types';
 import { SwitchComponent } from '../switch';
 import {

@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PropertyEditorComponent } from './property-editor.component';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { DashboardItem } from '../bento-grid.component';
+import { DashboardItem } from '../bento-grid';
 import { ComponentMeta } from './page-builder.types';
 
 describe('PropertyEditorComponent', () => {

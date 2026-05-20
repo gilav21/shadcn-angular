@@ -8,7 +8,7 @@ import {
     OnDestroy
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { BentoGridComponent, DashboardItem } from '../bento-grid.component';
+import { BentoGridComponent, DashboardItem } from '../bento-grid';
 import { PageData, ComponentMeta } from './page-builder.types';
 import { cn } from '../../lib/utils';
 

@@ -14,7 +14,7 @@ import { CommonModule } from '@angular/common';
 import {
     BentoGridComponent,
     DashboardItem
-} from '../bento-grid.component';
+} from '../bento-grid';
 import {
     ComponentMeta,
     InputDefinition,

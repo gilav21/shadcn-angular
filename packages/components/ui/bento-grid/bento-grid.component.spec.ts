@@ -2,7 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
-import { BentoGridComponent, BentoGridItemComponent, DashboardItem } from './bento-grid.component';
+import { BentoGridComponent, DashboardItem } from './bento-grid.component';
+import { BentoGridItemComponent } from './sub/bento-grid-item.component';
 
 @Component({
     template: `

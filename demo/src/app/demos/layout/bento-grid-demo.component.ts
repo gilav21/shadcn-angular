@@ -3,7 +3,7 @@ import { ToastService } from '../../../../../packages/components/ui';
 import {
   BentoGridComponent,
   DashboardItem,
-} from '../../../../../packages/components/ui/bento-grid.component';
+} from '../../../../../packages/components/ui/bento-grid';
 import {
   MetricWidgetComponent,
   CalendarWidgetComponent,
