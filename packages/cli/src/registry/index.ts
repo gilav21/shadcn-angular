@@ -183,7 +183,7 @@ export const registry = defineRegistry({
   },
   drawer: {
     name: 'drawer',
-    files: ['drawer.component.ts'],
+    files: ['drawer/drawer.component.ts', 'drawer/index.ts', 'drawer/sub/drawer-close.component.ts', 'drawer/sub/drawer-content.component.html', 'drawer/sub/drawer-content.component.ts', 'drawer/sub/drawer-description.component.ts', 'drawer/sub/drawer-footer.component.ts', 'drawer/sub/drawer-header.component.ts', 'drawer/sub/drawer-title.component.ts', 'drawer/sub/drawer-trigger.component.ts'],
   },
   'dropdown-menu': {
     name: 'dropdown-menu',

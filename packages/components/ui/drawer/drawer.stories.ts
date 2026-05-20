@@ -8,8 +8,8 @@ import {
   DrawerDescriptionComponent,
   DrawerFooterComponent,
   DrawerCloseComponent,
-} from './drawer.component';
-import { ButtonComponent } from './button';
+} from './index';
+import { ButtonComponent } from '../button';
 
 const meta: Meta<DrawerComponent & { title: string; description: string }> = {
   title: 'UI/Drawer',

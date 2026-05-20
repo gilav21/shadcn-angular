@@ -34,7 +34,7 @@ export * from './table.component';
 export * from './breadcrumb';
 export * from './hover-card';
 export * from './context-menu.component';
-export * from './drawer.component';
+export * from './drawer';
 export * from './aspect-ratio';
 export * from './toast';
 export * from './resizable';
