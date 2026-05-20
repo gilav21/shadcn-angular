@@ -31,7 +31,7 @@ export * from './toggle';
 export * from './toggle-group';
 export * from './scroll-area';
 export * from './table.component';
-export * from './breadcrumb.component';
+export * from './breadcrumb';
 export * from './hover-card';
 export * from './context-menu.component';
 export * from './drawer.component';

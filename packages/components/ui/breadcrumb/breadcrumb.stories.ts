@@ -7,7 +7,7 @@ import {
   BreadcrumbPageComponent,
   BreadcrumbSeparatorComponent,
   BreadcrumbEllipsisComponent,
-} from './breadcrumb.component';
+} from './index';
 
 const meta: Meta<BreadcrumbComponent> = {
   title: 'UI/Breadcrumb',

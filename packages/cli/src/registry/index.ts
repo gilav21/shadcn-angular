@@ -57,7 +57,7 @@ export const registry = defineRegistry({
   },
   breadcrumb: {
     name: 'breadcrumb',
-    files: ['breadcrumb.component.ts'],
+    files: ['breadcrumb/breadcrumb.component.ts', 'breadcrumb/index.ts', 'breadcrumb/sub/breadcrumb-ellipsis.component.ts', 'breadcrumb/sub/breadcrumb-item.component.ts', 'breadcrumb/sub/breadcrumb-link.component.ts', 'breadcrumb/sub/breadcrumb-list.component.ts', 'breadcrumb/sub/breadcrumb-page.component.ts', 'breadcrumb/sub/breadcrumb-separator.component.ts'],
   },
   button: {
     name: 'button',
