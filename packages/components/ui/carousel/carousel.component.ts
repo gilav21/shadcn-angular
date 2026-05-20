@@ -8,17 +8,22 @@ import {
     ElementRef,
     AfterContentInit,
     OnDestroy,
-    ViewChild
+    ViewChild,
+    InjectionToken,
+    forwardRef,
 } from '@angular/core';
-import { cn, isRtl } from '../lib/utils';
+import { cn, isRtl } from '../../lib/utils';
 
 type CarouselOrientation = 'horizontal' | 'vertical';
+
+export const CAROUSEL = new InjectionToken<CarouselComponent>('CAROUSEL');
 
 @Component({
     selector: 'ui-carousel',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [{ provide: CAROUSEL, useExisting: forwardRef(() => CarouselComponent) }],
     template: `
-    <div 
+    <div
       #container
       [class]="classes()"
       [attr.data-slot]="'carousel'"
@@ -188,180 +193,4 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
             this.scrollNext();
         }
     }
-}
-
-@Component({
-    selector: 'ui-carousel-content',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <div [class]="classes()" [attr.data-slot]="'carousel-content'">
-      <ng-content />
-    </div>
-  `,
-    host: { class: 'contents' },
-})
-export class CarouselContentComponent {
-    class = input('');
-    readonly carousel = inject(CarouselComponent);
-
-    classes = computed(() => {
-        const isHorizontal = this.carousel.orientation() === 'horizontal';
-        return cn(
-            'flex',
-            isHorizontal ? '-ml-4' : '-mt-4 flex-col',
-            'scroll-smooth snap-mandatory scrollbar-hide',
-            isHorizontal ? 'overflow-x-auto snap-x' : 'overflow-y-auto snap-y',
-            this.class()
-        );
-    });
-}
-
-@Component({
-    selector: 'ui-carousel-item',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <div 
-      [class]="classes()" 
-      [attr.data-slot]="'carousel-item'"
-      role="group"
-      aria-roledescription="slide"
-    >
-      <ng-content />
-    </div>
-  `,
-    host: { class: 'contents' },
-})
-export class CarouselItemComponent {
-    class = input('');
-    readonly carousel = inject(CarouselComponent);
-
-    classes = computed(() => {
-        const isHorizontal = this.carousel.orientation() === 'horizontal';
-        return cn(
-            'min-w-0 shrink-0 grow-0 basis-full',
-            isHorizontal ? 'pl-4' : 'pt-4',
-            'snap-start',
-            this.class()
-        );
-    });
-}
-
-@Component({
-    selector: 'ui-carousel-previous',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <button
-      type="button"
-      [class]="classes()"
-      [attr.data-slot]="'carousel-previous'"
-      [disabled]="isDisabled()"
-      (click)="onClick()"
-      aria-label="Previous slide"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class]="iconClasses()">
-        <path d="m15 18-6-6 6-6"/>
-      </svg>
-      <span class="sr-only">Previous slide</span>
-    </button>
-  `,
-    host: { class: 'contents' },
-})
-export class CarouselPreviousComponent {
-    class = input('');
-    readonly carousel = inject(CarouselComponent);
-
-    isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
-
-    isDisabled = computed(() =>
-        this.isRtl() ? !this.carousel.canScrollNext() : !this.carousel.canScrollPrev()
-    );
-
-    onClick() {
-        if (this.isRtl()) {
-            this.carousel.scrollNext();
-        } else {
-            this.carousel.scrollPrev();
-        }
-    }
-
-    iconClasses = computed(() => cn(
-        'h-4 w-4'
-    ));
-
-    classes = computed(() => {
-        const isHorizontal = this.carousel.orientation() === 'horizontal';
-        return cn(
-            'absolute h-8 w-8 rounded-full z-10',
-            'inline-flex items-center justify-center',
-            'border border-input bg-background/80 sm:bg-background shadow-sm backdrop-blur-sm sm:backdrop-blur-none',
-            'hover:bg-accent hover:text-accent-foreground',
-            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-            'disabled:pointer-events-none disabled:opacity-50',
-            'transition-colors',
-            isHorizontal
-                ? 'left-2 sm:-left-12 top-1/2 -translate-y-1/2'
-                : '-top-12 left-1/2 -translate-x-1/2 rotate-90',
-            this.class()
-        );
-    });
-}
-
-@Component({
-    selector: 'ui-carousel-next',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <button
-      type="button"
-      [class]="classes()"
-      [attr.data-slot]="'carousel-next'"
-      [disabled]="isDisabled()"
-      (click)="onClick()"
-      aria-label="Next slide"
-    >
-      <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class]="iconClasses()">
-        <path d="m9 18 6-6-6-6"/>
-      </svg>
-      <span class="sr-only">Next slide</span>
-    </button>
-  `,
-    host: { class: 'contents' },
-})
-export class CarouselNextComponent {
-    class = input('');
-    readonly carousel = inject(CarouselComponent);
-
-    isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
-
-    isDisabled = computed(() =>
-        this.isRtl() ? !this.carousel.canScrollPrev() : !this.carousel.canScrollNext()
-    );
-
-    onClick() {
-        if (this.isRtl()) {
-            this.carousel.scrollPrev();
-        } else {
-            this.carousel.scrollNext();
-        }
-    }
-
-    iconClasses = computed(() => cn(
-        'h-4 w-4'
-    ));
-
-    classes = computed(() => {
-        const isHorizontal = this.carousel.orientation() === 'horizontal';
-        return cn(
-            'absolute h-8 w-8 rounded-full z-10',
-            'inline-flex items-center justify-center',
-            'border border-input bg-background/80 sm:bg-background shadow-sm backdrop-blur-sm sm:backdrop-blur-none',
-            'hover:bg-accent hover:text-accent-foreground',
-            'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
-            'disabled:pointer-events-none disabled:opacity-50',
-            'transition-colors',
-            isHorizontal
-                ? 'right-2 sm:-right-12 top-1/2 -translate-y-1/2'
-                : '-bottom-12 left-1/2 -translate-x-1/2 rotate-90',
-            this.class()
-        );
-    });
 }

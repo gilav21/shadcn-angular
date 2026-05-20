@@ -5,8 +5,8 @@ import {
     CarouselItemComponent,
     CarouselPreviousComponent,
     CarouselNextComponent,
-} from './carousel.component';
-import { CardComponent, CardContentComponent } from './card.component';
+} from './index';
+import { CardComponent, CardContentComponent } from '../card.component';
 
 const meta: Meta<CarouselComponent> = {
     title: 'UI/Carousel',

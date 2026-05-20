@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent } from './carousel.component';
+import { CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent } from './index';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

@@ -80,7 +80,7 @@ export const registry = defineRegistry({
   },
   carousel: {
     name: 'carousel',
-    files: ['carousel.component.ts'],
+    files: ['carousel/carousel.component.ts', 'carousel/index.ts', 'carousel/sub/carousel-content.component.ts', 'carousel/sub/carousel-item.component.ts', 'carousel/sub/carousel-next.component.ts', 'carousel/sub/carousel-previous.component.ts'],
   },
   checkbox: {
     name: 'checkbox',
