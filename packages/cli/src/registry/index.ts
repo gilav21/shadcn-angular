@@ -37,7 +37,7 @@ export const registry = defineRegistry({
   },
   alert: {
     name: 'alert',
-    files: ['alert.component.ts'],
+    files: ['alert/alert.component.html', 'alert/alert.component.ts', 'alert/index.ts', 'alert/sub/alert-description.component.html', 'alert/sub/alert-description.component.ts', 'alert/sub/alert-title.component.html', 'alert/sub/alert-title.component.ts'],
   },
   'alert-dialog': {
     name: 'alert-dialog',
