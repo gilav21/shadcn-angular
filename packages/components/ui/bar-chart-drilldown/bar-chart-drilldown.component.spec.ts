@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BarChartDrilldownComponent } from './bar-chart-drilldown.component';
-import { DrilldownDataPoint, DrilldownSeries } from './chart.types';
+import { DrilldownDataPoint, DrilldownSeries } from '../../lib/chart.types';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('BarChartDrilldownComponent', () => {

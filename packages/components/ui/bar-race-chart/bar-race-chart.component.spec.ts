@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { BarRaceChartComponent } from './bar-race-chart.component';
-import { ChartDataPoint } from './chart.types';
+import { ChartDataPoint } from '../../lib/chart.types';
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
 
 describe('BarRaceChartComponent', () => {

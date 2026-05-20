@@ -11,12 +11,12 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
-import { ChartDataPoint, ChartDirection } from './chart.types';
+import { ChartDataPoint, ChartDirection } from '../../lib/chart.types';
 import {
   getChartColor,
   formatChartValue,
   getChartSummary,
-} from './chart.utils';
+} from '../../lib/chart.utils';
 
 interface RaceBar {
   name: string;
@@ -35,116 +35,10 @@ interface RaceBar {
 @Component({
   selector: 'ui-bar-race-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div [class]="containerClasses()">
-      <div class="flex items-center justify-between mb-4">
-        <div class="text-2xl font-bold text-foreground">
-          {{ currentFrameLabel() }}
-        </div>
-        <div class="flex items-center gap-2">
-          <button
-            type="button"
-            class="p-2 rounded-md hover:bg-muted transition-colors"
-            [attr.aria-label]="isPlaying() ? 'Pause' : 'Play'"
-            (click)="togglePlay()"
-          >
-            @if (isPlaying()) {
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <rect x="6" y="4" width="4" height="16"/>
-                <rect x="14" y="4" width="4" height="16"/>
-              </svg>
-            } @else {
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3"/>
-              </svg>
-            }
-          </button>
-          <button
-            type="button"
-            class="p-2 rounded-md hover:bg-muted transition-colors"
-            aria-label="Reset"
-            (click)="reset()"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/>
-              <path d="M3 3v5h5"/>
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <svg
-        [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
-        [attr.width]="'100%'"
-        [attr.height]="'auto'"
-        [style.max-width.px]="svgWidth()"
-        [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
-        class="overflow-visible"
-        role="img"
-        [attr.aria-label]="chartAriaLabel()"
-      >
-        <g>
-          @for (bar of displayBars(); track bar.name) {
-            <g class="transition-transform duration-300 ease-out">
-              <rect
-                [attr.x]="bar.x"
-                [attr.y]="bar.animatedY"
-                [attr.width]="bar.animatedWidth"
-                [attr.height]="barHeight()"
-                [attr.rx]="barRadius()"
-                [attr.fill]="bar.color"
-                class="transition-all ease-out"
-                [style.transition-duration.ms]="animationDuration()"
-              />
-            <text
-                [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
-                [attr.y]="bar.animatedY + barHeight() / 2"
-                [attr.text-anchor]="'end'"
-                dominant-baseline="middle"
-                class="text-sm fill-foreground font-medium transition-all ease-out"
-                [style.transition-duration.ms]="animationDuration()"
-              >
-                {{ bar.name }}
-              </text>
-              <text
-                [attr.x]="isRtl() ? bar.x - 12 : chartArea().left + bar.animatedWidth + 12"
-                [attr.y]="bar.animatedY + barHeight() / 2"
-                [attr.text-anchor]="'start'"
-                dominant-baseline="middle"
-                class="text-sm fill-muted-foreground transition-all ease-out"
-                [style.transition-duration.ms]="animationDuration()"
-              >
-                {{ formatValue(bar.value) }}
-              </text>
-            </g>
-          }
-        </g>
-      </svg>
-
-      <div class="mt-4">
-        <div class="flex items-center gap-2">
-          <input
-            type="range"
-            [min]="0"
-            [max]="frames().length - 1"
-            [value]="currentFrameIndex()"
-            class="flex-1 h-1.5 bg-muted rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-primary [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:cursor-pointer"
-            (input)="onSliderChange($event)"
-          />
-        </div>
-        <div class="flex justify-between text-xs text-muted-foreground mt-1">
-          @if (frameLabels().length > 0) {
-            <span>{{ frameLabels()[0] }}</span>
-            <span>{{ frameLabels().at(-1) }}</span>
-          }
-        </div>
-      </div>
-    </div>
-  `,
+  templateUrl: './bar-race-chart.component.html',
   host: {
     class: 'block',
   },
-
 })
 export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   dir = input<ChartDirection>('auto');

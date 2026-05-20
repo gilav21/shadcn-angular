@@ -7,93 +7,13 @@ import {
   signal,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
-import { OrgNode, OrgNodePosition, OrgLayoutDirection, OrgLineType } from './chart.types';
-import { getChartColor } from './chart.utils';
+import { OrgNode, OrgNodePosition, OrgLayoutDirection, OrgLineType } from '../../lib/chart.types';
+import { getChartColor } from '../../lib/chart.utils';
 
 @Component({
   selector: 'ui-org-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div [class]="containerClasses()">
-      <svg
-        [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
-        [attr.width]="'100%'"
-        [attr.height]="'auto'"
-        [style.max-width.px]="svgWidth()"
-        [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
-        class="overflow-visible"
-        role="img"
-        [attr.aria-label]="chartAriaLabel()"
-      >
-        <!-- Connection lines -->
-        <g class="org-chart-lines">
-          @for (connection of connections(); track connection.id) {
-            <path
-              [attr.d]="connection.path"
-              fill="none"
-              stroke="currentColor"
-              class="text-border"
-              stroke-width="2"
-            />
-          }
-        </g>
-
-        <!-- Node cards using foreignObject -->
-        <g class="org-chart-nodes">
-          @for (pos of flatNodes(); track pos.node.id) {
-            <foreignObject
-              [attr.x]="pos.x"
-              [attr.y]="pos.y"
-              [attr.width]="pos.width"
-              [attr.height]="pos.height"
-            >
-              <div
-                xmlns="http://www.w3.org/1999/xhtml"
-                class="w-full h-full p-3 rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer hover:shadow-md transition-shadow flex flex-col justify-center overflow-hidden"
-                [style.borderLeftColor]="getNodeColor(pos)"
-                [style.borderLeftWidth.px]="4"
-                [class.opacity-50]="hoveredId() !== null && hoveredId() !== pos.node.id"
-                tabindex="0"
-                role="button"
-                [attr.aria-label]="getNodeAriaLabel(pos.node)"
-                (mouseenter)="onNodeHover(pos.node)"
-                (mouseleave)="onNodeLeave()"
-                (click)="onNodeClick($event, pos.node)"
-                (keydown.enter)="onNodeClick($event, pos.node)"
-                (keydown.space)="onNodeClick($event, pos.node)"
-              >
-                <div class="flex items-center gap-3">
-                  @if (showImages() && pos.node.image) {
-                    <img
-                      [src]="pos.node.image"
-                      [alt]="pos.node.name"
-                      class="w-10 h-10 rounded-full object-cover shrink-0"
-                    />
-                  } @else if (showImages()) {
-                    <div
-                      class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold text-sm shrink-0"
-                      [style.backgroundColor]="getNodeColor(pos)"
-                    >
-                      {{ getInitials(pos.node.name) }}
-                    </div>
-                  }
-                  <div class="min-w-0 flex-1">
-                    <div class="font-semibold text-sm truncate">{{ pos.node.name }}</div>
-                    @if (pos.node.title) {
-                      <div class="text-xs text-muted-foreground truncate">{{ pos.node.title }}</div>
-                    }
-                  </div>
-                </div>
-                @if (pos.node.description) {
-                  <div class="text-xs text-muted-foreground mt-2 line-clamp-2">{{ pos.node.description }}</div>
-                }
-              </div>
-            </foreignObject>
-          }
-        </g>
-      </svg>
-    </div>
-  `,
+  templateUrl: './org-chart.component.html',
   host: {
     class: 'block',
   },

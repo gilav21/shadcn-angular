@@ -10,13 +10,13 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
-import { RangeDataPoint, ChartClickEvent, ChartDirection } from './chart.types';
+import { RangeDataPoint, ChartClickEvent, ChartDirection } from '../../lib/chart.types';
 import {
   getChartColor,
   formatChartValue,
   getChartSummary,
   calculateAxisTicks,
-} from './chart.utils';
+} from '../../lib/chart.utils';
 
 interface RangeBar {
   index: number;
@@ -33,123 +33,7 @@ interface RangeBar {
 @Component({
   selector: 'ui-column-range-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div [class]="containerClasses()">
-      <svg
-        [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
-        [attr.width]="'100%'"
-        [attr.height]="'auto'"
-        [style.max-width.px]="svgWidth()"
-        [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
-        class="overflow-visible"
-        role="img"
-        [attr.aria-label]="chartAriaLabel()"
-      >
-        @if (showGrid()) {
-          <g class="text-border">
-            @for (tick of axisTicks(); track tick) {
-              <line
-                [attr.x1]="chartArea().left"
-                [attr.y1]="getTickPosition(tick)"
-                [attr.x2]="chartArea().right"
-                [attr.y2]="getTickPosition(tick)"
-                stroke="currentColor"
-                stroke-opacity="0.2"
-                stroke-dasharray="4 4"
-              />
-            }
-          </g>
-        }
-
-        <g class="text-muted-foreground text-xs">
-          @for (tick of axisTicks(); track tick) {
-            <text
-              [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
-              [attr.y]="getTickPosition(tick)"
-              [attr.text-anchor]="'end'"
-              dominant-baseline="middle"
-              fill="currentColor"
-            >
-              {{ formatAxisValue(tick) }}
-            </text>
-          }
-        </g>
-
-        <g class="text-muted-foreground text-xs">
-          @for (bar of bars(); track bar.index) {
-            <text
-              [attr.x]="bar.x + bar.width / 2"
-              [attr.y]="chartArea().bottom + 16"
-              text-anchor="middle"
-              fill="currentColor"
-            >
-              {{ bar.data.name }}
-            </text>
-          }
-        </g>
-
-        <g>
-          @for (bar of bars(); track bar.index) {
-            <g
-              class="cursor-pointer outline-none"
-              [class.opacity-50]="hoveredIndex() !== null && hoveredIndex() !== bar.index"
-              tabindex="0"
-              role="button"
-              [attr.aria-label]="getBarAriaLabel(bar)"
-              (mouseenter)="onBarHover(bar)"
-              (mouseleave)="onBarLeave()"
-              (focus)="onBarHover(bar)"
-              (blur)="onBarLeave()"
-              (click)="onBarClick($event, bar)"
-            >
-              <rect
-                [attr.x]="bar.x"
-                [attr.y]="bar.y"
-                [attr.width]="bar.width"
-                [attr.height]="bar.height"
-                [attr.rx]="barRadius()"
-                [attr.fill]="bar.color"
-                class="transition-all duration-200 ease-out"
-                [class.brightness-110]="hoveredIndex() === bar.index"
-              />
-
-              @if (showRangeLabels()) {
-                <text
-                  [attr.x]="bar.x + bar.width / 2"
-                  [attr.y]="bar.highY - 6"
-                  text-anchor="middle"
-                  class="text-xs font-medium fill-foreground pointer-events-none"
-                >
-                  {{ formatValue(bar.data.high) }}
-                </text>
-                <text
-                  [attr.x]="bar.x + bar.width / 2"
-                  [attr.y]="bar.lowY + 14"
-                  text-anchor="middle"
-                  class="text-xs font-medium fill-foreground pointer-events-none"
-                >
-                  {{ formatValue(bar.data.low) }}
-                </text>
-              }
-            </g>
-          }
-        </g>
-      </svg>
-
-      @if (hoveredBar()) {
-        <div
-          class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
-          [style.left.px]="tooltipPosition().x"
-          [style.top.px]="tooltipPosition().y"
-        >
-          <div class="font-medium">{{ hoveredBar()!.data.name }}</div>
-          <div class="text-muted-foreground">
-            Range: {{ formatValue(hoveredBar()!.data.low) }} – {{ formatValue(hoveredBar()!.data.high) }}
-          </div>
-        </div>
-      }
-    </div>
-  `,
+  templateUrl: './column-range-chart.component.html',
   host: {
     class: 'block',
   },

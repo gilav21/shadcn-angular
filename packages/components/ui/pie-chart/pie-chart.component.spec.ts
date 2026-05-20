@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PieChartComponent } from './pie-chart.component';
-import { ChartDataPoint } from './chart.types';
+import { ChartDataPoint } from '../../lib/chart.types';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('PieChartComponent', () => {

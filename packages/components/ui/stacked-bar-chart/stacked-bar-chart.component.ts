@@ -14,14 +14,14 @@ import {
   ChartSeries,
   StackingMode,
   ChartDirection
-} from './chart.types';
+} from '../../lib/chart.types';
 import {
   getChartColor,
   formatChartValue,
   formatPercentage,
   getChartSummary,
   calculateAxisTicks,
-} from './chart.utils';
+} from '../../lib/chart.utils';
 
 interface StackedBar {
   categoryIndex: number;
@@ -45,132 +45,7 @@ interface StackedSegment {
 @Component({
   selector: 'ui-stacked-bar-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div [class]="containerClasses()">
-      <svg
-        [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
-        [attr.width]="'100%'"
-        [attr.height]="'auto'"
-        [style.max-width.px]="svgWidth()"
-        [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
-        class="overflow-visible"
-        role="img"
-        [attr.aria-label]="chartAriaLabel()"
-      >
-        @if (showGrid()) {
-          <g class="text-border">
-            @for (tick of axisTicks(); track tick) {
-              <line
-                [attr.x1]="chartArea().left"
-                [attr.y1]="getTickPosition(tick)"
-                [attr.x2]="chartArea().right"
-                [attr.y2]="getTickPosition(tick)"
-                stroke="currentColor"
-                stroke-opacity="0.2"
-                stroke-dasharray="4 4"
-              />
-            }
-          </g>
-        }
-
-        <g class="text-muted-foreground text-xs">
-          @for (tick of axisTicks(); track tick) {
-            <text
-              [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
-              [attr.y]="getTickPosition(tick)"
-              [attr.text-anchor]="'end'"
-              dominant-baseline="middle"
-              fill="currentColor"
-            >
-              {{ formatAxisValue(tick) }}
-            </text>
-          }
-        </g>
-
-        <g class="text-muted-foreground text-xs">
-          @for (bar of stackedBars(); track bar.categoryIndex) {
-            <text
-              [attr.x]="getBarCenterX(bar)"
-              [attr.y]="chartArea().bottom + 16"
-              text-anchor="middle"
-              fill="currentColor"
-            >
-              {{ bar.category }}
-            </text>
-          }
-        </g>
-
-        <g>
-          @for (bar of stackedBars(); track bar.categoryIndex) {
-            @for (segment of bar.segments; track segment.seriesIndex) {
-              <g
-                class="cursor-pointer outline-none"
-                [class.opacity-50]="hoveredSegment() !== null && !isHovered(bar.categoryIndex, segment.seriesIndex)"
-                tabindex="0"
-                role="button"
-                [attr.aria-label]="getSegmentAriaLabel(segment, bar)"
-                (mouseenter)="onSegmentHover(bar.categoryIndex, segment)"
-                (mouseleave)="onSegmentLeave()"
-                (click)="onSegmentClick($event, segment, bar)"
-              >
-                <rect
-                  [attr.x]="segment.x"
-                  [attr.y]="segment.y"
-                  [attr.width]="segment.width"
-                  [attr.height]="segment.height"
-                  [attr.rx]="barRadius()"
-                  [attr.fill]="segment.color"
-                  class="transition-all duration-200 ease-out"
-                  [class.brightness-110]="isHovered(bar.categoryIndex, segment.seriesIndex)"
-                />
-              </g>
-            }
-
-            @if (showTotal()) {
-              <text
-                [attr.x]="getBarCenterX(bar)"
-                [attr.y]="getBarTopY(bar) - 6"
-                text-anchor="middle"
-                class="text-xs font-medium fill-foreground"
-              >
-                {{ formatValue(bar.total) }}
-              </text>
-            }
-          }
-        </g>
-      </svg>
-
-      @if (showLegend()) {
-        <div class="flex flex-wrap gap-4 mt-4 justify-center">
-          @for (s of series(); track s.id ?? s.name) {
-            <div class="flex items-center gap-2 text-sm">
-              <span
-                class="w-3 h-3 rounded-sm"
-                [style.backgroundColor]="getSeriesColor($index)"
-              ></span>
-              <span class="text-muted-foreground">{{ s.name }}</span>
-            </div>
-          }
-        </div>
-      }
-
-      @if (hoveredSegment()) {
-        <div
-          class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
-          [style.left.px]="tooltipPosition().x"
-          [style.top.px]="tooltipPosition().y"
-        >
-          <div class="font-medium">{{ hoveredSegment()!.seriesName }}</div>
-          <div class="text-muted-foreground">
-            {{ formatValue(hoveredSegment()!.value) }}
-            @if (stacking() === 'percent') {
-              ({{ formatPercentage(hoveredSegment()!.percentage) }})
-            }
-          </div>
-        </div>
-      }
-    </div>
-  `,
+  templateUrl: './stacked-bar-chart.component.html',
   host: {
     class: 'block',
   },

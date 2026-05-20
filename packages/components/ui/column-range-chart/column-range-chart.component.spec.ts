@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ColumnRangeChartComponent } from './column-range-chart.component';
-import { RangeDataPoint } from './chart.types';
+import { RangeDataPoint } from '../../lib/chart.types';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('ColumnRangeChartComponent', () => {

@@ -12,7 +12,7 @@ import {
   ChartClickEvent,
   LegendPosition,
   PieSlice,
-} from './chart.types';
+} from '../../lib/chart.types';
 import {
   getChartColor,
   describeArc,
@@ -22,102 +22,12 @@ import {
   formatPercentage,
   getChartSummary,
   getPointAriaLabel,
-} from './chart.utils';
+} from '../../lib/chart.utils';
 
 @Component({
   selector: 'ui-pie-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div
-      [class]="containerClasses()"
-      [attr.aria-label]="chartAriaLabel()"
-      role="img"
-    >
-      <svg
-        [attr.viewBox]="viewBox()"
-        [attr.width]="'100%'"
-        [attr.height]="'auto'"
-        [style.max-width.px]="size()"
-        [style.aspect-ratio]="'1 / 1'"
-        class="overflow-visible shrink-0"
-      >
-        <g [attr.transform]="'translate(' + center() + ',' + center() + ')'">
-          @for (slice of slices(); track slice.index) {
-            <g
-              class="cursor-pointer outline-none"
-              [class.opacity-50]="hoveredIndex() !== null && hoveredIndex() !== slice.index"
-              tabindex="0"
-              role="button"
-              [attr.aria-label]="getSliceAriaLabel(slice)"
-              (mouseenter)="onSliceHover(slice)"
-              (mouseleave)="onSliceLeave()"
-              (focus)="onSliceHover(slice)"
-              (blur)="onSliceLeave()"
-              (click)="onSliceClick($event, slice)"
-              (keydown.enter)="onSliceClick($event, slice)"
-              (keydown.space)="onSliceClick($event, slice)"
-            >
-              <path
-                [attr.d]="slice.path"
-                [attr.fill]="slice.color"
-                class="transition-all duration-200 ease-out"
-                [class.scale-105]="hoveredIndex() === slice.index"
-                [attr.transform-origin]="'0 0'"
-                [style.filter]="hoveredIndex() === slice.index ? 'drop-shadow(0 4px 6px rgba(0,0,0,0.15))' : 'none'"
-              />
-              @if (showLabels() && slice.percentage >= 5) {
-                <text
-                  [attr.x]="slice.centroid.x"
-                  [attr.y]="slice.centroid.y"
-                  text-anchor="middle"
-                  dominant-baseline="middle"
-                  class="text-xs font-medium fill-white pointer-events-none"
-                  [class.fill-foreground]="isLightColor(slice.color)"
-                >
-                  {{ formatPercentage(slice.percentage) }}
-                </text>
-              }
-            </g>
-          }
-        </g>
-      </svg>
-
-      @if (showLegend() && legendPosition() !== 'none') {
-        <div [class]="legendClasses()">
-          @for (slice of slices(); track slice.index) {
-            <button
-              type="button"
-              class="flex items-center gap-2 text-sm hover:opacity-80 transition-opacity"
-              [class.opacity-50]="hoveredIndex() !== null && hoveredIndex() !== slice.index"
-              (mouseenter)="onSliceHover(slice)"
-              (mouseleave)="onSliceLeave()"
-              (click)="onSliceClick($event, slice)"
-            >
-              <span
-                class="w-3 h-3 rounded-sm shrink-0"
-                [style.backgroundColor]="slice.color"
-              ></span>
-              <span class="text-muted-foreground truncate">{{ slice.data.name }}</span>
-              <span class="text-foreground font-medium">{{ formatValue(slice.data.value) }}</span>
-            </button>
-          }
-        </div>
-      }
-
-      @if (hoveredSlice() && showTooltip()) {
-        <div
-          class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
-          [style.left.px]="tooltipPosition().x"
-          [style.top.px]="tooltipPosition().y"
-        >
-          <div class="font-medium">{{ hoveredSlice()!.data.name }}</div>
-          <div class="text-muted-foreground">
-            {{ formatValue(hoveredSlice()!.data.value) }} ({{ formatPercentage(hoveredSlice()!.percentage) }})
-          </div>
-        </div>
-      }
-    </div>
-  `,
+  templateUrl: './pie-chart.component.html',
   host: {
     class: 'block',
   },

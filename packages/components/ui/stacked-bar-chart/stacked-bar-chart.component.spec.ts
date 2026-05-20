@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { StackedBarChartComponent } from './stacked-bar-chart.component';
-import { ChartSeries } from './chart.types';
+import { ChartSeries } from '../../lib/chart.types';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('StackedBarChartComponent', () => {

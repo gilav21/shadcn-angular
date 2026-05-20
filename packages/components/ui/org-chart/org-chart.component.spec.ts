@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { OrgChartComponent } from './org-chart.component';
-import { OrgNode } from './chart.types';
+import { OrgNode } from '../../lib/chart.types';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('OrgChartComponent', () => {

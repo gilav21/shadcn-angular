@@ -15,7 +15,7 @@ import {
   ChartOrientation,
   BarRect,
   ChartDirection,
-} from './chart.types';
+} from '../../lib/chart.types';
 import {
   getChartColor,
   formatChartValue,
@@ -23,183 +23,12 @@ import {
   getPointAriaLabel,
   calculateAxisTicks,
   getDataRange,
-} from './chart.utils';
+} from '../../lib/chart.utils';
 
 @Component({
   selector: 'ui-bar-chart',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  template: `
-    <div
-      [class]="containerClasses()"
-      role="img"
-      [attr.aria-label]="chartAriaLabel()"
-    >
-      <svg
-        [attr.viewBox]="'0 0 ' + svgWidth() + ' ' + svgHeight()"
-        [attr.width]="'100%'"
-        [attr.height]="'auto'"
-        [style.max-width.px]="svgWidth()"
-        [style.aspect-ratio]="svgWidth() + ' / ' + svgHeight()"
-        class="overflow-visible"
-      >
-        @if (showGrid()) {
-          <g class="text-border">
-            @for (tick of axisTicks(); track tick) {
-                @if (isVertical()) {
-                  <line
-                    [attr.x1]="chartArea().left"
-                    [attr.y1]="getTickPosition(tick)"
-                    [attr.x2]="chartArea().right"
-                    [attr.y2]="getTickPosition(tick)"
-                    stroke="currentColor"
-                    stroke-opacity="0.2"
-                    stroke-dasharray="4 4"
-                  />
-                } @else {
-                  <line
-                    [attr.x1]="getTickPosition(tick)"
-                    [attr.y1]="chartArea().top"
-                    [attr.x2]="getTickPosition(tick)"
-                    [attr.y2]="chartArea().bottom"
-                    stroke="currentColor"
-                    stroke-opacity="0.2"
-                    stroke-dasharray="4 4"
-                  />
-                }
-            }
-          </g>
-        }
-
-        <g class="text-muted-foreground text-xs">
-          @for (tick of axisTicks(); track tick) {
-            @if (isVertical()) {
-              <text
-                [attr.x]="isRtl() ? chartArea().right + 8 : chartArea().left - 8"
-                [attr.y]="getTickPosition(tick)"
-                [attr.text-anchor]="'end'"
-                dominant-baseline="middle"
-                fill="currentColor"
-              >
-                {{ formatAxisValue(tick) }}
-              </text>
-            } @else {
-              <text
-                [attr.x]="getTickPosition(tick)"
-                [attr.y]="chartArea().bottom + 16"
-                text-anchor="middle"
-                fill="currentColor"
-              >
-                {{ formatAxisValue(tick) }}
-              </text>
-            }
-          }
-        </g>
-
-        <g class="text-muted-foreground text-xs">
-          @for (bar of bars(); track bar.index) {
-            @if (isVertical()) {
-              <text
-                [attr.x]="bar.x + bar.width / 2"
-                [attr.y]="chartArea().bottom + 16"
-                text-anchor="middle"
-                fill="currentColor"
-                class="truncate"
-              >
-                {{ bar.data.name }}
-              </text>
-            } @else {
-              <text
-                [attr.x]="isRtl() ? chartArea().right + 12 : chartArea().left - 12"
-                [attr.y]="bar.y + bar.height / 2"
-                [attr.text-anchor]="'end'"
-                dominant-baseline="middle"
-                fill="currentColor"
-              >
-                {{ bar.data.name }}
-              </text>
-            }
-          }
-        </g>
-
-        <g>
-          @for (bar of bars(); track bar.index) {
-            <g
-              class="cursor-pointer outline-none"
-              [class.opacity-50]="hoveredIndex() !== null && hoveredIndex() !== bar.index"
-              tabindex="0"
-              role="button"
-              [attr.aria-label]="getBarAriaLabel(bar)"
-              (mouseenter)="onBarHover(bar)"
-              (mouseleave)="onBarLeave()"
-              (focus)="onBarHover(bar)"
-              (blur)="onBarLeave()"
-              (click)="onBarClick($event, bar)"
-              (keydown.enter)="onBarClick($event, bar)"
-              (keydown.space)="onBarClick($event, bar)"
-            >
-              <rect
-                [attr.x]="bar.x"
-                [attr.y]="bar.y"
-                [attr.width]="bar.width"
-                [attr.height]="bar.height"
-                [attr.rx]="barRadius()"
-                [attr.fill]="bar.color"
-                class="transition-all duration-200 ease-out"
-                [class.brightness-110]="hoveredIndex() === bar.index"
-              />
-
-              @if (showValues()) {
-                <text
-                  [attr.x]="bar.labelPosition.x"
-                  [attr.y]="bar.labelPosition.y"
-                  [attr.text-anchor]="isVertical() ? 'middle' : (isRtl() ? 'start' : 'start')"
-                  [attr.dominant-baseline]="isVertical() ? 'auto' : 'middle'"
-                  class="text-xs font-medium pointer-events-none"
-                  [class.fill-foreground]="true"
-                >
-                  {{ formatValue(bar.value) }}
-                </text>
-              }
-            </g>
-          }
-        </g>
-
-        @if (xAxisLabel()) {
-          <text
-            [attr.x]="svgWidth() / 2"
-            [attr.y]="svgHeight() - 4"
-            text-anchor="middle"
-            class="text-sm fill-muted-foreground"
-          >
-            {{ xAxisLabel() }}
-          </text>
-        }
-
-        @if (yAxisLabel()) {
-          <text
-            [attr.x]="isRtl() ? svgWidth() - 12 : 12"
-            [attr.y]="svgHeight() / 2"
-            text-anchor="middle"
-            [attr.transform]="isRtl() ? 'rotate(90 ' + (svgWidth() - 12) + ' ' + svgHeight() / 2 + ')' : 'rotate(-90 12 ' + svgHeight() / 2 + ')'"
-            class="text-sm fill-muted-foreground"
-          >
-            {{ yAxisLabel() }}
-          </text>
-        }
-      </svg>
-
-      @if (hoveredBar() && showTooltip()) {
-        <div
-          class="absolute z-50 px-3 py-2 text-sm bg-popover text-popover-foreground rounded-md shadow-lg border pointer-events-none"
-          [style.left.px]="tooltipPosition().x"
-          [style.top.px]="tooltipPosition().y"
-        >
-          <div class="font-medium">{{ hoveredBar()!.data.name }}</div>
-          <div class="text-muted-foreground">{{ formatValue(hoveredBar()!.value) }}</div>
-        </div>
-      }
-    </div>
-  `,
+  templateUrl: './bar-chart.component.html',
   host: {
     class: 'block',
   },
