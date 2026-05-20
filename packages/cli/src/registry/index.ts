@@ -41,7 +41,7 @@ export const registry = defineRegistry({
   },
   'alert-dialog': {
     name: 'alert-dialog',
-    files: ['alert-dialog.component.ts'],
+    files: ['alert-dialog/alert-dialog.component.ts', 'alert-dialog/index.ts', 'alert-dialog/sub/alert-dialog-action.component.ts', 'alert-dialog/sub/alert-dialog-cancel.component.ts', 'alert-dialog/sub/alert-dialog-content.component.ts', 'alert-dialog/sub/alert-dialog-description.component.ts', 'alert-dialog/sub/alert-dialog-footer.component.ts', 'alert-dialog/sub/alert-dialog-header.component.ts', 'alert-dialog/sub/alert-dialog-title.component.ts', 'alert-dialog/sub/alert-dialog-trigger.component.ts'],
   },
   'aspect-ratio': {
     name: 'aspect-ratio',

@@ -46,7 +46,7 @@ import {
     AlertDialogDescriptionComponent,
     AlertDialogFooterComponent,
     AlertDialogCancelComponent,
-} from './alert-dialog.component';
+} from './alert-dialog';
 import {
     ContextMenuComponent,
     ContextMenuContentComponent,
