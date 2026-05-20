@@ -196,7 +196,7 @@ export const registry = defineRegistry({
   },
   field: {
     name: 'field',
-    files: ['field.component.ts'],
+    files: ['field/field.component.ts', 'field/field.utils.ts', 'field/index.ts', 'field/sub/field-description.component.ts', 'field/sub/field-error.component.ts', 'field/sub/field-group.component.ts', 'field/sub/field-label.component.ts', 'field/sub/field-legend.component.ts', 'field/sub/field-separator.component.ts', 'field/sub/field-set.component.ts'],
   },
   icon: {
     name: 'icon',

@@ -8,9 +8,9 @@ import {
     FieldDescriptionComponent,
     FieldErrorComponent,
     FieldSeparatorComponent,
-} from './field.component';
-import { InputComponent } from './input';
-import { ButtonComponent } from './button';
+} from './index';
+import { InputComponent } from '../input';
+import { ButtonComponent } from '../button';
 
 const meta: Meta<FieldComponent> = {
     title: 'UI/Field',

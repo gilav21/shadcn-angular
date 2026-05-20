@@ -11,7 +11,7 @@ import {
     FieldDescriptionComponent,
     FieldErrorComponent,
     FieldSeparatorComponent
-} from './field.component';
+} from './index';
 
 @Component({
     template: `
