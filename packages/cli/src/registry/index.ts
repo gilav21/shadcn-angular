@@ -391,7 +391,7 @@ export const registry = defineRegistry({
   },
   'emoji-picker': {
     name: 'emoji-picker',
-    files: ['emoji-data.ts', 'emoji-picker.component.ts'],
+    files: ['emoji-picker/emoji-data.ts', 'emoji-picker/emoji-picker.component.ts', 'emoji-picker/index.ts', 'emoji-picker/sub/emoji-picker-content.component.ts', 'emoji-picker/sub/emoji-picker-trigger.component.ts'],
     dependencies: ['input', 'scroll-area', 'tooltip'],
   },
   'rich-text-editor': {
