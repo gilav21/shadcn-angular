@@ -67,7 +67,7 @@ export * from './rich-text-locales';
 export { parsePdf, parsePdfPaged } from '../lib/parsers/pdf-parser';
 export type { PdfParseResult, PdfParseResultPaged, PdfPageResult } from '../lib/parsers/pdf-parser';
 export * from './timeline.component';
-export * from './tree.component';
+export * from './tree';
 export * from './tree-select';
 export * from './virtual-scroll';
 export * from './context-menu-integrations';

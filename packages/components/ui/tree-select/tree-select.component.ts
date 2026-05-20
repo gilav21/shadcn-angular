@@ -13,7 +13,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
-import { TreeComponent, TreeNode } from '../tree.component';
+import { TreeComponent, TreeNode } from '../tree';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
 import { TreeSelectTriggerComponent } from './sub/tree-select-trigger.component';
 import { TreeSelectContentComponent } from './sub/tree-select-content.component';

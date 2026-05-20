@@ -1,8 +1,6 @@
 import {
     Component,
     ChangeDetectionStrategy,
-    Directive,
-    TemplateRef,
     input,
     computed,
     signal,
@@ -10,14 +8,17 @@ import {
     InjectionToken,
     forwardRef,
     contentChild,
-    contentChildren,
     output,
     ElementRef,
     viewChild,
     effect
 } from '@angular/core';
-import { cn, isRtl } from '../lib/utils';
+import { cn, isRtl } from '../../lib/utils';
 import { NgTemplateOutlet } from '@angular/common';
+import { TreeItemComponent } from './sub/tree-item.component';
+import { TreeLabelComponent } from './sub/tree-label.component';
+import { TreeIconComponent } from './sub/tree-icon.component';
+import { TreeNodeContentDirective } from './sub/tree-node-content.directive';
 
 
 export interface TreeNode {
@@ -30,56 +31,13 @@ export interface TreeNode {
 
 export const TREE = new InjectionToken<TreeComponent>('TREE');
 
-@Directive({
-    selector: '[uiTreeNodeContent]',
-})
-export class TreeNodeContentDirective {
-    readonly templateRef = inject(TemplateRef);
-}
-
 @Component({
     selector: 'ui-tree',
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [{ provide: TREE, useExisting: forwardRef(() => TreeComponent) }],
-    template: `
-    <div
-      #treeRoot
-      [class]="classes()"
-      [attr.data-slot]="'tree'"
-      role="tree"
-      [attr.aria-multiselectable]="selectable() === 'multiple'"
-      tabindex="0"
-      [attr.aria-activedescendant]="activeDescendantId()"
-      (keydown)="onKeydown($event)"
-    >
-      @if (data().length > 0) {
-        <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: data(), depth: 0 }" />
-        <ng-template #nodeTemplate let-nodes="nodes" let-depth="depth">
-          @for (node of nodes; track node.key) {
-            <ui-tree-item [value]="node.key" [hasNested]="!!(node.children && node.children.length > 0)">
-              <ui-tree-label>
-                @if (nodeContent(); as nc) {
-                  <ng-container *ngTemplateOutlet="nc.templateRef; context: { $implicit: node }" />
-                } @else {
-                  @if (node.icon) {
-                    <ui-tree-icon>{{ node.icon }}</ui-tree-icon>
-                  }
-                  {{ node.label }}
-                }
-              </ui-tree-label>
-              @if (node.children && node.children.length > 0 && isExpanded(node.key)) {
-                <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: node.children, depth: depth + 1 }" />
-              }
-            </ui-tree-item>
-          }
-        </ng-template>
-      } @else {
-        <ng-content />
-      }
-    </div>
-  `,
+    templateUrl: './tree.component.html',
     host: { class: 'block' },
-    imports: [NgTemplateOutlet, forwardRef(() => TreeItemComponent), forwardRef(() => TreeLabelComponent), forwardRef(() => TreeIconComponent)],
+    imports: [NgTemplateOutlet, TreeItemComponent, TreeLabelComponent, TreeIconComponent],
 })
 export class TreeComponent {
     class = input('');
@@ -459,172 +417,4 @@ export class TreeComponent {
             this.expandChange.emit(Array.from(next));
         }
     }
-}
-
-let nextId = 0;
-
-@Component({
-    selector: 'ui-tree-item',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <div
-      [id]="id()"
-      [class]="classes()"
-      [attr.data-slot]="'tree-item'"
-      [attr.data-expanded]="isExpanded()"
-      [attr.data-selected]="isSelected()"
-      [attr.data-focused]="isFocused()"
-      role="treeitem"
-      [attr.aria-expanded]="hasChildren() ? isExpanded() : null"
-      [attr.aria-selected]="tree?.selectable() !== 'none' ? isSelected() : null"
-    >
-      <div #header [class]="headerClasses()" (click)="onHeaderClick($event)">
-        @if (hasChildren()) {
-          <button
-            type="button"
-            [class]="expandButtonClasses()"
-            (click)="onExpandClick($event)"
-            aria-hidden="true"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="m9 18 6-6-6-6"/>
-            </svg>
-          </button>
-        } @else {
-          <span class="h-4 w-4 shrink-0"></span>
-        }
-        <ng-content select="ui-tree-label" />
-      </div>
-      @if (hasChildren()) {
-        <div class="ps-4" role="group" [hidden]="!isExpanded()">
-          <ng-content />
-        </div>
-      }
-    </div>
-  `,
-    host: { class: 'contents' },
-})
-export class TreeItemComponent {
-    private readonly _autoId = `ui-tree-item-${++nextId}`;
-
-    id = input<string>(this._autoId);
-    class = input('');
-    value = input.required<string>();
-
-    headerElement = viewChild<ElementRef<HTMLElement>>('header');
-
-    readonly elementRef = inject(ElementRef);
-    readonly parentItem = inject(TreeItemComponent, { optional: true, skipSelf: true });
-
-    readonly tree = inject(TREE, { optional: true });
-    children = contentChildren(forwardRef(() => TreeItemComponent));
-
-    hasNested = input<boolean | undefined>(undefined);
-
-    hasChildren = computed(() => this.hasNested() ?? this.children().length > 0);
-
-    constructor() {
-        effect((onCleanup) => {
-            if (this.tree) {
-                this.tree.registerItem(this);
-                onCleanup(() => {
-                    this.tree?.unregisterItem(this);
-                });
-            }
-        });
-    }
-
-    isExpanded = computed(() => this.tree?.isExpanded(this.value()) ?? false);
-
-    isSelected = computed(() => this.tree?.isSelected(this.value()) ?? false);
-
-    isFocused = computed(() => this.tree?.isFocused(this.value()) ?? false);
-
-    isRtl = computed(() => this.tree?.isRtl() ?? false);
-
-    classes = computed(() =>
-        cn(
-            'select-none',
-            this.class()
-        )
-    );
-
-    headerClasses = computed(() =>
-        cn(
-            'flex items-center gap-1 rounded-md px-2 py-1 cursor-pointer transition-colors outline-none relative',
-            'hover:bg-accent/50 hover:text-foreground',
-            this.isSelected() && 'bg-accent font-medium text-accent-foreground',
-            this.isFocused() && 'after:absolute after:bottom-[1px] after:left-2 after:right-2 after:h-[1px] after:bg-border after:shadow-sm'
-        )
-    );
-
-    expandButtonClasses = computed(() =>
-        cn(
-            'h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200',
-            this.isExpanded() && 'rotate-90',
-            this.isRtl() && !this.isExpanded() && 'rotate-180'
-        )
-    );
-
-    onExpandClick(event: MouseEvent) {
-        event.stopPropagation();
-        this.tree?.toggleExpanded(this.value());
-    }
-
-    onHeaderClick(event: MouseEvent) {
-        this.tree?.focusedKey.set(this.value());
-        this.tree?.toggleSelected(this.value());
-    }
-}
-
-@Component({
-    selector: 'ui-tree-label',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <span [class]="classes()" [attr.data-slot]="'tree-label'">
-      <ng-content />
-    </span>
-  `,
-    host: { class: 'contents' },
-})
-export class TreeLabelComponent {
-    class = input('');
-
-    classes = computed(() =>
-        cn(
-            'flex-1 truncate',
-            this.class()
-        )
-    );
-}
-
-@Component({
-    selector: 'ui-tree-icon',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <span [class]="classes()" [attr.data-slot]="'tree-icon'" aria-hidden="true">
-      <ng-content />
-    </span>
-  `,
-    host: { class: 'contents' },
-})
-export class TreeIconComponent {
-    class = input('');
-
-    classes = computed(() =>
-        cn(
-            'me-2 h-4 w-4 shrink-0',
-            this.class()
-        )
-    );
 }

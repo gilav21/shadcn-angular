@@ -374,7 +374,7 @@ export const registry = defineRegistry({
   },
   tree: {
     name: 'tree',
-    files: ['tree.component.ts'],
+    files: ['tree/index.ts', 'tree/sub/tree-icon.component.html', 'tree/sub/tree-icon.component.ts', 'tree/sub/tree-item.component.html', 'tree/sub/tree-item.component.ts', 'tree/sub/tree-label.component.html', 'tree/sub/tree-label.component.ts', 'tree/sub/tree-node-content.directive.ts', 'tree/tree.component.html', 'tree/tree.component.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on tree nodes' },
     ],

@@ -4,7 +4,7 @@ import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { FormControl, FormsModule, ReactiveFormsModule } from '@angular/forms';
-import { TreeComponent, TreeNode } from '../tree.component';
+import { TreeComponent, TreeNode } from '../tree';
 import { PopoverTriggerComponent, PopoverContentComponent } from '../popover';
 
 const SAMPLE_NODES: TreeNode[] = [

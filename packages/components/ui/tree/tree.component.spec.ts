@@ -2,13 +2,10 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import {
-    TreeComponent,
-    TreeItemComponent,
-    TreeLabelComponent,
-    TreeIconComponent,
-    TreeNode,
-} from './tree.component';
+import { TreeComponent, TreeNode } from './tree.component';
+import { TreeItemComponent } from './sub/tree-item.component';
+import { TreeLabelComponent } from './sub/tree-label.component';
+import { TreeIconComponent } from './sub/tree-icon.component';
 
 // Test host
 @Component({

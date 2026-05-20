@@ -1,0 +1,35 @@
+<div
+  #treeRoot
+  [class]="classes()"
+  [attr.data-slot]="'tree'"
+  role="tree"
+  [attr.aria-multiselectable]="selectable() === 'multiple'"
+  tabindex="0"
+  [attr.aria-activedescendant]="activeDescendantId()"
+  (keydown)="onKeydown($event)"
+>
+  @if (data().length > 0) {
+    <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: data(), depth: 0 }" />
+    <ng-template #nodeTemplate let-nodes="nodes" let-depth="depth">
+      @for (node of nodes; track node.key) {
+        <ui-tree-item [value]="node.key" [hasNested]="!!(node.children && node.children.length > 0)">
+          <ui-tree-label>
+            @if (nodeContent(); as nc) {
+              <ng-container *ngTemplateOutlet="nc.templateRef; context: { $implicit: node }" />
+            } @else {
+              @if (node.icon) {
+                <ui-tree-icon>{{ node.icon }}</ui-tree-icon>
+              }
+              {{ node.label }}
+            }
+          </ui-tree-label>
+          @if (node.children && node.children.length > 0 && isExpanded(node.key)) {
+            <ng-container *ngTemplateOutlet="nodeTemplate; context: { nodes: node.children, depth: depth + 1 }" />
+          }
+        </ui-tree-item>
+      }
+    </ng-template>
+  } @else {
+    <ng-content />
+  }
+</div>

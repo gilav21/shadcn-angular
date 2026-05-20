@@ -1,11 +1,8 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import {
-    TreeComponent,
-    TreeItemComponent,
-    TreeLabelComponent,
-    TreeIconComponent,
-    TreeNode,
-} from './tree.component';
+import { TreeComponent, TreeNode } from './tree.component';
+import { TreeItemComponent } from './sub/tree-item.component';
+import { TreeLabelComponent } from './sub/tree-label.component';
+import { TreeIconComponent } from './sub/tree-icon.component';
 import {
     ContextMenuComponent,
     ContextMenuTriggerDirective,
@@ -13,8 +10,8 @@ import {
     ContextMenuItemComponent,
     ContextMenuShortcutComponent,
     ContextMenuSeparatorComponent,
-} from './context-menu.component';
-import { ContextMenuIntegrations } from './context-menu-integrations';
+} from '../context-menu.component';
+import { ContextMenuIntegrations } from '../context-menu-integrations';
 
 const meta: Meta = {
     title: 'UI/Tree',
