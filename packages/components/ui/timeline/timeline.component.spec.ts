@@ -12,7 +12,7 @@ import {
     TimelineTitleComponent,
     TimelineDescriptionComponent,
     TimelineTimeComponent,
-} from './timeline.component';
+} from '../timeline';
 
 // RTL Test host
 @Component({

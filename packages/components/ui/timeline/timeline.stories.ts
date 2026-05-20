@@ -9,7 +9,7 @@ import {
     TimelineTitleComponent,
     TimelineDescriptionComponent,
     TimelineTimeComponent,
-} from './timeline.component';
+} from '../timeline';
 
 const meta: Meta = {
     title: 'UI/Timeline',

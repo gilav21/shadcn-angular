@@ -353,7 +353,7 @@ export const registry = defineRegistry({
   },
   timeline: {
     name: 'timeline',
-    files: ['timeline.component.ts'],
+    files: ['timeline/index.ts', 'timeline/sub/timeline-connector.component.ts', 'timeline/sub/timeline-content.component.ts', 'timeline/sub/timeline-description.component.ts', 'timeline/sub/timeline-dot.component.ts', 'timeline/sub/timeline-header.component.ts', 'timeline/sub/timeline-item.component.ts', 'timeline/sub/timeline-time.component.ts', 'timeline/sub/timeline-title.component.ts', 'timeline/timeline.component.ts'],
   },
   toast: {
     name: 'toast',
