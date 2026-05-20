@@ -6,7 +6,7 @@ import {
   inject,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
-import { SidebarService } from '../sidebar.component';
+import { SidebarService } from '../sidebar.service';
 
 @Component({
   selector: 'ui-sidebar-group-label',

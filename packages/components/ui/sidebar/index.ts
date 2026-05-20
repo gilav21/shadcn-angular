@@ -1,5 +1,6 @@
 export * from './sidebar.component';
-export * from './sub/sidebar-sidebar.component';
+export * from './sidebar.service';
+export * from './sub/sidebar-provider.component';
 export * from './sub/sidebar-header.component';
 export * from './sub/sidebar-content.component';
 export * from './sub/sidebar-footer.component';

@@ -8,7 +8,7 @@ import {
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { TooltipDirective } from '../../tooltip';
-import { SidebarService } from '../sidebar.component';
+import { SidebarService } from '../sidebar.service';
 
 @Component({
   selector: 'ui-sidebar-menu-button',

@@ -315,7 +315,7 @@ export const registry = defineRegistry({
   },
   sidebar: {
     name: 'sidebar',
-    files: ['sidebar/index.ts', 'sidebar/sidebar.component.ts', 'sidebar/sub/sidebar-sidebar.component.ts', 'sidebar/sub/sidebar-header.component.ts', 'sidebar/sub/sidebar-content.component.ts', 'sidebar/sub/sidebar-footer.component.ts', 'sidebar/sub/sidebar-group.component.ts', 'sidebar/sub/sidebar-group-label.component.ts', 'sidebar/sub/sidebar-group-content.component.ts', 'sidebar/sub/sidebar-menu.component.ts', 'sidebar/sub/sidebar-menu-item.component.ts', 'sidebar/sub/sidebar-menu-button.component.ts', 'sidebar/sub/sidebar-menu-link.component.ts', 'sidebar/sub/sidebar-trigger.component.ts', 'sidebar/sub/sidebar-inset.component.ts', 'sidebar/sub/sidebar-separator.component.ts'],
+    files: ['sidebar/index.ts', 'sidebar/sidebar.component.ts', 'sidebar/sidebar.service.ts', 'sidebar/sub/sidebar-content.component.ts', 'sidebar/sub/sidebar-footer.component.ts', 'sidebar/sub/sidebar-group-content.component.ts', 'sidebar/sub/sidebar-group-label.component.ts', 'sidebar/sub/sidebar-group.component.ts', 'sidebar/sub/sidebar-header.component.ts', 'sidebar/sub/sidebar-inset.component.ts', 'sidebar/sub/sidebar-menu-button.component.ts', 'sidebar/sub/sidebar-menu-item.component.ts', 'sidebar/sub/sidebar-menu-link.component.ts', 'sidebar/sub/sidebar-menu.component.ts', 'sidebar/sub/sidebar-provider.component.ts', 'sidebar/sub/sidebar-separator.component.ts', 'sidebar/sub/sidebar-trigger.component.ts'],
     dependencies: ['scroll-area', 'tooltip'],
   },
   skeleton: {
