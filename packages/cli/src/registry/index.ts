@@ -285,7 +285,7 @@ export const registry = defineRegistry({
   },
   'radio-group': {
     name: 'radio-group',
-    files: ['radio-group.component.ts'],
+    files: ['radio-group/index.ts', 'radio-group/radio-group.component.html', 'radio-group/radio-group.component.ts', 'radio-group/sub/radio-group-item.component.html', 'radio-group/sub/radio-group-item.component.ts'],
   },
   rating: {
     name: 'rating',
