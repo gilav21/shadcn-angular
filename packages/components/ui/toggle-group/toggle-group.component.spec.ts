@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ToggleGroupComponent, ToggleGroupItemComponent, ToggleGroupItem } from './toggle-group.component';
+import { ToggleGroupComponent, ToggleGroupItem } from './toggle-group.component';
+import { ToggleGroupItemComponent } from './sub/toggle-group-item.component';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

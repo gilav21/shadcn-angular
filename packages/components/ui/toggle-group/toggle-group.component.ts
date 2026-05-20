@@ -5,12 +5,12 @@ import {
     output,
     computed,
     signal,
-    inject,
     InjectionToken,
     forwardRef,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
+import { ToggleGroupItemComponent } from './sub/toggle-group-item.component';
 
 export interface ToggleGroupItem {
     value: string;
@@ -19,7 +19,7 @@ export interface ToggleGroupItem {
     disabled?: boolean;
 }
 
-const toggleVariants = cva(
+export const toggleVariants = cva(
     'inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium hover:bg-muted hover:text-muted-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 focus-visible:border-ring focus-visible:ring-ring/50 focus-visible:ring-[3px] outline-none transition-[color,box-shadow] whitespace-nowrap',
     {
         variants: {
@@ -50,30 +50,8 @@ export const TOGGLE_GROUP = new InjectionToken<ToggleGroupComponent>('TOGGLE_GRO
 @Component({
     selector: 'ui-toggle-group',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [forwardRef(() => ToggleGroupItemComponent)],
-    template: `
-    <div
-      [class]="classes()"
-      [attr.data-slot]="'toggle-group'"
-      [attr.data-variant]="variant()"
-      [attr.data-size]="size()"
-      role="group"
-    >
-      @if (isDataDriven()) {
-        @for (item of items(); track item.value) {
-          <ui-toggle-group-item
-            [value]="item.value"
-            [disabled]="item.disabled ?? false"
-            [ariaLabel]="item.label"
-          >
-            {{ item.label ?? item.value }}
-          </ui-toggle-group-item>
-        }
-      } @else {
-        <ng-content />
-      }
-    </div>
-  `,
+    imports: [ToggleGroupItemComponent],
+    templateUrl: './toggle-group.component.html',
     host: { class: 'contents' },
     providers: [{ provide: TOGGLE_GROUP, useExisting: forwardRef(() => ToggleGroupComponent) }],
 })
@@ -130,58 +108,6 @@ export class ToggleGroupComponent {
             this.valueChange.emit(newValue[0] ?? '');
         } else {
             this.valueChange.emit(newValue);
-        }
-    }
-}
-
-@Component({
-    selector: 'ui-toggle-group-item',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    template: `
-    <button
-      type="button"
-      [class]="classes()"
-      [disabled]="group?.disabled() || disabled()"
-      [attr.aria-pressed]="isSelected()"
-      [attr.data-state]="isSelected() ? 'on' : 'off'"
-      [attr.aria-label]="ariaLabel()"
-      [attr.data-slot]="'toggle-group-item'"
-      (click)="onClick()"
-    >
-      <ng-content />
-    </button>
-  `,
-    host: {
-        class: 'contents',
-        '[attr.aria-label]': 'null'
-    },
-})
-export class ToggleGroupItemComponent {
-    readonly group = inject(TOGGLE_GROUP, { optional: true });
-
-    value = input.required<string>();
-    disabled = input(false);
-    class = input('');
-    ariaLabel = input<string | undefined>(undefined);
-
-    isSelected = computed(() => this.group?.isSelected(this.value()) ?? false);
-
-    classes = computed(() => {
-        const variant = this.group?.variant() ?? 'default';
-        const size = this.group?.size() ?? 'default';
-
-        return cn(
-            toggleVariants({ variant, size }),
-            'w-auto min-w-0 shrink-0 px-3 focus:z-10 focus-visible:z-10',
-            'rounded-none shadow-none ltr:first:rounded-l-md ltr:last:rounded-r-md rtl:first:rounded-r-md rtl:last:rounded-l-md',
-            variant === 'outline' && 'ltr:border-l-0 ltr:first:border-l rtl:border-r-0 rtl:first:border-r',
-            this.class()
-        );
-    });
-
-    onClick() {
-        if (!this.disabled()) {
-            this.group?.toggle(this.value());
         }
     }
 }

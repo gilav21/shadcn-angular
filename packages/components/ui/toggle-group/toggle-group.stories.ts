@@ -1,5 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { ToggleGroupComponent, ToggleGroupItemComponent, ToggleGroupItem } from './toggle-group.component';
+import { ToggleGroupComponent, ToggleGroupItem } from './toggle-group.component';
+import { ToggleGroupItemComponent } from './sub/toggle-group-item.component';
 
 const meta: Meta<ToggleGroupComponent & { rtl: boolean }> = {
   title: 'UI/ToggleGroup',

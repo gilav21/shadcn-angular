@@ -365,7 +365,7 @@ export const registry = defineRegistry({
   },
   'toggle-group': {
     name: 'toggle-group',
-    files: ['toggle-group.component.ts']
+    files: ['toggle-group/index.ts', 'toggle-group/sub/toggle-group-item.component.html', 'toggle-group/sub/toggle-group-item.component.ts', 'toggle-group/toggle-group.component.html', 'toggle-group/toggle-group.component.ts']
   },
   tooltip: {
     name: 'tooltip',
