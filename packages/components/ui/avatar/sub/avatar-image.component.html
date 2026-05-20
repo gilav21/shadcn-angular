@@ -1,0 +1,9 @@
+<img
+  [src]="src()"
+  [alt]="alt()"
+  [class]="classes()"
+  [attr.data-slot]="'avatar-image'"
+  [style.display]="avatar?.status() === 'loaded' ? 'block' : 'none'"
+  (load)="onLoad()"
+  (error)="onError()"
+/>

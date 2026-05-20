@@ -17,7 +17,7 @@ export * from './tabs.component';
 export * from './accordion';
 export * from './progress';
 export * from './alert';
-export * from './avatar.component';
+export * from './avatar';
 export * from './dialog.component';
 export * from './tooltip.component';
 export * from './dropdown-menu.component';

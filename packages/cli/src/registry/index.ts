@@ -49,7 +49,7 @@ export const registry = defineRegistry({
   },
   avatar: {
     name: 'avatar',
-    files: ['avatar.component.ts'],
+    files: ['avatar/avatar.component.html', 'avatar/avatar.component.ts', 'avatar/index.ts', 'avatar/sub/avatar-fallback.component.html', 'avatar/sub/avatar-fallback.component.ts', 'avatar/sub/avatar-image.component.html', 'avatar/sub/avatar-image.component.ts'],
   },
   badge: {
     name: 'badge',

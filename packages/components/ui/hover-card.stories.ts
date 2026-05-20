@@ -5,7 +5,7 @@ import {
     HoverCardContentComponent,
 } from './hover-card.component';
 import { ButtonComponent } from './button';
-import { AvatarComponent, AvatarImageComponent, AvatarFallbackComponent } from './avatar.component';
+import { AvatarComponent, AvatarImageComponent, AvatarFallbackComponent } from './avatar';
 import { moduleMetadata } from '@storybook/angular';
 
 const meta: Meta<HoverCardComponent & { align: string; side: string; title: string; description: string }> = {
