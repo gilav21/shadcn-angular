@@ -23,7 +23,7 @@ export * from './tooltip';
 export * from './dropdown-menu.component';
 export * from './select';
 export * from './popover';
-export * from './sheet.component';
+export * from './sheet';
 export * from './alert-dialog';
 export * from './slider';
 export * from './collapsible';

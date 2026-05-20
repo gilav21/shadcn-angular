@@ -311,7 +311,7 @@ export const registry = defineRegistry({
   },
   sheet: {
     name: 'sheet',
-    files: ['sheet.component.ts'],
+    files: ['sheet/index.ts', 'sheet/sheet.component.ts', 'sheet/sub/sheet-close.component.ts', 'sheet/sub/sheet-content.component.ts', 'sheet/sub/sheet-description.component.ts', 'sheet/sub/sheet-footer.component.ts', 'sheet/sub/sheet-header.component.ts', 'sheet/sub/sheet-title.component.ts', 'sheet/sub/sheet-trigger.component.ts'],
   },
   sidebar: {
     name: 'sidebar',
