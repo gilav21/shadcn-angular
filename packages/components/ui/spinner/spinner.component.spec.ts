@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SpinnerComponent, PageSpinnerComponent } from './spinner.component';
+import { SpinnerComponent } from './spinner.component';
+import { PageSpinnerComponent } from './sub/page-spinner.component';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
 

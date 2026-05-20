@@ -328,7 +328,7 @@ export const registry = defineRegistry({
   },
   spinner: {
     name: 'spinner',
-    files: ['spinner.component.ts'],
+    files: ['spinner/index.ts', 'spinner/spinner.component.html', 'spinner/spinner.component.ts', 'spinner/sub/page-spinner.component.html', 'spinner/sub/page-spinner.component.ts'],
   },
   stepper: {
     name: 'stepper',

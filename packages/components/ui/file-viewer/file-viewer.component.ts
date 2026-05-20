@@ -15,7 +15,7 @@ import {
 import { DomSanitizer, type SafeHtml, type SafeUrl } from '@angular/platform-browser';
 import type { PixelPerfectPage } from '../../lib/parsers/pdf-pixel-perfect';
 import { cn } from '../../lib/utils';
-import { SpinnerComponent } from '../spinner.component';
+import { SpinnerComponent } from '../spinner';
 import type { FileViewerType, FileTypeResult } from '../../lib/parsers/file-type-detector';
 import type {
     PptxTextFrame, PptxTextRun, PptxBullet,

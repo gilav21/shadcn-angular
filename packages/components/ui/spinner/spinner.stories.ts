@@ -1,5 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
-import { SpinnerComponent, PageSpinnerComponent } from './spinner.component';
+import { SpinnerComponent } from './spinner.component';
+import { PageSpinnerComponent } from './sub/page-spinner.component';
 
 const meta: Meta<SpinnerComponent> = {
     title: 'UI/Spinner',
