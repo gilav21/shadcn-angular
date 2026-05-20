@@ -231,7 +231,7 @@ export const registry = defineRegistry({
   },
   'input-otp': {
     name: 'input-otp',
-    files: ['input-otp.component.ts'],
+    files: ['input-otp/index.ts', 'input-otp/input-otp.component.ts', 'input-otp/sub/input-otp-group.component.ts', 'input-otp/sub/input-otp-separator.component.ts', 'input-otp/sub/input-otp-slot.component.ts'],
   },
   kbd: {
     name: 'kbd',

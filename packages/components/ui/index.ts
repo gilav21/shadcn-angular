@@ -39,7 +39,7 @@ export * from './aspect-ratio';
 export * from './toast';
 export * from './resizable';
 export * from './pagination.component';
-export * from './input-otp.component';
+export * from './input-otp';
 export * from './calendar';
 export * from './command.component';
 export * from './shortcut-bindings-dialog';

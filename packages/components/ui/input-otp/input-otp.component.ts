@@ -8,7 +8,7 @@ import {
   ViewChild,
   model,
 } from '@angular/core';
-import { cn } from '../lib/utils';
+import { cn } from '../../lib/utils';
 
 @Component({
   selector: 'ui-input-otp',
@@ -136,29 +136,3 @@ export class InputOTPComponent {
     this.hiddenInput?.nativeElement?.focus();
   }
 }
-
-@Component({
-  selector: 'ui-input-otp-group',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: ``,
-  host: { class: 'hidden' },
-})
-export class InputOTPGroupComponent { }
-
-@Component({
-  selector: 'ui-input-otp-slot',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: ``,
-  host: { class: 'hidden' },
-})
-export class InputOTPSlotComponent {
-  index = input(0);
-}
-
-@Component({
-  selector: 'ui-input-otp-separator',
-  changeDetection: ChangeDetectionStrategy.OnPush,
-  template: ``,
-  host: { class: 'hidden' },
-})
-export class InputOTPSeparatorComponent { }
