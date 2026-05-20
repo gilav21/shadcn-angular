@@ -7,7 +7,7 @@ import {
     SidebarContentComponent,
     SidebarHeaderComponent,
     SidebarFooterComponent
-} from './sidebar.component';
+} from './';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';

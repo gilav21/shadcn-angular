@@ -47,7 +47,7 @@ export * from './menubar';
 export * from './carousel';
 export * from './navigation-menu';
 export * from './date-picker';
-export * from './sidebar.component';
+export * from './sidebar';
 export * from './spinner';
 export * from './empty';
 export * from './kbd';

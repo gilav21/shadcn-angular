@@ -15,7 +15,7 @@ import {
   SidebarTriggerComponent,
   SidebarInsetComponent,
   SidebarSeparatorComponent,
-} from './sidebar.component';
+} from './';
 
 const meta: Meta<SidebarComponent> = {
   title: 'UI/Sidebar',
