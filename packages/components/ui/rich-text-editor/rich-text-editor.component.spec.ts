@@ -2,8 +2,8 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { of, Subject, throwError } from 'rxjs';
 import { RichTextEditorComponent } from './rich-text-editor.component';
-import { DEFAULT_FONT_FAMILIES } from './rich-text-toolbar.component';
-import { ShortcutBindingService } from '../lib/shortcut-binding.service';
+import { DEFAULT_FONT_FAMILIES } from './sub/rich-text-toolbar.component';
+import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { RichTextCommandRegistry, RichTextSlashCommandContext } from './rich-text-command-registry.service';
 import { RICH_TEXT_LOCALES, RichTextLocale } from './rich-text-locales';
 

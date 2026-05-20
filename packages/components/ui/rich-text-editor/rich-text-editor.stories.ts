@@ -1,7 +1,7 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { RichTextEditorComponent } from './rich-text-editor.component';
-import { RichTextToolbarComponent } from './rich-text-toolbar.component';
-import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './rich-text-mention.component';
+import { RichTextToolbarComponent } from './sub/rich-text-toolbar.component';
+import { RichTextMentionPopoverComponent, MentionItem, TagItem } from './sub/rich-text-mention.component';
 import { RichTextSlashCommand } from './rich-text-command-registry.service';
 import { RichTextSanitizerService } from './rich-text-sanitizer.service';
 import { RichTextMarkdownService } from './rich-text-markdown.service';

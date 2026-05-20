@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { RichTextSanitizerService } from './rich-text-sanitizer.service';
+import { RichTextSanitizerService } from './rich-text-editor/rich-text-sanitizer.service';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 describe('RichTextSanitizerService Security Audit', () => {
