@@ -332,7 +332,7 @@ export const registry = defineRegistry({
   },
   stepper: {
     name: 'stepper',
-    files: ['stepper.component.ts'],
+    files: ['stepper/index.ts', 'stepper/stepper.component.html', 'stepper/stepper.component.ts', 'stepper/sub/stepper-content.component.ts', 'stepper/sub/stepper-description.component.ts', 'stepper/sub/stepper-item.component.ts', 'stepper/sub/stepper-separator.component.ts', 'stepper/sub/stepper-title.component.ts', 'stepper/sub/stepper-trigger.component.ts'],
   },
   switch: {
     name: 'switch',

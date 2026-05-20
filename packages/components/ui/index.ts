@@ -74,7 +74,7 @@ export * from './context-menu-integrations';
 export * from './shortcut-binding.service';
 
 export * from './rating';
-export * from './stepper.component';
+export * from './stepper';
 export * from './file-upload';
 export * from './color-picker';
 export * from './confetti.directive';

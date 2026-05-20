@@ -7,8 +7,8 @@ import {
     StepperTitleComponent,
     StepperDescriptionComponent,
     StepperContentComponent,
-} from './stepper.component';
-import { ButtonComponent } from './button';
+} from './index';
+import { ButtonComponent } from '../button';
 
 const meta: Meta = {
     title: 'UI/Stepper',

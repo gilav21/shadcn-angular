@@ -9,7 +9,7 @@ import {
     StepperTitleComponent,
     StepperDescriptionComponent,
     StepperContentComponent,
-} from './stepper.component';
+} from './index';
 
 // Test host
 @Component({
