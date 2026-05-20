@@ -152,6 +152,10 @@ export const registry = defineRegistry({
     files: ['data-table/component-pool.service.ts', 'data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
     peerFiles: [
       'context-menu-integrations.ts',
+      'context-menu-attach.directive.ts',
+      'tree-context-menu.directive.ts',
+      'table-context-menu.directive.ts',
+      'data-table-context-menu.directive.ts',
     ],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'table'],
     libFiles: ['calendar-locales.ts', 'parsers/xlsx.ts', 'touch.ts'],
@@ -397,7 +401,7 @@ export const registry = defineRegistry({
   'rich-text-editor': {
     name: 'rich-text-editor',
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
-    dependencies: ['button', 'dialog', 'popover', 'scroll-area'],
+    dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
     libFiles: ['parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     shortcutDefinitions: [
       {
@@ -468,7 +472,8 @@ export const registry = defineRegistry({
   },
   'component-outlet': {
     name: 'component-outlet',
-    files: ['component-outlet.directive.ts', 'data-table/component-pool.service.ts'],
+    files: ['component-outlet.directive.ts'],
+    dependencies: ['data-table'],
   },
   'split-button': {
     name: 'split-button',
@@ -566,6 +571,26 @@ export const registry = defineRegistry({
     name: 'sortable',
     files: ['sortable/index.ts', 'sortable/sortable.component.html', 'sortable/sortable.component.ts', 'sortable/sub/sortable-item.component.html', 'sortable/sub/sortable-item.component.ts'],
     libFiles: ['touch.ts'],
+  },
+  'context-menu-attach': {
+    name: 'context-menu-attach',
+    files: ['context-menu-attach.directive.ts'],
+    dependencies: ['context-menu'],
+  },
+  'tree-context-menu': {
+    name: 'tree-context-menu',
+    files: ['tree-context-menu.directive.ts'],
+    dependencies: ['context-menu'],
+  },
+  'table-context-menu': {
+    name: 'table-context-menu',
+    files: ['table-context-menu.directive.ts'],
+    dependencies: ['context-menu'],
+  },
+  'data-table-context-menu': {
+    name: 'data-table-context-menu',
+    files: ['data-table-context-menu.directive.ts'],
+    dependencies: ['context-menu', 'data-table', 'table-context-menu'],
   },
 });
 
