@@ -10,7 +10,7 @@ import {
     MenubarSubComponent,
     MenubarSubTriggerComponent,
     MenubarSubContentComponent
-} from './menubar.component';
+} from './';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

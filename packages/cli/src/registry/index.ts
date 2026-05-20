@@ -243,7 +243,7 @@ export const registry = defineRegistry({
   },
   menubar: {
     name: 'menubar',
-    files: ['menubar.component.ts'],
+    files: ['menubar/index.ts', 'menubar/menubar.component.ts', 'menubar/sub/menubar-content.component.ts', 'menubar/sub/menubar-item.component.ts', 'menubar/sub/menubar-menu.component.ts', 'menubar/sub/menubar-separator.component.ts', 'menubar/sub/menubar-shortcut.component.ts', 'menubar/sub/menubar-sub-content.component.ts', 'menubar/sub/menubar-sub-trigger.component.ts', 'menubar/sub/menubar-sub.component.ts', 'menubar/sub/menubar-trigger.component.ts'],
     libFiles: ['touch.ts'],
   },
   'native-select': {

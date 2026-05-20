@@ -43,7 +43,7 @@ export * from './input-otp';
 export * from './calendar';
 export * from './command';
 export * from './shortcut-bindings-dialog';
-export * from './menubar.component';
+export * from './menubar';
 export * from './carousel';
 export * from './navigation-menu';
 export * from './date-picker';

@@ -10,7 +10,7 @@ import {
   MenubarSubComponent,
   MenubarSubTriggerComponent,
   MenubarSubContentComponent,
-} from './menubar.component';
+} from './';
 
 const meta: Meta<MenubarComponent> = {
   title: 'UI/Menubar',
