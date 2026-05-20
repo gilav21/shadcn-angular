@@ -15,7 +15,7 @@ import {
     SelectValueComponent,
     SelectContentComponent,
     SelectItemComponent
-} from '../select.component';
+} from '../select';
 import { IconComponent } from '../icon';
 
 @Component({

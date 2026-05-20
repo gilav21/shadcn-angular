@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent } from './select.component';
+import { SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent } from '../select';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';

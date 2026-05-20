@@ -303,7 +303,7 @@ export const registry = defineRegistry({
   },
   select: {
     name: 'select',
-    files: ['select.component.ts'],
+    files: ['select/index.ts', 'select/select.component.ts', 'select/sub/select-content.component.ts', 'select/sub/select-group.component.ts', 'select/sub/select-item.component.ts', 'select/sub/select-label.component.ts', 'select/sub/select-separator.component.ts', 'select/sub/select-trigger.component.ts', 'select/sub/select-value.component.ts'],
   },
   separator: {
     name: 'separator',

@@ -8,7 +8,7 @@ import {
   SelectItemComponent,
   SelectLabelComponent,
   SelectSeparatorComponent,
-} from './select.component';
+} from '../select';
 import { FormsModule } from '@angular/forms';
 
 // Sample data for data-driven stories

@@ -16,7 +16,7 @@ import {
   SelectValueComponent,
   SelectContentComponent,
   SelectItemComponent
-} from '../../select.component';
+} from '../../select';
 import {
   PaginationComponent,
   PaginationContentComponent,

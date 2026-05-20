@@ -7,7 +7,7 @@ import {
     SelectValueComponent,
     SelectContentComponent,
     SelectItemComponent
-} from '../select.component';
+} from '../select';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 

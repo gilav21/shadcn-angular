@@ -18,7 +18,7 @@ import {
   SelectValueComponent,
   SelectContentComponent,
   SelectItemComponent,
-} from '../select.component';
+} from '../select';
 
 export type CalendarMode = 'single' | 'range' | 'multi';
 export type CalendarTimeMode = 'single' | 'range';

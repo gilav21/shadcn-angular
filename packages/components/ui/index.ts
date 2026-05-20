@@ -21,7 +21,7 @@ export * from './avatar';
 export * from './dialog';
 export * from './tooltip';
 export * from './dropdown-menu.component';
-export * from './select.component';
+export * from './select';
 export * from './popover';
 export * from './sheet.component';
 export * from './alert-dialog';
