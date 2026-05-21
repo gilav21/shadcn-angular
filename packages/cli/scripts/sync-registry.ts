@@ -148,10 +148,22 @@ function analyzeComponent(
 // of going through its barrel — boundary detection can then absorb that
 // component's files. `owner` is the component that owns the *directory* the
 // imported file lives in. A non-fatal report-mode-only warning.
+//
+// Multiple walks can rediscover the same offender (the importing file's own
+// component, then any component that transitively walks through it), so we
+// dedupe on `fromFile + importedFile` before printing.
 function reportDeepImports(deepImports: DeepImport[]): void {
     if (deepImports.length === 0) return;
-    console.warn('\nWarning: deep cross-component imports detected (bypass a barrel):');
+    const seen = new Set<string>();
+    const unique: DeepImport[] = [];
     for (const di of deepImports) {
+        const key = `${di.fromFile}\0${di.importedFile}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(di);
+    }
+    console.warn('\nWarning: deep cross-component imports detected (bypass a barrel):');
+    for (const di of unique) {
         console.warn(`  ${di.fromFile}`);
         console.warn(`    reaches into the '${di.owner}' component folder: ${di.importedFile}`);
     }

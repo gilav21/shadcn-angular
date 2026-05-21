@@ -47,7 +47,14 @@ function extractEntryComponentName(path) {
 // in libFiles / dependencies / extra files via --fix.
 function appendRegistryEntry(registrySource, name, entryFile) {
     const closingMatch = /\n\}\);\s*\n\s*export\s+type\s+ComponentName/.exec(registrySource);
-    if (!closingMatch) return null;
+    if (!closingMatch) {
+        process.stderr.write(
+            `validate-registry: cannot auto-register "${name}" — registry insertion anchor ` +
+            `(closing \`});\` followed by \`export type ComponentName\`) not found. ` +
+            `The registry file may have been reformatted; add the entry by hand or restore the anchor.\n`,
+        );
+        return null;
+    }
     const insertAt = closingMatch.index;
     const key = /^[a-z][a-z0-9]*$/i.test(name) ? name : `'${name}'`;
     const entry = `\n  ${key}: {\n    name: '${name}',\n    files: ['${entryFile}'],\n  },`;
@@ -124,6 +131,13 @@ try {
 } catch (err) {
     const stderr = err.stderr?.toString() ?? '';
     if (stderr) process.stderr.write(stderr);
+    // sync-registry.ts exits non-zero when the registry references files
+    // that no longer exist on disk ("Aborting before write"), or when the
+    // registry is out of sync in report mode. Silently swallowing that
+    // hides real corruption from the developer — surface it.
+    const msg = err instanceof Error ? err.message : String(err);
+    process.stderr.write(`validate-registry: sync-registry failed (${msg}).\n`);
+    process.exitCode = 1;
 }
 
 if (autoAdded || registryUpdated) {

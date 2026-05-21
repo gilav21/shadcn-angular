@@ -141,9 +141,9 @@ export class AlertDialogContentComponent implements AfterViewInit {
                     lastElement?.focus();
                 }
             } else if (document.activeElement === lastElement) {
-                    event.preventDefault();
-                    firstElement?.focus();
-                }
+                event.preventDefault();
+                firstElement?.focus();
+            }
         }
     }
 }
