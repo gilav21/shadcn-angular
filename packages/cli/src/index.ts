@@ -24,6 +24,7 @@ program
     .option('--remote', 'Force remote fetch from GitHub registry')
     .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
     .option('-r, --registry <url>', 'Custom registry base URL (e.g., https://gitlab.com/org/repo/-/raw/main/packages/components)')
+    .option('--prefix <prefix>', 'Component selector prefix to use (default: "ui")')
     .action(init);
 
 program

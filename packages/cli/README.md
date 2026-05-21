@@ -32,6 +32,26 @@ This will:
 | `-y, --yes` | Skip confirmation prompt |
 | `-d, --defaults` | Use default configuration |
 | `-b, --branch <branch>` | GitHub branch to fetch from (default: `master`) |
+| `--prefix <prefix>` | Component selector prefix (default: `ui`) |
+
+### Custom component prefix
+
+By default components are installed with the `ui-` selector prefix
+(`<ui-button>`, `<ui-accordion>`, …). If your project already uses
+`ui-*` for another package, pass `--prefix` during init to rewrite every
+installed component to your prefix:
+
+```bash
+npx @gilav21/shadcn-angular init --prefix acme
+npx @gilav21/shadcn-angular add button accordion
+```
+
+The copied files will use `<acme-button>`, `<acme-accordion-item>`, etc.
+The prefix is persisted to `components.json` as `"prefix": "acme"` and
+applied automatically by subsequent `add` commands. The prefix must be a
+lowercase kebab-case token (e.g. `ui`, `myapp`, `acme-ui`). `data-slot`
+attribute values are intentionally not rewritten — they remain stable
+styling/testing hooks regardless of the prefix.
 
 ## Usage
 

@@ -4,6 +4,7 @@ import prompts from 'prompts';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getDefaultConfig, type Config } from '../utils/config.js';
+import { DEFAULT_PREFIX, isValidPrefix } from '../utils/prefix.js';
 import { getStylesTemplate } from '../templates/styles.js';
 import { getUtilsTemplate } from '../templates/utils.js';
 import { installPackages } from '../utils/package-manager.js';
@@ -43,6 +44,7 @@ interface InitOptions {
     remote?: boolean;
     branch: string;
     registry?: string;
+    prefix?: string;
 }
 
 interface InitConfig {
@@ -60,7 +62,7 @@ function toAlias(inputPath: string): string {
         : inputPath;
 }
 
-async function promptForConfig(): Promise<InitConfig> {
+async function promptForConfig(initialPrefix: string): Promise<InitConfig> {
     const THEME_COLORS: Record<string, string> = {
         zinc: '#71717a', slate: '#64748b', stone: '#78716c',
         gray: '#6b7280', neutral: '#737373', red: '#ef4444',
@@ -123,6 +125,16 @@ async function promptForConfig(): Promise<InitConfig> {
             initial: 'src/styles.scss',
         },
         {
+            type: 'text',
+            name: 'prefix',
+            message: 'Component selector prefix (e.g. "ui", "acme", "acme-ui"):',
+            initial: initialPrefix,
+            validate: (value: string) =>
+                isValidPrefix(value)
+                    ? true
+                    : 'Prefix must be lowercase kebab-case starting with a letter (e.g. "ui", "myapp", "acme-ui").',
+        },
+        {
             type: 'confirm',
             name: 'createShortcutRegistry',
             message: 'Would you like to create a shortcut registry scaffold?',
@@ -138,6 +150,7 @@ async function promptForConfig(): Promise<InitConfig> {
     return {
         config: {
             style: 'default',
+            prefix: responses.prefix,
             tailwind: {
                 css: responses.globalCss,
                 baseColor: responses.baseColor,
@@ -204,9 +217,13 @@ async function autoConfigureTsconfig(cwd: string, spinner: ReturnType<typeof ora
 
     try {
         const raw = await fs.readFile(tsconfigPath, 'utf-8');
+        // Strip block comments BEFORE line comments so URLs like
+        // `https://example.com` inside a `/* ... */` block don't get
+        // partially eaten by the line-comment regex and leave a dangling
+        // `/*` that breaks JSON.parse.
         const stripped = raw
-            .replaceAll(/\/\/.*$/gm, '')
-            .replaceAll(/\/\*[\s\S]*?\*\//g, '');
+            .replaceAll(/\/\*[\s\S]*?\*\//g, '')
+            .replaceAll(/\/\/.*$/gm, '');
         const tsconfig = JSON.parse(stripped) as {
             compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
         };
@@ -257,9 +274,28 @@ export async function init(options: InitOptions) {
         }
     }
 
+    if (options.prefix !== undefined && !isValidPrefix(options.prefix)) {
+        console.log(chalk.red(
+            `Error: invalid --prefix value "${options.prefix}".`,
+        ));
+        console.log(chalk.dim(
+            'Prefix must be lowercase kebab-case starting with a letter (e.g. "ui", "myapp", "acme-ui").',
+        ));
+        process.exit(1);
+    }
+
+    const initialPrefix = options.prefix ?? DEFAULT_PREFIX;
+
     const { config, createShortcutRegistry } = options.defaults || options.yes
-        ? { config: getDefaultConfig(), createShortcutRegistry: true }
-        : await promptForConfig();
+        ? {
+            config: { ...getDefaultConfig(), prefix: initialPrefix },
+            createShortcutRegistry: true,
+        }
+        : await promptForConfig(initialPrefix);
+
+    if (options.prefix !== undefined) {
+        config.prefix = options.prefix;
+    }
 
     if (options.registry) {
         config.registry = options.registry;

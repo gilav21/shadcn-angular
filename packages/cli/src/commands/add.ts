@@ -3,7 +3,8 @@ import path from 'node:path';
 import prompts from 'prompts';
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
-import { getConfig, type Config } from '../utils/config.js';
+import { getConfig, getPrefix, type Config } from '../utils/config.js';
+import { applyPrefixTransforms, DEFAULT_PREFIX } from '../utils/prefix.js';
 import { registry, getComponentNames, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
@@ -91,12 +92,20 @@ async function fetchLibContent(file: string, options: AddOptions): Promise<strin
     return response.text();
 }
 
-export async function fetchAndTransform(file: string, options: AddOptions, utilsAlias: string): Promise<string> {
-    const content = await fetchComponentContent(file, options);
+export async function fetchAndTransform(
+    file: string,
+    options: AddOptions,
+    utilsAlias: string,
+    prefix: string = DEFAULT_PREFIX,
+): Promise<string> {
+    const raw = await fetchComponentContent(file, options);
     // The `../lib/` → alias rewrite only applies to TypeScript sources.
-    // Template (.html) and style (.css) files are copied verbatim.
-    if (!file.endsWith('.ts')) return content;
-    return content.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/');
+    // Template (.html) and style (.css) files are copied verbatim apart
+    // from any prefix rewrite below.
+    const withAlias = file.endsWith('.ts')
+        ? raw.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/')
+        : raw;
+    return applyPrefixTransforms(file, withAlias, prefix);
 }
 
 // ---------------------------------------------------------------------------
@@ -203,6 +212,7 @@ export async function checkFileConflict(
     options: AddOptions,
     utilsAlias: string,
     contentCache: Map<string, string>,
+    prefix: string = DEFAULT_PREFIX,
 ): Promise<'identical' | 'changed' | 'missing'> {
     const targetPath = path.join(targetDir, file);
 
@@ -212,7 +222,7 @@ export async function checkFileConflict(
 
     const localContent = await fs.readFile(targetPath, 'utf-8');
     try {
-        const remoteContent = await fetchAndTransform(file, options, utilsAlias);
+        const remoteContent = await fetchAndTransform(file, options, utilsAlias, prefix);
         contentCache.set(file, remoteContent);
 
         return normalizeContent(localContent) === normalizeContent(remoteContent)
@@ -230,11 +240,12 @@ async function checkPeerFiles(
     utilsAlias: string,
     contentCache: Map<string, string>,
     peerFilesToUpdate: Set<string>,
+    prefix: string,
 ): Promise<void> {
     if (!component.peerFiles) return;
 
     for (const file of component.peerFiles) {
-        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache);
+        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
         if (status === 'changed') {
             peerFilesToUpdate.add(file);
         }
@@ -248,19 +259,20 @@ export async function classifyComponent(
     utilsAlias: string,
     contentCache: Map<string, string>,
     peerFilesToUpdate: Set<string>,
+    prefix: string = DEFAULT_PREFIX,
 ): Promise<'install' | 'skip' | 'conflict'> {
     const component = registry[name];
     let ownFilesChanged = false;
     let isFullyPresent = true;
 
     for (const file of component.files) {
-        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache);
+        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
         if (status === 'missing') isFullyPresent = false;
         if (status === 'changed') ownFilesChanged = true;
     }
 
     await checkPeerFiles(
-        component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate,
+        component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, prefix,
     );
 
     if (options.overwrite) return isFullyPresent ? 'conflict' : 'install';
@@ -294,6 +306,7 @@ export async function detectConflicts(
     targetDir: string,
     options: AddOptions,
     utilsAlias: string,
+    prefix: string = DEFAULT_PREFIX,
 ): Promise<ConflictCheckResult> {
     const toInstall: ComponentName[] = [];
     const toSkip: string[] = [];
@@ -308,7 +321,7 @@ export async function detectConflicts(
             limiter.run(async () => ({
                 name,
                 result: await classifyComponent(
-                    name, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate,
+                    name, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, prefix,
                 ),
             })),
         ),
@@ -389,6 +402,7 @@ async function writeComponentFiles(
     utilsAlias: string,
     contentCache: Map<string, string>,
     spinner: Ora,
+    prefix: string,
 ): Promise<boolean> {
     let success = true;
 
@@ -396,7 +410,7 @@ async function writeComponentFiles(
         const targetPath = path.join(targetDir, file);
         try {
             const content = contentCache.get(file)
-                ?? await fetchAndTransform(file, options, utilsAlias);
+                ?? await fetchAndTransform(file, options, utilsAlias, prefix);
 
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
@@ -418,6 +432,7 @@ async function writePeerFiles(
     contentCache: Map<string, string>,
     peerFilesToUpdate: Set<string>,
     spinner: Ora,
+    prefix: string,
 ): Promise<void> {
     if (!component.peerFiles) return;
 
@@ -427,7 +442,7 @@ async function writePeerFiles(
         const targetPath = path.join(targetDir, file);
         try {
             const content = contentCache.get(file)
-                ?? await fetchAndTransform(file, options, utilsAlias);
+                ?? await fetchAndTransform(file, options, utilsAlias, prefix);
 
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
@@ -638,10 +653,11 @@ export async function add(components: string[], options: AddOptions) {
     const uiBasePath = options.path ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const targetDir = resolveProjectPath(cwd, uiBasePath);
     const utilsAlias = config.aliases.utils;
+    const prefix = getPrefix(config);
 
     const checkSpinner = ora('Checking for conflicts...').start();
     const { toInstall, toSkip, conflicting, peerFilesToUpdate, contentCache } =
-        await detectConflicts(allComponents, targetDir, options, utilsAlias);
+        await detectConflicts(allComponents, targetDir, options, utilsAlias, prefix);
     checkSpinner.stop();
 
     const toOverwrite = await promptOverwrite(conflicting, options, targetDir, contentCache);
@@ -668,8 +684,8 @@ export async function add(components: string[], options: AddOptions) {
 
         for (const name of finalComponents) {
             const component = registry[name];
-            const ok = await writeComponentFiles(component, targetDir, options, utilsAlias, contentCache, spinner);
-            await writePeerFiles(component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, spinner);
+            const ok = await writeComponentFiles(component, targetDir, options, utilsAlias, contentCache, spinner, prefix);
+            await writePeerFiles(component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, spinner, prefix);
             if (ok) {
                 successCount++;
                 spinner.text = `Added ${name}`;
