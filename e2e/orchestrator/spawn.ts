@@ -49,3 +49,30 @@ export async function capture(
         });
     });
 }
+
+/**
+ * Like `capture` but merges stderr into the returned string and returns
+ * the combined output even on a non-zero exit code (with the exit code
+ * attached to the error if you want to throw). Used for CLI-regression
+ * specs that need to assert on warnings/prompts the CLI emits.
+ */
+export async function captureBoth(
+    command: string,
+    args: readonly string[],
+    options: SpawnOptions = {},
+): Promise<{ stdout: string; code: number }> {
+    return new Promise((resolve, reject) => {
+        const child = spawn(command, [...args], {
+            stdio: ['ignore', 'pipe', 'pipe'],
+            shell: process.platform === 'win32',
+            ...options,
+        });
+        const chunks: Buffer[] = [];
+        child.stdout?.on('data', (chunk: Buffer) => chunks.push(chunk));
+        child.stderr?.on('data', (chunk: Buffer) => chunks.push(chunk));
+        child.on('error', reject);
+        child.on('exit', code => {
+            resolve({ stdout: Buffer.concat(chunks).toString('utf-8'), code: code ?? -1 });
+        });
+    });
+}

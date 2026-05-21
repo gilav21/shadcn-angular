@@ -5,49 +5,103 @@ import {
     resetFixtureApp,
 } from './reset-app.js';
 import {
+    captureCli,
     ensureCliBuilt,
     npmInstall,
     runCli,
 } from './run-cli.js';
 import { installHarness } from './install-harness.js';
 import { serve } from './serve.js';
-import { REPO_ROOT, harnessDir } from './paths.js';
+import { FIXTURE_APP, REPO_ROOT, harnessDir } from './paths.js';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import type { CliSpec } from '../cli-specs/_types.js';
 
 interface ComponentSpec {
-    /** Component name in the registry, e.g. "button". */
-    readonly name: string;
-    /** Optional `init` CLI args. Defaults to `--yes`. Used by the prefix test. */
+    /**
+     * Components to install via `add`. Single-element list for the simple
+     * case; multi-element list runs `add <a> <b> <c> --yes` so the
+     * dependency-resolution and parallel-install paths get exercised.
+     */
+    readonly names: readonly string[];
+    /** Optional `init` CLI args. Defaults to `init --yes`. */
     readonly initArgs?: readonly string[];
-    /** Display label for logs and spec-file resolution. Defaults to `name`. */
+    /**
+     * Display label for logs and spec-file resolution. Required when
+     * `names` has more than one component, otherwise defaults to `names[0]`.
+     */
     readonly label?: string;
     /**
-     * Harness folder under `e2e/harness/`. Defaults to `name`. Useful when
-     * the same component is exercised by multiple specs with different demo
-     * pages (e.g. the --prefix test needs a demo that uses `<acme-button>`).
+     * Harness folder under `e2e/harness/`. Defaults to `label` (or
+     * `names[0]` when label is omitted). Override when one component is
+     * exercised by multiple specs with different demo pages (e.g. the
+     * `--prefix` test).
      */
     readonly harnessFolder?: string;
 }
 
+/** Resolved view of a spec — convenience accessor for the orchestrator. */
+function specLabel(spec: ComponentSpec): string {
+    return spec.label ?? spec.names[0];
+}
+
+function specHarness(spec: ComponentSpec): string {
+    return spec.harnessFolder ?? specLabel(spec);
+}
+
 const ALL_COMPONENTS: readonly ComponentSpec[] = [
     // foundation
-    { name: 'button' }, { name: 'badge' }, { name: 'input' },
-    { name: 'checkbox' }, { name: 'label' },
+    { names: ['button'] }, { names: ['badge'] }, { names: ['input'] },
+    { names: ['checkbox'] }, { names: ['label'] },
     // interactive
-    { name: 'dialog' }, { name: 'dropdown-menu' }, { name: 'popover' },
-    { name: 'tooltip' }, { name: 'select' },
+    { names: ['dialog'] }, { names: ['dropdown-menu'] }, { names: ['popover'] },
+    { names: ['tooltip'] }, { names: ['select'] },
     // forms
-    { name: 'input-otp' }, { name: 'date-picker' }, { name: 'slider' },
-    { name: 'switch' }, { name: 'radio-group' },
-    // CLI feature smoke test — installs the button component under a custom
-    // prefix, then renders it with a dedicated harness that uses
-    // `<acme-button>` directly.
+    { names: ['input-otp'] }, { names: ['date-picker'] }, { names: ['slider'] },
+    { names: ['switch'] }, { names: ['radio-group'] },
+    // compound
+    { names: ['accordion'] }, { names: ['tabs'] }, { names: ['command'] },
+    { names: ['data-table'] }, { names: ['tree'] },
+    // multi-component install — exercises `add a b c` in one call and
+    // template-compiles all of them together inside a single harness.
     {
-        name: 'button',
+        names: ['input', 'label', 'button', 'dialog'],
+        label: 'form-flow',
+    },
+    // cross-cutting: RTL layout across overlays.
+    {
+        names: ['dialog', 'dropdown-menu', 'select'],
+        label: 'rtl',
+    },
+    // cross-cutting: dark-mode CSS variable propagation.
+    {
+        names: ['button'],
+        label: 'dark-mode',
+    },
+    // cross-cutting: axe a11y scan on a representative sign-up form.
+    {
+        names: ['input', 'label', 'button', 'dialog', 'checkbox'],
+        label: 'a11y-form',
+    },
+    // CLI feature smoke test — installs button under a custom prefix
+    // (orchestrator passes `--prefix acme` to init), then renders it via a
+    // dedicated harness that uses `<acme-button>` directly.
+    {
+        names: ['button'],
         label: 'prefix-button',
-        harnessFolder: 'prefix-button',
         initArgs: ['init', '--yes', '--prefix', 'acme'],
     },
+];
+
+/**
+ * CLI-only regression specs (no ng serve / no Playwright). Each entry
+ * points at a module under `e2e/cli-specs/` whose default export is an
+ * async function receiving { runCli, captureCli, fixtureApp }.
+ */
+const CLI_SPECS: ReadonlyArray<{ readonly label: string; readonly module: string }> = [
+    { label: 're-add-identical',        module: 're-add-identical' },
+    { label: 'local-mod-conflict',      module: 'local-modification-conflict' },
+    { label: 'prefix-multi-install',    module: 'prefix-multi-install' },
 ];
 
 interface RunResult {
@@ -69,7 +123,7 @@ interface CliFlags {
 const KNOWN_FLAGS = new Set(['--headed', '--ui', '--debug']);
 
 async function runOne(spec: ComponentSpec, flags: CliFlags): Promise<RunResult> {
-    const label = spec.label ?? spec.name;
+    const label = specLabel(spec);
     const started = Date.now();
 
     console.log(`\n[e2e] === ${label} ===`);
@@ -80,13 +134,13 @@ async function runOne(spec: ComponentSpec, flags: CliFlags): Promise<RunResult> 
         await assertFixtureClean('after reset');
 
         await runCli([...(spec.initArgs ?? ['init', '--yes'])]);
-        await runCli(['add', spec.name, '--yes']);
+        await runCli(['add', ...spec.names, '--yes']);
         await npmInstall();
 
-        installHarness(spec.harnessFolder ?? spec.name);
+        installHarness(specHarness(spec));
 
         server = await serve();
-        await runPlaywrightSpec(spec.harnessFolder ?? spec.label ?? spec.name, flags);
+        await runPlaywrightSpec(specHarness(spec), flags);
 
         return { label, passed: true, durationMs: Date.now() - started };
     } catch (err: unknown) {
@@ -94,6 +148,28 @@ async function runOne(spec: ComponentSpec, flags: CliFlags): Promise<RunResult> 
         return { label, passed: false, durationMs: Date.now() - started, error };
     } finally {
         if (server) await server.stop();
+    }
+}
+
+async function runCliSpec(label: string, moduleName: string): Promise<RunResult> {
+    const started = Date.now();
+    console.log(`\n[e2e] === ${label} (cli) ===`);
+    try {
+        await resetFixtureApp();
+        await assertFixtureClean('after reset');
+
+        const modulePath = path.join(REPO_ROOT, 'e2e/cli-specs', moduleName + '.ts');
+        const imported = await import(pathToFileURL(modulePath).href) as { default: CliSpec };
+        await imported.default({
+            runCli,
+            captureCli,
+            fixtureApp: FIXTURE_APP,
+        });
+
+        return { label, passed: true, durationMs: Date.now() - started };
+    } catch (err: unknown) {
+        const error = err instanceof Error ? err.message : String(err);
+        return { label, passed: false, durationMs: Date.now() - started, error };
     }
 }
 
@@ -121,6 +197,7 @@ async function runPlaywrightSpec(specFolder: string, flags: CliFlags): Promise<v
 
 interface ParsedArgs {
     readonly components: readonly ComponentSpec[];
+    readonly cliSpecs: ReadonlyArray<{ label: string; module: string }>;
     readonly flags: CliFlags;
 }
 
@@ -140,33 +217,43 @@ function parseArgs(): ParsedArgs {
         process.exit(2);
     }
 
-    if (names.length === 0) return { components: ALL_COMPONENTS, flags };
+    if (names.length === 0) {
+        return { components: ALL_COMPONENTS, cliSpecs: CLI_SPECS, flags };
+    }
 
     const requested = new Set(names);
-    const matched = ALL_COMPONENTS.filter(c => requested.has(c.label ?? c.name));
-    const unknown = names.filter(
-        r => !ALL_COMPONENTS.some(c => (c.label ?? c.name) === r),
-    );
+    const components = ALL_COMPONENTS.filter(c => requested.has(specLabel(c)));
+    const cliSpecs = CLI_SPECS.filter(s => requested.has(s.label));
+    const allLabels = [
+        ...ALL_COMPONENTS.map(specLabel),
+        ...CLI_SPECS.map(s => s.label),
+    ];
+    const unknown = names.filter(r => !allLabels.includes(r));
     if (unknown.length > 0) {
-        console.error(`[e2e] Unknown component(s): ${unknown.join(', ')}`);
-        console.error('[e2e] Available: ' +
-            ALL_COMPONENTS.map(c => c.label ?? c.name).join(', '));
+        console.error(`[e2e] Unknown name(s): ${unknown.join(', ')}`);
+        console.error('[e2e] Available: ' + allLabels.join(', '));
         process.exit(2);
     }
-    return { components: matched, flags };
+    return { components, cliSpecs, flags };
 }
 
 async function main(): Promise<void> {
-    const { components, flags } = parseArgs();
+    const { components, cliSpecs, flags } = parseArgs();
     const mode = describeMode(flags);
-    console.log(`[e2e] Running ${components.length} component(s)${mode}: ` +
-        components.map(c => c.label ?? c.name).join(', '));
+    const labels = [
+        ...components.map(c => specLabel(c)),
+        ...cliSpecs.map(s => s.label),
+    ];
+    console.log(`[e2e] Running ${labels.length} spec(s)${mode}: ${labels.join(', ')}`);
 
     await ensureCliBuilt();
 
     const results: RunResult[] = [];
     for (const spec of components) {
         results.push(await runOne(spec, flags));
+    }
+    for (const spec of cliSpecs) {
+        results.push(await runCliSpec(spec.label, spec.module));
     }
 
     printSummary(results);

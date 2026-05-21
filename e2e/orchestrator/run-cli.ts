@@ -1,5 +1,5 @@
 import fs from 'node:fs';
-import { run } from './spawn.js';
+import { run, captureBoth } from './spawn.js';
 import { CLI_DIST, FIXTURE_APP, REPO_ROOT } from './paths.js';
 
 /**
@@ -35,6 +35,19 @@ function walkMtimes(dir: string): number[] {
 /** Runs the local CLI inside the fixture-app with the given args. */
 export async function runCli(args: readonly string[]): Promise<void> {
     await run('node', [CLI_DIST, ...args], { cwd: FIXTURE_APP });
+}
+
+/**
+ * Runs the CLI and captures combined stdout+stderr so regression specs
+ * can assert on the text the CLI prints ("Components skipped (up to
+ * date)", conflict prompts, etc.). Returns exit code too so a spec can
+ * distinguish "the CLI succeeded with this message" from "the CLI failed
+ * with this message".
+ */
+export async function captureCli(
+    args: readonly string[],
+): Promise<{ stdout: string; code: number }> {
+    return captureBoth('node', [CLI_DIST, ...args], { cwd: FIXTURE_APP });
 }
 
 /** Runs `npm install` inside the fixture-app. Cached after first cold run. */
