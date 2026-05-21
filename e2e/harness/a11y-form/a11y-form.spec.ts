@@ -4,23 +4,16 @@ import { injectAxe, getViolations } from 'axe-playwright';
 /**
  * Known component-library a11y issues that this spec does NOT fail on
  * (they exist independent of this suite). The spec's job is to catch
- * NEW serious violations beyond this baseline, not to retroactively
- * gate on bugs that pre-date its existence.
+ * NEW serious violations beyond this baseline.
  *
  * Each entry is the axe rule id. To investigate, open the harness in a
  * browser, run the axe DevTools extension, and follow the rule's
  * helpUrl. Remove an entry once the underlying component is fixed.
+ *
+ * Currently empty — the ui-input id-forwarding and ui-checkbox
+ * accessible-name issues are both fixed.
  */
-const KNOWN_VIOLATIONS = new Set<string>([
-    // ui-input doesn't forward `id` to its inner <input>, so the
-    // explicit-label association on the OUTER ui-input element doesn't
-    // reach the actual control. axe sees the inner <input> as unlabeled.
-    'label',
-    // ui-checkbox renders <button role="checkbox"> with no accessible
-    // name (the label association is via for=id on a separate <ui-label>,
-    // which axe can't see because of the same id-forwarding gap).
-    'button-name',
-]);
+const KNOWN_VIOLATIONS = new Set<string>();
 
 test('form built from shadcn components has no NEW serious/critical a11y violations', async ({ page }) => {
     await page.goto('/');

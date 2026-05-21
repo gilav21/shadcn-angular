@@ -83,6 +83,12 @@ const ALL_COMPONENTS: readonly ComponentSpec[] = [
         names: ['input', 'label', 'button', 'dialog', 'checkbox'],
         label: 'a11y-form',
     },
+    // a11y: dialog focus-trap contract (open → focus inside, ESC →
+    // focus restored to trigger).
+    {
+        names: ['dialog'],
+        label: 'dialog-focus',
+    },
     // CLI feature smoke test — installs button under a custom prefix
     // (orchestrator passes `--prefix acme` to init), then renders it via a
     // dedicated harness that uses `<acme-button>` directly.
@@ -102,6 +108,7 @@ const CLI_SPECS: ReadonlyArray<{ readonly label: string; readonly module: string
     { label: 're-add-identical',        module: 're-add-identical' },
     { label: 'local-mod-conflict',      module: 'local-modification-conflict' },
     { label: 'prefix-multi-install',    module: 'prefix-multi-install' },
+    { label: 'prod-build',              module: 'prod-build' },
 ];
 
 interface RunResult {

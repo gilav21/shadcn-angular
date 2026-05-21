@@ -32,19 +32,16 @@ import { CheckboxComponent } from '@/components/ui/checkbox';
             <form class="space-y-3">
                 <div>
                     <ui-label for="a11y-email">Email</ui-label>
-                    <ui-input id="a11y-email" type="email" [ngModel]="email()"
-                        (ngModelChange)="email.set($event)" name="email" />
+                    <ui-input elementId="a11y-email" type="email" name="email"
+                        [ngModel]="email()" (ngModelChange)="email.set($event)" />
                 </div>
                 <div>
                     <ui-label for="a11y-pwd">Password</ui-label>
-                    <ui-input id="a11y-pwd" type="password" [ngModel]="pwd()"
-                        (ngModelChange)="pwd.set($event)" name="password" />
+                    <ui-input elementId="a11y-pwd" type="password" name="password"
+                        [ngModel]="pwd()" (ngModelChange)="pwd.set($event)" />
                 </div>
-                <div class="flex items-center gap-2">
-                    <ui-checkbox id="a11y-tos" [checked]="agreed()"
-                        (checkedChange)="agreed.set($event)" />
-                    <ui-label for="a11y-tos">I agree to the terms</ui-label>
-                </div>
+                <ui-checkbox label="I agree to the terms" elementId="a11y-tos"
+                    [checked]="agreed()" (checkedChange)="agreed.set($event)" />
                 <ui-dialog>
                     <ui-dialog-trigger>
                         <ui-button [disabled]="!canSubmit()" type="button">Sign up</ui-button>

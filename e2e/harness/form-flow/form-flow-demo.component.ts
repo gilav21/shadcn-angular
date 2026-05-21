@@ -43,7 +43,7 @@ import {
         <main class="p-8 space-y-4 w-[400px]">
             <ui-label for="username">Your name</ui-label>
             <ui-input
-                id="username"
+                elementId="username"
                 data-testid="username"
                 [ngModel]="username()"
                 (ngModelChange)="username.set($event)"
