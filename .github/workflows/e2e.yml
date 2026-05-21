@@ -31,8 +31,14 @@ jobs:
       # happens lazily during the suite (`runCli`'s `npmInstall` step)
       # so its node_modules is sized to a real consumer's tree, not
       # workspace-hoisted.
+      #
+      # Uses `npm install` rather than `npm ci` because the lockfile is
+      # platform-specific for optional native deps (rolldown bindings,
+      # esbuild platform packages). `npm ci` rejects the lockfile when
+      # it lacks the Linux variants; `npm install` is happy to resolve
+      # them at install time without writing the lockfile back.
       - name: Install root deps
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       - name: Build CLI (npx shadcn-angular)
         run: npm run e2e:build-cli
