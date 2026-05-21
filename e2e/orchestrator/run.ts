@@ -92,6 +92,11 @@ const ALL_COMPONENTS: readonly ComponentSpec[] = [
         names: ['dialog'],
         label: 'dialog-focus',
     },
+    // ReactiveForms integration: ui-input + ui-checkbox via Validators.
+    {
+        names: ['input', 'label', 'button', 'checkbox'],
+        label: 'form-validation',
+    },
     // CLI feature smoke test — installs button under a custom prefix
     // (orchestrator passes `--prefix acme` to init), then renders it via a
     // dedicated harness that uses `<acme-button>` directly.
@@ -112,6 +117,13 @@ const CLI_SPECS: ReadonlyArray<{ readonly label: string; readonly module: string
     { label: 'local-mod-conflict',      module: 'local-modification-conflict' },
     { label: 'prefix-multi-install',    module: 'prefix-multi-install' },
     { label: 'prod-build',              module: 'prod-build' },
+    { label: 'unknown-component',       module: 'unknown-component' },
+    { label: 'add-without-init',        module: 'add-without-init' },
+    { label: 'list-and-diff',           module: 'list-and-diff' },
+    // add-all-smoke is intentionally last — it's the slowest spec
+    // (~3-5 min) because it installs every component in the registry
+    // and runs `ng build --configuration production`.
+    { label: 'add-all-smoke',           module: 'add-all-smoke' },
 ];
 
 interface RunResult {
