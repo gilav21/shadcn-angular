@@ -20,8 +20,11 @@ function categorize(name: string): Category {
   if (!(name in registry)) return 'UI';
   const def = registry[name as keyof typeof registry];
 
-  const hasChartFile = def.files.some(f => f.startsWith('charts/'));
-  if (hasChartFile) return 'Charts';
+  // Post-refactor, chart components live in their own folders but share
+  // `chart.types.ts` / `chart.utils.ts` via `libFiles` — that's the reliable
+  // signal regardless of where their source files live.
+  const isChart = def.libFiles?.some(f => f === 'chart.types.ts' || f === 'chart.utils.ts');
+  if (isChart) return 'Charts';
 
   if (LAYOUT_COMPONENTS.has(name)) return 'Layout / Page Building';
   if (ANIMATION_COMPONENTS.has(name)) return 'Animation';
