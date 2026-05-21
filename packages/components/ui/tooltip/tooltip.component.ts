@@ -15,7 +15,7 @@ export const TOOLTIP = new InjectionToken<TooltipComponent>('TOOLTIP');
 @Component({
     selector: 'ui-tooltip',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [TooltipContentComponent],
+    imports: [forwardRef(() => TooltipContentComponent)],
     providers: [{ provide: TOOLTIP, useExisting: forwardRef(() => TooltipComponent) }],
     template: `
     <ng-content />

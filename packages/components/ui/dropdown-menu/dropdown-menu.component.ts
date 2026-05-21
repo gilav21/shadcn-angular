@@ -67,13 +67,13 @@ export const DROPDOWN_MENU = new InjectionToken<DropdownMenuComponent>('DROPDOWN
     ],
     imports: [
         NgTemplateOutlet,
-        DropdownMenuContentComponent,
-        DropdownMenuItemComponent,
-        DropdownMenuLabelComponent,
-        DropdownMenuSeparatorComponent,
-        DropdownMenuSubComponent,
-        DropdownMenuSubTriggerComponent,
-        DropdownMenuSubContentComponent,
+        forwardRef(() => DropdownMenuContentComponent),
+        forwardRef(() => DropdownMenuItemComponent),
+        forwardRef(() => DropdownMenuLabelComponent),
+        forwardRef(() => DropdownMenuSeparatorComponent),
+        forwardRef(() => DropdownMenuSubComponent),
+        forwardRef(() => DropdownMenuSubTriggerComponent),
+        forwardRef(() => DropdownMenuSubContentComponent),
     ],
     template: `
       <ng-content />

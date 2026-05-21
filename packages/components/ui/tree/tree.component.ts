@@ -37,7 +37,12 @@ export const TREE = new InjectionToken<TreeComponent>('TREE');
     providers: [{ provide: TREE, useExisting: forwardRef(() => TreeComponent) }],
     templateUrl: './tree.component.html',
     host: { class: 'block' },
-    imports: [NgTemplateOutlet, TreeItemComponent, TreeLabelComponent, TreeIconComponent],
+    imports: [
+        NgTemplateOutlet,
+        forwardRef(() => TreeItemComponent),
+        forwardRef(() => TreeLabelComponent),
+        forwardRef(() => TreeIconComponent),
+    ],
 })
 export class TreeComponent {
     class = input('');

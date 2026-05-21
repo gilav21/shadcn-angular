@@ -28,7 +28,7 @@ export const KANBAN_COLUMN = new InjectionToken<KanbanColumnComponent>('KANBAN_C
 @Component({
     selector: 'ui-kanban-column',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [BadgeComponent, SeparatorComponent, ScrollAreaComponent, KanbanCardComponent, ButtonComponent],
+    imports: [BadgeComponent, SeparatorComponent, ScrollAreaComponent, forwardRef(() => KanbanCardComponent), ButtonComponent],
     providers: [{ provide: KANBAN_COLUMN, useExisting: forwardRef(() => KanbanColumnComponent) }],
     template: `
         <div

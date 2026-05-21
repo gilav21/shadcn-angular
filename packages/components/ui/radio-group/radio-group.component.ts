@@ -20,7 +20,7 @@ export { RadioGroupItemComponent };
 @Component({
   selector: 'ui-radio-group',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [RadioGroupItemComponent],
+  imports: [forwardRef(() => RadioGroupItemComponent)],
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -29,7 +29,7 @@ export { RadioGroupItemComponent };
     },
     {
       provide: RADIO_GROUP,
-      useExisting: RadioGroupComponent,
+      useExisting: forwardRef(() => RadioGroupComponent),
     },
   ],
   templateUrl: './radio-group.component.html',

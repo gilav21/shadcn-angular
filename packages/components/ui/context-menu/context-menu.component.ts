@@ -38,13 +38,13 @@ export const CONTEXT_MENU = new InjectionToken<ContextMenuComponent>('CONTEXT_ME
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         NgTemplateOutlet,
-        ContextMenuContentComponent,
-        ContextMenuItemComponent,
-        ContextMenuLabelComponent,
-        ContextMenuSeparatorComponent,
-        ContextMenuSubComponent,
-        ContextMenuSubTriggerComponent,
-        ContextMenuSubContentComponent,
+        forwardRef(() => ContextMenuContentComponent),
+        forwardRef(() => ContextMenuItemComponent),
+        forwardRef(() => ContextMenuLabelComponent),
+        forwardRef(() => ContextMenuSeparatorComponent),
+        forwardRef(() => ContextMenuSubComponent),
+        forwardRef(() => ContextMenuSubTriggerComponent),
+        forwardRef(() => ContextMenuSubContentComponent),
     ],
     template: `
       <ng-content />

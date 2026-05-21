@@ -50,7 +50,7 @@ export const TOGGLE_GROUP = new InjectionToken<ToggleGroupComponent>('TOGGLE_GRO
 @Component({
     selector: 'ui-toggle-group',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [ToggleGroupItemComponent],
+    imports: [forwardRef(() => ToggleGroupItemComponent)],
     templateUrl: './toggle-group.component.html',
     host: { class: 'contents' },
     providers: [{ provide: TOGGLE_GROUP, useExisting: forwardRef(() => ToggleGroupComponent) }],
