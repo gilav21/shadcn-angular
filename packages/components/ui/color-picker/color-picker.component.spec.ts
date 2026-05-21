@@ -26,6 +26,26 @@ class ColorPickerTestHostComponent {
     disabled = signal(false);
 }
 
+function stubAreaRect(picker: ColorPickerComponent): HTMLDivElement {
+    const area = (picker as any).colorArea().nativeElement as HTMLDivElement;
+    // jsdom returns zeros, so stub the rect.
+    (area as any).getBoundingClientRect = () => ({
+        left: 0, top: 0, right: 200, bottom: 100, width: 200, height: 100, x: 0, y: 0, toJSON: () => ({}),
+    });
+    return area;
+}
+
+async function openAndGetPicker(
+    fixture: ComponentFixture<ColorPickerTestHostComponent>,
+): Promise<ColorPickerComponent> {
+    const trigger = fixture.debugElement.query(By.css('button'));
+    trigger.nativeElement.click();
+    fixture.detectChanges();
+    await fixture.whenStable();
+    return fixture.debugElement.query(By.directive(ColorPickerComponent))
+        .componentInstance as ColorPickerComponent;
+}
+
 describe('ColorPickerComponent', () => {
     let fixture: ComponentFixture<ColorPickerTestHostComponent>;
     let component: ColorPickerTestHostComponent;
@@ -123,6 +143,55 @@ describe('ColorPickerComponent', () => {
             fixture.detectChanges();
 
             expect(component.color()).toBe('#ff0000');
+        });
+    });
+
+    describe('Saturation/Value area drag', () => {
+        it('top-left click selects white with marker at the top-left', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+
+            (picker as any).updateFromAreaPosition(0, 0);
+            fixture.detectChanges();
+
+            expect(picker.saturation()).toBe(0);
+            expect(picker.value()).toBe(100);
+            expect(picker.currentColor()).toBe('#ffffff');
+        });
+
+        it('top-right click selects the pure hue', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+            picker.hue.set(0);
+
+            (picker as any).updateFromAreaPosition(200, 0);
+            fixture.detectChanges();
+
+            expect(picker.saturation()).toBe(100);
+            expect(picker.value()).toBe(100);
+            expect(picker.currentColor()).toBe('#ff0000');
+        });
+
+        it('bottom click selects black regardless of x', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+
+            (picker as any).updateFromAreaPosition(100, 100);
+            fixture.detectChanges();
+
+            expect(picker.value()).toBe(0);
+            expect(picker.currentColor()).toBe('#000000');
+        });
+
+        it('marker top% mirrors click y (no drift)', async () => {
+            const picker = await openAndGetPicker(fixture);
+            stubAreaRect(picker);
+
+            (picker as any).updateFromAreaPosition(50, 25); // y = 25%
+            fixture.detectChanges();
+
+            // marker top = 100 - value(), value = (1 - 0.25) * 100 = 75 → top = 25
+            expect(100 - picker.value()).toBe(25);
         });
     });
 

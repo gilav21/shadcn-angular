@@ -23,6 +23,12 @@ interface HSL {
     l: number;
 }
 
+interface HSV {
+    h: number;
+    s: number;
+    v: number;
+}
+
 interface RGB {
     r: number;
     g: number;
@@ -64,8 +70,13 @@ export class ColorPickerComponent implements ControlValueAccessor {
     currentColor = signal('#000000');
 
     hue = signal(0);
+    /** HSV saturation (0..100) — drives the area's X axis. */
     saturation = signal(100);
-    lightness = signal(50);
+    /** HSV value (0..100) — drives the area's Y axis (top = 100). */
+    value = signal(100);
+
+    /** HSL view of `currentColor` — used by the HSL input tab. */
+    hsl = computed(() => this.hexToHsl(this.currentColor()));
 
     colorArea = viewChild<ElementRef<HTMLDivElement>>('colorArea');
 
@@ -143,14 +154,14 @@ export class ColorPickerComponent implements ControlValueAccessor {
         const y = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
 
         this.saturation.set(Math.round(x * 100));
-        this.lightness.set(Math.round((1 - y) * 50));
-        this.updateColorFromHSL();
+        this.value.set(Math.round((1 - y) * 100));
+        this.updateColorFromHSV();
     }
 
     onHueChange(event: Event) {
         const value = +(event.target as HTMLInputElement).value;
         this.hue.set(value);
-        this.updateColorFromHSL();
+        this.updateColorFromHSV();
     }
 
     selectPreset(color: string) {
@@ -171,18 +182,25 @@ export class ColorPickerComponent implements ControlValueAccessor {
         this.setColor(hex);
     }
 
-    updateColorFromHSL() {
-        const hex = this.hslToHex({ h: this.hue(), s: this.saturation(), l: this.lightness() });
+    updateColorFromHSV() {
+        const hex = this.hsvToHex({ h: this.hue(), s: this.saturation(), v: this.value() });
         this.currentColor.set(hex);
         this.onTouched();
     }
 
+    /** Called by the HSL input tab — sets the color from HSL and syncs HSV state. */
+    onHslChange(channel: 's' | 'l', input: number) {
+        const current = this.hsl();
+        const next: HSL = { ...current, [channel]: Math.max(0, Math.min(100, input)) };
+        this.setColor(this.hslToHex(next));
+    }
+
     private setColor(hex: string) {
         this.currentColor.set(hex);
-        const hsl = this.hexToHsl(hex);
-        this.hue.set(hsl.h);
-        this.saturation.set(hsl.s);
-        this.lightness.set(hsl.l);
+        const hsv = this.hexToHsv(hex);
+        this.hue.set(hsv.h);
+        this.saturation.set(hsv.s);
+        this.value.set(hsv.v);
     }
 
     private hexToRgb(hex: string): RGB {
@@ -234,6 +252,69 @@ export class ColorPickerComponent implements ControlValueAccessor {
             s: Math.round(s * 100),
             l: Math.round(l * 100),
         };
+    }
+
+    private hexToHsv(hex: string): HSV {
+        const rgb = this.hexToRgb(hex);
+        const r = rgb.r / 255;
+        const g = rgb.g / 255;
+        const b = rgb.b / 255;
+
+        const max = Math.max(r, g, b);
+        const min = Math.min(r, g, b);
+        const d = max - min;
+        let h = 0;
+
+        if (d !== 0) {
+            switch (max) {
+                case r:
+                    h = ((g - b) / d + (g < b ? 6 : 0)) / 6;
+                    break;
+                case g:
+                    h = ((b - r) / d + 2) / 6;
+                    break;
+                case b:
+                    h = ((r - g) / d + 4) / 6;
+                    break;
+            }
+        }
+
+        const s = max === 0 ? 0 : d / max;
+        return {
+            h: Math.round(h * 360),
+            s: Math.round(s * 100),
+            v: Math.round(max * 100),
+        };
+    }
+
+    private hsvToHex(hsv: HSV): string {
+        const h = hsv.h / 360;
+        const s = hsv.s / 100;
+        const v = hsv.v / 100;
+
+        const i = Math.floor(h * 6);
+        const f = h * 6 - i;
+        const p = v * (1 - s);
+        const q = v * (1 - f * s);
+        const t = v * (1 - (1 - f) * s);
+
+        let r = 0;
+        let g = 0;
+        let b = 0;
+        switch (i % 6) {
+            case 0: r = v; g = t; b = p; break;
+            case 1: r = q; g = v; b = p; break;
+            case 2: r = p; g = v; b = t; break;
+            case 3: r = p; g = q; b = v; break;
+            case 4: r = t; g = p; b = v; break;
+            case 5: r = v; g = p; b = q; break;
+        }
+
+        return this.rgbToHex({
+            r: Math.round(r * 255),
+            g: Math.round(g * 255),
+            b: Math.round(b * 255),
+        });
     }
 
     private hslToHex(hsl: HSL): string {

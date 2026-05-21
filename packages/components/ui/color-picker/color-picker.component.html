@@ -42,27 +42,29 @@
         <div
           class="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm"
           [style.left.%]="saturation()"
-          [style.top.%]="100 - lightness()"
+          [style.top.%]="100 - value()"
           [style.backgroundColor]="currentColor()"
         ></div>
       </div>
 
       <div class="space-y-1">
-        <label class="text-xs text-muted-foreground">Hue</label>
+        <label for="ui-color-picker-hue" class="text-xs text-muted-foreground">Hue</label>
         <input
+          id="ui-color-picker-hue"
           type="range"
           min="0"
           max="360"
           [value]="hue()"
           (input)="onHueChange($event)"
+          aria-label="Hue"
           class="w-full h-3 rounded-md cursor-pointer appearance-none"
           style="background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)"
         />
       </div>
 
       @if (presets().length > 0) {
-        <div class="space-y-1">
-          <label class="text-xs text-muted-foreground">Presets</label>
+        <fieldset class="space-y-1 border-0 p-0 m-0">
+          <legend class="text-xs text-muted-foreground p-0">Presets</legend>
           <div class="flex flex-wrap gap-1">
             @for (color of presets(); track color) {
               <button
@@ -77,7 +79,7 @@
               ></button>
             }
           </div>
-        </div>
+        </fieldset>
       }
 
       <ui-tabs value="hex">
@@ -98,35 +100,38 @@
         <ui-tabs-content value="rgb" class="mt-2">
           <div class="grid grid-cols-3 gap-2">
             <div>
-              <label class="text-xs text-muted-foreground">R</label>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">R</span>
               <ui-input
                 type="number"
                 min="0"
                 max="255"
                 [ngModel]="rgb().r"
                 (ngModelChange)="onRgbChange('r', $event)"
+                aria-label="Red"
                 class="h-8 text-xs"
               />
             </div>
             <div>
-              <label class="text-xs text-muted-foreground">G</label>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">G</span>
               <ui-input
                 type="number"
                 min="0"
                 max="255"
                 [ngModel]="rgb().g"
                 (ngModelChange)="onRgbChange('g', $event)"
+                aria-label="Green"
                 class="h-8 text-xs"
               />
             </div>
             <div>
-              <label class="text-xs text-muted-foreground">B</label>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">B</span>
               <ui-input
                 type="number"
                 min="0"
                 max="255"
                 [ngModel]="rgb().b"
                 (ngModelChange)="onRgbChange('b', $event)"
+                aria-label="Blue"
                 class="h-8 text-xs"
               />
             </div>
@@ -135,35 +140,38 @@
         <ui-tabs-content value="hsl" class="mt-2">
           <div class="grid grid-cols-3 gap-2">
             <div>
-              <label class="text-xs text-muted-foreground">H</label>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">H</span>
               <ui-input
                 type="number"
                 min="0"
                 max="360"
-                [ngModel]="hue()"
-                (ngModelChange)="hue.set($event); updateColorFromHSL()"
+                [ngModel]="hsl().h"
+                (ngModelChange)="hue.set($event); updateColorFromHSV()"
+                aria-label="Hue"
                 class="h-8 text-xs"
               />
             </div>
             <div>
-              <label class="text-xs text-muted-foreground">S</label>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">S</span>
               <ui-input
                 type="number"
                 min="0"
                 max="100"
-                [ngModel]="saturation()"
-                (ngModelChange)="saturation.set($event); updateColorFromHSL()"
+                [ngModel]="hsl().s"
+                (ngModelChange)="onHslChange('s', $event)"
+                aria-label="Saturation"
                 class="h-8 text-xs"
               />
             </div>
             <div>
-              <label class="text-xs text-muted-foreground">L</label>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">L</span>
               <ui-input
                 type="number"
                 min="0"
                 max="100"
-                [ngModel]="lightness()"
-                (ngModelChange)="lightness.set($event); updateColorFromHSL()"
+                [ngModel]="hsl().l"
+                (ngModelChange)="onHslChange('l', $event)"
+                aria-label="Lightness"
                 class="h-8 text-xs"
               />
             </div>
