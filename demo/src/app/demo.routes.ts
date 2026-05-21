@@ -40,6 +40,10 @@ export const DEMO_ROUTES: Routes = [
   { path: 'phone-input', loadComponent: () => import('./demos/inputs/phone-input-demo.component').then(m => m.PhoneInputDemoComponent) },
   { path: 'form', loadComponent: () => import('./demos/inputs/form-demo.component').then(m => m.FormDemoComponent) },
   { path: 'sortable', loadComponent: () => import('./demos/inputs/sortable-demo.component').then(m => m.SortableDemoComponent) },
+  { path: 'color-picker', loadComponent: () => import('./demos/inputs/color-picker-demo.component').then(m => m.ColorPickerDemoComponent) },
+  { path: 'emoji-picker', loadComponent: () => import('./demos/inputs/emoji-picker-demo.component').then(m => m.EmojiPickerDemoComponent) },
+  { path: 'file-upload', loadComponent: () => import('./demos/inputs/file-upload-demo.component').then(m => m.FileUploadDemoComponent) },
+  { path: 'rich-text-editor', loadComponent: () => import('./demos/inputs/rich-text-editor-demo.component').then(m => m.RichTextEditorDemoComponent) },
 
   // Overlay
   { path: 'dialog', loadComponent: () => import('./demos/overlay/dialog-demo.component').then(m => m.DialogDemoComponent) },
@@ -67,10 +71,9 @@ export const DEMO_ROUTES: Routes = [
   { path: 'resizable', loadComponent: () => import('./demos/layout/resizable-demo.component').then(m => m.ResizableDemoComponent) },
   { path: 'sidebar', loadComponent: () => import('./demos/layout/sidebar-demo.component').then(m => m.SidebarDemoComponent) },
   { path: 'bento-grid', loadComponent: () => import('./demos/layout/bento-grid-demo.component').then(m => m.BentoGridDemoComponent) },
-  { path: 'page-builder', loadComponent: () => import('./demos/layout/page-builder-demo.component').then(m => m.PageBuilderDemoComponent) },
-  { path: 'page-renderer', loadComponent: () => import('./demos/layout/page-renderer-demo.component').then(m => m.PageRendererDemoComponent) },
   { path: 'virtual-scroll', loadComponent: () => import('./demos/layout/virtual-scroll-demo.component').then(m => m.VirtualScrollDemoComponent) },
   { path: 'comparison-slider', loadComponent: () => import('./demos/layout/comparison-slider-demo.component').then(m => m.ComparisonSliderDemoComponent) },
+  { path: 'collapsible', loadComponent: () => import('./demos/layout/collapsible-demo.component').then(m => m.CollapsibleDemoComponent) },
 
   // Charts
   { path: 'charts', loadComponent: () => import('./demos/charts/charts-demo.component').then(m => m.ChartsDemoComponent) },
@@ -81,11 +84,9 @@ export const DEMO_ROUTES: Routes = [
   { path: 'avatar', loadComponent: () => import('./demos/data-display/avatar-demo.component').then(m => m.AvatarDemoComponent) },
   { path: 'table', loadComponent: () => import('./demos/data-display/table-demo.component').then(m => m.TableDemoComponent) },
   { path: 'accordion', loadComponent: () => import('./demos/data-display/accordion-demo.component').then(m => m.AccordionDemoComponent) },
-  { path: 'collapsible', loadComponent: () => import('./demos/data-display/collapsible-demo.component').then(m => m.CollapsibleDemoComponent) },
   { path: 'breadcrumb', loadComponent: () => import('./demos/data-display/breadcrumb-demo.component').then(m => m.BreadcrumbDemoComponent) },
   { path: 'carousel', loadComponent: () => import('./demos/data-display/carousel-demo.component').then(m => m.CarouselDemoComponent) },
   { path: 'code-block', loadComponent: () => import('./demos/data-display/code-block-demo.component').then(m => m.CodeBlockDemoComponent) },
-  { path: 'tree', loadComponent: () => import('./demos/data-display/tree-demo.component').then(m => m.TreeDemoComponent) },
   { path: 'tree-view', loadComponent: () => import('./demos/data-display/tree-view-demo.component').then(m => m.TreeViewDemoComponent) },
   { path: 'timeline', loadComponent: () => import('./demos/data-display/timeline-demo.component').then(m => m.TimelineDemoComponent) },
   { path: 'empty', loadComponent: () => import('./demos/data-display/empty-demo.component').then(m => m.EmptyDemoComponent) },
@@ -94,22 +95,19 @@ export const DEMO_ROUTES: Routes = [
   { path: 'number-ticker', loadComponent: () => import('./demos/data-display/number-ticker-demo.component').then(m => m.NumberTickerDemoComponent) },
   { path: 'data-table', loadComponent: () => import('./demos/data-display/data-table-demo.component').then(m => m.DataTableDemoComponent) },
   { path: 'icon', loadComponent: () => import('./demos/data-display/icon-demo.component').then(m => m.IconDemoComponent) },
+  { path: 'file-viewer', loadComponent: () => import('./demos/data-display/file-viewer-demo.component').then(m => m.FileViewerDemoComponent) },
 
-  // Advanced
-  { path: 'emoji-picker', loadComponent: () => import('./demos/advanced/emoji-picker-demo.component').then(m => m.EmojiPickerDemoComponent) },
-  { path: 'rich-text-editor', loadComponent: () => import('./demos/advanced/rich-text-editor-demo.component').then(m => m.RichTextEditorDemoComponent) },
-  { path: 'file-upload', loadComponent: () => import('./demos/advanced/file-upload-demo.component').then(m => m.FileUploadDemoComponent) },
-  { path: 'file-viewer', loadComponent: () => import('./demos/advanced/file-viewer-demo.component').then(m => m.FileViewerDemoComponent) },
-  { path: 'color-picker', loadComponent: () => import('./demos/advanced/color-picker-demo.component').then(m => m.ColorPickerDemoComponent) },
-  { path: 'confetti', loadComponent: () => import('./demos/advanced/confetti-demo.component').then(m => m.ConfettiDemoComponent) },
-  { path: 'chat', loadComponent: () => import('./demos/advanced/chat-demo.component').then(m => m.ChatDemoComponent) },
-  { path: 'streaming-text', loadComponent: () => import('./demos/advanced/streaming-text-demo.component').then(m => m.StreamingTextDemoComponent) },
-  { path: 'sparkles', loadComponent: () => import('./demos/advanced/sparkles-demo.component').then(m => m.SparklesDemoComponent) },
-  { path: 'text-reveal', loadComponent: () => import('./demos/advanced/text-reveal-demo.component').then(m => m.TextRevealDemoComponent) },
-  { path: 'dock', loadComponent: () => import('./demos/advanced/dock-demo.component').then(m => m.DockDemoComponent) },
-  { path: 'animations', loadComponent: () => import('./demos/advanced/animations-demo.component').then(m => m.AnimationsDemoComponent) },
-  { path: 'kanban', loadComponent: () => import('./demos/advanced/kanban-demo.component').then(m => m.KanbanDemoComponent) },
-  { path: 'tour', loadComponent: () => import('./demos/advanced/tour-demo.component').then(m => m.TourDemoComponent) },
+  // Animations
+  { path: 'animations', loadComponent: () => import('./demos/animations/animations-demo.component').then(m => m.AnimationsDemoComponent) },
+  { path: 'confetti', loadComponent: () => import('./demos/animations/confetti-demo.component').then(m => m.ConfettiDemoComponent) },
+
+  // Patterns
+  { path: 'kanban', loadComponent: () => import('./demos/patterns/kanban-demo.component').then(m => m.KanbanDemoComponent) },
+  { path: 'chat', loadComponent: () => import('./demos/patterns/chat-demo.component').then(m => m.ChatDemoComponent) },
+  { path: 'dock', loadComponent: () => import('./demos/patterns/dock-demo.component').then(m => m.DockDemoComponent) },
+  { path: 'tour', loadComponent: () => import('./demos/patterns/tour-demo.component').then(m => m.TourDemoComponent) },
+  { path: 'page-builder', loadComponent: () => import('./demos/patterns/page-builder-demo.component').then(m => m.PageBuilderDemoComponent) },
+  { path: 'page-renderer', loadComponent: () => import('./demos/patterns/page-renderer-demo.component').then(m => m.PageRendererDemoComponent) },
 
   // Wildcard
   { path: '**', redirectTo: '' },

@@ -18,6 +18,9 @@ import {
   OrbitComponent,
   StaggerChildrenComponent,
   ParticlesComponent,
+  StreamingTextComponent,
+  TextRevealComponent,
+  SparklesButtonComponent,
 } from '../../../../../packages/components/ui';
 
 @Component({
@@ -42,6 +45,9 @@ import {
     OrbitComponent,
     StaggerChildrenComponent,
     ParticlesComponent,
+    StreamingTextComponent,
+    TextRevealComponent,
+    SparklesButtonComponent,
   ],
   template: `
     <ui-scroll-progress [height]="3" />
@@ -333,6 +339,36 @@ import {
         <div class="p-4 rounded-xl border bg-primary/10 text-sm font-medium">
           Look at the very top of the browser window — there is a thin colored bar. Scroll this page up and down to
           see it grow and shrink.
+        </div>
+      </div>
+
+      <ui-separator />
+
+      <div class="space-y-4">
+        <h3 class="text-lg font-medium">Streaming Text</h3>
+        <p class="text-muted-foreground text-sm">Typewriter effect for text.</p>
+        <div class="border rounded-md p-6 min-h-[100px]">
+          <ui-streaming-text text="The quick brown fox jumps over the lazy dog." class="font-mono text-lg" />
+        </div>
+      </div>
+
+      <ui-separator />
+
+      <div class="space-y-4">
+        <h3 class="text-lg font-medium">Text Reveal</h3>
+        <p class="text-muted-foreground text-sm">Blur-in animation for text.</p>
+        <div class="border rounded-md p-6 flex justify-center items-center">
+          <ui-text-reveal text="The truth will be revealed." class="text-3xl font-bold" />
+        </div>
+      </div>
+
+      <ui-separator />
+
+      <div class="space-y-4">
+        <h3 class="text-lg font-medium">Sparkles</h3>
+        <p class="text-muted-foreground text-sm">Animated particles effect around a button.</p>
+        <div class="flex gap-4 items-center">
+          <ui-sparkles-button>Magic Button</ui-sparkles-button>
         </div>
       </div>
     </section>
