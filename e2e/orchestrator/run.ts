@@ -62,6 +62,9 @@ const ALL_COMPONENTS: readonly ComponentSpec[] = [
     // compound
     { names: ['accordion'] }, { names: ['tabs'] }, { names: ['command'] },
     { names: ['data-table'] }, { names: ['tree'] },
+    // overlays / lifecycle
+    { names: ['sheet'] }, { names: ['drawer'] }, { names: ['toast'] },
+    { names: ['sidebar'] }, { names: ['tour'] },
     // multi-component install — exercises `add a b c` in one call and
     // template-compiles all of them together inside a single harness.
     {
