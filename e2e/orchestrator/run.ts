@@ -65,6 +65,13 @@ const ALL_COMPONENTS: readonly ComponentSpec[] = [
     // overlays / lifecycle
     { names: ['sheet'] }, { names: ['drawer'] }, { names: ['toast'] },
     { names: ['sidebar'] }, { names: ['tour'] },
+    // more compound + content smokes
+    { names: ['carousel'] }, { names: ['navigation-menu'] }, { names: ['menubar'] },
+    { names: ['hover-card'] }, { names: ['alert-dialog'] }, { names: ['pagination'] },
+    { names: ['avatar'] }, { names: ['progress'] }, { names: ['collapsible'] },
+    { names: ['toggle-group'] },
+    // charts (libFiles install path)
+    { names: ['bar-chart'] }, { names: ['pie-chart'] },
     // multi-component install — exercises `add a b c` in one call and
     // template-compiles all of them together inside a single harness.
     {
