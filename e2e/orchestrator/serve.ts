@@ -25,6 +25,13 @@ export async function serve(): Promise<ServerHandle> {
 
     // shell: true is required on Windows so the `.cmd` shim for npx can
     // be launched. Args are static — no injection surface.
+    //
+    // detached: true is the key to cross-platform tree-kill on POSIX —
+    // it puts the child in its own process group so that, on stop(), a
+    // `process.kill(-pid, SIGTERM)` reaches every descendant (npx →
+    // node → @angular/build → its workers) rather than just the npx
+    // shim. Windows ignores `detached` here and we tree-kill via
+    // `taskkill /F /T /PID`.
     const child = spawn(
         'npx',
         ['ng', 'serve', '--port', String(DEV_SERVER_PORT), '--no-open'],
@@ -32,6 +39,7 @@ export async function serve(): Promise<ServerHandle> {
             cwd: FIXTURE_APP,
             shell: true,
             stdio: ['ignore', 'pipe', 'pipe'],
+            detached: !isWindows,
         },
     );
 
@@ -101,11 +109,21 @@ function isPortInUse(port: number): Promise<boolean> {
 }
 
 /**
- * Tree-kills `ng serve` and all its descendants. `child.kill()` on
- * Windows only terminates the immediate process (npx.cmd → cmd.exe → node
- * → ng → @angular/build), so we shell out to `taskkill /F /T /PID` which
- * walks the process tree. On POSIX, `kill -- -PID` does the same via the
- * process group, but `tree-kill`-style `pkill -P` is more portable here.
+ * Tree-kills `ng serve` and all its descendants, then blocks until the
+ * dev-server port is actually free again so the next spec's preflight
+ * doesn't race a partially-released socket.
+ *
+ * Windows: `child.kill()` terminates only the npx.cmd shim → cmd.exe →
+ * node → ng tree's root, leaving descendants holding ports.
+ * `taskkill /F /T /PID` walks the tree.
+ *
+ * POSIX: ng serve is spawned with `detached: true`, which puts it in
+ * its own process group. `process.kill(-pid, SIGTERM)` then signals
+ * every member of that group. Without `detached: true`, `-pid` doesn't
+ * resolve to a group and the descendant `ng` / `node` processes
+ * outlive the orchestrator — the symptom is a stale dev server still
+ * watching the fixture, recompiling on reset, and emitting Vite error
+ * overlays that intercept Playwright clicks for the next spec.
  */
 async function stopChild(child: ChildProcess): Promise<void> {
     if (child.exitCode !== null || child.pid === undefined) return;
@@ -118,6 +136,8 @@ async function stopChild(child: ChildProcess): Promise<void> {
         }
     } else {
         try {
+            // SIGTERM first; if anything's still alive after the grace
+            // window, SIGKILL the whole group.
             process.kill(-child.pid, 'SIGTERM');
         } catch {
             child.kill('SIGTERM');
@@ -129,6 +149,31 @@ async function stopChild(child: ChildProcess): Promise<void> {
         child.once('exit', () => resolve());
         setTimeout(() => resolve(), 5_000).unref();
     });
+
+    // Hard-kill anything still alive on POSIX. taskkill /F already
+    // covers Windows.
+    if (!isWindows && child.pid !== undefined && child.exitCode === null) {
+        try {
+            process.kill(-child.pid, 'SIGKILL');
+        } catch {
+            // Group is gone — fine.
+        }
+    }
+
+    // Wait until the port is observably free. The OS keeps a socket in
+    // TIME_WAIT briefly after close; without SO_REUSEADDR the next
+    // bind() will fail. Poll for up to 10s with a 100ms cadence.
+    await waitForPortFree(10_000);
+}
+
+async function waitForPortFree(timeoutMs: number): Promise<void> {
+    const deadline = Date.now() + timeoutMs;
+    while (Date.now() < deadline) {
+        if (!(await isPortInUse(DEV_SERVER_PORT))) return;
+        await sleep(100);
+    }
+    // We'd rather let the next spec hit the explicit "port in use"
+    // assertion than hang here forever — fall through.
 }
 
 function sleep(ms: number): Promise<void> {
