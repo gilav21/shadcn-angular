@@ -377,6 +377,11 @@ async function promptOverwrite(
 
     if (options.overwrite || options.yes) return conflicting;
 
+    // `--dry-run` is supposed to be non-interactive — never block on the
+    // overwrite prompt. Treat conflicts as "would skip"; the dry-run
+    // summary still surfaces them so the user knows what was found.
+    if (options.dryRun) return [];
+
     console.log(chalk.yellow(`\n${conflicting.length} component(s) have local changes or are different from remote:`));
     showConflictDiffs(conflicting, targetDir, contentCache);
     console.log(chalk.dim('\n  Use `npx shadcn-angular diff <component>` for full diffs.\n'));
