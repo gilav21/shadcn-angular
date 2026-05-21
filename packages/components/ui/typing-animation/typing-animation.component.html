@@ -1,0 +1,7 @@
+<span [class]="classes()" [attr.data-slot]="'typing-animation'">
+    <span>{{ displayText() }}</span>
+    @if (cursor()) {
+        <span class="inline-block w-[2px] h-[1em] bg-current ml-0.5 align-text-bottom"
+            [class]="blinkClass()"></span>
+    }
+</span>

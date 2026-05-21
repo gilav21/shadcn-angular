@@ -11,6 +11,7 @@
         "build": "tsc",
         "dev": "tsc --watch",
         "start": "node dist/index.js",
+        "typecheck:scripts": "tsc -p tsconfig.scripts.json",
         "sync-registry": "tsx scripts/sync-registry.ts",
         "sync-registry:fix": "tsx scripts/sync-registry.ts --fix"
     },

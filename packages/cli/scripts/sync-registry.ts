@@ -12,13 +12,18 @@
 import { readFileSync, existsSync, writeFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import {
+    walkTree,
+    buildDirOwners,
+    getEntryFile,
+    type BoundaryContext,
+    type DeepImport,
+} from './sync-registry-lib';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CLI_SRC = path.resolve(SCRIPT_DIR, '../src');
 const COMPONENTS_ROOT = path.resolve(SCRIPT_DIR, '../../components');
 const REGISTRY_PATH = path.join(CLI_SRC, 'registry/index.ts');
-
-const IMPORT_REGEX = /from\s+['"](\.[^'"]+)['"]/g;
 
 // utils.ts is always installed during init — not a component libFile
 const BASELINE_LIB_FILES = new Set(['utils.ts']);
@@ -62,62 +67,6 @@ function parseRegistry(): RegistryEntry[] {
     return entries;
 }
 
-// ── Resolve imports ─────────────────────────────────────────────────────
-
-function resolveImport(importPath: string, fromFile: string): string | null {
-    const fromDir = path.dirname(path.join(COMPONENTS_ROOT, fromFile));
-    let resolved = path.resolve(fromDir, importPath);
-
-    if (!existsSync(resolved)) resolved += '.ts';
-    if (!existsSync(resolved)) return null;
-
-    return path.relative(COMPONENTS_ROOT, resolved).replaceAll('\\', '/');
-}
-
-// ── Tree walker with component boundaries ───────────────────────────────
-
-interface WalkResult {
-    ownFiles: Set<string>;
-    discoveredDeps: Set<string>;
-}
-
-function walkTree(
-    entryFile: string,
-    componentName: string,
-    entryFileToComponent: Map<string, string>,
-): WalkResult {
-    const ownFiles = new Set<string>();
-    const discoveredDeps = new Set<string>();
-
-    function collect(file: string): void {
-        if (ownFiles.has(file)) return;
-
-        // If this file is the entry point of ANOTHER component → dependency, stop
-        const ownerComponent = entryFileToComponent.get(file);
-        if (ownerComponent && ownerComponent !== componentName) {
-            discoveredDeps.add(ownerComponent);
-            return;
-        }
-
-        ownFiles.add(file);
-
-        const fullPath = path.join(COMPONENTS_ROOT, file);
-        if (!existsSync(fullPath)) return;
-
-        const content = readFileSync(fullPath, 'utf-8');
-        const regex = new RegExp(IMPORT_REGEX.source, IMPORT_REGEX.flags);
-        let match: RegExpExecArray | null;
-
-        while ((match = regex.exec(content)) !== null) {
-            const resolved = resolveImport(match[1], file);
-            if (resolved) collect(resolved);
-        }
-    }
-
-    collect(entryFile);
-    return { ownFiles, discoveredDeps };
-}
-
 // ── Split files into ui/ and lib/ ───────────────────────────────────────
 
 function splitFiles(allFiles: Set<string>): { uiFiles: string[]; libFiles: string[] } {
@@ -142,19 +91,6 @@ function splitFiles(allFiles: Set<string>): { uiFiles: string[]; libFiles: strin
 
 // ── Helpers ─────────────────────────────────────────────────────────────
 
-function getEntryFile(entry: RegistryEntry): string {
-    // Barrel index.ts re-exports everything — use it when available
-    const indexFile = entry.files.find(f => f.endsWith('index.ts'));
-    if (indexFile) return indexFile;
-
-    // Convention: main file is {name}.component.ts or {name}.directive.ts
-    const baseName = entry.name.split('/').at(-1) ?? entry.name;
-    const conventionFile = entry.files.find(f =>
-        f.endsWith(`${baseName}.component.ts`) || f.endsWith(`${baseName}.directive.ts`),
-    );
-    return conventionFile ?? entry.files[0];
-}
-
 interface ComponentUpdate {
     name: string;
     files: string[];
@@ -165,17 +101,18 @@ interface ComponentUpdate {
 function buildBoundaryMap(entries: RegistryEntry[]): Map<string, string> {
     const map = new Map<string, string>();
     for (const entry of entries) {
-        map.set('ui/' + getEntryFile(entry), entry.name);
+        map.set('ui/' + getEntryFile(entry.name, entry.files), entry.name);
     }
     return map;
 }
 
 function analyzeComponent(
     entry: RegistryEntry,
-    entryFileToComponent: Map<string, string>,
-): { update: ComponentUpdate; changed: boolean } {
-    const entryFile = 'ui/' + getEntryFile(entry);
-    const { ownFiles, discoveredDeps } = walkTree(entryFile, entry.name, entryFileToComponent);
+    ctx: BoundaryContext,
+): { update: ComponentUpdate; changed: boolean; deepImports: DeepImport[] } {
+    const entryFile = 'ui/' + getEntryFile(entry.name, entry.files);
+    const { ownFiles, discoveredDeps, deepImports } =
+        walkTree(entryFile, entry.name, ctx, COMPONENTS_ROOT);
     const { uiFiles, libFiles: discoveredLibs } = splitFiles(ownFiles);
 
     const mergedLibFiles = [...new Set([...entry.libFiles, ...discoveredLibs])];
@@ -203,7 +140,34 @@ function analyzeComponent(
     return {
         update: { name: entry.name, files: uiFiles, libFiles: mergedLibFiles, dependencies: finalDeps },
         changed,
+        deepImports,
     };
+}
+
+// Deep cross-component imports reach into another component's folder instead
+// of going through its barrel — boundary detection can then absorb that
+// component's files. `owner` is the component that owns the *directory* the
+// imported file lives in. A non-fatal report-mode-only warning.
+//
+// Multiple walks can rediscover the same offender (the importing file's own
+// component, then any component that transitively walks through it), so we
+// dedupe on `fromFile + importedFile` before printing.
+function reportDeepImports(deepImports: DeepImport[]): void {
+    if (deepImports.length === 0) return;
+    const seen = new Set<string>();
+    const unique: DeepImport[] = [];
+    for (const di of deepImports) {
+        const key = `${di.fromFile}\0${di.importedFile}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        unique.push(di);
+    }
+    console.warn('\nWarning: deep cross-component imports detected (bypass a barrel):');
+    for (const di of unique) {
+        console.warn(`  ${di.fromFile}`);
+        console.warn(`    reaches into the '${di.owner}' component folder: ${di.importedFile}`);
+    }
+    console.warn("Import the owning component through its barrel ('../<name>') instead.");
 }
 
 function findNamePos(source: string, name: string): number {
@@ -348,17 +312,25 @@ function main(): void {
     const fix = process.argv.includes('--fix');
     const entries = parseRegistry();
     const entryFileToComponent = buildBoundaryMap(entries);
+    const ctx: BoundaryContext = {
+        entryFileToComponent,
+        dirOwners: buildDirOwners(entryFileToComponent),
+    };
 
     console.log(`Scanning ${entries.length} components...\n`);
 
     let hasChanges = false;
     const updates: ComponentUpdate[] = [];
+    const deepImports: DeepImport[] = [];
 
     for (const entry of entries) {
-        const { update, changed } = analyzeComponent(entry, entryFileToComponent);
-        if (changed) hasChanges = true;
-        updates.push(update);
+        const result = analyzeComponent(entry, ctx);
+        if (result.changed) hasChanges = true;
+        updates.push(result.update);
+        deepImports.push(...result.deepImports);
     }
+
+    if (!fix) reportDeepImports(deepImports);
 
     const missingFiles = validateRegistryFiles(updates);
     if (missingFiles.length > 0) {

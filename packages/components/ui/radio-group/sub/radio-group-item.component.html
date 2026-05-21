@@ -1,0 +1,46 @@
+@if (label()) {
+  <div class="flex items-center gap-2">
+    <button
+      type="button"
+      role="radio"
+      [attr.aria-checked]="isSelected()"
+      [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
+      [class]="classes()"
+      [disabled]="isDisabled()"
+      [attr.id]="computedId()"
+      [attr.data-slot]="'radio-group-item'"
+      (click)="select()"
+    >
+      @if (isSelected()) {
+        <span class="flex items-center justify-center">
+          <span class="h-2.5 w-2.5 rounded-full bg-current"></span>
+        </span>
+      }
+    </button>
+    <label
+      [attr.for]="computedId()"
+      class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+      (click)="select(); $event.preventDefault()"
+    >
+      {{ label() }}
+    </label>
+  </div>
+} @else {
+  <button
+    type="button"
+    role="radio"
+    [attr.aria-checked]="isSelected()"
+    [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
+    [class]="classes()"
+    [disabled]="isDisabled()"
+    [attr.aria-label]="ariaLabel()"
+    [attr.data-slot]="'radio-group-item'"
+    (click)="select()"
+  >
+    @if (isSelected()) {
+      <span class="flex items-center justify-center">
+        <span class="h-2.5 w-2.5 rounded-full bg-current"></span>
+      </span>
+    }
+  </button>
+}

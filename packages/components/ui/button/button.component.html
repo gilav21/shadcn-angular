@@ -1,0 +1,17 @@
+<button
+  uiRipple
+  [uiRippleDisabled]="!ripple()"
+  [uiRippleColor]="rippleColor()"
+  [class]="classes()"
+  [disabled]="disabled()"
+  [type]="type()"
+  [attr.data-slot]="'button'"
+  [attr.aria-label]="ariaLabel()"
+  (click)="clicked.emit($event)"
+>
+  @if (label()) {
+    {{ label() }}
+  } @else {
+    <ng-content />
+  }
+</button>

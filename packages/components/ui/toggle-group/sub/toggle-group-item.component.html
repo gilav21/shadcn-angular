@@ -1,0 +1,12 @@
+<button
+  type="button"
+  [class]="classes()"
+  [disabled]="group?.disabled() || disabled()"
+  [attr.aria-pressed]="isSelected()"
+  [attr.data-state]="isSelected() ? 'on' : 'off'"
+  [attr.aria-label]="ariaLabel()"
+  [attr.data-slot]="'toggle-group-item'"
+  (click)="onClick()"
+>
+  <ng-content />
+</button>

@@ -4,7 +4,10 @@ export default defineConfig({
     test: {
         globals: true,
         environment: 'node',
-        include: ['packages/cli/src/**/*.{test,spec}.ts'],
+        include: [
+            'packages/cli/src/**/*.{test,spec}.ts',
+            'packages/cli/scripts/**/*.{test,spec}.ts',
+        ],
         exclude: ['**/node_modules/**', '**/dist/**'],
         reporters: ['default'],
     },

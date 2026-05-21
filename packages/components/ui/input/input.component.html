@@ -1,0 +1,12 @@
+<input
+  [class]="classes()"
+  [type]="type()"
+  [disabled]="isDisabled()"
+  [placeholder]="placeholder()"
+  [placeholder]="placeholder()"
+  [attr.data-slot]="'input'"
+  #inputRef
+  [ngModel]="value()"
+  (ngModelChange)="onValueChange($event)"
+  (blur)="onTouched()"
+/>

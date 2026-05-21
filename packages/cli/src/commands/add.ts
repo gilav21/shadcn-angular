@@ -92,9 +92,11 @@ async function fetchLibContent(file: string, options: AddOptions): Promise<strin
 }
 
 export async function fetchAndTransform(file: string, options: AddOptions, utilsAlias: string): Promise<string> {
-    let content = await fetchComponentContent(file, options);
-    content = content.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/');
-    return content;
+    const content = await fetchComponentContent(file, options);
+    // The `../lib/` → alias rewrite only applies to TypeScript sources.
+    // Template (.html) and style (.css) files are copied verbatim.
+    if (!file.endsWith('.ts')) return content;
+    return content.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/');
 }
 
 // ---------------------------------------------------------------------------
@@ -427,6 +429,7 @@ async function writePeerFiles(
             const content = contentCache.get(file)
                 ?? await fetchAndTransform(file, options, utilsAlias);
 
+            await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
             spinner.text = `Updated peer file ${file}`;
         } catch (err: unknown) {

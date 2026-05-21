@@ -1,6 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PageViewerDemoComponent } from './page-viewer-demo.component';
-import { PageRendererComponent } from '../../../packages/components/ui/page-builder/page-renderer.component';
+import { PageRendererComponent } from '../../../packages/components/ui/page-renderer';
 import { CardComponent } from '../../../packages/components/ui';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';

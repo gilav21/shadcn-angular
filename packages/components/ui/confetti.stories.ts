@@ -1,6 +1,6 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
 import { UiConfettiDirective } from './confetti.directive';
-import { ButtonComponent } from './button.component';
+import { ButtonComponent } from './button';
 import { Component } from '@angular/core';
 
 @Component({

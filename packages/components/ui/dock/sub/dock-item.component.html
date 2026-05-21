@@ -1,0 +1,6 @@
+<div [attr.data-slot]="'dock-item'" class="aspect-square w-full h-full flex items-center justify-center relative">
+  <ng-content />
+  @if (active()) {
+    <div class="absolute -bottom-1 w-1 h-1 rounded-full bg-foreground/50"></div>
+  }
+</div>

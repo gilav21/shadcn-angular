@@ -1,0 +1,16 @@
+<div
+  #dock
+  [class]="classes()"
+  [attr.data-slot]="'dock'"
+>
+  @if (hasCustomContent()) {
+    <ng-content />
+  } @else {
+    @for (item of items(); track $index) {
+      <ui-dock-item [class]="item.class || ''" [active]="item.active || false">
+        @if (item.label) { <ui-dock-label>{{ item.label }}</ui-dock-label> }
+        @if (item.icon) { <ui-dock-icon>{{ item.icon }}</ui-dock-icon> }
+      </ui-dock-item>
+    }
+  }
+</div>

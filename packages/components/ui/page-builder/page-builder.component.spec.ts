@@ -1,8 +1,8 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { PageBuilderComponent } from './page-builder.component';
-import { ComponentMeta, PageBuilderViewMode, PageData } from './page-builder.types';
+import { ComponentMeta, PageBuilderViewMode, PageData } from '../../lib/page-builder.types';
 import { By } from '@angular/platform-browser';
-import { BentoGridComponent } from '../bento-grid.component';
+import { BentoGridComponent } from '../bento-grid';
 import { Component } from '@angular/core';
 
 @Component({

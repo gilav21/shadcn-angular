@@ -1,0 +1,18 @@
+<div
+  role="radiogroup"
+  [attr.aria-orientation]="orientation()"
+  [class]="classes()"
+  [attr.data-slot]="'radio-group'"
+>
+  @if (isDataDriven()) {
+    @for (option of options(); track $index) {
+       <ui-radio-group-item
+          [value]="getValue(option)"
+          [label]="getDisplayValue(option)"
+          [disabled]="isOptionDisabled(option)"
+       />
+    }
+  } @else {
+    <ng-content />
+  }
+</div>

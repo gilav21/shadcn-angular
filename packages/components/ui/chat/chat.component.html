@@ -1,0 +1,17 @@
+<div [class]="rootClasses()" [attr.data-slot]="'chat-message'">
+  @if (showAvatar()) {
+    <ui-avatar class="h-8 w-8 shrink-0">
+      @if (avatarSrc(); as src) { <ui-avatar-image [src]="src" /> }
+      <ui-avatar-fallback>{{ avatarFallback() }}</ui-avatar-fallback>
+    </ui-avatar>
+  }
+
+  <div [class]="bubbleClasses()" [attr.data-slot]="'chat-bubble'">
+    <span #projected [class]="hasProjectedContent() ? '' : 'hidden'">
+      <ng-content />
+    </span>
+    @if (!hasProjectedContent() && content()) {
+      <span>{{ content() }}</span>
+    }
+  </div>
+</div>

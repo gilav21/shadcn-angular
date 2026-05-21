@@ -1,0 +1,9 @@
+<span [class]="classes()" [attr.data-slot]="'flip-text'">
+    @for (char of characters(); track $index) {
+        <span
+            class="inline-block animate-flip-in"
+            [style.animationDelay]="$index * delay() + 'ms'"
+            [style.animationDuration]="duration() + 'ms'"
+        >{{ displayChar(char) }}</span>
+    }
+</span>

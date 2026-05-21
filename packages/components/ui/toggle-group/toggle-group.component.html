@@ -1,0 +1,21 @@
+<div
+  [class]="classes()"
+  [attr.data-slot]="'toggle-group'"
+  [attr.data-variant]="variant()"
+  [attr.data-size]="size()"
+  role="group"
+>
+  @if (isDataDriven()) {
+    @for (item of items(); track item.value) {
+      <ui-toggle-group-item
+        [value]="item.value"
+        [disabled]="item.disabled ?? false"
+        [ariaLabel]="item.label"
+      >
+        {{ item.label ?? item.value }}
+      </ui-toggle-group-item>
+    }
+  } @else {
+    <ng-content />
+  }
+</div>

@@ -2,10 +2,11 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
-import { ContextMenuItem } from '../context-menu.component';
+import { ContextMenuItem } from '../context-menu';
 import { buildTreeFromFlat } from './data-table.utils';
-import { dateFilterFn, dateRangeFilterFn } from './data-table-date-filter.component';
-import { DateRange } from '../calendar.component';
+import { dateFilterFn } from './sub/data-table-date-filter.component';
+import { dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
+import { DateRange } from '../calendar';
 import { By } from '@angular/platform-browser';
 
 interface TestData {

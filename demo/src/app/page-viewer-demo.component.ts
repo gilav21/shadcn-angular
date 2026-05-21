@@ -1,8 +1,8 @@
 import { Component, computed, signal, Type, input, model } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { PageRendererComponent } from '../../../packages/components/ui/page-builder/page-renderer.component';
-import { PageData, ComponentMeta } from '../../../packages/components/ui/page-builder/page-builder.types';
+import { PageRendererComponent } from '../../../packages/components/ui/page-renderer';
+import { PageData, ComponentMeta } from '../../../packages/components/lib/page-builder.types';
 import { CardComponent, CardHeaderComponent, CardTitleComponent, CardDescriptionComponent, CardContentComponent, ButtonComponent, InputComponent, LabelComponent, SwitchComponent, DataTableComponent, PieChartComponent, BarChartComponent, ColumnDef, IconComponent, FieldComponent, FieldLabelComponent, FieldDescriptionComponent } from '../../../packages/components/ui';
 
 // --- Wrapper Components (Defined first to avoid reference errors) ---

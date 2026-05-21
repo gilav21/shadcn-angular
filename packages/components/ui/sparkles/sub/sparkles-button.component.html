@@ -1,0 +1,14 @@
+<ui-button
+    [class]="classes()"
+    (mouseenter)="startSparkles()"
+    (mouseleave)="stopSparkles()"
+    [variant]="variant()"
+    [size]="size()"
+>
+  <ng-content />
+  @if (hovering()) {
+    <ui-sparkles [class]="'top-[-20%] right-[-10%] w-6 h-6 text-yellow-400'" />
+    <ui-sparkles [class]="'bottom-[-10%] left-[-5%] w-4 h-4 text-cyan-400 delay-75'" />
+    <ui-sparkles [class]="'top-[10%] left-[40%] w-3 h-3 text-purple-400 delay-150'" />
+  }
+</ui-button>

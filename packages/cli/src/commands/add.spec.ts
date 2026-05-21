@@ -29,6 +29,28 @@ vi.mock('prompts', () => ({
   default: vi.fn(),
 }));
 
+// Partial registry mock: keep every real component and add one folderized
+// "trio + sub/" fixture so the install pipeline can be exercised against
+// folder-prefixed .html / .css / sub/ paths.
+vi.mock('../registry/index.js', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('../registry/index.js')>();
+  return {
+    ...actual,
+    registry: {
+      ...actual.registry,
+      'trio-fixture': {
+        name: 'trio-fixture',
+        files: [
+          'trio-fixture/trio-fixture.component.ts',
+          'trio-fixture/trio-fixture.component.html',
+          'trio-fixture/trio-fixture.component.css',
+          'trio-fixture/sub/trio-fixture-item.component.ts',
+        ],
+      },
+    },
+  };
+});
+
 const mockedFs = vi.mocked(fs);
 
 // ---------------------------------------------------------------------------
@@ -118,6 +140,46 @@ describe('fetchAndTransform', () => {
 
     const result = await fetchAndTransform('comp.ts', { branch: 'master', remote: true }, '@/lib');
     expect(result).toBe("import { Component } from '@angular/core';");
+  });
+
+  it('does NOT rewrite lib imports in a .html template file', async () => {
+    // A literal `../lib/` in template text must survive verbatim — the
+    // rewrite is gated to .ts sources only.
+    const mockContent = '<a href="../lib/docs">see ../lib/utils</a>';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(mockContent, { status: 200 }),
+    );
+
+    const result = await fetchAndTransform(
+      'button/button.component.html', { branch: 'master', remote: true }, '@/components/lib',
+    );
+    expect(result).toBe(mockContent);
+  });
+
+  it('does NOT rewrite lib imports in a .css style file', async () => {
+    const mockContent = '.x { background: url(../lib/bg.png); }';
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(mockContent, { status: 200 }),
+    );
+
+    const result = await fetchAndTransform(
+      'button/button.component.css', { branch: 'master', remote: true }, '@/components/lib',
+    );
+    expect(result).toBe(mockContent);
+  });
+
+  it('still rewrites lib imports in a folder-nested .ts file', async () => {
+    const mockContent = "import { cn } from '../../lib/utils';";
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
+      new Response(mockContent, { status: 200 }),
+    );
+
+    const result = await fetchAndTransform(
+      'accordion/sub/accordion-item.component.ts',
+      { branch: 'master', remote: true },
+      '@/components/lib',
+    );
+    expect(result).toBe("import { cn } from '@/components/lib/utils';");
   });
 });
 
@@ -558,6 +620,72 @@ describe('registry optional dependencies', () => {
         ).toBe(true);
       }
     }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Install pipeline — folderized trio + sub/ component
+// ---------------------------------------------------------------------------
+
+describe('install pipeline for a trio + sub/ component', () => {
+  const TRIO = 'trio-fixture' as ComponentName;
+
+  beforeEach(() => {
+    vi.restoreAllMocks();
+    mockedFs.existsSync.mockReturnValue(false);
+  });
+
+  it('registers a folderized component with .html/.css/sub/ files', () => {
+    expect(registry[TRIO].files).toEqual([
+      'trio-fixture/trio-fixture.component.ts',
+      'trio-fixture/trio-fixture.component.html',
+      'trio-fixture/trio-fixture.component.css',
+      'trio-fixture/sub/trio-fixture-item.component.ts',
+    ]);
+  });
+
+  it('classifies the component for install when all trio/sub files are missing', async () => {
+    mockedFs.pathExists.mockResolvedValue(false as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('// content', { status: 200 })),
+    );
+
+    const result = await classifyComponent(
+      TRIO, '/project/ui', { branch: 'master', remote: true }, '@/lib',
+      new Map(), new Set(),
+    );
+    expect(result).toBe('install');
+  });
+
+  it('skips the component when every trio/sub file is present and identical', async () => {
+    const content = '// shared identical content';
+    mockedFs.pathExists.mockResolvedValue(true as never);
+    mockedFs.readFile.mockResolvedValue(content as never);
+    // A fresh Response per fetch — the body is single-use, and the four
+    // trio/sub files trigger four fetches.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response(content, { status: 200 })),
+    );
+
+    const result = await classifyComponent(
+      TRIO, '/project/ui', { branch: 'master', remote: true }, '@/components/lib',
+      new Map(), new Set(),
+    );
+    expect(result).toBe('skip');
+  });
+
+  it('detectConflicts routes a missing trio + sub/ component to toInstall', async () => {
+    mockedFs.pathExists.mockResolvedValue(false as never);
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response('// content', { status: 200 })),
+    );
+
+    const result = await detectConflicts(
+      new Set<ComponentName>([TRIO]), '/project/ui',
+      { branch: 'master', remote: true }, '@/lib',
+    );
+    expect(result.toInstall).toContain(TRIO);
+    expect(result.conflicting).not.toContain(TRIO);
   });
 });
 

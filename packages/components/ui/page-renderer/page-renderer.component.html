@@ -1,0 +1,15 @@
+<div [class]="classes()">
+    <ui-bento-grid
+        [items]="dashboardItems()"
+        [cols]="gridCols()"
+        [rowHeight]="gridRowHeight()"
+        [columnWidth]="gridColumnWidth()"
+        [gap]="gridGap()"
+        [showBorders]="gridShowBorders()"
+        [borderRadius]="gridBorderRadius()"
+        [itemPadding]="gridItemPadding()"
+        [editable]="false"
+        (componentInit)="onComponentInit($event)"
+    >
+    </ui-bento-grid>
+</div>

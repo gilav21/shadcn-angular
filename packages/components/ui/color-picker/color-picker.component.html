@@ -1,0 +1,183 @@
+<ui-popover [open]="open()" (openChange)="open.set($event)">
+  <ui-popover-trigger>
+    <ng-content select="[colorPickerTrigger]" />
+    @if (!hasTrigger()) {
+      <button
+        type="button"
+        [class]="triggerClasses()"
+        [disabled]="isDisabled()"
+      >
+        <span
+          class="h-6 w-6 rounded border"
+          [style.backgroundColor]="currentColor()"
+        ></span>
+        <span class="flex-1 text-left text-sm truncate">{{ currentColor() || 'Select color' }}</span>
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          class="h-4 w-4 opacity-50"
+        >
+          <path d="m6 9 6 6 6-6"/>
+        </svg>
+      </button>
+    }
+  </ui-popover-trigger>
+  <ui-popover-content class="w-64 p-3" align="start" [restoreFocus]="false">
+    <div class="space-y-3">
+      <div
+        #colorArea
+        class="relative h-32 w-full cursor-crosshair rounded-md"
+        style="touch-action: none"
+        [style.background]="areaBackground()"
+        (mousedown)="onAreaMouseDown($event)"
+        (touchstart)="onAreaTouchStart($event)"
+      >
+        <div
+          class="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm"
+          [style.left.%]="saturation()"
+          [style.top.%]="100 - value()"
+          [style.backgroundColor]="currentColor()"
+        ></div>
+      </div>
+
+      <div class="space-y-1">
+        <label for="ui-color-picker-hue" class="text-xs text-muted-foreground">Hue</label>
+        <input
+          id="ui-color-picker-hue"
+          type="range"
+          min="0"
+          max="360"
+          [value]="hue()"
+          (input)="onHueChange($event)"
+          aria-label="Hue"
+          class="w-full h-3 rounded-md cursor-pointer appearance-none"
+          style="background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)"
+        />
+      </div>
+
+      @if (presets().length > 0) {
+        <fieldset class="space-y-1 border-0 p-0 m-0">
+          <legend class="text-xs text-muted-foreground p-0">Presets</legend>
+          <div class="flex flex-wrap gap-1">
+            @for (color of presets(); track color) {
+              <button
+                type="button"
+                data-color-btn
+                class="aspect-square w-6 rounded border cursor-pointer hover:scale-110 transition-transform"
+                [style.backgroundColor]="color"
+                [class.ring-2]="currentColor() === color"
+                [class.ring-primary]="currentColor() === color"
+                (click)="selectPreset(color)"
+                [attr.aria-label]="'Select ' + color"
+              ></button>
+            }
+          </div>
+        </fieldset>
+      }
+
+      <ui-tabs value="hex">
+        <ui-tabs-list class="flex justify-start w-full h-8 gap-1">
+          <ui-tabs-trigger value="hex" class="text-xs">HEX</ui-tabs-trigger>
+          <ui-tabs-trigger value="rgb" class="text-xs">RGB</ui-tabs-trigger>
+          <ui-tabs-trigger value="hsl" class="text-xs">HSL</ui-tabs-trigger>
+        </ui-tabs-list>
+        <ui-tabs-content value="hex" class="mt-2">
+          <ui-input
+            type="text"
+            [ngModel]="hexInput()"
+            (ngModelChange)="onHexInput($event)"
+            placeholder="#000000"
+            class="h-8 text-xs font-mono"
+          />
+        </ui-tabs-content>
+        <ui-tabs-content value="rgb" class="mt-2">
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">R</span>
+              <ui-input
+                type="number"
+                min="0"
+                max="255"
+                [ngModel]="rgb().r"
+                (ngModelChange)="onRgbChange('r', $event)"
+                aria-label="Red"
+                class="h-8 text-xs"
+              />
+            </div>
+            <div>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">G</span>
+              <ui-input
+                type="number"
+                min="0"
+                max="255"
+                [ngModel]="rgb().g"
+                (ngModelChange)="onRgbChange('g', $event)"
+                aria-label="Green"
+                class="h-8 text-xs"
+              />
+            </div>
+            <div>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">B</span>
+              <ui-input
+                type="number"
+                min="0"
+                max="255"
+                [ngModel]="rgb().b"
+                (ngModelChange)="onRgbChange('b', $event)"
+                aria-label="Blue"
+                class="h-8 text-xs"
+              />
+            </div>
+          </div>
+        </ui-tabs-content>
+        <ui-tabs-content value="hsl" class="mt-2">
+          <div class="grid grid-cols-3 gap-2">
+            <div>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">H</span>
+              <ui-input
+                type="number"
+                min="0"
+                max="360"
+                [ngModel]="hsl().h"
+                (ngModelChange)="hue.set($event); updateColorFromHSV()"
+                aria-label="Hue"
+                class="h-8 text-xs"
+              />
+            </div>
+            <div>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">S</span>
+              <ui-input
+                type="number"
+                min="0"
+                max="100"
+                [ngModel]="hsl().s"
+                (ngModelChange)="onHslChange('s', $event)"
+                aria-label="Saturation"
+                class="h-8 text-xs"
+              />
+            </div>
+            <div>
+              <span class="text-xs text-muted-foreground" aria-hidden="true">L</span>
+              <ui-input
+                type="number"
+                min="0"
+                max="100"
+                [ngModel]="hsl().l"
+                (ngModelChange)="onHslChange('l', $event)"
+                aria-label="Lightness"
+                class="h-8 text-xs"
+              />
+            </div>
+          </div>
+        </ui-tabs-content>
+      </ui-tabs>
+    </div>
+  </ui-popover-content>
+</ui-popover>

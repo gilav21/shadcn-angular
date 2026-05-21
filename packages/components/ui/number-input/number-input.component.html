@@ -1,0 +1,17 @@
+<div
+  [class]="wrapperClasses()"
+  [attr.data-slot]="'number-input'"
+  [attr.aria-disabled]="isDisabled() || null"
+>
+  <ui-input
+    #inputRef
+    type="number"
+    class="px-3"
+    [disabled]="isDisabled()"
+    [placeholder]="placeholder()"
+    [ngModel]="displayValue()"
+    (ngModelChange)="onInputChange($event)"
+    (blur)="onBlur()"
+    (keydown)="onKeydown($event)"
+  />
+</div>

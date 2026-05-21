@@ -1,0 +1,60 @@
+@if (label()) {
+  <div class="flex items-center gap-2">
+    <button
+      type="button"
+      role="checkbox"
+      [attr.aria-checked]="checked()"
+      [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
+      [class]="classes()"
+      [disabled]="isDisabled()"
+      [attr.id]="computedId()"
+      [attr.aria-describedby]="ariaDescribedby()"
+      [attr.aria-invalid]="ariaInvalid()"
+      [attr.data-slot]="'checkbox'"
+      (click)="toggle()"
+    >
+      @if (indeterminate()) {
+        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+        </svg>
+      } @else if (checked()) {
+        <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+        </svg>
+      }
+    </button>
+    <label
+      [attr.for]="computedId()"
+      class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
+      (click)="toggle(); $event.preventDefault()"
+    >
+      {{ label() }}
+    </label>
+  </div>
+} @else {
+  <button
+    type="button"
+    role="checkbox"
+    [attr.aria-checked]="checked()"
+    [attr.data-state]="indeterminate() ? 'indeterminate' : (checked() ? 'checked' : 'unchecked')"
+    [class]="classes()"
+    [disabled]="isDisabled()"
+    [attr.id]="elementId()"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-labelledby]="ariaLabelledby()"
+    [attr.aria-describedby]="ariaDescribedby()"
+    [attr.aria-invalid]="ariaInvalid()"
+    [attr.data-slot]="'checkbox'"
+    (click)="toggle()"
+  >
+    @if (indeterminate()) {
+      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 12h14" />
+      </svg>
+    } @else if (checked()) {
+      <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="3">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7" />
+      </svg>
+    }
+  </button>
+}

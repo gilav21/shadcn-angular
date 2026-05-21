@@ -1,0 +1,14 @@
+@if (isOpen()) {
+  <div
+    role="region"
+    [attr.id]="panelId()"
+    [attr.aria-labelledby]="triggerId()"
+    [class]="classes()"
+    [attr.data-state]="isOpen() ? 'open' : 'closed'"
+    [attr.data-slot]="'accordion-content'"
+  >
+    <div class="pb-4 pt-0">
+      <ng-content />
+    </div>
+  </div>
+}

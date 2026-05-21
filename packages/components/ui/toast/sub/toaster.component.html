@@ -1,0 +1,15 @@
+<div [class]="containerClasses()" [attr.data-slot]="'toaster'">
+  @for (toast of toastService.toasts(); track toast.id) {
+    <ui-toast
+      [variant]="toast.variant"
+      [title]="toast.title"
+      [description]="toast.description"
+      [action]="toast.action"
+      [showCountdown]="toast.showCountdown"
+      [countdownSeconds]="toast.countdownSeconds"
+      [duration]="toast.duration"
+      [createdAt]="toast.createdAt"
+      (close)="toastService.dismiss(toast.id)"
+    />
+  }
+</div>

@@ -1,0 +1,5 @@
+@if (avatar?.status() !== 'loaded') {
+    <div [class]="classes()" [attr.data-slot]="'avatar-fallback'">
+        <ng-content />
+    </div>
+}

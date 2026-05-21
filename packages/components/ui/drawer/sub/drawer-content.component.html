@@ -1,0 +1,39 @@
+@if (drawer?.open()) {
+  <div
+    class="fixed inset-0 z-50"
+    role="dialog"
+    aria-modal="true"
+    (keydown)="onKeydown($event)"
+  >
+    <!-- Overlay -->
+    <div
+      class="fixed inset-0 bg-black/50 animate-in fade-in-0"
+      [attr.data-slot]="'drawer-overlay'"
+      (click)="onOverlayClick()"
+      aria-hidden="true"
+    ></div>
+    <!-- Content -->
+    <div
+      #contentEl
+      [class]="classes()"
+      [attr.data-slot]="'drawer-content'"
+      [attr.data-state]="'open'"
+      [attr.data-vaul-drawer-direction]="direction()"
+      tabindex="-1"
+    >
+      <!-- Handle for bottom/top drawers -->
+      @if (direction() === 'bottom' || direction() === 'top') {
+        <div class="mx-auto mt-4 h-2 w-[100px] shrink-0 rounded-full bg-muted"></div>
+      }
+      @if (title()) {
+        <ui-drawer-header>
+          <ui-drawer-title>{{ title() }}</ui-drawer-title>
+          @if (description()) {
+            <ui-drawer-description>{{ description() }}</ui-drawer-description>
+          }
+        </ui-drawer-header>
+      }
+      <ng-content />
+    </div>
+  </div>
+}

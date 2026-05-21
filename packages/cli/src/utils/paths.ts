@@ -26,13 +26,15 @@ export function getLibRegistryBaseUrl(branch: string, customRegistry?: string): 
     return `${base}/lib`;
 }
 
+// From the built CLI at packages/cli/dist/utils/, the monorepo's component
+// sources are three levels up: dist/utils -> dist -> cli -> packages.
 export function getLocalComponentsDir(): string | null {
-    const localPath = path.resolve(__dirname, '../../../../components/ui');
+    const localPath = path.resolve(__dirname, '../../../components/ui');
     return fs.existsSync(localPath) ? localPath : null;
 }
 
 export function getLocalLibDir(): string | null {
-    const localPath = path.resolve(__dirname, '../../../../components/lib');
+    const localPath = path.resolve(__dirname, '../../../components/lib');
     return fs.existsSync(localPath) ? localPath : null;
 }
 

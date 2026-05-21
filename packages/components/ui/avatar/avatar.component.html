@@ -1,0 +1,23 @@
+@if (src()) {
+    <!-- Simple mode: auto-generate avatar -->
+    <img
+        [src]="src()"
+        [alt]="alt()"
+        class="aspect-square h-full w-full"
+        data-slot="avatar-image"
+        [style.display]="status() === 'loaded' ? 'block' : 'none'"
+        (load)="onLoad()"
+        (error)="onError()"
+    />
+    @if (status() !== 'loaded' && fallback()) {
+        <div class="flex h-full w-full items-center justify-center rounded-full bg-muted" data-slot="avatar-fallback">
+            {{ fallback() }}
+        </div>
+    }
+} @else if (fallback()) {
+    <div class="flex h-full w-full items-center justify-center rounded-full bg-muted" data-slot="avatar-fallback">
+        {{ fallback() }}
+    </div>
+} @else {
+    <ng-content />
+}
