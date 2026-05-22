@@ -112,6 +112,8 @@ export const DEFAULT_ICONS = {
     'settings-2': '<path d="M14 17H5" /><path d="M19 7h-9" /><circle cx="17" cy="17" r="3" /><circle cx="7" cy="7" r="3" />',
     'wrench': '<path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z" />',
     'key': '<path d="m15.5 7.5 2.3 2.3a1 1 0 0 0 1.4 0l2.1-2.1a1 1 0 0 0 0-1.4L19 4" /><path d="m21 2-9.6 9.6" /><circle cx="7.5" cy="15.5" r="5.5" />',
+    'pipette': '<path d="m2 22 1-1h3l9-9" /><path d="M3 21v-3l9-9" /><path d="m15 6 3.4-3.4a2.1 2.1 0 1 1 3 3L18 9l.4.4a2.1 2.1 0 1 1-3 3l-3.8-3.8a2.1 2.1 0 1 1 3-3l.4.4Z" />',
+    'pipette-image': '<rect width="13" height="13" x="2" y="9" rx="1" /><circle cx="6" cy="13" r="1" /><path d="m15 19-3-3-3 3" /><path d="m13 9 8-8" /><path d="m17 5 4 4" /><path d="m10 12 2 2" />',
 
     // Data & Content
     'calendar': '<path d="M8 2v4" /><path d="M16 2v4" /><rect width="18" height="18" x="3" y="4" rx="2" /><path d="M3.5 10h17" />',
@@ -1229,10 +1231,9 @@ export class IconComponent {
     private readonly sanitizer = inject(DomSanitizer);
     private readonly customIcons = inject(UI_CUSTOM_ICONS, { optional: true });
 
-    private readonly mergedIcons: Record<string, string> = {
-        ...DEFAULT_ICONS,
-        ...(this.customIcons ?? {}),
-    };
+    private readonly mergedIcons: Record<string, string> = this.customIcons
+        ? { ...DEFAULT_ICONS, ...this.customIcons }
+        : { ...DEFAULT_ICONS };
 
     readonly resolvedSize = computed(() => {
         const s = this.size();

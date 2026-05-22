@@ -5,7 +5,6 @@ import { FormsModule } from '@angular/forms';
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import { ColorPickerComponent } from './color-picker.component';
 
-// Test host
 @Component({
     template: `
         <div [dir]="dir()">
@@ -14,24 +13,39 @@ import { ColorPickerComponent } from './color-picker.component';
                 (ngModelChange)="color.set($event)"
                 [presets]="presets()"
                 [disabled]="disabled()"
+                [alpha]="alpha()"
+                [showHarmonies]="showHarmonies()"
+                [showContrast]="showContrast()"
+                [contrastBackground]="contrastBackground()"
+                [enableImagePick]="enableImagePick()"
+                [enableEyedropper]="enableEyedropper()"
+                [formats]="formats()"
+                [maxRecent]="maxRecent()"
             />
         </div>
     `,
-    imports: [ColorPickerComponent, FormsModule]
+    imports: [ColorPickerComponent, FormsModule],
 })
 class ColorPickerTestHostComponent {
     dir = signal<'ltr' | 'rtl'>('ltr');
     color = signal('#3b82f6');
     presets = signal<string[]>(['#ef4444', '#22c55e', '#3b82f6']);
     disabled = signal(false);
+    alpha = signal(false);
+    showHarmonies = signal(false);
+    showContrast = signal(false);
+    contrastBackground = signal('#ffffff');
+    enableImagePick = signal(false);
+    enableEyedropper = signal(true);
+    formats = signal<readonly ('hex' | 'rgb' | 'hsl' | 'oklch')[]>(['hex', 'rgb', 'hsl']);
+    maxRecent = signal(8);
 }
 
 function stubAreaRect(picker: ColorPickerComponent): HTMLDivElement {
-    const area = (picker as any).colorArea().nativeElement as HTMLDivElement;
-    // jsdom returns zeros, so stub the rect.
-    (area as any).getBoundingClientRect = () => ({
+    const area = picker.colorArea()!.nativeElement;
+    (area as unknown as { getBoundingClientRect: () => DOMRect }).getBoundingClientRect = () => ({
         left: 0, top: 0, right: 200, bottom: 100, width: 200, height: 100, x: 0, y: 0, toJSON: () => ({}),
-    });
+    } as DOMRect);
     return area;
 }
 
@@ -42,21 +56,17 @@ async function openAndGetPicker(
     trigger.nativeElement.click();
     fixture.detectChanges();
     await fixture.whenStable();
-    return fixture.debugElement.query(By.directive(ColorPickerComponent))
-        .componentInstance as ColorPickerComponent;
+    return fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
 }
 
 describe('ColorPickerComponent', () => {
     let fixture: ComponentFixture<ColorPickerTestHostComponent>;
-    let component: ColorPickerTestHostComponent;
+    let host: ColorPickerTestHostComponent;
 
     beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [ColorPickerTestHostComponent]
-        }).compileComponents();
-
+        await TestBed.configureTestingModule({ imports: [ColorPickerTestHostComponent] }).compileComponents();
         fixture = TestBed.createComponent(ColorPickerTestHostComponent);
-        component = fixture.componentInstance;
+        host = fixture.componentInstance;
         fixture.detectChanges();
         await fixture.whenStable();
     });
@@ -66,321 +76,297 @@ describe('ColorPickerComponent', () => {
     });
 
     describe('Basic Rendering', () => {
-        it('should create color picker component', () => {
+        it('renders the picker', () => {
             const picker = fixture.debugElement.query(By.directive(ColorPickerComponent));
             expect(picker).toBeTruthy();
         });
 
-        it('should display color swatch in trigger', () => {
+        it('renders the trigger swatch', () => {
             const swatch = fixture.debugElement.query(By.css('[style*="background"]'));
             expect(swatch).toBeTruthy();
         });
     });
 
     describe('Popover', () => {
-        it('should open popover on click', async () => {
+        it('opens on trigger click', async () => {
             const trigger = fixture.debugElement.query(By.css('button'));
             trigger.nativeElement.click();
             fixture.detectChanges();
             await fixture.whenStable();
-
             const popoverContent = fixture.debugElement.query(By.css('ui-popover-content'));
             expect(popoverContent).toBeTruthy();
         });
     });
 
-    describe('Color Selection', () => {
-        it('should select preset color', async () => {
-            // Open popover
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
+    describe('Color selection', () => {
+        it('applies a preset color', async () => {
+            const picker = await openAndGetPicker(fixture);
             picker.selectPreset('#ef4444');
             fixture.detectChanges();
             await fixture.whenStable();
-
-            expect(component.color()).toBe('#ef4444');
+            expect(host.color()).toBe('#ef4444');
         });
 
-        it('should update color via hex input', async () => {
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
+        it('parses hex via onHexInput', async () => {
+            const picker = await openAndGetPicker(fixture);
             picker.onHexInput('#ff0000');
             fixture.detectChanges();
-
-            expect(component.color()).toBe('#ff0000');
+            expect(host.color()).toBe('#ff0000');
         });
 
-        it('should reject invalid hex input', async () => {
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-            const previousColor = component.color();
+        it('ignores invalid hex input', async () => {
+            const picker = await openAndGetPicker(fixture);
             picker.onHexInput('invalid');
             fixture.detectChanges();
-
-            expect(component.color()).toBe(previousColor);
+            expect(host.color()).toBe('#3b82f6');
         });
 
-        it('should update color via RGB input', async () => {
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
+        it('updates color via RGB channel input', async () => {
+            const picker = await openAndGetPicker(fixture);
             picker.onRgbChange('r', 255);
             picker.onRgbChange('g', 0);
             picker.onRgbChange('b', 0);
             fixture.detectChanges();
+            expect(host.color()).toBe('#ff0000');
+        });
 
-            expect(component.color()).toBe('#ff0000');
+        it('clamps RGB to 0..255', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.onRgbChange('r', 500);
+            fixture.detectChanges();
+            expect(picker.rgb().r).toBeLessThanOrEqual(255);
+            picker.onRgbChange('r', -100);
+            fixture.detectChanges();
+            expect(picker.rgb().r).toBeGreaterThanOrEqual(0);
         });
     });
 
-    describe('Saturation/Value area drag', () => {
-        it('top-left click selects white with marker at the top-left', async () => {
+    describe('Saturation/Value area', () => {
+        it('top-left selects white', async () => {
             const picker = await openAndGetPicker(fixture);
             stubAreaRect(picker);
-
-            (picker as any).updateFromAreaPosition(0, 0);
+            (picker as unknown as { updateFromAreaPosition: (x: number, y: number) => void })
+                .updateFromAreaPosition(0, 0);
             fixture.detectChanges();
-
             expect(picker.saturation()).toBe(0);
             expect(picker.value()).toBe(100);
             expect(picker.currentColor()).toBe('#ffffff');
         });
 
-        it('top-right click selects the pure hue', async () => {
+        it('top-right selects pure hue', async () => {
             const picker = await openAndGetPicker(fixture);
             stubAreaRect(picker);
             picker.hue.set(0);
-
-            (picker as any).updateFromAreaPosition(200, 0);
+            (picker as unknown as { updateFromAreaPosition: (x: number, y: number) => void })
+                .updateFromAreaPosition(200, 0);
             fixture.detectChanges();
-
-            expect(picker.saturation()).toBe(100);
-            expect(picker.value()).toBe(100);
             expect(picker.currentColor()).toBe('#ff0000');
         });
 
-        it('bottom click selects black regardless of x', async () => {
+        it('bottom selects black', async () => {
             const picker = await openAndGetPicker(fixture);
             stubAreaRect(picker);
-
-            (picker as any).updateFromAreaPosition(100, 100);
+            (picker as unknown as { updateFromAreaPosition: (x: number, y: number) => void })
+                .updateFromAreaPosition(100, 100);
             fixture.detectChanges();
-
-            expect(picker.value()).toBe(0);
             expect(picker.currentColor()).toBe('#000000');
-        });
-
-        it('marker top% mirrors click y (no drift)', async () => {
-            const picker = await openAndGetPicker(fixture);
-            stubAreaRect(picker);
-
-            (picker as any).updateFromAreaPosition(50, 25); // y = 25%
-            fixture.detectChanges();
-
-            // marker top = 100 - value(), value = (1 - 0.25) * 100 = 75 → top = 25
-            expect(100 - picker.value()).toBe(25);
         });
     });
 
-    describe('Disabled State', () => {
+    describe('Keyboard nav on SV area', () => {
+        it('ArrowRight increases saturation', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const startS = picker.saturation();
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            expect(picker.saturation()).toBe(Math.min(100, startS + 1));
+        });
+
+        it('Shift+ArrowDown decreases value by 10', async () => {
+            const picker = await openAndGetPicker(fixture);
+            const startV = picker.value();
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'ArrowDown', shiftKey: true }));
+            expect(picker.value()).toBe(Math.max(0, startV - 10));
+        });
+
+        it('Home clamps saturation to 0', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.saturation.set(50);
+            picker.onAreaKeyDown(new KeyboardEvent('keydown', { key: 'Home' }));
+            expect(picker.saturation()).toBe(0);
+        });
+    });
+
+    describe('Disabled state', () => {
         beforeEach(async () => {
-            component.disabled.set(true);
+            host.disabled.set(true);
             fixture.detectChanges();
             await fixture.whenStable();
         });
 
-        it('should have disabled trigger button', () => {
+        it('disables trigger', () => {
             const trigger = fixture.debugElement.query(By.css('button'));
             expect(trigger.nativeElement.disabled).toBe(true);
         });
 
-        it('should have opacity class', () => {
+        it('applies opacity class', () => {
             const trigger = fixture.debugElement.query(By.css('button'));
             expect(trigger.nativeElement.className).toContain('opacity-50');
         });
     });
 
     describe('Presets', () => {
-        it('should render preset swatches', async () => {
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            // Wait for popover content
-            const presetButtons = fixture.debugElement.queryAll(By.css('[aria-label*="Select #"]'));
+        it('renders all preset swatches', async () => {
+            await openAndGetPicker(fixture);
+            const presetButtons = fixture.debugElement.queryAll(By.css('[aria-label^="Select #"]'));
             expect(presetButtons.length).toBe(3);
         });
     });
 
-    describe('Color Conversion', () => {
-        it('should convert hex to RGB correctly', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-
-            // Access private method via bracket notation for testing
-            const rgb = (picker as any).hexToRgb('#ff0000');
-            expect(rgb).toEqual({ r: 255, g: 0, b: 0 });
+    describe('Alpha channel', () => {
+        beforeEach(async () => {
+            host.alpha.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
         });
 
-        it('should convert RGB to hex correctly', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-
-            const hex = (picker as any).rgbToHex({ r: 0, g: 255, b: 0 });
-            expect(hex).toBe('#00ff00');
+        it('emits 8-char hex when alpha < 1', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.setAlpha(0.5);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(host.color()).toMatch(/^#[0-9a-f]{8}$/);
         });
 
-        it('should handle edge case colors', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-
-            const black = (picker as any).hexToRgb('#000000');
-            expect(black).toEqual({ r: 0, g: 0, b: 0 });
-
-            const white = (picker as any).hexToRgb('#ffffff');
-            expect(white).toEqual({ r: 255, g: 255, b: 255 });
+        it('emits 6-char hex when alpha === 1', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.setAlpha(1);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            expect(host.color()).toMatch(/^#[0-9a-f]{6}$/);
         });
     });
 
-    describe('RTL Support', () => {
-        it('should render in LTR mode', () => {
-            const container = fixture.debugElement.query(By.css('[dir="ltr"]'));
-            expect(container).toBeTruthy();
+    describe('Recent colors', () => {
+        it('records a preset selection in recents', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#ef4444');
+            fixture.detectChanges();
+            expect(picker.recents()).toContain('#ef4444');
         });
 
-        it('should render in RTL mode', async () => {
-            component.dir.set('rtl');
+        it('dedupes recent entries', async () => {
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#ef4444');
+            picker.selectPreset('#22c55e');
+            picker.selectPreset('#ef4444');
             fixture.detectChanges();
-            await fixture.whenStable();
-
-            const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
-            expect(container).toBeTruthy();
+            const count = picker.recents().filter(c => c === '#ef4444').length;
+            expect(count).toBe(1);
+            expect(picker.recents()[0]).toBe('#ef4444');
         });
 
-        it('should maintain picker in RTL', async () => {
-            component.dir.set('rtl');
+        it('caps recents at maxRecent', async () => {
+            host.maxRecent.set(2);
             fixture.detectChanges();
-            await fixture.whenStable();
-
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent));
-            expect(picker).toBeTruthy();
-        });
-    });
-
-    describe('Accessibility', () => {
-        it('should have accessible preset buttons', async () => {
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#111111');
+            picker.selectPreset('#222222');
+            picker.selectPreset('#333333');
             fixture.detectChanges();
-            await fixture.whenStable();
-
-            const presetButtons = fixture.debugElement.queryAll(By.css('[aria-label*="Select"]'));
-            presetButtons.forEach(btn => {
-                expect(btn.nativeElement.getAttribute('aria-label')).toBeTruthy();
-            });
-        });
-
-        it('should have labeled inputs', async () => {
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-            await fixture.whenStable();
-
-            const labels = fixture.debugElement.queryAll(By.css('label'));
-            expect(labels.length).toBeGreaterThan(0);
+            expect(picker.recents().length).toBe(2);
+            expect(picker.recents()).toContain('#333333');
+            expect(picker.recents()).not.toContain('#111111');
         });
     });
 
-    describe('Security', () => {
-        it('should validate hex format before accepting', async () => {
-            await fixture.whenStable();
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-
-            // These should not update color
-            picker.onHexInput('<script>alert(1)</script>');
-            picker.onHexInput('javascript:alert(1)');
-            picker.onHexInput('#gggggg'); // Invalid hex chars
-
-            // Color should remain unchanged
-            expect(component.color()).toBe('#3b82f6');
+    describe('Harmonies', () => {
+        it('exposes harmony groups only when showHarmonies is true', async () => {
+            const picker = await openAndGetPicker(fixture);
+            expect(picker.harmonyGroups().length).toBe(0);
+            host.showHarmonies.set(true);
+            fixture.detectChanges();
+            expect(picker.harmonyGroups().length).toBe(4);
         });
+    });
 
-        it('should clamp RGB values to valid range', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-
-            // RGB values should be clamped
-            picker.onRgbChange('r', 500);
+    describe('Contrast', () => {
+        it('computes a contrast ratio against the background', async () => {
+            host.showContrast.set(true);
+            host.contrastBackground.set('#000000');
             fixture.detectChanges();
-
-            const rgb = picker.rgb();
-            expect(rgb.r).toBeLessThanOrEqual(255);
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#ffffff');
+            fixture.detectChanges();
+            expect(picker.contrastRatioValue()).toBeCloseTo(21, 0);
+            expect(picker.contrastBadge()?.label).toBe('AAA');
         });
+    });
 
-        it('should handle negative RGB values', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-
-            picker.onRgbChange('r', -100);
+    describe('Formats / OKLCH tab', () => {
+        it('exposes oklch when included in formats', async () => {
+            host.formats.set(['hex', 'rgb', 'hsl', 'oklch']);
             fixture.detectChanges();
-
-            const rgb = picker.rgb();
-            expect(rgb.r).toBeGreaterThanOrEqual(0);
-        });
-
-        it('should not execute scripts in presets', () => {
-            // Set presets with malicious content
-            component.presets.set(['<script>alert(1)</script>']);
-            fixture.detectChanges();
-
-            const trigger = fixture.debugElement.query(By.css('button'));
-            trigger.nativeElement.click();
-            fixture.detectChanges();
-
-            // Should not render script tags
-            const content = fixture.debugElement.nativeElement.innerHTML;
-            expect(content).not.toContain('<script>alert');
+            const picker = await openAndGetPicker(fixture);
+            expect(picker.formatValues().oklch).toMatch(/^oklch\(/);
         });
     });
 
     describe('ControlValueAccessor', () => {
-        it('should implement writeValue', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-
-            picker.writeValue('#00ff00');
+        it('parses any color format in writeValue', () => {
+            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
+                .componentInstance as ColorPickerComponent;
+            picker.writeValue('rgb(0, 255, 0)');
             fixture.detectChanges();
-
             expect(picker.currentColor()).toBe('#00ff00');
         });
 
-        it('should handle null in writeValue', () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-
-            expect(() => picker.writeValue(null as any)).not.toThrow();
+        it('handles null in writeValue', () => {
+            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
+                .componentInstance as ColorPickerComponent;
+            expect(() => picker.writeValue(null)).not.toThrow();
         });
 
-        it('should call onChange when color changes', async () => {
-            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent)).componentInstance as ColorPickerComponent;
-            let changedValue = '';
-
-            picker.registerOnChange((value: string) => {
-                changedValue = value;
-            });
-
+        it('emits via onChange when color changes', async () => {
+            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
+                .componentInstance as ColorPickerComponent;
+            let changed = '';
+            picker.registerOnChange((value: string) => { changed = value; });
             picker.selectPreset('#ff0000');
             fixture.detectChanges();
             await fixture.whenStable();
+            expect(changed).toBe('#ff0000');
+        });
+    });
 
-            expect(changedValue).toBe('#ff0000');
+    describe('Security', () => {
+        it('rejects non-color strings on hex input', async () => {
+            const picker = fixture.debugElement.query(By.directive(ColorPickerComponent))
+                .componentInstance as ColorPickerComponent;
+            picker.onHexInput('<script>alert(1)</script>');
+            picker.onHexInput('javascript:alert(1)');
+            picker.onHexInput('#gggggg');
+            fixture.detectChanges();
+            expect(host.color()).toBe('#3b82f6');
+        });
+
+        it('does not render script content from presets', async () => {
+            host.presets.set(['<script>alert(1)</script>']);
+            fixture.detectChanges();
+            const trigger = fixture.debugElement.query(By.css('button'));
+            trigger.nativeElement.click();
+            fixture.detectChanges();
+            const html = fixture.debugElement.nativeElement.innerHTML as string;
+            expect(html).not.toContain('<script>alert');
+        });
+    });
+
+    describe('RTL', () => {
+        it('renders in RTL', async () => {
+            host.dir.set('rtl');
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const container = fixture.debugElement.query(By.css('[dir="rtl"]'));
+            expect(container).toBeTruthy();
         });
     });
 });

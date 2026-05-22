@@ -121,6 +121,8 @@ export class AppComponent {
     { id: 'checkbox', name: 'Checkbox', category: 'Inputs', icon: '☑️' },
     { id: 'chip-list', name: 'Chip List', category: 'Inputs', icon: '🏷️' },
     { id: 'color-picker', name: 'Color Picker', category: 'Inputs', icon: '🎨' },
+    { id: 'eyedropper', name: 'Eyedropper', category: 'Inputs', icon: '💧' },
+    { id: 'image-extract', name: 'Image Color Extract', category: 'Inputs', icon: '🖼️' },
     { id: 'date-picker', name: 'Date Picker', category: 'Inputs', icon: '📅' },
     { id: 'emoji-picker', name: 'Emoji Picker', category: 'Inputs', icon: '😀' },
     { id: 'field', name: 'Field', category: 'Inputs', icon: '📝' },

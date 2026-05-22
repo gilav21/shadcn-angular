@@ -8,39 +8,62 @@
         [disabled]="isDisabled()"
       >
         <span
-          class="h-6 w-6 rounded border"
+          class="h-6 w-6 rounded border ui-color-picker-checker"
           [style.backgroundColor]="currentColor()"
         ></span>
-        <span class="flex-1 text-left text-sm truncate">{{ currentColor() || 'Select color' }}</span>
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="16"
-          height="16"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          stroke-width="2"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          class="h-4 w-4 opacity-50"
-        >
-          <path d="m6 9 6 6 6-6"/>
-        </svg>
+        <span class="flex-1 text-left text-sm truncate font-mono">{{ currentColor() || 'Select color' }}</span>
+        <ui-icon name="chevron-down" class="h-4 w-4 opacity-50" />
       </button>
     }
   </ui-popover-trigger>
-  <ui-popover-content class="w-64 p-3" align="start" [restoreFocus]="false">
+  <ui-popover-content class="w-72 p-3" align="start" [restoreFocus]="false">
     <div class="space-y-3">
+
+      @if (enableEyedropper() || enableImagePick()) {
+        <div class="flex items-center justify-end gap-1">
+          @if (enableEyedropper()) {
+            <ui-eyedropper
+              variant="icon"
+              [fallbackTarget]="fallbackTarget()"
+              (colorPick)="onEyedropperPick($event)"
+            />
+          }
+          @if (enableImagePick()) {
+            <button
+              type="button"
+              class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+              (click)="openImagePicker()"
+              aria-label="Pick color from image"
+              data-slot="image-pick-trigger"
+            >
+              <ui-icon name="pipette-image" class="h-4 w-4" />
+            </button>
+            <input
+              #imageFile
+              type="file"
+              accept="image/*"
+              hidden
+              (change)="onImageSelected($event)"
+            />
+          }
+        </div>
+      }
+
       <div
         #colorArea
-        class="relative h-32 w-full cursor-crosshair rounded-md"
+        class="relative h-32 w-full cursor-crosshair rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
         style="touch-action: none"
         [style.background]="areaBackground()"
+        tabindex="0"
+        role="slider"
+        aria-label="Saturation and value"
+        [attr.aria-valuetext]="'S ' + saturation() + '%, V ' + value() + '%'"
         (mousedown)="onAreaMouseDown($event)"
         (touchstart)="onAreaTouchStart($event)"
+        (keydown)="onAreaKeyDown($event)"
       >
         <div
-          class="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm"
+          class="absolute h-4 w-4 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white shadow-sm pointer-events-none"
           [style.left.%]="saturation()"
           [style.top.%]="100 - value()"
           [style.backgroundColor]="currentColor()"
@@ -58,9 +81,70 @@
           (input)="onHueChange($event)"
           aria-label="Hue"
           class="w-full h-3 rounded-md cursor-pointer appearance-none"
-          style="background: linear-gradient(to right, #f00 0%, #ff0 17%, #0f0 33%, #0ff 50%, #00f 67%, #f0f 83%, #f00 100%)"
+          [style.background]="hueGradient"
         />
       </div>
+
+      @if (alpha()) {
+        <div class="space-y-1">
+          <label for="ui-color-picker-alpha" class="text-xs text-muted-foreground">Alpha</label>
+          <div class="relative h-3 w-full rounded-md ui-color-picker-checker">
+            <input
+              id="ui-color-picker-alpha"
+              type="range"
+              min="0"
+              max="100"
+              step="1"
+              [value]="alphaValue() * 100"
+              (input)="onAlphaChange($event)"
+              aria-label="Alpha"
+              class="absolute inset-0 w-full h-3 rounded-md cursor-pointer appearance-none"
+              [style.background]="alphaGradient()"
+            />
+          </div>
+        </div>
+      }
+
+      @if (recents().length > 0) {
+        <fieldset class="space-y-1 border-0 p-0 m-0">
+          <legend class="text-xs text-muted-foreground p-0">Recent</legend>
+          <div class="flex flex-wrap gap-1" role="list" aria-label="Recent colors">
+            @for (color of recents(); track color) {
+              <button
+                type="button"
+                class="aspect-square w-6 rounded border cursor-pointer hover:scale-110 transition-transform ui-color-picker-checker"
+                [style.backgroundColor]="color"
+                (click)="selectPreset(color)"
+                [attr.aria-label]="'Apply recent ' + color"
+              ></button>
+            }
+          </div>
+        </fieldset>
+      }
+
+      @if (extractedPalette().length > 0) {
+        <fieldset class="space-y-1 border-0 p-0 m-0">
+          <div class="flex items-center justify-between">
+            <legend class="text-xs text-muted-foreground p-0">From image</legend>
+            <button
+              type="button"
+              class="text-xs text-muted-foreground hover:text-foreground"
+              (click)="clearExtractedPalette()"
+            >Clear</button>
+          </div>
+          <div class="flex flex-wrap gap-1" role="list" aria-label="Extracted palette">
+            @for (color of extractedPalette(); track color) {
+              <button
+                type="button"
+                class="aspect-square w-6 rounded border cursor-pointer hover:scale-110 transition-transform"
+                [style.backgroundColor]="color"
+                (click)="applyExtracted(color)"
+                [attr.aria-label]="'Apply extracted ' + color"
+              ></button>
+            }
+          </div>
+        </fieldset>
+      }
 
       @if (presets().length > 0) {
         <fieldset class="space-y-1 border-0 p-0 m-0">
@@ -82,101 +166,205 @@
         </fieldset>
       }
 
-      <ui-tabs value="hex">
+      @if (showHarmonies()) {
+        <fieldset class="space-y-1 border-0 p-0 m-0">
+          <legend class="text-xs text-muted-foreground p-0">Harmonies</legend>
+          <div class="space-y-1">
+            @for (group of harmonyGroups(); track group.label) {
+              <div class="flex items-center gap-2">
+                <span class="w-20 text-[10px] text-muted-foreground">{{ group.label }}</span>
+                <div class="flex gap-1">
+                  @for (color of group.swatches; track color) {
+                    <button
+                      type="button"
+                      class="aspect-square w-5 rounded border cursor-pointer hover:scale-110 transition-transform"
+                      [style.backgroundColor]="color"
+                      (click)="selectPreset(color)"
+                      [attr.aria-label]="group.label + ' ' + color"
+                    ></button>
+                  }
+                </div>
+              </div>
+            }
+          </div>
+        </fieldset>
+      }
+
+      @if (showContrast() && contrastBadge(); as badge) {
+        <div class="flex items-center justify-between rounded-md border border-input px-2 py-1.5">
+          <div class="flex items-center gap-2">
+            <span class="h-5 w-5 rounded border" [style.backgroundColor]="contrastBackground()"></span>
+            <span class="text-xs text-muted-foreground">vs {{ contrastBackground() }}</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="font-mono text-xs">{{ contrastRatioDisplay() }}:1</span>
+            <span
+              class="rounded px-1.5 py-0.5 text-[10px] font-semibold"
+              [class.bg-green-500]="badge.pass"
+              [class.text-white]="badge.pass"
+              [class.bg-destructive]="!badge.pass"
+              [class.text-destructive-foreground]="!badge.pass"
+            >{{ badge.label }}</span>
+          </div>
+        </div>
+      }
+
+      <ui-tabs [defaultValue]="formats()[0]">
         <ui-tabs-list class="flex justify-start w-full h-8 gap-1">
-          <ui-tabs-trigger value="hex" class="text-xs">HEX</ui-tabs-trigger>
-          <ui-tabs-trigger value="rgb" class="text-xs">RGB</ui-tabs-trigger>
-          <ui-tabs-trigger value="hsl" class="text-xs">HSL</ui-tabs-trigger>
+          @for (fmt of formats(); track fmt) {
+            <ui-tabs-trigger [value]="fmt" class="text-xs uppercase">{{ fmt }}</ui-tabs-trigger>
+          }
         </ui-tabs-list>
-        <ui-tabs-content value="hex" class="mt-2">
-          <ui-input
-            type="text"
-            [ngModel]="hexInput()"
-            (ngModelChange)="onHexInput($event)"
-            placeholder="#000000"
-            class="h-8 text-xs font-mono"
-          />
-        </ui-tabs-content>
-        <ui-tabs-content value="rgb" class="mt-2">
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <span class="text-xs text-muted-foreground" aria-hidden="true">R</span>
+
+        @if (formats().includes('hex')) {
+          <ui-tabs-content value="hex" class="mt-2">
+            <div class="flex items-center gap-1">
               <ui-input
-                type="number"
-                min="0"
-                max="255"
-                [ngModel]="rgb().r"
-                (ngModelChange)="onRgbChange('r', $event)"
-                aria-label="Red"
-                class="h-8 text-xs"
+                type="text"
+                [ngModel]="formatValues().hex"
+                (ngModelChange)="onHexInput($event)"
+                placeholder="#000000"
+                class="h-8 text-xs font-mono flex-1"
               />
+              <button
+                type="button"
+                class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                (click)="copy('hex')"
+                aria-label="Copy hex"
+              >
+                <ui-icon [name]="copiedFormat() === 'hex' ? 'check' : 'copy'" class="h-4 w-4" />
+              </button>
             </div>
-            <div>
-              <span class="text-xs text-muted-foreground" aria-hidden="true">G</span>
-              <ui-input
-                type="number"
-                min="0"
-                max="255"
-                [ngModel]="rgb().g"
-                (ngModelChange)="onRgbChange('g', $event)"
-                aria-label="Green"
-                class="h-8 text-xs"
-              />
+          </ui-tabs-content>
+        }
+
+        @if (formats().includes('rgb')) {
+          <ui-tabs-content value="rgb" class="mt-2">
+            <div class="space-y-2">
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <span class="text-xs text-muted-foreground" aria-hidden="true">R</span>
+                  <ui-input
+                    type="number"
+                    min="0"
+                    max="255"
+                    [ngModel]="rgb().r"
+                    (ngModelChange)="onRgbChange('r', $event)"
+                    aria-label="Red"
+                    class="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <span class="text-xs text-muted-foreground" aria-hidden="true">G</span>
+                  <ui-input
+                    type="number"
+                    min="0"
+                    max="255"
+                    [ngModel]="rgb().g"
+                    (ngModelChange)="onRgbChange('g', $event)"
+                    aria-label="Green"
+                    class="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <span class="text-xs text-muted-foreground" aria-hidden="true">B</span>
+                  <ui-input
+                    type="number"
+                    min="0"
+                    max="255"
+                    [ngModel]="rgb().b"
+                    (ngModelChange)="onRgbChange('b', $event)"
+                    aria-label="Blue"
+                    class="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="flex-1 truncate text-xs font-mono text-muted-foreground">{{ formatValues().rgb }}</span>
+                <button
+                  type="button"
+                  class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                  (click)="copy('rgb')"
+                  aria-label="Copy rgb"
+                >
+                  <ui-icon [name]="copiedFormat() === 'rgb' ? 'check' : 'copy'" class="h-4 w-4" />
+                </button>
+              </div>
             </div>
-            <div>
-              <span class="text-xs text-muted-foreground" aria-hidden="true">B</span>
-              <ui-input
-                type="number"
-                min="0"
-                max="255"
-                [ngModel]="rgb().b"
-                (ngModelChange)="onRgbChange('b', $event)"
-                aria-label="Blue"
-                class="h-8 text-xs"
-              />
+          </ui-tabs-content>
+        }
+
+        @if (formats().includes('hsl')) {
+          <ui-tabs-content value="hsl" class="mt-2">
+            <div class="space-y-2">
+              <div class="grid grid-cols-3 gap-2">
+                <div>
+                  <span class="text-xs text-muted-foreground" aria-hidden="true">H</span>
+                  <ui-input
+                    type="number"
+                    min="0"
+                    max="360"
+                    [ngModel]="hsl().h"
+                    (ngModelChange)="onHslHueChange($event)"
+                    aria-label="Hue"
+                    class="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <span class="text-xs text-muted-foreground" aria-hidden="true">S</span>
+                  <ui-input
+                    type="number"
+                    min="0"
+                    max="100"
+                    [ngModel]="hsl().s"
+                    (ngModelChange)="onHslChange('s', $event)"
+                    aria-label="Saturation"
+                    class="h-8 text-xs"
+                  />
+                </div>
+                <div>
+                  <span class="text-xs text-muted-foreground" aria-hidden="true">L</span>
+                  <ui-input
+                    type="number"
+                    min="0"
+                    max="100"
+                    [ngModel]="hsl().l"
+                    (ngModelChange)="onHslChange('l', $event)"
+                    aria-label="Lightness"
+                    class="h-8 text-xs"
+                  />
+                </div>
+              </div>
+              <div class="flex items-center gap-1">
+                <span class="flex-1 truncate text-xs font-mono text-muted-foreground">{{ formatValues().hsl }}</span>
+                <button
+                  type="button"
+                  class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                  (click)="copy('hsl')"
+                  aria-label="Copy hsl"
+                >
+                  <ui-icon [name]="copiedFormat() === 'hsl' ? 'check' : 'copy'" class="h-4 w-4" />
+                </button>
+              </div>
             </div>
-          </div>
-        </ui-tabs-content>
-        <ui-tabs-content value="hsl" class="mt-2">
-          <div class="grid grid-cols-3 gap-2">
-            <div>
-              <span class="text-xs text-muted-foreground" aria-hidden="true">H</span>
-              <ui-input
-                type="number"
-                min="0"
-                max="360"
-                [ngModel]="hsl().h"
-                (ngModelChange)="hue.set($event); updateColorFromHSV()"
-                aria-label="Hue"
-                class="h-8 text-xs"
-              />
+          </ui-tabs-content>
+        }
+
+        @if (formats().includes('oklch')) {
+          <ui-tabs-content value="oklch" class="mt-2">
+            <div class="flex items-center gap-1">
+              <span class="flex-1 truncate text-xs font-mono text-muted-foreground">{{ formatValues().oklch }}</span>
+              <button
+                type="button"
+                class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+                (click)="copy('oklch')"
+                aria-label="Copy oklch"
+              >
+                <ui-icon [name]="copiedFormat() === 'oklch' ? 'check' : 'copy'" class="h-4 w-4" />
+              </button>
             </div>
-            <div>
-              <span class="text-xs text-muted-foreground" aria-hidden="true">S</span>
-              <ui-input
-                type="number"
-                min="0"
-                max="100"
-                [ngModel]="hsl().s"
-                (ngModelChange)="onHslChange('s', $event)"
-                aria-label="Saturation"
-                class="h-8 text-xs"
-              />
-            </div>
-            <div>
-              <span class="text-xs text-muted-foreground" aria-hidden="true">L</span>
-              <ui-input
-                type="number"
-                min="0"
-                max="100"
-                [ngModel]="hsl().l"
-                (ngModelChange)="onHslChange('l', $event)"
-                aria-label="Lightness"
-                class="h-8 text-xs"
-              />
-            </div>
-          </div>
-        </ui-tabs-content>
+          </ui-tabs-content>
+        }
       </ui-tabs>
     </div>
   </ui-popover-content>

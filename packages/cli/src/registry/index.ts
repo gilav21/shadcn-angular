@@ -92,9 +92,9 @@ export const registry = defineRegistry({
   },
   'color-picker': {
     name: 'color-picker',
-    files: ['color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/index.ts'],
-    dependencies: ['input', 'popover', 'tabs'],
-    libFiles: ['touch.ts'],
+    files: ['color-picker/color-picker.component.css', 'color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/color-picker.utils.ts', 'color-picker/index.ts'],
+    dependencies: ['eyedropper', 'icon', 'input', 'popover', 'tabs'],
+    libFiles: ['color-extract.ts', 'color.ts', 'touch.ts'],
   },
   confetti: {
     name: 'confetti',
@@ -591,6 +591,12 @@ export const registry = defineRegistry({
     name: 'data-table-context-menu',
     files: ['data-table-context-menu.directive.ts'],
     dependencies: ['context-menu', 'data-table', 'table-context-menu'],
+  },
+  eyedropper: {
+    name: 'eyedropper',
+    files: ['eyedropper/eyedropper.component.html', 'eyedropper/eyedropper.component.ts', 'eyedropper/index.ts'],
+    libFiles: ['color.ts', 'touch.ts'],
+    dependencies: ['icon'],
   },
 });
 

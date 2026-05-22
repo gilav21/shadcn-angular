@@ -35,6 +35,8 @@ export { EmojiPickerDemoComponent } from './inputs/emoji-picker-demo.component';
 export { RichTextEditorDemoComponent } from './inputs/rich-text-editor-demo.component';
 export { FileUploadDemoComponent } from './inputs/file-upload-demo.component';
 export { ColorPickerDemoComponent } from './inputs/color-picker-demo.component';
+export { EyedropperDemoComponent } from './inputs/eyedropper-demo.component';
+export { ImageExtractDemoComponent } from './inputs/image-extract-demo.component';
 
 // Overlay
 export { DialogDemoComponent } from './overlay/dialog-demo.component';
