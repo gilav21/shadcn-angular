@@ -19,6 +19,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
 import { createFlip, type FlipHandle } from '../../lib/flip';
+import { startAutoScroll, type AutoScrollController } from '../../lib/auto-scroll';
 import {
     peersInGroup,
     registerSortable,
@@ -175,6 +176,7 @@ export class SortableComponent<T> {
     readonly class = input('');
     readonly listId = input<string>('');
     readonly group = input<string>('');
+    readonly autoScroll = input<boolean>(true);
     readonly accepts = input<SortableAccepts<T>>(true);
     readonly positionClass = input<SortablePositionClassFn<T>>(() => '');
     readonly landEffect = input<SortableLandEffectFn<T>>(() => null);
@@ -196,6 +198,8 @@ export class SortableComponent<T> {
     private flipPlayHandle: ReturnType<typeof setTimeout> | null = null;
     private readonly registryEntry: SortableRegistryEntry;
     private registryUnsub: (() => void) | null = null;
+    private autoScroller: AutoScrollController | null = null;
+    private dragStartLength: number | null = null;
 
     private readonly _dragSource = signal<number | null>(null);
     private readonly _dragTarget = signal<number | null>(null);
@@ -258,6 +262,18 @@ export class SortableComponent<T> {
             }
             if (g !== '') {
                 this.registryUnsub = registerSortable(this.registryEntry);
+            }
+        });
+
+        effect(() => {
+            if (this._dragSource() === null) return;
+            if (this.disabled()) {
+                this.cancelDragDueTo('disabled');
+                return;
+            }
+            const startLen = this.dragStartLength;
+            if (startLen !== null && this.items().length !== startLen) {
+                this.cancelDragDueTo('list-changed');
             }
         });
 
@@ -369,6 +385,27 @@ export class SortableComponent<T> {
         return { ok: result.ok, reason: result.reason ?? null };
     }
 
+    /** Cancel an in-flight drag because the parent disabled the list or mutated items() under us. */
+    private cancelDragDueTo(reason: string): void {
+        const src = this._dragSource();
+        if (src === null) return;
+        const item = this.items()[src] ?? null;
+        this.dragCleanup?.();
+        this.dragCleanup = null;
+        const peer = this._hoverPeer();
+        if (peer !== null) peer.onForeignLeave();
+        this.clearDragState();
+        if (item !== null) {
+            this.dropRejected.emit({
+                item,
+                fromListId: this.resolvedListId(),
+                toListId: peer?.listId ?? this.resolvedListId(),
+                toIndex: this._hoverPeerTarget() ?? -1,
+                reason,
+            });
+        }
+    }
+
     /** Evaluate the accepts predicate for a foreign item drop. Disabled lists always reject. */
     evaluateAccepts(item: T, ctx: ForeignDropContext): AcceptResult {
         if (this.disabled()) return { ok: false, reason: 'disabled' };
@@ -432,6 +469,10 @@ export class SortableComponent<T> {
         this._dragTarget.set(fromIndex);
         this._dragDelta.set({ x: 0, y: 0 });
         this._placeholderRect.set(this.rects[fromIndex] ?? null);
+        this.dragStartLength = this.items().length;
+        if (this.autoScroll()) {
+            this.autoScroller = startAutoScroll();
+        }
 
         const startPointer = this.orientation() === 'vertical' ? startY : startX;
 
@@ -456,6 +497,7 @@ export class SortableComponent<T> {
         startPointer: number,
     ): void {
         this._dragDelta.set({ x: clientX - startX, y: clientY - startY });
+        this.autoScroller?.update(clientX, clientY);
 
         const peer = this.findHoverPeer(clientX, clientY);
         if (peer === null) {
@@ -573,11 +615,11 @@ export class SortableComponent<T> {
 
         peer.onForeignLeave();
         this.flip.measure();
+        this.clearDragState();
         const next = [...this.items()];
         next.splice(from, 1);
         this.items.set(next);
         peer.receiveItem(item, targetIndex);
-        this.clearDragState();
         this.reorder.emit({
             from: { listId: this.resolvedListId(), index: from },
             to: { listId: peer.listId, index: targetIndex },
@@ -593,6 +635,9 @@ export class SortableComponent<T> {
         this._placeholderRect.set(null);
         this._hoverPeer.set(null);
         this._hoverPeerTarget.set(null);
+        this.dragStartLength = null;
+        this.autoScroller?.stop();
+        this.autoScroller = null;
     }
 
     handleItemKeyDown(index: number, event: KeyboardEvent): void {

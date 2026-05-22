@@ -1023,6 +1023,42 @@ describe('SortableComponent', () => {
         document.body.removeChild(f.nativeElement);
     });
 
+    it('cancels an in-flight drag and emits dropRejected when items() is mutated externally', () => {
+        attachAndSizeFixture();
+        const sortable = getSortable<TestRow>(fixture);
+        const rejects: SortableDropRejectedEvent<TestRow>[] = [];
+        sortable.dropRejected.subscribe((e) => rejects.push(e));
+
+        sortable.startDrag(0, 5, 10);
+        expect(sortable.dragSource()).toBe(0);
+
+        host.rows.update((rs) => rs.slice(0, 1));
+        fixture.detectChanges();
+
+        expect(sortable.dragSource()).toBeNull();
+        expect(rejects).toHaveLength(1);
+        expect(rejects[0].reason).toBe('list-changed');
+        detachFixture();
+    });
+
+    it('cancels an in-flight drag and emits dropRejected when disabled flips true mid-drag', () => {
+        attachAndSizeFixture();
+        const sortable = getSortable<TestRow>(fixture);
+        const rejects: SortableDropRejectedEvent<TestRow>[] = [];
+        sortable.dropRejected.subscribe((e) => rejects.push(e));
+
+        sortable.startDrag(0, 5, 10);
+        expect(sortable.dragSource()).toBe(0);
+
+        host.disabled.set(true);
+        fixture.detectChanges();
+
+        expect(sortable.dragSource()).toBeNull();
+        expect(rejects).toHaveLength(1);
+        expect(rejects[0].reason).toBe('disabled');
+        detachFixture();
+    });
+
     it('animates after Escape-cancel restores order', async () => {
         attachAndSizeFixture();
         const sortable = getSortable<TestRow>(fixture);

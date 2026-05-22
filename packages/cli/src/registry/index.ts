@@ -570,7 +570,7 @@ export const registry = defineRegistry({
   sortable: {
     name: 'sortable',
     files: ['sortable/index.ts', 'sortable/sortable.component.html', 'sortable/sortable.component.ts', 'sortable/sortable.types.ts', 'sortable/sub/sortable-ghost.directive.ts', 'sortable/sub/sortable-item.component.css', 'sortable/sub/sortable-item.component.html', 'sortable/sub/sortable-item.component.ts', 'sortable/sub/sortable-placeholder.directive.ts'],
-    libFiles: ['flip.ts', 'sortable-registry.ts', 'touch.ts'],
+    libFiles: ['auto-scroll.ts', 'flip.ts', 'sortable-registry.ts', 'touch.ts'],
   },
   'context-menu-attach': {
     name: 'context-menu-attach',
