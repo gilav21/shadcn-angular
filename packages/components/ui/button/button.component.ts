@@ -49,6 +49,14 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
         '[class]': '"contents"',
     },
 })
+/**
+ * Primary button primitive. Supports the variant / size matrix declared
+ * above and forwards the click event via the `(clicked)` output.
+ *
+ * `host: { '[class]': '"contents"' }` keeps the wrapping `<ui-button>`
+ * element transparent in the layout — the inner `<button>` is the real
+ * focus / hit target.
+ */
 export class ButtonComponent {
     variant = input<ButtonVariant>('default');
     size = input<ButtonSize>('default');
