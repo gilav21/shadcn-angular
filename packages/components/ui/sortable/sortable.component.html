@@ -10,16 +10,26 @@
         <ng-content select="[uiSortableEmpty]" />
     }
 
+    <ng-template #ghostAt let-i="index">
+        @if (ghostTemplate(); as gt) {
+            <ng-container *ngTemplateOutlet="gt; context: ghostContext(i)" />
+        } @else {
+            <div class="pointer-events-none opacity-60" aria-hidden="true" data-slot="sortable-ghost">
+                <ng-container *ngTemplateOutlet="itemTemplate()!; context: ghostContext(i)" />
+            </div>
+        }
+    </ng-template>
+
     @for (item of items(); track item) {
         @if (shouldShowIndicatorBefore($index)) {
-            <div [class]="indicatorClass()" aria-hidden="true"></div>
+            <ng-container *ngTemplateOutlet="ghostAt; context: { index: $index }" />
         }
         <ng-container
             *ngTemplateOutlet="itemTemplate()!; context: { $implicit: item, index: $index }"
         />
     }
     @if (shouldShowIndicatorAfterLast()) {
-        <div [class]="indicatorClass()" aria-hidden="true"></div>
+        <ng-container *ngTemplateOutlet="ghostAt; context: { index: items().length }" />
     }
 
     <ng-content select="[uiSortableFooter]" />

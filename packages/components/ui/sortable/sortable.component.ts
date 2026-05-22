@@ -19,6 +19,8 @@ import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
 import { createFlip, type FlipHandle } from '../../lib/flip';
 import { SortableItemComponent } from './sub/sortable-item.component';
+import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
+import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 
 export { SortableItemComponent };
 
@@ -144,6 +146,8 @@ export class SortableComponent<T> {
 
     readonly containerRef = viewChild.required<ElementRef<HTMLDivElement>>('container');
     readonly itemTemplate = contentChild(SortableItemTemplateDirective, { read: TemplateRef<SortableContext<T>> });
+    readonly ghostTemplate = contentChild(SortableGhostTemplateDirective, { read: TemplateRef<SortableContext<T>> });
+    readonly placeholderTemplate = contentChild(SortablePlaceholderTemplateDirective, { read: TemplateRef<SortableContext<T>> });
 
     readonly classes = computed(() =>
         cn(
@@ -153,11 +157,17 @@ export class SortableComponent<T> {
         )
     );
 
-    readonly indicatorClass = computed(() =>
-        this.orientation() === 'vertical'
-            ? 'h-0.5 w-full bg-primary rounded pointer-events-none'
-            : 'w-0.5 self-stretch bg-primary rounded pointer-events-none'
-    );
+    /** The item currently being dragged (or null when no drag is active). */
+    readonly draggedItem = computed((): T | null => {
+        const source = this._dragSource();
+        if (source === null) return null;
+        return this.items()[source] ?? null;
+    });
+
+    /** Template context for the ghost outlet at gap `index`. */
+    ghostContext(index: number): { $implicit: T | null; index: number } {
+        return { $implicit: this.draggedItem(), index };
+    }
 
     constructor() {
         this.flip = createFlip(() => this.collectItemElements());

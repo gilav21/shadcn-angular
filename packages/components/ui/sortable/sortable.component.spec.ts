@@ -7,6 +7,7 @@ import {
     SortableItemTemplateDirective,
     SortableHandleDirective,
 } from './sortable.component';
+import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { NgTemplateOutlet } from '@angular/common';
 
 interface TestRow {
@@ -387,6 +388,70 @@ describe('SortableComponent', () => {
         f.componentInstance.rows.set([{ id: 1, name: 'A' }]);
         f.detectChanges();
         expect(f.nativeElement.querySelector('[data-testid="empty"]')).toBeNull();
+    });
+
+    it('renders a default translucent ghost at the projected drop position while dragging', () => {
+        attachAndSizeFixture();
+        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+
+        items[2].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: 95, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 5, clientY: 10 }));
+        fixture.detectChanges();
+
+        const ghost: HTMLElement | null = fixture.nativeElement.querySelector('[data-slot="sortable-ghost"]');
+        expect(ghost).not.toBeNull();
+        expect(ghost?.className).toContain('opacity-60');
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 10 }));
+        detachFixture();
+    });
+
+    it('uses a custom uiSortableGhost template when provided, instead of the default ghost', () => {
+        @Component({
+            selector: 'app-ghost-host',
+            standalone: true,
+            imports: [
+                SortableComponent,
+                SortableItemComponent,
+                SortableItemTemplateDirective,
+                SortableGhostTemplateDirective,
+                NgTemplateOutlet,
+            ],
+            template: `
+                <ui-sortable [(items)]="rows">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                    <ng-template uiSortableGhost let-row>
+                        <div data-testid="custom-ghost">Drop: {{ $any(row).name }}</div>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class GhostHost {
+            readonly rows = signal<TestRow[]>([
+                { id: 1, name: 'A' },
+                { id: 2, name: 'B' },
+                { id: 3, name: 'C' },
+            ]);
+        }
+        const f = TestBed.createComponent(GhostHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+
+        const items: NodeListOf<HTMLElement> = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        items[2].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: 95, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 5, clientY: 10 }));
+        f.detectChanges();
+
+        const custom: HTMLElement | null = f.nativeElement.querySelector('[data-testid="custom-ghost"]');
+        const defaultGhost: HTMLElement | null = f.nativeElement.querySelector('[data-slot="sortable-ghost"]');
+        expect(custom).not.toBeNull();
+        expect(custom?.textContent).toContain('C');
+        expect(defaultGhost).toBeNull();
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 10 }));
+        document.body.removeChild(f.nativeElement);
     });
 
     it('animates after Escape-cancel restores order', async () => {
