@@ -30,7 +30,9 @@ import { SortableItemComponent } from './sub/sortable-item.component';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 import type {
+    SortableAccepts,
     SortableContext,
+    SortableDropRejectedEvent,
     SortableLandEffectFn,
     SortableLocation,
     SortableOrientation,
@@ -41,7 +43,9 @@ import type {
 
 export { SortableItemComponent };
 export type {
+    SortableAccepts,
     SortableContext,
+    SortableDropRejectedEvent,
     SortableLandEffectFn,
     SortableLocation,
     SortableOrientation,
@@ -169,10 +173,12 @@ export class SortableComponent<T> {
     readonly class = input('');
     readonly listId = input<string>('');
     readonly group = input<string>('');
+    readonly accepts = input<SortableAccepts<T>>(true);
     readonly positionClass = input<SortablePositionClassFn<T>>(() => '');
     readonly landEffect = input<SortableLandEffectFn<T>>(() => null);
     readonly trackBy = input<SortableTrackByFn<T>>((item) => item);
     readonly reorder = output<SortableReorderEvent<T>>();
+    readonly dropRejected = output<SortableDropRejectedEvent<T>>();
 
     private static sortableIdCounter = 0;
     private readonly autoListId = `sortable-${++SortableComponent.sortableIdCounter}`;
@@ -195,6 +201,7 @@ export class SortableComponent<T> {
     private readonly _placeholderRect = signal<DOMRect | null>(null);
     private readonly _hoverPeer = signal<SortableRegistryEntry | null>(null);
     private readonly _hoverPeerTarget = signal<number | null>(null);
+    private readonly _rejectReason = signal<string | null>(null);
 
     readonly dragSource = this._dragSource.asReadonly();
     readonly dragTarget = this._dragTarget.asReadonly();
@@ -203,6 +210,7 @@ export class SortableComponent<T> {
     readonly placeholderRect = this._placeholderRect.asReadonly();
     readonly hoverPeer = this._hoverPeer.asReadonly();
     readonly hoverPeerTarget = this._hoverPeerTarget.asReadonly();
+    readonly rejectReason = this._rejectReason.asReadonly();
 
     private dragCleanup: (() => void) | null = null;
     private rects: DOMRect[] = [];
@@ -277,7 +285,7 @@ export class SortableComponent<T> {
             get element(): HTMLElement { return self.containerRef().nativeElement; },
             get orientation(): SortableOrientation { return self.orientation(); },
             getItemRects: (): DOMRect[] => self.getCurrentItemRects(),
-            canAccept: (_item: unknown, _ctx: ForeignDropContext): AcceptResult => true,
+            canAccept: (item: unknown, ctx: ForeignDropContext): AcceptResult => self.evaluateAccepts(item as T, ctx),
             onForeignEnter: (_item: unknown, _fromListId: string): void => undefined,
             onForeignLeave: (): void => undefined,
             receiveItem: (_item: unknown, _atIndex: number): void => undefined,
@@ -310,6 +318,15 @@ export class SortableComponent<T> {
         if (options.emit) this.emitReorder(from, to, item);
         this.schedulePlay();
         if (options.emit) this.scheduleLandEffect(from, to, item);
+    }
+
+    /** Evaluate the accepts predicate for a foreign item drop. Disabled lists always reject. */
+    evaluateAccepts(item: T, ctx: ForeignDropContext): AcceptResult {
+        if (this.disabled()) return { ok: false, reason: 'disabled' };
+        const acceptsInput = this.accepts();
+        if (typeof acceptsInput === 'boolean') return acceptsInput;
+        const ctxFull = { ...ctx, toListId: this.resolvedListId() };
+        return acceptsInput(item, ctxFull);
     }
 
     private emitReorder(fromIndex: number, toIndex: number, item: T): void {

@@ -63,3 +63,25 @@ export type SortableLandEffectFn<T> = (
 
 /** Identity function for `@for ... track`. Returns a key stable per item. */
 export type SortableTrackByFn<T> = (item: T, index: number) => unknown;
+
+/**
+ * Predicate that decides whether a foreign item may drop into this list.
+ * Receivers may return `true`, `false`, or a `{ ok, reason? }` object so
+ * sortable can surface the reason as a `data-reject` attribute that
+ * consumer CSS can pick up.
+ */
+export type SortableAccepts<T> =
+    | boolean
+    | ((
+        item: T,
+        ctx: { readonly fromListId: string; readonly toListId: string; readonly toIndex: number },
+    ) => boolean | { readonly ok: boolean; readonly reason?: string });
+
+/** Payload emitted by `(dropRejected)` when accepts() refused a drop. */
+export interface SortableDropRejectedEvent<T> {
+    readonly item: T;
+    readonly fromListId: string;
+    readonly toListId: string;
+    readonly toIndex: number;
+    readonly reason: string | null;
+}

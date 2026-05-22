@@ -829,6 +829,75 @@ describe('SortableComponent', () => {
         document.body.removeChild(f.nativeElement);
     });
 
+    it('evaluateAccepts returns true by default', () => {
+        const sortable = getSortable<TestRow>(fixture);
+        expect(sortable.evaluateAccepts({ id: 1, name: 'A' }, { fromListId: 'x', toListId: '', toIndex: 0 })).toBe(true);
+    });
+
+    it('evaluateAccepts honors a boolean false input', () => {
+        @Component({
+            selector: 'app-acc-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows" [accepts]="false" group="acc1" listId="A">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class AccHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+        }
+        const f = TestBed.createComponent(AccHost);
+        f.detectChanges();
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+        expect(sortable.evaluateAccepts({ id: 99, name: 'X' }, { fromListId: 'x', toListId: '', toIndex: 0 })).toBe(false);
+    });
+
+    it('evaluateAccepts calls the predicate function with the right context and returns its result', () => {
+        const captured: { item: TestRow; ctx: { fromListId: string; toListId: string; toIndex: number } }[] = [];
+        @Component({
+            selector: 'app-acc-fn-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows" [accepts]="acceptFn" listId="bb">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class AccFnHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+            readonly acceptFn = (item: TestRow, ctx: { fromListId: string; toListId: string; toIndex: number }): { ok: boolean; reason?: string } => {
+                captured.push({ item, ctx });
+                return { ok: false, reason: 'wip-limit' };
+            };
+        }
+        const f = TestBed.createComponent(AccFnHost);
+        f.detectChanges();
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+        const res = sortable.evaluateAccepts({ id: 9, name: 'Z' }, { fromListId: 'src', toListId: '', toIndex: 2 });
+
+        expect(res).toEqual({ ok: false, reason: 'wip-limit' });
+        expect(captured).toHaveLength(1);
+        expect(captured[0].item.name).toBe('Z');
+        expect(captured[0].ctx.fromListId).toBe('src');
+        expect(captured[0].ctx.toListId).toBe('bb');
+        expect(captured[0].ctx.toIndex).toBe(2);
+    });
+
+    it('evaluateAccepts returns disabled-rejection when [disabled]=true', () => {
+        host.disabled.set(true);
+        fixture.detectChanges();
+        const sortable = getSortable<TestRow>(fixture);
+        const res = sortable.evaluateAccepts({ id: 1, name: 'A' }, { fromListId: 'x', toListId: '', toIndex: 0 });
+        expect(res).toEqual({ ok: false, reason: 'disabled' });
+    });
+
     it('animates after Escape-cancel restores order', async () => {
         attachAndSizeFixture();
         const sortable = getSortable<TestRow>(fixture);
