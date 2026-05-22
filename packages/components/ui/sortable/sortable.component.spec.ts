@@ -10,7 +10,7 @@ import {
 } from './sortable.component';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
-import { peersInGroup, groupSize, clearRegistry } from '../../lib/sortable-registry';
+import { peersInGroup, groupSize, clearRegistry, type SortableRegistryEntry } from '../../lib/sortable-registry';
 import { NgTemplateOutlet } from '@angular/common';
 
 interface TestRow {
@@ -770,6 +770,63 @@ describe('SortableComponent', () => {
         expect(groupSize('ephemeral')).toBe(1);
         f.destroy();
         expect(groupSize('ephemeral')).toBe(0);
+    });
+
+    it('hit-tests cross-list peers and exposes hoverPeer + hoverPeerTarget', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-cross-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable
+                    [(items)]="left"
+                    group="board"
+                    listId="left"
+                    style="display:block; position:fixed; left:0px; top:0px; width:200px;">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">L{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable
+                    [(items)]="right"
+                    group="board"
+                    listId="right"
+                    style="display:block; position:fixed; left:300px; top:0px; width:200px;">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">R{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class CrossHost {
+            readonly left = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+            readonly right = signal<TestRow[]>([{ id: 3, name: 'X' }, { id: 4, name: 'Y' }]);
+        }
+
+        const f = TestBed.createComponent(CrossHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        expect(peersInGroup('board')).toHaveLength(2);
+        const leftS = f.debugElement.queryAll(el => el.componentInstance instanceof SortableComponent)
+            .map(d => d.componentInstance as SortableComponent<TestRow>)
+            .find(c => c.listId() === 'left')!;
+        expect(leftS).toBeTruthy();
+
+        const leftItems = f.nativeElement.querySelectorAll('ui-sortable')[0].querySelectorAll('[data-slot="sortable-item"]');
+        (leftItems[0] as HTMLElement).dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 10, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 50 }));
+        f.detectChanges();
+
+        expect(leftS.hoverPeer()?.listId).toBe('right');
+        expect(leftS.hoverPeerTarget()).not.toBeNull();
+
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 50, clientY: 50 }));
+        f.detectChanges();
+        expect(leftS.hoverPeer()).toBeNull();
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 50, clientY: 50 }));
+        document.body.removeChild(f.nativeElement);
     });
 
     it('animates after Escape-cancel restores order', async () => {

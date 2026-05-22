@@ -20,6 +20,7 @@ import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
 import { createFlip, type FlipHandle } from '../../lib/flip';
 import {
+    peersInGroup,
     registerSortable,
     type AcceptResult,
     type ForeignDropContext,
@@ -192,12 +193,16 @@ export class SortableComponent<T> {
     private readonly _liftedIndex = signal<number | null>(null);
     private readonly _liftOrigin = signal<number | null>(null);
     private readonly _placeholderRect = signal<DOMRect | null>(null);
+    private readonly _hoverPeer = signal<SortableRegistryEntry | null>(null);
+    private readonly _hoverPeerTarget = signal<number | null>(null);
 
     readonly dragSource = this._dragSource.asReadonly();
     readonly dragTarget = this._dragTarget.asReadonly();
     readonly dragDelta = this._dragDelta.asReadonly();
     readonly liftedIndex = this._liftedIndex.asReadonly();
     readonly placeholderRect = this._placeholderRect.asReadonly();
+    readonly hoverPeer = this._hoverPeer.asReadonly();
+    readonly hoverPeerTarget = this._hoverPeerTarget.asReadonly();
 
     private dragCleanup: (() => void) | null = null;
     private rects: DOMRect[] = [];
@@ -384,21 +389,52 @@ export class SortableComponent<T> {
         clientY: number,
         startPointer: number,
     ): void {
-        const dx = clientX - startX;
-        const dy = clientY - startY;
-        this._dragDelta.set({ x: dx, y: dy });
+        this._dragDelta.set({ x: clientX - startX, y: clientY - startY });
 
-        const pointer = this.orientation() === 'vertical' ? clientY : clientX;
+        const peer = this.findHoverPeer(clientX, clientY);
+        if (peer === null) {
+            this.updateLocalTarget(fromIndex, clientX, clientY, startPointer);
+        } else {
+            this.updatePeerTarget(peer, clientX, clientY);
+        }
+    }
+
+    private findHoverPeer(clientX: number, clientY: number): SortableRegistryEntry | null {
+        const groupName = this.group();
+        if (groupName === '') return null;
+        for (const peer of peersInGroup(groupName, this.registryEntry)) {
+            const r = peer.element.getBoundingClientRect();
+            if (clientX >= r.left && clientX <= r.right && clientY >= r.top && clientY <= r.bottom) {
+                return peer;
+            }
+        }
+        return null;
+    }
+
+    private updateLocalTarget(
+        fromIndex: number,
+        clientX: number,
+        clientY: number,
+        startPointer: number,
+    ): void {
+        this._hoverPeer.set(null);
+        this._hoverPeerTarget.set(null);
+        const isVertical = this.orientation() === 'vertical';
+        const pointer = isVertical ? clientY : clientX;
         const delta = pointer - startPointer;
         const adjustedRects = this.rects.map((r, i) => {
             if (i !== fromIndex) return r;
-            return this.orientation() === 'vertical'
+            return isVertical
                 ? new DOMRect(r.x, r.y + delta, r.width, r.height)
                 : new DOMRect(r.x + delta, r.y, r.width, r.height);
         });
+        this._dragTarget.set(computeTargetIndex(adjustedRects, pointer, this.orientation()));
+    }
 
-        const target = computeTargetIndex(adjustedRects, pointer, this.orientation());
-        this._dragTarget.set(target);
+    private updatePeerTarget(peer: SortableRegistryEntry, clientX: number, clientY: number): void {
+        this._hoverPeer.set(peer);
+        const pointer = peer.orientation === 'vertical' ? clientY : clientX;
+        this._hoverPeerTarget.set(computeTargetIndex(peer.getItemRects(), pointer, peer.orientation));
     }
 
     private onDragEnd(): void {
@@ -419,6 +455,8 @@ export class SortableComponent<T> {
         this._dragTarget.set(null);
         this._dragDelta.set({ x: 0, y: 0 });
         this._placeholderRect.set(null);
+        this._hoverPeer.set(null);
+        this._hoverPeerTarget.set(null);
     }
 
     handleItemKeyDown(index: number, event: KeyboardEvent): void {
