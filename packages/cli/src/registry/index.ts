@@ -93,7 +93,7 @@ export const registry = defineRegistry({
   'color-picker': {
     name: 'color-picker',
     files: ['color-picker/color-picker.component.css', 'color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/color-picker.utils.ts', 'color-picker/index.ts'],
-    dependencies: ['eyedropper', 'icon', 'input', 'popover', 'tabs'],
+    dependencies: ['eyedropper', 'icon', 'input', 'popover', 'tabs', 'tooltip'],
     libFiles: ['color-extract.ts', 'color.ts', 'touch.ts'],
   },
   confetti: {

@@ -17,7 +17,7 @@
     }
   </ui-popover-trigger>
   <ui-popover-content class="w-72 p-3" align="start" [restoreFocus]="false">
-    <div class="space-y-3">
+    <div class="flex flex-col gap-3">
 
       @if (enableEyedropper() || enableImagePick()) {
         <div class="flex items-center justify-end gap-1">
@@ -26,6 +26,7 @@
               variant="icon"
               [fallbackTarget]="fallbackTarget()"
               (colorPick)="onEyedropperPick($event)"
+              uiTooltip="Pick color from screen"
             />
           }
           @if (enableImagePick()) {
@@ -35,6 +36,7 @@
               (click)="openImagePicker()"
               aria-label="Pick color from image"
               data-slot="image-pick-trigger"
+              uiTooltip="Pick color from image"
             >
               <ui-icon name="pipette-image" class="h-4 w-4" />
             </button>
@@ -172,16 +174,34 @@
           <div class="space-y-1">
             @for (group of harmonyGroups(); track group.label) {
               <div class="flex items-center gap-2">
-                <span class="w-20 text-[10px] text-muted-foreground">{{ group.label }}</span>
-                <div class="flex gap-1">
+                <span
+                  class="w-20 text-[10px] text-muted-foreground cursor-help underline decoration-dotted underline-offset-2"
+                  [uiTooltip]="group.hint"
+                >{{ group.label }}</span>
+                <div class="flex items-center gap-1">
                   @for (color of group.swatches; track color) {
                     <button
                       type="button"
-                      class="aspect-square w-5 rounded border cursor-pointer hover:scale-110 transition-transform"
+                      class="relative aspect-square w-5 rounded border cursor-pointer hover:scale-110 transition-transform"
                       [style.backgroundColor]="color"
-                      (click)="selectPreset(color)"
-                      [attr.aria-label]="group.label + ' ' + color"
-                    ></button>
+                      (click)="copyHarmony(color)"
+                      [uiTooltip]="copiedHarmony() === color ? 'Copied ' + color : 'Click to copy ' + color"
+                      [attr.aria-label]="'Copy ' + color"
+                    >
+                      @if (copiedHarmony() === color) {
+                        <span class="absolute inset-0 flex items-center justify-center rounded bg-foreground/80 text-background">
+                          <ui-icon name="check" class="h-3 w-3" />
+                        </span>
+                      }
+                    </button>
+                  }
+                  @if (copiedHarmony(); as copied) {
+                    @if (groupContains(group, copied)) {
+                      <span class="ml-1 inline-flex items-center gap-1 rounded bg-green-500/15 px-1.5 py-0.5 text-[10px] font-medium text-green-700 dark:text-green-300">
+                        <ui-icon name="check" class="h-3 w-3" />
+                        {{ copied }}
+                      </span>
+                    }
                   }
                 </div>
               </div>
@@ -191,12 +211,41 @@
       }
 
       @if (showContrast() && contrastBadge(); as badge) {
-        <div class="flex items-center justify-between rounded-md border border-input px-2 py-1.5">
-          <div class="flex items-center gap-2">
-            <span class="h-5 w-5 rounded border" [style.backgroundColor]="contrastBackground()"></span>
-            <span class="text-xs text-muted-foreground">vs {{ contrastBackground() }}</span>
+        <div class="mt-3 flex items-center justify-between gap-2 rounded-md border border-input px-2 py-1.5">
+          <div class="flex items-center gap-2 min-w-0">
+            <button
+              type="button"
+              class="flex flex-col items-center gap-0.5 rounded p-1 transition focus:outline-none"
+              [class.ring-2]="compareActive() === 'a'"
+              [class.ring-ring]="compareActive() === 'a'"
+              (click)="setCompareSlot('a')"
+              uiTooltip="Edit color A with the picker above"
+              aria-label="Edit color A"
+            >
+              <span
+                class="block h-6 w-6 rounded border"
+                [style.backgroundColor]="compareAHex()"
+              ></span>
+              <span class="font-mono text-[9px] text-muted-foreground">{{ compareAHex() }}</span>
+            </button>
+            <span class="text-xs text-muted-foreground shrink-0">vs</span>
+            <button
+              type="button"
+              class="flex flex-col items-center gap-0.5 rounded p-1 transition focus:outline-none"
+              [class.ring-2]="compareActive() === 'b'"
+              [class.ring-ring]="compareActive() === 'b'"
+              (click)="setCompareSlot('b')"
+              uiTooltip="Edit color B with the picker above"
+              aria-label="Edit color B"
+            >
+              <span
+                class="block h-6 w-6 rounded border"
+                [style.backgroundColor]="compareBHex()"
+              ></span>
+              <span class="font-mono text-[9px] text-muted-foreground">{{ compareBHex() }}</span>
+            </button>
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-2 shrink-0">
             <span class="font-mono text-xs">{{ contrastRatioDisplay() }}:1</span>
             <span
               class="rounded px-1.5 py-0.5 text-[10px] font-semibold"

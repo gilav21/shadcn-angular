@@ -9,6 +9,7 @@ import {
     viewChild,
     output,
     effect,
+    untracked,
     inject,
     PLATFORM_ID,
 } from '@angular/core';
@@ -43,6 +44,7 @@ import { InputComponent } from '../input';
 import { TabsComponent, TabsListComponent, TabsTriggerComponent, TabsContentComponent } from '../tabs';
 import { IconComponent } from '../icon';
 import { EyedropperComponent } from '../eyedropper';
+import { TooltipDirective } from '../tooltip';
 import {
     keyboardStep,
     paletteToHex,
@@ -57,6 +59,7 @@ export type ColorFormat = 'hex' | 'rgb' | 'hsl' | 'oklch';
 
 interface HarmonyGroup {
     readonly label: string;
+    readonly hint: string;
     readonly swatches: readonly string[];
 }
 
@@ -77,6 +80,7 @@ const DEFAULT_RGBA: RGBA = { r: 0, g: 0, b: 0, a: 1 };
         TabsContentComponent,
         IconComponent,
         EyedropperComponent,
+        TooltipDirective,
     ],
     providers: [
         {
@@ -129,6 +133,8 @@ export class ColorPickerComponent implements ControlValueAccessor {
     private readonly internalRecents = signal<string[]>([]);
     readonly extractedPalette = signal<string[]>([]);
     readonly copiedFormat = signal<ColorFormat | null>(null);
+    readonly copiedHarmony = signal<string | null>(null);
+    private copiedHarmonyTimer: ReturnType<typeof setTimeout> | null = null;
 
     readonly hasTrigger = signal(false);
 
@@ -181,11 +187,25 @@ export class ColorPickerComponent implements ControlValueAccessor {
         oklch: formatOklch(this.rgba()),
     }));
 
+    readonly compareA = signal<RGBA>(DEFAULT_RGBA);
+    readonly compareB = signal<RGBA>({ r: 255, g: 255, b: 255, a: 1 });
+    readonly compareActive = signal<'a' | 'b'>('a');
+
+    readonly compareAHex = computed(() => formatHex(this.compareA(), this.alpha()));
+    readonly compareBHex = computed(() => formatHex(this.compareB(), this.alpha()));
+
     readonly contrastRatioValue = computed(() => {
-        const bg = parseColor(this.contrastBackground());
-        if (!bg) return null;
-        return contrastRatio(this.rgb(), bg);
+        const a = this.compareA();
+        const b = this.compareB();
+        return contrastRatio({ r: a.r, g: a.g, b: a.b }, { r: b.r, g: b.g, b: b.b });
     });
+
+    setCompareSlot(slot: 'a' | 'b'): void {
+        if (this.compareActive() === slot) return;
+        this.compareActive.set(slot);
+        const next = slot === 'a' ? this.compareA() : this.compareB();
+        this.applyRgba(next);
+    }
 
     readonly contrastRatioDisplay = computed(() => {
         const ratio = this.contrastRatioValue();
@@ -202,10 +222,31 @@ export class ColorPickerComponent implements ControlValueAccessor {
         const c = this.rgba();
         const inAlpha = this.alpha();
         return [
-            { label: 'Complementary', swatches: paletteToHex(harmonyComplementary(c), inAlpha) },
-            { label: 'Analogous', swatches: paletteToHex(harmonyAnalogous(c), inAlpha) },
-            { label: 'Triadic', swatches: paletteToHex(harmonyTriadic(c), inAlpha) },
-            { label: 'Tetradic', swatches: paletteToHex(harmonyTetradic(c), inAlpha) },
+            {
+                label: 'Readable',
+                hint: 'Best color for TEXT on this background. Black or white, whichever has higher WCAG contrast. Use this for labels, body text, or icons that must stay legible.',
+                swatches: this.readableSwatches(c),
+            },
+            {
+                label: 'Opposite',
+                hint: 'Opposite on the color wheel — vibrant visual pop. Use for accents that should grab the eye (buttons, badges, highlights). NOT a readable text color: complementary pairs often have similar brightness, so contrast for text can be poor. Use "Readable" above for text.',
+                swatches: paletteToHex(harmonyComplementary(c), inAlpha),
+            },
+            {
+                label: 'Neighbors',
+                hint: 'Sit right next to this color on the wheel — calm and harmonious. Great for backgrounds, gradients, and sections that should feel related.',
+                swatches: paletteToHex(harmonyAnalogous(c), inAlpha),
+            },
+            {
+                label: 'Trio',
+                hint: 'Three evenly-spaced colors — balanced and lively without clashing. Use one as the main color and the others as accents.',
+                swatches: paletteToHex(harmonyTriadic(c), inAlpha),
+            },
+            {
+                label: 'Quartet',
+                hint: 'Two pairs of opposites — a rich, bold four-color palette. Pick one as the dominant color, the rest as supporting accents.',
+                swatches: paletteToHex(harmonyTetradic(c), inAlpha),
+            },
         ];
     });
 
@@ -223,6 +264,19 @@ export class ColorPickerComponent implements ControlValueAccessor {
             const color = this.currentColor();
             this.onChange(color);
             this.colorChange.emit(color);
+        });
+
+        effect(() => {
+            const parsed = parseColor(this.contrastBackground());
+            if (parsed) this.compareB.set(parsed);
+        });
+
+        effect(() => {
+            const next = this.rgba();
+            untracked(() => {
+                if (this.compareActive() === 'a') this.compareA.set(next);
+                else this.compareB.set(next);
+            });
         });
 
         effect(() => {
@@ -359,7 +413,11 @@ export class ColorPickerComponent implements ControlValueAccessor {
                 count: this.imageExtractCount(),
                 algorithm: this.imageExtractAlgorithm(),
             });
-            this.extractedPalette.set(paletteToHex(palette, this.alpha()));
+            const hexPalette = paletteToHex(palette, this.alpha());
+            this.extractedPalette.set(hexPalette);
+            if (hexPalette.length > 0) {
+                this.selectPreset(hexPalette[0]);
+            }
         } catch {
             this.extractedPalette.set([]);
         } finally {
@@ -369,6 +427,29 @@ export class ColorPickerComponent implements ControlValueAccessor {
 
     clearExtractedPalette(): void {
         this.extractedPalette.set([]);
+    }
+
+    private readableSwatches(c: RGBA): readonly string[] {
+        const rgb = { r: c.r, g: c.g, b: c.b };
+        const vsBlack = contrastRatio(rgb, { r: 0, g: 0, b: 0 });
+        const vsWhite = contrastRatio(rgb, { r: 255, g: 255, b: 255 });
+        return vsBlack >= vsWhite ? ['#000000', '#ffffff'] : ['#ffffff', '#000000'];
+    }
+
+    groupContains(group: HarmonyGroup, hex: string): boolean {
+        return group.swatches.includes(hex);
+    }
+
+    async copyHarmony(hex: string): Promise<void> {
+        if (!this.isBrowser) return;
+        try {
+            await globalThis.navigator?.clipboard?.writeText(hex);
+            this.copiedHarmony.set(hex);
+            if (this.copiedHarmonyTimer) clearTimeout(this.copiedHarmonyTimer);
+            this.copiedHarmonyTimer = setTimeout(() => this.copiedHarmony.set(null), 1500);
+        } catch {
+            /* clipboard unavailable; silently no-op */
+        }
     }
 
     async copy(format: ColorFormat): Promise<void> {
