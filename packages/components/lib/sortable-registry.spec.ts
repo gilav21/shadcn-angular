@@ -18,6 +18,7 @@ function makeEntry(listId: string, group: string): SortableRegistryEntry {
         canAccept: (): AcceptResult => true,
         onForeignEnter: (): void => undefined,
         onForeignLeave: (): void => undefined,
+        setRejectReason: (): void => undefined,
         receiveItem: (): void => undefined,
         removeItem: (): void => undefined,
     };

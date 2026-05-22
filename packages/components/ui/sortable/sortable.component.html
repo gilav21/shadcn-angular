@@ -4,6 +4,7 @@
     [attr.data-slot]="'sortable'"
     [attr.aria-disabled]="disabled() ? 'true' : null"
     [attr.data-reject]="rejectReason()"
+    [attr.data-receiving]="foreignHover() ? 'true' : null"
 >
     <ng-content select="[uiSortableHeader]" />
 

@@ -7,6 +7,8 @@ import {
     SortableItemTemplateDirective,
     SortableHandleDirective,
     SORTABLE_LAND_EFFECTS,
+    type SortableReorderEvent,
+    type SortableDropRejectedEvent,
 } from './sortable.component';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
@@ -896,6 +898,129 @@ describe('SortableComponent', () => {
         const sortable = getSortable<TestRow>(fixture);
         const res = sortable.evaluateAccepts({ id: 1, name: 'A' }, { fromListId: 'x', toListId: '', toIndex: 0 });
         expect(res).toEqual({ ok: false, reason: 'disabled' });
+    });
+
+    it('cross-list drop: accepted moves the item between lists and emits reorder on the source with cross-list payload', () => {
+        clearRegistry();
+        let lastReorder: SortableReorderEvent<TestRow> | null = null;
+        let entered = 0;
+        let leftCount = 0;
+        @Component({
+            selector: 'app-cdrop-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable
+                    [(items)]="left"
+                    group="drop"
+                    listId="L"
+                    style="display:block; position:fixed; left:0px; top:0px; width:200px;"
+                    (reorder)="capture($event)">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable
+                    [(items)]="right"
+                    group="drop"
+                    listId="R"
+                    style="display:block; position:fixed; left:300px; top:0px; width:200px;"
+                    (itemEnter)="onEnter()"
+                    (itemLeave)="onLeave()">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class CDropHost {
+            readonly left = signal<TestRow[]>([{ id: 1, name: 'L1' }, { id: 2, name: 'L2' }]);
+            readonly right = signal<TestRow[]>([{ id: 3, name: 'R1' }]);
+            capture(e: SortableReorderEvent<TestRow>): void { lastReorder = e; }
+            onEnter(): void { entered++; }
+            onLeave(): void { leftCount++; }
+        }
+        const f = TestBed.createComponent(CDropHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+
+        const leftItems = f.nativeElement.querySelectorAll('ui-sortable')[0].querySelectorAll('[data-slot="sortable-item"]');
+        (leftItems[0] as HTMLElement).dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 10, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 5 }));
+        f.detectChanges();
+        expect(entered).toBe(1);
+        const rightSortableHost = f.nativeElement.querySelectorAll('ui-sortable')[1].querySelector('[data-slot="sortable"]');
+        expect(rightSortableHost?.getAttribute('data-receiving')).toBe('true');
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 350, clientY: 5 }));
+        f.detectChanges();
+
+        expect(f.componentInstance.left().map(r => r.name)).toEqual(['L2']);
+        expect(f.componentInstance.right().map(r => r.name)).toContain('L1');
+        expect(lastReorder).not.toBeNull();
+        expect(lastReorder?.from.listId).toBe('L');
+        expect(lastReorder?.to.listId).toBe('R');
+        expect(lastReorder?.item.name).toBe('L1');
+        expect(leftCount).toBe(1);
+
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('cross-list drop: rejected leaves both lists unchanged and emits (dropRejected)', () => {
+        clearRegistry();
+        let rejected: SortableDropRejectedEvent<TestRow> | null = null;
+        @Component({
+            selector: 'app-rej-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable
+                    [(items)]="left"
+                    group="rej"
+                    listId="L"
+                    style="display:block; position:fixed; left:0px; top:0px; width:200px;"
+                    (dropRejected)="capture($event)">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable
+                    [(items)]="right"
+                    group="rej"
+                    listId="R"
+                    [accepts]="rejectFn"
+                    style="display:block; position:fixed; left:300px; top:0px; width:200px;">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class RejHost {
+            readonly left = signal<TestRow[]>([{ id: 1, name: 'L1' }]);
+            readonly right = signal<TestRow[]>([{ id: 3, name: 'R1' }]);
+            readonly rejectFn = (): { ok: boolean; reason?: string } => ({ ok: false, reason: 'wip-limit' });
+            capture(e: SortableDropRejectedEvent<TestRow>): void { rejected = e; }
+        }
+        const f = TestBed.createComponent(RejHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+
+        const leftItems = f.nativeElement.querySelectorAll('ui-sortable')[0].querySelectorAll('[data-slot="sortable-item"]');
+        (leftItems[0] as HTMLElement).dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 10, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 5 }));
+        f.detectChanges();
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 350, clientY: 5 }));
+        f.detectChanges();
+
+        expect(f.componentInstance.left().map(r => r.name)).toEqual(['L1']);
+        expect(f.componentInstance.right().map(r => r.name)).toEqual(['R1']);
+        expect(rejected).not.toBeNull();
+        expect(rejected?.reason).toBe('wip-limit');
+        expect(rejected?.fromListId).toBe('L');
+        expect(rejected?.toListId).toBe('R');
+
+        document.body.removeChild(f.nativeElement);
     });
 
     it('animates after Escape-cancel restores order', async () => {

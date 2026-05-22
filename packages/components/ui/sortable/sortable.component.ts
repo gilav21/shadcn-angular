@@ -33,6 +33,7 @@ import type {
     SortableAccepts,
     SortableContext,
     SortableDropRejectedEvent,
+    SortableForeignHoverEvent,
     SortableLandEffectFn,
     SortableLocation,
     SortableOrientation,
@@ -46,6 +47,7 @@ export type {
     SortableAccepts,
     SortableContext,
     SortableDropRejectedEvent,
+    SortableForeignHoverEvent,
     SortableLandEffectFn,
     SortableLocation,
     SortableOrientation,
@@ -179,6 +181,8 @@ export class SortableComponent<T> {
     readonly trackBy = input<SortableTrackByFn<T>>((item) => item);
     readonly reorder = output<SortableReorderEvent<T>>();
     readonly dropRejected = output<SortableDropRejectedEvent<T>>();
+    readonly itemEnter = output<SortableForeignHoverEvent<T>>();
+    readonly itemLeave = output<SortableForeignHoverEvent<T>>();
 
     private static sortableIdCounter = 0;
     private readonly autoListId = `sortable-${++SortableComponent.sortableIdCounter}`;
@@ -202,6 +206,7 @@ export class SortableComponent<T> {
     private readonly _hoverPeer = signal<SortableRegistryEntry | null>(null);
     private readonly _hoverPeerTarget = signal<number | null>(null);
     private readonly _rejectReason = signal<string | null>(null);
+    private readonly _foreignHover = signal<{ readonly item: T; readonly fromListId: string } | null>(null);
 
     readonly dragSource = this._dragSource.asReadonly();
     readonly dragTarget = this._dragTarget.asReadonly();
@@ -211,6 +216,7 @@ export class SortableComponent<T> {
     readonly hoverPeer = this._hoverPeer.asReadonly();
     readonly hoverPeerTarget = this._hoverPeerTarget.asReadonly();
     readonly rejectReason = this._rejectReason.asReadonly();
+    readonly foreignHover = this._foreignHover.asReadonly();
 
     private dragCleanup: (() => void) | null = null;
     private rects: DOMRect[] = [];
@@ -286,10 +292,11 @@ export class SortableComponent<T> {
             get orientation(): SortableOrientation { return self.orientation(); },
             getItemRects: (): DOMRect[] => self.getCurrentItemRects(),
             canAccept: (item: unknown, ctx: ForeignDropContext): AcceptResult => self.evaluateAccepts(item as T, ctx),
-            onForeignEnter: (_item: unknown, _fromListId: string): void => undefined,
-            onForeignLeave: (): void => undefined,
-            receiveItem: (_item: unknown, _atIndex: number): void => undefined,
-            removeItem: (_item: unknown): void => undefined,
+            onForeignEnter: (item: unknown, fromListId: string): void => self.handleForeignEnter(item as T, fromListId),
+            onForeignLeave: (): void => self.handleForeignLeave(),
+            setRejectReason: (reason: string | null): void => self._rejectReason.set(reason),
+            receiveItem: (item: unknown, atIndex: number): void => self.handleReceiveItem(item as T, atIndex),
+            removeItem: (item: unknown): void => self.handleRemoveItem(item as T),
         };
     }
 
@@ -318,6 +325,48 @@ export class SortableComponent<T> {
         if (options.emit) this.emitReorder(from, to, item);
         this.schedulePlay();
         if (options.emit) this.scheduleLandEffect(from, to, item);
+    }
+
+    /** Receiver-side handler invoked when a foreign item starts hovering this list. */
+    private handleForeignEnter(item: T, fromListId: string): void {
+        this._foreignHover.set({ item, fromListId });
+        this.itemEnter.emit({ item, fromListId });
+    }
+
+    /** Receiver-side handler invoked when the hovering foreign item leaves this list. */
+    private handleForeignLeave(): void {
+        const current = this._foreignHover();
+        this._foreignHover.set(null);
+        this._rejectReason.set(null);
+        if (current !== null) {
+            this.itemLeave.emit(current);
+        }
+    }
+
+    /** Receiver-side handler: insert a foreign item at `atIndex` (caller validated canAccept). */
+    private handleReceiveItem(item: T, atIndex: number): void {
+        this.flip.measure();
+        const next = [...this.items()];
+        next.splice(atIndex, 0, item);
+        this.items.set(next);
+        this.schedulePlay();
+    }
+
+    /** Source-side handler: remove `item` from this list by reference. */
+    private handleRemoveItem(item: T): void {
+        const idx = this.items().indexOf(item);
+        if (idx === -1) return;
+        this.flip.measure();
+        const next = [...this.items()];
+        next.splice(idx, 1);
+        this.items.set(next);
+        this.schedulePlay();
+    }
+
+    /** Normalize an AcceptResult to a uniform `{ ok, reason }` shape. */
+    private normalizeAccept(result: AcceptResult): { ok: boolean; reason: string | null } {
+        if (typeof result === 'boolean') return { ok: result, reason: null };
+        return { ok: result.ok, reason: result.reason ?? null };
     }
 
     /** Evaluate the accepts predicate for a foreign item drop. Disabled lists always reject. */
@@ -434,6 +483,10 @@ export class SortableComponent<T> {
         clientY: number,
         startPointer: number,
     ): void {
+        const previousPeer = this._hoverPeer();
+        if (previousPeer !== null) {
+            previousPeer.onForeignLeave();
+        }
         this._hoverPeer.set(null);
         this._hoverPeerTarget.set(null);
         const isVertical = this.orientation() === 'vertical';
@@ -449,22 +502,88 @@ export class SortableComponent<T> {
     }
 
     private updatePeerTarget(peer: SortableRegistryEntry, clientX: number, clientY: number): void {
+        const previousPeer = this._hoverPeer();
+        if (previousPeer !== null && previousPeer !== peer) {
+            previousPeer.onForeignLeave();
+        }
+        if (previousPeer !== peer) {
+            const item = this.draggedItem();
+            if (item !== null) {
+                peer.onForeignEnter(item, this.resolvedListId());
+            }
+        }
         this._hoverPeer.set(peer);
         const pointer = peer.orientation === 'vertical' ? clientY : clientX;
-        this._hoverPeerTarget.set(computeTargetIndex(peer.getItemRects(), pointer, peer.orientation));
+        const target = computeTargetIndex(peer.getItemRects(), pointer, peer.orientation);
+        this._hoverPeerTarget.set(target);
+        this.updatePeerRejectVisual(peer, target);
+    }
+
+    /** Push the receiving peer's `data-reject` attribute based on a live evaluation of accepts. */
+    private updatePeerRejectVisual(peer: SortableRegistryEntry, toIndex: number): void {
+        const item = this.draggedItem();
+        if (item === null) return;
+        const result = peer.canAccept(item, { fromListId: this.resolvedListId(), toIndex });
+        const norm = this.normalizeAccept(result);
+        peer.setRejectReason(norm.ok ? null : (norm.reason ?? 'rejected'));
     }
 
     private onDragEnd(): void {
         const from = this._dragSource();
-        const gap = this._dragTarget();
         this.dragCleanup = null;
 
-        if (from === null || gap === null) {
+        if (from === null) {
+            this.clearDragState();
+            return;
+        }
+
+        const peer = this._hoverPeer();
+        if (peer !== null) {
+            this.commitCrossListDrop(from, peer);
+            return;
+        }
+
+        const gap = this._dragTarget();
+        if (gap === null) {
             this.clearDragState();
             return;
         }
         const to = gap > from ? gap - 1 : gap;
         this.applyReorder(from, to, { clearDrag: true, emit: true });
+    }
+
+    private commitCrossListDrop(from: number, peer: SortableRegistryEntry): void {
+        const item = this.items()[from];
+        const targetIndex = this._hoverPeerTarget() ?? 0;
+        const ctx: ForeignDropContext = { fromListId: this.resolvedListId(), toIndex: targetIndex };
+        const norm = this.normalizeAccept(peer.canAccept(item, ctx));
+
+        if (!norm.ok) {
+            peer.onForeignLeave();
+            this.clearDragState();
+            this.dropRejected.emit({
+                item,
+                fromListId: this.resolvedListId(),
+                toListId: peer.listId,
+                toIndex: targetIndex,
+                reason: norm.reason,
+            });
+            return;
+        }
+
+        peer.onForeignLeave();
+        this.flip.measure();
+        const next = [...this.items()];
+        next.splice(from, 1);
+        this.items.set(next);
+        peer.receiveItem(item, targetIndex);
+        this.clearDragState();
+        this.reorder.emit({
+            from: { listId: this.resolvedListId(), index: from },
+            to: { listId: peer.listId, index: targetIndex },
+            item,
+        });
+        this.schedulePlay();
     }
 
     private clearDragState(): void {

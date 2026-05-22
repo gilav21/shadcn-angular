@@ -85,3 +85,9 @@ export interface SortableDropRejectedEvent<T> {
     readonly toIndex: number;
     readonly reason: string | null;
 }
+
+/** Payload emitted by `(itemEnter)` / `(itemLeave)` on the receiving list. */
+export interface SortableForeignHoverEvent<T> {
+    readonly item: T;
+    readonly fromListId: string;
+}

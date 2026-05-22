@@ -61,6 +61,13 @@ export interface SortableRegistryEntry {
     /** Clear the foreign-hovering affordance. */
     onForeignLeave(): void;
 
+    /**
+     * Live-update the receiving list's reject visual. Passed by the source on
+     * every hover so the receiver can re-evaluate accepts as the target index
+     * shifts. Pass `null` to clear (accepted).
+     */
+    setRejectReason(reason: string | null): void;
+
     /** Commit: insert a foreign item at `atIndex` (caller has already validated `canAccept`). */
     receiveItem(item: unknown, atIndex: number): void;
 
