@@ -8,6 +8,10 @@ import {
 import { cn } from '../../../lib/utils';
 import { SortableComponent } from '../sortable.component';
 
+function prefersReducedMotion(): boolean {
+    return globalThis.window?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
+}
+
 /** Wraps one rendered row inside ui-sortable. */
 @Component({
     selector: 'ui-sortable-item',
@@ -32,8 +36,8 @@ export class SortableItemComponent {
         return cn(
             'relative flex items-center gap-2 select-none outline-none',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded',
-            bodyDraggable ? 'touch-none' : '',
-            isSource ? 'z-10' : '',
+            bodyDraggable ? 'touch-none cursor-grab active:cursor-grabbing' : '',
+            isSource ? 'z-50 shadow-2xl' : '',
             isLifted ? 'ring-2 ring-primary ring-offset-1 rounded' : '',
             this.class(),
         );
@@ -43,10 +47,11 @@ export class SortableItemComponent {
         const idx = this.index();
         if (this.parent?.dragSource() !== idx) return {};
         const delta = this.parent?.dragDelta() ?? { x: 0, y: 0 };
+        const lift = prefersReducedMotion() ? '' : ' scale(1.02) rotate(1.5deg)';
         return {
-            transform: `translate(${delta.x}px, ${delta.y}px)`,
+            transform: `translate(${delta.x}px, ${delta.y}px)${lift}`,
             position: 'relative',
-            'z-index': '10',
+            'z-index': '50',
         };
     });
 

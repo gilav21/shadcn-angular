@@ -519,6 +519,38 @@ describe('SortableComponent', () => {
         document.body.removeChild(f.nativeElement);
     });
 
+    it('applies lift effect (scale + rotate + shadow + z-50) to the source while dragging', () => {
+        attachAndSizeFixture();
+        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+
+        const sourceEl = items[0];
+        sourceEl.dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: 10, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 5, clientY: 30 }));
+        fixture.detectChanges();
+
+        expect(sourceEl.className).toContain('z-50');
+        expect(sourceEl.className).toContain('shadow-2xl');
+        const transform = sourceEl.style.transform;
+        expect(transform).toContain('translate');
+        expect(transform).toContain('scale(1.02)');
+        expect(transform).toContain('rotate(1.5deg)');
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 30 }));
+        detachFixture();
+    });
+
+    it('shows cursor-grab on body-draggable items, hides it when handleOnly is set', () => {
+        const sortable = getSortable<TestRow>(fixture);
+        expect(sortable).toBeTruthy();
+        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        expect(items[0].className).toContain('cursor-grab');
+
+        host.handleOnly.set(true);
+        fixture.detectChanges();
+        const itemsAfter: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        expect(itemsAfter[0].className).not.toContain('cursor-grab');
+    });
+
     it('animates after Escape-cancel restores order', async () => {
         attachAndSizeFixture();
         const sortable = getSortable<TestRow>(fixture);
