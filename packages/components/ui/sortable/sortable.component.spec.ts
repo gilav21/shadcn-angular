@@ -10,6 +10,7 @@ import {
 } from './sortable.component';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
+import { peersInGroup, groupSize, clearRegistry } from '../../lib/sortable-registry';
 import { NgTemplateOutlet } from '@angular/common';
 
 interface TestRow {
@@ -711,6 +712,64 @@ describe('SortableComponent', () => {
         const trackFn = sortable.trackBy();
         const item: TestRow = { id: 99, name: 'X' };
         expect(trackFn(item, 0)).toBe(item);
+    });
+
+    it('registers with the group registry when [group] is non-empty', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-grp-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows" group="my-grp" listId="A">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class GrpHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+        }
+        const f = TestBed.createComponent(GrpHost);
+        f.detectChanges();
+        expect(groupSize('my-grp')).toBe(1);
+        const peers = peersInGroup('my-grp');
+        expect(peers[0].listId).toBe('A');
+        expect(peers[0].group).toBe('my-grp');
+        expect(peers[0].orientation).toBe('vertical');
+    });
+
+    it('does not register when [group] is empty (the default)', () => {
+        clearRegistry();
+        const sortable = getSortable<TestRow>(fixture);
+        expect(sortable).toBeTruthy();
+        expect(groupSize('')).toBe(0);
+        expect(groupSize('any')).toBe(0);
+    });
+
+    it('unregisters on destroy', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-destroy-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows" group="ephemeral">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class DestroyHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+        }
+        const f = TestBed.createComponent(DestroyHost);
+        f.detectChanges();
+        expect(groupSize('ephemeral')).toBe(1);
+        f.destroy();
+        expect(groupSize('ephemeral')).toBe(0);
     });
 
     it('animates after Escape-cancel restores order', async () => {

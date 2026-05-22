@@ -2,6 +2,7 @@ import {
     Component,
     ChangeDetectionStrategy,
     Directive,
+    effect,
     input,
     model,
     output,
@@ -18,6 +19,12 @@ import { NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
 import { createFlip, type FlipHandle } from '../../lib/flip';
+import {
+    registerSortable,
+    type AcceptResult,
+    type ForeignDropContext,
+    type SortableRegistryEntry,
+} from '../../lib/sortable-registry';
 import { SortableItemComponent } from './sub/sortable-item.component';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
@@ -160,6 +167,7 @@ export class SortableComponent<T> {
     readonly disabled = input<boolean>(false);
     readonly class = input('');
     readonly listId = input<string>('');
+    readonly group = input<string>('');
     readonly positionClass = input<SortablePositionClassFn<T>>(() => '');
     readonly landEffect = input<SortableLandEffectFn<T>>(() => null);
     readonly trackBy = input<SortableTrackByFn<T>>((item) => item);
@@ -175,6 +183,8 @@ export class SortableComponent<T> {
     private static readonly DEFAULT_ANIMATE_MS = 200;
     private readonly flip: FlipHandle;
     private flipPlayHandle: ReturnType<typeof setTimeout> | null = null;
+    private readonly registryEntry: SortableRegistryEntry;
+    private registryUnsub: (() => void) | null = null;
 
     private readonly _dragSource = signal<number | null>(null);
     private readonly _dragTarget = signal<number | null>(null);
@@ -219,6 +229,19 @@ export class SortableComponent<T> {
 
     constructor() {
         this.flip = createFlip(() => this.collectItemElements());
+        this.registryEntry = this.buildRegistryEntry();
+
+        effect(() => {
+            const g = this.group();
+            if (this.registryUnsub) {
+                this.registryUnsub();
+                this.registryUnsub = null;
+            }
+            if (g !== '') {
+                this.registryUnsub = registerSortable(this.registryEntry);
+            }
+        });
+
         this.destroyRef.onDestroy(() => {
             this.dragCleanup?.();
             this.dragCleanup = null;
@@ -226,12 +249,35 @@ export class SortableComponent<T> {
                 clearTimeout(this.flipPlayHandle);
                 this.flipPlayHandle = null;
             }
+            this.registryUnsub?.();
+            this.registryUnsub = null;
         });
     }
 
     private collectItemElements(): HTMLElement[] {
         const root = this.containerRef().nativeElement;
         return Array.from(root.querySelectorAll<HTMLElement>('[data-slot="sortable-item"]'));
+    }
+
+    private getCurrentItemRects(): DOMRect[] {
+        return this.collectItemElements().map(el => el.getBoundingClientRect());
+    }
+
+    /** Stable proxy that adapts this component to the `SortableRegistryEntry` contract. */
+    private buildRegistryEntry(): SortableRegistryEntry {
+        const self = this;
+        return {
+            get listId(): string { return self.resolvedListId(); },
+            get group(): string { return self.group(); },
+            get element(): HTMLElement { return self.containerRef().nativeElement; },
+            get orientation(): SortableOrientation { return self.orientation(); },
+            getItemRects: (): DOMRect[] => self.getCurrentItemRects(),
+            canAccept: (_item: unknown, _ctx: ForeignDropContext): AcceptResult => true,
+            onForeignEnter: (_item: unknown, _fromListId: string): void => undefined,
+            onForeignLeave: (): void => undefined,
+            receiveItem: (_item: unknown, _atIndex: number): void => undefined,
+            removeItem: (_item: unknown): void => undefined,
+        };
     }
 
     private schedulePlay(): void {
