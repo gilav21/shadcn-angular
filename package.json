@@ -22,10 +22,10 @@
     "docs:json": "compodoc -p tsconfig.json -e json -d .",
     "e2e:build-cli": "cd packages/cli && npm run build",
     "e2e": "tsx e2e/orchestrator/run.ts",
-    "e2e:component": "tsx e2e/orchestrator/run.ts",
     "e2e:headed": "tsx e2e/orchestrator/run.ts --headed",
     "e2e:ui": "tsx e2e/orchestrator/run.ts --ui",
-    "e2e:debug": "tsx e2e/orchestrator/run.ts --debug"
+    "e2e:debug": "tsx e2e/orchestrator/run.ts --debug",
+    "e2e:reset": "tsx e2e/orchestrator/reset.ts"
   },
   "keywords": [
     "angular",

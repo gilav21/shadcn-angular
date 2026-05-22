@@ -30,10 +30,10 @@ npm install
 npx playwright install chromium
 
 # Run a single component end-to-end (headless, fast)
-npm run e2e:component -- button
+npm run e2e -- button
 
 # Run a subset
-npm run e2e:component -- button dialog popover
+npm run e2e -- button dialog popover
 
 # Run everything (15 components + prefix smoke test)
 npm run e2e
@@ -52,16 +52,16 @@ component the orchestrator iterates over.
 ```bash
 # Visible browser, autonomous run (best for "show me what's happening")
 npm run e2e:headed -- button
-npm run e2e:component -- button --headed
+npm run e2e -- button --headed
 
 # Playwright UI Mode — timeline, time-travel snapshots, watch mode.
 # Blocks until you close the UI. Best for authoring or debugging a spec.
 npm run e2e:ui -- button
-npm run e2e:component -- button --ui
+npm run e2e -- button --ui
 
 # Playwright Inspector — pause-on-every-action, step through.
 npm run e2e:debug -- button
-npm run e2e:component -- button --debug
+npm run e2e -- button --debug
 ```
 
 `--ui` and `--debug` open an interactive window per component, so
@@ -125,7 +125,7 @@ e2e/
    not styling.
 3. Add the component to `ALL_COMPONENTS` in
    `e2e/orchestrator/run.ts`.
-4. Run `npm run e2e:component -- <name>` and iterate.
+4. Run `npm run e2e -- <name>` and iterate.
 
 Keep harness pages small — 10-30 lines each. They are not feature
 demonstrations; they exist to confirm the component reaches the user in
@@ -139,7 +139,7 @@ component's selector, rerun, confirm the spec fails, then revert.
 ```bash
 # Manually edit packages/components/ui/button/button.component.ts
 #   selector: 'ui-button'  →  selector: 'ui-broken-button'
-npm run e2e:component -- button
+npm run e2e -- button
 # Spec must FAIL (Angular can't match the harness's <ui-button> tag).
 # Revert the change; rerun; spec must pass.
 ```
@@ -155,8 +155,9 @@ on a busy port rather than picking a different one, because Playwright's
 `baseURL` is hardcoded.
 
 **Fixture is dirty after a failed run** — the orchestrator's
-`assertFixtureClean` will flag this on the next run. You can also reset
-manually: `git checkout HEAD -- e2e/fixture-app && git clean -fd e2e/fixture-app/`.
+`assertFixtureClean` will flag this on the next run. To reset on demand:
+`npm run e2e:reset` (runs the same `git checkout HEAD -- e2e/fixture-app
+&& git clean -fd e2e/fixture-app/` the orchestrator uses between specs).
 
 **`ng serve` never becomes ready** — usually means a compile error in the
 harness page. Check the spawned stdout for the actual diagnostic. The
