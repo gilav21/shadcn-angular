@@ -299,6 +299,96 @@ describe('SortableComponent', () => {
         detachFixture();
     });
 
+    it('projects uiSortableHeader content above the items', () => {
+        @Component({
+            selector: 'app-slot-host',
+            standalone: true,
+            imports: [
+                SortableComponent,
+                SortableItemComponent,
+                SortableItemTemplateDirective,
+                NgTemplateOutlet,
+            ],
+            template: `
+                <ui-sortable [(items)]="rows">
+                    <div uiSortableHeader data-testid="header">HEADER</div>
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">
+                            <span class="name">{{ $any(row).name }}</span>
+                        </ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class SlotHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+        }
+        const f = TestBed.createComponent(SlotHost);
+        f.detectChanges();
+        const header: HTMLElement | null = f.nativeElement.querySelector('[data-testid="header"]');
+        expect(header).not.toBeNull();
+        expect(header?.textContent).toBe('HEADER');
+    });
+
+    it('projects uiSortableFooter content below the items', () => {
+        @Component({
+            selector: 'app-footer-host',
+            standalone: true,
+            imports: [
+                SortableComponent,
+                SortableItemComponent,
+                SortableItemTemplateDirective,
+                NgTemplateOutlet,
+            ],
+            template: `
+                <ui-sortable [(items)]="rows">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                    <div uiSortableFooter data-testid="footer">FOOTER</div>
+                </ui-sortable>
+            `,
+        })
+        class FooterHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+        }
+        const f = TestBed.createComponent(FooterHost);
+        f.detectChanges();
+        const footer: HTMLElement | null = f.nativeElement.querySelector('[data-testid="footer"]');
+        expect(footer).not.toBeNull();
+    });
+
+    it('projects uiSortableEmpty only when items is empty', () => {
+        @Component({
+            selector: 'app-empty-host',
+            standalone: true,
+            imports: [
+                SortableComponent,
+                SortableItemComponent,
+                SortableItemTemplateDirective,
+                NgTemplateOutlet,
+            ],
+            template: `
+                <ui-sortable [(items)]="rows">
+                    <div uiSortableEmpty data-testid="empty">No items</div>
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class EmptyHost {
+            readonly rows = signal<TestRow[]>([]);
+        }
+        const f = TestBed.createComponent(EmptyHost);
+        f.detectChanges();
+        expect(f.nativeElement.querySelector('[data-testid="empty"]')).not.toBeNull();
+
+        f.componentInstance.rows.set([{ id: 1, name: 'A' }]);
+        f.detectChanges();
+        expect(f.nativeElement.querySelector('[data-testid="empty"]')).toBeNull();
+    });
+
     it('animates after Escape-cancel restores order', async () => {
         attachAndSizeFixture();
         const sortable = getSortable<TestRow>(fixture);

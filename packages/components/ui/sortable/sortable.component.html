@@ -4,6 +4,12 @@
     [attr.data-slot]="'sortable'"
     [attr.aria-disabled]="disabled() ? 'true' : null"
 >
+    <ng-content select="[uiSortableHeader]" />
+
+    @if (items().length === 0) {
+        <ng-content select="[uiSortableEmpty]" />
+    }
+
     @for (item of items(); track item) {
         @if (shouldShowIndicatorBefore($index)) {
             <div [class]="indicatorClass()" aria-hidden="true"></div>
@@ -15,4 +21,6 @@
     @if (shouldShowIndicatorAfterLast()) {
         <div [class]="indicatorClass()" aria-hidden="true"></div>
     }
+
+    <ng-content select="[uiSortableFooter]" />
 </div>
