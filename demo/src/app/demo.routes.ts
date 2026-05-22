@@ -41,6 +41,8 @@ export const DEMO_ROUTES: Routes = [
   { path: 'form', loadComponent: () => import('./demos/inputs/form-demo.component').then(m => m.FormDemoComponent) },
   { path: 'sortable', loadComponent: () => import('./demos/inputs/sortable-demo.component').then(m => m.SortableDemoComponent) },
   { path: 'color-picker', loadComponent: () => import('./demos/inputs/color-picker-demo.component').then(m => m.ColorPickerDemoComponent) },
+  { path: 'eyedropper', loadComponent: () => import('./demos/inputs/eyedropper-demo.component').then(m => m.EyedropperDemoComponent) },
+  { path: 'image-extract', loadComponent: () => import('./demos/inputs/image-extract-demo.component').then(m => m.ImageExtractDemoComponent) },
   { path: 'emoji-picker', loadComponent: () => import('./demos/inputs/emoji-picker-demo.component').then(m => m.EmojiPickerDemoComponent) },
   { path: 'file-upload', loadComponent: () => import('./demos/inputs/file-upload-demo.component').then(m => m.FileUploadDemoComponent) },
   { path: 'rich-text-editor', loadComponent: () => import('./demos/inputs/rich-text-editor-demo.component').then(m => m.RichTextEditorDemoComponent) },

@@ -73,6 +73,7 @@ export * from './rating';
 export * from './stepper';
 export * from './file-upload';
 export * from './color-picker';
+export * from './eyedropper';
 export * from './confetti.directive';
 export * from './number-ticker';
 export * from './data-table';
