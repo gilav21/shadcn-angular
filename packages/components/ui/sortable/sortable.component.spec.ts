@@ -55,7 +55,7 @@ class TestHostComponent {
     readonly handleOnly = signal(false);
     readonly disabled = signal(false);
     readonly extraClass = signal('');
-    lastReorder: { from: number; to: number } | null = null;
+    lastReorder: import('./sortable.types').SortableReorderEvent<TestRow> | null = null;
 }
 
 function getSortable<T>(fixture: ComponentFixture<TestHostComponent>): SortableComponent<T> {
@@ -120,7 +120,10 @@ describe('SortableComponent', () => {
 
         expect(host.rows()[0].name).toBe('Beta');
         expect(host.rows()[1].name).toBe('Alpha');
-        expect(host.lastReorder).toEqual({ from: 0, to: 1 });
+        expect(host.lastReorder?.from.index).toBe(0);
+        expect(host.lastReorder?.to.index).toBe(1);
+        expect(host.lastReorder?.from.listId).toBe(host.lastReorder?.to.listId);
+        expect(host.lastReorder?.item).toBeTruthy();
     });
 
     it('should not reorder when disabled', () => {
@@ -164,7 +167,8 @@ describe('SortableComponent', () => {
 
         expect(host.rows()[1].name).toBe('Gamma');
         expect(host.rows()[2].name).toBe('Beta');
-        expect(host.lastReorder).toEqual({ from: 2, to: 1 });
+        expect(host.lastReorder?.from.index).toBe(2);
+        expect(host.lastReorder?.to.index).toBe(1);
     });
 
     it('should use ArrowRight to move item in horizontal orientation', () => {
@@ -237,7 +241,10 @@ describe('SortableComponent', () => {
 
         expect(host.rows()[0].name).toBe('Beta');
         expect(host.rows()[1].name).toBe('Alpha');
-        expect(host.lastReorder).toEqual({ from: 0, to: 1 });
+        expect(host.lastReorder?.from.index).toBe(0);
+        expect(host.lastReorder?.to.index).toBe(1);
+        expect(host.lastReorder?.from.listId).toBe(host.lastReorder?.to.listId);
+        expect(host.lastReorder?.item).toBeTruthy();
     });
 
     it('should start a drag on mousedown and clean up on mouseup via the DOM wiring', () => {

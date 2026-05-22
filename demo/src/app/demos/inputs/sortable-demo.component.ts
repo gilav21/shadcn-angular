@@ -176,7 +176,7 @@ export class SortableDemoComponent {
         { id: 22, name: 'Locked item C', done: false },
     ]);
 
-    private readonly lastEvent = signal<SortableReorderEvent | null>(null);
+    private readonly lastEvent = signal<SortableReorderEvent<unknown> | null>(null);
 
     tasksJson(): string {
         return JSON.stringify(this.tasks().map((t, i) => ({ position: i + 1, name: t.name })), null, 2);
@@ -188,15 +188,15 @@ export class SortableDemoComponent {
         return JSON.stringify(ev, null, 2);
     }
 
-    onTaskReorder(event: SortableReorderEvent): void {
+    onTaskReorder(event: SortableReorderEvent<Task>): void {
         this.lastEvent.set(event);
     }
 
-    onPhaseReorder(_event: SortableReorderEvent): void {
-        this.lastEvent.set(_event);
+    onPhaseReorder(event: SortableReorderEvent<Phase>): void {
+        this.lastEvent.set(event);
     }
 
-    onHandleReorder(_event: SortableReorderEvent): void {
-        this.lastEvent.set(_event);
+    onHandleReorder(event: SortableReorderEvent<Task>): void {
+        this.lastEvent.set(event);
     }
 }

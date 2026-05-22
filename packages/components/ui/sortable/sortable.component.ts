@@ -21,8 +21,15 @@ import { createFlip, type FlipHandle } from '../../lib/flip';
 import { SortableItemComponent } from './sub/sortable-item.component';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
+import type {
+    SortableContext,
+    SortableLocation,
+    SortableOrientation,
+    SortableReorderEvent,
+} from './sortable.types';
 
 export { SortableItemComponent };
+export type { SortableContext, SortableLocation, SortableOrientation, SortableReorderEvent };
 
 /**
  * Pre-made land-effect class names that consumers can plug into the
@@ -54,18 +61,6 @@ export const SORTABLE_LAND_EFFECTS = {
 export type SortableLandEffect =
     | (typeof SORTABLE_LAND_EFFECTS)[keyof typeof SORTABLE_LAND_EFFECTS]
     | (string & {});
-
-export type SortableOrientation = 'vertical' | 'horizontal';
-
-export interface SortableReorderEvent {
-    readonly from: number;
-    readonly to: number;
-}
-
-interface SortableContext<T> {
-    readonly $implicit: T;
-    readonly index: number;
-}
 
 /** Marker directive placed on the <ng-template> inside ui-sortable. */
 @Directive({
@@ -153,7 +148,13 @@ export class SortableComponent<T> {
     readonly handleOnly = input<boolean>(false);
     readonly disabled = input<boolean>(false);
     readonly class = input('');
-    readonly reorder = output<SortableReorderEvent>();
+    readonly listId = input<string>('');
+    readonly reorder = output<SortableReorderEvent<T>>();
+
+    private static sortableIdCounter = 0;
+    private readonly autoListId = `sortable-${++SortableComponent.sortableIdCounter}`;
+    /** The list's resolved id — the `listId` input, or an auto-generated value when blank. */
+    readonly resolvedListId = computed((): string => this.listId() || this.autoListId);
 
     private readonly destroyRef = inject(DestroyRef);
 
@@ -227,12 +228,31 @@ export class SortableComponent<T> {
         }, 0);
     }
 
-    private applyReorder(from: number, to: number, emit: boolean): void {
+    private applyReorder(
+        from: number,
+        to: number,
+        options: { readonly clearDrag: boolean; readonly emit: boolean },
+    ): void {
+        if (from === to) {
+            if (options.clearDrag) this.clearDragState();
+            return;
+        }
         this.flip.measure();
+        const item = this.items()[from];
         const next = moveItem(this.items(), from, to);
         this.items.set(next);
-        if (emit) this.reorder.emit({ from, to });
+        if (options.clearDrag) this.clearDragState();
+        if (options.emit) this.emitReorder(from, to, item);
         this.schedulePlay();
+    }
+
+    private emitReorder(fromIndex: number, toIndex: number, item: T): void {
+        const lid = this.resolvedListId();
+        this.reorder.emit({
+            from: { listId: lid, index: fromIndex },
+            to: { listId: lid, index: toIndex },
+            item,
+        });
     }
 
     shouldShowIndicatorBefore(index: number): boolean {
@@ -311,17 +331,7 @@ export class SortableComponent<T> {
             return;
         }
         const to = gap > from ? gap - 1 : gap;
-        if (to === from) {
-            this.clearDragState();
-            return;
-        }
-
-        this.flip.measure();
-        const next = moveItem(this.items(), from, to);
-        this.items.set(next);
-        this.clearDragState();
-        this.reorder.emit({ from, to });
-        this.schedulePlay();
+        this.applyReorder(from, to, { clearDrag: true, emit: true });
     }
 
     private clearDragState(): void {
@@ -357,7 +367,7 @@ export class SortableComponent<T> {
         const newIndex = Math.max(0, Math.min(this.items().length - 1, index + delta));
         if (newIndex === index) return;
 
-        this.applyReorder(index, newIndex, true);
+        this.applyReorder(index, newIndex, { clearDrag: false, emit: true });
         this._liftedIndex.set(newIndex);
     }
 
@@ -375,7 +385,7 @@ export class SortableComponent<T> {
         const origin = this._liftOrigin();
         const lifted = this._liftedIndex();
         if (origin !== null && lifted !== null && origin !== lifted) {
-            this.applyReorder(lifted, origin, false);
+            this.applyReorder(lifted, origin, { clearDrag: false, emit: false });
         }
         this._liftedIndex.set(null);
         this._liftOrigin.set(null);
