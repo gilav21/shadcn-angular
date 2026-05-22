@@ -1,10 +1,33 @@
 /**
- * Single source of truth for the e2e spec catalogue. Both the
- * orchestrator (`run.ts`) and the impact analyzer (`impact.ts`) read
- * from this module, so a new spec gets included in CI's
- * change-impact computation automatically — no separate mapping to
- * keep in sync.
+ * Single source of truth for the e2e spec catalogue.
+ *
+ * `ALL_COMPONENTS` is the merged list consumed by both the runner
+ * (`run.ts`) and the impact analyzer (`impact.ts`). It is built once
+ * at module load by `loadSpecs()`, which combines:
+ *
+ *   1. `EXPLICIT_SPECS` — the genuine special cases: multi-component
+ *      installs and entries needing custom `initArgs`. About 7 entries.
+ *   2. Auto-discovered single-component specs — every folder
+ *      `e2e/harness/<X>/` that contains `<X>-demo.component.ts` and
+ *      is NOT already claimed by an EXPLICIT_SPECS entry's resolved
+ *      harness folder produces `{ names: [X] }` automatically.
+ *
+ * Every spec's `names[]` is validated against the CLI registry on
+ * load; a typo throws with a "did you mean …?" suggestion before any
+ * orchestration work is wasted.
+ *
+ * Adding a new single-component spec requires zero edits to this
+ * file — drop the harness folder under `e2e/harness/` and it appears
+ * automatically. Multi-component / initArgs cases still register
+ * explicitly here.
  */
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import {
+    isComponentName,
+    suggestComponentName,
+} from '../../packages/cli/src/registry/index.js';
 
 export interface ComponentSpec {
     /**
@@ -39,29 +62,13 @@ export function specHarness(spec: ComponentSpec): string {
     return spec.harnessFolder ?? specLabel(spec);
 }
 
-export const ALL_COMPONENTS: readonly ComponentSpec[] = [
-    // foundation
-    { names: ['button'] }, { names: ['badge'] }, { names: ['input'] },
-    { names: ['checkbox'] }, { names: ['label'] },
-    // interactive
-    { names: ['dialog'] }, { names: ['dropdown-menu'] }, { names: ['popover'] },
-    { names: ['tooltip'] }, { names: ['select'] },
-    // forms
-    { names: ['input-otp'] }, { names: ['date-picker'] }, { names: ['slider'] },
-    { names: ['switch'] }, { names: ['radio-group'] },
-    // compound
-    { names: ['accordion'] }, { names: ['tabs'] }, { names: ['command'] },
-    { names: ['data-table'] }, { names: ['tree'] },
-    // overlays / lifecycle
-    { names: ['sheet'] }, { names: ['drawer'] }, { names: ['toast'] },
-    { names: ['sidebar'] }, { names: ['tour'] },
-    // more compound + content smokes
-    { names: ['carousel'] }, { names: ['navigation-menu'] }, { names: ['menubar'] },
-    { names: ['hover-card'] }, { names: ['alert-dialog'] }, { names: ['pagination'] },
-    { names: ['avatar'] }, { names: ['progress'] }, { names: ['collapsible'] },
-    { names: ['toggle-group'] },
-    // charts (libFiles install path)
-    { names: ['bar-chart'] }, { names: ['pie-chart'] },
+/**
+ * Specs that can't be auto-discovered from a single harness folder:
+ * multi-component installs (where `names[]` lists several components)
+ * and overrides that need custom `initArgs`. Everything else is
+ * picked up by `loadSpecs()` from disk.
+ */
+const EXPLICIT_SPECS: readonly ComponentSpec[] = [
     // multi-component install — exercises `add a b c` in one call and
     // template-compiles all of them together inside a single harness.
     {
@@ -103,6 +110,67 @@ export const ALL_COMPONENTS: readonly ComponentSpec[] = [
         initArgs: ['init', '--yes', '--prefix', 'acme'],
     },
 ];
+
+const HARNESS_DIR = path.resolve(
+    path.dirname(fileURLToPath(import.meta.url)),
+    '../harness',
+);
+
+/**
+ * Walks `e2e/harness/` and returns every subdirectory whose
+ * `<dir>-demo.component.ts` file exists. The convention — folder
+ * name equals demo-file prefix equals spec label — is the contract
+ * that makes auto-discovery safe.
+ */
+function discoverHarnessFolders(): string[] {
+    if (!fs.existsSync(HARNESS_DIR)) return [];
+    const out: string[] = [];
+    for (const entry of fs.readdirSync(HARNESS_DIR, { withFileTypes: true })) {
+        if (!entry.isDirectory()) continue;
+        const demo = path.join(HARNESS_DIR, entry.name, `${entry.name}-demo.component.ts`);
+        if (fs.existsSync(demo)) out.push(entry.name);
+    }
+    return out.sort();
+}
+
+function validateSpecs(specs: readonly ComponentSpec[]): void {
+    for (const spec of specs) {
+        for (const name of spec.names) {
+            if (isComponentName(name)) continue;
+            const suggestion = suggestComponentName(name);
+            const hint = suggestion ? ` (did you mean "${suggestion}"?)` : '';
+            throw new Error(
+                `[e2e:specs] spec "${specLabel(spec)}" references unknown component "${name}"${hint}. ` +
+                `Either fix the typo or run sync-registry so the component is registered.`,
+            );
+        }
+    }
+}
+
+function loadSpecs(): readonly ComponentSpec[] {
+    const explicit = EXPLICIT_SPECS;
+
+    // Build the set of harness folders claimed by an explicit entry so
+    // we don't double-add them as single-component auto-entries.
+    const claimedHarnesses = new Set(explicit.map(specHarness));
+
+    const discovered: ComponentSpec[] = [];
+    for (const folder of discoverHarnessFolders()) {
+        if (claimedHarnesses.has(folder)) continue;
+        discovered.push({ names: [folder] });
+    }
+
+    const merged = [...discovered, ...explicit];
+    validateSpecs(merged);
+    return merged;
+}
+
+/**
+ * Merged list of every component-render spec the orchestrator knows
+ * about. Cached at module load. `run.ts` and `impact.ts` both import
+ * this name unchanged from the previous version of the file.
+ */
+export const ALL_COMPONENTS: readonly ComponentSpec[] = loadSpecs();
 
 export interface CliSpecEntry {
     readonly label: string;
