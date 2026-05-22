@@ -19,7 +19,12 @@ jobs:
     timeout-minutes: 60
 
     steps:
+      # fetch-depth: 0 so `git diff base...HEAD` in the impact step can
+      # see history beyond the PR head. Without it the diff misfires
+      # for any PR that isn't a single-commit branch.
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -43,6 +48,28 @@ jobs:
       - name: Build CLI (npx shadcn-angular)
         run: npm run e2e:build-cli
 
+      # Compute which specs the diff actually touches. The script emits
+      # one of: ALL (a tripwire fired — run everything), NONE (the diff
+      # doesn't touch any spec, e.g. docs-only), or a space-separated
+      # list of spec labels.
+      #
+      # On push to master we deliberately skip the analyzer and always
+      # run the full suite as a safety net — master is the integration
+      # point and should never have stale unverified specs.
+      - name: Compute spec impact
+        id: impact
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            echo "Running impact analysis against PR base $BASE_SHA"
+            SPECS=$(npm run --silent e2e:impact -- --base "$BASE_SHA")
+          else
+            echo "Push event — skipping impact analysis, running full suite"
+            SPECS="ALL"
+          fi
+          echo "specs=$SPECS" >> "$GITHUB_OUTPUT"
+          echo "Decision: $SPECS"
+
       # Use Playwright's pinned browser cache. Same version of
       # @playwright/test → same browser binaries → reused across runs.
       - name: Cache Playwright browsers
@@ -53,17 +80,31 @@ jobs:
           key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright Chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        if: steps.impact.outputs.specs != 'NONE' && steps.playwright-cache.outputs.cache-hit != 'true'
         run: npx playwright install chromium --with-deps
 
       - name: Install Playwright system deps (always needed on Linux)
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        if: steps.impact.outputs.specs != 'NONE' && steps.playwright-cache.outputs.cache-hit == 'true'
         run: npx playwright install-deps chromium
 
+      # Run the subset the impact step selected. NONE short-circuits the
+      # whole job and the workflow reports success (the diff didn't
+      # touch anything that needs e2e coverage). ALL runs the full
+      # suite. Anything else is a space-separated list of spec labels.
       - name: Run e2e suite
-        run: npm run e2e
+        if: steps.impact.outputs.specs != 'NONE'
+        run: |
+          if [ "${{ steps.impact.outputs.specs }}" = "ALL" ]; then
+            npm run e2e
+          else
+            npm run e2e -- ${{ steps.impact.outputs.specs }}
+          fi
         env:
           CI: '1'
+
+      - name: Report skipped
+        if: steps.impact.outputs.specs == 'NONE'
+        run: echo "No spec-relevant files changed — skipping e2e suite."
 
       # Surface the Playwright traces / videos / screenshots that the
       # config emits on failure. Only run if the previous step failed.

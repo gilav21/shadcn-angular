@@ -42,6 +42,39 @@ npm run e2e
 The orchestrator builds the CLI lazily — `npm run e2e:build-cli` is only
 needed if you want to force a rebuild.
 
+## Incremental CI runs
+
+The CI workflow (`.github/workflows/e2e.yml`) only runs the subset of
+specs the PR's diff actually touches. The selection happens via
+`e2e:impact`, which classifies each changed file:
+
+- **Tripwire files** (CLI source, orchestrator, fixture-app, shared
+  `packages/components/lib/`, the Playwright config, the workflow,
+  `package.json` / `package-lock.json`) → run all 52 specs.
+- **A component file** (`packages/components/ui/<X>/**`) → run every
+  spec whose `names[]` includes `<X>`. So editing
+  `ui/button/button.component.ts` schedules `button`, `form-flow`,
+  `dark-mode`, `a11y-form`, `form-validation`, and `prefix-button`.
+- **A harness file** (`e2e/harness/<label>/**`) → run just that label.
+- **Anything else** (docs, demo app, storybook) → suite is skipped
+  entirely and the workflow reports success.
+
+Pushes to master always run the full suite as a safety net regardless
+of what changed.
+
+Preview the decision locally:
+
+```bash
+# Against master
+npm run e2e:impact -- --base origin/master
+
+# Against a specific commit
+npm run e2e:impact -- --base HEAD~5
+```
+
+Diagnostics print to stderr; the single decision line (`ALL`, `NONE`,
+or `spec1 spec2 …`) prints to stdout so the workflow can capture it.
+
 ## Interactive / visible modes
 
 By default the suite runs Chromium headless, so the run prints results
