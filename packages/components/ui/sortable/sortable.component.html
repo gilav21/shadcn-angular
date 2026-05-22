@@ -20,7 +20,7 @@
         }
     </ng-template>
 
-    @for (item of items(); track item) {
+    @for (item of items(); track trackByItem($index, item)) {
         @if (shouldShowIndicatorBefore($index)) {
             <ng-container *ngTemplateOutlet="ghostAt; context: { index: $index }" />
         }

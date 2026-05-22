@@ -571,6 +571,148 @@ describe('SortableComponent', () => {
         expect(keys).toEqual(['flash', 'glow', 'pulse', 'shake']);
     });
 
+    it('applies positionClass to each item wrapper, re-evaluating on reorder', () => {
+        @Component({
+            selector: 'app-pos-host',
+            standalone: true,
+            imports: [
+                SortableComponent,
+                SortableItemComponent,
+                SortableItemTemplateDirective,
+                NgTemplateOutlet,
+            ],
+            template: `
+                <ui-sortable [(items)]="rows" [positionClass]="posFn">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class PosHost {
+            readonly rows = signal<TestRow[]>([
+                { id: 1, name: 'A' },
+                { id: 2, name: 'B' },
+                { id: 3, name: 'C' },
+            ]);
+            readonly posFn = (_item: TestRow, i: number, total: number): string =>
+                i === 0 ? 'pos-first' : i === total - 1 ? 'pos-last' : 'pos-middle';
+        }
+        const f = TestBed.createComponent(PosHost);
+        f.detectChanges();
+
+        const items: NodeListOf<HTMLElement> = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        expect(items[0].className).toContain('pos-first');
+        expect(items[1].className).toContain('pos-middle');
+        expect(items[2].className).toContain('pos-last');
+
+        f.componentInstance.rows.update((rs) => [rs[2], rs[0], rs[1]]);
+        f.detectChanges();
+
+        const reorderedItems: NodeListOf<HTMLElement> = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        expect(reorderedItems[0].textContent?.trim()).toBe('C');
+        expect(reorderedItems[0].className).toContain('pos-first');
+        expect(reorderedItems[2].textContent?.trim()).toBe('B');
+        expect(reorderedItems[2].className).toContain('pos-last');
+    });
+
+    it('adds the landEffect class transiently to the landed item after a keyboard reorder', async () => {
+        @Component({
+            selector: 'app-land-host',
+            standalone: true,
+            imports: [
+                SortableComponent,
+                SortableItemComponent,
+                SortableItemTemplateDirective,
+                NgTemplateOutlet,
+            ],
+            template: `
+                <ui-sortable [(items)]="rows" [landEffect]="landFn">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class LandHost {
+            readonly rows = signal<TestRow[]>([
+                { id: 1, name: 'A' },
+                { id: 2, name: 'B' },
+            ]);
+            readonly landFn = (): string => 'land-test-class';
+        }
+        const f = TestBed.createComponent(LandHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        f.detectChanges();
+        await new Promise<void>(r => setTimeout(r, 10));
+        f.detectChanges();
+
+        const landed: HTMLElement | null = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]')[1];
+        expect(landed?.className).toContain('land-test-class');
+
+        await new Promise<void>(r => setTimeout(r, 250));
+        f.detectChanges();
+        const after: HTMLElement | null = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]')[1];
+        expect(after?.className).not.toContain('land-test-class');
+
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('landEffect returning null does not add any class', async () => {
+        let calls = 0;
+        @Component({
+            selector: 'app-land-null',
+            standalone: true,
+            imports: [
+                SortableComponent,
+                SortableItemComponent,
+                SortableItemTemplateDirective,
+                NgTemplateOutlet,
+            ],
+            template: `
+                <ui-sortable [(items)]="rows" [landEffect]="landFn">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class LandNullHost {
+            readonly rows = signal<TestRow[]>([
+                { id: 1, name: 'A' },
+                { id: 2, name: 'B' },
+            ]);
+            readonly landFn = (): string | null => { calls++; return null; };
+        }
+        const f = TestBed.createComponent(LandNullHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        f.detectChanges();
+        await new Promise<void>(r => setTimeout(r, 20));
+        f.detectChanges();
+
+        const item: HTMLElement | null = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]')[1];
+        expect(item?.className ?? '').not.toMatch(/land-/);
+        expect(calls).toBeGreaterThan(0);
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('trackBy default returns the item itself (object identity)', () => {
+        const sortable = getSortable<TestRow>(fixture);
+        const trackFn = sortable.trackBy();
+        const item: TestRow = { id: 99, name: 'X' };
+        expect(trackFn(item, 0)).toBe(item);
+    });
+
     it('animates after Escape-cancel restores order', async () => {
         attachAndSizeFixture();
         const sortable = getSortable<TestRow>(fixture);

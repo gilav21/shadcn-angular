@@ -40,8 +40,19 @@ export class SortableItemComponent {
             bodyDraggable ? 'touch-none cursor-grab active:cursor-grabbing' : '',
             isSource ? 'z-50 shadow-2xl' : '',
             isLifted ? 'ring-2 ring-primary ring-offset-1 rounded' : '',
+            this.positionClassValue(),
             this.class(),
         );
+    });
+
+    readonly positionClassValue = computed(() => {
+        const fn = this.parent?.positionClass();
+        if (!fn || !this.parent) return '';
+        const items = this.parent.items();
+        const idx = this.index();
+        const item = items[idx];
+        if (item === undefined) return '';
+        return fn(item, idx, items.length, this.parent.resolvedListId());
     });
 
     readonly dragStyle = computed((): Record<string, string> => {

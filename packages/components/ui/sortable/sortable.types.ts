@@ -37,3 +37,29 @@ export interface SortableContext<T> {
     readonly $implicit: T;
     readonly index: number;
 }
+
+/**
+ * Persistent class assigned to each item by index. Re-evaluated whenever
+ * `items()` changes; the resulting class is added to the item's wrapper.
+ * Consumers supply their own CSS (e.g., `.is-first { background: green }`).
+ */
+export type SortablePositionClassFn<T> = (
+    item: T,
+    index: number,
+    total: number,
+    listId: string,
+) => string;
+
+/**
+ * Transient class added to the landed item after a successful reorder.
+ * Returned class is applied to the wrapper and removed after the animate
+ * duration. Return `null` to skip the effect for a particular drop.
+ */
+export type SortableLandEffectFn<T> = (
+    item: T,
+    from: SortableLocation,
+    to: SortableLocation,
+) => string | null;
+
+/** Identity function for `@for ... track`. Returns a key stable per item. */
+export type SortableTrackByFn<T> = (item: T, index: number) => unknown;

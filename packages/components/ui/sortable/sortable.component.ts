@@ -23,13 +23,24 @@ import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 import type {
     SortableContext,
+    SortableLandEffectFn,
     SortableLocation,
     SortableOrientation,
+    SortablePositionClassFn,
     SortableReorderEvent,
+    SortableTrackByFn,
 } from './sortable.types';
 
 export { SortableItemComponent };
-export type { SortableContext, SortableLocation, SortableOrientation, SortableReorderEvent };
+export type {
+    SortableContext,
+    SortableLandEffectFn,
+    SortableLocation,
+    SortableOrientation,
+    SortablePositionClassFn,
+    SortableReorderEvent,
+    SortableTrackByFn,
+};
 
 /**
  * Pre-made land-effect class names that consumers can plug into the
@@ -149,6 +160,9 @@ export class SortableComponent<T> {
     readonly disabled = input<boolean>(false);
     readonly class = input('');
     readonly listId = input<string>('');
+    readonly positionClass = input<SortablePositionClassFn<T>>(() => '');
+    readonly landEffect = input<SortableLandEffectFn<T>>(() => null);
+    readonly trackBy = input<SortableTrackByFn<T>>((item) => item);
     readonly reorder = output<SortableReorderEvent<T>>();
 
     private static sortableIdCounter = 0;
@@ -244,6 +258,7 @@ export class SortableComponent<T> {
         if (options.clearDrag) this.clearDragState();
         if (options.emit) this.emitReorder(from, to, item);
         this.schedulePlay();
+        if (options.emit) this.scheduleLandEffect(from, to, item);
     }
 
     private emitReorder(fromIndex: number, toIndex: number, item: T): void {
@@ -253,6 +268,25 @@ export class SortableComponent<T> {
             to: { listId: lid, index: toIndex },
             item,
         });
+    }
+
+    trackByItem = (index: number, item: T): unknown => this.trackBy()(item, index);
+
+    /** Schedule the land-effect class on the just-landed item at `toIndex`. */
+    private scheduleLandEffect(fromIndex: number, toIndex: number, item: T): void {
+        const lid = this.resolvedListId();
+        const cls = this.landEffect()(
+            item,
+            { listId: lid, index: fromIndex },
+            { listId: lid, index: toIndex },
+        );
+        if (cls === null || cls === '') return;
+        setTimeout(() => {
+            const el = this.collectItemElements()[toIndex];
+            if (!el) return;
+            el.classList.add(cls);
+            setTimeout(() => el.classList.remove(cls), SortableComponent.DEFAULT_ANIMATE_MS);
+        }, 0);
     }
 
     shouldShowIndicatorBefore(index: number): boolean {
