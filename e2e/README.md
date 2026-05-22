@@ -45,22 +45,35 @@ needed if you want to force a rebuild.
 ## Incremental CI runs
 
 The CI workflow (`.github/workflows/e2e.yml`) only runs the subset of
-specs the PR's diff actually touches. The selection happens via
-`e2e:impact`, which classifies each changed file:
+specs the PR's diff actually touches. The selection is registry-
+driven: for each changed file, the analyzer asks the CLI registry
+which component owns it (via `files[]` / `libFiles[]`), then walks
+the reverse-dep graph and schedules every spec that installs an
+affected component.
 
-- **Tripwire files** (CLI source, orchestrator, fixture-app, shared
-  `packages/components/lib/`, the Playwright config, the workflow,
-  `package.json` / `package-lock.json`) → run all 52 specs.
-- **A component file** (`packages/components/ui/<X>/**`) → run every
-  spec whose `names[]` includes `<X>`. So editing
-  `ui/button/button.component.ts` schedules `button`, `form-flow`,
-  `dark-mode`, `a11y-form`, `form-validation`, and `prefix-button`.
+- **Tripwire files** (CLI source, orchestrator, fixture-app, the
+  Playwright config, the workflow, `package.json` /
+  `package-lock.json`) → run all specs.
+- **A component file** (`packages/components/ui/<X>/**` or a
+  `libFiles` entry in `packages/components/lib/`) → resolve owner
+  via the registry, walk reverse-deps, schedule the matching specs.
+  Editing `ui/button/button.component.ts` schedules `button` and
+  every spec whose `names[]` includes button, plus components that
+  list button in their `dependencies[]`.
+- **A shared lib file** (e.g. `lib/chart.utils.ts`) → schedules
+  exactly the chart specs (instead of triggering ALL via tripwire,
+  as the older path-convention analyzer did).
 - **A harness file** (`e2e/harness/<label>/**`) → run just that label.
 - **Anything else** (docs, demo app, storybook) → suite is skipped
   entirely and the workflow reports success.
 
 Pushes to master always run the full suite as a safety net regardless
 of what changed.
+
+A pre-flight `sync-registry` step runs before the impact analyzer.
+If the registry drifts from disk, CI fails fast with a pointer to
+`npm run sync-registry:fix` — guarantees the analyzer's lookups are
+based on current truth.
 
 Preview the decision locally:
 
@@ -150,19 +163,85 @@ e2e/
 
 ## Adding a new component to the suite
 
-1. Create `e2e/harness/<name>/<name>-demo.component.ts`. Standalone
-   component, imports only what `add <name>` provides, exposes at least
-   two `data-testid` hooks (one to find the component, one to read state).
-2. Create `e2e/harness/<name>/<name>.spec.ts`. Use `page.goto('/')` and
-   target the `data-testid` hooks — assertions should describe behavior,
-   not styling.
-3. Add the component to `ALL_COMPONENTS` in
-   `e2e/orchestrator/run.ts`.
-4. Run `npm run e2e -- <name>` and iterate.
+**One command, zero other edits**:
 
-Keep harness pages small — 10-30 lines each. They are not feature
-demonstrations; they exist to confirm the component reaches the user in
-working condition.
+```bash
+npm run e2e:scaffold -- <name>
+```
+
+The scaffolder reads the CLI registry for `<name>`, parses
+`packages/components/ui/<name>/index.ts` to find every exported
+class, and writes a working harness pair:
+
+```
+e2e/harness/<name>/
+  <name>-demo.component.ts    # standalone Angular component
+                              # mounts <ui-<name>> with a data-testid
+                              # on the root and on each sub-component
+  <name>.spec.ts              # passing smoke (root is visible)
+```
+
+Run it immediately to confirm:
+
+```bash
+npm run e2e -- <name>
+```
+
+Then extend `<name>.spec.ts` with the real behavioral assertions
+you want — the sub-component `data-testid`s in the demo are already
+wired up. The orchestrator's auto-discovery picks up the new spec
+automatically (no edit to `specs.ts`). CI's impact analyzer reads
+the registry, so a future change to `packages/components/ui/<name>/`
+will schedule this spec without any further wiring.
+
+If the component isn't yet registered, the scaffolder runs
+`sync-registry --fix` for you. If the name is a typo, it suggests
+the closest registry key:
+
+```
+$ npm run e2e:scaffold -- radoi-group
+[e2e:scaffold] "radoi-group" not in registry — running sync-registry --fix to pick it up…
+All components are in sync.
+Unknown component: radoi-group  — did you mean radio-group?
+```
+
+### Multi-component or special-`initArgs` specs
+
+Single-component specs are auto-discovered from the
+`e2e/harness/<name>/` folder. Multi-component specs and ones that
+need a custom `init` command (e.g. `init --prefix acme`) still
+register explicitly in `e2e/orchestrator/specs.ts`:
+
+```ts
+// e2e/orchestrator/specs.ts
+const EXPLICIT_SPECS: readonly ComponentSpec[] = [
+    {
+        names: ['input', 'label', 'button', 'dialog'],
+        label: 'form-flow',
+    },
+    // …
+];
+```
+
+The `names` list is read by both the runner (for `add a b c --yes`)
+and the impact analyzer (so changes to any of those components
+schedule the spec). No separate dependency map.
+
+### Inspecting the registry
+
+The `why` CLI command shows what a component is made of and what
+depends on it — useful when picking dependencies or sizing a
+refactor:
+
+```bash
+npx shadcn-angular why button
+#   Files (3):     button/button.component.html …
+#   Direct dependencies: ripple
+#   Reverse dependents (18): bento-grid, calendar, chat, …
+```
+
+Keep harness pages small. They confirm a real consumer can install
+and use the component; they aren't feature demonstrations.
 
 ## Verifying the harness itself works
 

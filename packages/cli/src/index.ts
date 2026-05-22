@@ -5,6 +5,7 @@ import { init } from './commands/init.js';
 import { add } from './commands/add.js';
 import { diff } from './commands/diff.js';
 import { list } from './commands/list.js';
+import { why } from './commands/why.js';
 import { help } from './commands/help.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as { version: string };
@@ -54,6 +55,12 @@ program
     .command('list')
     .description('List all components and their install status')
     .action(list);
+
+program
+    .command('why')
+    .description('Print a component\'s registry record (files, deps, reverse-dependents)')
+    .argument('<components...>', 'One or more component names')
+    .action(why);
 
 program
     .command('help')

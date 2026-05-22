@@ -64,6 +64,89 @@ If you want to contribute or experiment with the components locally:
 - `packages/components`: The "source of truth" for all components (template
   files used by the CLI).
 - `demo`: An Angular application showcasing usages of all components.
+- `e2e`: End-to-end test suite — fixture Angular app + per-component
+  harnesses + orchestrator. See [`e2e/README.md`](./e2e/README.md).
+
+## Adding e2e coverage for a new component
+
+The e2e suite installs each component into a pristine Angular project the
+same way a consumer would, then drives Playwright at the result. CI runs
+the subset of specs each PR's diff actually touches (registry-driven
+impact analysis); pushes to master run everything.
+
+**Adding coverage is one command** — no edits to spec lists, no
+mapping tables:
+
+```bash
+# Author drops a new <ui-tag-input> component on disk, then:
+npm run e2e:scaffold -- tag-input
+
+# ✓ created e2e/harness/tag-input/tag-input-demo.component.ts
+# ✓ created e2e/harness/tag-input/tag-input.spec.ts
+
+# Run it locally:
+npm run e2e -- tag-input
+
+# Commit. CI picks it up automatically.
+```
+
+The scaffolder reads the CLI registry for `<name>`, parses
+`packages/components/ui/<name>/index.ts` to find every exported class,
+and writes a working harness + a passing smoke spec. The orchestrator's
+auto-discovery layer picks the new spec up without any other file
+edits; CI's impact analyzer maps any future change under
+`packages/components/ui/tag-input/**` to this spec via the registry.
+
+Then extend `<name>.spec.ts` with the real behavioral assertions you
+want — the sub-component `data-testid`s are already wired up in the
+generated demo.
+
+If the component isn't yet registered when you run the scaffolder, it
+runs `sync-registry --fix` for you. Typos suggest the nearest registry
+key:
+
+```text
+$ npm run e2e:scaffold -- radoi-group
+Unknown component: radoi-group  — did you mean radio-group?
+```
+
+### Inspecting the registry
+
+`npx shadcn-angular why <component>` prints a component's files, direct
+dependencies, and reverse-dependents (everything that would re-test if
+you changed it). Useful when picking dependencies or sizing a refactor:
+
+```bash
+npx @gilav21/shadcn-angular why button
+#   Files (3): button/button.component.html, …
+#   Direct dependencies: ripple
+#   Reverse dependents (18): bento-grid, calendar, chat, …
+```
+
+### Multi-component / special-`initArgs` specs
+
+Single-component specs are auto-discovered from `e2e/harness/<name>/`.
+Multi-component specs (a single harness rendering several components)
+or specs needing a non-default `init` invocation (e.g. `init --prefix
+acme`) still register in `e2e/orchestrator/specs.ts`:
+
+```ts
+const EXPLICIT_SPECS: readonly ComponentSpec[] = [
+    {
+        names: ['input', 'label', 'button', 'dialog'],
+        label: 'form-flow',
+    },
+    // …
+];
+```
+
+The `names` list is read by both the runner (for `add a b c --yes`)
+and the impact analyzer (so changes to any of those components
+schedule the spec automatically).
+
+See [`e2e/README.md`](./e2e/README.md) for the full pipeline (reset
+→ init → add → npm install → ng serve → Playwright), interactive
+modes (`e2e:headed`, `e2e:ui`, `e2e:debug`), and troubleshooting.
 
 ## License
 

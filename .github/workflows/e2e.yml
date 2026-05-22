@@ -48,6 +48,19 @@ jobs:
       - name: Build CLI (npx shadcn-angular)
         run: npm run e2e:build-cli
 
+      # The impact analyzer reads the CLI registry's files[] /
+      # libFiles[] / dependencies[] to map changed files to specs. If
+      # the registry has drifted from the source tree, that mapping is
+      # silently wrong — a real file change might fail to schedule the
+      # right specs because the registry doesn't know about it.
+      # sync-registry.ts in report mode (no flag) exits 1 on drift.
+      - name: Verify registry is in sync with the source tree
+        run: |
+          if ! npx tsx packages/cli/scripts/sync-registry.ts; then
+            echo "::error::CLI registry is out of date. Run 'npm run sync-registry:fix' locally and commit the result."
+            exit 1
+          fi
+
       # Compute which specs the diff actually touches. The script emits
       # one of: ALL (a tripwire fired — run everything), NONE (the diff
       # doesn't touch any spec, e.g. docs-only), or a space-separated

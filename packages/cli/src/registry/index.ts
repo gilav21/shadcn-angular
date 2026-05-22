@@ -603,3 +603,151 @@ export function isComponentName(name: string): name is ComponentName {
 export function getComponentNames(): ComponentName[] {
     return Object.keys(registry) as ComponentName[];
 }
+
+// ---------------------------------------------------------------------------
+// Registry introspection helpers
+//
+// Used by the `why` CLI command, the e2e test impact analyzer, and the
+// `e2e:scaffold` generator. Pure functions over the registry — no I/O,
+// no caching beyond a memoized reverse-dep map.
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps a repo-rooted file path (e.g.
+ * `packages/components/ui/button/button.component.ts` or
+ * `packages/components/lib/chart.types.ts`) to the component that owns it
+ * by scanning `files[]` / `libFiles[]` / `peerFiles[]`.
+ *
+ * Returns the first matching component name. For `libFiles` shared across
+ * many components, prefer `getComponentsUsingLibFile` to enumerate them
+ * all. Returns `null` for paths that aren't in the registry (docs, demo,
+ * scripts, etc.) — callers should treat that as "no impact".
+ */
+export function getComponentForFile(filePath: string): ComponentName | null {
+    const uiMatch = /^packages\/components\/ui\/(.+)$/.exec(filePath);
+    if (uiMatch) {
+        const tail = uiMatch[1];
+        for (const name of Object.keys(registry) as ComponentName[]) {
+            if (registry[name].files.includes(tail)) return name;
+            if (registry[name].peerFiles?.includes(tail)) return name;
+        }
+    }
+    const libMatch = /^packages\/components\/lib\/(.+)$/.exec(filePath);
+    if (libMatch) {
+        const tail = libMatch[1];
+        for (const name of Object.keys(registry) as ComponentName[]) {
+            if (registry[name].libFiles?.includes(tail)) return name;
+        }
+    }
+    return null;
+}
+
+/**
+ * Every component that lists `libFile` (e.g. `chart.types.ts`,
+ * `calendar-locales.ts`) in its `libFiles[]`. Used by the impact analyzer
+ * to schedule all chart components when a shared chart utility changes,
+ * instead of treating the whole `packages/components/lib/` folder as a
+ * coarse tripwire.
+ */
+export function getComponentsUsingLibFile(libFile: string): ComponentName[] {
+    const out: ComponentName[] = [];
+    for (const name of Object.keys(registry) as ComponentName[]) {
+        if (registry[name].libFiles?.includes(libFile)) out.push(name);
+    }
+    return out;
+}
+
+/**
+ * Closure of the reverse-dependency graph: every component that
+ * transitively lists `name` in its `dependencies[]`. Returns a set so
+ * callers can merge results from multiple seeds without deduping. The
+ * seed `name` itself is NOT included.
+ *
+ * Example: `getReverseDependents('command')` → `{ autocomplete }` because
+ * autocomplete.dependencies includes 'command'. Walks transitively, so a
+ * primitive like `ripple` returns every component that uses it directly
+ * or via a chain.
+ */
+export function getReverseDependents(name: ComponentName): Set<ComponentName> {
+    const graph = reverseDepGraph();
+    const out = new Set<ComponentName>();
+    const queue: ComponentName[] = [name];
+    while (queue.length > 0) {
+        const current = queue.shift()!;
+        for (const dependent of graph.get(current) ?? []) {
+            if (!out.has(dependent)) {
+                out.add(dependent);
+                queue.push(dependent);
+            }
+        }
+    }
+    return out;
+}
+
+let _reverseDepGraph: Map<ComponentName, ComponentName[]> | null = null;
+function reverseDepGraph(): Map<ComponentName, ComponentName[]> {
+    if (_reverseDepGraph) return _reverseDepGraph;
+    const graph = new Map<ComponentName, ComponentName[]>();
+    for (const name of Object.keys(registry) as ComponentName[]) {
+        for (const dep of registry[name].dependencies ?? []) {
+            if (!isComponentName(dep)) continue;
+            const list = graph.get(dep) ?? [];
+            list.push(name);
+            graph.set(dep, list);
+        }
+    }
+    _reverseDepGraph = graph;
+    return graph;
+}
+
+/**
+ * Levenshtein edit distance — used by `why <component>` and
+ * `e2e:scaffold <name>` to suggest the closest registry key when the
+ * caller mistypes a name. Plain DP; tiny inputs (component names are <
+ * 30 chars), so the O(n·m) cost is negligible.
+ */
+export function levenshtein(a: string, b: string): number {
+    if (a === b) return 0;
+    if (a.length === 0) return b.length;
+    if (b.length === 0) return a.length;
+
+    const m = a.length, n = b.length;
+    let prev = new Array<number>(n + 1);
+    let curr = new Array<number>(n + 1);
+    for (let j = 0; j <= n; j++) prev[j] = j;
+
+    for (let i = 1; i <= m; i++) {
+        curr[0] = i;
+        for (let j = 1; j <= n; j++) {
+            const cost = a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1;
+            curr[j] = Math.min(
+                curr[j - 1] + 1,           // insertion
+                prev[j] + 1,               // deletion
+                prev[j - 1] + cost,        // substitution
+            );
+        }
+        [prev, curr] = [curr, prev];
+    }
+    return prev[n];
+}
+
+/**
+ * Nearest registered component name to `query` by Levenshtein distance.
+ * Returns `null` when the closest match is too far away to be useful
+ * (more than `Math.max(2, Math.floor(query.length / 2))` edits) — so
+ * `radoi-group` suggests `radio-group`, but `xyzqwert` suggests nothing.
+ */
+export function suggestComponentName(query: string): ComponentName | null {
+    const names = getComponentNames();
+    let bestName: ComponentName | null = null;
+    let bestDist = Infinity;
+    for (const name of names) {
+        const d = levenshtein(query, name);
+        if (d < bestDist) {
+            bestDist = d;
+            bestName = name;
+        }
+    }
+    const limit = Math.max(2, Math.floor(query.length / 2));
+    return bestName !== null && bestDist <= limit ? bestName : null;
+}

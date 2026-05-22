@@ -455,6 +455,104 @@ Before submitting a component, verify:
 - [ ] Uses modern APIs (`Number.isNaN`, `structuredClone`, `.dataset`, etc.)
 - [ ] Responsive: works from 320px phone to ultrawide (see Section 5)
 - [ ] Touch: all interactions work on touch-only devices (see Section 6)
+- [ ] E2E coverage: `npm run e2e:scaffold -- <name>` and the resulting
+  spec passes (see "E2E Authoring Workflow" below)
+
+---
+
+## E2E Authoring Workflow
+
+Every component MUST have an e2e spec under `e2e/harness/<name>/`.
+The suite installs each component into a pristine Angular app the
+same way a consumer would, then drives Playwright at the result —
+the gate between "unit tests pass" and "publish to npm". CI runs the
+subset of specs each PR's diff touches (registry-driven impact
+analysis); pushes to master run everything.
+
+### Adding a new spec — one command
+
+```bash
+# After dropping the new component on disk:
+npm run e2e:scaffold -- <name>
+```
+
+That's it. The scaffolder:
+
+1. Resolves `<name>` in the CLI registry (runs
+   `sync-registry --fix` first if the name isn't registered yet;
+   suggests the nearest registry key via Levenshtein on a typo).
+2. Refuses if `e2e/harness/<name>/` already exists.
+3. Reads `packages/components/ui/<name>/index.ts` and writes:
+   - `e2e/harness/<name>/<name>-demo.component.ts` — standalone
+     Angular demo with every exported class imported and a
+     `data-testid="<sub>"` on each sub-component element.
+   - `e2e/harness/<name>/<name>.spec.ts` — passing smoke spec.
+
+```bash
+# Run it
+npm run e2e -- <name>
+
+# Extend e2e/harness/<name>/<name>.spec.ts with real assertions.
+# The data-testids in the demo are pre-wired — just reference them.
+```
+
+### Do NOT manually edit `e2e/orchestrator/specs.ts` for new specs
+
+Single-component specs are auto-discovered from
+`e2e/harness/<name>/`. Editing `specs.ts` is only correct for:
+
+- **Multi-component installs** (one harness exercises several
+  components together): add an `EXPLICIT_SPECS` entry with
+  `names: ['a', 'b', 'c']` and a `label`.
+- **Non-default `initArgs`** (e.g. `init --prefix acme`): same
+  shape, with the `initArgs` field.
+
+The `names` list is read by both the runner (for `add a b c --yes`)
+and the impact analyzer — no separate dependency map is maintained.
+
+### Inspecting the registry
+
+`npx shadcn-angular why <component>` prints what a component is made
+of and what depends on it — use it when picking dependencies or
+sizing a refactor's blast radius:
+
+```bash
+npx shadcn-angular why button
+#   Files (3): button/button.component.html, …
+#   Direct dependencies: ripple
+#   Reverse dependents (18): bento-grid, calendar, chat, …
+```
+
+### Interactive modes for authoring
+
+```bash
+npm run e2e:headed -- <name>   # visible Chromium, autonomous
+npm run e2e:ui     -- <name>   # Playwright UI Mode (timeline / time-travel)
+npm run e2e:debug  -- <name>   # Playwright Inspector (step-through)
+npm run e2e:reset              # restore fixture-app to pristine state
+```
+
+### What the e2e suite catches that unit tests can't
+
+- Registry entries pointing at deleted source files.
+- `npmDependencies` / `libFiles` missed in a refactor.
+- `index.ts` barrels exporting a deleted sub-component.
+- Templates that compile in the workspace-linked demo but fail in
+  a plain consumer install (no workspace dedup).
+- Selector / template-tag rewrites broken by the `--prefix` flag.
+- AOT / optimizer failures `ng serve` hides.
+
+If you're working on a refactor that spans components or touches
+shared lib code (`packages/components/lib/`), run the impacted
+subset locally before pushing:
+
+```bash
+npm run e2e:impact -- --base origin/master   # preview CI's decision
+npm run e2e                                  # full suite locally (~7 min)
+```
+
+See `e2e/README.md` for the full pipeline, troubleshooting, and the
+deliberate-regression recipe.
 
 ---
 
@@ -655,6 +753,13 @@ When generating or modifying components:
     `(mouseenter)` needs a touch alternative. Every `(mousedown)` for drag
     needs `(touchstart)`. Every `(contextmenu)` needs long-press. Every
     `(dblclick)` needs double-tap. Use `lib/touch.ts` utilities.
+13. **E2E coverage** — after adding or modifying a component, follow the
+    "E2E Authoring Workflow" section. Run
+    `npm run e2e:scaffold -- <name>` for any new component, then
+    `npm run e2e -- <name>` to confirm it passes. DO NOT manually edit
+    `e2e/orchestrator/specs.ts` for single-component specs — they are
+    auto-discovered from the harness folder. Only multi-component or
+    `initArgs`-override specs belong in `EXPLICIT_SPECS`.
 
 ### Template for New Compound Components
 
