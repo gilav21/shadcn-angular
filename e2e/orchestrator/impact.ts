@@ -30,6 +30,8 @@
  */
 import path from 'node:path';
 import { execSync } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import {
     getComponentForFile,
     getComponentsUsingLibFile,
@@ -38,11 +40,18 @@ import {
 } from '../../packages/cli/src/registry/index.js';
 import { ALL_COMPONENTS, specLabel } from './specs.js';
 
+const REGISTRY_FILE = 'packages/cli/src/registry/index.ts';
+
 /**
  * Files whose change fans out to the full suite — they affect every
  * install behaviour independently of which component changed. The
  * registry-driven classification handles `packages/components/` itself,
  * so neither `ui/<X>/**` nor `lib/**` appear here anymore.
+ *
+ * The registry source file (`packages/cli/src/registry/index.ts`) is
+ * data, not behaviour, so it's special-cased BEFORE the tripwire pass
+ * and impacted entry-by-entry. The rest of `packages/cli/` is still a
+ * blanket tripwire — real CLI code can affect any install.
  */
 const TRIPWIRES: readonly RegExp[] = [
     /^packages\/cli\//,
@@ -112,24 +121,121 @@ function affectedComponentsForFile(file: string): Set<ComponentName> {
     return out;
 }
 
+/**
+ * Extract `<name> → entire-block-text` from a registry source file.
+ * Each entry's text spans from `<name>:` up to the matching closing
+ * brace at the same indent level. Comparing block text catches changes
+ * to any field (`files`, `dependencies`, `libFiles`, etc.) without
+ * caring about the exact shape.
+ *
+ * The regex matches both bare identifiers (`eyedropper:`) and quoted
+ * keys (`'color-picker':`) at the top level of `defineRegistry({...})`.
+ */
+export function parseRegistryEntries(source: string): Map<string, string> {
+    const out = new Map<string, string>();
+    const entryHeader = /^  (?:'([\w-]+)'|([\w-]+)):\s*\{/gm;
+    let match: RegExpExecArray | null;
+    while ((match = entryHeader.exec(source)) !== null) {
+        const name = match[1] ?? match[2];
+        const start = match.index;
+        // Walk forward and balance braces to find the entry's end.
+        let depth = 0;
+        let end = start;
+        for (let i = start + match[0].length - 1; i < source.length; i++) {
+            const c = source[i];
+            if (c === '{') depth++;
+            else if (c === '}') {
+                depth--;
+                if (depth === 0) {
+                    end = i + 1;
+                    break;
+                }
+            }
+        }
+        out.set(name, source.slice(start, end));
+    }
+    return out;
+}
+
+/**
+ * Diff two registry source strings and return the set of entry names
+ * whose contents differ (added, removed, or modified). Used to scope
+ * impact when only the registry source file changed.
+ */
+export function diffRegistryEntries(baseSource: string, headSource: string): Set<string> {
+    const base = parseRegistryEntries(baseSource);
+    const head = parseRegistryEntries(headSource);
+    const changed = new Set<string>();
+    const all = new Set<string>([...base.keys(), ...head.keys()]);
+    for (const name of all) {
+        if (base.get(name) !== head.get(name)) changed.add(name);
+    }
+    return changed;
+}
+
+/**
+ * Load the registry file at `base` (via `git show`) and at HEAD (via
+ * the working tree), then return the set of entry names that changed.
+ * Returns null when the base version can't be read — caller should
+ * fall back to ALL.
+ */
+function changedRegistryEntries(base: string): Set<string> | null {
+    try {
+        const baseSource = execSync(
+            `git show ${base}:${REGISTRY_FILE}`,
+            { encoding: 'utf-8', stdio: ['ignore', 'pipe', 'pipe'] },
+        );
+        const headSource = readFileSync(REGISTRY_FILE, 'utf-8');
+        return diffRegistryEntries(baseSource, headSource);
+    } catch {
+        return null;
+    }
+}
+
 interface ImpactResult {
     readonly kind: 'all' | 'none' | 'subset';
     /** Only populated when kind === 'subset'. */
     readonly specs: readonly string[];
 }
 
-function computeImpact(changedFiles: readonly string[]): ImpactResult {
+function computeImpact(base: string, changedFiles: readonly string[]): ImpactResult {
     if (changedFiles.length === 0) {
         return { kind: 'none', specs: [] };
     }
 
-    if (changedFiles.some(f => TRIPWIRES.some(re => re.test(f)))) {
+    // The registry source file is data, not behaviour — handle it the
+    // same way `packages/components/lib/**` is handled. The rest of
+    // `packages/cli/` still falls through to the tripwire pass below.
+    let registryChanged: Set<string> | null = null;
+    let remaining: readonly string[] = changedFiles;
+    if (changedFiles.includes(REGISTRY_FILE)) {
+        registryChanged = changedRegistryEntries(base);
+        if (registryChanged === null) {
+            // Base version couldn't be read; safest is to run everything.
+            return { kind: 'all', specs: [] };
+        }
+        remaining = changedFiles.filter(f => f !== REGISTRY_FILE);
+    }
+
+    if (remaining.some(f => TRIPWIRES.some(re => re.test(f)))) {
         return { kind: 'all', specs: [] };
     }
 
     const impacted = new Set<string>();
 
-    for (const file of changedFiles) {
+    if (registryChanged) {
+        for (const name of registryChanged) {
+            // `name` is a registry entry key — treat it as a component
+            // name for lookup. Both helpers tolerate unknown names
+            // (return empty), so removed entries don't blow up.
+            for (const label of specsTouchingComponent(name)) impacted.add(label);
+            for (const dep of getReverseDependents(name as ComponentName)) {
+                for (const label of specsTouchingComponent(dep)) impacted.add(label);
+            }
+        }
+    }
+
+    for (const file of remaining) {
         // Per-harness changes scope to exactly that label.
         const harness = /^e2e\/harness\/([^/]+)\//.exec(file);
         if (harness) {
@@ -203,7 +309,7 @@ function main(): void {
         process.exit(3);
     }
 
-    const result = computeImpact(changed);
+    const result = computeImpact(base, changed);
 
     // Diagnostics go to stderr so the workflow can still grab the
     // single-line decision from stdout.
@@ -227,4 +333,9 @@ function main(): void {
     }
 }
 
-main();
+// Only run when invoked directly — guard so importing this module from
+// a spec file doesn't trigger `process.exit` from `parseBase`.
+const isEntry =
+    Boolean(process.argv[1]) &&
+    path.resolve(fileURLToPath(import.meta.url)) === path.resolve(process.argv[1]);
+if (isEntry) main();
