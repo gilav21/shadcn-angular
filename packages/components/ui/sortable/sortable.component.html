@@ -34,3 +34,28 @@
 
     <ng-content select="[uiSortableFooter]" />
 </div>
+
+@if (placeholderRect(); as r) {
+    @if (placeholderTemplate(); as pt) {
+        <div
+            class="fixed pointer-events-none z-0"
+            data-slot="sortable-placeholder-host"
+            [style.left.px]="r.left"
+            [style.top.px]="r.top"
+            [style.width.px]="r.width"
+            [style.height.px]="r.height"
+        >
+            <ng-container *ngTemplateOutlet="pt; context: ghostContext(dragSource()!)" />
+        </div>
+    } @else {
+        <div
+            class="fixed pointer-events-none z-0 border-2 border-dashed border-muted-foreground/40 rounded bg-muted/30"
+            data-slot="sortable-placeholder"
+            aria-hidden="true"
+            [style.left.px]="r.left"
+            [style.top.px]="r.top"
+            [style.width.px]="r.width"
+            [style.height.px]="r.height"
+        ></div>
+    }
+}

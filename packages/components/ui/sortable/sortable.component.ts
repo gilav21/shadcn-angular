@@ -135,11 +135,13 @@ export class SortableComponent<T> {
     private readonly _dragDelta = signal<{ x: number; y: number }>({ x: 0, y: 0 });
     private readonly _liftedIndex = signal<number | null>(null);
     private readonly _liftOrigin = signal<number | null>(null);
+    private readonly _placeholderRect = signal<DOMRect | null>(null);
 
     readonly dragSource = this._dragSource.asReadonly();
     readonly dragTarget = this._dragTarget.asReadonly();
     readonly dragDelta = this._dragDelta.asReadonly();
     readonly liftedIndex = this._liftedIndex.asReadonly();
+    readonly placeholderRect = this._placeholderRect.asReadonly();
 
     private dragCleanup: (() => void) | null = null;
     private rects: DOMRect[] = [];
@@ -227,6 +229,7 @@ export class SortableComponent<T> {
         this._dragSource.set(fromIndex);
         this._dragTarget.set(fromIndex);
         this._dragDelta.set({ x: 0, y: 0 });
+        this._placeholderRect.set(this.rects[fromIndex] ?? null);
 
         const startPointer = this.orientation() === 'vertical' ? startY : startX;
 
@@ -294,6 +297,7 @@ export class SortableComponent<T> {
         this._dragSource.set(null);
         this._dragTarget.set(null);
         this._dragDelta.set({ x: 0, y: 0 });
+        this._placeholderRect.set(null);
     }
 
     handleItemKeyDown(index: number, event: KeyboardEvent): void {

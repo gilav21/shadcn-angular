@@ -8,6 +8,7 @@ import {
     SortableHandleDirective,
 } from './sortable.component';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
+import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 import { NgTemplateOutlet } from '@angular/common';
 
 interface TestRow {
@@ -451,6 +452,70 @@ describe('SortableComponent', () => {
         expect(defaultGhost).toBeNull();
 
         globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 10 }));
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('renders a default placeholder at the lift origin while dragging', () => {
+        attachAndSizeFixture();
+        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+
+        items[0].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: 10, bubbles: true }));
+        fixture.detectChanges();
+
+        const placeholder: HTMLElement | null = document.querySelector('[data-slot="sortable-placeholder"]');
+        expect(placeholder).not.toBeNull();
+        expect(placeholder?.className).toContain('border-dashed');
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 10 }));
+        fixture.detectChanges();
+        expect(document.querySelector('[data-slot="sortable-placeholder"]')).toBeNull();
+        detachFixture();
+    });
+
+    it('uses a custom uiSortablePlaceholder template when provided', () => {
+        @Component({
+            selector: 'app-placeholder-host',
+            standalone: true,
+            imports: [
+                SortableComponent,
+                SortableItemComponent,
+                SortableItemTemplateDirective,
+                SortablePlaceholderTemplateDirective,
+                NgTemplateOutlet,
+            ],
+            template: `
+                <ui-sortable [(items)]="rows">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                    <ng-template uiSortablePlaceholder let-row>
+                        <div data-testid="custom-placeholder">Was here: {{ $any(row).name }}</div>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class PlaceholderHost {
+            readonly rows = signal<TestRow[]>([
+                { id: 1, name: 'A' },
+                { id: 2, name: 'B' },
+                { id: 3, name: 'C' },
+            ]);
+        }
+        const f = TestBed.createComponent(PlaceholderHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+
+        const items: NodeListOf<HTMLElement> = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        items[1].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: 50, bubbles: true }));
+        f.detectChanges();
+
+        const custom: HTMLElement | null = document.querySelector('[data-testid="custom-placeholder"]');
+        const defaultPlaceholder: HTMLElement | null = document.querySelector('[data-slot="sortable-placeholder"]');
+        expect(custom).not.toBeNull();
+        expect(custom?.textContent).toContain('B');
+        expect(defaultPlaceholder).toBeNull();
+
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 50 }));
         document.body.removeChild(f.nativeElement);
     });
 

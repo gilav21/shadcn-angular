@@ -33,7 +33,7 @@ export class SortableItemComponent {
             'relative flex items-center gap-2 select-none outline-none',
             'focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-1 rounded',
             bodyDraggable ? 'touch-none' : '',
-            isSource ? 'opacity-50 z-10' : '',
+            isSource ? 'z-10' : '',
             isLifted ? 'ring-2 ring-primary ring-offset-1 rounded' : '',
             this.class(),
         );
