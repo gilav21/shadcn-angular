@@ -77,8 +77,8 @@ describe('createFlip', () => {
         await flip.play(200);
 
         expect(animateCalls).toHaveLength(2);
-        expect(animateCalls[0].keyframes[0].transform).toBe('translate(0px, -100px)');
-        expect(animateCalls[1].keyframes[0].transform).toBe('translate(0px, 50px)');
+        expect(animateCalls[0].keyframes[0]['transform']).toBe('translate(0px, -100px)');
+        expect(animateCalls[1].keyframes[0]['transform']).toBe('translate(0px, 50px)');
         expect(animateCalls[0].options.duration).toBe(200);
     });
 

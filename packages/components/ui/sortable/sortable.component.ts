@@ -17,6 +17,7 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
+import { createFlip, type FlipHandle } from '../../lib/flip';
 import { SortableItemComponent } from './sub/sortable-item.component';
 
 export { SortableItemComponent };
@@ -123,6 +124,10 @@ export class SortableComponent<T> {
 
     private readonly destroyRef = inject(DestroyRef);
 
+    private static readonly DEFAULT_ANIMATE_MS = 200;
+    private readonly flip: FlipHandle;
+    private flipPlayHandle: ReturnType<typeof setTimeout> | null = null;
+
     private readonly _dragSource = signal<number | null>(null);
     private readonly _dragTarget = signal<number | null>(null);
     private readonly _dragDelta = signal<{ x: number; y: number }>({ x: 0, y: 0 });
@@ -155,10 +160,36 @@ export class SortableComponent<T> {
     );
 
     constructor() {
+        this.flip = createFlip(() => this.collectItemElements());
         this.destroyRef.onDestroy(() => {
             this.dragCleanup?.();
             this.dragCleanup = null;
+            if (this.flipPlayHandle !== null) {
+                clearTimeout(this.flipPlayHandle);
+                this.flipPlayHandle = null;
+            }
         });
+    }
+
+    private collectItemElements(): HTMLElement[] {
+        const root = this.containerRef().nativeElement;
+        return Array.from(root.querySelectorAll<HTMLElement>('[data-slot="sortable-item"]'));
+    }
+
+    private schedulePlay(): void {
+        if (this.flipPlayHandle !== null) clearTimeout(this.flipPlayHandle);
+        this.flipPlayHandle = setTimeout(() => {
+            this.flipPlayHandle = null;
+            void this.flip.play(SortableComponent.DEFAULT_ANIMATE_MS);
+        }, 0);
+    }
+
+    private applyReorder(from: number, to: number, emit: boolean): void {
+        this.flip.measure();
+        const next = moveItem(this.items(), from, to);
+        this.items.set(next);
+        if (emit) this.reorder.emit({ from, to });
+        this.schedulePlay();
     }
 
     shouldShowIndicatorBefore(index: number): boolean {
@@ -229,18 +260,30 @@ export class SortableComponent<T> {
     private onDragEnd(): void {
         const from = this._dragSource();
         const gap = this._dragTarget();
+        this.dragCleanup = null;
+
+        if (from === null || gap === null) {
+            this.clearDragState();
+            return;
+        }
+        const to = gap > from ? gap - 1 : gap;
+        if (to === from) {
+            this.clearDragState();
+            return;
+        }
+
+        this.flip.measure();
+        const next = moveItem(this.items(), from, to);
+        this.items.set(next);
+        this.clearDragState();
+        this.reorder.emit({ from, to });
+        this.schedulePlay();
+    }
+
+    private clearDragState(): void {
         this._dragSource.set(null);
         this._dragTarget.set(null);
         this._dragDelta.set({ x: 0, y: 0 });
-        this.dragCleanup = null;
-
-        if (from === null || gap === null) return;
-        const to = gap > from ? gap - 1 : gap;
-        if (to === from) return;
-
-        const next = moveItem(this.items(), from, to);
-        this.items.set(next);
-        this.reorder.emit({ from, to });
     }
 
     handleItemKeyDown(index: number, event: KeyboardEvent): void {
@@ -269,9 +312,7 @@ export class SortableComponent<T> {
         const newIndex = Math.max(0, Math.min(this.items().length - 1, index + delta));
         if (newIndex === index) return;
 
-        const next = moveItem(this.items(), index, newIndex);
-        this.items.set(next);
-        this.reorder.emit({ from: index, to: newIndex });
+        this.applyReorder(index, newIndex, true);
         this._liftedIndex.set(newIndex);
     }
 
@@ -289,8 +330,7 @@ export class SortableComponent<T> {
         const origin = this._liftOrigin();
         const lifted = this._liftedIndex();
         if (origin !== null && lifted !== null && origin !== lifted) {
-            const next = moveItem(this.items(), lifted, origin);
-            this.items.set(next);
+            this.applyReorder(lifted, origin, false);
         }
         this._liftedIndex.set(null);
         this._liftOrigin.set(null);

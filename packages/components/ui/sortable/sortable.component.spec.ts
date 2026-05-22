@@ -1,6 +1,6 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import {
     SortableComponent,
     SortableItemComponent,
@@ -260,5 +260,61 @@ describe('SortableComponent', () => {
         items[0].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: 5, bubbles: true }));
 
         expect(sortable.dragSource()).toBeNull();
+    });
+
+    function flushTimers(): Promise<void> {
+        return new Promise<void>(resolve => setTimeout(resolve, 0));
+    }
+
+    function attachAndSizeFixture(): void {
+        document.body.appendChild(fixture.nativeElement);
+        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        for (const item of Array.from(items)) {
+            item.style.display = 'block';
+            item.style.height = '40px';
+            item.style.width = '200px';
+        }
+        fixture.detectChanges();
+    }
+
+    function detachFixture(): void {
+        if (fixture.nativeElement.parentNode === document.body) {
+            document.body.removeChild(fixture.nativeElement);
+        }
+    }
+
+    it('animates sibling items via element.animate() after a keyboard reorder', async () => {
+        attachAndSizeFixture();
+        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
+        const sortable = getSortable<TestRow>(fixture);
+
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        fixture.detectChanges();
+        await flushTimers();
+        fixture.detectChanges();
+
+        expect(animateSpy).toHaveBeenCalled();
+        animateSpy.mockRestore();
+        detachFixture();
+    });
+
+    it('animates after Escape-cancel restores order', async () => {
+        attachAndSizeFixture();
+        const sortable = getSortable<TestRow>(fixture);
+
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        fixture.detectChanges();
+        await flushTimers();
+
+        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
+        sortable.handleItemKeyDown(1, new KeyboardEvent('keydown', { key: 'Escape' }));
+        fixture.detectChanges();
+        await flushTimers();
+
+        expect(animateSpy).toHaveBeenCalled();
+        animateSpy.mockRestore();
+        detachFixture();
     });
 });

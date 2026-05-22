@@ -4,7 +4,7 @@
     [attr.data-slot]="'sortable'"
     [attr.aria-disabled]="disabled() ? 'true' : null"
 >
-    @for (item of items(); track $index) {
+    @for (item of items(); track item) {
         @if (shouldShowIndicatorBefore($index)) {
             <div [class]="indicatorClass()" aria-hidden="true"></div>
         }
