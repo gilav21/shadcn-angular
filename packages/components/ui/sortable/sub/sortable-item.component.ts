@@ -18,6 +18,7 @@ function prefersReducedMotion(): boolean {
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './sortable-item.component.html',
+    styleUrl: './sortable-item.component.css',
     host: { class: 'contents' },
 })
 export class SortableItemComponent {

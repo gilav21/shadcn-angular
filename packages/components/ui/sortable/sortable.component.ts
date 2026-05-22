@@ -24,6 +24,37 @@ import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder
 
 export { SortableItemComponent };
 
+/**
+ * Pre-made land-effect class names that consumers can plug into the
+ * `[landEffect]` input (added in T4.2). Each value is a CSS class
+ * defined in `sortable-item.component.css` with a matching one-shot
+ * `@keyframes` animation that respects `prefers-reduced-motion`.
+ *
+ * Consumers may use these names directly OR pass their own class.
+ *
+ * @example
+ *   // In your component:
+ *   protected readonly flash = (): string => SORTABLE_LAND_EFFECTS.flash;
+ *
+ *   <ui-sortable [(items)]="rows" [landEffect]="flash">
+ */
+export const SORTABLE_LAND_EFFECTS = {
+    flash: 'ui-sortable-land-flash',
+    pulse: 'ui-sortable-land-pulse',
+    shake: 'ui-sortable-land-shake',
+    glow:  'ui-sortable-land-glow',
+} as const;
+
+/**
+ * Name of a built-in land effect, or any custom CSS class string.
+ * The `string & {}` intersection keeps the literal-union autocomplete
+ * intact while still accepting arbitrary strings.
+ */
+// eslint-disable-next-line @typescript-eslint/ban-types
+export type SortableLandEffect =
+    | (typeof SORTABLE_LAND_EFFECTS)[keyof typeof SORTABLE_LAND_EFFECTS]
+    | (string & {});
+
 export type SortableOrientation = 'vertical' | 'horizontal';
 
 export interface SortableReorderEvent {

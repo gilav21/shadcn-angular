@@ -6,6 +6,7 @@ import {
     SortableItemComponent,
     SortableItemTemplateDirective,
     SortableHandleDirective,
+    SORTABLE_LAND_EFFECTS,
 } from './sortable.component';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
@@ -549,6 +550,18 @@ describe('SortableComponent', () => {
         fixture.detectChanges();
         const itemsAfter: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
         expect(itemsAfter[0].className).not.toContain('cursor-grab');
+    });
+
+    it('exports SORTABLE_LAND_EFFECTS with the four built-in class names', () => {
+        expect(SORTABLE_LAND_EFFECTS.flash).toBe('ui-sortable-land-flash');
+        expect(SORTABLE_LAND_EFFECTS.pulse).toBe('ui-sortable-land-pulse');
+        expect(SORTABLE_LAND_EFFECTS.shake).toBe('ui-sortable-land-shake');
+        expect(SORTABLE_LAND_EFFECTS.glow).toBe('ui-sortable-land-glow');
+    });
+
+    it('SORTABLE_LAND_EFFECTS is readonly (frozen-shape const)', () => {
+        const keys = Object.keys(SORTABLE_LAND_EFFECTS).sort();
+        expect(keys).toEqual(['flash', 'glow', 'pulse', 'shake']);
     });
 
     it('animates after Escape-cancel restores order', async () => {
