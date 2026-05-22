@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { ColorPickerComponent } from './color-picker.component';
 
 @Component({
@@ -285,7 +285,64 @@ describe('ColorPickerComponent', () => {
             expect(picker.harmonyGroups().length).toBe(0);
             host.showHarmonies.set(true);
             fixture.detectChanges();
-            expect(picker.harmonyGroups().length).toBe(4);
+            const groups = picker.harmonyGroups();
+            expect(groups.length).toBe(5);
+            expect(groups.map(g => g.label)).toEqual([
+                'Readable',
+                'Opposite',
+                'Neighbors',
+                'Trio',
+                'Quartet',
+            ]);
+        });
+
+        it('Readable row recommends black first for a light color', async () => {
+            host.showHarmonies.set(true);
+            fixture.detectChanges();
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#ffff00');
+            fixture.detectChanges();
+            const readable = picker.harmonyGroups()[0];
+            expect(readable.label).toBe('Readable');
+            expect(readable.swatches[0]).toBe('#000000');
+            expect(readable.swatches[1]).toBe('#ffffff');
+        });
+
+        it('Readable row recommends white first for a dark color', async () => {
+            host.showHarmonies.set(true);
+            fixture.detectChanges();
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#000080');
+            fixture.detectChanges();
+            const readable = picker.harmonyGroups()[0];
+            expect(readable.swatches[0]).toBe('#ffffff');
+            expect(readable.swatches[1]).toBe('#000000');
+        });
+
+        it('copyHarmony writes to clipboard and exposes the copied hex', async () => {
+            host.showHarmonies.set(true);
+            fixture.detectChanges();
+            const picker = await openAndGetPicker(fixture);
+            const writeText = vi.fn().mockResolvedValue(undefined);
+            Object.defineProperty(globalThis.navigator, 'clipboard', {
+                value: { writeText },
+                configurable: true,
+            });
+            await picker.copyHarmony('#abcdef');
+            expect(writeText).toHaveBeenCalledWith('#abcdef');
+            expect(picker.copiedHarmony()).toBe('#abcdef');
+        });
+
+        it('copyHarmony does not change the picker selection', async () => {
+            host.showHarmonies.set(true);
+            fixture.detectChanges();
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#112233');
+            fixture.detectChanges();
+            const before = picker.currentColor();
+            await picker.copyHarmony('#abcdef');
+            fixture.detectChanges();
+            expect(picker.currentColor()).toBe(before);
         });
     });
 
@@ -299,6 +356,43 @@ describe('ColorPickerComponent', () => {
             fixture.detectChanges();
             expect(picker.contrastRatioValue()).toBeCloseTo(21, 0);
             expect(picker.contrastBadge()?.label).toBe('AAA');
+        });
+
+        it('routes picker writes to the active compare slot', async () => {
+            host.showContrast.set(true);
+            fixture.detectChanges();
+            const picker = await openAndGetPicker(fixture);
+
+            picker.selectPreset('#ff0000');
+            fixture.detectChanges();
+            expect(picker.compareAHex()).toBe('#ff0000');
+
+            picker.setCompareSlot('b');
+            picker.selectPreset('#00ff00');
+            fixture.detectChanges();
+            expect(picker.compareBHex()).toBe('#00ff00');
+            expect(picker.compareAHex()).toBe('#ff0000');
+
+            picker.setCompareSlot('a');
+            expect(picker.currentColor()).toBe('#ff0000');
+        });
+
+        it('compares against the second slot, not the background input', async () => {
+            host.showContrast.set(true);
+            host.contrastBackground.set('#ffffff');
+            fixture.detectChanges();
+            const picker = await openAndGetPicker(fixture);
+            picker.selectPreset('#000000');
+            fixture.detectChanges();
+            picker.setCompareSlot('b');
+            fixture.detectChanges();
+            picker.selectPreset('#ffffff');
+            fixture.detectChanges();
+            picker.setCompareSlot('a');
+            fixture.detectChanges();
+            expect(picker.compareAHex()).toBe('#000000');
+            expect(picker.compareBHex()).toBe('#ffffff');
+            expect(picker.contrastRatioValue()).toBeCloseTo(21, 0);
         });
     });
 
