@@ -1,0 +1,120 @@
+name: E2E
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+  workflow_dispatch:
+
+# Cancel in-progress runs for the same branch — saves CI minutes when
+# someone pushes a fix on top of a still-running run.
+concurrency:
+  group: e2e-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  e2e:
+    name: e2e suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      # fetch-depth: 0 so `git diff base...HEAD` in the impact step can
+      # see history beyond the PR head. Without it the diff misfires
+      # for any PR that isn't a single-commit branch.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      # Root install picks up @playwright/test, tsx, and the rest of the
+      # devDeps the orchestrator needs. The fixture-app's own install
+      # happens lazily during the suite (`runCli`'s `npmInstall` step)
+      # so its node_modules is sized to a real consumer's tree, not
+      # workspace-hoisted.
+      #
+      # Uses `npm install` rather than `npm ci` because the lockfile is
+      # platform-specific for optional native deps (rolldown bindings,
+      # esbuild platform packages). `npm ci` rejects the lockfile when
+      # it lacks the Linux variants; `npm install` is happy to resolve
+      # them at install time without writing the lockfile back.
+      - name: Install root deps
+        run: npm install --no-audit --no-fund
+
+      - name: Build CLI (npx shadcn-angular)
+        run: npm run e2e:build-cli
+
+      # Compute which specs the diff actually touches. The script emits
+      # one of: ALL (a tripwire fired — run everything), NONE (the diff
+      # doesn't touch any spec, e.g. docs-only), or a space-separated
+      # list of spec labels.
+      #
+      # On push to master we deliberately skip the analyzer and always
+      # run the full suite as a safety net — master is the integration
+      # point and should never have stale unverified specs.
+      - name: Compute spec impact
+        id: impact
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE_SHA="${{ github.event.pull_request.base.sha }}"
+            echo "Running impact analysis against PR base $BASE_SHA"
+            SPECS=$(npm run --silent e2e:impact -- --base "$BASE_SHA")
+          else
+            echo "Push event — skipping impact analysis, running full suite"
+            SPECS="ALL"
+          fi
+          echo "specs=$SPECS" >> "$GITHUB_OUTPUT"
+          echo "Decision: $SPECS"
+
+      # Use Playwright's pinned browser cache. Same version of
+      # @playwright/test → same browser binaries → reused across runs.
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        id: playwright-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      - name: Install Playwright Chromium
+        if: steps.impact.outputs.specs != 'NONE' && steps.playwright-cache.outputs.cache-hit != 'true'
+        run: npx playwright install chromium --with-deps
+
+      - name: Install Playwright system deps (always needed on Linux)
+        if: steps.impact.outputs.specs != 'NONE' && steps.playwright-cache.outputs.cache-hit == 'true'
+        run: npx playwright install-deps chromium
+
+      # Run the subset the impact step selected. NONE short-circuits the
+      # whole job and the workflow reports success (the diff didn't
+      # touch anything that needs e2e coverage). ALL runs the full
+      # suite. Anything else is a space-separated list of spec labels.
+      - name: Run e2e suite
+        if: steps.impact.outputs.specs != 'NONE'
+        run: |
+          if [ "${{ steps.impact.outputs.specs }}" = "ALL" ]; then
+            npm run e2e
+          else
+            npm run e2e -- ${{ steps.impact.outputs.specs }}
+          fi
+        env:
+          CI: '1'
+
+      - name: Report skipped
+        if: steps.impact.outputs.specs == 'NONE'
+        run: echo "No spec-relevant files changed — skipping e2e suite."
+
+      # Surface the Playwright traces / videos / screenshots that the
+      # config emits on failure. Only run if the previous step failed.
+      - name: Upload Playwright artifacts
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-artifacts
+          path: |
+            test-results/
+            playwright-report/
+          if-no-files-found: ignore
+          retention-days: 14

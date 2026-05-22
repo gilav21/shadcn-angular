@@ -273,8 +273,10 @@ describe('classifyComponent', () => {
     const content = '// badge content';
     mockedFs.pathExists.mockResolvedValue(true as never);
     mockedFs.readFile.mockResolvedValue(content as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(content, { status: 200 }),
+    // A Response body can only be consumed once — return a fresh one per fetch
+    // call so multi-file components compare correctly.
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response(content, { status: 200 })),
     );
     const cache = new Map<string, string>();
     const peerFiles = new Set<string>();
@@ -366,8 +368,8 @@ describe('detectConflicts', () => {
     const content = '// badge content';
     mockedFs.pathExists.mockResolvedValue(true as never);
     mockedFs.readFile.mockResolvedValue(content as never);
-    vi.spyOn(globalThis, 'fetch').mockResolvedValue(
-      new Response(content, { status: 200 }),
+    vi.spyOn(globalThis, 'fetch').mockImplementation(() =>
+      Promise.resolve(new Response(content, { status: 200 })),
     );
 
     const components = new Set<ComponentName>(['badge']);

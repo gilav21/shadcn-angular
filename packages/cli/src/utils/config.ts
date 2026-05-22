@@ -1,9 +1,17 @@
 import fs from 'fs-extra';
 import path from 'node:path';
+import { DEFAULT_PREFIX, isValidPrefix } from './prefix.js';
 
 export interface Config {
     style: 'default';
     registry?: string;
+    /**
+     * Component selector prefix used when components are copied into the
+     * user's project. Defaults to `'ui'` (matches the source library).
+     * Set this to e.g. `'acme'` to make `<ui-button>` render as
+     * `<acme-button>` in the copied source.
+     */
+    prefix?: string;
     tailwind: {
         css: string;
         baseColor: 'neutral' | 'slate' | 'stone' | 'gray' | 'zinc';
@@ -15,6 +23,11 @@ export interface Config {
         utils: string;
         ui: string;
     };
+}
+
+/** Returns the configured prefix or the default when none is set. */
+export function getPrefix(config: Pick<Config, 'prefix'>): string {
+    return config.prefix ?? DEFAULT_PREFIX;
 }
 
 export function getDefaultConfig(): Config {
@@ -45,6 +58,8 @@ function validateConfig(data: unknown): data is Config {
     if (!obj['aliases'] || typeof obj['aliases'] !== 'object') return false;
     const aliases = obj['aliases'] as Record<string, unknown>;
     if (typeof aliases['components'] !== 'string' || typeof aliases['utils'] !== 'string' || typeof aliases['ui'] !== 'string') return false;
+
+    if ('prefix' in obj && obj['prefix'] !== undefined && !isValidPrefix(obj['prefix'])) return false;
 
     return true;
 }

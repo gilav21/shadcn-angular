@@ -8,6 +8,7 @@
       [class]="classes()"
       [disabled]="isDisabled()"
       [attr.id]="computedId()"
+      [attr.aria-labelledby]="computedId() + '-label'"
       [attr.aria-describedby]="ariaDescribedby()"
       [attr.aria-invalid]="ariaInvalid()"
       [attr.data-slot]="'checkbox'"
@@ -24,6 +25,7 @@
       }
     </button>
     <label
+      [id]="computedId() + '-label'"
       [attr.for]="computedId()"
       class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
       (click)="toggle(); $event.preventDefault()"

@@ -3,7 +3,11 @@
   [type]="type()"
   [disabled]="isDisabled()"
   [placeholder]="placeholder()"
-  [placeholder]="placeholder()"
+  [attr.id]="elementId()"
+  [attr.name]="name()"
+  [attr.aria-label]="ariaLabel()"
+  [attr.aria-labelledby]="ariaLabelledby()"
+  [attr.aria-describedby]="ariaDescribedby()"
   [attr.data-slot]="'input'"
   #inputRef
   [ngModel]="value()"

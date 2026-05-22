@@ -3,6 +3,8 @@ node_modules
 storybook-static
 dist
 __screenshots__
+test-results
+playwright-report
 
 # Debug logs
 *storybook.log

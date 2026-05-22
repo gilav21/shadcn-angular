@@ -19,7 +19,14 @@
     "build-storybook": "npm run docs:json && ng run demo:build-storybook",
     "test-visual": "vitest --browser=chromium",
     "test:cli": "vitest --config vitest.config.cli.ts",
-    "docs:json": "compodoc -p tsconfig.json -e json -d ."
+    "docs:json": "compodoc -p tsconfig.json -e json -d .",
+    "e2e:build-cli": "cd packages/cli && npm run build",
+    "e2e": "tsx e2e/orchestrator/run.ts",
+    "e2e:headed": "tsx e2e/orchestrator/run.ts --headed",
+    "e2e:ui": "tsx e2e/orchestrator/run.ts --ui",
+    "e2e:debug": "tsx e2e/orchestrator/run.ts --debug",
+    "e2e:reset": "tsx e2e/orchestrator/reset.ts",
+    "e2e:impact": "tsx e2e/orchestrator/impact.ts"
   },
   "keywords": [
     "angular",
@@ -39,8 +46,10 @@
     "@storybook/addon-docs": "^10.1.11",
     "@storybook/addon-onboarding": "^10.1.11",
     "@storybook/angular": "^10.1.11",
+    "@playwright/test": "^1.57.0",
     "@storybook/test-runner": "^0.24.2",
     "@tailwindcss/postcss": "^4.1.18",
+    "@types/node": "^20.14.0",
     "@vitest/browser": "^4.0.17",
     "@vitest/browser-playwright": "^4.0.17",
     "axe-playwright": "^2.2.2",
@@ -51,6 +60,7 @@
     "rollup": "^4.60.1",
     "storybook": "^10.3.5",
     "tailwindcss": "^4.1.18",
+    "tsx": "^4.19.0",
     "typescript": "~5.9.2",
     "vite": "^7.3.2",
     "vitest": "^4.0.17"

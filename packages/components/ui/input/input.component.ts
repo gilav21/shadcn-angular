@@ -55,6 +55,22 @@ export class InputComponent implements ControlValueAccessor {
     disabled = input(false);
     class = input('');
 
+    /**
+     * Forwarded to the inner <input>'s id so `<label for="x">` outside the
+     * component correctly associates. Without this, putting `id` on the
+     * `<ui-input>` host (which has class="contents") doesn't reach the
+     * real form control and screen readers / axe report no label.
+     */
+    elementId = input<string | undefined>(undefined);
+    /** Forwarded to the inner <input>'s name (for form submission). */
+    name = input<string | undefined>(undefined);
+    /** Forwarded to the inner <input>'s aria-label. */
+    ariaLabel = input<string | undefined>(undefined);
+    /** Forwarded to the inner <input>'s aria-labelledby. */
+    ariaLabelledby = input<string | undefined>(undefined);
+    /** Forwarded to the inner <input>'s aria-describedby. */
+    ariaDescribedby = input<string | undefined>(undefined);
+
     variant = input<InputVariant>('outline');
 
     private readonly group = inject(UI_INPUT_GROUP, { optional: true });
