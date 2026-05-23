@@ -18,7 +18,6 @@ function prefersReducedMotion(): boolean {
     standalone: true,
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './sortable-item.component.html',
-    styleUrl: './sortable-item.component.css',
     host: { class: 'contents' },
 })
 export class SortableItemComponent {
@@ -58,7 +57,7 @@ export class SortableItemComponent {
     readonly dragStyle = computed((): Record<string, string> => {
         const idx = this.index();
         if (this.parent?.dragSource() !== idx) return {};
-        const delta = this.parent?.dragDelta() ?? { x: 0, y: 0 };
+        const delta = this.parent?.effectiveDragDelta() ?? { x: 0, y: 0 };
         const lift = prefersReducedMotion() ? '' : ' scale(1.02) rotate(1.5deg)';
         return {
             transform: `translate(${delta.x}px, ${delta.y}px)${lift}`,

@@ -14,13 +14,17 @@
 
     <ng-template #ghostAt let-i="index">
         @if (ghostTemplate(); as gt) {
-            <ng-container *ngTemplateOutlet="gt; context: ghostContext(i)" />
+            <div class="ui-sortable-ghost-fade" data-slot="sortable-ghost-host" aria-hidden="true">
+                <ng-container *ngTemplateOutlet="gt; context: ghostContext(i)" />
+            </div>
         } @else {
             <div
+                class="pointer-events-none opacity-60 ui-sortable-ghost-fade"
                 aria-hidden="true"
                 data-slot="sortable-ghost"
-                [class]="indicatorClass()"
-            ></div>
+            >
+                <ng-container *ngTemplateOutlet="itemTemplate()!; context: ghostContext(i)" />
+            </div>
         }
     </ng-template>
 

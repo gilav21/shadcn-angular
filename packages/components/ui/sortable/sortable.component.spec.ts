@@ -402,7 +402,7 @@ describe('SortableComponent', () => {
         expect(f.nativeElement.querySelector('[data-testid="empty"]')).toBeNull();
     });
 
-    it('renders a default thin-line ghost indicator at the projected drop position while dragging', () => {
+    it('renders a default translucent ghost (item preview at opacity-60) at the projected drop position', () => {
         attachAndSizeFixture();
         const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
 
@@ -412,7 +412,8 @@ describe('SortableComponent', () => {
 
         const ghost: HTMLElement | null = fixture.nativeElement.querySelector('[data-slot="sortable-ghost"]');
         expect(ghost).not.toBeNull();
-        expect(ghost?.className).toContain('bg-primary');
+        expect(ghost?.className).toContain('opacity-60');
+        expect(ghost?.className).toContain('ui-sortable-ghost-fade');
 
         globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 10 }));
         detachFixture();
@@ -1209,6 +1210,83 @@ describe('SortableComponent', () => {
         expect(f.componentInstance.right().map(r => r.name)).toEqual(['Move me']);
 
         document.body.removeChild(f.nativeElement);
+    });
+
+    it('built-in landEffect plays via element.animate with composite:"add"', async () => {
+        @Component({
+            selector: 'app-builtin-land',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows" [landEffect]="pulseFn">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class BuiltInHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+            readonly pulseFn = (): string => SORTABLE_LAND_EFFECTS.pulse;
+        }
+        const f = TestBed.createComponent(BuiltInHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        f.detectChanges();
+        await new Promise<void>(r => setTimeout(r, 30));
+
+        const additive = animateSpy.mock.calls.find(args => {
+            const opts = args[1];
+            return opts !== null && typeof opts === 'object' && (opts as KeyframeAnimationOptions).composite === 'add';
+        });
+        expect(additive).toBeDefined();
+        animateSpy.mockRestore();
+        document.body.removeChild(f.nativeElement);
+    });
+
+    it('animates the source back to its origin on a no-op pointer drop (no net target change)', async () => {
+        attachAndSizeFixture();
+        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        const sourceRect = items[0].getBoundingClientRect();
+        const animateSpy = vi.spyOn(HTMLElement.prototype, 'animate');
+
+        items[0].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: sourceRect.top + 5, bubbles: true }));
+        // Move just a few pixels — stays inside the source's no-op gap (target === source+1).
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 5, clientY: sourceRect.top + 9 }));
+        // Flush CD so the dragStyle transform actually paints before mouseup captures it.
+        fixture.detectChanges();
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: sourceRect.top + 9 }));
+        fixture.detectChanges();
+        await new Promise<void>(r => setTimeout(r, 30));
+        fixture.detectChanges();
+
+        // FLIP's measure+play fired for the snap-back — element.animate should have been invoked.
+        expect(animateSpy).toHaveBeenCalled();
+        animateSpy.mockRestore();
+        detachFixture();
+    });
+
+    it('drag from index 0 reorders even when the cursor starts in the upper half of the source row', () => {
+        attachAndSizeFixture();
+        const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
+        const sourceRect = items[0].getBoundingClientRect();
+        const downstreamRect = items[2].getBoundingClientRect();
+        const sourceUpperY = sourceRect.top + 4; // upper half — broke the old algorithm
+        const targetY = downstreamRect.top + downstreamRect.height / 2 + 4;
+
+        items[0].dispatchEvent(new MouseEvent('mousedown', { clientX: 5, clientY: sourceUpperY, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 5, clientY: targetY }));
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: targetY }));
+        fixture.detectChanges();
+
+        // Old algorithm: cursor stayed in upper half of source's adjusted rect → target=0 forever → no reorder.
+        // New algorithm: source is skipped during scan → target computed from neighbours, reorder happens.
+        expect(host.rows()[0].name).not.toBe('Alpha');
+        detachFixture();
     });
 
     it('animates after Escape-cancel restores order', async () => {

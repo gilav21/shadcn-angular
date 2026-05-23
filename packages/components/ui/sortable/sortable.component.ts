@@ -150,8 +150,10 @@ function computeTargetIndex(
     rects: DOMRect[],
     pointer: number,
     orientation: SortableOrientation,
+    sourceIndex: number,
 ): number {
     for (let i = 0; i < rects.length; i++) {
+        if (i === sourceIndex) continue;
         const rect = rects[i];
         const mid = orientation === 'vertical'
             ? rect.top + rect.height / 2
@@ -161,6 +163,72 @@ function computeTargetIndex(
     return rects.length;
 }
 
+interface BuiltInLandEffect {
+    readonly keyframes: Keyframe[];
+    readonly duration: number;
+    readonly easing: string;
+}
+
+/**
+ * Built-in land effects play via the Web Animations API with
+ * `composite: 'add'` so transform-based effects (pulse, shake) overlay
+ * the FLIP "zip" translate instead of being suppressed by it.
+ * `flash` / `glow` use `color-mix` so they work with any `--primary`
+ * format (the theme uses `oklch(...)`, which is incompatible with the
+ * legacy `hsl(var(--primary) / α)` syntax).
+ */
+const BUILT_IN_LAND_EFFECTS: Record<string, BuiltInLandEffect> = {
+    'ui-sortable-land-flash': {
+        keyframes: [
+            { backgroundColor: 'color-mix(in srgb, var(--primary) 0%, transparent)' },
+            { backgroundColor: 'color-mix(in srgb, var(--primary) 30%, transparent)', offset: 0.35 },
+            { backgroundColor: 'color-mix(in srgb, var(--primary) 0%, transparent)' },
+        ],
+        duration: 600,
+        easing: 'ease-out',
+    },
+    'ui-sortable-land-pulse': {
+        keyframes: [
+            { transform: 'scale(1)' },
+            { transform: 'scale(1.06)', offset: 0.5 },
+            { transform: 'scale(1)' },
+        ],
+        duration: 400,
+        easing: 'ease-out',
+    },
+    'ui-sortable-land-shake': {
+        keyframes: [
+            { transform: 'translateX(0)' },
+            { transform: 'translateX(-4px)', offset: 0.2 },
+            { transform: 'translateX(4px)',  offset: 0.4 },
+            { transform: 'translateX(-3px)', offset: 0.6 },
+            { transform: 'translateX(3px)',  offset: 0.8 },
+            { transform: 'translateX(0)' },
+        ],
+        duration: 450,
+        easing: 'ease-out',
+    },
+    'ui-sortable-land-glow': {
+        keyframes: [
+            { boxShadow: '0 0 0 0 color-mix(in srgb, var(--primary) 60%, transparent)' },
+            { boxShadow: '0 0 0 10px color-mix(in srgb, var(--primary) 0%, transparent)' },
+        ],
+        duration: 650,
+        easing: 'ease-out',
+    },
+};
+
+function playBuiltInLandEffect(el: HTMLElement, effect: BuiltInLandEffect): void {
+    const reduce = globalThis.window?.matchMedia('(prefers-reduced-motion: reduce)').matches ?? false;
+    if (reduce) return;
+    el.animate(effect.keyframes, {
+        duration: effect.duration,
+        easing: effect.easing,
+        composite: 'add',
+        fill: 'none',
+    });
+}
+
 /** Generic drag-to-reorder list. */
 @Component({
     selector: 'ui-sortable',
@@ -168,6 +236,19 @@ function computeTargetIndex(
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [NgTemplateOutlet],
     templateUrl: './sortable.component.html',
+    styles: [`
+        @keyframes ui-sortable-ghost-fade-in {
+            from { transform: scaleY(0.4); opacity: 0; }
+            to   { transform: scaleY(1);   opacity: 1; }
+        }
+        .ui-sortable-ghost-fade {
+            animation: ui-sortable-ghost-fade-in 110ms ease-out;
+            transform-origin: top;
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .ui-sortable-ghost-fade { animation: none; }
+        }
+    `],
     host: { class: 'contents' },
 })
 export class SortableComponent<T> {
@@ -254,25 +335,38 @@ export class SortableComponent<T> {
         )
     );
 
-    /**
-     * Default ghost: a thin, rounded primary-coloured drop-indicator that fits
-     * in the gap between items without shifting their layout. Consumers who want
-     * a richer preview (a translucent copy of the item, etc.) project a
-     * `<ng-template uiSortableGhost>` — the rich preview can introduce visible
-     * flow shifts when inserted before the source's flow slot, so we keep the
-     * default light-weight.
-     */
-    readonly indicatorClass = computed(() =>
-        this.orientation() === 'vertical'
-            ? 'h-1 w-full bg-primary rounded pointer-events-none my-0.5 shadow-[0_0_0_2px_rgba(0,0,0,0.04)]'
-            : 'w-1 self-stretch bg-primary rounded pointer-events-none mx-0.5 shadow-[0_0_0_2px_rgba(0,0,0,0.04)]'
-    );
-
     /** The item currently being dragged (or null when no drag is active). */
     readonly draggedItem = computed((): T | null => {
         const source = this._dragSource();
         if (source === null) return null;
         return this.items()[source] ?? null;
+    });
+
+    /**
+     * Cursor delta adjusted to compensate for ghost-driven flow shifts.
+     *
+     * When the projected drop target sits BEFORE the source's flow slot,
+     * inserting the ghost in flow pushes the source's flow slot forward
+     * by the ghost's height (vertical) or width (horizontal). The source
+     * still has a CSS `transform: translate(...)` driven by raw cursor
+     * delta — without this compensation, the rendered source visually
+     * jumps away from the cursor by the shift amount.
+     *
+     * Subtracting the source's height/width from the relevant axis of
+     * the delta cancels out the flow shift so the dragged element stays
+     * glued to the cursor regardless of ghost position.
+     */
+    readonly effectiveDragDelta = computed((): { x: number; y: number } => {
+        const delta = this._dragDelta();
+        const source = this._dragSource();
+        const target = this._dragTarget();
+        const placeholder = this._placeholderRect();
+        if (source === null || target === null || placeholder === null) return delta;
+        const noOp = target === source || target === source + 1;
+        if (noOp || target >= source) return delta;
+        return this.orientation() === 'vertical'
+            ? { x: delta.x, y: delta.y - placeholder.height }
+            : { x: delta.x - placeholder.width, y: delta.y };
     });
 
     /** Template context for the ghost outlet at gap `index`. */
@@ -361,7 +455,13 @@ export class SortableComponent<T> {
         options: { readonly clearDrag: boolean; readonly emit: boolean },
     ): void {
         if (from === to) {
-            if (options.clearDrag) this.clearDragState();
+            if (options.clearDrag) {
+                // No-op pointer drop: animate the source back to its origin
+                // slot via FLIP so it matches the "zip" feel of a real reorder.
+                this.flip.measure();
+                this.clearDragState();
+                this.schedulePlay();
+            }
             return;
         }
         this.flip.measure();
@@ -469,8 +569,13 @@ export class SortableComponent<T> {
         setTimeout(() => {
             const el = this.collectItemElements()[toIndex];
             if (!el) return;
-            el.classList.add(cls);
-            setTimeout(() => el.classList.remove(cls), SortableComponent.LAND_EFFECT_MS);
+            const builtIn = BUILT_IN_LAND_EFFECTS[cls];
+            if (builtIn !== undefined) {
+                playBuiltInLandEffect(el, builtIn);
+            } else {
+                el.classList.add(cls);
+                setTimeout(() => el.classList.remove(cls), SortableComponent.LAND_EFFECT_MS);
+            }
         }, 0);
     }
 
@@ -505,10 +610,8 @@ export class SortableComponent<T> {
             this.autoScroller = startAutoScroll();
         }
 
-        const startPointer = this.orientation() === 'vertical' ? startY : startX;
-
         this.dragCleanup = onPointerDrag(
-            (clientX, clientY) => this.onDragMove(fromIndex, startX, startY, clientX, clientY, startPointer),
+            (clientX, clientY) => this.onDragMove(fromIndex, startX, startY, clientX, clientY),
             () => this.onDragEnd(),
         );
     }
@@ -525,14 +628,13 @@ export class SortableComponent<T> {
         startY: number,
         clientX: number,
         clientY: number,
-        startPointer: number,
     ): void {
         this._dragDelta.set({ x: clientX - startX, y: clientY - startY });
         this.autoScroller?.update(clientX, clientY);
 
         const peer = this.findHoverPeer(clientX, clientY);
         if (peer === null) {
-            this.updateLocalTarget(fromIndex, clientX, clientY, startPointer);
+            this.updateLocalTarget(fromIndex, clientX, clientY);
         } else {
             this.updatePeerTarget(peer, clientX, clientY);
         }
@@ -554,7 +656,6 @@ export class SortableComponent<T> {
         fromIndex: number,
         clientX: number,
         clientY: number,
-        startPointer: number,
     ): void {
         const previousPeer = this._hoverPeer();
         if (previousPeer !== null) {
@@ -564,14 +665,7 @@ export class SortableComponent<T> {
         this._hoverPeerTarget.set(null);
         const isVertical = this.orientation() === 'vertical';
         const pointer = isVertical ? clientY : clientX;
-        const delta = pointer - startPointer;
-        const adjustedRects = this.rects.map((r, i) => {
-            if (i !== fromIndex) return r;
-            return isVertical
-                ? new DOMRect(r.x, r.y + delta, r.width, r.height)
-                : new DOMRect(r.x + delta, r.y, r.width, r.height);
-        });
-        this._dragTarget.set(computeTargetIndex(adjustedRects, pointer, this.orientation()));
+        this._dragTarget.set(computeTargetIndex(this.rects, pointer, this.orientation(), fromIndex));
     }
 
     private updatePeerTarget(peer: SortableRegistryEntry, clientX: number, clientY: number): void {
@@ -587,7 +681,7 @@ export class SortableComponent<T> {
         }
         this._hoverPeer.set(peer);
         const pointer = peer.orientation === 'vertical' ? clientY : clientX;
-        const target = computeTargetIndex(peer.getItemRects(), pointer, peer.orientation);
+        const target = computeTargetIndex(peer.getItemRects(), pointer, peer.orientation, -1);
         this._hoverPeerTarget.set(target);
         this.updatePeerRejectVisual(peer, target);
     }
@@ -618,7 +712,11 @@ export class SortableComponent<T> {
 
         const gap = this._dragTarget();
         if (gap === null) {
+            // No gap ever computed (release before any move) — still animate
+            // the source back from its translated position via FLIP.
+            this.flip.measure();
             this.clearDragState();
+            this.schedulePlay();
             return;
         }
         const to = gap > from ? gap - 1 : gap;
