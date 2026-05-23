@@ -179,12 +179,17 @@ interface BuiltInLandEffect {
  */
 const BUILT_IN_LAND_EFFECTS: Record<string, BuiltInLandEffect> = {
     'ui-sortable-land-flash': {
+        // Tinted inset shadow layered OVER the item's existing background so
+        // the flash is visible regardless of the item's own bg color. Using
+        // backgroundColor for the flash didn't work — `composite: 'add'`
+        // doesn't apply additively to colors, and replacing the bg briefly
+        // erased the visible card colour rather than tinting it.
         keyframes: [
-            { backgroundColor: 'color-mix(in srgb, var(--primary) 0%, transparent)' },
-            { backgroundColor: 'color-mix(in srgb, var(--primary) 30%, transparent)', offset: 0.35 },
-            { backgroundColor: 'color-mix(in srgb, var(--primary) 0%, transparent)' },
+            { boxShadow: 'inset 0 0 0 0 color-mix(in srgb, var(--primary) 0%, transparent)' },
+            { boxShadow: 'inset 0 0 0 100px color-mix(in srgb, var(--primary) 45%, transparent)', offset: 0.3 },
+            { boxShadow: 'inset 0 0 0 0 color-mix(in srgb, var(--primary) 0%, transparent)' },
         ],
-        duration: 600,
+        duration: 550,
         easing: 'ease-out',
     },
     'ui-sortable-land-pulse': {
