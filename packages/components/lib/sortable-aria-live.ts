@@ -33,7 +33,7 @@ function ensureRegion(): HTMLElement {
     el.setAttribute('aria-live', 'assertive');
     el.setAttribute('aria-atomic', 'true');
     el.setAttribute('role', 'status');
-    el.dataset.slot = 'sortable-aria-live';
+    el.dataset['slot'] = 'sortable-aria-live';
     el.style.position = 'absolute';
     el.style.left = '-9999px';
     el.style.width = '1px';
