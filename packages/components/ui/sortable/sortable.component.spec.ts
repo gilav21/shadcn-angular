@@ -402,7 +402,7 @@ describe('SortableComponent', () => {
         expect(f.nativeElement.querySelector('[data-testid="empty"]')).toBeNull();
     });
 
-    it('renders a default translucent ghost at the projected drop position while dragging', () => {
+    it('renders a default thin-line ghost indicator at the projected drop position while dragging', () => {
         attachAndSizeFixture();
         const items: NodeListOf<HTMLElement> = fixture.nativeElement.querySelectorAll('[data-slot="sortable-item"]');
 
@@ -412,7 +412,7 @@ describe('SortableComponent', () => {
 
         const ghost: HTMLElement | null = fixture.nativeElement.querySelector('[data-slot="sortable-ghost"]');
         expect(ghost).not.toBeNull();
-        expect(ghost?.className).toContain('opacity-60');
+        expect(ghost?.className).toContain('bg-primary');
 
         globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 5, clientY: 10 }));
         detachFixture();
@@ -658,7 +658,7 @@ describe('SortableComponent', () => {
         const landed: HTMLElement | null = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]')[1];
         expect(landed?.className).toContain('land-test-class');
 
-        await new Promise<void>(r => setTimeout(r, 250));
+        await new Promise<void>(r => setTimeout(r, 800));
         f.detectChanges();
         const after: HTMLElement | null = f.nativeElement.querySelectorAll('[data-slot="sortable-item"]')[1];
         expect(after?.className).not.toContain('land-test-class');

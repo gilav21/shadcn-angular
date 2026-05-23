@@ -224,17 +224,12 @@ interface Card {
                     based on each item's index (first row stays green, last stays red, middle is neutral).
                     <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[landEffect]</code> adds a transient
                     <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">flash</code> keyframe to whichever
-                    item just landed.
+                    item just landed. The CSS transition on the item wrapper makes the color shift animate.
                 </p>
-                <style>
-                    .is-first { background-color: rgb(187 247 208) !important; transition: background-color 200ms; }
-                    .is-last  { background-color: rgb(254 202 202) !important; transition: background-color 200ms; }
-                    .is-middle { transition: background-color 200ms; }
-                </style>
                 <div class="space-y-1 max-w-sm">
                     <ui-sortable [(items)]="ranked" [positionClass]="posFn" [landEffect]="flashFx">
                         <ng-template uiSortableItem let-item let-i="index">
-                            <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">
+                            <ui-sortable-item [index]="i" class="border rounded-md px-3 py-2 w-full transition-colors duration-200">
                                 <span class="flex-1 text-sm">{{ $any(item).name }}</span>
                             </ui-sortable-item>
                         </ng-template>
@@ -290,8 +285,10 @@ interface Card {
             <div class="space-y-3">
                 <h3 class="text-lg font-medium">Custom ghost + placeholder</h3>
                 <p class="text-sm text-muted-foreground">
-                    Project an <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">&lt;ng-template uiSortableGhost&gt;</code>
-                    for the projected drop preview and
+                    The default ghost is a thin drop-line indicator so neighbour layout stays stable
+                    during the drag. Project an
+                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">&lt;ng-template uiSortableGhost&gt;</code>
+                    for a richer projected-drop preview, and
                     <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">&lt;ng-template uiSortablePlaceholder&gt;</code>
                     for the lift-origin silhouette. Drag a row to see them both.
                 </p>
@@ -303,7 +300,7 @@ interface Card {
                             </ui-sortable-item>
                         </ng-template>
                         <ng-template uiSortableGhost>
-                            <div class="rounded-md border-2 border-primary bg-primary/10 px-3 py-2 text-sm text-primary font-medium">
+                            <div class="rounded-md border-2 border-primary bg-primary/10 px-3 py-2 text-sm text-primary font-medium my-0.5">
                                 Drop here →
                             </div>
                         </ng-template>
@@ -487,9 +484,9 @@ export class SortableDemoComponent {
         { id: 303, name: 'Lowest priority' },
     ]);
     readonly posFn = (_item: Card, i: number, total: number): string => {
-        if (i === 0) return 'is-first';
-        if (i === total - 1) return 'is-last';
-        return 'is-middle';
+        if (i === 0) return 'bg-green-100 dark:bg-green-900/40 border-green-300';
+        if (i === total - 1) return 'bg-red-100 dark:bg-red-900/40 border-red-300';
+        return 'bg-card';
     };
 
     readonly flashList = signal<Card[]>([{ id: 400, name: 'flash 1' }, { id: 401, name: 'flash 2' }, { id: 402, name: 'flash 3' }]);

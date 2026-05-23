@@ -207,6 +207,8 @@ export class SortableComponent<T> {
     private readonly destroyRef = inject(DestroyRef);
 
     private static readonly DEFAULT_ANIMATE_MS = 200;
+    /** Removal delay for land-effect classes — must cover the longest built-in keyframe (~600ms). */
+    private static readonly LAND_EFFECT_MS = 700;
     private readonly flip: FlipHandle;
     private flipPlayHandle: ReturnType<typeof setTimeout> | null = null;
     private readonly registryEntry: SortableRegistryEntry;
@@ -250,6 +252,20 @@ export class SortableComponent<T> {
             this.orientation() === 'vertical' ? 'flex-col' : 'flex-row flex-wrap',
             this.class(),
         )
+    );
+
+    /**
+     * Default ghost: a thin, rounded primary-coloured drop-indicator that fits
+     * in the gap between items without shifting their layout. Consumers who want
+     * a richer preview (a translucent copy of the item, etc.) project a
+     * `<ng-template uiSortableGhost>` — the rich preview can introduce visible
+     * flow shifts when inserted before the source's flow slot, so we keep the
+     * default light-weight.
+     */
+    readonly indicatorClass = computed(() =>
+        this.orientation() === 'vertical'
+            ? 'h-1 w-full bg-primary rounded pointer-events-none my-0.5 shadow-[0_0_0_2px_rgba(0,0,0,0.04)]'
+            : 'w-1 self-stretch bg-primary rounded pointer-events-none mx-0.5 shadow-[0_0_0_2px_rgba(0,0,0,0.04)]'
     );
 
     /** The item currently being dragged (or null when no drag is active). */
@@ -454,7 +470,7 @@ export class SortableComponent<T> {
             const el = this.collectItemElements()[toIndex];
             if (!el) return;
             el.classList.add(cls);
-            setTimeout(() => el.classList.remove(cls), SortableComponent.DEFAULT_ANIMATE_MS);
+            setTimeout(() => el.classList.remove(cls), SortableComponent.LAND_EFFECT_MS);
         }, 0);
     }
 

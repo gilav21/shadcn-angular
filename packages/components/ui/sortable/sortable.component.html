@@ -16,9 +16,11 @@
         @if (ghostTemplate(); as gt) {
             <ng-container *ngTemplateOutlet="gt; context: ghostContext(i)" />
         } @else {
-            <div class="pointer-events-none opacity-60" aria-hidden="true" data-slot="sortable-ghost">
-                <ng-container *ngTemplateOutlet="itemTemplate()!; context: ghostContext(i)" />
-            </div>
+            <div
+                aria-hidden="true"
+                data-slot="sortable-ghost"
+                [class]="indicatorClass()"
+            ></div>
         }
     </ng-template>
 
