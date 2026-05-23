@@ -833,7 +833,7 @@ describe('SortableComponent', () => {
 
     it('evaluateAccepts returns true by default', () => {
         const sortable = getSortable<TestRow>(fixture);
-        expect(sortable.evaluateAccepts({ id: 1, name: 'A' }, { fromListId: 'x', toListId: '', toIndex: 0 })).toBe(true);
+        expect(sortable.evaluateAccepts({ id: 1, name: 'A' }, { fromListId: 'x', toIndex: 0 })).toBe(true);
     });
 
     it('evaluateAccepts honors a boolean false input', () => {
@@ -855,7 +855,7 @@ describe('SortableComponent', () => {
         const f = TestBed.createComponent(AccHost);
         f.detectChanges();
         const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
-        expect(sortable.evaluateAccepts({ id: 99, name: 'X' }, { fromListId: 'x', toListId: '', toIndex: 0 })).toBe(false);
+        expect(sortable.evaluateAccepts({ id: 99, name: 'X' }, { fromListId: 'x', toIndex: 0 })).toBe(false);
     });
 
     it('evaluateAccepts calls the predicate function with the right context and returns its result', () => {
@@ -882,7 +882,7 @@ describe('SortableComponent', () => {
         const f = TestBed.createComponent(AccFnHost);
         f.detectChanges();
         const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
-        const res = sortable.evaluateAccepts({ id: 9, name: 'Z' }, { fromListId: 'src', toListId: '', toIndex: 2 });
+        const res = sortable.evaluateAccepts({ id: 9, name: 'Z' }, { fromListId: 'src', toIndex: 2 });
 
         expect(res).toEqual({ ok: false, reason: 'wip-limit' });
         expect(captured).toHaveLength(1);
@@ -896,13 +896,13 @@ describe('SortableComponent', () => {
         host.disabled.set(true);
         fixture.detectChanges();
         const sortable = getSortable<TestRow>(fixture);
-        const res = sortable.evaluateAccepts({ id: 1, name: 'A' }, { fromListId: 'x', toListId: '', toIndex: 0 });
+        const res = sortable.evaluateAccepts({ id: 1, name: 'A' }, { fromListId: 'x', toIndex: 0 });
         expect(res).toEqual({ ok: false, reason: 'disabled' });
     });
 
     it('cross-list drop: accepted moves the item between lists and emits reorder on the source with cross-list payload', () => {
         clearRegistry();
-        let lastReorder: SortableReorderEvent<TestRow> | null = null;
+        const state: { lastReorder: SortableReorderEvent<TestRow> | null } = { lastReorder: null };
         let entered = 0;
         let leftCount = 0;
         @Component({
@@ -936,7 +936,7 @@ describe('SortableComponent', () => {
         class CDropHost {
             readonly left = signal<TestRow[]>([{ id: 1, name: 'L1' }, { id: 2, name: 'L2' }]);
             readonly right = signal<TestRow[]>([{ id: 3, name: 'R1' }]);
-            capture(e: SortableReorderEvent<TestRow>): void { lastReorder = e; }
+            capture(e: SortableReorderEvent<TestRow>): void { state.lastReorder = e; }
             onEnter(): void { entered++; }
             onLeave(): void { leftCount++; }
         }
@@ -957,10 +957,10 @@ describe('SortableComponent', () => {
 
         expect(f.componentInstance.left().map(r => r.name)).toEqual(['L2']);
         expect(f.componentInstance.right().map(r => r.name)).toContain('L1');
-        expect(lastReorder).not.toBeNull();
-        expect(lastReorder?.from.listId).toBe('L');
-        expect(lastReorder?.to.listId).toBe('R');
-        expect(lastReorder?.item.name).toBe('L1');
+        expect(state.lastReorder).not.toBeNull();
+        expect(state.lastReorder?.from.listId).toBe('L');
+        expect(state.lastReorder?.to.listId).toBe('R');
+        expect(state.lastReorder?.item.name).toBe('L1');
         expect(leftCount).toBe(1);
 
         document.body.removeChild(f.nativeElement);
@@ -968,7 +968,7 @@ describe('SortableComponent', () => {
 
     it('cross-list drop: rejected leaves both lists unchanged and emits (dropRejected)', () => {
         clearRegistry();
-        let rejected: SortableDropRejectedEvent<TestRow> | null = null;
+        const state: { rejected: SortableDropRejectedEvent<TestRow> | null } = { rejected: null };
         @Component({
             selector: 'app-rej-host',
             standalone: true,
@@ -1000,7 +1000,7 @@ describe('SortableComponent', () => {
             readonly left = signal<TestRow[]>([{ id: 1, name: 'L1' }]);
             readonly right = signal<TestRow[]>([{ id: 3, name: 'R1' }]);
             readonly rejectFn = (): { ok: boolean; reason?: string } => ({ ok: false, reason: 'wip-limit' });
-            capture(e: SortableDropRejectedEvent<TestRow>): void { rejected = e; }
+            capture(e: SortableDropRejectedEvent<TestRow>): void { state.rejected = e; }
         }
         const f = TestBed.createComponent(RejHost);
         document.body.appendChild(f.nativeElement);
@@ -1015,10 +1015,10 @@ describe('SortableComponent', () => {
 
         expect(f.componentInstance.left().map(r => r.name)).toEqual(['L1']);
         expect(f.componentInstance.right().map(r => r.name)).toEqual(['R1']);
-        expect(rejected).not.toBeNull();
-        expect(rejected?.reason).toBe('wip-limit');
-        expect(rejected?.fromListId).toBe('L');
-        expect(rejected?.toListId).toBe('R');
+        expect(state.rejected).not.toBeNull();
+        expect(state.rejected?.reason).toBe('wip-limit');
+        expect(state.rejected?.fromListId).toBe('L');
+        expect(state.rejected?.toListId).toBe('R');
 
         document.body.removeChild(f.nativeElement);
     });
