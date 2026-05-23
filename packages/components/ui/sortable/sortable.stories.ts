@@ -5,7 +5,10 @@ import {
     SortableItemComponent,
     SortableItemTemplateDirective,
     SortableHandleDirective,
+    SORTABLE_LAND_EFFECTS,
 } from './sortable.component';
+import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
+import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 
 const meta: Meta<SortableComponent<unknown>> = {
     title: 'UI/Sortable',
@@ -17,6 +20,8 @@ const meta: Meta<SortableComponent<unknown>> = {
                 SortableItemComponent,
                 SortableItemTemplateDirective,
                 SortableHandleDirective,
+                SortableGhostTemplateDirective,
+                SortablePlaceholderTemplateDirective,
             ],
         }),
     ],
@@ -274,6 +279,150 @@ export const WithAccepts: Story = {
                         </ui-sortable>
                     </div>
                 </div>
+            </div>
+        `,
+    }),
+};
+
+export const LandEffects: Story = {
+    render: () => ({
+        props: {
+            flashList: signal([{ id: 1, name: 'flash 1' }, { id: 2, name: 'flash 2' }, { id: 3, name: 'flash 3' }]),
+            pulseList: signal([{ id: 1, name: 'pulse 1' }, { id: 2, name: 'pulse 2' }, { id: 3, name: 'pulse 3' }]),
+            shakeList: signal([{ id: 1, name: 'shake 1' }, { id: 2, name: 'shake 2' }, { id: 3, name: 'shake 3' }]),
+            glowList: signal([{ id: 1, name: 'glow 1' }, { id: 2, name: 'glow 2' }, { id: 3, name: 'glow 3' }]),
+            flashFx: (): string => SORTABLE_LAND_EFFECTS.flash,
+            pulseFx: (): string => SORTABLE_LAND_EFFECTS.pulse,
+            shakeFx: (): string => SORTABLE_LAND_EFFECTS.shake,
+            glowFx: (): string => SORTABLE_LAND_EFFECTS.glow,
+        },
+        template: `
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div class="space-y-2">
+                    <h3 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Flash</h3>
+                    <ui-sortable [(items)]="flashList" [landEffect]="flashFx" class="gap-2">
+                        <ng-template uiSortableItem let-row let-i="index">
+                            <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ row.name }}</ui-sortable-item>
+                        </ng-template>
+                    </ui-sortable>
+                </div>
+                <div class="space-y-2">
+                    <h3 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Pulse</h3>
+                    <ui-sortable [(items)]="pulseList" [landEffect]="pulseFx" class="gap-2">
+                        <ng-template uiSortableItem let-row let-i="index">
+                            <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ row.name }}</ui-sortable-item>
+                        </ng-template>
+                    </ui-sortable>
+                </div>
+                <div class="space-y-2">
+                    <h3 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Shake</h3>
+                    <ui-sortable [(items)]="shakeList" [landEffect]="shakeFx" class="gap-2">
+                        <ng-template uiSortableItem let-row let-i="index">
+                            <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ row.name }}</ui-sortable-item>
+                        </ng-template>
+                    </ui-sortable>
+                </div>
+                <div class="space-y-2">
+                    <h3 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Glow</h3>
+                    <ui-sortable [(items)]="glowList" [landEffect]="glowFx" class="gap-2">
+                        <ng-template uiSortableItem let-row let-i="index">
+                            <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ row.name }}</ui-sortable-item>
+                        </ng-template>
+                    </ui-sortable>
+                </div>
+            </div>
+        `,
+    }),
+};
+
+export const PositionClass: Story = {
+    render: () => ({
+        props: {
+            ranked: signal([
+                { id: 1, name: 'Top priority' },
+                { id: 2, name: 'Middle 1' },
+                { id: 3, name: 'Middle 2' },
+                { id: 4, name: 'Low priority' },
+            ]),
+            posFn: (_row: { id: number; name: string }, i: number, total: number): string => {
+                if (i === 0) return 'is-first';
+                if (i === total - 1) return 'is-last';
+                return 'is-middle';
+            },
+        },
+        template: `
+            <div class="max-w-md space-y-3">
+                <p class="text-sm text-muted-foreground">First stays green, last stays red, middle stays neutral — even after reorder. CSS transitions make the color shift animated.</p>
+                <style>
+                    .is-first { background-color: rgb(187 247 208) !important; transition: background-color 200ms; }
+                    .is-last  { background-color: rgb(254 202 202) !important; transition: background-color 200ms; }
+                    .is-middle { transition: background-color 200ms; }
+                </style>
+                <ui-sortable [(items)]="ranked" [positionClass]="posFn" class="gap-2">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ row.name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            </div>
+        `,
+    }),
+};
+
+export const CustomGhostAndPlaceholder: Story = {
+    render: () => ({
+        props: {
+            items: signal([
+                { id: 1, name: 'Custom-rendered card 1' },
+                { id: 2, name: 'Custom-rendered card 2' },
+                { id: 3, name: 'Custom-rendered card 3' },
+            ]),
+        },
+        template: `
+            <div class="max-w-md space-y-3">
+                <p class="text-sm text-muted-foreground">A custom ghost preview at the drop position and a custom silhouette at the lift origin.</p>
+                <ui-sortable [(items)]="items" class="gap-2">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ row.name }}</ui-sortable-item>
+                    </ng-template>
+                    <ng-template uiSortableGhost let-row>
+                        <div class="rounded-md border-2 border-primary bg-primary/10 px-3 py-2 text-sm text-primary font-medium">
+                            Drop here →
+                        </div>
+                    </ng-template>
+                    <ng-template uiSortablePlaceholder>
+                        <div class="rounded-md border-2 border-dashed border-muted-foreground/60 bg-muted/40 px-3 py-2 text-xs text-muted-foreground italic">
+                            (was here)
+                        </div>
+                    </ng-template>
+                </ui-sortable>
+            </div>
+        `,
+    }),
+};
+
+export const ReducedMotion: Story = {
+    render: () => ({
+        props: {
+            items: signal([
+                { id: 1, name: 'No spring, no rotate' },
+                { id: 2, name: 'Still slides correctly' },
+                { id: 3, name: 'Position changes are instant' },
+                { id: 4, name: 'Land effects disabled' },
+            ]),
+            flashFx: (): string => SORTABLE_LAND_EFFECTS.flash,
+        },
+        template: `
+            <div class="max-w-md space-y-3">
+                <p class="text-sm text-muted-foreground">
+                    To see this story in motion-reduced mode, set your OS preference to "Reduce Motion".
+                    The lift scale/rotate is dropped, FLIP duration is forced to 0ms, and land-effect
+                    keyframes self-disable via <code>prefers-reduced-motion</code>.
+                </p>
+                <ui-sortable [(items)]="items" [landEffect]="flashFx" class="gap-2">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ row.name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
             </div>
         `,
     }),
