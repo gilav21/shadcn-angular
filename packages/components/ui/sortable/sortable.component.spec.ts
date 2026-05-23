@@ -1059,6 +1059,53 @@ describe('SortableComponent', () => {
         detachFixture();
     });
 
+    it('announces pickup / move / drop via the aria-live region', async () => {
+        const sortable = getSortable<TestRow>(fixture);
+
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        await new Promise<void>(r => setTimeout(r, 80));
+        const region: HTMLElement | null = document.querySelector('[data-slot="sortable-aria-live"]');
+        expect(region).not.toBeNull();
+        expect(region?.textContent).toContain('Position 1 of 3');
+
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        await new Promise<void>(r => setTimeout(r, 80));
+        expect(region?.textContent).toContain('Moved to position 2');
+
+        sortable.handleItemKeyDown(1, new KeyboardEvent('keydown', { key: ' ' }));
+        await new Promise<void>(r => setTimeout(r, 80));
+        expect(region?.textContent).toContain('Dropped at position 2');
+    });
+
+    it('uses the resolved locale (he) for announcements when [locale]="he"', async () => {
+        @Component({
+            selector: 'app-loc-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows" locale="he">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class LocHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+        }
+        const f = TestBed.createComponent(LocHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        await new Promise<void>(r => setTimeout(r, 80));
+        const region: HTMLElement | null = document.querySelector('[data-slot="sortable-aria-live"]');
+        expect(region?.textContent).toContain('הורם');
+
+        document.body.removeChild(f.nativeElement);
+    });
+
     it('animates after Escape-cancel restores order', async () => {
         attachAndSizeFixture();
         const sortable = getSortable<TestRow>(fixture);

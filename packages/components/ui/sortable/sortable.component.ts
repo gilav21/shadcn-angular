@@ -20,6 +20,8 @@ import { cn } from '../../lib/utils';
 import { onPointerDrag } from '../../lib/touch';
 import { createFlip, type FlipHandle } from '../../lib/flip';
 import { startAutoScroll, type AutoScrollController } from '../../lib/auto-scroll';
+import { acquireAriaLive, type AriaLiveHandle } from '../../lib/sortable-aria-live';
+import { resolveSortableLocale, type SortableLocale } from './sortable-locales';
 import {
     peersInGroup,
     registerSortable,
@@ -178,6 +180,9 @@ export class SortableComponent<T> {
     readonly group = input<string>('');
     readonly autoScroll = input<boolean>(true);
     readonly accepts = input<SortableAccepts<T>>(true);
+    readonly locale = input<string>('en');
+    readonly ariaLabel = input<string>('list');
+    readonly ariaItemLabel = input<(item: T, index: number) => string>((_, i) => `item ${i + 1}`);
     readonly positionClass = input<SortablePositionClassFn<T>>(() => '');
     readonly landEffect = input<SortableLandEffectFn<T>>(() => null);
     readonly trackBy = input<SortableTrackByFn<T>>((item) => item);
@@ -190,6 +195,14 @@ export class SortableComponent<T> {
     private readonly autoListId = `sortable-${++SortableComponent.sortableIdCounter}`;
     /** The list's resolved id — the `listId` input, or an auto-generated value when blank. */
     readonly resolvedListId = computed((): string => this.listId() || this.autoListId);
+    /** The active locale strings (resolves the `locale()` input with English fallback). */
+    readonly currentLocale = computed((): SortableLocale => resolveSortableLocale(this.locale()));
+
+    private itemLabel(index: number): string {
+        const item = this.items()[index];
+        if (item === undefined) return `item ${index + 1}`;
+        return this.ariaItemLabel()(item, index);
+    }
 
     private readonly destroyRef = inject(DestroyRef);
 
@@ -200,6 +213,7 @@ export class SortableComponent<T> {
     private registryUnsub: (() => void) | null = null;
     private autoScroller: AutoScrollController | null = null;
     private dragStartLength: number | null = null;
+    private readonly ariaLive: AriaLiveHandle = acquireAriaLive();
 
     private readonly _dragSource = signal<number | null>(null);
     private readonly _dragTarget = signal<number | null>(null);
@@ -286,6 +300,7 @@ export class SortableComponent<T> {
             }
             this.registryUnsub?.();
             this.registryUnsub = null;
+            this.ariaLive.release();
         });
     }
 
@@ -668,15 +683,19 @@ export class SortableComponent<T> {
 
         this.applyReorder(index, newIndex, { clearDrag: false, emit: true });
         this._liftedIndex.set(newIndex);
+        this.ariaLive.announce(this.currentLocale().moved(newIndex + 1, this.items().length));
     }
 
     private handleKeyLiftOrDrop(index: number, lifted: number | null): void {
         if (lifted === null) {
             this._liftedIndex.set(index);
             this._liftOrigin.set(index);
+            const total = this.items().length;
+            this.ariaLive.announce(this.currentLocale().pickedUp(this.itemLabel(index), index + 1, total));
         } else {
             this._liftedIndex.set(null);
             this._liftOrigin.set(null);
+            this.ariaLive.announce(this.currentLocale().dropped(lifted + 1));
         }
     }
 
@@ -688,6 +707,7 @@ export class SortableComponent<T> {
         }
         this._liftedIndex.set(null);
         this._liftOrigin.set(null);
+        this.ariaLive.announce(this.currentLocale().cancelled);
     }
 
     private arrowDelta(key: string): number {
