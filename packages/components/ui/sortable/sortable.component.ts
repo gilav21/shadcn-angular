@@ -674,16 +674,80 @@ export class SortableComponent<T> {
 
         if (lifted === null || lifted !== index) return;
 
+        if (event.key === 'Home') {
+            event.preventDefault();
+            this.keyboardMoveToIndex(index, 0);
+            return;
+        }
+        if (event.key === 'End') {
+            event.preventDefault();
+            this.keyboardMoveToIndex(index, this.items().length - 1);
+            return;
+        }
+        if (event.key === 'Tab') {
+            event.preventDefault();
+            this.keyboardCrossList(index, event.shiftKey ? -1 : 1);
+            return;
+        }
+
         const delta = this.arrowDelta(event.key);
         if (delta === 0) return;
         event.preventDefault();
 
         const newIndex = Math.max(0, Math.min(this.items().length - 1, index + delta));
-        if (newIndex === index) return;
+        this.keyboardMoveToIndex(index, newIndex);
+    }
 
-        this.applyReorder(index, newIndex, { clearDrag: false, emit: true });
-        this._liftedIndex.set(newIndex);
-        this.ariaLive.announce(this.currentLocale().moved(newIndex + 1, this.items().length));
+    private keyboardMoveToIndex(fromIndex: number, toIndex: number): void {
+        if (toIndex === fromIndex) return;
+        this.applyReorder(fromIndex, toIndex, { clearDrag: false, emit: true });
+        this._liftedIndex.set(toIndex);
+        this.ariaLive.announce(this.currentLocale().moved(toIndex + 1, this.items().length));
+    }
+
+    /** Hand the lifted item off to the next or previous peer in the same group. */
+    private keyboardCrossList(fromIndex: number, direction: 1 | -1): void {
+        const groupName = this.group();
+        if (groupName === '') return;
+        const allPeers = peersInGroup(groupName);
+        const selfIdx = allPeers.indexOf(this.registryEntry);
+        if (selfIdx === -1 || allPeers.length < 2) return;
+        const peerIdx = (selfIdx + direction + allPeers.length) % allPeers.length;
+        if (peerIdx === selfIdx) return;
+        const peer = allPeers[peerIdx];
+
+        const item = this.items()[fromIndex];
+        const peerExistingCount = peer.getItemRects().length;
+        const targetIndex = peerExistingCount;
+
+        const norm = this.normalizeAccept(peer.canAccept(item, { fromListId: this.resolvedListId(), toIndex: targetIndex }));
+        if (!norm.ok) {
+            this.ariaLive.announce(this.currentLocale().rejected(norm.reason));
+            this.dropRejected.emit({
+                item,
+                fromListId: this.resolvedListId(),
+                toListId: peer.listId,
+                toIndex: targetIndex,
+                reason: norm.reason,
+            });
+            return;
+        }
+
+        this.flip.measure();
+        const next = [...this.items()];
+        next.splice(fromIndex, 1);
+        this.items.set(next);
+        peer.receiveItem(item, targetIndex);
+        this._liftedIndex.set(null);
+        this._liftOrigin.set(null);
+        this.reorder.emit({
+            from: { listId: this.resolvedListId(), index: fromIndex },
+            to: { listId: peer.listId, index: targetIndex },
+            item,
+        });
+        const peerNewTotal = peerExistingCount + 1;
+        this.ariaLive.announce(this.currentLocale().movedToList(peer.listId, targetIndex + 1, peerNewTotal));
+        this.schedulePlay();
     }
 
     private handleKeyLiftOrDrop(index: number, lifted: number | null): void {

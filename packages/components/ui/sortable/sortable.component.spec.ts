@@ -1106,6 +1106,63 @@ describe('SortableComponent', () => {
         document.body.removeChild(f.nativeElement);
     });
 
+    it('Home jumps the lifted item to position 0', () => {
+        const sortable = getSortable<TestRow>(fixture);
+        sortable.handleItemKeyDown(2, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(2, new KeyboardEvent('keydown', { key: 'Home' }));
+        fixture.detectChanges();
+
+        expect(host.rows().map(r => r.name)).toEqual(['Gamma', 'Alpha', 'Beta']);
+        expect(host.lastReorder?.to.index).toBe(0);
+    });
+
+    it('End jumps the lifted item to the last position', () => {
+        const sortable = getSortable<TestRow>(fixture);
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        sortable.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'End' }));
+        fixture.detectChanges();
+
+        expect(host.rows().map(r => r.name)).toEqual(['Beta', 'Gamma', 'Alpha']);
+        expect(host.lastReorder?.to.index).toBe(2);
+    });
+
+    it('Tab while lifted hands the item to the next peer in the group', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-kbd-cross-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="left" group="kbd" listId="L">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable [(items)]="right" group="kbd" listId="R">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class KbdCrossHost {
+            readonly left = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+            readonly right = signal<TestRow[]>([]);
+        }
+        const f = TestBed.createComponent(KbdCrossHost);
+        f.detectChanges();
+        const sortables = f.debugElement.queryAll(el => el.componentInstance instanceof SortableComponent)
+            .map(d => d.componentInstance as SortableComponent<TestRow>);
+        const leftS = sortables.find(s => s.listId() === 'L')!;
+
+        leftS.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: ' ' }));
+        leftS.handleItemKeyDown(0, new KeyboardEvent('keydown', { key: 'Tab' }));
+        f.detectChanges();
+
+        expect(f.componentInstance.left().map(r => r.name)).toEqual(['B']);
+        expect(f.componentInstance.right().map(r => r.name)).toEqual(['A']);
+    });
+
     it('animates after Escape-cancel restores order', async () => {
         attachAndSizeFixture();
         const sortable = getSortable<TestRow>(fixture);
