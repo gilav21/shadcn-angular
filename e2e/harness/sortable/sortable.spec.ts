@@ -24,9 +24,11 @@ test('sortable: keyboard reorder moves the DOM node, not just the data', async (
 test('sortable: cross-list Tab hand-off moves the item between lists', async ({ page }) => {
     await page.goto('/');
 
-    // Starting state — L1 lives in the left list only.
-    await expect(page.getByTestId('left').locator('[data-testid="left-10"]')).toHaveCount(1);
-    await expect(page.getByTestId('right').locator('[data-testid="left-10"]')).toHaveCount(0);
+    // Starting state — item-10 (L1) lives in the left list only.
+    // testid is stable across lists (uses row.id, not a list-specific prefix),
+    // so we can follow the same DOM node as it moves between containers.
+    await expect(page.getByTestId('left').locator('[data-testid="item-10"]')).toHaveCount(1);
+    await expect(page.getByTestId('right').locator('[data-testid="item-10"]')).toHaveCount(0);
 
     // Lift L1 (left list, position 0) via the inner focusable, then Tab to the right peer.
     const leftItems = page.getByTestId('left').locator('[data-slot="sortable-item"]');
@@ -34,8 +36,8 @@ test('sortable: cross-list Tab hand-off moves the item between lists', async ({ 
     await page.keyboard.press('Space');
     await page.keyboard.press('Tab');
 
-    await expect(page.getByTestId('left').locator('[data-testid="left-10"]')).toHaveCount(0);
-    await expect(page.getByTestId('right').locator('[data-testid="left-10"]')).toHaveCount(1);
+    await expect(page.getByTestId('left').locator('[data-testid="item-10"]')).toHaveCount(0);
+    await expect(page.getByTestId('right').locator('[data-testid="item-10"]')).toHaveCount(1);
 });
 
 test('sortable: aria-live region is created on first interaction and carries pickup text', async ({ page }) => {
