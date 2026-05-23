@@ -23,7 +23,7 @@ interface Row {
         <main class="p-8 space-y-8">
             <section>
                 <h2>Single list</h2>
-                <ui-sortable [(items)]="rows" data-testid="single">
+                <ui-sortable [(items)]="rows" data-testid="single" [ariaItemLabel]="itemLabel">
                     <ng-template uiSortableItem let-row let-i="index">
                         <ui-sortable-item
                             [index]="i"
@@ -43,7 +43,8 @@ interface Row {
                         group="board"
                         listId="left"
                         class="border rounded-md p-2 min-h-32 w-48"
-                        data-testid="left">
+                        data-testid="left"
+                        [ariaItemLabel]="itemLabel">
                         <ng-template uiSortableItem let-row let-i="index">
                             <ui-sortable-item
                                 [index]="i"
@@ -58,7 +59,8 @@ interface Row {
                         group="board"
                         listId="right"
                         class="border rounded-md p-2 min-h-32 w-48"
-                        data-testid="right">
+                        data-testid="right"
+                        [ariaItemLabel]="itemLabel">
                         <ng-template uiSortableItem let-row let-i="index">
                             <ui-sortable-item
                                 [index]="i"
@@ -86,4 +88,5 @@ export class SortableDemoComponent {
     readonly rightCol = signal<Row[]>([
         { id: 20, name: 'R1' },
     ]);
+    readonly itemLabel = (row: Row): string => row.name;
 }
