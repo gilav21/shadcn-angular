@@ -3,16 +3,67 @@
     [class]="classes()"
     [attr.data-slot]="'sortable'"
     [attr.aria-disabled]="disabled() ? 'true' : null"
+    [attr.data-reject]="rejectReason()"
+    [attr.data-receiving]="foreignHover() ? 'true' : null"
 >
-    @for (item of items(); track $index) {
+    <ng-content select="[uiSortableHeader]" />
+
+    @if (items().length === 0) {
+        <ng-content select="[uiSortableEmpty]" />
+    }
+
+    <ng-template #ghostAt let-i="index">
+        @if (ghostTemplate(); as gt) {
+            <div class="ui-sortable-ghost-fade" data-slot="sortable-ghost-host" aria-hidden="true">
+                <ng-container *ngTemplateOutlet="gt; context: ghostContext(i)" />
+            </div>
+        } @else {
+            <div
+                class="pointer-events-none opacity-60 ui-sortable-ghost-fade"
+                aria-hidden="true"
+                data-slot="sortable-ghost"
+            >
+                <ng-container *ngTemplateOutlet="itemTemplate()!; context: ghostContext(i)" />
+            </div>
+        }
+    </ng-template>
+
+    @for (item of items(); track trackByItem($index, item)) {
         @if (shouldShowIndicatorBefore($index)) {
-            <div [class]="indicatorClass()" aria-hidden="true"></div>
+            <ng-container *ngTemplateOutlet="ghostAt; context: { index: $index }" />
         }
         <ng-container
             *ngTemplateOutlet="itemTemplate()!; context: { $implicit: item, index: $index }"
         />
     }
     @if (shouldShowIndicatorAfterLast()) {
-        <div [class]="indicatorClass()" aria-hidden="true"></div>
+        <ng-container *ngTemplateOutlet="ghostAt; context: { index: items().length }" />
     }
+
+    <ng-content select="[uiSortableFooter]" />
 </div>
+
+@if (placeholderRect(); as r) {
+    @if (placeholderTemplate(); as pt) {
+        <div
+            class="fixed pointer-events-none z-0"
+            data-slot="sortable-placeholder-host"
+            [style.left.px]="r.left"
+            [style.top.px]="r.top"
+            [style.width.px]="r.width"
+            [style.height.px]="r.height"
+        >
+            <ng-container *ngTemplateOutlet="pt; context: ghostContext(dragSource()!)" />
+        </div>
+    } @else {
+        <div
+            class="fixed pointer-events-none z-0 border-2 border-dashed border-muted-foreground/40 rounded bg-muted/30"
+            data-slot="sortable-placeholder"
+            aria-hidden="true"
+            [style.left.px]="r.left"
+            [style.top.px]="r.top"
+            [style.width.px]="r.width"
+            [style.height.px]="r.height"
+        ></div>
+    }
+}
