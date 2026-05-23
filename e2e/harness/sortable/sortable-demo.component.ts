@@ -3,7 +3,6 @@ import {
     SortableComponent,
     SortableItemComponent,
     SortableItemTemplateDirective,
-    SortableHandleDirective,
 } from '@/components/ui/sortable';
 
 interface Row {
@@ -19,7 +18,6 @@ interface Row {
         SortableComponent,
         SortableItemComponent,
         SortableItemTemplateDirective,
-        SortableHandleDirective,
     ],
     template: `
         <main class="p-8 space-y-8">
@@ -30,8 +28,8 @@ interface Row {
                         <ui-sortable-item
                             [index]="i"
                             class="bg-card border rounded-md px-3 py-2 w-64 block"
-                            [attr.data-testid]="'row-' + row.id">
-                            {{ row.name }}
+                            [attr.data-testid]="'row-' + $any(row).id">
+                            {{ $any(row).name }}
                         </ui-sortable-item>
                     </ng-template>
                 </ui-sortable>
@@ -50,8 +48,8 @@ interface Row {
                             <ui-sortable-item
                                 [index]="i"
                                 class="bg-card border rounded-md px-3 py-2 block"
-                                [attr.data-testid]="'left-' + row.id">
-                                {{ row.name }}
+                                [attr.data-testid]="'left-' + $any(row).id">
+                                {{ $any(row).name }}
                             </ui-sortable-item>
                         </ng-template>
                     </ui-sortable>
@@ -65,8 +63,8 @@ interface Row {
                             <ui-sortable-item
                                 [index]="i"
                                 class="bg-card border rounded-md px-3 py-2 block"
-                                [attr.data-testid]="'right-' + row.id">
-                                {{ row.name }}
+                                [attr.data-testid]="'right-' + $any(row).id">
+                                {{ $any(row).name }}
                             </ui-sortable-item>
                         </ng-template>
                     </ui-sortable>
