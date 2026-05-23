@@ -1163,6 +1163,54 @@ describe('SortableComponent', () => {
         expect(f.componentInstance.right().map(r => r.name)).toEqual(['A']);
     });
 
+    it('cross-list drop into an empty list inserts at index 0 and removes the empty slot', () => {
+        clearRegistry();
+        @Component({
+            selector: 'app-empty-drop-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable
+                    [(items)]="left"
+                    group="emptydrop"
+                    listId="L"
+                    class="fixed left-0 top-0 w-[200px]">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+                <ui-sortable
+                    [(items)]="right"
+                    group="emptydrop"
+                    listId="R"
+                    class="fixed left-[300px] top-0 w-[200px] h-[200px]">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i" style="display:block; height:40px; width:200px;">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class EmptyDropHost {
+            readonly left = signal<TestRow[]>([{ id: 1, name: 'Move me' }]);
+            readonly right = signal<TestRow[]>([]);
+        }
+        const f = TestBed.createComponent(EmptyDropHost);
+        document.body.appendChild(f.nativeElement);
+        f.detectChanges();
+
+        const leftItems = f.nativeElement.querySelectorAll('ui-sortable')[0].querySelectorAll('[data-slot="sortable-item"]');
+        (leftItems[0] as HTMLElement).dispatchEvent(new MouseEvent('mousedown', { clientX: 50, clientY: 10, bubbles: true }));
+        globalThis.dispatchEvent(new MouseEvent('mousemove', { clientX: 350, clientY: 100 }));
+        f.detectChanges();
+        globalThis.dispatchEvent(new MouseEvent('mouseup', { clientX: 350, clientY: 100 }));
+        f.detectChanges();
+
+        expect(f.componentInstance.left()).toEqual([]);
+        expect(f.componentInstance.right().map(r => r.name)).toEqual(['Move me']);
+
+        document.body.removeChild(f.nativeElement);
+    });
+
     it('animates after Escape-cancel restores order', async () => {
         attachAndSizeFixture();
         const sortable = getSortable<TestRow>(fixture);
