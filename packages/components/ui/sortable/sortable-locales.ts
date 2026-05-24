@@ -1,11 +1,15 @@
+import type { LocaleMeta } from '../../lib/i18n';
+
 /**
  * Localized announcement strings emitted by `<ui-sortable>` via the
  * aria-live helper.
  *
  * Functions (not raw strings) because every message interpolates a
- * label, position, total, or reason.
+ * label, position, total, or reason. Plug into the shared `LocaleMeta`
+ * base so the same `createLocaleSelector` / `provideUiLocale` plumbing
+ * that the rest of the library uses also wires the sortable.
  */
-export interface SortableLocale {
+export interface SortableLocale extends LocaleMeta {
     /** Lifted via keyboard or grab. */
     pickedUp: (label: string, position: number, total: number) => string;
     /** Moved within the same list. */
@@ -22,6 +26,7 @@ export interface SortableLocale {
 
 export const SORTABLE_LOCALES: Record<string, SortableLocale> = {
     en: {
+        code: 'en',
         pickedUp: (label, n, total) => `${label} picked up. Position ${n} of ${total}.`,
         moved: (n, total) => `Moved to position ${n} of ${total}.`,
         movedToList: (listLabel, n, total) => `Moved to ${listLabel}, position ${n} of ${total}.`,
@@ -30,6 +35,8 @@ export const SORTABLE_LOCALES: Record<string, SortableLocale> = {
         cancelled: 'Reorder cancelled.',
     },
     he: {
+        code: 'he',
+        rtl: true,
         pickedUp: (label, n, total) => `${label} הורם. מיקום ${n} מתוך ${total}.`,
         moved: (n, total) => `הועבר למיקום ${n} מתוך ${total}.`,
         movedToList: (listLabel, n, total) => `הועבר ל${listLabel}, מיקום ${n} מתוך ${total}.`,
@@ -38,6 +45,8 @@ export const SORTABLE_LOCALES: Record<string, SortableLocale> = {
         cancelled: 'הסידור בוטל.',
     },
     ar: {
+        code: 'ar',
+        rtl: true,
         pickedUp: (label, n, total) => `${label} تم رفعه. الموضع ${n} من ${total}.`,
         moved: (n, total) => `تم النقل إلى الموضع ${n} من ${total}.`,
         movedToList: (listLabel, n, total) => `تم النقل إلى ${listLabel}، الموضع ${n} من ${total}.`,
@@ -46,6 +55,7 @@ export const SORTABLE_LOCALES: Record<string, SortableLocale> = {
         cancelled: 'تم إلغاء إعادة الترتيب.',
     },
     de: {
+        code: 'de',
         pickedUp: (label, n, total) => `${label} aufgenommen. Position ${n} von ${total}.`,
         moved: (n, total) => `Auf Position ${n} von ${total} verschoben.`,
         movedToList: (listLabel, n, total) => `Nach ${listLabel}, Position ${n} von ${total} verschoben.`,
@@ -54,6 +64,7 @@ export const SORTABLE_LOCALES: Record<string, SortableLocale> = {
         cancelled: 'Sortierung abgebrochen.',
     },
     fr: {
+        code: 'fr',
         pickedUp: (label, n, total) => `${label} pris. Position ${n} sur ${total}.`,
         moved: (n, total) => `Déplacé à la position ${n} sur ${total}.`,
         movedToList: (listLabel, n, total) => `Déplacé vers ${listLabel}, position ${n} sur ${total}.`,
@@ -62,6 +73,7 @@ export const SORTABLE_LOCALES: Record<string, SortableLocale> = {
         cancelled: 'Réorganisation annulée.',
     },
     es: {
+        code: 'es',
         pickedUp: (label, n, total) => `${label} levantado. Posición ${n} de ${total}.`,
         moved: (n, total) => `Movido a la posición ${n} de ${total}.`,
         movedToList: (listLabel, n, total) => `Movido a ${listLabel}, posición ${n} de ${total}.`,
@@ -70,8 +82,3 @@ export const SORTABLE_LOCALES: Record<string, SortableLocale> = {
         cancelled: 'Reordenamiento cancelado.',
     },
 };
-
-/** Resolve a locale by id with English fallback. */
-export function resolveSortableLocale(id: string): SortableLocale {
-    return SORTABLE_LOCALES[id] ?? SORTABLE_LOCALES['en'];
-}
