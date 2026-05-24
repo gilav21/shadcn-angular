@@ -394,7 +394,7 @@ describe('PaginationComponent — i18n integration', () => {
         fixture.detectChanges();
         const nav = fixture.debugElement.query(By.css('[data-slot="pagination"]'));
         expect(nav.attributes['aria-label']).toBe('pagination');
-        expect(nav.attributes['dir']).toBe('ltr');
+        expect(nav.nativeElement.hasAttribute('dir')).toBe(false);
         const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
         expect(prev.nativeElement.textContent).toContain('Previous');
         const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
@@ -411,7 +411,7 @@ describe('PaginationComponent — i18n integration', () => {
         fixture.componentRef.setInput('totalPages', 20);
         fixture.detectChanges();
         const nav = fixture.debugElement.query(By.css('[data-slot="pagination"]'));
-        expect(nav.attributes['aria-label']).toBe('עימוד');
+        expect(nav.attributes['aria-label']).toBe('ניווט עמודים');
         expect(nav.attributes['dir']).toBe('rtl');
         expect(fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent).toContain('הקודם');
         expect(fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent).toContain('הבא');
@@ -445,7 +445,7 @@ describe('PaginationComponent — i18n integration', () => {
         fixture.componentRef.setInput('totalPages', 3);
         fixture.detectChanges();
         expect(fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent).toContain('Précédent');
-        expect(fixture.debugElement.query(By.css('[data-slot="pagination"]')).attributes['dir']).toBe('ltr');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination"]')).nativeElement.hasAttribute('dir')).toBe(false);
     });
 
     it('accepts a fully custom PaginationLocale object as input', async () => {
@@ -468,5 +468,83 @@ describe('PaginationComponent — i18n integration', () => {
         expect(fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent).toContain('CUSTOM_PREV');
         expect(fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent).toContain('CUSTOM_NEXT');
         expect(fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent).toContain('CUSTOM_MORE');
+    });
+
+    it('does NOT auto-propagate the parent locale to projected sub-components (each level resolves independently)', async () => {
+        @Component({
+            standalone: true,
+            imports: [
+                PaginationComponent,
+                PaginationContentComponent,
+                PaginationItemComponent,
+                PaginationPreviousComponent,
+                PaginationNextComponent,
+                PaginationEllipsisComponent,
+            ],
+            template: `
+                <ui-pagination locale="he">
+                    <ui-pagination-content>
+                        <ui-pagination-item><ui-pagination-previous /></ui-pagination-item>
+                        <ui-pagination-item><ui-pagination-ellipsis /></ui-pagination-item>
+                        <ui-pagination-item><ui-pagination-next /></ui-pagination-item>
+                    </ui-pagination-content>
+                </ui-pagination>
+            `,
+        })
+        class CompositionHost {}
+
+        await TestBed.configureTestingModule({
+            imports: [CompositionHost],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CompositionHost);
+        fixture.detectChanges();
+
+        const nav = fixture.debugElement.query(By.css('[data-slot="pagination"]'));
+        expect(nav.attributes['aria-label']).toBe('ניווט עמודים');
+        expect(nav.attributes['dir']).toBe('rtl');
+
+        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent;
+        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent;
+        const more = fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent;
+        expect(prev).toContain('Previous');
+        expect(next).toContain('Next');
+        expect(more).toContain('More pages');
+    });
+
+    it('a global provideUiLocale propagates to ALL sub-components without per-instance locale wiring', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+
+        @Component({
+            standalone: true,
+            imports: [
+                PaginationComponent,
+                PaginationContentComponent,
+                PaginationItemComponent,
+                PaginationPreviousComponent,
+                PaginationNextComponent,
+                PaginationEllipsisComponent,
+            ],
+            template: `
+                <ui-pagination>
+                    <ui-pagination-content>
+                        <ui-pagination-item><ui-pagination-previous /></ui-pagination-item>
+                        <ui-pagination-item><ui-pagination-ellipsis /></ui-pagination-item>
+                        <ui-pagination-item><ui-pagination-next /></ui-pagination-item>
+                    </ui-pagination-content>
+                </ui-pagination>
+            `,
+        })
+        class GlobalHost {}
+
+        await TestBed.configureTestingModule({
+            imports: [GlobalHost],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(GlobalHost);
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent).toContain('הקודם');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent).toContain('הבא');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent).toContain('עוד עמודים');
     });
 });

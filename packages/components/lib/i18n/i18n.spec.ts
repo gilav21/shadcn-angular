@@ -176,6 +176,18 @@ describe('createLocaleSelector (component helper)', () => {
         protected readonly t = createLocaleSelector(this.locale, TEST_LOCALES);
     }
 
+    it('throws a descriptive error when called with a non-Signal localeInput', () => {
+        TestBed.configureTestingModule({});
+        TestBed.runInInjectionContext(() => {
+            expect(() =>
+                createLocaleSelector(
+                    undefined as unknown as Signal<LocaleInput<TestLocale> | undefined>,
+                    TEST_LOCALES,
+                ),
+            ).toThrowError(/non-Signal `localeInput`/);
+        });
+    });
+
     function read(text: string): string {
         return text.trim();
     }
@@ -246,7 +258,7 @@ describe('createLocaleBindings (component helper)', () => {
         protected readonly dir = this.i18n.dir;
     }
 
-    it('exposes t / isRtl / dir signals derived from the active locale', () => {
+    it('emits dir="rtl" and isRtl=true for an RTL locale', () => {
         TestBed.configureTestingModule({ imports: [BindingsComponent] });
         const fixture = TestBed.createComponent(BindingsComponent);
         fixture.componentRef.setInput('locale', 'he');
@@ -256,13 +268,13 @@ describe('createLocaleBindings (component helper)', () => {
         expect(span.textContent?.trim()).toBe('שלום true');
     });
 
-    it('emits dir="ltr" and isRtl=false for an LTR locale', () => {
+    it('omits the dir attribute for LTR locales so ancestor dir="rtl" still applies', () => {
         TestBed.configureTestingModule({ imports: [BindingsComponent] });
         const fixture = TestBed.createComponent(BindingsComponent);
         fixture.componentRef.setInput('locale', 'fr');
         fixture.detectChanges();
         const span = fixture.nativeElement.querySelector('span') as HTMLSpanElement;
-        expect(span.getAttribute('dir')).toBe('ltr');
+        expect(span.hasAttribute('dir')).toBe(false);
         expect(span.textContent?.trim()).toBe('Bonjour false');
     });
 });

@@ -58,6 +58,14 @@ export function createLocaleSelector<T extends LocaleMeta>(
     registry: Record<string, T>,
     fallback = 'en',
 ): Signal<T> {
+    if (typeof localeInput !== 'function') {
+        throw new Error(
+            '[shadcn-angular i18n] createLocaleSelector received a non-Signal `localeInput`. ' +
+                'Common cause: the `locale = input(...)` field is declared AFTER the field that ' +
+                'calls createLocaleSelector / createLocaleBindings. Declare `locale` BEFORE ' +
+                'any field that depends on `this.locale` so its initializer has already run.',
+        );
+    }
     const globalLocale = inject(UI_LOCALE_ID);
     return computed(() => resolveLocale(localeInput(), registry, globalLocale(), fallback));
 }
@@ -73,12 +81,18 @@ export function createLocaleSelector<T extends LocaleMeta>(
  * protected readonly dir = this.i18n.dir;
  * ```
  *
+ * `dir` resolves to `'rtl'` when the active locale is RTL and to `null`
+ * otherwise. Binding `[attr.dir]="dir()"` therefore emits `dir="rtl"`
+ * only when needed — and crucially never `dir="ltr"`, so an ancestor
+ * `<html dir="rtl">` continues to apply for LTR-base locales the
+ * component doesn't recognise as explicitly RTL.
+ *
  * Must be called in an injection context.
  */
 export interface LocaleBindings<T extends LocaleMeta> {
     readonly t: Signal<T>;
     readonly isRtl: Signal<boolean>;
-    readonly dir: Signal<'rtl' | 'ltr'>;
+    readonly dir: Signal<'rtl' | null>;
 }
 
 export function createLocaleBindings<T extends LocaleMeta>(
@@ -88,7 +102,7 @@ export function createLocaleBindings<T extends LocaleMeta>(
 ): LocaleBindings<T> {
     const t = createLocaleSelector(localeInput, registry, fallback);
     const isRtl = computed(() => t().rtl === true);
-    const dir = computed<'rtl' | 'ltr'>(() => (isRtl() ? 'rtl' : 'ltr'));
+    const dir = computed<'rtl' | null>(() => (isRtl() ? 'rtl' : null));
     return { t, isRtl, dir };
 }
 

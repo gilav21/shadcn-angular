@@ -32,7 +32,7 @@ export const PAGINATION_LOCALES: Record<string, PaginationLocale> = {
         previous: 'הקודם',
         next: 'הבא',
         morePages: 'עוד עמודים',
-        pagination: 'עימוד',
+        pagination: 'ניווט עמודים',
     },
     ar: {
         code: 'ar',

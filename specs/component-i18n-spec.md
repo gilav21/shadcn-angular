@@ -90,7 +90,7 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 | 2 | Refactor `calendar` to use new infrastructure | done | 96 |
 | 3 | Refactor `sortable` to use new infrastructure | done | 96 |
 | 4 | Refactor `rich-text-editor` to use new infrastructure | done | 96 |
-| 5 | New i18n: `pagination` | pending | — |
+| 5 | New i18n: `pagination` | done | 96 |
 | 6 | New i18n: `dialog`, `sheet`, `drawer`, `toast`, `alert-dialog` (bundle: simple "close"/"cancel"/"confirm") | pending | — |
 | 7 | New i18n: `command`, `combobox`, `autocomplete`, `select`, `phone-input`, `tree-select` (bundle: search inputs + no-results) | pending | — |
 | 8 | New i18n: `file-upload` | pending | — |
@@ -116,6 +116,20 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
   set `provideUiLocale('he')` at the root will now have their calendars
   render in Hebrew automatically — previously calendars without an
   explicit `locale` input stayed English.
+
+### Known follow-ups inside i18n scope
+
+- **Parent → child locale propagation for compound components.** Today
+  each sub-component (e.g. `<ui-pagination-previous>`) resolves its own
+  locale via per-instance input or `UI_LOCALE_ID`. When a consumer writes
+  `<ui-pagination locale="he"><ui-pagination-previous /></ui-pagination>`,
+  the parent nav localizes but the children stay English. Workaround
+  today: use `provideUiLocale` globally OR set `locale` on each child.
+  Better future fix: have each compound parent re-broadcast its `locale`
+  via `viewProviders: [provideComponentLocale(forwardRef(() => Cmp))]`
+  so descendants inherit automatically. The contract is pinned by a
+  test in `pagination.component.spec.ts` so the limitation does not
+  silently change.
 
 ### Known follow-ups (out of i18n scope)
 
