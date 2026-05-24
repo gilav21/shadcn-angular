@@ -91,7 +91,7 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 | 3 | Refactor `sortable` to use new infrastructure | done | 96 |
 | 4 | Refactor `rich-text-editor` to use new infrastructure | done | 96 |
 | 5 | New i18n: `pagination` | done | 96 |
-| 6 | New i18n: `dialog`, `sheet`, `drawer`, `toast`, `alert-dialog` (bundle: simple "close"/"cancel"/"confirm") | pending | — |
+| 6 | New i18n: `dialog`, `sheet`, `drawer`, `toast`, `alert-dialog` (bundle: simple "close"/"cancel"/"confirm") | done | 96 |
 | 7 | New i18n: `command`, `combobox`, `autocomplete`, `select`, `phone-input`, `tree-select` (bundle: search inputs + no-results) | pending | — |
 | 8 | New i18n: `file-upload` | pending | — |
 | 9 | New i18n: `data-table` (split `DataTableLocale` from `CalendarLocale`) | pending | — |
