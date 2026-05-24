@@ -10,7 +10,12 @@ import {
   untracked,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
-import { CALENDAR_LOCALES, CalendarLocale } from '../../lib/calendar-locales';
+import {
+  CALENDAR_LOCALES,
+  type CalendarLocale,
+  createLocaleBindings,
+  type LocaleInput,
+} from '../../lib/i18n';
 import { ButtonComponent } from '../button';
 import {
   SelectComponent,
@@ -56,7 +61,7 @@ export class CalendarComponent {
   timeMode = input<CalendarTimeMode>('single');
   weekStartsOn = input<0 | 1 | 2 | 3 | 4 | 5 | 6>(0); // 0 = Sunday, 1 = Monday, etc.
   rtl = model<boolean>(false);
-  locale = input<string>('en');
+  locale = input<LocaleInput<CalendarLocale>>();
   selected = model<Date | DateRange | Date[] | string | string[] | null>(null);
   selectedTimeRange = model<TimeRange>({ start: '', end: '' });
 
@@ -64,7 +69,8 @@ export class CalendarComponent {
 
   private readonly viewDate = signal(new Date());
 
-
+  private readonly i18n = createLocaleBindings(this.locale, CALENDAR_LOCALES);
+  private readonly activeLocale = this.i18n.t;
 
   constructor() {
     effect(() => {
@@ -84,20 +90,13 @@ export class CalendarComponent {
     }, { allowSignalWrites: true });
 
     effect(() => {
-      if (this.activeLocale()) {
-        untracked(() => {
-          this.rtl.set(this.activeLocale().rtl ?? this.rtl());
-        });
-      }
+      const localeRtl = this.activeLocale().rtl;
+      if (localeRtl === undefined) return;
+      untracked(() => this.rtl.set(localeRtl));
     });
   }
 
   private viewDateInitialized = false;
-
-  private readonly activeLocale = computed((): CalendarLocale => {
-    const key = this.locale();
-    return CALENDAR_LOCALES[key] ?? CALENDAR_LOCALES['en'];
-  });
 
   readonly dayNames = computed(() => this.activeLocale().dayNames);
   readonly monthNames = computed(() => this.activeLocale().monthNames);

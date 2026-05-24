@@ -10,7 +10,7 @@ import {
 import { cn } from '../../../lib/utils';
 import { CalendarComponent } from '../../calendar';
 import { ButtonComponent } from '../../button';
-import { CALENDAR_LOCALES, CalendarLocale } from '../../../lib/calendar-locales';
+import { CALENDAR_LOCALES, type CalendarLocale } from '../../../lib/i18n';
 import { toDate, toDateOnlyTimestamp } from './data-table-date-utils';
 
 @Component({

@@ -79,7 +79,7 @@ describe('DataTableDateFilterComponent', () => {
 
   it('should render English labels by default', () => {
     const buttons = fixture.nativeElement.querySelectorAll('button');
-    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    const texts = Array.from(buttons, (b: Element) => b.textContent?.trim());
     expect(texts).toContain('Today');
     expect(texts).toContain('Clear');
   });
@@ -88,7 +88,7 @@ describe('DataTableDateFilterComponent', () => {
     fixture.componentRef.setInput('locale', 'he');
     fixture.detectChanges();
     const buttons = fixture.nativeElement.querySelectorAll('button');
-    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    const texts = Array.from(buttons, (b: Element) => b.textContent?.trim());
     expect(texts).toContain('היום');
     expect(texts).toContain('נקה');
   });
@@ -206,7 +206,7 @@ describe('DataTableDateRangeFilterComponent', () => {
     fixture.componentRef.setInput('locale', 'he');
     fixture.detectChanges();
     const buttons = fixture.nativeElement.querySelectorAll('button');
-    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    const texts = Array.from(buttons, (b: Element) => b.textContent?.trim());
     expect(texts).toContain('נקה');
     expect(texts).not.toContain('Clear');
   });

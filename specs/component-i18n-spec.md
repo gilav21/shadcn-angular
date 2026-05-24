@@ -87,7 +87,7 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 | # | Task | Status | Score |
 |---|------|--------|-------|
 | 1 | Build `lib/i18n/` infrastructure (types, token, utils, common locales, tests) | done | 96 |
-| 2 | Refactor `calendar` to use new infrastructure | pending | — |
+| 2 | Refactor `calendar` to use new infrastructure | done | 96 |
 | 3 | Refactor `sortable` to use new infrastructure | pending | — |
 | 4 | Refactor `rich-text-editor` to use new infrastructure | pending | — |
 | 5 | New i18n: `pagination` | pending | — |
@@ -100,6 +100,22 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 | 12 | New i18n: `color-picker`, `bar-race-chart`, `eyedropper`, `page-builder`, `shortcut-bindings-dialog`, `empty`, `comparison-slider`, `kanban` (bundle: remaining text-bearing) | pending | — |
 | 13 | Format-only components: `number-input`, `slider`, `progress`, `number-ticker` use `formatNumber()` with locale | pending | — |
 | 14 | Demo locale switcher (global `provideUiLocale` + UI to flip across the demo app) | pending | — |
+
+### Breaking-change notes for consumers
+
+- Every locale dictionary now **requires a `code` field** (BCP-47 string)
+  via the `LocaleMeta` base interface. The pre-existing `CalendarLocale`
+  shape did NOT include `code`; consumers who supplied a fully-custom
+  `CalendarLocale` literal (without `code`) before this migration will see
+  `TS2741: Property 'code' is missing` after upgrading. Add `code: 'xx'`
+  (matching the registry key) to fix.
+- Components that previously defaulted `locale = input<string>('en')`
+  (currently only `calendar`) now have `locale = input<LocaleInput<T>>()`
+  with no eager default. The end-state is identical when no global
+  `UI_LOCALE_ID` is configured (still resolves to `'en'`), but apps that
+  set `provideUiLocale('he')` at the root will now have their calendars
+  render in Hebrew automatically — previously calendars without an
+  explicit `locale` input stayed English.
 
 ### Known follow-ups (out of i18n scope)
 

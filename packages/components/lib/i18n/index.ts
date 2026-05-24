@@ -12,3 +12,4 @@ export {
     type LocaleBindings,
 } from './i18n.utils';
 export { COMMON_LOCALES, type CommonLocale } from './common.locales';
+export { CALENDAR_LOCALES, type CalendarLocale } from './calendar.locales';

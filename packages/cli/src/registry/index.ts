@@ -71,7 +71,7 @@ export const registry = defineRegistry({
   calendar: {
     name: 'calendar',
     files: ['calendar/calendar.component.html', 'calendar/calendar.component.ts', 'calendar/index.ts'],
-    libFiles: ['calendar-locales.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'select'],
   },
   card: {
@@ -158,7 +158,7 @@ export const registry = defineRegistry({
       'data-table-context-menu.directive.ts',
     ],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'table'],
-    libFiles: ['calendar-locales.ts', 'parsers/xlsx.ts', 'touch.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
     ],
