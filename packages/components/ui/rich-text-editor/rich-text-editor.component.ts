@@ -878,6 +878,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private readonly i18n = createLocaleBindings(this.locale, RICH_TEXT_LOCALES);
     readonly resolvedLocale = this.i18n.t;
     readonly isRtl = this.i18n.isRtl;
+    readonly dir = this.i18n.dir;
 
     localizedSlashCommands = computed(() => [
         ...buildDefaultSlashCommands(this.resolvedLocale().slashCommands),
