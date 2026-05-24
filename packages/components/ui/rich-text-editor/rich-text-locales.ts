@@ -1,6 +1,6 @@
-export interface RichTextLocale {
-    rtl?: boolean;
+import type { LocaleMeta } from '../../lib/i18n';
 
+export interface RichTextLocale extends LocaleMeta {
     toolbar: {
         bold: string;
         italic: string;
@@ -203,13 +203,9 @@ export interface RichTextLocale {
     };
 }
 
-export function interpolate(template: string, values: Record<string, string | number>): string {
-    return template.replaceAll(/\{(\w+)}/g, (_, key) => String(values[key] ?? ''));
-}
-
 export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
     en: {
-        rtl: false,
+        code: 'en',
         toolbar: {
             bold: 'Bold',
             italic: 'Italic',
@@ -399,6 +395,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     he: {
+        code: 'he',
         rtl: true,
         toolbar: {
             bold: 'מודגש',
@@ -589,6 +586,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     ar: {
+        code: 'ar',
         rtl: true,
         toolbar: {
             bold: 'غامق',
@@ -779,7 +777,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     de: {
-        rtl: false,
+        code: 'de',
         toolbar: {
             bold: 'Fett',
             italic: 'Kursiv',
@@ -969,7 +967,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     fr: {
-        rtl: false,
+        code: 'fr',
         toolbar: {
             bold: 'Gras',
             italic: 'Italique',
@@ -1159,7 +1157,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     es: {
-        rtl: false,
+        code: 'es',
         toolbar: {
             bold: 'Negrita',
             italic: 'Cursiva',
@@ -1349,7 +1347,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     ja: {
-        rtl: false,
+        code: 'ja',
         toolbar: {
             bold: '太字',
             italic: '斜体',
@@ -1539,7 +1537,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     zh: {
-        rtl: false,
+        code: 'zh',
         toolbar: {
             bold: '粗体',
             italic: '斜体',
@@ -1729,7 +1727,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     ru: {
-        rtl: false,
+        code: 'ru',
         toolbar: {
             bold: 'Жирный',
             italic: 'Курсив',
@@ -1919,7 +1917,7 @@ export const RICH_TEXT_LOCALES: Record<string, RichTextLocale> = {
         },
     },
     pt: {
-        rtl: false,
+        code: 'pt',
         toolbar: {
             bold: 'Negrito',
             italic: 'Itálico',

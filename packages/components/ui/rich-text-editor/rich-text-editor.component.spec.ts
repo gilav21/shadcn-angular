@@ -1882,3 +1882,70 @@ describe('RichTextEditorComponent', () => {
         });
     });
 });
+
+describe('RichTextEditorComponent — i18n integration', () => {
+    it('defaults to English when no locale input and no provider is configured', async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(RichTextEditorComponent);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.resolvedLocale().code).toBe('en');
+        expect(fixture.componentInstance.isRtl()).toBe(false);
+    });
+
+    it('falls back to the global UI_LOCALE_ID when no locale input is set', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(RichTextEditorComponent);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.resolvedLocale().code).toBe('he');
+        expect(fixture.componentInstance.isRtl()).toBe(true);
+    });
+
+    it('per-instance locale input overrides the global signal', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(RichTextEditorComponent);
+        fixture.componentRef.setInput('locale', 'fr');
+        fixture.detectChanges();
+        expect(fixture.componentInstance.resolvedLocale().code).toBe('fr');
+        expect(fixture.componentInstance.isRtl()).toBe(false);
+    });
+
+    it('accepts a fully custom RichTextLocale object as input', async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(RichTextEditorComponent);
+        const customLocale: RichTextLocale = {
+            ...RICH_TEXT_LOCALES['en'],
+            code: 'xx',
+            rtl: true,
+            toolbar: { ...RICH_TEXT_LOCALES['en'].toolbar, bold: 'CUSTOM_BOLD' },
+        };
+        fixture.componentRef.setInput('locale', customLocale);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.resolvedLocale().toolbar.bold).toBe('CUSTOM_BOLD');
+        expect(fixture.componentInstance.isRtl()).toBe(true);
+    });
+
+    it('interpolateLocale substitutes {placeholder} tokens correctly', async () => {
+        await TestBed.configureTestingModule({
+            imports: [RichTextEditorComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(RichTextEditorComponent);
+        fixture.detectChanges();
+        const result = fixture.componentInstance.interpolateLocale(
+            'Page {n} of {total}',
+            { n: 3, total: 7 },
+        );
+        expect(result).toBe('Page 3 of 7');
+    });
+});

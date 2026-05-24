@@ -47,7 +47,8 @@ import {
     RichTextSlashCommandAvailabilityContext,
     RichTextSlashCommandContext,
 } from './rich-text-command-registry.service';
-import { RichTextLocale, RICH_TEXT_LOCALES, interpolate } from './rich-text-locales';
+import { RichTextLocale, RICH_TEXT_LOCALES } from './rich-text-locales';
+import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
 
 const editorVariants = cva(
     'relative w-full rounded-lg border bg-background text-base ring-offset-background transition-colors',
@@ -861,7 +862,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
      * to use a built-in locale, or pass a full {@link RichTextLocale} object for
      * custom translations.
      */
-    locale = input<string | RichTextLocale>('en');
+    locale = input<LocaleInput<RichTextLocale>>();
 
     // ── Styling & accessibility ─────────────────────────────────
 
@@ -874,15 +875,9 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     /** ID of an element that describes the editor, set as `aria-describedby`. */
     ariaDescribedBy = input<string | undefined>(undefined);
 
-    resolvedLocale = computed<RichTextLocale>(() => {
-        const loc = this.locale();
-        if (typeof loc === 'string') {
-            return RICH_TEXT_LOCALES[loc] ?? RICH_TEXT_LOCALES['en'];
-        }
-        return loc;
-    });
-
-    isRtl = computed(() => !!this.resolvedLocale().rtl);
+    private readonly i18n = createLocaleBindings(this.locale, RICH_TEXT_LOCALES);
+    readonly resolvedLocale = this.i18n.t;
+    readonly isRtl = this.i18n.isRtl;
 
     localizedSlashCommands = computed(() => [
         ...buildDefaultSlashCommands(this.resolvedLocale().slashCommands),
