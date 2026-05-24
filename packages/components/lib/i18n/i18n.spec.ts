@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { TestBed } from '@angular/core/testing';
-import { Component, input, signal } from '@angular/core';
+import { Component, input, signal, type Signal } from '@angular/core';
 import {
     interpolate,
     formatDate,

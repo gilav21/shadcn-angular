@@ -374,3 +374,67 @@ describe('AlertDialog Simple Mode', () => {
         expect(document.querySelector('[data-slot="alert-dialog-content"]')).toBeNull();
     });
 });
+
+describe('AlertDialogContentComponent — i18n integration', () => {
+    @Component({
+        template: `
+            <ui-alert-dialog>
+                <ui-alert-dialog-content title="T" [locale]="locale" [actionText]="actionText" [cancelText]="cancelText" />
+            </ui-alert-dialog>
+        `,
+        imports: [AlertDialogComponent, AlertDialogContentComponent],
+    })
+    class AlertI18nHost {
+        locale: string | undefined = undefined;
+        actionText: string | undefined = undefined;
+        cancelText: string | undefined = undefined;
+    }
+
+    async function setup(opts: { locale?: string; actionText?: string; cancelText?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [AlertI18nHost],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(AlertI18nHost);
+        Object.assign(fixture.componentInstance, opts);
+        fixture.detectChanges();
+        const alertDialog = fixture.debugElement.query(By.directive(AlertDialogComponent)).componentInstance as AlertDialogComponent;
+        alertDialog.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        return fixture;
+    }
+
+    it('defaults action/cancel to English "Continue" / "Cancel"', async () => {
+        await setup();
+        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]');
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
+        expect(action!.textContent!.trim()).toBe('Continue');
+        expect(cancel!.textContent!.trim()).toBe('Cancel');
+    });
+
+    it('localises both buttons when locale="he"', async () => {
+        await setup({ locale: 'he' });
+        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]');
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
+        expect(action!.textContent!.trim()).toBe('המשך');
+        expect(cancel!.textContent!.trim()).toBe('ביטול');
+    });
+
+    it('explicit actionText/cancelText inputs win over the locale', async () => {
+        await setup({ locale: 'he', actionText: 'Save', cancelText: 'Discard' });
+        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]');
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
+        expect(action!.textContent!.trim()).toBe('Save');
+        expect(cancel!.textContent!.trim()).toBe('Discard');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        await setup({ providerLocale: 'fr' });
+        const action = document.querySelector<HTMLElement>('[data-slot="alert-dialog-action"]');
+        const cancel = document.querySelector<HTMLElement>('[data-slot="alert-dialog-cancel"]');
+        expect(action!.textContent!.trim()).toBe('Continuer');
+        expect(cancel!.textContent!.trim()).toBe('Annuler');
+    });
+});

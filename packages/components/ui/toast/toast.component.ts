@@ -8,6 +8,7 @@ import {
   Injectable,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const toastVariants = cva(
@@ -119,19 +120,27 @@ export class ToastService {
   host: { class: 'contents' },
 })
 export class ToastComponent {
-  variant = input<ToastVariant>('default');
-  title = input<string>();
-  description = input<string>();
-  action = input<{ label: string; onClick: () => void }>();
-  showCountdown = input<boolean | undefined>(false);
-  countdownSeconds = input<number | undefined>(undefined);
-  duration = input<number | undefined>(undefined);
-  createdAt = input<number | undefined>(undefined);
-  close = output<void>();
+  readonly variant = input<ToastVariant>('default');
+  readonly title = input<string>();
+  readonly description = input<string>();
+  readonly action = input<{ label: string; onClick: () => void }>();
+  readonly showCountdown = input<boolean | undefined>(false);
+  readonly countdownSeconds = input<number | undefined>(undefined);
+  readonly duration = input<number | undefined>(undefined);
+  readonly createdAt = input<number | undefined>(undefined);
 
-  classes = computed(() => toastVariants({ variant: this.variant() }));
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<CommonLocale>>();
 
-  progressPercent = computed(() => {
+  readonly close = output<void>();
+
+  private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
+  protected readonly t = this.i18n.t;
+  protected readonly dir = this.i18n.dir;
+
+  readonly classes = computed(() => toastVariants({ variant: this.variant() }));
+
+  readonly progressPercent = computed(() => {
     const dur = this.duration();
     const countdown = this.countdownSeconds();
     if (!dur || countdown == null) return 0;

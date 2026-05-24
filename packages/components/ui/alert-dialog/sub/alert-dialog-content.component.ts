@@ -10,6 +10,7 @@ import {
     effect,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { ALERT_DIALOG } from '../alert-dialog.component';
 import { AlertDialogHeaderComponent } from './alert-dialog-header.component';
 import { AlertDialogTitleComponent } from './alert-dialog-title.component';
@@ -33,6 +34,7 @@ import { AlertDialogCancelComponent } from './alert-dialog-cancel.component';
     @if (alertDialog?.open()) {
       <div
         class="fixed inset-0 z-50 flex items-center justify-center"
+        [attr.dir]="dir()"
         (keydown)="onKeydown($event)"
       >
         <!-- Overlay - no click to close for alert dialogs -->
@@ -56,8 +58,8 @@ import { AlertDialogCancelComponent } from './alert-dialog-cancel.component';
           <ng-content />
           @if (title()) {
             <ui-alert-dialog-footer>
-              <ui-alert-dialog-cancel (click)="cancelClick.emit()">{{ cancelText() }}</ui-alert-dialog-cancel>
-              <ui-alert-dialog-action (click)="actionClick.emit()">{{ actionText() }}</ui-alert-dialog-action>
+              <ui-alert-dialog-cancel (click)="cancelClick.emit()">{{ cancelText() ?? t().cancel }}</ui-alert-dialog-cancel>
+              <ui-alert-dialog-action (click)="actionClick.emit()">{{ actionText() ?? t().continue }}</ui-alert-dialog-action>
             </ui-alert-dialog-footer>
           }
         </div>
@@ -69,15 +71,26 @@ import { AlertDialogCancelComponent } from './alert-dialog-cancel.component';
 export class AlertDialogContentComponent implements AfterViewInit {
     readonly alertDialog = inject(ALERT_DIALOG, { optional: true });
     private readonly el = inject(ElementRef);
-    class = input('');
-    title = input<string>();
-    description = input<string>();
-    actionText = input('Continue');
-    cancelText = input('Cancel');
-    actionClick = output<void>();
-    cancelClick = output<void>();
+    readonly class = input('');
+    readonly title = input<string>();
+    readonly description = input<string>();
 
-    classes = computed(() =>
+    /** Override for the action button text. When unset, falls back to the locale's `continue` string. */
+    readonly actionText = input<string>();
+    /** Override for the cancel button text. When unset, falls back to the locale's `cancel` string. */
+    readonly cancelText = input<string>();
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<CommonLocale>>();
+
+    private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
+
+    readonly actionClick = output<void>();
+    readonly cancelClick = output<void>();
+
+    readonly classes = computed(() =>
         cn(
             'fixed z-50 grid w-full max-w-[calc(100vw-2rem)] sm:max-w-lg gap-3 sm:gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 sm:rounded-lg',
             this.class()

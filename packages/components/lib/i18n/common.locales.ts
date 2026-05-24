@@ -14,6 +14,7 @@ export interface CommonLocale extends LocaleMeta {
     close: string;
     cancel: string;
     confirm: string;
+    continue: string;
     save: string;
     delete: string;
     edit: string;
@@ -31,6 +32,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: 'Close',
         cancel: 'Cancel',
         confirm: 'Confirm',
+        continue: 'Continue',
         save: 'Save',
         delete: 'Delete',
         edit: 'Edit',
@@ -47,6 +49,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: 'סגור',
         cancel: 'ביטול',
         confirm: 'אישור',
+        continue: 'המשך',
         save: 'שמור',
         delete: 'מחק',
         edit: 'ערוך',
@@ -63,6 +66,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: 'إغلاق',
         cancel: 'إلغاء',
         confirm: 'تأكيد',
+        continue: 'متابعة',
         save: 'حفظ',
         delete: 'حذف',
         edit: 'تحرير',
@@ -78,6 +82,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: 'Schließen',
         cancel: 'Abbrechen',
         confirm: 'Bestätigen',
+        continue: 'Weiter',
         save: 'Speichern',
         delete: 'Löschen',
         edit: 'Bearbeiten',
@@ -93,6 +98,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: 'Fermer',
         cancel: 'Annuler',
         confirm: 'Confirmer',
+        continue: 'Continuer',
         save: 'Enregistrer',
         delete: 'Supprimer',
         edit: 'Modifier',
@@ -108,6 +114,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: 'Cerrar',
         cancel: 'Cancelar',
         confirm: 'Confirmar',
+        continue: 'Continuar',
         save: 'Guardar',
         delete: 'Eliminar',
         edit: 'Editar',
@@ -123,6 +130,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: '閉じる',
         cancel: 'キャンセル',
         confirm: '確認',
+        continue: '続行',
         save: '保存',
         delete: '削除',
         edit: '編集',
@@ -138,6 +146,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: '关闭',
         cancel: '取消',
         confirm: '确认',
+        continue: '继续',
         save: '保存',
         delete: '删除',
         edit: '编辑',
@@ -153,6 +162,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: 'Закрыть',
         cancel: 'Отмена',
         confirm: 'Подтвердить',
+        continue: 'Продолжить',
         save: 'Сохранить',
         delete: 'Удалить',
         edit: 'Редактировать',
@@ -168,6 +178,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         close: 'Fechar',
         cancel: 'Cancelar',
         confirm: 'Confirmar',
+        continue: 'Continuar',
         save: 'Salvar',
         delete: 'Excluir',
         edit: 'Editar',

@@ -122,3 +122,39 @@ describe('Toast RTL Support', () => {
         expect(toaster.nativeElement.className).toContain('rtl:left-0');
     });
 });
+
+describe('ToastComponent — i18n integration', () => {
+    async function setup(locale?: string, providerLocale?: string) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [ToastComponent],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(ToastComponent);
+        if (locale) fixture.componentRef.setInput('locale', locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults the close-button aria-label to English "Close"', async () => {
+        const fixture = await setup();
+        const btn = fixture.debugElement.query(By.css('button[aria-label]'));
+        expect(btn.nativeElement.getAttribute('aria-label')).toBe('Close');
+        const root = fixture.debugElement.query(By.css('[data-slot="toast"]'));
+        expect(root.nativeElement.hasAttribute('dir')).toBe(false);
+    });
+
+    it('localises the close aria-label and applies dir="rtl" when locale="he"', async () => {
+        const fixture = await setup('he');
+        const btn = fixture.debugElement.query(By.css('button[aria-label]'));
+        expect(btn.nativeElement.getAttribute('aria-label')).toBe('סגור');
+        const root = fixture.debugElement.query(By.css('[data-slot="toast"]'));
+        expect(root.nativeElement.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'de');
+        const btn = fixture.debugElement.query(By.css('button[aria-label]'));
+        expect(btn.nativeElement.getAttribute('aria-label')).toBe('Schließen');
+    });
+});

@@ -42,6 +42,7 @@ export const registry = defineRegistry({
   'alert-dialog': {
     name: 'alert-dialog',
     files: ['alert-dialog/alert-dialog.component.ts', 'alert-dialog/index.ts', 'alert-dialog/sub/alert-dialog-action.component.ts', 'alert-dialog/sub/alert-dialog-cancel.component.ts', 'alert-dialog/sub/alert-dialog-content.component.ts', 'alert-dialog/sub/alert-dialog-description.component.ts', 'alert-dialog/sub/alert-dialog-footer.component.ts', 'alert-dialog/sub/alert-dialog-header.component.ts', 'alert-dialog/sub/alert-dialog-title.component.ts', 'alert-dialog/sub/alert-dialog-trigger.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'aspect-ratio': {
     name: 'aspect-ratio',
@@ -166,6 +167,7 @@ export const registry = defineRegistry({
   dialog: {
     name: 'dialog',
     files: ['dialog/dialog.component.ts', 'dialog/index.ts', 'dialog/sub/dialog-content.component.html', 'dialog/sub/dialog-content.component.ts', 'dialog/sub/dialog-description.component.ts', 'dialog/sub/dialog-footer.component.ts', 'dialog/sub/dialog-header.component.ts', 'dialog/sub/dialog-title.component.ts', 'dialog/sub/dialog-trigger.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   dock: {
     name: 'dock',
@@ -317,6 +319,7 @@ export const registry = defineRegistry({
   sheet: {
     name: 'sheet',
     files: ['sheet/index.ts', 'sheet/sheet.component.ts', 'sheet/sub/sheet-close.component.ts', 'sheet/sub/sheet-content.component.ts', 'sheet/sub/sheet-description.component.ts', 'sheet/sub/sheet-footer.component.ts', 'sheet/sub/sheet-header.component.ts', 'sheet/sub/sheet-title.component.ts', 'sheet/sub/sheet-trigger.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   sidebar: {
     name: 'sidebar',
@@ -363,6 +366,7 @@ export const registry = defineRegistry({
   toast: {
     name: 'toast',
     files: ['toast/index.ts', 'toast/sub/toaster.component.html', 'toast/sub/toaster.component.ts', 'toast/toast.component.html', 'toast/toast.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   toggle: {
     name: 'toggle',
