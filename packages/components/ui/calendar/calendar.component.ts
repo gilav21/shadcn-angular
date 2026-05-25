@@ -71,6 +71,8 @@ export class CalendarComponent {
 
   private readonly i18n = createLocaleBindings(this.locale, CALENDAR_LOCALES);
   private readonly activeLocale = this.i18n.t;
+  /** `'rtl'` when the active locale is RTL, otherwise `null` — bind to `[attr.dir]`. */
+  protected readonly dir = this.i18n.dir;
 
   constructor() {
     effect(() => {

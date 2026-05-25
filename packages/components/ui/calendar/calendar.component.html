@@ -1,4 +1,4 @@
-<div [class]="classes()" [attr.data-slot]="'calendar'" [dir]="rtl() ? 'rtl' : 'ltr'">
+<div [class]="classes()" [attr.data-slot]="'calendar'" [attr.dir]="dir()">
   <!-- Header -->
   <div class="flex items-center justify-between px-1 relative mb-4">
     <ui-button
@@ -99,7 +99,7 @@
             <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
               <input
                 type="time"
-                [dir]="rtl() ? 'rtl' : 'ltr'"
+                [attr.dir]="dir()"
                 class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
                 [value]="startTimeString()"
                 (change)="updateStartTime($event)"
@@ -115,7 +115,7 @@
             <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
               <input
                 type="time"
-                [dir]="rtl() ? 'rtl' : 'ltr'"
+                [attr.dir]="dir()"
                 class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
                 [value]="endTimeString()"
                 (change)="updateEndTime($event)"
@@ -133,7 +133,7 @@
           <div class="flex items-center rounded-md border border-input focus-within:ring-1 focus-within:ring-ring">
             <input
               type="time"
-              [dir]="rtl() ? 'rtl' : 'ltr'"
+              [attr.dir]="dir()"
               class="flex-1 w-full bg-transparent px-3 py-1 text-sm outline-none placeholder:text-muted-foreground rtl:pr-0 [&::-webkit-calendar-picker-indicator]:hidden flex rtl:justify-end"
               [value]="selectedTimeString()"
               (change)="updateTime($event)"

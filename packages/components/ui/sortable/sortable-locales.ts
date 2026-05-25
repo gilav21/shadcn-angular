@@ -81,4 +81,13 @@ export const SORTABLE_LOCALES: Record<string, SortableLocale> = {
         rejected: (reason) => (reason ? `No se puede soltar aquí. ${reason}.` : 'No se puede soltar aquí.'),
         cancelled: 'Reordenamiento cancelado.',
     },
+    ja: {
+        code: 'ja',
+        pickedUp: (label, n, total) => `${label} を持ち上げました。${total} 中 ${n} 番目の位置。`,
+        moved: (n, total) => `${total} 中 ${n} 番目の位置に移動しました。`,
+        movedToList: (listLabel, n, total) => `${listLabel} の ${total} 中 ${n} 番目の位置に移動しました。`,
+        dropped: (n) => `${n} 番目の位置でドロップしました。`,
+        rejected: (reason) => (reason ? `ここにはドロップできません。${reason}。` : 'ここにはドロップできません。'),
+        cancelled: '並べ替えはキャンセルされました。',
+    },
 };
