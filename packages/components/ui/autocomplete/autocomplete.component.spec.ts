@@ -484,4 +484,25 @@ describe('AutocompleteComponent — i18n integration', () => {
         const input = fixture.nativeElement.querySelector('input');
         expect(input.getAttribute('placeholder')).toBe('Auswählen...');
     });
+
+    it('renders the localised noResults text in the embedded ui-command-empty when filter excludes all options', async () => {
+        const fixture = await setup('he');
+        fixture.componentRef.setInput('options', ['apple', 'banana']);
+        fixture.detectChanges();
+        const cmp = fixture.componentInstance;
+        (cmp as unknown as { open: { set: (v: boolean) => void } }).open.set(true);
+        cmp.searchTerm.set('zzzzzz');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const empty = document.querySelector('[data-slot="command-empty"]');
+        expect(empty).toBeTruthy();
+        expect(empty!.textContent!.trim()).toBe('לא נמצאו תוצאות.');
+    });
+
+    it('applies dir="rtl" to the autocomplete container when locale="he"', async () => {
+        const fixture = await setup('he');
+        const container = fixture.nativeElement.querySelector('[data-state]');
+        expect(container.getAttribute('dir')).toBe('rtl');
+    });
 });

@@ -123,20 +123,6 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
   convention. Consumers who depended on the longer text can pass
   `[placeholder]="'Select an option'"` to restore it.
 
-### Known follow-ups inside i18n scope
-
-- **Parent → child locale propagation for compound components.** Today
-  each sub-component (e.g. `<ui-pagination-previous>`) resolves its own
-  locale via per-instance input or `UI_LOCALE_ID`. When a consumer writes
-  `<ui-pagination locale="he"><ui-pagination-previous /></ui-pagination>`,
-  the parent nav localizes but the children stay English. Workaround
-  today: use `provideUiLocale` globally OR set `locale` on each child.
-  Better future fix: have each compound parent re-broadcast its `locale`
-  via `viewProviders: [provideComponentLocale(forwardRef(() => Cmp))]`
-  so descendants inherit automatically. The contract is pinned by a
-  test in `pagination.component.spec.ts` so the limitation does not
-  silently change.
-
 ### Known follow-ups (out of i18n scope)
 
 - **`e2e/orchestrator/impact.ts:114`** uses `path.basename(file)` for libFile

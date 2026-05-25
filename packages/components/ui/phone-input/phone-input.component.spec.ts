@@ -363,4 +363,43 @@ describe('PhoneInputComponent — i18n integration', () => {
         const cmp = await setup(undefined, 'fr');
         expect(readT(cmp).searchCountryPlaceholder).toBe('Rechercher un pays...');
     });
+
+    it('renders localised search placeholder + no-results text in the country picker popover (DOM)', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [PhoneInputComponent],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(PhoneInputComponent);
+        fixture.detectChanges();
+        document.body.appendChild(fixture.nativeElement);
+        const trigger = fixture.nativeElement.querySelector('button[type="button"]') as HTMLButtonElement;
+        trigger.click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const searchInput = document.querySelector('[data-slot="phone-input"] input[type="text"]') as HTMLInputElement;
+        expect(searchInput).toBeTruthy();
+        expect(searchInput.getAttribute('placeholder')).toBe('...חיפוש מדינה');
+
+        searchInput.value = 'zzzzzz';
+        searchInput.dispatchEvent(new Event('input'));
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const empty = document.body.querySelector('p.text-muted-foreground.text-center');
+        expect(empty?.textContent?.trim()).toBe('לא נמצאו מדינות');
+
+        document.body.removeChild(fixture.nativeElement);
+    });
+
+    it('applies dir="rtl" to the phone-input host when locale="he"', async () => {
+        await TestBed.configureTestingModule({ imports: [PhoneInputComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(PhoneInputComponent);
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        const host = fixture.nativeElement.querySelector('[data-slot="phone-input"]');
+        expect(host.getAttribute('dir')).toBe('rtl');
+    });
 });

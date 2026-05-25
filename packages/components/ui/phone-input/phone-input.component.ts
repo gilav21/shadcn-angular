@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
-import { createLocaleSelector, type LocaleInput } from '../../lib/i18n';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { PHONE_INPUT_LOCALES, type PhoneInputLocale } from './phone-input.locales';
 import { InputComponent } from '../input';
 import { InputGroupComponent, InputGroupAddonComponent } from '../input-group';
@@ -121,7 +121,9 @@ export class PhoneInputComponent implements ControlValueAccessor {
 
     /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
     readonly locale = input<LocaleInput<PhoneInputLocale>>();
-    protected readonly t = createLocaleSelector(this.locale, PHONE_INPUT_LOCALES);
+    private readonly i18n = createLocaleBindings(this.locale, PHONE_INPUT_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
 
     /** Emits the E.164-formatted phone number on every change (`''` when empty). */
     readonly valueChange = output<string>();

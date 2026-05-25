@@ -71,6 +71,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     readonly locale = input<LocaleInput<CommonLocale>>();
     private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
     protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
 
     search = output<string>();
     valueChange = output<AutocompleteValue<T>>();
