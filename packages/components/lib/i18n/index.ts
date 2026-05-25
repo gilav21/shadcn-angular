@@ -1,5 +1,5 @@
 export type { LocaleMeta, LocaleInput } from './i18n.types';
-export { UI_LOCALE_ID, provideUiLocale } from './i18n.token';
+export { UI_LOCALE_ID, provideUiLocale, provideComponentLocale } from './i18n.token';
 export {
     resolveLocale,
     createLocaleSelector,

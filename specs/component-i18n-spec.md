@@ -116,6 +116,12 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
   set `provideUiLocale('he')` at the root will now have their calendars
   render in Hebrew automatically — previously calendars without an
   explicit `locale` input stayed English.
+- **Placeholder text standardisation (Task 7)**: `<ui-select>` and
+  `<ui-tree-select>` default placeholders changed from `'Select an
+  option'` and `'Select an item'` respectively to `'Select...'` —
+  aligned with `<ui-autocomplete>` and the upstream shadcn/ui
+  convention. Consumers who depended on the longer text can pass
+  `[placeholder]="'Select an option'"` to restore it.
 
 ### Known follow-ups inside i18n scope
 
@@ -147,11 +153,23 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 
 ---
 
-## Verification (per task)
+## Review-gate rubric (per task)
 
-- **Unit tests** verify default English, `locale="he"` flips to Hebrew + sets `dir="rtl"`, and custom locale object works.
-- **Token-fallback test** confirms `provideUiLocale(signal('he'))` localizes a component with no explicit `locale` input.
-- **No regressions**: every default English string remains identical to today's hardcoded value.
-- **Type safety**: `LocaleInput<T> = string | T` is a superset of the existing `string` signature, so existing consumer code compiles unchanged.
-- **CLAUDE.md compliance**: SonarQube rules (readonly members, no `any`, merged imports, modern APIs, cognitive complexity ≤ 15), responsive design, touch compatibility.
-- **Review gate**: `code-review` skill must report a score ≥ 95 before commit.
+The "score ≥ 95" gate is **not** a vibe. Each task is scored against the
+ten dimensions below (10 points each, max 100). The gate is checked
+**before commit** — if the reviewer reports < 95, the implementation
+loops (fix → re-review) until it clears. The final committed score is
+recorded on the task row above.
+
+| # | Dimension | What gets full marks |
+|---|---|---|
+| 1 | Correctness (current state) | No known bugs in the merged code — reviewer returns `[]` or only flags out-of-scope items. |
+| 2 | Reviewer findings addressed | Every CONFIRMED/PLAUSIBLE finding from the gate either fixed or explicitly deferred with a written reason. |
+| 3 | Test coverage of new paths | Default-en, per-instance locale, global `UI_LOCALE_ID` fallback, custom locale object, RTL flip — all pinned by tests. |
+| 4 | Architecture fit | Uses `createLocaleSelector` / `createLocaleBindings` / `interpolate` from `lib/i18n`. Per-component locale file when the dict is component-specific; `CommonLocale` for cross-cutting strings. |
+| 5 | RTL handled | `[attr.dir]="dir()"` on the appropriate root (returns `'rtl' \| null` so ancestor `<html dir="rtl">` keeps working). Tailwind `rtl:` variants effective. |
+| 6 | Translation quality | All 10 locales present and idiomatic for the dimension I can verify; flagged honestly when I can't. |
+| 7 | Backward compatibility | Existing public API still compiles for consumers; default English text matches the pre-i18n hardcoded value (or the change is explicitly documented as a deliberate UX standardisation). |
+| 8 | Docs / spec | Spec table row updated; commit message captures what changed and why. |
+| 9 | Lint / type-check clean | `tsc --noEmit` is zero errors **for the whole project**, not just the touched files. |
+| 10 | Reviewer surfaces nothing new on re-pass | After fixes, a second review pass finds no new defects beyond known-follow-ups. |

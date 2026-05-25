@@ -470,7 +470,7 @@ describe('PaginationComponent — i18n integration', () => {
         expect(fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent).toContain('CUSTOM_MORE');
     });
 
-    it('does NOT auto-propagate the parent locale to projected sub-components (each level resolves independently)', async () => {
+    it('auto-propagates the parent locale to projected sub-components via viewProviders', async () => {
         @Component({
             standalone: true,
             imports: [
@@ -506,9 +506,9 @@ describe('PaginationComponent — i18n integration', () => {
         const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent;
         const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent;
         const more = fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent;
-        expect(prev).toContain('Previous');
-        expect(next).toContain('Next');
-        expect(more).toContain('More pages');
+        expect(prev).toContain('הקודם');
+        expect(next).toContain('הבא');
+        expect(more).toContain('עוד עמודים');
     });
 
     it('a global provideUiLocale propagates to ALL sub-components without per-instance locale wiring', async () => {

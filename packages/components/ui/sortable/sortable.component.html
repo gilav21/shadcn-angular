@@ -2,6 +2,7 @@
     #container
     [class]="classes()"
     [attr.data-slot]="'sortable'"
+    [attr.dir]="dir()"
     [attr.aria-disabled]="disabled() ? 'true' : null"
     [attr.data-reject]="rejectReason()"
     [attr.data-receiving]="foreignHover() ? 'true' : null"

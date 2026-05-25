@@ -1,4 +1,4 @@
-import { InjectionToken, computed, signal, type Provider, type Signal } from '@angular/core';
+import { InjectionToken, Injector, Type, computed, inject, signal, type Provider, type Signal } from '@angular/core';
 
 /**
  * App-wide UI locale id (BCP-47 string) exposed as a **readonly** `Signal`.
@@ -41,4 +41,55 @@ export function provideUiLocale(locale: Signal<string> | string): Provider {
     const sig: Signal<string> =
         typeof locale === 'string' ? signal(locale).asReadonly() : computed(() => locale());
     return { provide: UI_LOCALE_ID, useValue: sig };
+}
+
+/**
+ * Make a compound component re-broadcast its `locale` input as the
+ * `UI_LOCALE_ID` for descendants in its template. Add to the component's
+ * **`viewProviders`** (not `providers` — `providers` would make the parent
+ * recursively inject itself, causing a cyclic-DI error).
+ *
+ * ```ts
+ * @Component({
+ *   selector: 'ui-pagination',
+ *   viewProviders: [provideComponentLocale(() => PaginationComponent)],
+ * })
+ * export class PaginationComponent {
+ *   readonly locale = input<LocaleInput<PaginationLocale>>();
+ * }
+ * ```
+ *
+ * Projected sub-components (`<ui-pagination-previous>`, etc.) that inject
+ * `UI_LOCALE_ID` now see the parent's locale instead of the app-wide token,
+ * so `<ui-pagination locale="he">` localises every child without each child
+ * needing its own `[locale]` binding.
+ *
+ * Falls through to the upstream `UI_LOCALE_ID` (skipSelf) when the parent's
+ * `locale` input is unset / empty.
+ */
+export function provideComponentLocale<T extends { locale: Signal<unknown> }>(
+    forwardCmp: () => Type<T>,
+): Provider {
+    return {
+        provide: UI_LOCALE_ID,
+        useFactory: (): Signal<string> => {
+            // Capture the upstream UI_LOCALE_ID and an Injector handle EAGERLY
+            // (these don't cycle); defer the component lookup to computed-time
+            // so it doesn't recurse into the still-constructing parent.
+            const upstream = inject(UI_LOCALE_ID, { skipSelf: true });
+            const injector = inject(Injector);
+            return computed(() => {
+                const cmp = injector.get(forwardCmp(), null);
+                if (!cmp) return upstream();
+                const input = cmp.locale();
+                if (input && typeof input === 'object' && 'code' in input) {
+                    return (input as { code: string }).code;
+                }
+                if (typeof input === 'string' && input.length > 0) {
+                    return input;
+                }
+                return upstream();
+            });
+        },
+    };
 }

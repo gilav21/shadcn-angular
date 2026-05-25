@@ -6,11 +6,12 @@ import {
   computed,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
-import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { createLocaleBindings, provideComponentLocale, type LocaleInput } from '../../lib/i18n';
 import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales';
 
 @Component({
   selector: 'ui-pagination',
+  providers: [provideComponentLocale(() => PaginationComponent)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <nav

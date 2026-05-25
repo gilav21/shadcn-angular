@@ -22,7 +22,7 @@ import { createFlip, type FlipHandle } from '../../lib/flip';
 import { startAutoScroll, type AutoScrollController } from '../../lib/auto-scroll';
 import { acquireAriaLive, type AriaLiveHandle } from '../../lib/sortable-aria-live';
 import { SORTABLE_LOCALES, type SortableLocale } from './sortable-locales';
-import { createLocaleSelector, type LocaleInput } from '../../lib/i18n';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import {
     peersInGroup,
     registerSortable,
@@ -282,8 +282,11 @@ export class SortableComponent<T> {
     private readonly autoListId = `sortable-${++SortableComponent.sortableIdCounter}`;
     /** The list's resolved id — the `listId` input, or an auto-generated value when blank. */
     readonly resolvedListId = computed((): string => this.listId() || this.autoListId);
+    private readonly i18n = createLocaleBindings(this.locale, SORTABLE_LOCALES);
     /** The active locale strings (resolves the `locale()` input with global / English fallback). */
-    readonly currentLocale = createLocaleSelector(this.locale, SORTABLE_LOCALES);
+    readonly currentLocale = this.i18n.t;
+    /** `'rtl'` when the active locale is RTL, otherwise `null` — bind to `[attr.dir]`. */
+    protected readonly dir = this.i18n.dir;
 
     private itemLabel(index: number): string {
         const item = this.items()[index];
