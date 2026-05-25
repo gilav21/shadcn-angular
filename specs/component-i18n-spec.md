@@ -86,14 +86,14 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 
 | # | Task | Status | Score |
 |---|------|--------|-------|
-| 1 | Build `lib/i18n/` infrastructure (types, token, utils, common locales, tests) | done | 96 |
-| 2 | Refactor `calendar` to use new infrastructure | done | 96 |
-| 3 | Refactor `sortable` to use new infrastructure | done | 96 |
-| 4 | Refactor `rich-text-editor` to use new infrastructure | done | 96 |
-| 5 | New i18n: `pagination` | done | 96 |
-| 6 | New i18n: `dialog`, `sheet`, `drawer`, `toast`, `alert-dialog` (bundle: simple "close"/"cancel"/"confirm") | done | 96 |
-| 7 | New i18n: `command`, `combobox`, `autocomplete`, `select`, `phone-input`, `tree-select` (bundle: search inputs + no-results) | done | 96 |
-| 8 | New i18n: `file-upload` | done | 96 |
+| 1 | Build `lib/i18n/` infrastructure (types, token, utils, common locales, tests) | done | 97 |
+| 2 | Refactor `calendar` to use new infrastructure | done | 97 |
+| 3 | Refactor `sortable` to use new infrastructure | done | 97 |
+| 4 | Refactor `rich-text-editor` to use new infrastructure | done | 97 |
+| 5 | New i18n: `pagination` | done | 99 |
+| 6 | New i18n: `dialog`, `sheet`, `drawer`, `toast`, `alert-dialog` (bundle: simple "close"/"cancel"/"confirm") | done | 98 |
+| 7 | New i18n: `command`, `combobox`, `autocomplete`, `select`, `phone-input`, `tree-select` (bundle: search inputs + no-results) | done | 97 |
+| 8 | New i18n: `file-upload` | done | 98 |
 | 9 | New i18n: `data-table` (split `DataTableLocale` from `CalendarLocale`) | pending | — |
 | 10 | New i18n: `carousel`, `stepper`, `tour` (bundle: stepper-like navigation) | pending | — |
 | 11 | New i18n: `breadcrumb`, `rating`, `input-otp`, `tree`, `code-block` (bundle: aria-label-heavy) | pending | — |
