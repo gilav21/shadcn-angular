@@ -20,7 +20,7 @@
             type="text"
             [value]="searchQuery()"
             (input)="onSearchInput($event)"
-            placeholder="Search country..."
+            [placeholder]="t().searchCountryPlaceholder"
             class="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -37,7 +37,7 @@
             </button>
           }
           @if (filteredCountries().length === 0) {
-            <p class="px-3 py-4 text-sm text-muted-foreground text-center">No countries found</p>
+            <p class="px-3 py-4 text-sm text-muted-foreground text-center">{{ t().noCountryFound }}</p>
           }
         </div>
       </ui-popover-content>

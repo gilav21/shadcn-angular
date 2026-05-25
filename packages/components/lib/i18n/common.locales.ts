@@ -20,6 +20,7 @@ export interface CommonLocale extends LocaleMeta {
     edit: string;
     search: string;
     searchPlaceholder: string;
+    selectPlaceholder: string;
     noResults: string;
     previous: string;
     next: string;
@@ -38,6 +39,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: 'Edit',
         search: 'Search',
         searchPlaceholder: 'Search...',
+        selectPlaceholder: 'Select...',
         noResults: 'No results found.',
         previous: 'Previous',
         next: 'Next',
@@ -55,6 +57,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: 'ערוך',
         search: 'חיפוש',
         searchPlaceholder: '...חיפוש',
+        selectPlaceholder: '...בחר',
         noResults: 'לא נמצאו תוצאות.',
         previous: 'הקודם',
         next: 'הבא',
@@ -72,6 +75,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: 'تحرير',
         search: 'بحث',
         searchPlaceholder: '...بحث',
+        selectPlaceholder: '...اختر',
         noResults: 'لم يتم العثور على نتائج.',
         previous: 'السابق',
         next: 'التالي',
@@ -88,6 +92,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: 'Bearbeiten',
         search: 'Suche',
         searchPlaceholder: 'Suchen...',
+        selectPlaceholder: 'Auswählen...',
         noResults: 'Keine Ergebnisse gefunden.',
         previous: 'Zurück',
         next: 'Weiter',
@@ -104,6 +109,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: 'Modifier',
         search: 'Rechercher',
         searchPlaceholder: 'Rechercher...',
+        selectPlaceholder: 'Sélectionner...',
         noResults: 'Aucun résultat trouvé.',
         previous: 'Précédent',
         next: 'Suivant',
@@ -120,6 +126,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: 'Editar',
         search: 'Buscar',
         searchPlaceholder: 'Buscar...',
+        selectPlaceholder: 'Seleccionar...',
         noResults: 'No se encontraron resultados.',
         previous: 'Anterior',
         next: 'Siguiente',
@@ -136,6 +143,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: '編集',
         search: '検索',
         searchPlaceholder: '検索...',
+        selectPlaceholder: '選択...',
         noResults: '結果が見つかりません。',
         previous: '前へ',
         next: '次へ',
@@ -152,6 +160,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: '编辑',
         search: '搜索',
         searchPlaceholder: '搜索...',
+        selectPlaceholder: '选择...',
         noResults: '未找到结果。',
         previous: '上一页',
         next: '下一页',
@@ -168,6 +177,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: 'Редактировать',
         search: 'Поиск',
         searchPlaceholder: 'Поиск...',
+        selectPlaceholder: 'Выбрать...',
         noResults: 'Результаты не найдены.',
         previous: 'Назад',
         next: 'Далее',
@@ -184,6 +194,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         edit: 'Editar',
         search: 'Pesquisar',
         searchPlaceholder: 'Pesquisar...',
+        selectPlaceholder: 'Selecionar...',
         noResults: 'Nenhum resultado encontrado.',
         previous: 'Anterior',
         next: 'Próximo',

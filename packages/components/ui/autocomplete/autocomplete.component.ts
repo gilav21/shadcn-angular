@@ -17,6 +17,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { Subject, debounceTime as rxDebounceTime } from 'rxjs';
 import { cn, getClippingRect } from '../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
 import { CommandComponent, CommandListComponent, CommandItemComponent, CommandEmptyComponent, CommandService } from '../command';
 import { HighlightPipe } from './highlight.pipe';
@@ -59,11 +60,17 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     valueAttribute = input<string | undefined>(undefined);
     filter = input(true);
     multiple = input(false);
-    placeholder = input('Select...');
+    /** Override for the placeholder. Falls back to the locale's `selectPlaceholder`. */
+    placeholder = input<string>();
     disabled = input(false);
     class = input('');
     debounceTime = input(0);
     readonly value = input<T | T[] | undefined>(undefined);
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<CommonLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
+    protected readonly t = this.i18n.t;
 
     search = output<string>();
     valueChange = output<AutocompleteValue<T>>();

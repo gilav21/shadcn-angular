@@ -8,6 +8,7 @@ import {
   ViewChild,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleSelector, type LocaleInput } from '../../../lib/i18n';
 import { CommandService } from '../command.component';
 
 @Component({
@@ -21,9 +22,9 @@ import { CommandService } from '../command.component';
       <input
         #inputEl
         [class]="inputClasses()"
-        [placeholder]="placeholder()"
+        [placeholder]="placeholder() ?? t().searchPlaceholder"
         [value]="cmdService.search()"
-        [attr.aria-label]="ariaLabel()"
+        [attr.aria-label]="ariaLabel() ?? t().search"
         (input)="onInput($event)"
         (keydown)="onKeydown($event)"
       />
@@ -35,9 +36,15 @@ export class CommandInputComponent {
   @ViewChild('inputEl') inputEl!: ElementRef<HTMLInputElement>;
   readonly cmdService = inject(CommandService);
 
-  placeholder = input('Search...');
-  ariaLabel = input('Search');
-  value = input<string>('');
+  /** Override for the placeholder. Falls back to the locale's `searchPlaceholder`. */
+  readonly placeholder = input<string>();
+  /** Override for the aria-label. Falls back to the locale's `search`. */
+  readonly ariaLabel = input<string>();
+  readonly value = input<string>('');
+
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<CommonLocale>>();
+  protected readonly t = createLocaleSelector(this.locale, COMMON_LOCALES);
 
   constructor() {
     if (this.value()) {

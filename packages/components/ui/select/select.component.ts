@@ -16,6 +16,7 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleSelector, type LocaleInput } from '../../lib/i18n';
 
 export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
 
@@ -105,8 +106,15 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     private readonly document = inject(DOCUMENT);
 
     readonly disabled = input(false);
-    readonly placeholder = input('Select an option');
+    /** Override for the placeholder. Falls back to the locale's `selectPlaceholder`. */
+    readonly placeholder = input<string>();
     readonly defaultValue = input<T | undefined>(undefined);
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<CommonLocale>>();
+    protected readonly t = createLocaleSelector(this.locale, COMMON_LOCALES);
+    /** Effective placeholder — explicit input wins; otherwise falls back to the locale. */
+    readonly resolvedPlaceholder = computed(() => this.placeholder() ?? this.t().selectPlaceholder);
     readonly position = input<'popper' | 'item-aligned'>('item-aligned');
     readonly options = input<T[]>([]);
     readonly displayWith = input<(option: T) => string>(String);

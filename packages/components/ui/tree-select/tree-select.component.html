@@ -1,4 +1,4 @@
-<ui-popover [(open)]="isOpen" [attr.data-slot]="'tree-select'">
+<ui-popover [(open)]="isOpen" [attr.data-slot]="'tree-select'" [attr.dir]="dir()">
   @if (isDataDriven()) {
     <ui-popover-trigger class="w-full">
       <button
@@ -13,7 +13,7 @@
           @if (selectedNode(); as node) {
             {{ node.label }}
           } @else {
-            <span class="text-muted-foreground">{{ placeholder() }}</span>
+            <span class="text-muted-foreground">{{ placeholder() ?? t().selectPlaceholder }}</span>
           }
         </span>
         <svg

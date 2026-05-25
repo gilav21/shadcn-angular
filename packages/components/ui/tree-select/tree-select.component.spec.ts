@@ -391,3 +391,38 @@ describe('TreeSelect select method', () => {
         expect(emitted).toEqual([]);
     });
 });
+
+describe('TreeSelectComponent — i18n integration', () => {
+    async function setup(locale?: string, providerLocale?: string) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [TreeSelectComponent],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(TreeSelectComponent);
+        fixture.componentRef.setInput('nodes', SAMPLE_NODES);
+        if (locale) fixture.componentRef.setInput('locale', locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults placeholder to English "Select..."', async () => {
+        const fixture = await setup();
+        const placeholderEl = fixture.nativeElement.querySelector('.text-muted-foreground');
+        expect(placeholderEl.textContent.trim()).toBe('Select...');
+    });
+
+    it('localises placeholder when locale="he" and applies dir="rtl"', async () => {
+        const fixture = await setup('he');
+        const placeholderEl = fixture.nativeElement.querySelector('.text-muted-foreground');
+        expect(placeholderEl.textContent.trim()).toBe('...בחר');
+        const popover = fixture.nativeElement.querySelector('[data-slot="tree-select"]');
+        expect(popover.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'es');
+        const placeholderEl = fixture.nativeElement.querySelector('.text-muted-foreground');
+        expect(placeholderEl.textContent.trim()).toBe('Seleccionar...');
+    });
+});

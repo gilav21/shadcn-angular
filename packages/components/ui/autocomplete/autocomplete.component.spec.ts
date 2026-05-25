@@ -453,3 +453,35 @@ describe('AutocompleteComponent', () => {
         });
     });
 });
+
+describe('AutocompleteComponent — i18n integration', () => {
+    async function setup(locale?: string, providerLocale?: string) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [AutocompleteComponent],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(AutocompleteComponent);
+        if (locale) fixture.componentRef.setInput('locale', locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults the trigger placeholder to English "Select..."', async () => {
+        const fixture = await setup();
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('Select...');
+    });
+
+    it('localises the placeholder when locale="he"', async () => {
+        const fixture = await setup('he');
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('...בחר');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'de');
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('Auswählen...');
+    });
+});

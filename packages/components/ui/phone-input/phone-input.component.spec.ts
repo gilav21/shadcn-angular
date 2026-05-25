@@ -327,3 +327,40 @@ describe('PhoneInputComponent with ngModel', () => {
         expect(phoneInput.nationalNumber()).toBe('15123456789');
     });
 });
+
+describe('PhoneInputComponent — i18n integration', () => {
+    async function setup(locale?: string, providerLocale?: string): Promise<PhoneInputComponent> {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [PhoneInputComponent],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(PhoneInputComponent);
+        if (locale) fixture.componentRef.setInput('locale', locale);
+        fixture.detectChanges();
+        return fixture.componentInstance as PhoneInputComponent;
+    }
+
+    function readT(cmp: PhoneInputComponent): { searchCountryPlaceholder: string; noCountryFound: string } {
+        return (cmp as unknown as { t: () => { searchCountryPlaceholder: string; noCountryFound: string } }).t();
+    }
+
+    it('defaults search placeholder + empty-state text to English', async () => {
+        const cmp = await setup();
+        const t = readT(cmp);
+        expect(t.searchCountryPlaceholder).toBe('Search country...');
+        expect(t.noCountryFound).toBe('No countries found');
+    });
+
+    it('localises search placeholder + empty-state text when locale="he"', async () => {
+        const cmp = await setup('he');
+        const t = readT(cmp);
+        expect(t.searchCountryPlaceholder).toBe('...חיפוש מדינה');
+        expect(t.noCountryFound).toBe('לא נמצאו מדינות');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const cmp = await setup(undefined, 'fr');
+        expect(readT(cmp).searchCountryPlaceholder).toBe('Rechercher un pays...');
+    });
+});

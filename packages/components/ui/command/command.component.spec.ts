@@ -450,3 +450,45 @@ describe('CommandComponent', () => {
         });
     });
 });
+
+describe('CommandInputComponent — i18n integration', () => {
+    @Component({
+        template: `<ui-command><ui-command-input [locale]="locale"></ui-command-input></ui-command>`,
+        imports: [CommandComponent, CommandInputComponent],
+    })
+    class CommandI18nHost {
+        locale: string | undefined = undefined;
+    }
+
+    async function setup(locale?: string, providerLocale?: string) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [CommandI18nHost],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CommandI18nHost);
+        if (locale) fixture.componentInstance.locale = locale;
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults placeholder + aria-label to English', async () => {
+        const fixture = await setup();
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('Search...');
+        expect(input.getAttribute('aria-label')).toBe('Search');
+    });
+
+    it('localises placeholder + aria-label when locale="he"', async () => {
+        const fixture = await setup('he');
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('...חיפוש');
+        expect(input.getAttribute('aria-label')).toBe('חיפוש');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'fr');
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('Rechercher...');
+    });
+});
