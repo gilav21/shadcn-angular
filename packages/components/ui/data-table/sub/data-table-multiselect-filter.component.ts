@@ -8,6 +8,8 @@ import {
   effect,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
+import { DATA_TABLE_LOCALES, type DataTableLocale } from '../data-table.locales';
 import {
   CommandComponent,
   CommandInputComponent,
@@ -42,9 +44,21 @@ export class DataTableMultiselectFilterComponent<T = unknown> {
   readonly options = input<T[]>([]);
   readonly displayWith = input<(option: T) => string>(String);
   readonly valueWith = input<(option: T) => unknown>((o: T) => o);
-  readonly placeholder = input('Search...');
+  /** Override for the command-input placeholder. Falls back to the locale's `searchPlaceholder`. */
+  readonly placeholder = input<string>();
   readonly title = input<string | undefined>(undefined);
   readonly selected = input<unknown[]>([]);
+
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<DataTableLocale>>();
+  private readonly i18n = createLocaleBindings(this.locale, DATA_TABLE_LOCALES);
+  protected readonly t = this.i18n.t;
+  protected readonly dir = this.i18n.dir;
+
+  readonly resolvedPlaceholder = computed(() => this.placeholder() ?? this.t().searchPlaceholder ?? 'Search...');
+  readonly selectAllLabel = computed(() => this.t().selectAllRows ?? 'Select all');
+  readonly clearAllLabel = computed(() => this.t().clearAll ?? 'Clear');
+  readonly noResultsLabel = computed(() => this.t().noResultsLabel ?? 'No results.');
 
   readonly filterChange = output<unknown[] | null>();
 

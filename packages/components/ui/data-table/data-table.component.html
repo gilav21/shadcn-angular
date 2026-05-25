@@ -306,7 +306,7 @@
                 <button
                   type="button"
                   class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md border border-input bg-background px-3 h-8 text-sm font-medium transition-colors hover:bg-accent hover:text-accent-foreground"
-                  aria-label="Toggle columns"
+                  [attr.aria-label]="toggleColumnsLabel()"
                 >
                   {{ columnsLabel() }}
                 </button>
@@ -322,7 +322,7 @@
                         (checkedChange)="
                           setColumnVisibility(col.accessorKey, $event)
                         "
-                        [ariaLabel]="'Toggle ' + col.header + ' column'"
+                        [ariaLabel]="toggleColumnAriaLabel(col.header)"
                       />
                       <span>{{ col.header }}</span>
                     </label>

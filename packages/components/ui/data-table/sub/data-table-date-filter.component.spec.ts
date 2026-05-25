@@ -100,11 +100,13 @@ describe('DataTableDateFilterComponent', () => {
     expect(root.getAttribute('dir')).toBe('rtl');
   });
 
-  it('should set dir="ltr" for LTR locales', () => {
+  it('omits the dir attribute for LTR locales so ancestor dir="rtl" still applies', () => {
+    // dir signal returns `'rtl' | null`; null removes the attribute, which
+    // lets a `<html dir="rtl">` ancestor keep applying for LTR-base locales.
     fixture.componentRef.setInput('locale', 'de');
     fixture.detectChanges();
     const root = fixture.nativeElement.querySelector('[data-slot="date-filter"]');
-    expect(root.getAttribute('dir')).toBe('ltr');
+    expect(root.hasAttribute('dir')).toBe(false);
   });
 });
 

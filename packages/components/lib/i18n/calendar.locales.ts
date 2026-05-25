@@ -1,14 +1,12 @@
 import type { LocaleMeta } from './i18n.types';
 
 /**
- * Locale dictionary for `<ui-calendar>` and date-related sub-components
+ * Locale dictionary for `<ui-calendar>` and its date-filter sub-components
  * (date-picker, date-range-picker, data-table date filters).
  *
- * NOTE: keys ending in `Label` / `Placeholder` that are specific to the data
- * table (`columnsLabel`, `rowsPerPageLabel`, `pageLabel`, `ofLabel`,
- * `filterPlaceholder`, `noResultsLabel`) are still defined here for
- * backwards compatibility — they will move to a dedicated `DataTableLocale`
- * in Task 9 of the i18n migration spec.
+ * Only date-related strings live here. Data-table chrome (column-menu
+ * actions, pagination labels, etc.) moved to `DataTableLocale` in
+ * `ui/data-table/data-table.locales.ts` — Task 9 of the i18n migration.
  */
 export interface CalendarLocale extends LocaleMeta {
     monthNames: string[];
@@ -23,12 +21,6 @@ export interface CalendarLocale extends LocaleMeta {
     last7DaysLabel?: string;
     last30DaysLabel?: string;
     thisMonthLabel?: string;
-    filterPlaceholder?: string;
-    columnsLabel?: string;
-    noResultsLabel?: string;
-    rowsPerPageLabel?: string;
-    pageLabel?: string;
-    ofLabel?: string;
 }
 
 export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
@@ -47,12 +39,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Last 7 days',
         last30DaysLabel: 'Last 30 days',
         thisMonthLabel: 'This month',
-        filterPlaceholder: 'Filter...',
-        columnsLabel: 'Columns',
-        noResultsLabel: 'No results found.',
-        rowsPerPageLabel: 'Rows per page',
-        pageLabel: 'Page',
-        ofLabel: 'of',
     },
     he: {
         code: 'he',
@@ -69,12 +55,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: '7 ימים אחרונים',
         last30DaysLabel: '30 ימים אחרונים',
         thisMonthLabel: 'החודש הנוכחי',
-        filterPlaceholder: '...סינון',
-        columnsLabel: 'עמודות',
-        noResultsLabel: 'לא נמצאו תוצאות.',
-        rowsPerPageLabel: 'שורות בעמוד',
-        pageLabel: 'עמוד',
-        ofLabel: 'מתוך',
     },
     ar: {
         code: 'ar',
@@ -91,12 +71,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'آخر 7 أيام',
         last30DaysLabel: 'آخر 30 يومًا',
         thisMonthLabel: 'هذا الشهر',
-        filterPlaceholder: '...تصفية',
-        columnsLabel: 'الأعمدة',
-        noResultsLabel: 'لم يتم العثور على نتائج.',
-        rowsPerPageLabel: 'صفوف في الصفحة',
-        pageLabel: 'صفحة',
-        ofLabel: 'من',
     },
     de: {
         code: 'de',
@@ -113,12 +87,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Letzte 7 Tage',
         last30DaysLabel: 'Letzte 30 Tage',
         thisMonthLabel: 'Dieser Monat',
-        filterPlaceholder: 'Filtern...',
-        columnsLabel: 'Spalten',
-        noResultsLabel: 'Keine Ergebnisse gefunden.',
-        rowsPerPageLabel: 'Zeilen pro Seite',
-        pageLabel: 'Seite',
-        ofLabel: 'von',
     },
     fr: {
         code: 'fr',
@@ -135,12 +103,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: '7 derniers jours',
         last30DaysLabel: '30 derniers jours',
         thisMonthLabel: 'Ce mois-ci',
-        filterPlaceholder: 'Filtrer...',
-        columnsLabel: 'Colonnes',
-        noResultsLabel: 'Aucun résultat trouvé.',
-        rowsPerPageLabel: 'Lignes par page',
-        pageLabel: 'Page',
-        ofLabel: 'sur',
     },
     es: {
         code: 'es',
@@ -157,12 +119,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Últimos 7 días',
         last30DaysLabel: 'Últimos 30 días',
         thisMonthLabel: 'Este mes',
-        filterPlaceholder: 'Filtrar...',
-        columnsLabel: 'Columnas',
-        noResultsLabel: 'No se encontraron resultados.',
-        rowsPerPageLabel: 'Filas por página',
-        pageLabel: 'Página',
-        ofLabel: 'de',
     },
     ja: {
         code: 'ja',
@@ -179,12 +135,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: '過去7日間',
         last30DaysLabel: '過去30日間',
         thisMonthLabel: '今月',
-        filterPlaceholder: 'フィルター...',
-        columnsLabel: '列',
-        noResultsLabel: '結果が見つかりません。',
-        rowsPerPageLabel: 'ページあたりの行数',
-        pageLabel: 'ページ',
-        ofLabel: '/',
     },
     zh: {
         code: 'zh',
@@ -201,12 +151,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: '最近7天',
         last30DaysLabel: '最近30天',
         thisMonthLabel: '本月',
-        filterPlaceholder: '筛选...',
-        columnsLabel: '列',
-        noResultsLabel: '未找到结果。',
-        rowsPerPageLabel: '每页行数',
-        pageLabel: '第',
-        ofLabel: '/ 共',
     },
     ru: {
         code: 'ru',
@@ -223,12 +167,6 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Последние 7 дней',
         last30DaysLabel: 'Последние 30 дней',
         thisMonthLabel: 'Этот месяц',
-        filterPlaceholder: 'Фильтр...',
-        columnsLabel: 'Столбцы',
-        noResultsLabel: 'Результаты не найдены.',
-        rowsPerPageLabel: 'Строк на странице',
-        pageLabel: 'Страница',
-        ofLabel: 'из',
     },
     pt: {
         code: 'pt',
@@ -245,11 +183,5 @@ export const CALENDAR_LOCALES: Record<string, CalendarLocale> = {
         last7DaysLabel: 'Últimos 7 dias',
         last30DaysLabel: 'Últimos 30 dias',
         thisMonthLabel: 'Este mês',
-        filterPlaceholder: 'Filtrar...',
-        columnsLabel: 'Colunas',
-        noResultsLabel: 'Nenhum resultado encontrado.',
-        rowsPerPageLabel: 'Linhas por página',
-        pageLabel: 'Página',
-        ofLabel: 'de',
     },
 };

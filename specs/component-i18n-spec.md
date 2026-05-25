@@ -94,7 +94,7 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 | 6 | New i18n: `dialog`, `sheet`, `drawer`, `toast`, `alert-dialog` (bundle: simple "close"/"cancel"/"confirm") | done | 98 |
 | 7 | New i18n: `command`, `combobox`, `autocomplete`, `select`, `phone-input`, `tree-select` (bundle: search inputs + no-results) | done | 97 |
 | 8 | New i18n: `file-upload` | done | 98 |
-| 9 | New i18n: `data-table` (split `DataTableLocale` from `CalendarLocale`) | pending | — |
+| 9 | New i18n: `data-table` (split `DataTableLocale` from `CalendarLocale`) | done | 97 |
 | 10 | New i18n: `carousel`, `stepper`, `tour` (bundle: stepper-like navigation) | pending | — |
 | 11 | New i18n: `breadcrumb`, `rating`, `input-otp`, `tree`, `code-block` (bundle: aria-label-heavy) | pending | — |
 | 12 | New i18n: `color-picker`, `bar-race-chart`, `eyedropper`, `page-builder`, `shortcut-bindings-dialog`, `empty`, `comparison-slider`, `kanban` (bundle: remaining text-bearing) | pending | — |
@@ -122,6 +122,49 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
   aligned with `<ui-autocomplete>` and the upstream shadcn/ui
   convention. Consumers who depended on the longer text can pass
   `[placeholder]="'Select an option'"` to restore it.
+- **`CalendarLocale` lost its data-table fields (Task 9)**: the
+  previously-optional `filterPlaceholder`, `columnsLabel`,
+  `noResultsLabel`, `rowsPerPageLabel`, `pageLabel`, and `ofLabel`
+  fields were removed from `CalendarLocale` and now live on the new
+  `DataTableLocale` in `ui/data-table/data-table.locales.ts`.
+  Consumers who built a custom `CalendarLocale` literal that
+  populated any of those keys will hit a `TS2353` excess-property
+  error after upgrading — move the entry into a custom
+  `DataTableLocale` and bind it via `<ui-data-table [locale]="...">`.
+- **`<ui-data-table>` locale input shape (Task 9)**: was
+  `input("en")` (string, default `'en'`); now
+  `input<LocaleInput<DataTableLocale>>()` (string | object,
+  no eager default — falls through to `UI_LOCALE_ID`). Identical
+  default behaviour for consumers that never set `[locale]`, but
+  `dataTable.locale()` now returns `undefined` instead of `'en'`
+  when unset.
+- **`<ui-data-table-multiselect-filter>` placeholder input shape
+  (Task 9)**: was `input('Search...')` (always `string`); now
+  `input<string>()` (`string | undefined`). The rendered placeholder
+  is unchanged for any consumer who reads it from the DOM —
+  `resolvedPlaceholder()` carries the same English fallback chain.
+  But code that programmatically reads
+  `multiselectFilter.placeholder()` now sees `undefined` where it
+  saw `'Search...'`.
+
+### Known follow-ups still in i18n scope
+
+- **Data-table aria-labels** (pre-existing English in `data-table.component.html`):
+  `aria-label="Select row"` (line 69), `Collapse/Expand row` (114),
+  `Row actions` (130), `Select all` (427), `Filter ' + col.header`
+  (473/518/556), `Column menu for ' + col.header` (594),
+  `Resize ' + col.header + ' column'` (614). These were never wired
+  through `CalendarLocale` and remain hardcoded after Task 9.
+  Localising them needs new `DataTableLocale` keys with `{column}`
+  interpolation for the per-column variants. Tracked separately so
+  Task 9's scope stays focused on the chrome that previously lived on
+  `CalendarLocale`.
+- **Resize math now follows the locale-derived `dir`**: the host
+  `[attr.dir]="dir()"` added in Task 9 means column-resize delta math
+  flips for any data-table with `locale="he"`/`"ar"` even on an
+  ancestor LTR page. This is the intended behaviour (resize follows
+  the rendered direction) but is a silent change from the pre-Task-9
+  default where resize math always read the inherited DOM direction.
 
 ### Known follow-ups (out of i18n scope)
 
