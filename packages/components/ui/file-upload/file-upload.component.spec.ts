@@ -346,3 +346,67 @@ describe('FileUploadComponent', () => {
         });
     });
 });
+
+describe('FileUploadComponent — i18n integration', () => {
+    async function setup(locale?: string, providerLocale?: string): Promise<ComponentFixture<FileUploadComponent>> {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [FileUploadComponent],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(FileUploadComponent);
+        if (locale) fixture.componentRef.setInput('locale', locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults all hardcoded strings to English', async () => {
+        const fixture = await setup();
+        const html = fixture.nativeElement.innerHTML;
+        expect(html).toContain('Drag &amp; drop files here');
+        expect(html).toContain('or click to browse');
+        const upload = fixture.nativeElement.querySelector('input[type="file"]');
+        expect(upload.getAttribute('aria-label')).toBe('Upload files');
+        const root = fixture.nativeElement.querySelector('[data-slot="file-upload"]');
+        expect(root.hasAttribute('dir')).toBe(false);
+    });
+
+    it('localises hint text and aria-label when locale="he" and applies dir="rtl"', async () => {
+        const fixture = await setup('he');
+        const html = fixture.nativeElement.innerHTML;
+        expect(html).toContain('גרור ושחרר קבצים כאן');
+        expect(html).toContain('או לחץ לעיון');
+        const upload = fixture.nativeElement.querySelector('input[type="file"]');
+        expect(upload.getAttribute('aria-label')).toBe('העלה קבצים');
+        const root = fixture.nativeElement.querySelector('[data-slot="file-upload"]');
+        expect(root.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('interpolates the max-size label with the formatted byte total', async () => {
+        const fixture = await setup();
+        fixture.componentRef.setInput('maxSize', 10 * 1024 * 1024);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain('Max size: 10 MB');
+
+        fixture.componentRef.setInput('locale', 'de');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.textContent).toContain('Maximale Größe: 10 MB');
+    });
+
+    it('emits localised error message when a file exceeds maxSize', async () => {
+        const fixture = await setup('fr');
+        fixture.componentRef.setInput('maxSize', 100);
+        fixture.detectChanges();
+        const errors: string[] = [];
+        fixture.componentInstance.fileError.subscribe(({ error }) => errors.push(error));
+        const oversized = new File(['x'.repeat(500)], 'big.txt', { type: 'text/plain' });
+        fixture.componentInstance.addFiles([oversized]);
+        expect(errors[0]).toBe('Le fichier dépasse la taille maximale de 100 B');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'es');
+        const html = fixture.nativeElement.innerHTML;
+        expect(html).toContain('Arrastra y suelta los archivos aquí');
+    });
+});
