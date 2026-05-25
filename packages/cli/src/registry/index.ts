@@ -59,7 +59,8 @@ export const registry = defineRegistry({
   },
   breadcrumb: {
     name: 'breadcrumb',
-    files: ['breadcrumb/breadcrumb.component.ts', 'breadcrumb/index.ts', 'breadcrumb/sub/breadcrumb-ellipsis.component.ts', 'breadcrumb/sub/breadcrumb-item.component.ts', 'breadcrumb/sub/breadcrumb-link.component.ts', 'breadcrumb/sub/breadcrumb-list.component.ts', 'breadcrumb/sub/breadcrumb-page.component.ts', 'breadcrumb/sub/breadcrumb-separator.component.ts'],
+    files: ['breadcrumb/breadcrumb.component.ts', 'breadcrumb/breadcrumb.locales.ts', 'breadcrumb/index.ts', 'breadcrumb/sub/breadcrumb-ellipsis.component.ts', 'breadcrumb/sub/breadcrumb-item.component.ts', 'breadcrumb/sub/breadcrumb-link.component.ts', 'breadcrumb/sub/breadcrumb-list.component.ts', 'breadcrumb/sub/breadcrumb-page.component.ts', 'breadcrumb/sub/breadcrumb-separator.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   button: {
     name: 'button',
@@ -142,8 +143,8 @@ export const registry = defineRegistry({
   },
   'code-block': {
     name: 'code-block',
-    files: ['code-block/code-block.component.html', 'code-block/code-block.component.ts', 'code-block/index.ts'],
-    libFiles: ['code-scopes.ts'],
+    files: ['code-block/code-block.component.html', 'code-block/code-block.component.ts', 'code-block/code-block.locales.ts', 'code-block/index.ts'],
+    libFiles: ['code-scopes.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
   'text-reveal': {
@@ -300,8 +301,8 @@ export const registry = defineRegistry({
   },
   rating: {
     name: 'rating',
-    files: ['rating/index.ts', 'rating/rating.component.html', 'rating/rating.component.ts'],
-    libFiles: ['touch.ts'],
+    files: ['rating/index.ts', 'rating/rating.component.html', 'rating/rating.component.ts', 'rating/rating.locales.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
   },
   resizable: {
     name: 'resizable',

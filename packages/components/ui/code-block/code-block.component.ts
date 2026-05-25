@@ -7,6 +7,8 @@ import {
     effect,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { CODE_BLOCK_LOCALES, type CodeBlockLocale } from './code-block.locales';
 import {
     BUILTIN_SCOPE_DETECTORS,
     type ScopeDetector,
@@ -96,7 +98,18 @@ export class CodeBlockComponent {
     readonly defaultCollapsed = input<number | undefined>(undefined);
     readonly lineNumbers = input(true);
 
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<CodeBlockLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, CODE_BLOCK_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
+
     readonly copied = signal(false);
+
+    /** `aria-label` for the copy button — flips to the "copied" message for a moment after a click. */
+    readonly copyAriaLabel = computed(() =>
+        this.copied() ? (this.t().copied ?? 'Copied') : (this.t().copy ?? 'Copy'),
+    );
 
     readonly lineNumberWidth = computed(() => {
         const total = this.lineTokens().length;

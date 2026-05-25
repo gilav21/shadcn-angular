@@ -96,7 +96,7 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 | 8 | New i18n: `file-upload` | done | 98 |
 | 9 | New i18n: `data-table` (split `DataTableLocale` from `CalendarLocale`) | done | 97 |
 | 10 | New i18n: `carousel`, `tour` (stepper excluded — no built-in text) | done | 97 |
-| 11 | New i18n: `breadcrumb`, `rating`, `input-otp`, `tree`, `code-block` (bundle: aria-label-heavy) | pending | — |
+| 11 | New i18n: `breadcrumb`, `rating`, `code-block` (input-otp + tree excluded — no built-in default text) | done | 98 |
 | 12 | New i18n: `color-picker`, `bar-race-chart`, `eyedropper`, `page-builder`, `shortcut-bindings-dialog`, `empty`, `comparison-slider`, `kanban` (bundle: remaining text-bearing) | pending | — |
 | 13 | Format-only components: `number-input`, `slider`, `progress`, `number-ticker` use `formatNumber()` with locale | pending | — |
 | 14 | Demo locale switcher (global `provideUiLocale` + UI to flip across the demo app) | pending | — |
@@ -156,6 +156,13 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
   `tour.nextLabel()` programmatically now sees `undefined` where it
   saw `'Next'`. Same class of change as the Task 9 multiselect
   placeholder.
+- **`<ui-rating>` ariaLabel input shape (Task 11)**: was
+  `input('Rating')` (always-string default); now `input<string>()`
+  (`string | undefined`). The rendered `aria-label` is unchanged
+  for English consumers without `UI_LOCALE_ID` — `resolvedAriaLabel()`
+  carries the same English fallback chain. Code that reads
+  `rating.ariaLabel()` programmatically now sees `undefined` where
+  it saw `'Rating'`. Same class of change as Task 10's tour labels.
 - **Task 10 stepper exclusion**: the spec originally listed
   `stepper` in the bundle (alongside `carousel` and `tour`), but
   `<ui-stepper>` and its sub-components have no built-in user-visible
@@ -163,6 +170,14 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
   `step.description` and every sub-component slot is a pure
   `<ng-content />` projection. Same rationale class as `drawer` in
   Task 6 — correctly excluded from i18n.
+- **Task 11 input-otp + tree exclusions**: `<ui-input-otp>`'s
+  `ariaLabel` is `input<string | undefined>(undefined)` with no
+  built-in English default — entirely consumer-provided. `<ui-tree>`'s
+  expand chevron is `aria-hidden="true"` (the parent `treeitem`
+  already exposes `aria-expanded`); tree-item labels come from
+  consumer `<ui-tree-label>` projection. Neither component ships
+  user-visible English strings that need translation. Excluded for
+  the same reason class as `stepper` / `drawer`.
 
 ### Known follow-ups still in i18n scope
 

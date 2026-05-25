@@ -250,3 +250,109 @@ describe('Breadcrumb Simple Mode (Data-Driven)', () => {
         expect(items[2].nativeElement.textContent).toContain('Current Page');
     });
 });
+
+describe('BreadcrumbComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [BreadcrumbComponent, BreadcrumbListComponent, BreadcrumbItemComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        return opts;
+    }
+
+    it('defaults nav aria-label to English "breadcrumb"', async () => {
+        await setup();
+        const fixture = TestBed.createComponent(BreadcrumbComponent);
+        fixture.detectChanges();
+        const nav = fixture.nativeElement.querySelector('[data-slot="breadcrumb"]');
+        expect(nav.getAttribute('aria-label')).toBe('breadcrumb');
+        expect(nav.hasAttribute('dir')).toBe(false);
+    });
+
+    it('localises nav aria-label and sets dir="rtl" when locale="he"', async () => {
+        await setup();
+        const fixture = TestBed.createComponent(BreadcrumbComponent);
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        const nav = fixture.nativeElement.querySelector('[data-slot="breadcrumb"]');
+        expect(nav.getAttribute('aria-label')).toBe('נתיב ניווט');
+        expect(nav.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('broadcasts locale to the ellipsis sub-component via UI_LOCALE_ID', async () => {
+        const { BreadcrumbEllipsisComponent } = await import('./sub/breadcrumb-ellipsis.component');
+        @Component({
+            standalone: true,
+            imports: [BreadcrumbComponent, BreadcrumbEllipsisComponent],
+            template: `<ui-breadcrumb locale="fr"><ui-breadcrumb-ellipsis /></ui-breadcrumb>`,
+        })
+        class Host {}
+        await TestBed.configureTestingModule({ imports: [Host] }).compileComponents();
+        const fixture = TestBed.createComponent(Host);
+        fixture.detectChanges();
+        const srOnly = fixture.nativeElement.querySelector('[data-slot="breadcrumb-ellipsis"] .sr-only');
+        expect(srOnly.textContent.trim()).toBe('Plus');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        await setup({ providerLocale: 'de' });
+        const fixture = TestBed.createComponent(BreadcrumbComponent);
+        fixture.detectChanges();
+        const nav = fixture.nativeElement.querySelector('[data-slot="breadcrumb"]');
+        expect(nav.getAttribute('aria-label')).toBe('Navigationspfad');
+    });
+
+    it('accepts a fully custom BreadcrumbLocale object on the parent — child sub-components must opt in via their own [locale]', async () => {
+        // provideComponentLocale broadcasts only the parent locale's BCP-47
+        // code string, not the full object. Custom-object locales therefore
+        // localise the parent itself; sub-components that want the same
+        // custom dictionary must bind it explicitly.
+        const { BreadcrumbEllipsisComponent } = await import('./sub/breadcrumb-ellipsis.component');
+        @Component({
+            standalone: true,
+            imports: [BreadcrumbComponent, BreadcrumbEllipsisComponent],
+            template: `
+                <ui-breadcrumb [locale]="loc">
+                    <ui-breadcrumb-ellipsis [locale]="loc" />
+                </ui-breadcrumb>
+            `,
+        })
+        class CustomHost {
+            readonly loc = { code: 'xx', rtl: true, breadcrumb: 'XX_NAV', more: 'XX_MORE' };
+        }
+        await TestBed.configureTestingModule({ imports: [CustomHost] }).compileComponents();
+        const fixture = TestBed.createComponent(CustomHost);
+        fixture.detectChanges();
+        const nav = fixture.nativeElement.querySelector('[data-slot="breadcrumb"]');
+        expect(nav.getAttribute('aria-label')).toBe('XX_NAV');
+        expect(nav.getAttribute('dir')).toBe('rtl');
+        const srOnly = fixture.nativeElement.querySelector('[data-slot="breadcrumb-ellipsis"] .sr-only');
+        expect(srOnly.textContent.trim()).toBe('XX_MORE');
+    });
+
+    it('parent custom-locale object does NOT auto-propagate to child sub-components (string codes do, full objects do not)', async () => {
+        // Documents the inherent limitation of provideComponentLocale: it
+        // re-broadcasts the parent's locale code (a BCP-47 string), so
+        // children look up THEIR OWN registry. A custom-object parent with
+        // a code that's not in the child's registry falls back to English.
+        const { BreadcrumbEllipsisComponent } = await import('./sub/breadcrumb-ellipsis.component');
+        @Component({
+            standalone: true,
+            imports: [BreadcrumbComponent, BreadcrumbEllipsisComponent],
+            template: `<ui-breadcrumb [locale]="loc"><ui-breadcrumb-ellipsis /></ui-breadcrumb>`,
+        })
+        class ParentOnlyHost {
+            readonly loc = { code: 'xx', breadcrumb: 'XX_NAV', more: 'XX_MORE' };
+        }
+        await TestBed.configureTestingModule({ imports: [ParentOnlyHost] }).compileComponents();
+        const fixture = TestBed.createComponent(ParentOnlyHost);
+        fixture.detectChanges();
+        const nav = fixture.nativeElement.querySelector('[data-slot="breadcrumb"]');
+        expect(nav.getAttribute('aria-label')).toBe('XX_NAV');
+        // Child sees code='xx' broadcast but BREADCRUMB_LOCALES['xx'] doesn't
+        // exist, so it falls back to English. This is the documented contract.
+        const srOnly = fixture.nativeElement.querySelector('[data-slot="breadcrumb-ellipsis"] .sr-only');
+        expect(srOnly.textContent.trim()).toBe('More');
+    });
+});

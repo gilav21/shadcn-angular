@@ -1,4 +1,5 @@
 export * from './breadcrumb.component';
+export * from './breadcrumb.locales';
 export * from './sub/breadcrumb-list.component';
 export * from './sub/breadcrumb-item.component';
 export * from './sub/breadcrumb-link.component';

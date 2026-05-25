@@ -289,3 +289,65 @@ describe('RatingComponent', () => {
         });
     });
 });
+
+describe('RatingComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [RatingComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(RatingComponent);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults group aria-label to English "Rating" and per-star to "Rate {n} out of {total}"', async () => {
+        const fixture = await setup();
+        const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
+        expect(root.getAttribute('aria-label')).toBe('Rating');
+        const stars = root.querySelectorAll('button[data-star]');
+        expect(stars[0].getAttribute('aria-label')).toBe('Rate 1 out of 5');
+        expect(stars[4].getAttribute('aria-label')).toBe('Rate 5 out of 5');
+    });
+
+    it('localises group + per-star aria-labels when locale="he" with dir="rtl"', async () => {
+        const fixture = await setup({ locale: 'he' });
+        const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
+        expect(root.getAttribute('aria-label')).toBe('דירוג');
+        expect(root.getAttribute('dir')).toBe('rtl');
+        const stars = root.querySelectorAll('button[data-star]');
+        expect(stars[2].getAttribute('aria-label')).toBe('דרג 3 מתוך 5');
+    });
+
+    it('explicit ariaLabel input overrides the locale, but per-star still localises', async () => {
+        const fixture = await setup({ locale: 'fr' });
+        fixture.componentRef.setInput('ariaLabel', 'Custom rating');
+        fixture.detectChanges();
+        const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
+        expect(root.getAttribute('aria-label')).toBe('Custom rating');
+        const stars = root.querySelectorAll('button[data-star]');
+        expect(stars[0].getAttribute('aria-label')).toBe('Évaluer 1 sur 5');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'es' });
+        const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
+        expect(root.getAttribute('aria-label')).toBe('Calificación');
+    });
+
+    it('accepts a fully custom RatingLocale object', async () => {
+        const fixture = await setup();
+        fixture.componentRef.setInput('locale', {
+            code: 'xx',
+            rating: 'XX_RATING',
+            rateAriaLabel: 'XX_{n}/{total}',
+        });
+        fixture.detectChanges();
+        const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
+        expect(root.getAttribute('aria-label')).toBe('XX_RATING');
+        const stars = root.querySelectorAll('button[data-star]');
+        expect(stars[2].getAttribute('aria-label')).toBe('XX_3/5');
+    });
+});
