@@ -6,6 +6,8 @@ import {
     inject,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { createLocaleSelector, type LocaleInput } from '../../../lib/i18n';
+import { CAROUSEL_LOCALES, type CarouselLocale } from '../carousel.locales';
 import { CAROUSEL } from '../carousel.component';
 
 @Component({
@@ -18,19 +20,23 @@ import { CAROUSEL } from '../carousel.component';
       [attr.data-slot]="'carousel-previous'"
       [disabled]="isDisabled()"
       (click)="onClick()"
-      aria-label="Previous slide"
+      [attr.aria-label]="t().previousSlide"
     >
       <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" [class]="iconClasses()">
         <path d="m15 18-6-6 6-6"/>
       </svg>
-      <span class="sr-only">Previous slide</span>
+      <span class="sr-only">{{ t().previousSlide }}</span>
     </button>
   `,
     host: { class: 'contents' },
 })
 export class CarouselPreviousComponent {
-    class = input('');
+    readonly class = input('');
     readonly carousel = inject(CAROUSEL);
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<CarouselLocale>>();
+    protected readonly t = createLocaleSelector(this.locale, CAROUSEL_LOCALES);
 
     isRtl = computed(() => this.carousel.rtl() && this.carousel.orientation() === 'horizontal');
 

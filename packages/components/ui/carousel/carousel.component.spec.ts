@@ -306,3 +306,84 @@ describe('Carousel RTL Support', () => {
         expect(next.nativeElement.disabled).toBe(false);
     });
 });
+
+describe('Carousel — i18n integration', () => {
+    it('defaults Previous/Next slide aria-labels to English', async () => {
+        await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
+        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
+        expect(prev.nativeElement.getAttribute('aria-label')).toBe('Previous slide');
+        expect(next.nativeElement.getAttribute('aria-label')).toBe('Next slide');
+    });
+
+    it('localises Previous/Next slide aria-labels (sr-only included) via UI_LOCALE_ID', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [TestHostComponent],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(TestHostComponent);
+        fixture.detectChanges();
+        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
+        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
+        expect(prev.nativeElement.getAttribute('aria-label')).toBe('השקופית הקודמת');
+        expect(next.nativeElement.getAttribute('aria-label')).toBe('השקופית הבאה');
+        expect(prev.nativeElement.querySelector('.sr-only').textContent.trim()).toBe('השקופית הקודמת');
+        expect(next.nativeElement.querySelector('.sr-only').textContent.trim()).toBe('השקופית הבאה');
+    });
+
+    it('accepts a fully custom CarouselLocale object on each button', async () => {
+        @Component({
+            standalone: true,
+            imports: [CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent],
+            template: `
+                <ui-carousel>
+                    <ui-carousel-content><ui-carousel-item>Slide 1</ui-carousel-item></ui-carousel-content>
+                    <ui-carousel-previous [locale]="prevLocale" />
+                    <ui-carousel-next [locale]="nextLocale" />
+                </ui-carousel>
+            `,
+        })
+        class CustomLocaleHost {
+            prevLocale = { code: 'xx', previousSlide: 'CUSTOM_PREV', nextSlide: 'CUSTOM_NEXT' };
+            nextLocale = { code: 'xx', previousSlide: 'CUSTOM_PREV', nextSlide: 'CUSTOM_NEXT' };
+        }
+
+        await TestBed.configureTestingModule({ imports: [CustomLocaleHost] }).compileComponents();
+        const fixture = TestBed.createComponent(CustomLocaleHost);
+        fixture.detectChanges();
+        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
+        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
+        expect(prev.nativeElement.getAttribute('aria-label')).toBe('CUSTOM_PREV');
+        expect(next.nativeElement.getAttribute('aria-label')).toBe('CUSTOM_NEXT');
+    });
+
+    it('per-instance locale input on a button overrides the global', async () => {
+        @Component({
+            standalone: true,
+            imports: [CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent],
+            template: `
+                <ui-carousel>
+                    <ui-carousel-content><ui-carousel-item>Slide 1</ui-carousel-item></ui-carousel-content>
+                    <ui-carousel-previous locale="fr" />
+                    <ui-carousel-next locale="fr" />
+                </ui-carousel>
+            `,
+        })
+        class OverrideHost {}
+
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [OverrideHost],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(OverrideHost);
+        fixture.detectChanges();
+        const prev = fixture.debugElement.query(By.css('[data-slot="carousel-previous"]'));
+        const next = fixture.debugElement.query(By.css('[data-slot="carousel-next"]'));
+        expect(prev.nativeElement.getAttribute('aria-label')).toBe('Diapositive précédente');
+        expect(next.nativeElement.getAttribute('aria-label')).toBe('Diapositive suivante');
+    });
+});

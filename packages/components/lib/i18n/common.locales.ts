@@ -24,6 +24,8 @@ export interface CommonLocale extends LocaleMeta {
     noResults: string;
     previous: string;
     next: string;
+    finish: string;
+    skip: string;
     loading: string;
 }
 
@@ -43,6 +45,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: 'No results found.',
         previous: 'Previous',
         next: 'Next',
+        finish: 'Done',
+        skip: 'Skip',
         loading: 'Loading...',
     },
     he: {
@@ -61,6 +65,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: 'לא נמצאו תוצאות.',
         previous: 'הקודם',
         next: 'הבא',
+        finish: 'סיום',
+        skip: 'דלג',
         loading: '...טוען',
     },
     ar: {
@@ -79,6 +85,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: 'لم يتم العثور على نتائج.',
         previous: 'السابق',
         next: 'التالي',
+        finish: 'إنهاء',
+        skip: 'تخطي',
         loading: '...جاري التحميل',
     },
     de: {
@@ -96,6 +104,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: 'Keine Ergebnisse gefunden.',
         previous: 'Zurück',
         next: 'Weiter',
+        finish: 'Fertig',
+        skip: 'Überspringen',
         loading: 'Wird geladen...',
     },
     fr: {
@@ -113,6 +123,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: 'Aucun résultat trouvé.',
         previous: 'Précédent',
         next: 'Suivant',
+        finish: 'Terminé',
+        skip: 'Passer',
         loading: 'Chargement...',
     },
     es: {
@@ -130,6 +142,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: 'No se encontraron resultados.',
         previous: 'Anterior',
         next: 'Siguiente',
+        finish: 'Listo',
+        skip: 'Omitir',
         loading: 'Cargando...',
     },
     ja: {
@@ -147,6 +161,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: '結果が見つかりません。',
         previous: '前へ',
         next: '次へ',
+        finish: '完了',
+        skip: 'スキップ',
         loading: '読み込み中...',
     },
     zh: {
@@ -164,6 +180,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: '未找到结果。',
         previous: '上一页',
         next: '下一页',
+        finish: '完成',
+        skip: '跳过',
         loading: '加载中...',
     },
     ru: {
@@ -181,6 +199,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: 'Результаты не найдены.',
         previous: 'Назад',
         next: 'Далее',
+        finish: 'Готово',
+        skip: 'Пропустить',
         loading: 'Загрузка...',
     },
     pt: {
@@ -198,6 +218,8 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         noResults: 'Nenhum resultado encontrado.',
         previous: 'Anterior',
         next: 'Próximo',
+        finish: 'Concluído',
+        skip: 'Pular',
         loading: 'Carregando...',
     },
 };
