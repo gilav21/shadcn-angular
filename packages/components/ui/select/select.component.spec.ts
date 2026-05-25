@@ -772,5 +772,18 @@ describe('SelectComponent — i18n integration', () => {
         const valueEl = fixture.debugElement.query(By.css('[data-slot="select-value"]'));
         expect(valueEl.nativeElement.textContent.trim()).toBe('Sélectionner...');
     });
+
+    it('renders the resolved placeholder in data-driven mode (regression: was empty when placeholder unset)', async () => {
+        await TestBed.configureTestingModule({ imports: [SelectComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(SelectComponent);
+        fixture.componentRef.setInput('options', ['a', 'b']);
+        fixture.detectChanges();
+        const trigger = fixture.nativeElement.querySelector('[role="combobox"]');
+        expect(trigger.textContent).toContain('Select...');
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(trigger.textContent).toContain('...בחר');
+    });
 });
 

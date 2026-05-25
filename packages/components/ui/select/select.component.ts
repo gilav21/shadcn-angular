@@ -41,7 +41,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                         @if (hasValue()) {
                             {{ selectedDisplayValue() }}
                         } @else {
-                            <span class="text-muted-foreground">{{ placeholder() }}</span>
+                            <span class="text-muted-foreground">{{ resolvedPlaceholder() }}</span>
                         }
                     </span>
                     <svg

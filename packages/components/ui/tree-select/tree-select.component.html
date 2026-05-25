@@ -33,12 +33,14 @@
       </button>
     </ui-popover-trigger>
     <ui-popover-content class="w-[--trigger-width] p-2" align="start">
-      <ui-tree
-        [data]="nodes()"
-        [selectable]="'single'"
-        class="w-full"
-        (selectionChange)="onSelectionChange($event)"
-      />
+      <div [attr.dir]="dir()">
+        <ui-tree
+          [data]="nodes()"
+          [selectable]="'single'"
+          class="w-full"
+          (selectionChange)="onSelectionChange($event)"
+        />
+      </div>
     </ui-popover-content>
   } @else {
     <ng-content />
