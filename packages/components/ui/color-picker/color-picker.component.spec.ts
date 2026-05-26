@@ -464,3 +464,42 @@ describe('ColorPickerComponent', () => {
         });
     });
 });
+
+describe('ColorPickerComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [ColorPickerComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(ColorPickerComponent);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        (fixture.componentInstance as unknown as { open: { set: (v: boolean) => void } }).open.set(true);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults aria-labels and section text to English', async () => {
+        const fixture = await setup();
+        // Saturation/value handle aria-label
+        const satValue = document.querySelector('[aria-label="Saturation and value"]');
+        expect(satValue).toBeTruthy();
+        // "Recent" legend text (only renders when recent colors exist; assert via DOM presence is enough for the default).
+        expect(fixture.componentInstance.t().recent).toBe('Recent');
+    });
+
+    it('localises the resolved locale when locale="he"', async () => {
+        const fixture = await setup({ locale: 'he' });
+        const t = fixture.componentInstance.t();
+        expect(t.code).toBe('he');
+        expect(t.saturationValue).toBe('רוויה וערך');
+        expect(t.hue).toBe('גוון');
+        expect(t.copyHex).toBe('העתק hex');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'de' });
+        expect(fixture.componentInstance.t().code).toBe('de');
+        expect(fixture.componentInstance.t().pickColorFromImage).toBe('Farbe aus Bild wählen');
+    });
+});

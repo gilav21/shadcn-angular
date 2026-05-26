@@ -1,6 +1,8 @@
 <div
     #root
     [class]="classes()"
+    [attr.dir]="dir()"
+    [attr.dir]="dir()"
     [attr.data-slot]="'comparison-slider'"
     (mousedown)="onTrackMouseDown($event)"
     (touchstart)="onTrackTouchStart($event)"
@@ -35,7 +37,7 @@
             type="button"
             role="slider"
             tabindex="0"
-            aria-label="Comparison slider"
+            [attr.aria-label]="t().comparisonSlider ?? 'Comparison slider'"
             aria-valuemin="0"
             aria-valuemax="100"
             [attr.aria-valuenow]="position()"

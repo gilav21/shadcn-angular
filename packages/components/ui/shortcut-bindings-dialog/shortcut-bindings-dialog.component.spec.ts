@@ -175,3 +175,47 @@ describe('ShortcutBindingsDialogComponent', () => {
         });
     });
 });
+
+describe('ShortcutBindingsDialogComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [ShortcutBindingsDialogComponent],
+            providers: [
+                provideNoopAnimations(),
+                ...(opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : []),
+            ],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(ShortcutBindingsDialogComponent);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.componentRef.setInput('open', true);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults dictionary keys to English', async () => {
+        const fixture = await setup();
+        const cmp = fixture.componentInstance as unknown as { t: () => { searchPlaceholder: string; conflict: string; rebindAllInstances: string; rebindInstance: string } };
+        expect(cmp.t().searchPlaceholder).toContain('Search actions');
+        expect(cmp.t().conflict).toBe('Conflict');
+        expect(cmp.t().rebindAllInstances).toBe('Rebind all instances of {binding}');
+        expect(cmp.t().rebindInstance).toBe('Rebind instance {name} for {binding}');
+    });
+
+    it('interpolates rebindAllAriaLabel and rebindInstanceAriaLabel with English template + localised template', async () => {
+        const fixture = await setup();
+        const cmp = fixture.componentInstance;
+        expect(cmp.rebindAllAriaLabel('Open file')).toBe('Rebind all instances of Open file');
+        expect(cmp.rebindInstanceAriaLabel('Editor A', 'Save')).toBe('Rebind instance Editor A for Save');
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(cmp.rebindAllAriaLabel('Open file')).toBe('מיפוי מחדש של כל המופעים של Open file');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        const cmp = fixture.componentInstance as unknown as { t: () => { searchPlaceholder: string } };
+        expect(cmp.t().searchPlaceholder).toContain('Rechercher');
+    });
+});

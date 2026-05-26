@@ -30,6 +30,7 @@ import {
 } from '../context-menu';
 import { ShortcutBindingService, ShortcutComponentHandle } from '../../lib/shortcut-binding.service';
 import { type KanbanLocale, KANBAN_LOCALES } from './kanban-locales';
+import { createLocaleBindings, provideComponentLocale, type LocaleInput } from '../../lib/i18n';
 import { KanbanColumnComponent } from './sub/kanban-column.component';
 import { KanbanCardDialogComponent } from './sub/kanban-card-dialog.component';
 import { KanbanColumnDialogComponent } from './sub/kanban-column-dialog.component';
@@ -117,7 +118,10 @@ export const KANBAN = new InjectionToken<KanbanComponent>('KANBAN');
         ContextMenuSubTriggerComponent, ContextMenuSubContentComponent,
         ButtonComponent,
     ],
-    providers: [{ provide: KANBAN, useExisting: forwardRef(() => KanbanComponent) }],
+    providers: [
+        { provide: KANBAN, useExisting: forwardRef(() => KanbanComponent) },
+        provideComponentLocale(() => KanbanComponent),
+    ],
     template: `
         <div [dir]="isRtl() ? 'rtl' : 'ltr'">
             <div [class]="classes()" [attr.data-slot]="'kanban'" (contextmenu)="onBoardContextMenu($event)">
@@ -263,7 +267,8 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     private readonly shortcuts = inject(ShortcutBindingService);
 
     class = input('');
-    locale = input<string | KanbanLocale>('en');
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    locale = input<LocaleInput<KanbanLocale>>();
     rtl = model<boolean>(false);
     haveLabels = input(true);
     haveAssignees = input(true);
@@ -296,13 +301,11 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
     private readonly _hasCustomColumns = signal(false);
     hasCustomColumns = this._hasCustomColumns.asReadonly();
 
-    resolvedLocale = computed((): KanbanLocale => {
-        const loc = this.locale();
-        if (typeof loc === 'string') {
-            return KANBAN_LOCALES[loc] ?? KANBAN_LOCALES['en'];
-        }
-        return loc;
-    });
+    private readonly i18n = createLocaleBindings(this.locale, KANBAN_LOCALES);
+    /** Resolved KanbanLocale. */
+    readonly resolvedLocale = this.i18n.t;
+    /** `'rtl'` when the active locale is RTL, otherwise `null` — bind to `[attr.dir]`. */
+    readonly dir = this.i18n.dir;
 
     isRtl = computed(() => this.rtl());
 
@@ -361,7 +364,7 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         effect(() => {
             const loc = this.resolvedLocale();
             untracked(() => {
-                this.rtl.set(loc.rtl);
+                this.rtl.set(loc.rtl ?? false);
             });
         });
     }

@@ -167,3 +167,44 @@ describe('EyedropperComponent', () => {
         expect(button().disabled).toBe(false);
     });
 });
+
+describe('EyedropperComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [EyedropperComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(EyedropperComponent);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults button aria-label to English "Pick color"', async () => {
+        const fixture = await setup();
+        const button = fixture.nativeElement.querySelector('[data-slot="eyedropper-trigger"]');
+        expect(button.getAttribute('aria-label')).toBe('Pick color');
+    });
+
+    it('localises button aria-label and applies dir="rtl" when locale="he"', async () => {
+        const fixture = await setup({ locale: 'he' });
+        const button = fixture.nativeElement.querySelector('[data-slot="eyedropper-trigger"]');
+        expect(button.getAttribute('aria-label')).toBe('בחר צבע');
+        expect(button.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('explicit label input wins over the locale', async () => {
+        const fixture = await setup({ locale: 'he' });
+        fixture.componentRef.setInput('label', 'CUSTOM_LABEL');
+        fixture.detectChanges();
+        const button = fixture.nativeElement.querySelector('[data-slot="eyedropper-trigger"]');
+        expect(button.getAttribute('aria-label')).toBe('CUSTOM_LABEL');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        const button = fixture.nativeElement.querySelector('[data-slot="eyedropper-trigger"]');
+        expect(button.getAttribute('aria-label')).toBe('Choisir une couleur');
+    });
+});

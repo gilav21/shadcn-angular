@@ -97,7 +97,7 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 | 9 | New i18n: `data-table` (split `DataTableLocale` from `CalendarLocale`) | done | 97 |
 | 10 | New i18n: `carousel`, `tour` (stepper excluded — no built-in text) | done | 97 |
 | 11 | New i18n: `breadcrumb`, `rating`, `code-block` (input-otp + tree excluded — no built-in default text) | done | 98 |
-| 12 | New i18n: `color-picker`, `bar-race-chart`, `eyedropper`, `page-builder`, `shortcut-bindings-dialog`, `empty`, `comparison-slider`, `kanban` (bundle: remaining text-bearing) | pending | — |
+| 12 | New i18n: `color-picker`, `bar-race-chart`, `eyedropper`, `shortcut-bindings-dialog`, `comparison-slider`, `kanban` (empty + page-builder excluded — see notes) | done | TBD |
 | 13 | Format-only components: `number-input`, `slider`, `progress`, `number-ticker` use `formatNumber()` with locale | pending | — |
 | 14 | Demo locale switcher (global `provideUiLocale` + UI to flip across the demo app) | pending | — |
 
@@ -170,6 +170,33 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
   `step.description` and every sub-component slot is a pure
   `<ng-content />` projection. Same rationale class as `drawer` in
   Task 6 — correctly excluded from i18n.
+- **Task 12 empty + page-builder**: `<ui-empty>` and its sub-components
+  are pure `<ng-content />` projection slots — no built-in text. Excluded
+  for the same reason class as drawer/stepper/tree. `<ui-page-builder>`
+  is an admin-app internal tool with many strings spread across the
+  main template and a `property-editor` sub-component (Layout,
+  Settings, Props, Clear, Count, Width, None, …). Deferred as a
+  follow-up task so Task 12's scope stays focused on the user-facing
+  components.
+- **`<ui-kanban>` locale input shape (Task 12)**: was
+  `input<string | KanbanLocale>('en')` (eager English default,
+  pre-existing KanbanLocale that did NOT extend LocaleMeta); now
+  `input<LocaleInput<KanbanLocale>>()` (no eager default; KanbanLocale
+  extends LocaleMeta with required `code` field and optional `rtl`).
+  Same DOM behaviour for English consumers without `UI_LOCALE_ID`;
+  consumers who built a fully-custom `KanbanLocale` literal must add
+  `code: 'xx'` (the `rtl: boolean` requirement was relaxed to
+  `rtl?: boolean`). Sub-components now also inherit via
+  `provideComponentLocale` rather than the prior explicit
+  `[locale]="resolvedLocale()"` binding chain (the chain still works
+  — the broadcast just removes the need to thread it manually).
+- **`<ui-eyedropper>` label input shape (Task 12)**: was
+  `input('Pick color')` (always-string); now `input<string>()` with a
+  new `resolvedLabel()` computed that falls through to
+  `t().pickColor`. Code that reads `eyedropper.label()`
+  programmatically now sees `undefined` where it saw `'Pick color'`.
+  Same class of change as Task 9 multiselect / Task 10 tour / Task 11
+  rating.
 - **Task 11 input-otp + tree exclusions**: `<ui-input-otp>`'s
   `ariaLabel` is `input<string | undefined>(undefined)` with no
   built-in English default — entirely consumer-provided. `<ui-tree>`'s

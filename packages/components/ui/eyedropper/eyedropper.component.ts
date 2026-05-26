@@ -10,6 +10,8 @@ import {
 } from '@angular/core';
 import { isPlatformBrowser } from '@angular/common';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { EYEDROPPER_LOCALES, type EyedropperLocale } from './eyedropper.locales';
 import { onPointerDrag } from '../../lib/touch';
 import { formatHex, type RGBA } from '../../lib/color';
 import { IconComponent } from '../icon';
@@ -45,8 +47,17 @@ export type EyedropperVariant = 'icon' | 'button';
 export class EyedropperComponent {
     readonly class = input('');
     readonly disabled = input(false);
-    readonly label = input('Pick color');
+    /** Override for the button label / `aria-label`. Falls back to the locale's `pickColor`. */
+    readonly label = input<string>();
     readonly variant = input<EyedropperVariant>('icon');
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<EyedropperLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, EYEDROPPER_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
+    /** Effective label — explicit input wins; otherwise the locale's `pickColor`. */
+    readonly resolvedLabel = computed(() => this.label() ?? this.t().pickColor ?? 'Pick color');
     /**
      * Element to sample from when the native EyeDropper API is unavailable.
      * Must be an `<img>` (with `crossorigin` set if cross-origin),
@@ -73,7 +84,9 @@ export class EyedropperComponent {
     readonly isDisabled = computed(() => this.disabled() || !this.isSupported());
 
     readonly tooltip = computed(() =>
-        this.isSupported() ? this.label() : 'Eyedropper not supported in this browser',
+        this.isSupported()
+            ? this.resolvedLabel()
+            : (this.t().notSupported ?? 'Eyedropper not supported in this browser'),
     );
 
     readonly classes = computed(() =>

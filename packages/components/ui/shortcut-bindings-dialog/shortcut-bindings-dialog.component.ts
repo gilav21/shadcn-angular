@@ -1,4 +1,6 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, input, model, output, signal } from '@angular/core';
+import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
+import { SHORTCUT_BINDINGS_DIALOG_LOCALES, type ShortcutBindingsDialogLocale } from './shortcut-bindings-dialog.locales';
 import {
     DialogComponent,
     DialogContentComponent,
@@ -49,11 +51,27 @@ interface ShortcutDialogGroup {
     templateUrl: './shortcut-bindings-dialog.component.html',
 })
 export class ShortcutBindingsDialogComponent {
-    open = model(false);
-    allowSaveMapping = input(false);
-    mappingSchema = input<ShortcutOverrideSchema | null>(null);
-    replaceOnSchemaLoad = input(true);
-    mappingSave = output<ShortcutOverrideSchema>();
+    readonly open = model(false);
+    readonly allowSaveMapping = input(false);
+    readonly mappingSchema = input<ShortcutOverrideSchema | null>(null);
+    readonly replaceOnSchemaLoad = input(true);
+    readonly mappingSave = output<ShortcutOverrideSchema>();
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<ShortcutBindingsDialogLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, SHORTCUT_BINDINGS_DIALOG_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
+
+    /** Interpolated aria-label for the "rebind all instances" capture button. */
+    rebindAllAriaLabel(bindingDescription: string): string {
+        return interpolate(this.t().rebindAllInstances ?? 'Rebind all instances of {binding}', { binding: bindingDescription });
+    }
+
+    /** Interpolated aria-label for the per-instance rebind button. */
+    rebindInstanceAriaLabel(instanceName: string, bindingDescription: string): string {
+        return interpolate(this.t().rebindInstance ?? 'Rebind instance {name} for {binding}', { name: instanceName, binding: bindingDescription });
+    }
 
     private readonly shortcutBindings = inject(ShortcutBindingService);
     private readonly overrideVersion = signal(0);

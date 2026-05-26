@@ -11,6 +11,8 @@ import {
   AfterViewInit,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { BAR_RACE_CHART_LOCALES, type BarRaceChartLocale } from './bar-race-chart.locales';
 import { ChartDataPoint, ChartDirection } from '../../lib/chart.types';
 import {
   getChartColor,
@@ -75,6 +77,12 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
   barGap = input(4);
   class = input('');
   title = input<string | undefined>(undefined);
+
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<BarRaceChartLocale>>();
+  private readonly i18n = createLocaleBindings(this.locale, BAR_RACE_CHART_LOCALES);
+  protected readonly t = this.i18n.t;
+  protected readonly localeDir = this.i18n.dir;
 
   frameChange = output<number>();
   animationComplete = output<void>();

@@ -1,4 +1,4 @@
-<div [class]="containerClasses()">
+<div [class]="containerClasses()" [attr.dir]="localeDir()">
   <div class="flex items-center justify-between mb-4">
     <div class="text-2xl font-bold text-foreground">
       {{ currentFrameLabel() }}
@@ -7,7 +7,7 @@
       <button
         type="button"
         class="p-2 rounded-md hover:bg-muted transition-colors"
-        [attr.aria-label]="isPlaying() ? 'Pause' : 'Play'"
+        [attr.aria-label]="isPlaying() ? (t().pause ?? 'Pause') : (t().play ?? 'Play')"
         (click)="togglePlay()"
       >
         @if (isPlaying()) {
@@ -24,7 +24,7 @@
       <button
         type="button"
         class="p-2 rounded-md hover:bg-muted transition-colors"
-        aria-label="Reset"
+        [attr.aria-label]="t().reset ?? 'Reset'"
         (click)="reset()"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">

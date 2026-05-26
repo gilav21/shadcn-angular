@@ -96,9 +96,9 @@ export const registry = defineRegistry({
   },
   'color-picker': {
     name: 'color-picker',
-    files: ['color-picker/color-picker.component.css', 'color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/color-picker.utils.ts', 'color-picker/index.ts'],
+    files: ['color-picker/color-picker.component.css', 'color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/color-picker.locales.ts', 'color-picker/color-picker.utils.ts', 'color-picker/index.ts'],
     dependencies: ['eyedropper', 'icon', 'input', 'popover', 'tabs', 'tooltip'],
-    libFiles: ['color-extract.ts', 'color.ts', 'touch.ts'],
+    libFiles: ['color-extract.ts', 'color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
   },
   confetti: {
     name: 'confetti',
@@ -455,8 +455,8 @@ export const registry = defineRegistry({
   },
   'bar-race-chart': {
     name: 'bar-race-chart',
-    files: ['bar-race-chart/bar-race-chart.component.html', 'bar-race-chart/bar-race-chart.component.ts', 'bar-race-chart/index.ts'],
-    libFiles: ['chart.types.ts', 'chart.utils.ts'],
+    files: ['bar-race-chart/bar-race-chart.component.html', 'bar-race-chart/bar-race-chart.component.ts', 'bar-race-chart/bar-race-chart.locales.ts', 'bar-race-chart/index.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'org-chart': {
     name: 'org-chart',
@@ -559,13 +559,13 @@ export const registry = defineRegistry({
   kanban: {
     name: 'kanban',
     files: ['kanban/index.ts', 'kanban/kanban-locales.ts', 'kanban/kanban.component.ts', 'kanban/sub/kanban-card-content.component.ts', 'kanban/sub/kanban-card-dialog.component.ts', 'kanban/sub/kanban-card.component.ts', 'kanban/sub/kanban-column-dialog.component.ts', 'kanban/sub/kanban-column-header.component.ts', 'kanban/sub/kanban-column.component.ts', 'kanban/sub/kanban-delete-column-dialog.component.ts'],
-    libFiles: ['shortcut-binding.service.ts', 'touch.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     dependencies: ['alert-dialog', 'autocomplete', 'avatar', 'badge', 'button', 'chip-list', 'context-menu', 'dialog', 'input', 'label', 'scroll-area', 'separator', 'textarea'],
   },
   'shortcut-bindings-dialog': {
     name: 'shortcut-bindings-dialog',
-    files: ['shortcut-bindings-dialog/index.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.html', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.ts'],
-    libFiles: ['shortcut-binding.service.ts'],
+    files: ['shortcut-bindings-dialog/index.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.html', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.locales.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts'],
     dependencies: ['accordion', 'badge', 'button', 'dialog', 'scroll-area'],
   },
   tour: {
@@ -576,8 +576,8 @@ export const registry = defineRegistry({
   },
   'comparison-slider': {
     name: 'comparison-slider',
-    files: ['comparison-slider/comparison-slider.component.html', 'comparison-slider/comparison-slider.component.ts', 'comparison-slider/index.ts'],
-    libFiles: ['touch.ts'],
+    files: ['comparison-slider/comparison-slider.component.html', 'comparison-slider/comparison-slider.component.ts', 'comparison-slider/comparison-slider.locales.ts', 'comparison-slider/index.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
   },
   sortable: {
     name: 'sortable',
@@ -606,8 +606,8 @@ export const registry = defineRegistry({
   },
   eyedropper: {
     name: 'eyedropper',
-    files: ['eyedropper/eyedropper.component.html', 'eyedropper/eyedropper.component.ts', 'eyedropper/index.ts'],
-    libFiles: ['color.ts', 'touch.ts'],
+    files: ['eyedropper/eyedropper.component.html', 'eyedropper/eyedropper.component.ts', 'eyedropper/eyedropper.locales.ts', 'eyedropper/index.ts'],
+    libFiles: ['color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     dependencies: ['icon'],
   },
 });

@@ -1,4 +1,4 @@
-<ui-dialog [(open)]="open">
+<ui-dialog [(open)]="open" [locale]="locale()">
   <ui-dialog-content class="max-w-[calc(100vw-2rem)] sm:max-w-4xl p-0 overflow-hidden">
     <ui-dialog-header class="px-5 pt-5 pb-4 border-b">
       <ui-dialog-title>Keyboard Shortcuts</ui-dialog-title>
@@ -10,7 +10,7 @@
           type="text"
           class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           [value]="search()"
-          placeholder="Search actions, categories, components, or keys..."
+          [placeholder]="t().searchPlaceholder ?? 'Search actions, categories, components, or keys...'"
           (input)="onSearchInput($event)"
         />
       </div>
@@ -49,7 +49,7 @@
                                 <ui-badge variant="secondary">{{ binding.category }}</ui-badge>
                               }
                               @if (isConflicting(binding.actionId)) {
-                                <ui-badge variant="destructive">Conflict</ui-badge>
+                                <ui-badge variant="destructive">{{ t().conflict ?? 'Conflict' }}</ui-badge>
                               }
                             </div>
                             <p class="text-xs text-muted-foreground leading-4">
@@ -65,7 +65,7 @@
                               type="button"
                               class="inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-accent"
                               [class.border-primary]="capturingActionKey() === captureComponentKey(binding.actionId, binding.componentName)"
-                              [attr.aria-label]="'Rebind all instances of ' + binding.description"
+                              [attr.aria-label]="rebindAllAriaLabel(binding.description)"
                               (click)="startCaptureForComponent(binding.actionId, binding.componentName, captureAllBtn)"
                               (keydown)="onComponentCaptureKeydown($event, binding.actionId, binding.componentName)"
                               #captureAllBtn
@@ -108,7 +108,7 @@
                                       type="button"
                                       class="inline-flex h-8 items-center rounded-md border px-2.5 text-xs font-medium transition-colors hover:bg-accent"
                                       [class.border-primary]="capturingActionKey() === captureInstanceKey(binding.actionId, instance.componentId)"
-                                      [attr.aria-label]="'Rebind instance ' + instance.displayName + ' for ' + binding.description"
+                                      [attr.aria-label]="rebindInstanceAriaLabel(instance.displayName, binding.description)"
                                       (click)="startCaptureForInstance(binding.actionId, instance.componentId, captureInstanceBtn)"
                                       (keydown)="onInstanceCaptureKeydown($event, binding.actionId, instance.componentId)"
                                       #captureInstanceBtn

@@ -173,3 +173,39 @@ describe('ComparisonSliderComponent', () => {
         expect(root.className).toContain('my-custom-class');
     });
 });
+
+describe('ComparisonSliderComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [ComparisonSliderComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(ComparisonSliderComponent);
+        fixture.componentRef.setInput('beforeSrc', 'a.png');
+        fixture.componentRef.setInput('afterSrc', 'b.png');
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults handle aria-label to English "Comparison slider"', async () => {
+        const fixture = await setup();
+        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        expect(handle.getAttribute('aria-label')).toBe('Comparison slider');
+    });
+
+    it('localises handle aria-label and applies dir="rtl" when locale="he"', async () => {
+        const fixture = await setup({ locale: 'he' });
+        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        expect(handle.getAttribute('aria-label')).toBe('מחוון השוואה');
+        const root = fixture.nativeElement.querySelector('div');
+        expect(root.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        expect(handle.getAttribute('aria-label')).toBe('Curseur de comparaison');
+    });
+});

@@ -381,3 +381,41 @@ describe('BarRaceChartComponent', () => {
         });
     });
 });
+
+describe('BarRaceChartComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [BarRaceChartComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(BarRaceChartComponent);
+        fixture.componentRef.setInput('frames', [[{ name: 'A', value: 1 }]]);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults Play/Reset aria-labels to English', async () => {
+        const fixture = await setup();
+        const buttons = fixture.nativeElement.querySelectorAll('button');
+        expect(buttons[0].getAttribute('aria-label')).toBe('Play');
+        expect(buttons[1].getAttribute('aria-label')).toBe('Reset');
+    });
+
+    it('localises Play/Reset and applies dir="rtl" when locale="he"', async () => {
+        const fixture = await setup({ locale: 'he' });
+        const root = fixture.nativeElement.querySelector('div');
+        expect(root.getAttribute('dir')).toBe('rtl');
+        const buttons = fixture.nativeElement.querySelectorAll('button');
+        expect(buttons[0].getAttribute('aria-label')).toBe('הפעל');
+        expect(buttons[1].getAttribute('aria-label')).toBe('איפוס');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        const buttons = fixture.nativeElement.querySelectorAll('button');
+        expect(buttons[0].getAttribute('aria-label')).toBe('Lecture');
+        expect(buttons[1].getAttribute('aria-label')).toBe('Réinitialiser');
+    });
+});
