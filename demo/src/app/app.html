@@ -59,6 +59,26 @@
               <ui-select-item value="hidden">Hidden</ui-select-item>
             </ui-select-content>
           </ui-select>
+          <ui-select
+            [ngModel]="appLocale()"
+            (ngModelChange)="setAppLocale($event)"
+            aria-label="Locale">
+            <ui-select-trigger class="w-[90px] sm:w-[110px] h-8 sm:h-9 text-xs sm:text-sm" data-slot="locale-switcher">
+              <ui-select-value placeholder="Locale" />
+            </ui-select-trigger>
+            <ui-select-content>
+              <ui-select-item value="en">English</ui-select-item>
+              <ui-select-item value="he">עברית</ui-select-item>
+              <ui-select-item value="ar">العربية</ui-select-item>
+              <ui-select-item value="de">Deutsch</ui-select-item>
+              <ui-select-item value="fr">Français</ui-select-item>
+              <ui-select-item value="es">Español</ui-select-item>
+              <ui-select-item value="ja">日本語</ui-select-item>
+              <ui-select-item value="zh">中文</ui-select-item>
+              <ui-select-item value="ru">Русский</ui-select-item>
+              <ui-select-item value="pt">Português</ui-select-item>
+            </ui-select-content>
+          </ui-select>
           <ui-button variant="ghost" size="icon" (click)="toggleTheme(!isDark())" (keydown.enter)="toggleTheme(!isDark())">
             @if (isDark()) {
             <ui-icon name="moon" size="sm" />

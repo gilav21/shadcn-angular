@@ -4,6 +4,8 @@ import { FormsModule } from '@angular/forms';
 import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
+import { APP_LOCALE } from './app.config';
+import { CALENDAR_LOCALES } from '../../../packages/components/lib/i18n';
 import {
   ButtonComponent,
   SeparatorComponent,
@@ -96,6 +98,12 @@ export interface ComponentNavItem {
 export class AppComponent {
   private readonly shortcutBindings = inject(ShortcutBindingService);
   private readonly router = inject(Router);
+  /**
+   * App-wide writable locale signal — also injected into `UI_LOCALE_ID`
+   * via `provideUiLocale` in `app.config.ts`, so every shadcn-angular
+   * component picks it up automatically.
+   */
+  readonly appLocale = inject(APP_LOCALE);
 
   readonly isDark = signal(false);
   readonly isRtl = signal(false);
@@ -268,6 +276,17 @@ export class AppComponent {
   toggleDirection(checked: boolean) {
     this.isRtl.set(checked);
     document.documentElement.dir = checked ? 'rtl' : 'ltr';
+  }
+
+  /**
+   * Set the app-wide locale (broadcasts to every shadcn-angular component
+   * via `UI_LOCALE_ID`) and auto-flip `dir` to `rtl` when the chosen
+   * locale is RTL, so Tailwind's `rtl:*` modifiers track the language.
+   */
+  setAppLocale(code: string) {
+    this.appLocale.set(code);
+    const rtl = CALENDAR_LOCALES[code]?.rtl === true;
+    this.toggleDirection(rtl);
   }
 
   navTo(id: string) {
