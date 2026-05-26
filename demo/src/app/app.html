@@ -59,26 +59,28 @@
               <ui-select-item value="hidden">Hidden</ui-select-item>
             </ui-select-content>
           </ui-select>
-          <ui-select
-            [ngModel]="appLocale()"
-            (ngModelChange)="setAppLocale($event)"
-            aria-label="Locale">
-            <ui-select-trigger class="w-[90px] sm:w-[110px] h-8 sm:h-9 text-xs sm:text-sm" data-slot="locale-switcher">
-              <ui-select-value placeholder="Locale" />
-            </ui-select-trigger>
-            <ui-select-content>
-              <ui-select-item value="en">English</ui-select-item>
-              <ui-select-item value="he">עברית</ui-select-item>
-              <ui-select-item value="ar">العربية</ui-select-item>
-              <ui-select-item value="de">Deutsch</ui-select-item>
-              <ui-select-item value="fr">Français</ui-select-item>
-              <ui-select-item value="es">Español</ui-select-item>
-              <ui-select-item value="ja">日本語</ui-select-item>
-              <ui-select-item value="zh">中文</ui-select-item>
-              <ui-select-item value="ru">Русский</ui-select-item>
-              <ui-select-item value="pt">Português</ui-select-item>
-            </ui-select-content>
-          </ui-select>
+          <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger>
+              <ui-button variant="ghost" size="icon" data-slot="locale-switcher" [attr.aria-label]="'Language: ' + currentLocaleLabel()">
+                <span class="sr-only">Language</span>
+                <ui-icon name="languages" size="sm" />
+              </ui-button>
+            </ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content align="end" class="w-44">
+              <ui-dropdown-menu-label>Language</ui-dropdown-menu-label>
+              <ui-dropdown-menu-separator />
+              @for (option of localeOptions; track option.code) {
+                <ui-dropdown-menu-item (click)="setAppLocale(option.code)" [class.bg-accent]="appLocale() === option.code">
+                  <div class="flex w-full items-center justify-between gap-2">
+                    <span>{{ option.label }}</span>
+                    @if (appLocale() === option.code) {
+                      <ui-icon name="check" size="sm" />
+                    }
+                  </div>
+                </ui-dropdown-menu-item>
+              }
+            </ui-dropdown-menu-content>
+          </ui-dropdown-menu>
           <ui-button variant="ghost" size="icon" (click)="toggleTheme(!isDark())" (keydown.enter)="toggleTheme(!isDark())">
             @if (isDark()) {
             <ui-icon name="moon" size="sm" />

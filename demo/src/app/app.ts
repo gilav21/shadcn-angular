@@ -40,6 +40,12 @@ import {
   ShortcutBindingsDialogComponent,
   RICH_TEXT_SHORTCUT_DEFINITIONS,
   IconComponent,
+  DropdownMenuComponent,
+  DropdownMenuTriggerComponent,
+  DropdownMenuContentComponent,
+  DropdownMenuItemComponent,
+  DropdownMenuLabelComponent,
+  DropdownMenuSeparatorComponent,
 } from '../../../packages/components/ui';
 
 export type ComponentCategory = 'Inputs' | 'Layout' | 'Navigation' | 'Overlay' | 'Data Display' | 'Feedback' | 'Charts' | 'Animations' | 'Patterns';
@@ -87,6 +93,12 @@ export interface ComponentNavItem {
     SidebarInsetComponent,
     ToasterComponent,
     IconComponent,
+    DropdownMenuComponent,
+    DropdownMenuTriggerComponent,
+    DropdownMenuContentComponent,
+    DropdownMenuItemComponent,
+    DropdownMenuLabelComponent,
+    DropdownMenuSeparatorComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',
@@ -104,6 +116,25 @@ export class AppComponent {
    * component picks it up automatically.
    */
   readonly appLocale = inject(APP_LOCALE);
+
+  /** Languages offered by the header switcher. The `label` is the language's endonym. */
+  readonly localeOptions: ReadonlyArray<{ readonly code: string; readonly label: string }> = [
+    { code: 'en', label: 'English' },
+    { code: 'he', label: 'עברית' },
+    { code: 'ar', label: 'العربية' },
+    { code: 'de', label: 'Deutsch' },
+    { code: 'fr', label: 'Français' },
+    { code: 'es', label: 'Español' },
+    { code: 'ja', label: '日本語' },
+    { code: 'zh', label: '中文' },
+    { code: 'ru', label: 'Русский' },
+    { code: 'pt', label: 'Português' },
+  ];
+
+  /** Label of the currently-active locale — used for the switcher button's aria-label. */
+  readonly currentLocaleLabel = computed(
+    () => this.localeOptions.find(o => o.code === this.appLocale())?.label ?? this.appLocale(),
+  );
 
   readonly isDark = signal(false);
   readonly isRtl = signal(false);
