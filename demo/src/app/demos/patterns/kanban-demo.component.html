@@ -1,21 +1,26 @@
 <section class="space-y-8">
   <div>
-    <h2 id="kanban" class="text-2xl font-semibold scroll-m-20">Kanban Board</h2>
-    <p class="text-muted-foreground mt-1">A fully interactive Kanban board with drag-and-drop, context menus,
-      card CRUD, column management, undo/redo, and toast notifications.</p>
+    <h2 id="kanban" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+    <p class="text-muted-foreground mt-1">{{ t().description }}</p>
   </div>
 
   <div class="space-y-4">
-    <h3 class="text-lg font-medium">Interactive Board</h3>
-    <p class="text-muted-foreground text-sm">Right-click cards, column headers, or the board background for
-      context menus. Use Ctrl+Z / Ctrl+Shift+Z for undo/redo.</p>
+    <h3 class="text-lg font-medium">{{ t().interactiveHeading }}</h3>
+    <p class="text-muted-foreground text-sm">{{ t().interactiveDescription }}</p>
     <div class="flex items-center gap-2 text-xs text-muted-foreground">
-      <span>History:</span>
-      <span [class]="kanbanHistory().canUndo ? 'text-foreground font-medium' : ''">Undo {{ kanbanHistory().canUndo ? 'available' : 'empty' }}</span>
+      <span>{{ t().history.label }}</span>
+      <span [class]="kanbanHistory().canUndo ? 'text-foreground font-medium' : ''">
+        {{ t().history.undo }} {{ kanbanHistory().canUndo ? t().history.available : t().history.empty }}
+      </span>
       <span>|</span>
-      <span [class]="kanbanHistory().canRedo ? 'text-foreground font-medium' : ''">Redo {{ kanbanHistory().canRedo ? 'available' : 'empty' }}</span>
+      <span [class]="kanbanHistory().canRedo ? 'text-foreground font-medium' : ''">
+        {{ t().history.redo }} {{ kanbanHistory().canRedo ? t().history.available : t().history.empty }}
+      </span>
     </div>
-    <ui-kanban [columns]="kanbanColumns()" [cards]="kanbanCards()"
+    <ui-kanban
+      [locale]="t().code"
+      [columns]="kanbanColumns()"
+      [cards]="kanbanCards()"
       (cardsChange)="onKanbanCardsChange($event)"
       (columnsChange)="onKanbanColumnsChange($event)"
       (cardAdded)="onKanbanCardAdded($event)"
@@ -30,9 +35,8 @@
   <ui-separator />
 
   <div class="space-y-4">
-    <h3 class="text-lg font-medium">Custom Mode</h3>
-    <p class="text-muted-foreground text-sm">Use content projection for full control over column headers and
-      card content.</p>
+    <h3 class="text-lg font-medium">{{ t().customHeading }}</h3>
+    <p class="text-muted-foreground text-sm">{{ t().customDescription }}</p>
     <ui-kanban>
       <ui-kanban-column columnId="design" title="Design">
         <ui-kanban-column-header>
@@ -56,8 +60,7 @@
         <ui-kanban-card cardId="c2">
           <ui-kanban-card-content>
             <div class="flex items-center gap-3">
-              <div class="h-8 w-8 rounded bg-purple-100 flex items-center justify-center text-purple-600">📐
-              </div>
+              <div class="h-8 w-8 rounded bg-purple-100 flex items-center justify-center text-purple-600">📐</div>
               <div>
                 <p class="text-sm font-medium">Icon set update</p>
                 <p class="text-xs text-muted-foreground">Low priority</p>
@@ -87,31 +90,5 @@
         </ui-kanban-card>
       </ui-kanban-column>
     </ui-kanban>
-  </div>
-
-  <ui-separator />
-
-  <div class="space-y-4">
-    <h3 class="text-lg font-medium">Hebrew (RTL) Board</h3>
-    <p class="text-muted-foreground text-sm">Full RTL layout with Hebrew locale. All labels, context menus, dialogs, and interactions are localized.</p>
-    <div class="flex items-center gap-2 text-xs text-muted-foreground">
-      <span>היסטוריה:</span>
-      <span [class]="hebrewKanbanHistory().canUndo ? 'text-foreground font-medium' : ''">ביטול {{ hebrewKanbanHistory().canUndo ? 'זמין' : 'ריק' }}</span>
-      <span>|</span>
-      <span [class]="hebrewKanbanHistory().canRedo ? 'text-foreground font-medium' : ''">שחזור {{ hebrewKanbanHistory().canRedo ? 'זמין' : 'ריק' }}</span>
-    </div>
-    <ui-kanban
-      locale="he"
-      [columns]="hebrewKanbanColumns()"
-      [cards]="hebrewKanbanCards()"
-      (cardsChange)="onHebrewKanbanCardsChange($event)"
-      (columnsChange)="onHebrewKanbanColumnsChange($event)"
-      (cardAdded)="onHebrewKanbanCardAdded($event)"
-      (cardUpdated)="onHebrewKanbanCardUpdated($event)"
-      (cardDeleted)="onHebrewKanbanCardDeleted($event)"
-      (columnAdded)="onHebrewKanbanColumnAdded($event)"
-      (columnUpdated)="onHebrewKanbanColumnUpdated($event)"
-      (columnDeleted)="onHebrewKanbanColumnDeleted($event)"
-      (historyChange)="onHebrewKanbanHistoryChange($event)" />
   </div>
 </section>
