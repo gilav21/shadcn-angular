@@ -3,8 +3,10 @@ import {
   ChangeDetectionStrategy,
   input,
   computed,
+  inject,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
 
 @Component({
   selector: 'ui-progress',
@@ -18,12 +20,25 @@ export class ProgressComponent {
   class = input('');
   ariaLabel = input<string | undefined>(undefined);
   ariaLabelledby = input<string | undefined>(undefined);
+  /**
+   * BCP-47 locale tag used to format `aria-valuetext` (the screen-reader
+   * percentage announcement) via `Intl.NumberFormat`'s `style: 'percent'`.
+   * Falls back to the app-wide `UI_LOCALE_ID`. The raw `aria-valuenow`
+   * stays unformatted per ARIA spec.
+   */
+  locale = input<string>();
+  private readonly globalLocale = inject(UI_LOCALE_ID);
 
   percentage = computed(() => {
     const val = this.value();
     const maxVal = this.max();
     return Math.min(100, Math.max(0, (val / maxVal) * 100));
   });
+
+  /** Locale-formatted percentage text — `'45%'` in en, `'45 %'` in fr, etc. */
+  readonly valueText = computed(() =>
+    formatNumber(this.percentage() / 100, this.locale() ?? this.globalLocale(), { style: 'percent', maximumFractionDigits: 0 }),
+  );
 
   classes = computed(() =>
     cn(

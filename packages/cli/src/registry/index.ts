@@ -269,12 +269,13 @@ export const registry = defineRegistry({
   'number-input': {
     name: 'number-input',
     files: ['number-input/index.ts', 'number-input/number-input.component.html', 'number-input/number-input.component.ts'],
-    libFiles: ['input-group.token.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'input-group.token.ts'],
     dependencies: ['input'],
   },
   'number-ticker': {
     name: 'number-ticker',
     files: ['number-ticker/index.ts', 'number-ticker/number-ticker.component.html', 'number-ticker/number-ticker.component.ts', 'number-ticker/sub/number-ticker-digit.component.html', 'number-ticker/sub/number-ticker-digit.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   pagination: {
     name: 'pagination',
@@ -294,6 +295,7 @@ export const registry = defineRegistry({
   progress: {
     name: 'progress',
     files: ['progress/index.ts', 'progress/progress.component.html', 'progress/progress.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'radio-group': {
     name: 'radio-group',
@@ -339,6 +341,7 @@ export const registry = defineRegistry({
   slider: {
     name: 'slider',
     files: ['slider/index.ts', 'slider/slider.component.html', 'slider/slider.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   spinner: {
     name: 'spinner',

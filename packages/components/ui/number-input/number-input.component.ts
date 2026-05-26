@@ -14,6 +14,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cva } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
+import { UI_LOCALE_ID } from '../../lib/i18n';
 import { InputComponent } from '../input';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
@@ -62,6 +63,17 @@ export class NumberInputComponent implements ControlValueAccessor {
     readonly placeholder = input<string>('0');
     readonly class = input('');
     readonly variant = input<NumberInputVariant>('outline');
+    /**
+     * BCP-47 locale tag used by the input's `lang` attribute so browsers
+     * apply locale-appropriate number-pad layout and grouping for
+     * accessibility tools. Falls back to the app-wide `UI_LOCALE_ID`.
+     * The internal parse/format remains locale-neutral (JS Number) —
+     * a fully locale-aware parse/format is a follow-up task.
+     */
+    readonly locale = input<string>();
+    private readonly globalLocale = inject(UI_LOCALE_ID);
+    /** Effective locale tag — explicit input wins; otherwise UI_LOCALE_ID. */
+    readonly resolvedLocale = computed(() => this.locale() ?? this.globalLocale());
 
     readonly valueChange = output<number | null>();
 

@@ -98,7 +98,7 @@ Each task has a review-gate score recorded after completion. **Required: ≥95.*
 | 10 | New i18n: `carousel`, `tour` (stepper excluded — no built-in text) | done | 97 |
 | 11 | New i18n: `breadcrumb`, `rating`, `code-block` (input-otp + tree excluded — no built-in default text) | done | 98 |
 | 12 | New i18n: `color-picker`, `bar-race-chart`, `eyedropper`, `shortcut-bindings-dialog`, `comparison-slider`, `kanban` (empty + page-builder excluded — see notes) | done | 96 |
-| 13 | Format-only components: `number-input`, `slider`, `progress`, `number-ticker` use `formatNumber()` with locale | pending | — |
+| 13 | Format-only components: `number-input`, `slider`, `progress`, `number-ticker` use `formatNumber()` with locale | done | 96 |
 | 14 | Demo locale switcher (global `provideUiLocale` + UI to flip across the demo app) | pending | — |
 
 ### Breaking-change notes for consumers

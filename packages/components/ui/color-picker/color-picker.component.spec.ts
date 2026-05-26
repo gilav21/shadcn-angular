@@ -484,22 +484,25 @@ describe('ColorPickerComponent — i18n integration', () => {
         // Saturation/value handle aria-label
         const satValue = document.querySelector('[aria-label="Saturation and value"]');
         expect(satValue).toBeTruthy();
-        // "Recent" legend text (only renders when recent colors exist; assert via DOM presence is enough for the default).
-        expect(fixture.componentInstance.t().recent).toBe('Recent');
+        function readT(f: typeof fixture) {
+            return (f.componentInstance as unknown as { t: () => Record<string, string> }).t();
+        }
+        expect(readT(fixture)['recent']).toBe('Recent');
     });
 
     it('localises the resolved locale when locale="he"', async () => {
         const fixture = await setup({ locale: 'he' });
-        const t = fixture.componentInstance.t();
-        expect(t.code).toBe('he');
-        expect(t.saturationValue).toBe('רוויה וערך');
-        expect(t.hue).toBe('גוון');
-        expect(t.copyHex).toBe('העתק hex');
+        const t = (fixture.componentInstance as unknown as { t: () => Record<string, string> }).t();
+        expect(t['code']).toBe('he');
+        expect(t['saturationValue']).toBe('רוויה וערך');
+        expect(t['hue']).toBe('גוון');
+        expect(t['copyHex']).toBe('העתק hex');
     });
 
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
         const fixture = await setup({ providerLocale: 'de' });
-        expect(fixture.componentInstance.t().code).toBe('de');
-        expect(fixture.componentInstance.t().pickColorFromImage).toBe('Farbe aus Bild wählen');
+        const t = (fixture.componentInstance as unknown as { t: () => Record<string, string> }).t();
+        expect(t['code']).toBe('de');
+        expect(t['pickColorFromImage']).toBe('Farbe aus Bild wählen');
     });
 });

@@ -150,3 +150,41 @@ describe('Progress RTL Support', () => {
         expect(innerBar.nativeElement.style.width).toBe('75%');
     });
 });
+
+describe('ProgressComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [ProgressComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(ProgressComponent);
+        fixture.componentRef.setInput('value', 45);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults aria-valuetext to en-US percent format', async () => {
+        const fixture = await setup();
+        const root = fixture.nativeElement.querySelector('[role="progressbar"]');
+        expect(root.getAttribute('aria-valuetext')).toBe('45%');
+    });
+
+    it('localises aria-valuetext when locale="fr" (uses French narrow space + %)', async () => {
+        const fixture = await setup({ locale: 'fr' });
+        const root = fixture.nativeElement.querySelector('[role="progressbar"]');
+        const v = root.getAttribute('aria-valuetext');
+        expect(v).toContain('45');
+        expect(v).toContain('%');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'de' });
+        const root = fixture.nativeElement.querySelector('[role="progressbar"]');
+        // German: "45 %" with non-breaking space.
+        const v = root.getAttribute('aria-valuetext');
+        expect(v).toContain('45');
+        expect(v).toContain('%');
+    });
+});

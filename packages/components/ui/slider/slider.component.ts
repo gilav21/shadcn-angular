@@ -9,6 +9,7 @@ import {
     inject,
 } from '@angular/core';
 import { cn, isRtl } from '../../lib/utils';
+import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
 
 @Component({
     selector: 'ui-slider',
@@ -29,6 +30,16 @@ export class SliderComponent {
     class = input('');
     ariaLabel = input<string | undefined>(undefined);
     ariaLabelledby = input<string | undefined>(undefined);
+    /**
+     * BCP-47 locale tag used to format `aria-valuetext` (the screen-reader
+     * announcement) via `Intl.NumberFormat`. Falls back to the app-wide
+     * `UI_LOCALE_ID` token. The raw `aria-valuenow` stays unformatted
+     * because the ARIA spec requires it to be a JSON number.
+     */
+    locale = input<string>();
+    private readonly globalLocale = inject(UI_LOCALE_ID);
+    /** Locale-formatted value text, e.g. `'1,234.5'` in en or `'1.234,5'` in de. */
+    readonly valueText = computed(() => formatNumber(this.value(), this.locale() ?? this.globalLocale()));
     valueChange = output<number>();
 
     value = signal(0);

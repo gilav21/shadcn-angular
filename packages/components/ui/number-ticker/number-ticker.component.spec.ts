@@ -188,3 +188,36 @@ describe('NumberTickerDigitComponent', () => {
         expect(element.nativeElement.textContent).toContain('5');
     });
 });
+
+describe('NumberTickerComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [NumberTickerComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(NumberTickerComponent);
+        fixture.componentRef.setInput('value', 1234);
+        fixture.componentRef.setInput('duration', 0);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.detectChanges();
+        await new Promise<void>(r => setTimeout(r, 50));
+        return fixture;
+    }
+
+    it('formats with en-US grouping when no locale set (default)', async () => {
+        const fixture = await setup();
+        const cmp = fixture.componentInstance;
+        expect(cmp.resolvedLocale()).toBe('en');
+    });
+
+    it('resolves locale from the per-instance input', async () => {
+        const fixture = await setup({ locale: 'de' });
+        expect(fixture.componentInstance.resolvedLocale()).toBe('de');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        expect(fixture.componentInstance.resolvedLocale()).toBe('fr');
+    });
+});
