@@ -5,7 +5,8 @@ import { Router, NavigationEnd, RouterOutlet } from '@angular/router';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { filter, map, startWith } from 'rxjs';
 import { APP_LOCALE } from './app.config';
-import { CALENDAR_LOCALES } from '../../../packages/components/lib/i18n';
+import { CALENDAR_LOCALES, UI_LOCALE_ID } from '../../../packages/components/lib/i18n';
+import { APP_LOCALES } from './app.locales';
 import {
   ButtonComponent,
   SeparatorComponent,
@@ -116,6 +117,16 @@ export class AppComponent {
    * component picks it up automatically.
    */
   readonly appLocale = inject(APP_LOCALE);
+
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => APP_LOCALES[this.localeId()] ?? APP_LOCALES['en'],
+  );
+
+  categoryLabel(category: string): string {
+    const map = this.t().categories as Record<string, string>;
+    return map[category] ?? category;
+  }
 
   /** Languages offered by the header switcher. The `label` is the language's endonym. */
   readonly localeOptions: ReadonlyArray<{ readonly code: string; readonly label: string }> = [
