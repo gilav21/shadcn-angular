@@ -72,12 +72,12 @@ export class ShortcutBindingsDialogComponent {
 
     /** Interpolated aria-label for the "rebind all instances" capture button. */
     rebindAllAriaLabel(bindingDescription: string): string {
-        return interpolate(this.t().rebindAllInstances ?? 'Rebind all instances of {binding}', { binding: bindingDescription });
+        return interpolate(this.t().rebindAllInstances, { binding: bindingDescription });
     }
 
     /** Interpolated aria-label for the per-instance rebind button. */
     rebindInstanceAriaLabel(instanceName: string, bindingDescription: string): string {
-        return interpolate(this.t().rebindInstance ?? 'Rebind instance {name} for {binding}', { name: instanceName, binding: bindingDescription });
+        return interpolate(this.t().rebindInstance, { name: instanceName, binding: bindingDescription });
     }
 
     private readonly shortcutBindings = inject(ShortcutBindingService);
