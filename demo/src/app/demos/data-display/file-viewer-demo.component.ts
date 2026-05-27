@@ -1,9 +1,11 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import {
   ButtonComponent,
   CodeBlockComponent,
   FileViewerComponent
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { FILE_VIEWER_DEMO_LOCALES } from './file-viewer-demo.locales';
 
 @Component({
   selector: 'app-file-viewer-demo',
@@ -16,52 +18,53 @@ import {
   template: `
     <section class="space-y-8">
       <div>
-        <h2 id="file-viewer" class="text-2xl font-semibold scroll-m-20">File Viewer</h2>
-        <p class="text-muted-foreground mt-1">
-          A client-side file previewer supporting PDF, DOCX, XLSX, PPTX, images, text, video, and audio — no server or external packages required.
-        </p>
+        <h2 id="file-viewer" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+        <p class="text-muted-foreground mt-1">{{ t().description }}</p>
       </div>
 
       <div class="space-y-2">
-        <h3 class="text-lg font-medium">Quick Demos</h3>
+        <h3 class="text-lg font-medium">{{ t().quickDemosHeading }}</h3>
         <div class="flex flex-wrap gap-2">
-          <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('text')">Text File</ui-button>
-          <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('svg')">SVG Image</ui-button>
-          <ui-button variant="outline" size="sm" (click)="loadPdfFromUrl()">PDF (Hebrew)</ui-button>
-          <ui-button variant="outline" size="sm" (click)="loadComplexPdfFromUrl()">PDF (Complex Hebrew)</ui-button>
+          <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('text')">{{ t().buttonTextFile }}</ui-button>
+          <ui-button variant="outline" size="sm" (click)="setFileViewerDemo('svg')">{{ t().buttonSvgImage }}</ui-button>
+          <ui-button variant="outline" size="sm" (click)="loadPdfFromUrl()">{{ t().buttonPdfHebrew }}</ui-button>
+          <ui-button variant="outline" size="sm" (click)="loadComplexPdfFromUrl()">{{ t().buttonPdfComplex }}</ui-button>
         </div>
       </div>
 
       <div class="space-y-2">
-        <h3 class="text-lg font-medium">Try Your Own File</h3>
+        <h3 class="text-lg font-medium">{{ t().tryOwnFileHeading }}</h3>
         <div class="border-2 border-dashed rounded-lg p-8 text-center text-muted-foreground cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
              (dragover)="$event.preventDefault()"
              (drop)="onFileViewerDrop($event)">
-          <p class="mb-2">Drag & drop a file here, or</p>
+          <p class="mb-2">{{ t().dropzoneText }}</p>
           <label class="inline-flex items-center gap-1.5 text-sm text-primary hover:underline cursor-pointer">
             <input type="file" class="hidden" (change)="onFileViewerSelect($event)" />
-            browse to select
+            {{ t().dropzoneBrowse }}
           </label>
-          <p class="text-xs mt-2">Supports PDF, DOCX, XLSX, PPTX, images, text, video, audio</p>
+          <p class="text-xs mt-2">{{ t().dropzoneFormats }}</p>
         </div>
       </div>
 
       @if (fileViewerFile()) {
         <div class="space-y-2">
-          <h3 class="text-lg font-medium">Simple Mode</h3>
-          <p class="text-sm text-muted-foreground">Uses input-driven API — just pass the file.</p>
+          <h3 class="text-lg font-medium">{{ t().simpleModeHeading }}</h3>
+          <p class="text-sm text-muted-foreground">{{ t().simpleModeDescription }}</p>
           <ui-file-viewer [file]="fileViewerFile()" height="1000px" />
         </div>
       }
 
       <div class="space-y-2">
-        <h3 class="text-lg font-medium">Usage</h3>
+        <h3 class="text-lg font-medium">{{ t().usageHeading }}</h3>
         <ui-code-block language="html" [code]="usageCode" />
       </div>
     </section>
   `,
 })
 export class FileViewerDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => FILE_VIEWER_DEMO_LOCALES[this.localeId()] ?? FILE_VIEWER_DEMO_LOCALES['en']);
+
   readonly fileViewerFile = signal<File | null>(null);
 
   readonly usageCode = `<!-- Simple mode: just pass a file -->
