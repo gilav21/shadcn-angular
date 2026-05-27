@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ButtonComponent, SpinnerComponent } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { SPINNER_DEMO_LOCALES } from './spinner-demo.locales';
 
 @Component({
   selector: 'app-spinner-demo',
@@ -7,49 +9,50 @@ import { ButtonComponent, SpinnerComponent } from '../../../../../packages/compo
   imports: [SpinnerComponent, ButtonComponent],
   template: `
     <section class="space-y-4">
-      <h2 id="spinner" class="text-2xl font-semibold scroll-m-20">Spinner</h2>
-      <p class="text-muted-foreground">
-        Loading indicator with animated spinning. Supports preset sizes and custom pixel sizes.
-      </p>
+      <h2 id="spinner" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="flex flex-wrap items-end gap-6">
         <div class="flex flex-col items-center gap-2">
           <ui-spinner size="xs" />
-          <span class="text-xs text-muted-foreground">XS</span>
+          <span class="text-xs text-muted-foreground">{{ t().sizeXs }}</span>
         </div>
         <div class="flex flex-col items-center gap-2">
           <ui-spinner size="sm" />
-          <span class="text-xs text-muted-foreground">SM</span>
+          <span class="text-xs text-muted-foreground">{{ t().sizeSm }}</span>
         </div>
         <div class="flex flex-col items-center gap-2">
           <ui-spinner />
-          <span class="text-xs text-muted-foreground">Default</span>
+          <span class="text-xs text-muted-foreground">{{ t().sizeDefault }}</span>
         </div>
         <div class="flex flex-col items-center gap-2">
           <ui-spinner size="lg" />
-          <span class="text-xs text-muted-foreground">LG</span>
+          <span class="text-xs text-muted-foreground">{{ t().sizeLg }}</span>
         </div>
         <div class="flex flex-col items-center gap-2">
           <ui-spinner size="xl" />
-          <span class="text-xs text-muted-foreground">XL</span>
+          <span class="text-xs text-muted-foreground">{{ t().sizeXl }}</span>
         </div>
         <div class="flex flex-col items-center gap-2">
           <ui-spinner size="page" />
-          <span class="text-xs text-muted-foreground">Page</span>
+          <span class="text-xs text-muted-foreground">{{ t().sizePage }}</span>
         </div>
         <div class="flex flex-col items-center gap-2">
           <ui-spinner [customSize]="64" />
-          <span class="text-xs text-muted-foreground">64px</span>
+          <span class="text-xs text-muted-foreground">{{ t().sizeCustom }}</span>
         </div>
       </div>
 
       <div class="flex items-center gap-4 mt-4">
         <ui-button [disabled]="true">
           <ui-spinner size="xs" class="mr-2" />
-          Loading...
+          {{ t().loadingButton }}
         </ui-button>
       </div>
     </section>
   `,
 })
-export class SpinnerDemoComponent {}
+export class SpinnerDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  readonly t = computed(() => SPINNER_DEMO_LOCALES[this.localeId()] ?? SPINNER_DEMO_LOCALES['en']);
+}
