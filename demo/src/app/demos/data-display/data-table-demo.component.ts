@@ -1163,7 +1163,7 @@ export class DataTableDemoComponent {
       for (const key of Object.keys(colFilters)) {
         const val = colFilters[key];
         if (val === null || val === undefined || val === '') continue;
-        const col = this.paymentColumns.find(c => c.accessorKey === key);
+        const col = this.paymentColumns().find(c => c.accessorKey === key);
         if (col?.filterFn) {
           filtered = filtered.filter(row => col.filterFn!(row, val));
         }
