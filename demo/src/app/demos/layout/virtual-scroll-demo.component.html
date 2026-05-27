@@ -1,13 +1,12 @@
 <section class="space-y-4">
-  <h2 id="virtual-scroll" class="text-2xl font-semibold scroll-m-20">Virtual Scroll</h2>
-  <p class="text-muted-foreground">Window-based virtual scrolling for large lists. No height measurement needed
-    - works with any content size.</p>
+  <h2 id="virtual-scroll" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+  <p class="text-muted-foreground">{{ t().description }}</p>
 
   <div class="space-y-2">
-    <h3 class="text-lg font-medium">Complex Variable-Height Items (50px - 2000px)</h3>
+    <h3 class="text-lg font-medium">{{ t().itemsSubheading }}</h3>
     <p class="text-sm text-muted-foreground">
-      Items with dramatically different heights. The window shifts smoothly at 90% scroll threshold.
-      <span class="font-medium">Total items: {{ virtualScrollItems().length }}</span>
+      {{ t().itemsDesc }}
+      <span class="font-medium">{{ t().totalItems }} {{ virtualScrollItems().length }}</span>
     </p>
 
     <div class="border rounded-lg overflow-hidden bg-background h-[600px]">
@@ -26,11 +25,11 @@
               </div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2 flex-wrap">
-                  <h4 class="font-bold text-base">User {{ $any(item).id }}</h4>
+                  <h4 class="font-bold text-base">{{ t().userLabel }} {{ $any(item).id }}</h4>
                   <span class="text-sm text-muted-foreground">&#64;user{{ $any(item).id }}</span>
                   <span class="text-sm text-muted-foreground">·</span>
-                  <span class="text-sm text-muted-foreground">{{ $any(item).height > 800 ? '2h ago' :
-                    $any(item).height > 500 ? '5h ago' : '1d ago' }}</span>
+                  <span class="text-sm text-muted-foreground">{{ $any(item).height > 800 ? t().timeAgo2h :
+                    $any(item).height > 500 ? t().timeAgo5h : t().timeAgo1d }}</span>
                 </div>
               </div>
             </div>
@@ -65,12 +64,12 @@
                 [style.min-height.px]="$any(item).height > 1000 ? 400 : $any(item).height > 600 ? 300 : 200">
                 <div class="h-full flex flex-col items-center justify-center p-8 text-center">
                   <div class="text-8xl mb-4" [style.opacity]="0.3">🖼️</div>
-                  <p class="text-lg font-medium text-muted-foreground">Large Image</p>
+                  <p class="text-lg font-medium text-muted-foreground">{{ t().largeImage }}</p>
                   <p class="text-sm text-muted-foreground mt-1">
                     {{ $any(item).height > 1000 ? '1920x1080' : $any(item).height > 600 ? '1200x800' : '800x600' }}
                   </p>
                   <p class="text-xs text-muted-foreground mt-2 opacity-60">
-                    This placeholder represents a large image that would normally load here
+                    {{ t().imagePlaceholder }}
                   </p>
                 </div>
               </div>
@@ -89,7 +88,7 @@
 
               @if ($any(item).type === 'chart' || $any(item).type === 'mixed') {
               <div class="mt-4 p-6 bg-muted/30 rounded-xl">
-                <p class="text-sm font-medium mb-4">Engagement Overview</p>
+                <p class="text-sm font-medium mb-4">{{ t().engagementOverview }}</p>
                 <div class="flex items-end gap-3 h-32">
                   @for (bar of [{h: 40}, {h: 65}, {h: 45}, {h: 80}, {h: 55}, {h: 70}]; track $index) {
                   <div class="flex-1 flex flex-col items-center gap-2">
@@ -104,7 +103,7 @@
 
               @if ($any(item).height > 800) {
               <div class="mt-6 pt-6 border-t border-border space-y-4">
-                <p class="text-sm font-medium text-muted-foreground">Comments ({{ ($any(item).id * 3) % 15 + 2 }})</p>
+                <p class="text-sm font-medium text-muted-foreground">{{ t().comments }} ({{ ($any(item).id * 3) % 15 + 2 }})</p>
                 @for (comment of [1, 2, 3]; track comment) {
                 <div class="flex gap-3">
                   <div class="w-8 h-8 rounded-full bg-muted flex items-center justify-center text-sm">
@@ -112,11 +111,11 @@
                   </div>
                   <div class="flex-1">
                     <div class="bg-muted/50 rounded-2xl rounded-tl-sm px-4 py-3">
-                      <p class="text-sm font-medium mb-1">Commenter {{ comment }}</p>
+                      <p class="text-sm font-medium mb-1">{{ t().commenterPrefix }} {{ comment }}</p>
                       <p class="text-sm text-muted-foreground">
-                        {{ comment === 1 ? 'This is really insightful! Thanks for sharing your thoughts on this topic.' :
-                        comment === 2 ? 'I completely agree. Have you considered the alternative perspective as well?' :
-                        'Great post! Looking forward to more content like this.' }}
+                        {{ comment === 1 ? t().comment1 :
+                        comment === 2 ? t().comment2 :
+                        t().comment3 }}
                       </p>
                     </div>
                   </div>
@@ -155,20 +154,20 @@
 
     <div class="flex justify-between items-center text-sm text-muted-foreground">
       <div class="flex gap-4">
-        <span>Window: {{ virtualScrollWindowStart() }} - {{ virtualScrollWindowEnd() }}</span>
-        <span>Progress: {{ (virtualScrollProgress() * 100).toFixed(0) }}%</span>
-        <span>Rendered: {{ virtualScrollVisibleCount() }} items</span>
+        <span>{{ t().windowLabel }} {{ virtualScrollWindowStart() }} - {{ virtualScrollWindowEnd() }}</span>
+        <span>{{ t().progressLabel }} {{ (virtualScrollProgress() * 100).toFixed(0) }}%</span>
+        <span>{{ t().renderedLabel }} {{ virtualScrollVisibleCount() }} items</span>
       </div>
       <div class="flex gap-2">
         <ui-button variant="outline" size="sm" (click)="loadMoreBottom()" (keydown.enter)="loadMoreBottom()"
           [disabled]="virtualScrollLoading() || !virtualScrollHasMoreBottom()">
-          Load More
+          {{ t().loadMore }}
         </ui-button>
         <ui-button variant="outline" size="sm" (click)="scrollVirtualToTop()" (keydown.enter)="scrollVirtualToTop()">
-          Top
+          {{ t().top }}
         </ui-button>
         <ui-button variant="outline" size="sm" (click)="scrollVirtualToBottom()" (keydown.enter)="scrollVirtualToBottom()">
-          Bottom
+          {{ t().bottom }}
         </ui-button>
       </div>
     </div>
@@ -177,34 +176,30 @@
   <div class="grid grid-cols-4 gap-4">
     <div class="p-4 border rounded-lg">
       <div class="text-2xl font-bold text-primary">{{ virtualScrollItems().length }}</div>
-      <div class="text-sm text-muted-foreground">Total Items</div>
+      <div class="text-sm text-muted-foreground">{{ t().totalItemsStat }}</div>
     </div>
     <div class="p-4 border rounded-lg">
       <div class="text-2xl font-bold text-primary">{{ virtualScrollVisibleCount() }}</div>
-      <div class="text-sm text-muted-foreground">Window Size</div>
+      <div class="text-sm text-muted-foreground">{{ t().windowSize }}</div>
     </div>
     <div class="p-4 border rounded-lg">
       <div class="text-2xl font-bold text-primary">{{ virtualScrollWindowStart() }}</div>
-      <div class="text-sm text-muted-foreground">Window Start</div>
+      <div class="text-sm text-muted-foreground">{{ t().windowStart }}</div>
     </div>
     <div class="p-4 border rounded-lg">
       <div class="text-2xl font-bold text-primary">{{ (virtualScrollProgress() * 100).toFixed(0) }}%</div>
-      <div class="text-sm text-muted-foreground">Scroll Progress</div>
+      <div class="text-sm text-muted-foreground">{{ t().scrollProgress }}</div>
     </div>
   </div>
 
   <div class="p-4 bg-muted rounded-lg text-sm space-y-2">
-    <p class="font-medium">How it works:</p>
+    <p class="font-medium">{{ t().howItWorks }}</p>
     <ul class="list-disc list-inside space-y-1 text-muted-foreground">
-      <li><strong>Window-based rendering:</strong> Only renders a fixed "window" of items (default: 8
-        visible + 4 buffer on each side)</li>
-      <li><strong>No height measurement:</strong> Uses estimated height for scrollbar only - actual
-        rendering doesn't depend on it</li>
-      <li><strong>90% threshold:</strong> When you scroll to 90% of the window, it shifts to show new
-        items</li>
-      <li><strong>Infinite scroll:</strong> Works seamlessly with bi-directional loading</li>
-      <li><strong>Works with any content:</strong> From 50px to 2000px+ items - no configuration needed
-      </li>
+      <li>{{ t().bullet1 }}</li>
+      <li>{{ t().bullet2 }}</li>
+      <li>{{ t().bullet3 }}</li>
+      <li>{{ t().bullet4 }}</li>
+      <li>{{ t().bullet5 }}</li>
     </ul>
   </div>
 </section>
