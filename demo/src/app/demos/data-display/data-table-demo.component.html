@@ -1,7 +1,7 @@
 <!-- Quick Reference Guide -->
 <section class="space-y-4 sm:space-y-6">
   <div>
-    <h2 id="guide" class="text-2xl font-semibold scroll-m-20">Data Table Guide</h2>
+    <h2 id="guide" class="text-2xl font-semibold scroll-m-20">{{ t().guideHeading }}</h2>
     <p class="text-muted-foreground mt-1">
       Everything the data table can do, organized by feature. Click any feature to jump to its live demo.
     </p>
@@ -11,7 +11,7 @@
 
     <!-- Data & Rendering -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Data & Rendering</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardDataRendering }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <a href="#data-table" (click)="scrollTo('data-table', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Client-side table</a>
@@ -42,7 +42,7 @@
 
     <!-- Server-Side & Loading -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Server-Side & Loading</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardServerSide }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <a href="#data-table-server" (click)="scrollTo('data-table-server', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Server-side pagination</a>
@@ -80,7 +80,7 @@
 
     <!-- Sorting & Filtering -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Sorting & Filtering</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardSortingFiltering }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <span class="text-foreground font-medium">Column sorting</span>
@@ -111,7 +111,7 @@
 
     <!-- Selection & Interaction -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Selection & Interaction</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardSelectionInteraction }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <a href="#data-table" (click)="scrollTo('data-table', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Row selection</a>
@@ -142,7 +142,7 @@
 
     <!-- Columns -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Column Features</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardColumnFeatures }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <a href="#data-table-resizable" (click)="scrollTo('data-table-resizable', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Resizable columns</a>
@@ -173,7 +173,7 @@
 
     <!-- Expansion & Tree -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Expansion & Tree Data</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardExpansionTree }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <a href="#data-table-ops" (click)="scrollTo('data-table-ops', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Row detail panel</a>
@@ -196,7 +196,7 @@
 
     <!-- Row Drag -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Row Drag & Reorder</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardRowDrag }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <a href="#data-table-drag" (click)="scrollTo('data-table-drag', $event)" class="text-foreground font-medium hover:underline cursor-pointer">Flat drag</a>
@@ -219,7 +219,7 @@
 
     <!-- Virtual Scroll -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Virtual Scroll</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardVirtualScroll }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <a href="#data-table-virtual" (click)="scrollTo('data-table-virtual', $event)" class="text-foreground font-medium hover:underline cursor-pointer">2D virtual scroll</a>
@@ -246,7 +246,7 @@
 
     <!-- Display Options -->
     <div class="rounded-lg border p-3 sm:p-4 space-y-2">
-      <h3 class="text-sm font-semibold">Display & UI</h3>
+      <h3 class="text-sm font-semibold">{{ t().cardDisplayUi }}</h3>
       <ul class="text-xs text-muted-foreground space-y-1.5">
         <li>
           <span class="text-foreground font-medium">Toolbar</span>
@@ -279,7 +279,7 @@
 
   <!-- Gotchas -->
   <div class="rounded-lg border border-yellow-500/30 bg-yellow-500/5 p-3 sm:p-4 space-y-2">
-    <h3 class="text-sm font-semibold">Watch Out</h3>
+    <h3 class="text-sm font-semibold">{{ t().cardWatchOut }}</h3>
     <ul class="text-xs text-muted-foreground space-y-1">
       <li><code class="bg-muted px-1 rounded">enableVirtualScroll="auto"</code> won't activate while pagination is on (the default). Set <code class="bg-muted px-1 rounded">[showPagination]="false"</code> first.</li>
       <li><code class="bg-muted px-1 rounded">enableSubRows</code> and <code class="bg-muted px-1 rounded">enableRowExpansion</code> are different features: tree children vs. detail panel. Using both adds two expanders per row.</li>
@@ -294,7 +294,7 @@
 <!-- Demos -->
 
 <section class="space-y-4">
-  <h2 id="data-table" class="text-2xl font-semibold scroll-m-20">Data Table (Client-Side)</h2>
+  <h2 id="data-table" class="text-2xl font-semibold scroll-m-20">{{ t().sectionClientSide }}</h2>
   <p class="text-muted-foreground">
     A powerful table component with sorting, filtering, and pagination.
   </p>
@@ -308,7 +308,7 @@
     </ui-button>
   </div>
   <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
-    <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns" [enableRowSelection]="true"
+    <ui-data-table #clientTable [data]="payments()" [columns]="paymentColumns()" [enableRowSelection]="true"
       [(rowSelection)]="selection" [rowActions]="paymentRowActions" />
   </div>
   <div class="text-sm text-muted-foreground">
@@ -318,20 +318,20 @@
 
 <!-- Resizable Columns Section -->
 <section class="space-y-4">
-  <h2 id="data-table-resizable" class="text-2xl font-semibold scroll-m-20">Data Table (Resizable Columns)</h2>
+  <h2 id="data-table-resizable" class="text-2xl font-semibold scroll-m-20">{{ t().sectionResizable }}</h2>
   <p class="text-muted-foreground">
     Drag the right edge of column headers to resize columns. Minimum width is enforced.
   </p>
 
   <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
-    <ui-data-table [data]="payments()" [columns]="resizableColumns" [enableColumnResize]="true"
+    <ui-data-table [data]="payments()" [columns]="resizableColumns()" [enableColumnResize]="true"
       (columnResize)="onColumnResize($event)" />
   </div>
 </section>
 
 <!-- Server-Side Data Table Section -->
 <section class="space-y-4">
-  <h2 id="data-table-server" class="text-2xl font-semibold scroll-m-20">Data Table (Server-Side)</h2>
+  <h2 id="data-table-server" class="text-2xl font-semibold scroll-m-20">{{ t().sectionServerSide }}</h2>
   <p class="text-muted-foreground">
     Simulated server-side sorting, filtering, and pagination with 1s delay.
   </p>
@@ -351,7 +351,7 @@
     </div>
     }
 
-    <ui-data-table #serverGrid [data]="serverData()" [columns]="paymentColumns" [total]="serverTotal()"
+    <ui-data-table #serverGrid [data]="serverData()" [columns]="paymentColumns()" [total]="serverTotal()"
       [localSorting]="false" [localPagination]="false" [localFiltering]="false"
       (sortChange)="onServerSort($event)" (pageChange)="onServerPage($event)"
       (filterChange)="onServerFilter($event)" (columnFiltersChange)="onServerColumnFilters($event)" />
@@ -364,7 +364,7 @@
 </section>
 
 <section class="space-y-4">
-  <h2 id="data-table-ops" class="text-2xl font-semibold scroll-m-20">Data Table (Operations Console)</h2>
+  <h2 id="data-table-ops" class="text-2xl font-semibold scroll-m-20">{{ t().sectionOpsConsole }}</h2>
   <p class="text-muted-foreground">
     Realistic incident operations grid using server-mode pagination/filter/sort, multi-sort (Shift+Click),
     right/left pinning, row expansion, layout persistence, and trigger-aware custom loaders.
@@ -408,7 +408,7 @@
   </div>
 
   <div class="rounded-md border h-[400px] sm:h-[680px] overflow-auto relative">
-    <ui-data-table #opsGrid [data]="opsData()" [columns]="opsColumns" [total]="opsTotal()"
+    <ui-data-table #opsGrid [data]="opsData()" [columns]="opsColumns()" [total]="opsTotal()"
       [loading]="opsLoading()" [loadingVisibility]="opsLoadingVisibility()"
       [loaderComponent]="opsLoaderComponent" [loaderComponentInputs]="{ total: opsTotal() }"
       [enableColumnResize]="true" [enableColumnReorder]="true" [enableRowExpansion]="true"
@@ -447,7 +447,7 @@
 
 <!-- Hebrew RTL Demo Section -->
 <section class="space-y-4">
-  <h2 id="data-table-rtl" class="text-2xl font-semibold scroll-m-20">Data Table (Hebrew RTL)</h2>
+  <h2 id="data-table-rtl" class="text-2xl font-semibold scroll-m-20">{{ t().sectionHebrewRtl }}</h2>
   <p class="text-muted-foreground">
     Full RTL layout with Hebrew locale. Column headers, filter labels, date picker presets, and sort indicators
     are all rendered right-to-left. The date filter uses <code class="text-xs bg-muted px-1 rounded">locale="he"</code> via <code class="text-xs bg-muted px-1 rounded">filterComponentInputs</code>.
@@ -467,20 +467,20 @@
 
 <!-- Custom Cells Demo Section -->
 <section class="space-y-4">
-  <h2 id="data-table-custom" class="text-2xl font-semibold scroll-m-20">Data Table (Custom Cell Components)</h2>
+  <h2 id="data-table-custom" class="text-2xl font-semibold scroll-m-20">{{ t().sectionCustomCells }}</h2>
   <p class="text-muted-foreground">
     Demonstrating dynamic component rendering with custom cell components. Each column specifies a component
     type and inputs.
   </p>
 
   <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
-    <ui-data-table [data]="payments()" [columns]="customCellsColumns" />
+    <ui-data-table [data]="payments()" [columns]="customCellsColumns()" />
   </div>
 </section>
 
 <!-- Sub-Rows (Tree Data) Section -->
 <section class="space-y-4">
-  <h2 id="data-table-tree" class="text-2xl font-semibold scroll-m-20">Data Table (Sub-Rows / Tree Data)</h2>
+  <h2 id="data-table-tree" class="text-2xl font-semibold scroll-m-20">{{ t().sectionSubRows }}</h2>
   <p class="text-muted-foreground">
     Hierarchical rows where children share the same columns as parents. Supports nested expand/collapse,
     cascading selection, tree-aware filtering, and recursive sorting.
@@ -538,7 +538,7 @@
   <div class="rounded-md border h-[400px] sm:h-[600px] overflow-auto relative">
     <ui-data-table #treeTable
       [data]="orgTreeData()"
-      [columns]="orgTreeColumns"
+      [columns]="orgTreeColumns()"
       [enableSubRows]="true"
       [enableRowSelection]="true"
       [subRowDefaultExpanded]="1"
@@ -616,7 +616,7 @@
 
 <!-- Inline Editing Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-editing" class="text-2xl font-semibold scroll-m-20">Inline Cell Editing</h2>
+  <h2 id="data-table-editing" class="text-2xl font-semibold scroll-m-20">{{ t().sectionInlineEditing }}</h2>
   <p class="text-muted-foreground">
     Double-click or press Enter/F2 on a focused cell to edit. Escape cancels, Enter commits, Tab moves to the next cell.
     Supports text, number, and select editors out of the box. Columns can define an
@@ -626,7 +626,7 @@
   <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [(data)]="editableData"
-      [columns]="editableColumns"
+      [columns]="editableColumns()"
       [showPagination]="false"
       [showToolbar]="false"
       (cellEdit)="onCellEdit($event)"
@@ -645,7 +645,7 @@
 
 <!-- Footer Aggregations Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-footer" class="text-2xl font-semibold scroll-m-20">Footer Aggregations</h2>
+  <h2 id="data-table-footer" class="text-2xl font-semibold scroll-m-20">{{ t().sectionFooterAggregations }}</h2>
   <p class="text-muted-foreground">
     Columns can define <code class="text-xs bg-muted px-1 rounded">aggregateFn</code> (sum, avg, count, min, max) or a custom <code class="text-xs bg-muted px-1 rounded">footer</code> string/function.
     The footer row auto-appears when any column has an aggregate.
@@ -653,7 +653,7 @@
   <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
-      [columns]="footerColumns"
+      [columns]="footerColumns()"
       [showFooter]="true"
       [showToolbar]="false"
     />
@@ -662,7 +662,7 @@
 
 <!-- Row Grouping Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-grouping" class="text-2xl font-semibold scroll-m-20">Row Grouping</h2>
+  <h2 id="data-table-grouping" class="text-2xl font-semibold scroll-m-20">{{ t().sectionRowGrouping }}</h2>
   <p class="text-muted-foreground">
     Set <code class="text-xs bg-muted px-1 rounded">groupBy</code> to a column's accessorKey to render
     collapsible group-header rows with per-group aggregation. Click a group header to collapse it.
@@ -681,7 +681,7 @@
     <ui-data-table
       #groupTable
       [data]="payments()"
-      [columns]="groupingColumns"
+      [columns]="groupingColumns()"
       groupBy="status"
       [groupAggregates]="true"
       [(collapsedGroups)]="groupCollapsed"
@@ -692,7 +692,7 @@
 
 <!-- Column Header Menu Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-column-menu" class="text-2xl font-semibold scroll-m-20">Column Header Menu</h2>
+  <h2 id="data-table-column-menu" class="text-2xl font-semibold scroll-m-20">{{ t().sectionColumnMenu }}</h2>
   <p class="text-muted-foreground">
     Enable <code class="text-xs bg-muted px-1 rounded">enableColumnMenu</code> to show a dropdown on each header with Sort, Pin, Hide, and Show All options.
     Hover over a column header to see the menu button.
@@ -700,7 +700,7 @@
   <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
-      [columns]="menuColumns"
+      [columns]="menuColumns()"
       [enableColumnMenu]="true"
       [enableColumnResize]="true"
     />
@@ -709,7 +709,7 @@
 
 <!-- Floating Filters Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-floating-filters" class="text-2xl font-semibold scroll-m-20">Floating Filters</h2>
+  <h2 id="data-table-floating-filters" class="text-2xl font-semibold scroll-m-20">{{ t().sectionFloatingFilters }}</h2>
   <p class="text-muted-foreground">
     Per-column filter inputs rendered in a second header row. Always visible, no popover needed.
     Enable with <code class="text-xs bg-muted px-1 rounded">enableFloatingFilters</code>.
@@ -717,7 +717,7 @@
   <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
-      [columns]="floatingFilterColumns"
+      [columns]="floatingFilterColumns()"
       [enableFloatingFilters]="true"
       [showToolbar]="false"
     />
@@ -726,7 +726,7 @@
 
 <!-- Row Disabling Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-disabled" class="text-2xl font-semibold scroll-m-20">Disabled Rows</h2>
+  <h2 id="data-table-disabled" class="text-2xl font-semibold scroll-m-20">{{ t().sectionDisabledRows }}</h2>
   <p class="text-muted-foreground">
     Rows with <code class="text-xs bg-muted px-1 rounded">status === 'failed'</code> are disabled via the <code class="text-xs bg-muted px-1 rounded">isRowDisabled</code> function.
     Disabled rows cannot be selected, edited, or dragged. Keyboard navigation skips them.
@@ -734,7 +734,7 @@
   <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
-      [columns]="paymentColumns"
+      [columns]="paymentColumns()"
       [enableRowSelection]="true"
       [isRowDisabled]="isPaymentDisabled"
       [showToolbar]="false"
@@ -744,7 +744,7 @@
 
 <!-- Row Drag & Reorder Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-drag" class="text-2xl font-semibold scroll-m-20">Row Drag &amp; Reorder</h2>
+  <h2 id="data-table-drag" class="text-2xl font-semibold scroll-m-20">{{ t().sectionRowDrag }}</h2>
   <p class="text-muted-foreground">
     Drag rows to reorder. Failed rows are disabled and cannot be dragged.
     The blue indicator shows the drop position.
@@ -752,7 +752,7 @@
   <div class="h-[280px] sm:h-[350px]">
     <ui-data-table
       [data]="draggableData()"
-      [columns]="paymentColumns"
+      [columns]="paymentColumns()"
       [enableRowDrag]="true"
       [isRowDisabled]="isPaymentDisabled"
       [showPagination]="false"
@@ -771,14 +771,14 @@
 
 <!-- Cell Range Selection Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-range" class="text-2xl font-semibold scroll-m-20">Cell Range Selection</h2>
+  <h2 id="data-table-range" class="text-2xl font-semibold scroll-m-20">{{ t().sectionCellRange }}</h2>
   <p class="text-muted-foreground">
     Click a cell to focus it, then Shift+Click another to select a range. Ctrl+C copies the range as tab-separated text. Escape clears the range.
   </p>
   <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
       [data]="payments()"
-      [columns]="paymentColumns"
+      [columns]="paymentColumns()"
       [enableCellRangeSelection]="true"
       [enableCopy]="true"
       [showToolbar]="false"
@@ -788,7 +788,7 @@
 
 <!-- Column Builder API Demo -->
 <section class="space-y-4">
-  <h2 id="data-table-builder" class="text-2xl font-semibold scroll-m-20">Column Builder API</h2>
+  <h2 id="data-table-builder" class="text-2xl font-semibold scroll-m-20">{{ t().sectionColumnBuilder }}</h2>
   <p class="text-muted-foreground">
     Type-safe fluent API for defining columns:
     <code class="text-xs bg-muted px-1 rounded">columnHelper&lt;T&gt;().accessor('name', 'Name', &#123; ... &#125;).build()</code>
@@ -796,7 +796,7 @@
   <div class="h-[280px] sm:h-[350px]">
     <ui-data-table
       [data]="payments()"
-      [columns]="builderColumns"
+      [columns]="builderColumns()"
       [showToolbar]="false"
     />
   </div>
@@ -804,7 +804,7 @@
 
 <!-- Virtual Scroll Demo Section -->
 <section class="space-y-4">
-  <h2 id="data-table-virtual" class="text-2xl font-semibold scroll-m-20">Data Table (Virtual Scroll — 10k rows × 100 cols)</h2>
+  <h2 id="data-table-virtual" class="text-2xl font-semibold scroll-m-20">{{ t().sectionVirtualScroll }}</h2>
   <p class="text-muted-foreground">
     High-performance 2D virtual scrolling with component recycling comparison.
     Toggle between lightweight and heavyweight cell components to see recycling impact.
