@@ -1,0 +1,61 @@
+// demo/src/app/demos/inputs/label-demo.locales.ts
+import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
+
+export interface LabelDemoLocale extends LocaleMeta {
+  title: string;
+  description: string;
+  termsLabel: string;
+}
+
+export const LABEL_DEMO_LOCALES: Record<string, LabelDemoLocale> = {
+  en: { code: 'en',
+    title: 'Label',
+    description: 'Renders an accessible label associated with a control.',
+    termsLabel: 'Accept terms and conditions',
+  },
+  he: { code: 'he', rtl: true,
+    title: 'תווית',
+    description: 'מרנדר תווית נגישה המשויכת לפקד.',
+    termsLabel: 'קבל את התנאים וההגבלות',
+  },
+  ar: { code: 'ar', rtl: true,
+    title: 'تسمية',
+    description: 'يعرض تسمية يمكن الوصول إليها مرتبطة بعنصر تحكم.',
+    termsLabel: 'قبول الشروط والأحكام',
+  },
+  de: { code: 'de',
+    title: 'Beschriftung',
+    description: 'Rendert eine barrierefreie Beschriftung, die einem Steuerelement zugeordnet ist.',
+    termsLabel: 'Geschäftsbedingungen akzeptieren',
+  },
+  fr: { code: 'fr',
+    title: 'Étiquette',
+    description: 'Affiche une étiquette accessible associée à un contrôle.',
+    termsLabel: 'Accepter les termes et conditions',
+  },
+  es: { code: 'es',
+    title: 'Etiqueta',
+    description: 'Renderiza una etiqueta accesible asociada a un control.',
+    termsLabel: 'Aceptar términos y condiciones',
+  },
+  ja: { code: 'ja',
+    title: 'ラベル',
+    description: 'コントロールに関連付けられたアクセシブルなラベルを表示します。',
+    termsLabel: '利用規約に同意する',
+  },
+  zh: { code: 'zh',
+    title: '标签',
+    description: '渲染与控件关联的无障碍标签。',
+    termsLabel: '接受条款和条件',
+  },
+  ru: { code: 'ru',
+    title: 'Метка',
+    description: 'Отображает доступную метку, связанную с элементом управления.',
+    termsLabel: 'Принять условия использования',
+  },
+  pt: { code: 'pt',
+    title: 'Rótulo',
+    description: 'Renderiza um rótulo acessível associado a um controle.',
+    termsLabel: 'Aceitar termos e condições',
+  },
+};
