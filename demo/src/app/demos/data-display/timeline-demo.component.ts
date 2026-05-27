@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   TimelineComponent,
   TimelineConnectorComponent,
@@ -10,6 +10,8 @@ import {
   TimelineTimeComponent,
   TimelineTitleComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { TIMELINE_DEMO_LOCALES } from './timeline-demo.locales';
 
 @Component({
   selector: 'app-timeline-demo',
@@ -27,10 +29,8 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="timeline" class="text-2xl font-semibold scroll-m-20">Timeline</h2>
-      <p class="text-muted-foreground">
-        A vertical list of events with connecting lines and markers.
-      </p>
+      <h2 id="timeline" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <ui-timeline>
         <ui-timeline-item>
@@ -39,9 +39,9 @@ import {
             <ui-timeline-connector />
           </ui-timeline-header>
           <ui-timeline-content>
-            <ui-timeline-title>Version 2.0 Released</ui-timeline-title>
-            <ui-timeline-description>Major update with new features and improvements.</ui-timeline-description>
-            <ui-timeline-time>January 2024</ui-timeline-time>
+            <ui-timeline-title>{{ t().event1Title }}</ui-timeline-title>
+            <ui-timeline-description>{{ t().event1Description }}</ui-timeline-description>
+            <ui-timeline-time>{{ t().event1Time }}</ui-timeline-time>
           </ui-timeline-content>
         </ui-timeline-item>
         <ui-timeline-item>
@@ -50,9 +50,9 @@ import {
             <ui-timeline-connector />
           </ui-timeline-header>
           <ui-timeline-content>
-            <ui-timeline-title>Beta Testing</ui-timeline-title>
-            <ui-timeline-description>Started beta testing with early adopters.</ui-timeline-description>
-            <ui-timeline-time>December 2023</ui-timeline-time>
+            <ui-timeline-title>{{ t().event2Title }}</ui-timeline-title>
+            <ui-timeline-description>{{ t().event2Description }}</ui-timeline-description>
+            <ui-timeline-time>{{ t().event2Time }}</ui-timeline-time>
           </ui-timeline-content>
         </ui-timeline-item>
         <ui-timeline-item>
@@ -60,13 +60,16 @@ import {
             <ui-timeline-dot variant="default" />
           </ui-timeline-header>
           <ui-timeline-content>
-            <ui-timeline-title>Project Started</ui-timeline-title>
-            <ui-timeline-description>Initial development began.</ui-timeline-description>
-            <ui-timeline-time>October 2023</ui-timeline-time>
+            <ui-timeline-title>{{ t().event3Title }}</ui-timeline-title>
+            <ui-timeline-description>{{ t().event3Description }}</ui-timeline-description>
+            <ui-timeline-time>{{ t().event3Time }}</ui-timeline-time>
           </ui-timeline-content>
         </ui-timeline-item>
       </ui-timeline>
     </section>
   `,
 })
-export class TimelineDemoComponent {}
+export class TimelineDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  readonly t = computed(() => TIMELINE_DEMO_LOCALES[this.localeId()] ?? TIMELINE_DEMO_LOCALES['en']);
+}
