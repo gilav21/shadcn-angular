@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import {
   ButtonComponent,
   CommandComponent,
@@ -13,6 +13,8 @@ import {
   IconComponent,
   KbdComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { COMMAND_DEMO_LOCALES } from './command-demo.locales';
 
 @Component({
   selector: 'app-command-demo',
@@ -33,69 +35,68 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="command" class="text-2xl font-semibold scroll-m-20">Command</h2>
-      <p class="text-muted-foreground">A command palette for quick actions.</p>
+      <h2 id="command" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <ui-command class="max-w-md rounded-lg border shadow-md">
-        <ui-command-input placeholder="Type a command or search..." />
+        <ui-command-input [placeholder]="t().placeholder" />
         <ui-command-list>
-          <ui-command-empty>No results found.</ui-command-empty>
-          <ui-command-group heading="Suggestions">
+          <ui-command-empty>{{ t().noResults }}</ui-command-empty>
+          <ui-command-group [heading]="t().suggestionsHeading">
             <ui-command-item value="calendar">
               <ui-icon name="calendar" class="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-              <span>Calendar</span>
+              <span>{{ t().calendarLabel }}</span>
             </ui-command-item>
             <ui-command-item value="search-emoji">
               <ui-icon name="smile" class="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-              <span>Search Emoji</span>
+              <span>{{ t().searchEmojiLabel }}</span>
             </ui-command-item>
             <ui-command-item value="launch">
               <ui-icon name="zap" class="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-              <span>Launch</span>
+              <span>{{ t().launchLabel }}</span>
             </ui-command-item>
           </ui-command-group>
           <ui-command-separator />
-          <ui-command-group heading="Settings">
+          <ui-command-group [heading]="t().settingsHeading">
             <ui-command-item value="profile">
               <ui-icon name="user" class="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-              <span>Profile</span>
-              <ui-command-shortcut>\u2318P</ui-command-shortcut>
+              <span>{{ t().profileLabel }}</span>
+              <ui-command-shortcut>&#8984;P</ui-command-shortcut>
             </ui-command-item>
             <ui-command-item value="mail">
               <ui-icon name="mail" class="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-              <span>Mail</span>
-              <ui-command-shortcut>\u2318B</ui-command-shortcut>
+              <span>{{ t().mailLabel }}</span>
+              <ui-command-shortcut>&#8984;B</ui-command-shortcut>
             </ui-command-item>
             <ui-command-item value="settings">
               <ui-icon name="settings" class="ltr:mr-2 rtl:ml-2 h-4 w-4" />
-              <span>Settings</span>
-              <ui-command-shortcut>\u2318S</ui-command-shortcut>
+              <span>{{ t().settingsLabel }}</span>
+              <ui-command-shortcut>&#8984;S</ui-command-shortcut>
             </ui-command-item>
           </ui-command-group>
         </ui-command-list>
       </ui-command>
       <div class="flex flex-col gap-2">
-        <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">Show command
-          dialog</ui-button>
-        <p class="text-sm text-muted-foreground">Press <ui-kbd>\u2318</ui-kbd> <ui-kbd>K</ui-kbd></p>
+        <ui-button class="w-60" variant="outline" (click)="showCommandDialog.set(true)">{{ t().showDialogLabel }}</ui-button>
+        <p class="text-sm text-muted-foreground">{{ t().pressHint }} <ui-kbd>&#8984;</ui-kbd> <ui-kbd>K</ui-kbd></p>
       </div>
     </section>
 
     <ui-command-dialog [(open)]="showCommandDialog">
       <ui-command>
-        <ui-command-input placeholder="Type a command or search..." />
+        <ui-command-input [placeholder]="t().placeholder" />
         <ui-command-list>
-          <ui-command-empty>No results found.</ui-command-empty>
-          <ui-command-group heading="Suggestions">
-            <ui-command-item value="calendar">Calendar</ui-command-item>
-            <ui-command-item value="search-emoji">Search Emoji</ui-command-item>
-            <ui-command-item value="launch">Launch</ui-command-item>
+          <ui-command-empty>{{ t().noResults }}</ui-command-empty>
+          <ui-command-group [heading]="t().suggestionsHeading">
+            <ui-command-item value="calendar">{{ t().calendarLabel }}</ui-command-item>
+            <ui-command-item value="search-emoji">{{ t().searchEmojiLabel }}</ui-command-item>
+            <ui-command-item value="launch">{{ t().launchLabel }}</ui-command-item>
           </ui-command-group>
           <ui-command-separator />
-          <ui-command-group heading="Settings">
-            <ui-command-item value="profile">Profile <ui-command-shortcut>\u2318P</ui-command-shortcut></ui-command-item>
-            <ui-command-item value="mail">Mail <ui-command-shortcut>\u2318B</ui-command-shortcut></ui-command-item>
-            <ui-command-item value="settings">Settings <ui-command-shortcut>\u2318S</ui-command-shortcut></ui-command-item>
+          <ui-command-group [heading]="t().settingsHeading">
+            <ui-command-item value="profile">{{ t().profileLabel }} <ui-command-shortcut>&#8984;P</ui-command-shortcut></ui-command-item>
+            <ui-command-item value="mail">{{ t().mailLabel }} <ui-command-shortcut>&#8984;B</ui-command-shortcut></ui-command-item>
+            <ui-command-item value="settings">{{ t().settingsLabel }} <ui-command-shortcut>&#8984;S</ui-command-shortcut></ui-command-item>
           </ui-command-group>
         </ui-command-list>
       </ui-command>
@@ -103,5 +104,9 @@ import {
   `,
 })
 export class CommandDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => COMMAND_DEMO_LOCALES[this.localeId()] ?? COMMAND_DEMO_LOCALES['en'],
+  );
   readonly showCommandDialog = signal(false);
 }

@@ -1,28 +1,24 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import {
     extractDominantColors,
     type ExtractAlgorithm,
 } from '../../../../../packages/components/lib/color-extract';
 import { formatHex } from '../../../../../packages/components/lib/color';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { IMAGE_EXTRACT_DEMO_LOCALES } from './image-extract-demo.locales';
 
 @Component({
     selector: 'app-image-extract-demo',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <section class="space-y-6">
-      <h2 id="image-extract" class="text-2xl font-semibold scroll-m-20">Image color extraction</h2>
-      <p class="text-muted-foreground">
-        The standalone utility powering the color picker's image-pick mode.
-        Drop in any image source — URL, File, Blob, <code>&lt;img&gt;</code>,
-        <code>&lt;canvas&gt;</code>, or <code>ImageBitmap</code> — and get a
-        dominant-color palette back. Median-cut by default; k-means available
-        via the <code>algorithm</code> option.
-      </p>
+      <h2 id="image-extract" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <article class="space-y-3">
         <div class="flex flex-wrap items-center gap-2">
           <label class="text-sm">
-            Algorithm
+            {{ t().algorithmLabel }}
             <select
               class="ml-2 rounded border border-input bg-background px-2 py-1 text-sm"
               [value]="algorithm()"
@@ -33,7 +29,7 @@ import { formatHex } from '../../../../../packages/components/lib/color';
             </select>
           </label>
           <label class="text-sm">
-            Count
+            {{ t().countLabel }}
             <input
               type="number"
               min="2"
@@ -53,9 +49,9 @@ import { formatHex } from '../../../../../packages/components/lib/color';
 
         @if (preview()) {
           <div class="flex items-start gap-4">
-            <img [src]="preview()" alt="Selected image" class="max-w-xs rounded-md" />
+            <img [src]="preview()" [alt]="t().imgAlt" class="max-w-xs rounded-md" />
             <div class="space-y-2">
-              <p class="text-sm text-muted-foreground">Palette</p>
+              <p class="text-sm text-muted-foreground">{{ t().paletteLabel }}</p>
               <div class="flex flex-wrap gap-2">
                 @for (color of palette(); track color) {
                   <div class="flex flex-col items-center gap-1">
@@ -67,13 +63,16 @@ import { formatHex } from '../../../../../packages/components/lib/color';
             </div>
           </div>
         } @else {
-          <p class="text-sm text-muted-foreground">Pick an image to extract its dominant colors.</p>
+          <p class="text-sm text-muted-foreground">{{ t().emptyPrompt }}</p>
         }
       </article>
     </section>
   `,
 })
 export class ImageExtractDemoComponent {
+    private readonly localeId = inject(UI_LOCALE_ID);
+    protected readonly t = computed(() => IMAGE_EXTRACT_DEMO_LOCALES[this.localeId()] ?? IMAGE_EXTRACT_DEMO_LOCALES['en']);
+
     readonly algorithm = signal<ExtractAlgorithm>('median-cut');
     readonly count = signal(6);
     readonly preview = signal<string | null>(null);

@@ -44,6 +44,8 @@ import {
   dateRangeFilterFn,
   multiselectFilterFn,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { DATA_TABLE_DEMO_LOCALES } from './data-table-demo.locales';
 import { Payment, OrgNode, OpsTicket } from '../shared/types';
 import { StatusCellComponent } from '../../cells/status-cell.component';
 import { AmountCellComponent } from '../../cells/amount-cell.component';
@@ -607,6 +609,8 @@ class OpsTicketDetailComponent {
 })
 export class DataTableDemoComponent {
   private readonly toastService = inject(ToastService);
+  private readonly localeId = inject(UI_LOCALE_ID);
+  readonly t = computed(() => DATA_TABLE_DEMO_LOCALES[this.localeId()] ?? DATA_TABLE_DEMO_LOCALES['en']);
 
   scrollTo(id: string, event: Event) {
     event.preventDefault();
@@ -626,28 +630,31 @@ export class DataTableDemoComponent {
   readonly selection = signal<Record<string, boolean>>({});
   readonly selectionCount = computed(() => Object.keys(this.selection()).filter(k => this.selection()[k]).length);
 
-  readonly paymentColumns: ColumnDef<Payment>[] = [
-    { accessorKey: 'id', header: 'ID', enableSorting: true, sticky: true, width: '100px' },
-    { accessorKey: 'email', header: 'Email', enableSorting: true, width: 'auto' },
-    { accessorKey: 'amount', header: 'Amount', enableSorting: true, width: '150px' },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      enableSorting: true,
-      enableFiltering: true,
-      filterComponent: DataTableMultiselectFilterComponent,
-      filterComponentInputs: {
-        options: ['pending', 'processing', 'success', 'failed'],
-        placeholder: 'Filter status...',
-        title: 'Status',
+  readonly paymentColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, enableSorting: true, sticky: true, width: '100px' },
+      { accessorKey: 'email', header: locale.colEmail, enableSorting: true, width: 'auto' },
+      { accessorKey: 'amount', header: locale.colAmount, enableSorting: true, width: '150px' },
+      {
+        accessorKey: 'status',
+        header: locale.colStatus,
+        enableSorting: true,
+        enableFiltering: true,
+        filterComponent: DataTableMultiselectFilterComponent,
+        filterComponentInputs: {
+          options: ['pending', 'processing', 'success', 'failed'],
+          placeholder: 'Filter status...',
+          title: locale.colStatus,
+        },
+        filterFn: (row: Payment, filterValue: unknown) =>
+          multiselectFilterFn(row, filterValue as string[] | null, (r: Payment) => r.status),
+        width: '150px',
       },
-      filterFn: (row: Payment, filterValue: unknown) =>
-        multiselectFilterFn(row, filterValue as string[] | null, (r: Payment) => r.status),
-      width: '150px',
-    },
-    { accessorKey: 'clientName', header: 'Client Name', width: 'auto' },
-    { accessorKey: 'role', header: 'Role', width: '150px' },
-  ];
+      { accessorKey: 'clientName', header: locale.colClientName, width: 'auto' },
+      { accessorKey: 'role', header: locale.colRole, width: '150px' },
+    ];
+  });
 
   readonly hebrewRtlData = signal([
     { id: 'INV-001', customer: '\u05D0\u05DC\u05D5\u05DF \u05DB\u05D4\u05DF', amount: 1250, status: '\u05D4\u05D5\u05E9\u05DC\u05DD', date: '2024-06-15' },
@@ -699,14 +706,17 @@ export class DataTableDemoComponent {
     },
   ];
 
-  readonly resizableColumns: ColumnDef<Payment>[] = [
-    { accessorKey: 'id', header: 'ID', enableSorting: true, width: '80px', minWidth: '60px' },
-    { accessorKey: 'email', header: 'Email', enableSorting: true, width: '250px', minWidth: '100px' },
-    { accessorKey: 'amount', header: 'Amount', enableSorting: true, width: '120px', minWidth: '80px' },
-    { accessorKey: 'status', header: 'Status', enableSorting: true, width: '130px', minWidth: '80px' },
-    { accessorKey: 'clientName', header: 'Client Name', width: '200px', minWidth: '100px' },
-    { accessorKey: 'role', header: 'Role', width: '120px', minWidth: '80px' },
-  ];
+  readonly resizableColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, enableSorting: true, width: '80px', minWidth: '60px' },
+      { accessorKey: 'email', header: locale.colEmail, enableSorting: true, width: '250px', minWidth: '100px' },
+      { accessorKey: 'amount', header: locale.colAmount, enableSorting: true, width: '120px', minWidth: '80px' },
+      { accessorKey: 'status', header: locale.colStatus, enableSorting: true, width: '130px', minWidth: '80px' },
+      { accessorKey: 'clientName', header: locale.colClientName, width: '200px', minWidth: '100px' },
+      { accessorKey: 'role', header: locale.colRole, width: '120px', minWidth: '80px' },
+    ];
+  });
 
   onColumnResize(_event: ColumnResizeEvent): void {
     // Column resize handled by data table internally
@@ -734,52 +744,55 @@ export class DataTableDemoComponent {
     },
   ];
 
-  readonly customCellsColumns: ColumnDef<Payment>[] = [
-    { accessorKey: 'id', header: 'ID', enableSorting: true, width: '100px' },
-    {
-      accessorKey: 'email',
-      header: 'Email',
-      enableSorting: true,
-      width: 'auto',
-      enableFiltering: true,
-      filterComponent: TextFilterComponent,
-    },
-    {
-      accessorKey: 'amount',
-      header: 'Amount',
-      enableSorting: true,
-      width: '150px',
-      component: AmountCellComponent,
-      componentInputs: (row) => ({ amount: row.amount }),
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      enableSorting: true,
-      width: '150px',
-      component: StatusCellComponent,
-      componentInputs: (row) => ({ status: row.status }),
-      sortFn: (a, b) => {
-        const statusOrder: Record<string, number> = { success: 0, processing: 1, pending: 2, failed: 3 };
-        return statusOrder[a.status] - statusOrder[b.status];
+  readonly customCellsColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, enableSorting: true, width: '100px' },
+      {
+        accessorKey: 'email',
+        header: locale.colEmail,
+        enableSorting: true,
+        width: 'auto',
+        enableFiltering: true,
+        filterComponent: TextFilterComponent,
       },
-    },
-    {
-      accessorKey: 'actions',
-      header: 'Actions',
-      width: '200px',
-      enableSorting: false,
-      component: ActionsCellComponent,
-      componentInputs: (row) => ({
-        id: row.id,
-        email: row.email,
-      }),
-      componentOutputs: (row) => ({
-        view: () => this.handlePaymentAction('View', row),
-        edit: () => this.handlePaymentAction('Edit', row),
-      }),
-    },
-  ];
+      {
+        accessorKey: 'amount',
+        header: locale.colAmount,
+        enableSorting: true,
+        width: '150px',
+        component: AmountCellComponent,
+        componentInputs: (row) => ({ amount: row.amount }),
+      },
+      {
+        accessorKey: 'status',
+        header: locale.colStatus,
+        enableSorting: true,
+        width: '150px',
+        component: StatusCellComponent,
+        componentInputs: (row) => ({ status: row.status }),
+        sortFn: (a, b) => {
+          const statusOrder: Record<string, number> = { success: 0, processing: 1, pending: 2, failed: 3 };
+          return statusOrder[a.status] - statusOrder[b.status];
+        },
+      },
+      {
+        accessorKey: 'actions',
+        header: locale.colActions,
+        width: '200px',
+        enableSorting: false,
+        component: ActionsCellComponent,
+        componentInputs: (row) => ({
+          id: row.id,
+          email: row.email,
+        }),
+        componentOutputs: (row) => ({
+          view: () => this.handlePaymentAction('View', row),
+          edit: () => this.handlePaymentAction('Edit', row),
+        }),
+      },
+    ];
+  });
 
   handlePaymentAction(action: string, payment: Payment): void {
     this.toastService.toast({
@@ -874,14 +887,17 @@ export class DataTableDemoComponent {
     { id: 'hr', name: 'Human Resources', role: 'Department', headcount: 6, budget: 520000 },
   ]);
 
-  readonly orgTreeColumns: ColumnDef<OrgNode>[] = [
-    { accessorKey: 'name', header: 'Name', enableSorting: true, width: 'auto', minWidth: '250px' },
-    { accessorKey: 'role', header: 'Role', enableSorting: true, width: '180px' },
-    { accessorKey: 'headcount', header: 'Headcount', enableSorting: true, width: '120px',
-      cell: (row) => String(row.headcount) },
-    { accessorKey: 'budget', header: 'Budget', enableSorting: true, width: '150px',
-      cell: (row) => '$' + row.budget.toLocaleString() },
-  ];
+  readonly orgTreeColumns = computed<ColumnDef<OrgNode>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'name', header: locale.colName, enableSorting: true, width: 'auto', minWidth: '250px' },
+      { accessorKey: 'role', header: locale.colRole, enableSorting: true, width: '180px' },
+      { accessorKey: 'headcount', header: locale.colHeadcount, enableSorting: true, width: '120px',
+        cell: (row) => String(row.headcount) },
+      { accessorKey: 'budget', header: locale.colBudget, enableSorting: true, width: '150px',
+        cell: (row) => '$' + row.budget.toLocaleString() },
+    ];
+  });
 
   onTreeTableContextMenu(_event: unknown): void {
     // Context menu handled by data table internally
@@ -952,67 +968,70 @@ export class DataTableDemoComponent {
   readonly opsDetailComponent = OpsTicketDetailComponent;
   readonly opsDetailInputs = (ticket: OpsTicket) => ({ ticket });
 
-  readonly opsColumns: ColumnDef<OpsTicket>[] = [
-    {
-      accessorKey: 'id',
-      header: 'Ticket',
-      pin: 'left',
-      width: '130px',
-      enableSorting: true,
-      enableHiding: false,
-      enableReordering: false,
-    },
-    { accessorKey: 'account', header: 'Account', width: '180px', enableSorting: true },
-    { accessorKey: 'service', header: 'Service', width: '160px', enableSorting: true },
-    { accessorKey: 'region', header: 'Region', width: '110px', enableSorting: true },
-    {
-      accessorKey: 'priority',
-      header: 'Priority',
-      width: '95px',
-      enableSorting: true,
-      sortFn: (a, b) => ({ P1: 0, P2: 1, P3: 2, P4: 3 } as Record<string, number>)[a.priority] - ({ P1: 0, P2: 1, P3: 2, P4: 3 } as Record<string, number>)[b.priority],
-    },
-    {
-      accessorKey: 'status',
-      header: 'Status',
-      width: '140px',
-      enableSorting: true,
-      sortFn: (a, b) => ({ Open: 0, Investigating: 1, Mitigated: 2, Resolved: 3 } as Record<string, number>)[a.status] - ({ Open: 0, Investigating: 1, Mitigated: 2, Resolved: 3 } as Record<string, number>)[b.status],
-    },
-    { accessorKey: 'owner', header: 'Owner', width: '140px', enableSorting: true },
-    {
-      accessorKey: 'mrr',
-      header: 'MRR',
-      width: '120px',
-      enableSorting: true,
-      cell: (row) => `$${row.mrr.toLocaleString()}`,
-      enableGlobalFilter: false,
-    },
-    { accessorKey: 'slaMinutes', header: 'SLA (min)', width: '100px', enableSorting: true },
-    {
-      accessorKey: 'updatedAt',
-      header: 'Updated',
-      width: '160px',
-      enableSorting: true,
-      enableFiltering: true,
-      filterComponent: DataTableDateRangeFilterComponent,
-      filterFn: (row: OpsTicket, filterValue: unknown): boolean =>
-        dateRangeFilterFn(row, filterValue as DateRange | null, r => r.updatedAt),
-      sortFn: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
-    },
-    {
-      accessorKey: 'createdAt',
-      header: 'Created',
-      width: '160px',
-      enableSorting: true,
-      enableFiltering: true,
-      filterComponent: DataTableDateFilterComponent,
-      filterFn: (row: OpsTicket, filterValue: unknown): boolean =>
-        dateFilterFn(row, filterValue as Date | null, r => r.createdAt),
-      sortFn: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
-    },
-    { accessorKey: 'summary', header: 'Summary', width: 'auto', enableSorting: false, enableGlobalFilter: false },
-  ];
+  readonly opsColumns = computed<ColumnDef<OpsTicket>[]>(() => {
+    const locale = this.t();
+    return [
+      {
+        accessorKey: 'id',
+        header: locale.colTicket,
+        pin: 'left',
+        width: '130px',
+        enableSorting: true,
+        enableHiding: false,
+        enableReordering: false,
+      },
+      { accessorKey: 'account', header: locale.colAccount, width: '180px', enableSorting: true },
+      { accessorKey: 'service', header: locale.colService, width: '160px', enableSorting: true },
+      { accessorKey: 'region', header: locale.colRegion, width: '110px', enableSorting: true },
+      {
+        accessorKey: 'priority',
+        header: locale.colPriority,
+        width: '95px',
+        enableSorting: true,
+        sortFn: (a, b) => ({ P1: 0, P2: 1, P3: 2, P4: 3 } as Record<string, number>)[a.priority] - ({ P1: 0, P2: 1, P3: 2, P4: 3 } as Record<string, number>)[b.priority],
+      },
+      {
+        accessorKey: 'status',
+        header: locale.colStatus,
+        width: '140px',
+        enableSorting: true,
+        sortFn: (a, b) => ({ Open: 0, Investigating: 1, Mitigated: 2, Resolved: 3 } as Record<string, number>)[a.status] - ({ Open: 0, Investigating: 1, Mitigated: 2, Resolved: 3 } as Record<string, number>)[b.status],
+      },
+      { accessorKey: 'owner', header: locale.colOwner, width: '140px', enableSorting: true },
+      {
+        accessorKey: 'mrr',
+        header: locale.colMrr,
+        width: '120px',
+        enableSorting: true,
+        cell: (row) => `$${row.mrr.toLocaleString()}`,
+        enableGlobalFilter: false,
+      },
+      { accessorKey: 'slaMinutes', header: locale.colSla, width: '100px', enableSorting: true },
+      {
+        accessorKey: 'updatedAt',
+        header: locale.colUpdated,
+        width: '160px',
+        enableSorting: true,
+        enableFiltering: true,
+        filterComponent: DataTableDateRangeFilterComponent,
+        filterFn: (row: OpsTicket, filterValue: unknown): boolean =>
+          dateRangeFilterFn(row, filterValue as DateRange | null, r => r.updatedAt),
+        sortFn: (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
+      },
+      {
+        accessorKey: 'createdAt',
+        header: locale.colCreated,
+        width: '160px',
+        enableSorting: true,
+        enableFiltering: true,
+        filterComponent: DataTableDateFilterComponent,
+        filterFn: (row: OpsTicket, filterValue: unknown): boolean =>
+          dateFilterFn(row, filterValue as Date | null, r => r.createdAt),
+        sortFn: (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      },
+      { accessorKey: 'summary', header: locale.colSummary, width: 'auto', enableSorting: false, enableGlobalFilter: false },
+    ];
+  });
 
   onOpsFilter(filter: string): void {
     this.opsFilter.set(filter);
@@ -1144,7 +1163,7 @@ export class DataTableDemoComponent {
       for (const key of Object.keys(colFilters)) {
         const val = colFilters[key];
         if (val === null || val === undefined || val === '') continue;
-        const col = this.paymentColumns.find(c => c.accessorKey === key);
+        const col = this.paymentColumns().find(c => c.accessorKey === key);
         if (col?.filterFn) {
           filtered = filtered.filter(row => col.filterFn!(row, val));
         }
@@ -1249,7 +1268,7 @@ export class DataTableDemoComponent {
     for (const key of Object.keys(colFilters)) {
       const filterValue = colFilters[key];
       if (filterValue === null || filterValue === undefined || filterValue === '') continue;
-      const col = this.opsColumns.find(c => c.accessorKey === key);
+      const col = this.opsColumns().find(c => c.accessorKey === key);
       if (col?.filterFn) {
         rows = rows.filter(row => col.filterFn!(row, filterValue));
       }
@@ -1304,39 +1323,42 @@ export class DataTableDemoComponent {
 
   // ── Inline Editing Demo ──
   readonly editableData = signal<Payment[]>([]);
-  readonly editableColumns: ColumnDef<Payment>[] = [
-    { accessorKey: 'id', header: 'ID', width: '100px' },
-    {
-      accessorKey: 'clientName', header: 'Client Name', width: 'auto',
-      editable: true, editType: 'text',
-      editValidator: (val) => String(val).trim().length > 0 || 'Client name is required',
-      valueSetter: (row, val) => ({ ...row, clientName: String(val) }),
-    },
-    {
-      accessorKey: 'email', header: 'Email', width: 'auto',
-      editable: true, editType: 'text',
-      editValidator: (val) => String(val).includes('@') || 'Enter a valid email address',
-      valueSetter: (row, val) => ({ ...row, email: String(val) }),
-    },
-    {
-      accessorKey: 'amount', header: 'Amount', width: '120px',
-      editable: true, editType: 'number',
-      editValidator: (val) => Number(val) > 0 || 'Amount must be greater than zero',
-      valueSetter: (row, val) => ({ ...row, amount: Number(val) }),
-      cell: (row) => `$${row.amount.toFixed(2)}`,
-    },
-    {
-      accessorKey: 'status', header: 'Status', width: '140px',
-      editable: true, editType: 'select',
-      editOptions: [
-        { label: 'Pending', value: 'pending' },
-        { label: 'Processing', value: 'processing' },
-        { label: 'Success', value: 'success' },
-        { label: 'Failed', value: 'failed' },
-      ],
-      valueSetter: (row, val) => ({ ...row, status: val as Payment['status'] }),
-    },
-  ];
+  readonly editableColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '100px' },
+      {
+        accessorKey: 'clientName', header: locale.colClientName, width: 'auto',
+        editable: true, editType: 'text',
+        editValidator: (val) => String(val).trim().length > 0 || 'Client name is required',
+        valueSetter: (row, val) => ({ ...row, clientName: String(val) }),
+      },
+      {
+        accessorKey: 'email', header: locale.colEmail, width: 'auto',
+        editable: true, editType: 'text',
+        editValidator: (val) => String(val).includes('@') || 'Enter a valid email address',
+        valueSetter: (row, val) => ({ ...row, email: String(val) }),
+      },
+      {
+        accessorKey: 'amount', header: locale.colAmount, width: '120px',
+        editable: true, editType: 'number',
+        editValidator: (val) => Number(val) > 0 || 'Amount must be greater than zero',
+        valueSetter: (row, val) => ({ ...row, amount: Number(val) }),
+        cell: (row) => `$${row.amount.toFixed(2)}`,
+      },
+      {
+        accessorKey: 'status', header: locale.colStatus, width: '140px',
+        editable: true, editType: 'select',
+        editOptions: [
+          { label: 'Pending', value: 'pending' },
+          { label: 'Processing', value: 'processing' },
+          { label: 'Success', value: 'success' },
+          { label: 'Failed', value: 'failed' },
+        ],
+        valueSetter: (row, val) => ({ ...row, status: val as Payment['status'] }),
+      },
+    ];
+  });
   readonly editLog = signal<string[]>([]);
   onCellEdit(event: CellEditEvent<Payment>): void {
     this.editLog.update(log => [`${String(event.column.accessorKey)}: "${String(event.oldValue)}" → "${String(event.newValue)}"`, ...log.slice(0, 4)]);
@@ -1346,29 +1368,35 @@ export class DataTableDemoComponent {
   }
 
   // ── Footer Aggregations Demo ──
-  readonly footerColumns: ColumnDef<Payment>[] = [
-    { accessorKey: 'id', header: 'ID', width: '100px', footer: 'Total' },
-    { accessorKey: 'clientName', header: 'Client', width: 'auto', aggregateFn: 'count' },
-    { accessorKey: 'email', header: 'Email', width: 'auto' },
-    { accessorKey: 'amount', header: 'Amount', width: '120px', aggregateFn: 'sum', cell: (row) => `$${row.amount.toFixed(2)}` },
-    { accessorKey: 'status', header: 'Status', width: '130px' },
-  ];
+  readonly footerColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '100px', footer: 'Total' },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto', aggregateFn: 'count' },
+      { accessorKey: 'email', header: locale.colEmail, width: 'auto' },
+      { accessorKey: 'amount', header: locale.colAmount, width: '120px', aggregateFn: 'sum', cell: (row) => `$${row.amount.toFixed(2)}` },
+      { accessorKey: 'status', header: locale.colStatus, width: '130px' },
+    ];
+  });
 
   // ── Row Grouping Demo ──
   readonly groupCollapsed = signal<Record<string, boolean>>({});
-  readonly groupingColumns: ColumnDef<Payment>[] = [
-    { accessorKey: 'id', header: 'ID', width: '100px' },
-    { accessorKey: 'clientName', header: 'Client', width: 'auto' },
-    { accessorKey: 'email', header: 'Email', width: 'auto' },
-    {
-      accessorKey: 'amount',
-      header: 'Amount',
-      width: '140px',
-      aggregateFn: 'sum',
-      cell: (row) => `$${row.amount.toFixed(2)}`,
-    },
-    { accessorKey: 'status', header: 'Status', width: '140px', aggregateFn: 'count' },
-  ];
+  readonly groupingColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '100px' },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto' },
+      { accessorKey: 'email', header: locale.colEmail, width: 'auto' },
+      {
+        accessorKey: 'amount',
+        header: locale.colAmount,
+        width: '140px',
+        aggregateFn: 'sum',
+        cell: (row) => `$${row.amount.toFixed(2)}`,
+      },
+      { accessorKey: 'status', header: locale.colStatus, width: '140px', aggregateFn: 'count' },
+    ];
+  });
   readonly groupTableRef = viewChild<DataTableComponent<Payment>>('groupTable');
   expandAllGroups(): void {
     this.groupTableRef()?.expandAllGroups();
@@ -1378,14 +1406,17 @@ export class DataTableDemoComponent {
   }
 
   // ── Column Header Menu Demo ──
-  readonly menuColumns: ColumnDef<Payment>[] = [
-    { accessorKey: 'id', header: 'ID', width: '100px' },
-    { accessorKey: 'clientName', header: 'Client Name', width: 'auto' },
-    { accessorKey: 'email', header: 'Email', width: 'auto' },
-    { accessorKey: 'amount', header: 'Amount', width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` },
-    { accessorKey: 'status', header: 'Status', width: '130px' },
-    { accessorKey: 'role', header: 'Role', width: '130px' },
-  ];
+  readonly menuColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '100px' },
+      { accessorKey: 'clientName', header: locale.colClientName, width: 'auto' },
+      { accessorKey: 'email', header: locale.colEmail, width: 'auto' },
+      { accessorKey: 'amount', header: locale.colAmount, width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` },
+      { accessorKey: 'status', header: locale.colStatus, width: '130px' },
+      { accessorKey: 'role', header: locale.colRole, width: '130px' },
+    ];
+  });
 
   // ── Row Disabling Demo ──
   readonly disabledRowIds = signal<string[]>([]);
@@ -1405,20 +1436,26 @@ export class DataTableDemoComponent {
   }
 
   // ── Floating Filters Demo ──
-  readonly floatingFilterColumns: ColumnDef<Payment>[] = [
-    { accessorKey: 'id', header: 'ID', width: '100px', enableFiltering: true },
-    { accessorKey: 'clientName', header: 'Client', width: 'auto', enableFiltering: true },
-    { accessorKey: 'email', header: 'Email', width: 'auto', enableFiltering: true },
-    { accessorKey: 'amount', header: 'Amount', width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` },
-    { accessorKey: 'status', header: 'Status', width: '130px', enableFiltering: true },
-  ];
+  readonly floatingFilterColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return [
+      { accessorKey: 'id', header: locale.colId, width: '100px', enableFiltering: true },
+      { accessorKey: 'clientName', header: locale.colClient, width: 'auto', enableFiltering: true },
+      { accessorKey: 'email', header: locale.colEmail, width: 'auto', enableFiltering: true },
+      { accessorKey: 'amount', header: locale.colAmount, width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` },
+      { accessorKey: 'status', header: locale.colStatus, width: '130px', enableFiltering: true },
+    ];
+  });
 
   // ── Column Builder Demo ──
-  readonly builderColumns = columnHelper<Payment>()
-    .accessor('id', 'ID', { width: '100px', enableSorting: true })
-    .accessor('clientName', 'Client Name', { width: 'auto', enableSorting: true })
-    .accessor('email', 'Email', { width: 'auto' })
-    .accessor('amount', 'Amount', { width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` })
-    .accessor('status', 'Status', { width: '130px' })
-    .build();
+  readonly builderColumns = computed<ColumnDef<Payment>[]>(() => {
+    const locale = this.t();
+    return columnHelper<Payment>()
+      .accessor('id', locale.colId, { width: '100px', enableSorting: true })
+      .accessor('clientName', locale.colClientName, { width: 'auto', enableSorting: true })
+      .accessor('email', locale.colEmail, { width: 'auto' })
+      .accessor('amount', locale.colAmount, { width: '120px', cell: (row) => `$${row.amount.toFixed(2)}` })
+      .accessor('status', locale.colStatus, { width: '130px' })
+      .build();
+  });
 }

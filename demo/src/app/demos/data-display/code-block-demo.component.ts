@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   CODE_BLOCK_THEMES,
   CodeBlockComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { CODE_BLOCK_DEMO_LOCALES } from './code-block-demo.locales';
 
 @Component({
   selector: 'app-code-block-demo',
@@ -10,50 +12,47 @@ import {
   imports: [CodeBlockComponent],
   template: `
     <section class="space-y-4">
-      <h2 id="code-block" class="text-2xl font-semibold scroll-m-20">Code Block</h2>
-      <p class="text-muted-foreground">Syntax highlighting with copy button.</p>
+      <h2 id="code-block" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
       <ui-code-block [code]="codeBlockSample" language="typescript" />
 
-      <h3 class="mt-4 font-semibold">YAML</h3>
+      <h3 class="mt-4 font-semibold">{{ t().labelYaml }}</h3>
       <ui-code-block [code]="codeBlockYaml" language="yaml" />
 
-      <h3 class="mt-4 font-semibold">C#</h3>
+      <h3 class="mt-4 font-semibold">{{ t().labelCSharp }}</h3>
       <ui-code-block [code]="codeBlockCSharp" language="csharp" />
 
-      <h3 class="mt-4 font-semibold">Java</h3>
+      <h3 class="mt-4 font-semibold">{{ t().labelJava }}</h3>
       <ui-code-block [code]="codeBlockJava" language="java" />
 
-      <h3 class="mt-4 font-semibold">HTML</h3>
+      <h3 class="mt-4 font-semibold">{{ t().labelHtml }}</h3>
       <ui-code-block [code]="codeBlockHtml" language="html" />
 
-      <h3 class="mt-4 font-semibold">XML</h3>
+      <h3 class="mt-4 font-semibold">{{ t().labelXml }}</h3>
       <ui-code-block [code]="codeBlockXml" language="xml" />
 
-      <h3 class="mt-4 font-semibold">CSS</h3>
+      <h3 class="mt-4 font-semibold">{{ t().labelCss }}</h3>
       <ui-code-block [code]="codeBlockCss" language="css" />
 
-      <h3 class="mt-4 font-semibold">JSON</h3>
+      <h3 class="mt-4 font-semibold">{{ t().labelJson }}</h3>
       <ui-code-block [code]="codeBlockJson" language="json" />
 
-      <h3 class="mt-4 font-semibold">Bash</h3>
+      <h3 class="mt-4 font-semibold">{{ t().labelBash }}</h3>
       <ui-code-block [code]="codeBlockBash" language="bash" />
 
-      <h3 class="mt-4 font-semibold text-purple-400">Custom Theme (Dracula)</h3>
+      <h3 class="mt-4 font-semibold text-purple-400">{{ t().labelCustomTheme }}</h3>
       <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="draculaTheme" />
 
-      <h3 class="mt-4 font-semibold text-blue-400">Custom Language (SQL)</h3>
+      <h3 class="mt-4 font-semibold text-blue-400">{{ t().labelCustomLanguage }}</h3>
       <ui-code-block [code]="codeBlockSql" language="sql" [customLanguages]="sqlPatterns" />
 
-      <h3 class="mt-8 text-xl font-bold">Collapsible Scopes</h3>
-      <p class="text-muted-foreground">
-        Set <code>[collapseScope]="true"</code> to enable a fold gutter. Use
-        <code>[defaultCollapsed]="N"</code> to start with everything at depth N or deeper folded.
-      </p>
+      <h3 class="mt-8 text-xl font-bold">{{ t().collapsibleHeading }}</h3>
+      <p class="text-muted-foreground">{{ t().collapsibleDescription }}</p>
 
-      <h4 class="mt-4 font-semibold">TypeScript &mdash; click ▾ to collapse a function</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelTypescriptCollapse }}</h4>
       <ui-code-block [code]="foldableTypescript" language="typescript" [collapseScope]="true" />
 
-      <h4 class="mt-4 font-semibold">JSON &mdash; everything below the root collapsed by default</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelJsonCollapse }}</h4>
       <ui-code-block
         [code]="foldableJson"
         language="json"
@@ -61,16 +60,16 @@ import {
         [defaultCollapsed]="1"
       />
 
-      <h4 class="mt-4 font-semibold">YAML &mdash; indentation-based scopes</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelYamlCollapse }}</h4>
       <ui-code-block [code]="foldableYaml" language="yaml" [collapseScope]="true" />
 
-      <h4 class="mt-4 font-semibold">HTML &mdash; tag-pair scopes</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelHtmlCollapse }}</h4>
       <ui-code-block [code]="foldableHtml" language="html" [collapseScope]="true" />
 
-      <h4 class="mt-4 font-semibold">XML &mdash; tag-pair scopes (namespaced)</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelXmlCollapse }}</h4>
       <ui-code-block [code]="codeBlockXml" language="xml" [collapseScope]="true" />
 
-      <h4 class="mt-4 font-semibold">Custom language &mdash; SQL with BEGIN/END scopes</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelSqlCollapse }}</h4>
       <ui-code-block
         [code]="foldableSql"
         language="sql"
@@ -78,38 +77,34 @@ import {
         [customLanguages]="sqlWithScopes"
       />
 
-      <h3 class="mt-8 text-xl font-bold">Line Numbers</h3>
-      <p class="text-muted-foreground">
-        On by default. Pass <code>[lineNumbers]="false"</code> to hide the gutter.
-        Numbers stay anchored to the source line, so collapsing a scope leaves the
-        following numbers intact (e.g. 1, 5, 6 if lines 2&ndash;4 are folded).
-      </p>
+      <h3 class="mt-8 text-xl font-bold">{{ t().lineNumbersHeading }}</h3>
+      <p class="text-muted-foreground">{{ t().lineNumbersDescription }}</p>
 
-      <h4 class="mt-4 font-semibold">Default (numbers on)</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelNumbersDefault }}</h4>
       <ui-code-block [code]="codeBlockSample" language="typescript" />
 
-      <h4 class="mt-4 font-semibold">Numbers + collapse together</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelNumbersWithCollapse }}</h4>
       <ui-code-block [code]="foldableTypescript" language="typescript" [collapseScope]="true" />
 
-      <h4 class="mt-4 font-semibold">Numbers off</h4>
+      <h4 class="mt-4 font-semibold">{{ t().labelNumbersOff }}</h4>
       <ui-code-block [code]="codeBlockSample" language="typescript" [lineNumbers]="false" />
 
-      <h3 class="mt-8 text-xl font-bold">Theme Presets</h3>
+      <h3 class="mt-8 text-xl font-bold">{{ t().themePresetsHeading }}</h3>
       <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div>
-          <h4 class="font-semibold mb-2">VSCode Dark+</h4>
+          <h4 class="font-semibold mb-2">{{ t().labelThemeVscode }}</h4>
           <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="themes['vscode']" />
         </div>
         <div>
-          <h4 class="font-semibold mb-2">Dracula</h4>
+          <h4 class="font-semibold mb-2">{{ t().labelThemeDracula }}</h4>
           <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="themes['dracula']" />
         </div>
         <div>
-          <h4 class="font-semibold mb-2">GitHub Dark</h4>
+          <h4 class="font-semibold mb-2">{{ t().labelThemeGithub }}</h4>
           <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="themes['github']" />
         </div>
         <div>
-          <h4 class="font-semibold mb-2">Monokai</h4>
+          <h4 class="font-semibold mb-2">{{ t().labelThemeMonokai }}</h4>
           <ui-code-block [code]="codeBlockSample" language="typescript" [theme]="themes['monokai']" />
         </div>
       </div>
@@ -117,6 +112,9 @@ import {
   `,
 })
 export class CodeBlockDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => CODE_BLOCK_DEMO_LOCALES[this.localeId()] ?? CODE_BLOCK_DEMO_LOCALES['en']);
+
   readonly themes = CODE_BLOCK_THEMES;
 
   readonly codeBlockCSharp = `using System;

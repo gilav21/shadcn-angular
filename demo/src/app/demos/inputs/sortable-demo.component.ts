@@ -1,4 +1,4 @@
-import { Component, ChangeDetectionStrategy, signal } from '@angular/core';
+import { Component, ChangeDetectionStrategy, computed, effect, inject, signal } from '@angular/core';
 import {
     SortableComponent,
     SortableItemComponent,
@@ -10,6 +10,8 @@ import {
 } from '../../../../../packages/components/ui';
 import { SortableGhostTemplateDirective } from '../../../../../packages/components/ui/sortable/sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from '../../../../../packages/components/ui/sortable/sub/sortable-placeholder.directive';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { SORTABLE_DEMO_LOCALES } from './sortable-demo.locales';
 
 interface Task {
     id: number;
@@ -44,18 +46,14 @@ interface Card {
 
             <!-- Header -->
             <div>
-                <h2 id="sortable" class="text-2xl font-semibold scroll-m-20">Sortable</h2>
-                <p class="text-muted-foreground mt-1">
-                    A generic drag-to-reorder list with cross-list drag, accept gates, animated neighbors,
-                    customizable ghost + placeholder slots, and full keyboard parity. Pointer (mouse + touch)
-                    and keyboard supported; respects <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">prefers-reduced-motion</code>.
-                </p>
+                <h2 id="sortable" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+                <p class="text-muted-foreground mt-1">{{ t().description }}</p>
             </div>
 
             <!-- Vertical list -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Vertical list</h3>
-                <p class="text-sm text-muted-foreground">Drag rows up and down. Neighbor items slide via FLIP; the lifted card scales/tilts (Trello-style).</p>
+                <h3 class="text-lg font-medium">{{ t().verticalHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().verticalDescription }}</p>
                 <div class="space-y-1 max-w-sm">
                     <ui-sortable [(items)]="tasks" (reorder)="onTaskReorder($event)">
                         <ng-template uiSortableItem let-task let-i="index">
@@ -70,7 +68,7 @@ interface Card {
                                     [class.text-muted-foreground]="$any(task).done"
                                 >{{ $any(task).name }}</span>
                                 @if ($any(task).done) {
-                                    <span class="text-xs text-green-600 dark:text-green-400 font-medium shrink-0">Done</span>
+                                    <span class="text-xs text-green-600 dark:text-green-400 font-medium shrink-0">{{ t().doneLabel }}</span>
                                 }
                             </ui-sortable-item>
                         </ng-template>
@@ -80,8 +78,8 @@ interface Card {
 
             <!-- Horizontal list -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Horizontal list</h3>
-                <p class="text-sm text-muted-foreground">Drag phase cards left and right.</p>
+                <h3 class="text-lg font-medium">{{ t().horizontalHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().horizontalDescription }}</p>
                 <ui-sortable [(items)]="phases" orientation="horizontal" class="gap-2 flex-wrap" (reorder)="onPhaseReorder($event)">
                     <ng-template uiSortableItem let-phase let-i="index">
                         <ui-sortable-item
@@ -97,8 +95,8 @@ interface Card {
 
             <!-- Handle-only -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Handle-only mode</h3>
-                <p class="text-sm text-muted-foreground">Only the grip icon initiates a drag — the rest of the row is freely interactive.</p>
+                <h3 class="text-lg font-medium">{{ t().handleHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().handleDescription }}</p>
                 <div class="space-y-1 max-w-sm">
                     <ui-sortable [(items)]="handleTasks" [handleOnly]="true" (reorder)="onHandleReorder($event)">
                         <ng-template uiSortableItem let-task let-i="index">
@@ -122,16 +120,11 @@ interface Card {
 
             <!-- Cross-list drag -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Cross-list drag</h3>
-                <p class="text-sm text-muted-foreground">
-                    Lists that share a <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[group]</code> string
-                    accept each other's items. The receiving list highlights via
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">data-[receiving=true]</code> while a foreign item is hovering.
-                    Keyboard: Space to lift, Tab/Shift+Tab to hand off to the next/previous peer.
-                </p>
+                <h3 class="text-lg font-medium">{{ t().crossListHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().crossListDescription }}</p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">To do</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().todoLabel }}</h4>
                         <ui-sortable
                             [(items)]="todo"
                             group="board"
@@ -146,7 +139,7 @@ interface Card {
                         </ui-sortable>
                     </div>
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Doing</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().doingLabel }}</h4>
                         <ui-sortable
                             [(items)]="doing"
                             group="board"
@@ -161,7 +154,7 @@ interface Card {
                         </ui-sortable>
                     </div>
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Done</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().doneBoardLabel }}</h4>
                         <ui-sortable
                             [(items)]="done"
                             group="board"
@@ -180,15 +173,11 @@ interface Card {
 
             <!-- Accepts predicate -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Accepts predicate (WIP limit)</h3>
-                <p class="text-sm text-muted-foreground">
-                    The receiving list returns <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">{{ '{ ok: false, reason }' }}</code>
-                    when its WIP limit is hit. The visual reject feedback (red border) is driven by
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">data-[reject]</code>.
-                </p>
+                <h3 class="text-lg font-medium">{{ t().acceptsHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().acceptsDescription }}</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Inbox</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().inboxLabel }}</h4>
                         <ui-sortable
                             [(items)]="inbox"
                             group="triage"
@@ -200,7 +189,7 @@ interface Card {
                         </ui-sortable>
                     </div>
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Triaged (max 2)</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().triagedLabel }}</h4>
                         <ui-sortable
                             [(items)]="triaged"
                             group="triage"
@@ -218,14 +207,8 @@ interface Card {
 
             <!-- Position class + land effects -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Position class + land effects</h3>
-                <p class="text-sm text-muted-foreground">
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[positionClass]</code> assigns a persistent class
-                    based on each item's index (first row stays green, last stays red, middle is neutral).
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[landEffect]</code> adds a transient
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">flash</code> keyframe to whichever
-                    item just landed. The CSS transition on the item wrapper makes the color shift animate.
-                </p>
+                <h3 class="text-lg font-medium">{{ t().positionHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().positionDescription }}</p>
                 <div class="space-y-1 max-w-sm">
                     <ui-sortable [(items)]="ranked" [positionClass]="posFn" [landEffect]="flashFx">
                         <ng-template uiSortableItem let-item let-i="index">
@@ -239,15 +222,11 @@ interface Card {
 
             <!-- All four land effects side by side -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Built-in land effects</h3>
-                <p class="text-sm text-muted-foreground">
-                    Plug a <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">SORTABLE_LAND_EFFECTS</code> constant
-                    into <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[landEffect]</code>, or return your own class name.
-                    Reorder any list to see the matching one-shot animation.
-                </p>
+                <h3 class="text-lg font-medium">{{ t().landEffectsHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().landEffectsDescription }}</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Flash</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().flashLabel }}</h4>
                         <ui-sortable [(items)]="flashList" [landEffect]="flashFx" class="gap-1">
                             <ng-template uiSortableItem let-item let-i="index">
                                 <ui-sortable-item [index]="i" class="bg-card border rounded px-2 py-1.5 text-xs w-full">{{ $any(item).name }}</ui-sortable-item>
@@ -255,7 +234,7 @@ interface Card {
                         </ui-sortable>
                     </div>
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Pulse</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().pulseLabel }}</h4>
                         <ui-sortable [(items)]="pulseList" [landEffect]="pulseFx" class="gap-1">
                             <ng-template uiSortableItem let-item let-i="index">
                                 <ui-sortable-item [index]="i" class="bg-card border rounded px-2 py-1.5 text-xs w-full">{{ $any(item).name }}</ui-sortable-item>
@@ -263,7 +242,7 @@ interface Card {
                         </ui-sortable>
                     </div>
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Shake</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().shakeLabel }}</h4>
                         <ui-sortable [(items)]="shakeList" [landEffect]="shakeFx" class="gap-1">
                             <ng-template uiSortableItem let-item let-i="index">
                                 <ui-sortable-item [index]="i" class="bg-card border rounded px-2 py-1.5 text-xs w-full">{{ $any(item).name }}</ui-sortable-item>
@@ -271,7 +250,7 @@ interface Card {
                         </ui-sortable>
                     </div>
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">Glow</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().glowLabel }}</h4>
                         <ui-sortable [(items)]="glowList" [landEffect]="glowFx" class="gap-1">
                             <ng-template uiSortableItem let-item let-i="index">
                                 <ui-sortable-item [index]="i" class="bg-card border rounded px-2 py-1.5 text-xs w-full">{{ $any(item).name }}</ui-sortable-item>
@@ -283,15 +262,8 @@ interface Card {
 
             <!-- Custom ghost + placeholder -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Custom ghost + placeholder</h3>
-                <p class="text-sm text-muted-foreground">
-                    The default ghost is a thin drop-line indicator so neighbour layout stays stable
-                    during the drag. Project an
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">&lt;ng-template uiSortableGhost&gt;</code>
-                    for a richer projected-drop preview, and
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">&lt;ng-template uiSortablePlaceholder&gt;</code>
-                    for the lift-origin silhouette. Drag a row to see them both.
-                </p>
+                <h3 class="text-lg font-medium">{{ t().ghostHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().ghostDescription }}</p>
                 <div class="space-y-1 max-w-sm">
                     <ui-sortable [(items)]="customGhostItems">
                         <ng-template uiSortableItem let-item let-i="index">
@@ -315,32 +287,27 @@ interface Card {
 
             <!-- Header / footer / empty slots -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Header / footer / empty slots</h3>
-                <p class="text-sm text-muted-foreground">
-                    The <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[uiSortableHeader]</code>,
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[uiSortableFooter]</code>,
-                    and <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[uiSortableEmpty]</code>
-                    attribute selectors mount auxiliary UI inside the sortable container. Empty renders only when items is empty.
-                </p>
+                <h3 class="text-lg font-medium">{{ t().slotsHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().slotsDescription }}</p>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="border rounded-md bg-muted/30 flex flex-col">
                         <ui-sortable [(items)]="kanbanBacklog" group="slots" class="gap-2 p-3 flex-1 min-h-40">
-                            <div uiSortableHeader class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Backlog</div>
-                            <div uiSortableEmpty class="text-sm text-muted-foreground italic py-6 text-center">Drop cards here</div>
+                            <div uiSortableHeader class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">{{ t().backlogLabel }}</div>
+                            <div uiSortableEmpty class="text-sm text-muted-foreground italic py-6 text-center">{{ t().dropHereLabel }}</div>
                             <ng-template uiSortableItem let-card let-i="index">
                                 <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ $any(card).name }}</ui-sortable-item>
                             </ng-template>
-                            <button uiSortableFooter type="button" class="text-xs text-muted-foreground hover:text-foreground mt-2 text-left">+ Add card</button>
+                            <button uiSortableFooter type="button" class="text-xs text-muted-foreground hover:text-foreground mt-2 text-left">{{ t().addCardLabel }}</button>
                         </ui-sortable>
                     </div>
                     <div class="border rounded-md bg-muted/30 flex flex-col">
                         <ui-sortable [(items)]="kanbanArchive" group="slots" class="gap-2 p-3 flex-1 min-h-40">
-                            <div uiSortableHeader class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">Archive</div>
-                            <div uiSortableEmpty class="text-sm text-muted-foreground italic py-6 text-center">Drop cards here</div>
+                            <div uiSortableHeader class="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">{{ t().archiveLabel }}</div>
+                            <div uiSortableEmpty class="text-sm text-muted-foreground italic py-6 text-center">{{ t().emptyDropLabel }}</div>
                             <ng-template uiSortableItem let-card let-i="index">
                                 <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full">{{ $any(card).name }}</ui-sortable-item>
                             </ng-template>
-                            <button uiSortableFooter type="button" class="text-xs text-muted-foreground hover:text-foreground mt-2 text-left">+ Add card</button>
+                            <button uiSortableFooter type="button" class="text-xs text-muted-foreground hover:text-foreground mt-2 text-left">{{ t().addCardLabel }}</button>
                         </ui-sortable>
                     </div>
                 </div>
@@ -348,15 +315,11 @@ interface Card {
 
             <!-- Localized announcements -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Localized announcements</h3>
-                <p class="text-sm text-muted-foreground">
-                    <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[locale]</code> selects the message set
-                    used for screen-reader announcements. Lift an item with Space/Enter to hear the difference
-                    (or inspect <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">[data-slot="sortable-aria-live"]</code> in the DOM).
-                </p>
+                <h3 class="text-lg font-medium">{{ t().localizedHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().localizedDescription }}</p>
                 <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div class="space-y-2">
-                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">English</h4>
+                        <h4 class="text-xs font-semibold uppercase text-muted-foreground tracking-wide">{{ t().englishLabel }}</h4>
                         <ui-sortable [(items)]="localeEn" locale="en">
                             <ng-template uiSortableItem let-item let-i="index">
                                 <ui-sortable-item [index]="i" class="bg-card border rounded-md px-3 py-2 w-full text-sm">{{ $any(item).name }}</ui-sortable-item>
@@ -384,8 +347,8 @@ interface Card {
 
             <!-- Disabled -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Disabled</h3>
-                <p class="text-sm text-muted-foreground">When <code class="font-mono text-xs bg-muted px-1 py-0.5 rounded">disabled</code> is true, drag and keyboard interactions are prevented.</p>
+                <h3 class="text-lg font-medium">{{ t().disabledHeading }}</h3>
+                <p class="text-sm text-muted-foreground">{{ t().disabledDescription }}</p>
                 <div class="space-y-1 max-w-sm">
                     <ui-sortable [(items)]="disabledItems" [disabled]="true">
                         <ng-template uiSortableItem let-item let-i="index">
@@ -403,20 +366,20 @@ interface Card {
 
             <!-- Live state readout -->
             <div class="space-y-3">
-                <h3 class="text-lg font-medium">Live state</h3>
+                <h3 class="text-lg font-medium">{{ t().liveStateHeading }}</h3>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div class="space-y-1">
-                        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Current task order</p>
+                        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">{{ t().taskOrderLabel }}</p>
                         <pre class="bg-muted rounded-md p-3 text-xs overflow-auto max-h-48">{{ tasksJson() }}</pre>
                     </div>
                     <div class="space-y-1">
-                        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">Last reorder event</p>
+                        <p class="text-xs font-medium text-muted-foreground uppercase tracking-wide">{{ t().lastEventLabel }}</p>
                         <pre class="bg-muted rounded-md p-3 text-xs overflow-auto max-h-48">{{ lastEventJson() }}</pre>
                     </div>
                 </div>
                 @if (lastReject(); as r) {
                     <div class="space-y-1">
-                        <p class="text-xs font-medium text-destructive uppercase tracking-wide">Last rejected drop</p>
+                        <p class="text-xs font-medium text-destructive uppercase tracking-wide">{{ t().lastRejectLabel }}</p>
                         <pre class="bg-destructive/10 text-destructive rounded-md p-3 text-xs">{{ rejectJson() }}</pre>
                     </div>
                 }
@@ -426,104 +389,119 @@ interface Card {
     `,
 })
 export class SortableDemoComponent {
-    readonly tasks = signal<Task[]>([
-        { id: 1, name: 'Audit existing components', done: true },
-        { id: 2, name: 'Design token alignment', done: false },
-        { id: 3, name: 'Build sortable list', done: false },
-        { id: 4, name: 'Write unit tests', done: false },
-        { id: 5, name: 'Update documentation', done: false },
-    ]);
+    private readonly localeId = inject(UI_LOCALE_ID);
+    protected readonly t = computed(() => SORTABLE_DEMO_LOCALES[this.localeId()] ?? SORTABLE_DEMO_LOCALES['en']);
 
-    readonly phases = signal<Phase[]>([
-        { id: 1, label: 'Backlog', color: '#6366f1' },
-        { id: 2, label: 'In Progress', color: '#f59e0b' },
-        { id: 3, label: 'Review', color: '#3b82f6' },
-        { id: 4, label: 'Done', color: '#10b981' },
-    ]);
-
-    readonly handleTasks = signal<Task[]>([
-        { id: 10, name: 'Responsive breakpoints', done: false },
-        { id: 11, name: 'Touch support', done: false },
-        { id: 12, name: 'Keyboard navigation', done: false },
-        { id: 13, name: 'ARIA attributes', done: false },
-    ]);
-
-    readonly disabledItems = signal<Task[]>([
-        { id: 20, name: 'Locked item A', done: false },
-        { id: 21, name: 'Locked item B', done: false },
-        { id: 22, name: 'Locked item C', done: false },
-    ]);
-
-    readonly todo = signal<Card[]>([
-        { id: 100, name: 'Draft RFC' },
-        { id: 101, name: 'Outline sections' },
-        { id: 102, name: 'Collect feedback' },
-    ]);
-    readonly doing = signal<Card[]>([{ id: 110, name: 'Wire up auth flow' }]);
-    readonly done = signal<Card[]>([
-        { id: 120, name: 'Set up repo' },
-        { id: 121, name: 'Pin dependencies' },
-    ]);
-
-    readonly inbox = signal<Card[]>([
-        { id: 200, name: 'Bug report #143' },
-        { id: 201, name: 'Feature request #92' },
-        { id: 202, name: 'Triaged ticket #11' },
-    ]);
-    readonly triaged = signal<Card[]>([{ id: 210, name: 'Triaged earlier' }]);
-    readonly wipLimit = (_item: Card, ctx: { toIndex: number }): { ok: boolean; reason?: string } => {
-        return ctx.toIndex < 2
-            ? { ok: true }
-            : { ok: false, reason: 'WIP limit reached (2)' };
-    };
-
-    readonly ranked = signal<Card[]>([
-        { id: 300, name: 'Highest priority' },
-        { id: 301, name: 'Middle item A' },
-        { id: 302, name: 'Middle item B' },
-        { id: 303, name: 'Lowest priority' },
-    ]);
-    readonly posFn = (_item: Card, i: number, total: number): string => {
-        if (i === 0) return 'bg-green-100 dark:bg-green-900/40 border-green-300';
-        if (i === total - 1) return 'bg-red-100 dark:bg-red-900/40 border-red-300';
-        return 'bg-card';
-    };
+    readonly tasks = signal<Task[]>([]);
+    readonly phases = signal<Phase[]>([]);
+    readonly handleTasks = signal<Task[]>([]);
+    readonly disabledItems = signal<Task[]>([]);
+    readonly todo = signal<Card[]>([]);
+    readonly doing = signal<Card[]>([]);
+    readonly done = signal<Card[]>([]);
+    readonly inbox = signal<Card[]>([]);
+    readonly triaged = signal<Card[]>([]);
+    readonly ranked = signal<Card[]>([]);
+    readonly kanbanBacklog = signal<Card[]>([]);
+    readonly kanbanArchive = signal<Card[]>([]);
 
     readonly flashList = signal<Card[]>([{ id: 400, name: 'flash 1' }, { id: 401, name: 'flash 2' }, { id: 402, name: 'flash 3' }]);
     readonly pulseList = signal<Card[]>([{ id: 410, name: 'pulse 1' }, { id: 411, name: 'pulse 2' }, { id: 412, name: 'pulse 3' }]);
     readonly shakeList = signal<Card[]>([{ id: 420, name: 'shake 1' }, { id: 421, name: 'shake 2' }, { id: 422, name: 'shake 3' }]);
     readonly glowList = signal<Card[]>([{ id: 430, name: 'glow 1' }, { id: 431, name: 'glow 2' }, { id: 432, name: 'glow 3' }]);
-    readonly flashFx = (): string => SORTABLE_LAND_EFFECTS.flash;
-    readonly pulseFx = (): string => SORTABLE_LAND_EFFECTS.pulse;
-    readonly shakeFx = (): string => SORTABLE_LAND_EFFECTS.shake;
-    readonly glowFx = (): string => SORTABLE_LAND_EFFECTS.glow;
-
     readonly customGhostItems = signal<Card[]>([
         { id: 500, name: 'Custom-rendered card 1' },
         { id: 501, name: 'Custom-rendered card 2' },
         { id: 502, name: 'Custom-rendered card 3' },
     ]);
 
-    readonly kanbanBacklog = signal<Card[]>([
-        { id: 600, name: 'A11y audit' },
-        { id: 601, name: 'i18n rewrite' },
-    ]);
-    readonly kanbanArchive = signal<Card[]>([]);
-
     readonly localeEn = signal<Card[]>([{ id: 700, name: 'English item' }, { id: 701, name: 'Another' }]);
     readonly localeHe = signal<Card[]>([{ id: 710, name: 'פריט בעברית' }, { id: 711, name: 'פריט נוסף' }]);
     readonly localeDe = signal<Card[]>([{ id: 720, name: 'Deutsches Element' }, { id: 721, name: 'Noch eines' }]);
+
+    constructor() {
+        effect(() => {
+            const loc = this.t();
+            this.tasks.set([
+                { id: 1, name: loc.taskAudit, done: true },
+                { id: 2, name: loc.taskDesignTokens, done: false },
+                { id: 3, name: loc.taskBuildSortable, done: false },
+                { id: 4, name: loc.taskWriteTests, done: false },
+                { id: 5, name: loc.taskUpdateDocs, done: false },
+            ]);
+            this.phases.set([
+                { id: 1, label: loc.phaseBacklog, color: '#6366f1' },
+                { id: 2, label: loc.phaseInProgress, color: '#f59e0b' },
+                { id: 3, label: loc.phaseReview, color: '#3b82f6' },
+                { id: 4, label: loc.phaseDone, color: '#10b981' },
+            ]);
+            this.handleTasks.set([
+                { id: 10, name: loc.handleTaskResponsive, done: false },
+                { id: 11, name: loc.handleTaskTouch, done: false },
+                { id: 12, name: loc.handleTaskKeyboard, done: false },
+                { id: 13, name: loc.handleTaskAria, done: false },
+            ]);
+            this.disabledItems.set([
+                { id: 20, name: loc.lockedA, done: false },
+                { id: 21, name: loc.lockedB, done: false },
+                { id: 22, name: loc.lockedC, done: false },
+            ]);
+            this.todo.set([
+                { id: 100, name: loc.todoDraftRfc },
+                { id: 101, name: loc.todoOutlineSections },
+                { id: 102, name: loc.todoCollectFeedback },
+            ]);
+            this.doing.set([{ id: 110, name: loc.doingWireAuth }]);
+            this.done.set([
+                { id: 120, name: loc.doneSetupRepo },
+                { id: 121, name: loc.donePinDeps },
+            ]);
+            this.inbox.set([
+                { id: 200, name: loc.inboxBugReport },
+                { id: 201, name: loc.inboxFeatureRequest },
+                { id: 202, name: loc.inboxTriagedTicket },
+            ]);
+            this.triaged.set([{ id: 210, name: loc.triagedEarlier }]);
+            this.ranked.set([
+                { id: 300, name: loc.highestPriority },
+                { id: 301, name: loc.middleItemA },
+                { id: 302, name: loc.middleItemB },
+                { id: 303, name: loc.lowestPriority },
+            ]);
+            this.kanbanBacklog.set([
+                { id: 600, name: loc.kanbanA11y },
+                { id: 601, name: loc.kanbanI18n },
+            ]);
+        });
+    }
+
+    readonly wipLimit = (_item: Card, ctx: { toIndex: number }): { ok: boolean; reason?: string } => {
+        return ctx.toIndex < 2
+            ? { ok: true }
+            : { ok: false, reason: 'WIP limit reached (2)' };
+    };
+
+    readonly posFn = (_item: Card, i: number, total: number): string => {
+        if (i === 0) return 'bg-green-100 dark:bg-green-900/40 border-green-300';
+        if (i === total - 1) return 'bg-red-100 dark:bg-red-900/40 border-red-300';
+        return 'bg-card';
+    };
+
+    readonly flashFx = (): string => SORTABLE_LAND_EFFECTS.flash;
+    readonly pulseFx = (): string => SORTABLE_LAND_EFFECTS.pulse;
+    readonly shakeFx = (): string => SORTABLE_LAND_EFFECTS.shake;
+    readonly glowFx = (): string => SORTABLE_LAND_EFFECTS.glow;
 
     private readonly lastEvent = signal<SortableReorderEvent<unknown> | null>(null);
     readonly lastReject = signal<SortableDropRejectedEvent<unknown> | null>(null);
 
     tasksJson(): string {
-        return JSON.stringify(this.tasks().map((t, i) => ({ position: i + 1, name: t.name })), null, 2);
+        return JSON.stringify(this.tasks().map((task, i) => ({ position: i + 1, name: task.name })), null, 2);
     }
 
     lastEventJson(): string {
         const ev = this.lastEvent();
-        if (!ev) return 'No reorder yet';
+        if (!ev) return this.t().noReorderYet;
         return JSON.stringify(ev, null, 2);
     }
 

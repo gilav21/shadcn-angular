@@ -1,0 +1,136 @@
+import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
+
+export interface ConfettiDemoLocale extends LocaleMeta {
+  title: string;
+  description: string;
+  basicTriggerHeading: string;
+  basicButton: string;
+  customDesignHeading: string;
+  customButton: string;
+  sideCannonsHeading: string;
+  sideCannonsButton: string;
+  fillButton: string;
+}
+
+export const CONFETTI_DEMO_LOCALES: Record<string, ConfettiDemoLocale> = {
+  en: {
+    code: 'en',
+    title: 'Confetti',
+    description: 'A canvas-based celebration effect for success states.',
+    basicTriggerHeading: 'Basic Trigger',
+    basicButton: 'Celebrate!',
+    customDesignHeading: 'Custom Design',
+    customButton: 'Black & Red',
+    sideCannonsHeading: 'Side Cannons',
+    sideCannonsButton: 'Fill Container',
+    fillButton: 'Fill Button',
+  },
+  he: {
+    code: 'he', rtl: true,
+    title: 'קונפטי',
+    description: 'אפקט חגיגה מבוסס canvas למצבי הצלחה.',
+    basicTriggerHeading: 'טריגר בסיסי',
+    basicButton: 'חגיגה!',
+    customDesignHeading: 'עיצוב מותאם',
+    customButton: 'שחור ואדום',
+    sideCannonsHeading: 'תותחים צדדיים',
+    sideCannonsButton: 'מלא מיכל',
+    fillButton: 'מלא כפתור',
+  },
+  ar: {
+    code: 'ar', rtl: true,
+    title: 'قصاصات ورقية',
+    description: 'تأثير احتفال على canvas لحالات النجاح.',
+    basicTriggerHeading: 'زناد أساسي',
+    basicButton: 'احتفل!',
+    customDesignHeading: 'تصميم مخصص',
+    customButton: 'أسود وأحمر',
+    sideCannonsHeading: 'مدافع جانبية',
+    sideCannonsButton: 'ملء الحاوية',
+    fillButton: 'ملء الزر',
+  },
+  de: {
+    code: 'de',
+    title: 'Konfetti',
+    description: 'Ein canvas-basierter Feierteffekt für Erfolgszustände.',
+    basicTriggerHeading: 'Einfacher Auslöser',
+    basicButton: 'Feiern!',
+    customDesignHeading: 'Eigenes Design',
+    customButton: 'Schwarz & Rot',
+    sideCannonsHeading: 'Seitenkanonen',
+    sideCannonsButton: 'Container füllen',
+    fillButton: 'Button füllen',
+  },
+  fr: {
+    code: 'fr',
+    title: 'Confettis',
+    description: 'Un effet de célébration basé sur canvas pour les états de succès.',
+    basicTriggerHeading: 'Déclencheur de base',
+    basicButton: 'Célébrer !',
+    customDesignHeading: 'Design personnalisé',
+    customButton: 'Noir et rouge',
+    sideCannonsHeading: 'Canons latéraux',
+    sideCannonsButton: 'Remplir le conteneur',
+    fillButton: 'Remplir le bouton',
+  },
+  es: {
+    code: 'es',
+    title: 'Confeti',
+    description: 'Un efecto de celebración basado en canvas para estados de éxito.',
+    basicTriggerHeading: 'Disparador básico',
+    basicButton: '¡Celebrar!',
+    customDesignHeading: 'Diseño personalizado',
+    customButton: 'Negro y rojo',
+    sideCannonsHeading: 'Cañones laterales',
+    sideCannonsButton: 'Llenar contenedor',
+    fillButton: 'Llenar botón',
+  },
+  ja: {
+    code: 'ja',
+    title: '紙吹雪',
+    description: '成功状態のためのキャンバスベースのお祝いエフェクト。',
+    basicTriggerHeading: '基本トリガー',
+    basicButton: 'お祝い！',
+    customDesignHeading: 'カスタムデザイン',
+    customButton: '黒と赤',
+    sideCannonsHeading: 'サイドキャノン',
+    sideCannonsButton: 'コンテナを満たす',
+    fillButton: 'ボタンを満たす',
+  },
+  zh: {
+    code: 'zh',
+    title: '彩纸屑',
+    description: '基于canvas的成功状态庆祝效果。',
+    basicTriggerHeading: '基本触发',
+    basicButton: '庆祝！',
+    customDesignHeading: '自定义设计',
+    customButton: '黑色和红色',
+    sideCannonsHeading: '侧边大炮',
+    sideCannonsButton: '填充容器',
+    fillButton: '填充按钮',
+  },
+  ru: {
+    code: 'ru',
+    title: 'Конфетти',
+    description: 'Эффект праздника на canvas для состояний успеха.',
+    basicTriggerHeading: 'Простой триггер',
+    basicButton: 'Праздновать!',
+    customDesignHeading: 'Пользовательский дизайн',
+    customButton: 'Чёрный и красный',
+    sideCannonsHeading: 'Боковые пушки',
+    sideCannonsButton: 'Заполнить контейнер',
+    fillButton: 'Заполнить кнопку',
+  },
+  pt: {
+    code: 'pt',
+    title: 'Confete',
+    description: 'Um efeito de celebração baseado em canvas para estados de sucesso.',
+    basicTriggerHeading: 'Gatilho básico',
+    basicButton: 'Celebrar!',
+    customDesignHeading: 'Design personalizado',
+    customButton: 'Preto e vermelho',
+    sideCannonsHeading: 'Canhões laterais',
+    sideCannonsButton: 'Preencher contêiner',
+    fillButton: 'Preencher botão',
+  },
+};

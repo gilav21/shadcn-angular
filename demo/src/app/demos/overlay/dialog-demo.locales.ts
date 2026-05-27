@@ -1,0 +1,148 @@
+// demo/src/app/demos/overlay/dialog-demo.locales.ts
+import type { LocaleMeta } from '../../../../../packages/components/lib/i18n';
+
+export interface DialogDemoLocale extends LocaleMeta {
+  title: string;
+  description: string;
+  openLabel: string;
+  dialogTitle: string;
+  dialogDescription: string;
+  nameLabel: string;
+  namePlaceholder: string;
+  emailLabel: string;
+  emailPlaceholder: string;
+  saveLabel: string;
+}
+
+export const DIALOG_DEMO_LOCALES: Record<string, DialogDemoLocale> = {
+  en: {
+    code: 'en',
+    title: 'Dialog',
+    description: 'Modal dialog with overlay.',
+    openLabel: 'Open Dialog',
+    dialogTitle: 'Edit Profile',
+    dialogDescription: 'Make changes to your profile here. Click save when you\'re done.',
+    nameLabel: 'Name',
+    namePlaceholder: 'Your name',
+    emailLabel: 'Email',
+    emailPlaceholder: 'your@email.com',
+    saveLabel: 'Save changes',
+  },
+  he: {
+    code: 'he', rtl: true,
+    title: 'חלון דו-שיח',
+    description: 'חלון מודאלי עם שכבת-על.',
+    openLabel: 'פתח חלון דו-שיח',
+    dialogTitle: 'ערוך פרופיל',
+    dialogDescription: 'ערוך כאן את הפרופיל שלך. לחץ על שמור כשתסיים.',
+    nameLabel: 'שם',
+    namePlaceholder: 'השם שלך',
+    emailLabel: 'דוא"ל',
+    emailPlaceholder: 'your@email.com',
+    saveLabel: 'שמור שינויים',
+  },
+  ar: {
+    code: 'ar', rtl: true,
+    title: 'مربع الحوار',
+    description: 'مربع حوار مشروط مع تراكب.',
+    openLabel: 'فتح مربع الحوار',
+    dialogTitle: 'تعديل الملف الشخصي',
+    dialogDescription: 'أجرِ تغييرات على ملفك الشخصي هنا. انقر على حفظ عند الانتهاء.',
+    nameLabel: 'الاسم',
+    namePlaceholder: 'اسمك',
+    emailLabel: 'البريد الإلكتروني',
+    emailPlaceholder: 'your@email.com',
+    saveLabel: 'حفظ التغييرات',
+  },
+  de: {
+    code: 'de',
+    title: 'Dialog',
+    description: 'Modaler Dialog mit Überlagerung.',
+    openLabel: 'Dialog öffnen',
+    dialogTitle: 'Profil bearbeiten',
+    dialogDescription: 'Nehmen Sie hier Änderungen an Ihrem Profil vor. Klicken Sie auf Speichern, wenn Sie fertig sind.',
+    nameLabel: 'Name',
+    namePlaceholder: 'Ihr Name',
+    emailLabel: 'E-Mail',
+    emailPlaceholder: 'ihre@email.de',
+    saveLabel: 'Änderungen speichern',
+  },
+  fr: {
+    code: 'fr',
+    title: 'Boîte de dialogue',
+    description: 'Boîte de dialogue modale avec superposition.',
+    openLabel: 'Ouvrir la boîte de dialogue',
+    dialogTitle: 'Modifier le profil',
+    dialogDescription: 'Apportez des modifications à votre profil ici. Cliquez sur enregistrer lorsque vous avez terminé.',
+    nameLabel: 'Nom',
+    namePlaceholder: 'Votre nom',
+    emailLabel: 'E-mail',
+    emailPlaceholder: 'votre@email.fr',
+    saveLabel: 'Enregistrer les modifications',
+  },
+  es: {
+    code: 'es',
+    title: 'Diálogo',
+    description: 'Diálogo modal con superposición.',
+    openLabel: 'Abrir diálogo',
+    dialogTitle: 'Editar perfil',
+    dialogDescription: 'Realiza cambios en tu perfil aquí. Haz clic en guardar cuando hayas terminado.',
+    nameLabel: 'Nombre',
+    namePlaceholder: 'Tu nombre',
+    emailLabel: 'Correo electrónico',
+    emailPlaceholder: 'tu@correo.es',
+    saveLabel: 'Guardar cambios',
+  },
+  ja: {
+    code: 'ja',
+    title: 'ダイアログ',
+    description: 'オーバーレイ付きのモーダルダイアログです。',
+    openLabel: 'ダイアログを開く',
+    dialogTitle: 'プロフィールを編集',
+    dialogDescription: 'ここでプロフィールを変更してください。完了したら保存をクリックしてください。',
+    nameLabel: '名前',
+    namePlaceholder: 'お名前',
+    emailLabel: 'メールアドレス',
+    emailPlaceholder: 'your@email.com',
+    saveLabel: '変更を保存',
+  },
+  zh: {
+    code: 'zh',
+    title: '对话框',
+    description: '带遮罩的模态对话框。',
+    openLabel: '打开对话框',
+    dialogTitle: '编辑个人资料',
+    dialogDescription: '在此处对您的个人资料进行更改。完成后点击保存。',
+    nameLabel: '姓名',
+    namePlaceholder: '您的姓名',
+    emailLabel: '电子邮件',
+    emailPlaceholder: 'your@email.com',
+    saveLabel: '保存更改',
+  },
+  ru: {
+    code: 'ru',
+    title: 'Диалоговое окно',
+    description: 'Модальное диалоговое окно с наложением.',
+    openLabel: 'Открыть диалог',
+    dialogTitle: 'Редактировать профиль',
+    dialogDescription: 'Внесите изменения в свой профиль здесь. Нажмите сохранить, когда закончите.',
+    nameLabel: 'Имя',
+    namePlaceholder: 'Ваше имя',
+    emailLabel: 'Эл. почта',
+    emailPlaceholder: 'ваш@email.ru',
+    saveLabel: 'Сохранить изменения',
+  },
+  pt: {
+    code: 'pt',
+    title: 'Caixa de diálogo',
+    description: 'Caixa de diálogo modal com sobreposição.',
+    openLabel: 'Abrir caixa de diálogo',
+    dialogTitle: 'Editar perfil',
+    dialogDescription: 'Faça alterações no seu perfil aqui. Clique em salvar quando terminar.',
+    nameLabel: 'Nome',
+    namePlaceholder: 'Seu nome',
+    emailLabel: 'E-mail',
+    emailPlaceholder: 'seu@email.com',
+    saveLabel: 'Salvar alterações',
+  },
+};

@@ -63,14 +63,21 @@ export class ShortcutBindingsDialogComponent {
     protected readonly t = this.i18n.t;
     protected readonly dir = this.i18n.dir;
 
+    /** Locale code to forward to the nested `<ui-dialog-content>` (which has its own dictionary shape). */
+    protected readonly dialogLocaleCode = computed(() => {
+        const loc = this.locale();
+        if (!loc) return undefined;
+        return typeof loc === 'string' ? loc : loc.code;
+    });
+
     /** Interpolated aria-label for the "rebind all instances" capture button. */
     rebindAllAriaLabel(bindingDescription: string): string {
-        return interpolate(this.t().rebindAllInstances ?? 'Rebind all instances of {binding}', { binding: bindingDescription });
+        return interpolate(this.t().rebindAllInstances, { binding: bindingDescription });
     }
 
     /** Interpolated aria-label for the per-instance rebind button. */
     rebindInstanceAriaLabel(instanceName: string, bindingDescription: string): string {
-        return interpolate(this.t().rebindInstance ?? 'Rebind instance {name} for {binding}', { name: instanceName, binding: bindingDescription });
+        return interpolate(this.t().rebindInstance, { name: instanceName, binding: bindingDescription });
     }
 
     private readonly shortcutBindings = inject(ShortcutBindingService);

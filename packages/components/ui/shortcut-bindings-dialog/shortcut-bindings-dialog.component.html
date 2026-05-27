@@ -1,5 +1,5 @@
-<ui-dialog [(open)]="open" [locale]="locale()">
-  <ui-dialog-content class="max-w-[calc(100vw-2rem)] sm:max-w-4xl p-0 overflow-hidden">
+<ui-dialog [(open)]="open">
+  <ui-dialog-content [locale]="dialogLocaleCode()" class="max-w-[calc(100vw-2rem)] sm:max-w-4xl p-0 overflow-hidden">
     <ui-dialog-header class="px-5 pt-5 pb-4 border-b">
       <ui-dialog-title>Keyboard Shortcuts</ui-dialog-title>
       <ui-dialog-description>
@@ -10,7 +10,7 @@
           type="text"
           class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
           [value]="search()"
-          [placeholder]="t().searchPlaceholder ?? 'Search actions, categories, components, or keys...'"
+          [placeholder]="t().searchPlaceholder"
           (input)="onSearchInput($event)"
         />
       </div>
@@ -49,7 +49,7 @@
                                 <ui-badge variant="secondary">{{ binding.category }}</ui-badge>
                               }
                               @if (isConflicting(binding.actionId)) {
-                                <ui-badge variant="destructive">{{ t().conflict ?? 'Conflict' }}</ui-badge>
+                                <ui-badge variant="destructive">{{ t().conflict }}</ui-badge>
                               }
                             </div>
                             <p class="text-xs text-muted-foreground leading-4">

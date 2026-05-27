@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   ButtonComponent,
   EmptyComponent,
@@ -8,6 +8,8 @@ import {
   EmptyMediaComponent,
   EmptyTitleComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { EMPTY_DEMO_LOCALES } from './empty-demo.locales';
 
 @Component({
   selector: 'app-empty-demo',
@@ -23,9 +25,8 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="empty" class="text-2xl font-semibold scroll-m-20">Empty</h2>
-      <p class="text-muted-foreground">A unified empty state component for lists, tables, and other data displays.
-      </p>
+      <h2 id="empty" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="border rounded-lg p-8 max-w-md">
         <ui-empty>
@@ -33,17 +34,20 @@ import {
             <ui-empty-media>
               <span class="text-4xl">&#x1f4ed;</span>
             </ui-empty-media>
-            <ui-empty-title>No messages</ui-empty-title>
+            <ui-empty-title>{{ t().emptyTitle }}</ui-empty-title>
             <ui-empty-description>
-              You haven't received any messages yet.
+              {{ t().emptyDescription }}
             </ui-empty-description>
           </ui-empty-header>
           <ui-empty-content>
-            <ui-button>Send Message</ui-button>
+            <ui-button>{{ t().buttonLabel }}</ui-button>
           </ui-empty-content>
         </ui-empty>
       </div>
     </section>
   `,
 })
-export class EmptyDemoComponent {}
+export class EmptyDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => EMPTY_DEMO_LOCALES[this.localeId()] ?? EMPTY_DEMO_LOCALES['en']);
+}

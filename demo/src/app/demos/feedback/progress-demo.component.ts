@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { ProgressComponent } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { PROGRESS_DEMO_LOCALES } from './progress-demo.locales';
 
 @Component({
   selector: 'app-progress-demo',
@@ -7,8 +9,8 @@ import { ProgressComponent } from '../../../../../packages/components/ui';
   imports: [ProgressComponent],
   template: `
     <section class="space-y-4">
-      <h2 id="progress" class="text-2xl font-semibold scroll-m-20">Progress</h2>
-      <p class="text-muted-foreground">Progress bar indicators.</p>
+      <h2 id="progress" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="space-y-4 max-w-md">
         <ui-progress [value]="25" />
@@ -19,4 +21,7 @@ import { ProgressComponent } from '../../../../../packages/components/ui';
     </section>
   `,
 })
-export class ProgressDemoComponent {}
+export class ProgressDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  readonly t = computed(() => PROGRESS_DEMO_LOCALES[this.localeId()] ?? PROGRESS_DEMO_LOCALES['en']);
+}

@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, computed, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { PAGE_BUILDER_DEMO_LOCALES } from './page-builder-demo.locales';
 import {
   AccordionComponent,
   BadgeComponent,
@@ -56,15 +58,15 @@ import {
         [attr.aria-expanded]="panelOpen()"
       >
         <span class="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-          Saved Layout (from (save) output)
+          {{ t().panelLabel }}
           @if (savedAt(); as at) {
             <span class="normal-case tracking-normal font-normal text-[11px] text-muted-foreground/80">
-              · saved {{ at }} · view mode: {{ viewMode() }}
+              · {{ t().panelSavedAt }} {{ at }} · {{ t().panelViewMode }} {{ viewMode() }}
             </span>
           }
         </span>
         <span class="text-[11px] text-muted-foreground">
-          {{ panelOpen() ? 'Hide' : 'Show' }}
+          {{ panelOpen() ? t().panelHide : t().panelShow }}
         </span>
       </button>
       @if (panelOpen()) {
@@ -73,7 +75,7 @@ import {
             <ui-code-block [code]="json" language="json" class="block" />
           } @else {
             <div class="h-full flex items-center justify-center text-xs text-muted-foreground px-4 text-center">
-              Click "Save" in the toolbar to capture the layout JSON here.
+              {{ t().panelClickSave }}
             </div>
           }
         </div>
@@ -82,6 +84,11 @@ import {
   `,
 })
 export class PageBuilderDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => PAGE_BUILDER_DEMO_LOCALES[this.localeId()] ?? PAGE_BUILDER_DEMO_LOCALES['en'],
+  );
+
   readonly savedLayout = signal<PageData | null>(null);
   readonly savedAt = signal<string | null>(null);
   readonly viewMode = signal<PageBuilderViewMode>('edit');
