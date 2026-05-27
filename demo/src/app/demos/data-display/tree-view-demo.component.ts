@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
 import {
   ContextMenuComponent,
   ContextMenuContentComponent,
@@ -13,6 +13,8 @@ import {
   TreeLabelComponent,
   TreeNode,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { TREE_VIEW_DEMO_LOCALES } from './tree-view-demo.locales';
 
 @Component({
   selector: 'app-tree-view-demo',
@@ -31,93 +33,79 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="tree-view" class="text-2xl font-semibold scroll-m-20">Tree View</h2>
-      <p class="text-muted-foreground">
-        A hierarchical list for displaying nested data like file systems.
-      </p>
+      <h2 id="tree-view" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="rounded-md border p-4 max-w-sm">
         <ui-tree selectable="single">
           <ui-tree-item value="documents">
             <ui-tree-label>
               <ui-tree-icon>&#x1f4c1;</ui-tree-icon>
-              Documents
+              {{ t().folderDocuments }}
             </ui-tree-label>
             <ui-tree-item value="resume">
               <ui-tree-label>
                 <ui-tree-icon>&#x1f4c4;</ui-tree-icon>
-                Resume.pdf
+                {{ t().fileResume }}
               </ui-tree-label>
             </ui-tree-item>
             <ui-tree-item value="cover-letter">
               <ui-tree-label>
                 <ui-tree-icon>&#x1f4c4;</ui-tree-icon>
-                Cover Letter.docx
+                {{ t().fileCoverLetter }}
               </ui-tree-label>
             </ui-tree-item>
           </ui-tree-item>
           <ui-tree-item value="images">
             <ui-tree-label>
               <ui-tree-icon>&#x1f4c1;</ui-tree-icon>
-              Images
+              {{ t().folderImages }}
             </ui-tree-label>
             <ui-tree-item value="photo1">
               <ui-tree-label>
                 <ui-tree-icon>&#x1f5bc;&#xfe0f;</ui-tree-icon>
-                vacation.jpg
+                {{ t().fileVacation }}
               </ui-tree-label>
             </ui-tree-item>
           </ui-tree-item>
         </ui-tree>
       </div>
 
-      <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
-      <p class="text-muted-foreground text-sm mb-4">Using the data input.</p>
-      <ui-tree [data]="[
-        { key: '1', label: 'Projects', children: [
-            { key: '1-1', label: 'Frontend', children: [
-                { key: '1-1-1', label: 'app.component.ts', icon: '&#x1f4c4;' },
-                { key: '1-1-2', label: 'app.html', icon: '&#x1f4c4;' }
-            ]},
-            { key: '1-2', label: 'Backend' }
-        ]},
-        { key: '2', label: 'Settings', icon: '&#x2699;&#xfe0f;' }
-      ]" />
+      <h3 class="text-lg font-medium mt-8">{{ t().simpleHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().simpleDescription }}</p>
+      <ui-tree [data]="simpleTreeNodes()" />
 
-      <h3 class="text-lg font-medium mt-8">Context Menu Integration</h3>
-      <p class="text-muted-foreground text-sm mb-4">
-        Right-click any node to open a context menu wired with the
-        <code>uiTreeContextMenu</code> directive.
-      </p>
+      <h3 class="text-lg font-medium mt-8">{{ t().contextMenuHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().contextMenuDescription }}</p>
       <div class="max-w-sm border rounded-md p-4">
         <ui-tree [uiTreeContextMenu]="treeContextMenu">
           <ui-tree-item value="documents-cm">
             <ui-tree-label>
               <ui-tree-icon>&#x1f4c1;</ui-tree-icon>
-              Documents
+              {{ t().folderDocuments }}
             </ui-tree-label>
             <ui-tree-item value="resume-cm">
               <ui-tree-label>
                 <ui-tree-icon>&#x1f4c4;</ui-tree-icon>
-                Resume.pdf
+                {{ t().fileResume }}
               </ui-tree-label>
             </ui-tree-item>
             <ui-tree-item value="cover-letter-cm">
               <ui-tree-label>
                 <ui-tree-icon>&#x1f4c4;</ui-tree-icon>
-                Cover Letter.docx
+                {{ t().fileCoverLetter }}
               </ui-tree-label>
             </ui-tree-item>
           </ui-tree-item>
           <ui-tree-item value="images-cm">
             <ui-tree-label>
               <ui-tree-icon>&#x1f4c1;</ui-tree-icon>
-              Images
+              {{ t().folderImages }}
             </ui-tree-label>
             <ui-tree-item value="vacation-cm">
               <ui-tree-label>
                 <ui-tree-icon>&#x1f5bc;&#xfe0f;</ui-tree-icon>
-                vacation.jpg
+                {{ t().fileVacation }}
               </ui-tree-label>
             </ui-tree-item>
           </ui-tree-item>
@@ -128,39 +116,34 @@ import {
             <ui-context-menu-item
               (click)="onTreeContextMenu('open', treeContextMenu.data())"
               (keydown.enter)="onTreeContextMenu('open', treeContextMenu.data())">
-              Open
+              {{ t().menuOpen }}
               <ui-context-menu-shortcut>&#x23ce;</ui-context-menu-shortcut>
             </ui-context-menu-item>
             <ui-context-menu-item
               (click)="onTreeContextMenu('properties', treeContextMenu.data())"
               (keydown.enter)="onTreeContextMenu('properties', treeContextMenu.data())">
-              Properties
+              {{ t().menuProperties }}
               <ui-context-menu-shortcut>&#8984;I</ui-context-menu-shortcut>
             </ui-context-menu-item>
             <ui-context-menu-separator />
             <ui-context-menu-item variant="destructive"
               (click)="onTreeContextMenu('delete', treeContextMenu.data())"
               (keydown.enter)="onTreeContextMenu('delete', treeContextMenu.data())">
-              Delete
+              {{ t().menuDelete }}
               <ui-context-menu-shortcut>&#8984;&#9003;</ui-context-menu-shortcut>
             </ui-context-menu-item>
           </ui-context-menu-content>
         </ui-context-menu>
       </div>
 
-      <h3 class="text-lg font-medium mt-8">Initial Expand Depth</h3>
-      <p class="text-sm text-muted-foreground">
-        Using the <code>[data]</code> input with <code>[initialExpandDepth]="1"</code> to
-        auto-expand the first level.
-      </p>
+      <h3 class="text-lg font-medium mt-8">{{ t().expandDepthHeading }}</h3>
+      <p class="text-sm text-muted-foreground">{{ t().expandDepthDescription }}</p>
       <div class="max-w-sm border rounded-md p-4">
-        <ui-tree [data]="treeSelectNodes" [initialExpandDepth]="1" selectable="single" />
+        <ui-tree [data]="treeSelectNodes()" [initialExpandDepth]="1" selectable="single" />
       </div>
 
-      <h3 class="text-lg font-medium mt-8">Large Dataset (5 x 7 depth = 97,655 nodes)</h3>
-      <p class="text-sm text-muted-foreground">
-        Lazy rendering: only root nodes are in the DOM initially. Children render on expand.
-      </p>
+      <h3 class="text-lg font-medium mt-8">{{ t().largeDatasetHeading }}</h3>
+      <p class="text-sm text-muted-foreground">{{ t().largeDatasetDescription }}</p>
       <div class="max-w-md border rounded-md p-4 max-h-96 overflow-auto">
         <ui-tree [data]="largeTreeData()" selectable="single" />
       </div>
@@ -168,49 +151,69 @@ import {
   `,
 })
 export class TreeViewDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
   private readonly toastService = inject(ToastService);
+  readonly t = computed(() => TREE_VIEW_DEMO_LOCALES[this.localeId()] ?? TREE_VIEW_DEMO_LOCALES['en']);
 
   readonly largeTreeData = signal<TreeNode[]>(this.generateDeepTree(5, 7));
 
-  readonly treeSelectNodes: TreeNode[] = [
-    {
-      key: 'documents',
-      label: 'Documents',
-      icon: '\u{1f4c1}',
-      children: [
-        {
-          key: 'work', label: 'Work', icon: '\u{1f4c2}', children: [
-            { key: 'report', label: 'Report.docx', icon: '\u{1f4c4}' },
-            { key: 'expenses', label: 'Expenses.xlsx', icon: '\u{1f4ca}' },
-          ],
-        },
-        {
-          key: 'personal', label: 'Personal', icon: '\u{1f4c2}', children: [
-            { key: 'resume', label: 'Resume.pdf', icon: '\u{1f4c4}' },
-          ],
-        },
-      ],
-    },
-    {
-      key: 'images',
-      label: 'Images',
-      icon: '\u{1f5bc}️',
-      children: [
-        {
-          key: 'vacation', label: 'Vacation', children: [
-            { key: 'beach', label: 'Beach.jpg', icon: '\u{1f4f7}' },
-            { key: 'mountains', label: 'Mountains.jpg', icon: '\u{1f4f7}' },
-          ],
-        },
-      ],
-    },
-  ];
+  readonly simpleTreeNodes = computed<TreeNode[]>(() => {
+    const locale = this.t();
+    return [
+      { key: '1', label: locale.nodeProjects, children: [
+          { key: '1-1', label: locale.nodeFrontend, children: [
+              { key: '1-1-1', label: 'app.component.ts', icon: '\u{1f4c4}' },
+              { key: '1-1-2', label: 'app.html', icon: '\u{1f4c4}' },
+          ]},
+          { key: '1-2', label: locale.nodeBackend },
+      ]},
+      { key: '2', label: locale.nodeSettings, icon: '⚙️' },
+    ];
+  });
+
+  readonly treeSelectNodes = computed<TreeNode[]>(() => {
+    const locale = this.t();
+    return [
+      {
+        key: 'documents',
+        label: locale.folderDocuments,
+        icon: '\u{1f4c1}',
+        children: [
+          {
+            key: 'work', label: locale.nodeWork, icon: '\u{1f4c2}', children: [
+              { key: 'report', label: locale.nodeReport, icon: '\u{1f4c4}' },
+              { key: 'expenses', label: locale.nodeExpenses, icon: '\u{1f4ca}' },
+            ],
+          },
+          {
+            key: 'personal', label: locale.nodePersonal, icon: '\u{1f4c2}', children: [
+              { key: 'resume', label: locale.fileResume, icon: '\u{1f4c4}' },
+            ],
+          },
+        ],
+      },
+      {
+        key: 'images',
+        label: locale.folderImages,
+        icon: '\u{1f5bc}️',
+        children: [
+          {
+            key: 'vacation', label: locale.nodeVacation, children: [
+              { key: 'beach', label: locale.nodeBeach, icon: '\u{1f4f7}' },
+              { key: 'mountains', label: locale.nodeMountains, icon: '\u{1f4f7}' },
+            ],
+          },
+        ],
+      },
+    ];
+  });
 
   onTreeContextMenu(action: string, node: unknown): void {
     const label = (node as Record<string, unknown>)?.['label'] ?? 'Unknown';
+    const locale = this.t();
     this.toastService.toast({
-      title: 'Tree Context Menu Action',
-      description: `Action: ${action} on node ${label}`,
+      title: locale.toastTitle,
+      description: locale.toastDescription.replace('{action}', action).replace('{label}', String(label)),
       variant: 'default',
     });
   }
