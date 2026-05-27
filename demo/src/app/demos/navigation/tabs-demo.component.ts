@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, input } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   ButtonComponent,
@@ -14,6 +14,8 @@ import {
   TabsListComponent,
   TabsTriggerComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { TABS_DEMO_LOCALES } from './tabs-demo.locales';
 
 @Component({
   selector: 'app-tabs-helper',
@@ -31,19 +33,19 @@ import {
   template: `
     <ui-card>
       <ui-card-header>
-        <ui-card-title>Account Settings</ui-card-title>
-        <ui-card-description>Manage your account settings and preferences.</ui-card-description>
+        <ui-card-title>{{ cardTitle() }}</ui-card-title>
+        <ui-card-description>{{ cardDesc() }}</ui-card-description>
       </ui-card-header>
       <ui-card-content class="space-y-2">
         <div class="space-y-1">
-          <ui-label>Username</ui-label>
+          <ui-label>{{ usernameLabel() }}</ui-label>
           <ui-input [ngModel]="username()" readonly />
         </div>
         <div class="space-y-1">
-          <ui-label>Email</ui-label>
+          <ui-label>{{ emailLabel() }}</ui-label>
           <ui-input ngModel="user@example.com" />
         </div>
-        <ui-button class="mt-4">Save Changes</ui-button>
+        <ui-button class="mt-4">{{ saveBtn() }}</ui-button>
       </ui-card-content>
     </ui-card>
   `,
@@ -51,6 +53,11 @@ import {
 })
 export class TabsHelperComponent {
   readonly username = input<string>('johndoe');
+  readonly cardTitle = input<string>('Account Settings');
+  readonly cardDesc = input<string>('Manage your account settings and preferences.');
+  readonly usernameLabel = input<string>('Username');
+  readonly emailLabel = input<string>('Email');
+  readonly saveBtn = input<string>('Save Changes');
 }
 
 @Component({
@@ -70,65 +77,80 @@ export class TabsHelperComponent {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="tabs" class="text-2xl font-semibold scroll-m-20">Tabs</h2>
-      <p class="text-muted-foreground">Tab navigation component.</p>
+      <h2 id="tabs" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <ui-tabs defaultValue="account" class="max-w-md">
         <ui-tabs-list>
-          <ui-tabs-trigger value="account">Account</ui-tabs-trigger>
-          <ui-tabs-trigger value="password">Password</ui-tabs-trigger>
-          <ui-tabs-trigger value="settings">Settings</ui-tabs-trigger>
+          <ui-tabs-trigger value="account">{{ t().tabAccount }}</ui-tabs-trigger>
+          <ui-tabs-trigger value="password">{{ t().tabPassword }}</ui-tabs-trigger>
+          <ui-tabs-trigger value="settings">{{ t().tabSettings }}</ui-tabs-trigger>
         </ui-tabs-list>
         <ui-tabs-content value="account">
           <ui-card>
             <ui-card-header>
-              <ui-card-title>Account</ui-card-title>
-              <ui-card-description>Make changes to your account here.</ui-card-description>
+              <ui-card-title>{{ t().accountCardTitle }}</ui-card-title>
+              <ui-card-description>{{ t().accountCardDesc }}</ui-card-description>
             </ui-card-header>
             <ui-card-content>
-              <ui-input placeholder="Your name" />
+              <ui-input [placeholder]="t().accountInputPlaceholder" />
             </ui-card-content>
           </ui-card>
         </ui-tabs-content>
         <ui-tabs-content value="password">
           <ui-card>
             <ui-card-header>
-              <ui-card-title>Password</ui-card-title>
-              <ui-card-description>Change your password here.</ui-card-description>
+              <ui-card-title>{{ t().passwordCardTitle }}</ui-card-title>
+              <ui-card-description>{{ t().passwordCardDesc }}</ui-card-description>
             </ui-card-header>
             <ui-card-content>
-              <ui-input type="password" placeholder="New password" />
+              <ui-input type="password" [placeholder]="t().passwordInputPlaceholder" />
             </ui-card-content>
           </ui-card>
         </ui-tabs-content>
         <ui-tabs-content value="settings">
           <ui-card>
             <ui-card-header>
-              <ui-card-title>Settings</ui-card-title>
-              <ui-card-description>Configure your preferences.</ui-card-description>
+              <ui-card-title>{{ t().settingsCardTitle }}</ui-card-title>
+              <ui-card-description>{{ t().settingsCardDesc }}</ui-card-description>
             </ui-card-header>
           </ui-card>
         </ui-tabs-content>
       </ui-tabs>
 
-      <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
-      <p class="text-muted-foreground text-sm mb-4">Using tabs input array instead of content projection.</p>
-      <ui-tabs class="max-w-md" [tabs]="[
-        { value: 'overview', label: 'Overview', content: 'This is the overview tab content.' },
-        { value: 'features', label: 'Features', content: 'These are the features of the product.' },
-        { value: 'pricing', label: 'Pricing', content: 'Check out our pricing plans.' }
-      ]" />
+      <h3 class="text-lg font-medium mt-8">{{ t().simpleHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().simpleDesc }}</p>
+      <ui-tabs class="max-w-md" [tabs]="simpleTabs()" />
 
-      <h3 class="text-lg font-medium mt-8">Complex Mode (Components)</h3>
-      <p class="text-muted-foreground text-sm mb-4">Rendering components and passing context data in tabs.</p>
-      <ui-tabs class="max-w-md" [tabs]="complexTabs" />
+      <h3 class="text-lg font-medium mt-8">{{ t().complexHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().complexDesc }}</p>
+      <ui-tabs class="max-w-md" [tabs]="complexTabs()" />
     </section>
   `,
 })
 export class TabsDemoComponent {
-  readonly complexTabs = [
-    { value: 'account', label: 'Account', content: 'Make changes to your account here. Click save when you\'re done.' },
-    { value: 'password', label: 'Password', content: 'Change your password here. After saving, you\'ll be logged out.' },
-    { value: 'settings', label: 'Settings', content: TabsHelperComponent, contentContext: { username: 'shadcn' } },
-  ];
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => TABS_DEMO_LOCALES[this.localeId()] ?? TABS_DEMO_LOCALES['en']);
+
+  protected readonly simpleTabs = computed(() => [
+    { value: 'overview', label: this.t().simpleTabOverview, content: this.t().simpleOverviewContent },
+    { value: 'features', label: this.t().simpleTabFeatures, content: this.t().simpleFeaturesContent },
+    { value: 'pricing', label: this.t().simpleTabPricing, content: this.t().simplePricingContent },
+  ]);
+
+  protected readonly complexTabs = computed(() => [
+    { value: 'account', label: this.t().tabAccount, content: this.t().accountCardDesc },
+    { value: 'password', label: this.t().tabPassword, content: this.t().passwordCardDesc },
+    {
+      value: 'settings', label: this.t().tabSettings, content: TabsHelperComponent,
+      contentContext: {
+        username: 'shadcn',
+        cardTitle: this.t().helperCardTitle,
+        cardDesc: this.t().helperCardDesc,
+        usernameLabel: this.t().helperUsernameLabel,
+        emailLabel: this.t().helperEmailLabel,
+        saveBtn: this.t().helperSaveBtn,
+      },
+    },
+  ]);
 }
