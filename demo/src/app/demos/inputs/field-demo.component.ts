@@ -1,4 +1,5 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import {
   CheckboxComponent,
   InputComponent,
@@ -11,6 +12,7 @@ import {
   FieldErrorComponent,
   FieldSeparatorComponent,
 } from '../../../../../packages/components/ui';
+import { FIELD_DEMO_LOCALES } from './field-demo.locales';
 
 @Component({
   selector: 'app-field-demo',
@@ -29,33 +31,31 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="field" class="text-2xl font-semibold scroll-m-20">Field</h2>
-      <p class="text-muted-foreground">
-        Form field wrapper with label, description, and error support.
-      </p>
+      <h2 id="field" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="grid gap-6 max-w-md">
         <ui-field-group>
           <ui-field-set>
-            <ui-field-legend>Contact Information</ui-field-legend>
-            <ui-field-description>Enter your contact details.</ui-field-description>
+            <ui-field-legend>{{ t().legend }}</ui-field-legend>
+            <ui-field-description>{{ t().legendDesc }}</ui-field-description>
 
             <ui-field-group>
               <ui-field>
-                <ui-field-label for="name">Full Name</ui-field-label>
-                <ui-input id="name" placeholder="John Doe" />
+                <ui-field-label for="name">{{ t().fields.fullName }}</ui-field-label>
+                <ui-input id="name" [placeholder]="t().fields.fullNamePlaceholder" />
               </ui-field>
 
               <ui-field>
-                <ui-field-label for="email-field">Email</ui-field-label>
-                <ui-input id="email-field" type="email" placeholder="john&#64;example.com" />
-                <ui-field-description>We'll never share your email.</ui-field-description>
+                <ui-field-label for="email-field">{{ t().fields.email }}</ui-field-label>
+                <ui-input id="email-field" type="email" [placeholder]="t().fields.emailPlaceholder" />
+                <ui-field-description>{{ t().fields.emailDesc }}</ui-field-description>
               </ui-field>
 
               <ui-field>
-                <ui-field-label for="invalid-field">Required Field</ui-field-label>
-                <ui-input id="invalid-field" placeholder="This field has an error" class="border-destructive" />
-                <ui-field-error>This field is required.</ui-field-error>
+                <ui-field-label for="invalid-field">{{ t().fields.requiredField }}</ui-field-label>
+                <ui-input id="invalid-field" [placeholder]="t().fields.requiredFieldPlaceholder" class="border-destructive" />
+                <ui-field-error>{{ t().fields.requiredFieldError }}</ui-field-error>
               </ui-field>
             </ui-field-group>
           </ui-field-set>
@@ -64,11 +64,14 @@ import {
 
           <ui-field orientation="horizontal">
             <ui-checkbox id="terms-field" />
-            <ui-field-label for="terms-field" class="font-normal">I agree to the terms</ui-field-label>
+            <ui-field-label for="terms-field" class="font-normal">{{ t().fields.agreeTerms }}</ui-field-label>
           </ui-field>
         </ui-field-group>
       </div>
     </section>
   `,
 })
-export class FieldDemoComponent {}
+export class FieldDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => FIELD_DEMO_LOCALES[this.localeId()] ?? FIELD_DEMO_LOCALES['en']);
+}
