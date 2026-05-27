@@ -1,7 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   ButtonComponent,
-  DropdownItem,
   DropdownMenuComponent,
   DropdownMenuContentComponent,
   DropdownMenuItemComponent,
@@ -12,6 +11,8 @@ import {
   DropdownMenuSubTriggerComponent,
   DropdownMenuTriggerComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { DROPDOWN_MENU_DEMO_LOCALES } from './dropdown-menu-demo.locales';
 
 @Component({
   selector: 'app-dropdown-menu-demo',
@@ -30,53 +31,50 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">Dropdown Menu</h2>
-      <p class="text-muted-foreground">Displays a menu to the user — such as a set of actions or functions —
-        triggered by a button.</p>
+      <h2 id="dropdown-menu" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="flex flex-col gap-8">
-        <!-- Simple Mode (Data-Driven) -->
         <div class="space-y-4">
-          <h3 class="text-lg font-medium">Simple Mode (Data-Driven)</h3>
-          <ui-dropdown-menu [items]="simpleDropdownItems">
+          <h3 class="text-lg font-medium">{{ t().simpleModeHeading }}</h3>
+          <ui-dropdown-menu [items]="t().simpleItems">
             <ui-dropdown-menu-trigger>
-              <ui-button variant="outline">Open Menu (Data)</ui-button>
+              <ui-button variant="outline">{{ t().openDataLabel }}</ui-button>
             </ui-dropdown-menu-trigger>
           </ui-dropdown-menu>
         </div>
 
-        <!-- Complex Mode (Template-Driven) -->
         <div class="space-y-4">
-          <h3 class="text-lg font-medium">Complex Mode (Template-Driven)</h3>
+          <h3 class="text-lg font-medium">{{ t().complexModeHeading }}</h3>
           <ui-dropdown-menu>
             <ui-dropdown-menu-trigger>
-              <ui-button variant="outline">Open Menu (Template)</ui-button>
+              <ui-button variant="outline">{{ t().openTemplateLabel }}</ui-button>
             </ui-dropdown-menu-trigger>
             <ui-dropdown-menu-content class="w-56">
-              <ui-dropdown-menu-label>My Account</ui-dropdown-menu-label>
+              <ui-dropdown-menu-label>{{ t().myAccountLabel }}</ui-dropdown-menu-label>
               <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-item shortcut="\u21E7\u2318P">Profile</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item shortcut="\u2318B">Billing</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item shortcut="\u2318S">Settings</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item shortcut="\u2318K">Keyboard shortcuts</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item shortcut="&#8679;&#8984;P">{{ t().profileLabel }}</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item shortcut="&#8984;B">{{ t().billingLabel }}</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item shortcut="&#8984;S">{{ t().settingsLabel }}</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item shortcut="&#8984;K">{{ t().keyboardShortcutsLabel }}</ui-dropdown-menu-item>
               <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-item>Team</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item>{{ t().teamLabel }}</ui-dropdown-menu-item>
               <ui-dropdown-menu-sub>
-                <ui-dropdown-menu-sub-trigger>Invite users</ui-dropdown-menu-sub-trigger>
+                <ui-dropdown-menu-sub-trigger>{{ t().inviteUsersLabel }}</ui-dropdown-menu-sub-trigger>
                 <ui-dropdown-menu-sub-content>
-                  <ui-dropdown-menu-item>Email</ui-dropdown-menu-item>
-                  <ui-dropdown-menu-item>Message</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item>{{ t().emailLabel }}</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item>{{ t().messageLabel }}</ui-dropdown-menu-item>
                   <ui-dropdown-menu-separator />
-                  <ui-dropdown-menu-item>More...</ui-dropdown-menu-item>
+                  <ui-dropdown-menu-item>{{ t().moreLabel }}</ui-dropdown-menu-item>
                 </ui-dropdown-menu-sub-content>
               </ui-dropdown-menu-sub>
-              <ui-dropdown-menu-item shortcut="\u2318+T">New Team</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item shortcut="&#8984;+T">{{ t().newTeamLabel }}</ui-dropdown-menu-item>
               <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-item>GitHub</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item>Support</ui-dropdown-menu-item>
-              <ui-dropdown-menu-item [disabled]="true">API</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item>{{ t().githubLabel }}</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item>{{ t().supportLabel }}</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item [disabled]="true">{{ t().apiLabel }}</ui-dropdown-menu-item>
               <ui-dropdown-menu-separator />
-              <ui-dropdown-menu-item shortcut="\u21E7\u2318Q">Log out</ui-dropdown-menu-item>
+              <ui-dropdown-menu-item shortcut="&#8679;&#8984;Q">{{ t().logOutLabel }}</ui-dropdown-menu-item>
             </ui-dropdown-menu-content>
           </ui-dropdown-menu>
         </div>
@@ -85,33 +83,8 @@ import {
   `,
 })
 export class DropdownMenuDemoComponent {
-  readonly simpleDropdownItems: DropdownItem[] = [
-    { label: 'My Account', type: 'label' },
-    { type: 'separator' },
-    { label: 'Profile', shortcut: '\u21E7\u2318P' },
-    { label: 'Billing', shortcut: '\u2318B' },
-    { label: 'Settings', shortcut: '\u2318S' },
-    { label: 'Keyboard shortcuts', shortcut: '\u2318K' },
-    { type: 'separator' },
-    { label: 'Team', type: 'label' },
-    {
-      label: 'Invite users', type: 'sub', children: [
-        { label: 'Email', shortcut: '\u2318E' },
-        { label: 'Message', shortcut: '\u2318M' },
-        { type: 'separator' },
-        {
-          label: 'More', type: 'sub', children: [
-            { label: 'Discord' },
-            { label: 'Slack' },
-          ],
-        },
-      ],
-    },
-    { type: 'separator' },
-    { label: 'GitHub' },
-    { label: 'Support' },
-    { label: 'API' },
-    { type: 'separator' },
-    { label: 'Log out', shortcut: '\u21E7\u2318Q' },
-  ];
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => DROPDOWN_MENU_DEMO_LOCALES[this.localeId()] ?? DROPDOWN_MENU_DEMO_LOCALES['en'],
+  );
 }
