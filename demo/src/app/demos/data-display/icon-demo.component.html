@@ -1,13 +1,13 @@
 <section class="space-y-8">
   <div>
-    <h2 id="icon" class="text-2xl font-semibold scroll-m-20">Icon</h2>
-    <p class="text-muted-foreground mt-1">SVG icon component with 140+ built-in Lucide icons, extensible via DI, with weight and color control.</p>
+    <h2 id="icon" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+    <p class="text-muted-foreground mt-1">{{ t().description }}</p>
   </div>
 
   <!-- Sizes -->
   <div class="space-y-4">
-    <h3 class="text-lg font-medium">Sizes</h3>
-    <p class="text-sm text-muted-foreground">Use the <code class="text-xs bg-muted px-1 py-0.5 rounded">size</code> input with preset names or custom pixel values.</p>
+    <h3 class="text-lg font-medium">{{ t().sectionSizes }}</h3>
+    <p class="text-sm text-muted-foreground">{{ t().sectionSizesDesc }}</p>
     <div class="flex items-end gap-6">
       <div class="flex flex-col items-center gap-2">
         <ui-icon name="star" size="xs"></ui-icon>
@@ -36,13 +36,8 @@
 
   <!-- Weights -->
   <div class="space-y-4">
-    <h3 class="text-lg font-medium">Weights</h3>
-    <p class="text-sm text-muted-foreground">
-      <code class="text-xs bg-muted px-1 py-0.5 rounded">light</code> (thin strokes),
-      <code class="text-xs bg-muted px-1 py-0.5 rounded">regular</code> (default),
-      <code class="text-xs bg-muted px-1 py-0.5 rounded">thick</code> (bold strokes), and
-      <code class="text-xs bg-muted px-1 py-0.5 rounded">solid</code> (filled &mdash; only supported icons, others fall back to regular).
-    </p>
+    <h3 class="text-lg font-medium">{{ t().sectionWeights }}</h3>
+    <p class="text-sm text-muted-foreground">{{ t().sectionWeightsDesc }}</p>
     <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
       @for (icon of ['heart', 'star', 'bookmark', 'shield', 'bell', 'home', 'settings', 'check-circle']; track icon) {
       <div class="flex items-center gap-6 p-3 rounded-lg border">
@@ -74,10 +69,10 @@
 
   <!-- Colors -->
   <div class="space-y-6">
-    <h3 class="text-lg font-medium">Colors</h3>
+    <h3 class="text-lg font-medium">{{ t().sectionColors }}</h3>
 
     <div class="space-y-3">
-      <h4 class="text-sm font-medium">Stroke color via <code class="text-xs bg-muted px-1 py-0.5 rounded">color</code> input</h4>
+      <h4 class="text-sm font-medium">{{ t().colorStrokeHeading }}</h4>
       <div class="flex items-center gap-4">
         <ui-icon name="heart" color="red" size="lg"></ui-icon>
         <ui-icon name="star" color="#f59e0b" size="lg"></ui-icon>
@@ -89,7 +84,7 @@
     </div>
 
     <div class="space-y-3">
-      <h4 class="text-sm font-medium">Solid weight + color</h4>
+      <h4 class="text-sm font-medium">{{ t().colorSolidHeading }}</h4>
       <div class="flex items-center gap-4">
         <ui-icon name="heart" weight="solid" color="red" size="lg"></ui-icon>
         <ui-icon name="star" weight="solid" color="#f59e0b" size="lg"></ui-icon>
@@ -101,7 +96,7 @@
     </div>
 
     <div class="space-y-3">
-      <h4 class="text-sm font-medium">Dual color: stroke + fill via <code class="text-xs bg-muted px-1 py-0.5 rounded">fillColor</code></h4>
+      <h4 class="text-sm font-medium">{{ t().colorDualHeading }}</h4>
       <div class="flex items-center gap-4">
         <ui-icon name="heart" color="#dc2626" fillColor="#fecaca" size="lg"></ui-icon>
         <ui-icon name="star" color="#b45309" fillColor="#fef3c7" size="lg"></ui-icon>
@@ -113,7 +108,7 @@
     </div>
 
     <div class="space-y-3">
-      <h4 class="text-sm font-medium">Using Tailwind classes</h4>
+      <h4 class="text-sm font-medium">{{ t().colorTailwindHeading }}</h4>
       <div class="flex items-center gap-4">
         <ui-icon name="heart" class="text-red-500" size="lg"></ui-icon>
         <ui-icon name="star" class="text-yellow-500" size="lg"></ui-icon>
@@ -128,10 +123,10 @@
 
   <!-- Real-world usage patterns -->
   <div class="space-y-4">
-    <h3 class="text-lg font-medium">Usage Patterns</h3>
+    <h3 class="text-lg font-medium">{{ t().sectionUsage }}</h3>
 
     <div class="space-y-3">
-      <h4 class="text-sm font-medium">Action toolbar</h4>
+      <h4 class="text-sm font-medium">{{ t().usageToolbarHeading }}</h4>
       <div class="flex items-center gap-1 p-2 rounded-lg border w-fit">
         <ui-button variant="ghost" size="icon"><ui-icon name="pencil" size="sm"></ui-icon></ui-button>
         <ui-button variant="ghost" size="icon"><ui-icon name="copy" size="sm"></ui-icon></ui-button>
@@ -142,37 +137,37 @@
     </div>
 
     <div class="space-y-3">
-      <h4 class="text-sm font-medium">Status indicators</h4>
+      <h4 class="text-sm font-medium">{{ t().usageStatusHeading }}</h4>
       <div class="flex flex-col gap-2">
         <div class="flex items-center gap-2">
           <ui-icon name="check-circle" weight="solid" color="#16a34a" size="sm"></ui-icon>
-          <span class="text-sm">Build passed</span>
+          <span class="text-sm">{{ t().statusBuildPassed }}</span>
         </div>
         <div class="flex items-center gap-2">
           <ui-icon name="alert-circle" weight="solid" color="#f59e0b" size="sm"></ui-icon>
-          <span class="text-sm">2 warnings</span>
+          <span class="text-sm">{{ t().statusWarnings }}</span>
         </div>
         <div class="flex items-center gap-2">
           <ui-icon name="x-circle" weight="solid" color="#dc2626" size="sm"></ui-icon>
-          <span class="text-sm">Deploy failed</span>
+          <span class="text-sm">{{ t().statusDeployFailed }}</span>
         </div>
         <div class="flex items-center gap-2">
           <ui-icon name="info" color="#2563eb" size="sm"></ui-icon>
-          <span class="text-sm">Scheduled for tomorrow</span>
+          <span class="text-sm">{{ t().statusScheduled }}</span>
         </div>
       </div>
     </div>
 
     <div class="space-y-3">
-      <h4 class="text-sm font-medium">Feature cards</h4>
+      <h4 class="text-sm font-medium">{{ t().usageFeatureHeading }}</h4>
       <div class="grid grid-cols-3 gap-4">
         <div class="flex flex-col items-center gap-3 p-6 rounded-lg border text-center">
           <div class="p-3 rounded-full bg-blue-50 dark:bg-blue-950">
             <ui-icon name="shield-check" color="#2563eb" size="lg"></ui-icon>
           </div>
           <div>
-            <p class="text-sm font-medium">Secure</p>
-            <p class="text-xs text-muted-foreground">End-to-end encryption</p>
+            <p class="text-sm font-medium">{{ t().featureSecureTitle }}</p>
+            <p class="text-xs text-muted-foreground">{{ t().featureSecureDesc }}</p>
           </div>
         </div>
         <div class="flex flex-col items-center gap-3 p-6 rounded-lg border text-center">
@@ -180,8 +175,8 @@
             <ui-icon name="zap" color="#16a34a" size="lg"></ui-icon>
           </div>
           <div>
-            <p class="text-sm font-medium">Fast</p>
-            <p class="text-xs text-muted-foreground">Sub-millisecond response</p>
+            <p class="text-sm font-medium">{{ t().featureFastTitle }}</p>
+            <p class="text-xs text-muted-foreground">{{ t().featureFastDesc }}</p>
           </div>
         </div>
         <div class="flex flex-col items-center gap-3 p-6 rounded-lg border text-center">
@@ -189,8 +184,8 @@
             <ui-icon name="globe" color="#9333ea" size="lg"></ui-icon>
           </div>
           <div>
-            <p class="text-sm font-medium">Global</p>
-            <p class="text-xs text-muted-foreground">Edge network worldwide</p>
+            <p class="text-sm font-medium">{{ t().featureGlobalTitle }}</p>
+            <p class="text-xs text-muted-foreground">{{ t().featureGlobalDesc }}</p>
           </div>
         </div>
       </div>
@@ -202,12 +197,12 @@
   <!-- Icon Explorer -->
   <div class="space-y-4">
     <div class="flex items-center justify-between">
-      <h3 class="text-lg font-medium">Icon Explorer</h3>
+      <h3 class="text-lg font-medium">{{ t().sectionExplorer }}</h3>
       <span class="text-sm text-muted-foreground">{{ iconNames.length }} icons</span>
     </div>
-    <p class="text-sm text-muted-foreground">Click any icon to configure it. Extend via <code class="text-xs bg-muted px-1 py-0.5 rounded">provideIcons()</code>.</p>
+    <p class="text-sm text-muted-foreground">{{ t().explorerDesc }}</p>
 
-    <ui-input placeholder="Search icons..." [ngModel]="iconSearchQuery()" (ngModelChange)="iconSearchQuery.set($event)" />
+    <ui-input [placeholder]="t().explorerSearch" [ngModel]="iconSearchQuery()" (ngModelChange)="iconSearchQuery.set($event)" />
 
     @if (iconSearchQuery()) {
       <p class="text-xs text-muted-foreground">
@@ -259,7 +254,7 @@
     <ui-sheet-content side="right" class="w-[340px] sm:w-[400px]">
       <ui-sheet-header>
         <ui-sheet-title>{{ selectedIconName() }}</ui-sheet-title>
-        <ui-sheet-description>Configure and preview this icon</ui-sheet-description>
+        <ui-sheet-description>{{ t().sheetDesc }}</ui-sheet-description>
       </ui-sheet-header>
       <div class="space-y-6 py-4 px-4 overflow-y-auto max-h-[calc(100vh-8rem)]">
         @if (selectedIconName()) {
@@ -278,7 +273,7 @@
           <!-- Stroke Width -->
           <div class="space-y-3">
             <div class="flex items-center justify-between">
-              <label class="text-sm font-medium">Stroke Width</label>
+              <label class="text-sm font-medium">{{ t().sheetStrokeWidth }}</label>
               <span class="text-xs text-muted-foreground tabular-nums">{{ iconExplorerStrokeWidth().toFixed(1) }}</span>
             </div>
             <ui-slider
@@ -291,7 +286,7 @@
               (valueChange)="onStrokeWidthChange($event)"
             ></ui-slider>
             <div class="flex gap-2 mt-2.5">
-              @for (preset of strokeWidthPresets; track preset.label) {
+              @for (preset of strokeWidthPresets(); track preset.label) {
                 <ui-button
                   size="sm"
                   [variant]="!iconExplorerSolid() && iconExplorerStrokeWidth() === preset.value ? 'default' : 'outline'"
@@ -306,9 +301,9 @@
           <!-- Solid Fill Toggle -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="text-sm font-medium">Solid Fill</label>
+              <label class="text-sm font-medium">{{ t().sheetSolidFill }}</label>
               @if (!selectedIconSupportsSolid()) {
-                <span class="text-xs text-muted-foreground">Not available for this icon</span>
+                <span class="text-xs text-muted-foreground">{{ t().sheetSolidNotAvailable }}</span>
               }
             </div>
             <ui-button
@@ -316,13 +311,13 @@
               [variant]="iconExplorerSolid() ? 'default' : 'outline'"
               [disabled]="!selectedIconSupportsSolid()"
               (click)="iconExplorerSolid.set(!iconExplorerSolid())">
-              {{ iconExplorerSolid() ? 'Solid On' : 'Solid Off' }}
+              {{ iconExplorerSolid() ? t().sheetSolidOn : t().sheetSolidOff }}
             </ui-button>
           </div>
 
           <!-- Size -->
           <div class="space-y-2">
-            <label class="text-sm font-medium">Size</label>
+            <label class="text-sm font-medium">{{ t().sheetSize }}</label>
             <div class="flex flex-wrap gap-2">
               @for (s of iconSizeOptions; track s) {
                 <ui-button
@@ -337,21 +332,21 @@
 
           <!-- Color -->
           <div class="space-y-2">
-            <label class="text-sm font-medium">Color</label>
-            <ui-input placeholder="e.g. red, #3b82f6" [ngModel]="iconExplorerColor()" (ngModelChange)="iconExplorerColor.set($event)" />
+            <label class="text-sm font-medium">{{ t().sheetColor }}</label>
+            <ui-input [placeholder]="t().sheetColorPlaceholder" [ngModel]="iconExplorerColor()" (ngModelChange)="iconExplorerColor.set($event)" />
           </div>
 
           <!-- Fill Color -->
           <div class="space-y-2">
-            <label class="text-sm font-medium">Fill Color</label>
-            <ui-input placeholder="e.g. pink, #fef3c7" [ngModel]="iconExplorerFillColor()" (ngModelChange)="iconExplorerFillColor.set($event)" />
+            <label class="text-sm font-medium">{{ t().sheetFillColor }}</label>
+            <ui-input [placeholder]="t().sheetFillColorPlaceholder" [ngModel]="iconExplorerFillColor()" (ngModelChange)="iconExplorerFillColor.set($event)" />
           </div>
 
           <ui-separator />
 
           <!-- Generated Code -->
           <div class="space-y-2">
-            <label class="text-sm font-medium">Code</label>
+            <label class="text-sm font-medium">{{ t().sheetCode }}</label>
             <ui-code-block language="html" [code]="iconExplorerCode()"></ui-code-block>
           </div>
         }
@@ -363,22 +358,22 @@
 
   <!-- Copy-paste examples -->
   <div class="space-y-4">
-    <h3 class="text-lg font-medium">Copy-Paste Ready</h3>
+    <h3 class="text-lg font-medium">{{ t().sectionCopyPaste }}</h3>
     <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
       <div class="space-y-2">
-        <h4 class="text-sm font-medium">Basic usage</h4>
+        <h4 class="text-sm font-medium">{{ t().copyBasicHeading }}</h4>
         <ui-code-block language="html" [code]="'<ui-icon name=&quot;check&quot; />'"></ui-code-block>
       </div>
       <div class="space-y-2">
-        <h4 class="text-sm font-medium">With size & weight</h4>
+        <h4 class="text-sm font-medium">{{ t().copySizeWeightHeading }}</h4>
         <ui-code-block language="html" [code]="'<ui-icon name=&quot;heart&quot; size=&quot;lg&quot; weight=&quot;solid&quot; />'"></ui-code-block>
       </div>
       <div class="space-y-2">
-        <h4 class="text-sm font-medium">With colors</h4>
+        <h4 class="text-sm font-medium">{{ t().copyColorsHeading }}</h4>
         <ui-code-block language="html" [code]="'<ui-icon name=&quot;star&quot; color=&quot;#f59e0b&quot; fillColor=&quot;#fef3c7&quot; />'"></ui-code-block>
       </div>
       <div class="space-y-2">
-        <h4 class="text-sm font-medium">Custom icons via DI</h4>
+        <h4 class="text-sm font-medium">{{ t().copyCustomHeading }}</h4>
         <ui-code-block language="typescript" [code]="'provideIcons({ github: \'<path d=&quot;...&quot; />\' })'"></ui-code-block>
       </div>
     </div>
