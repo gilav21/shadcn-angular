@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
 import { ToastService } from '../../../../../packages/components/ui';
 import {
   BentoGridComponent,
@@ -11,6 +11,8 @@ import {
   ActivityWidgetComponent,
   ActionWidgetComponent,
 } from '../../dashboard-widgets';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { BENTO_GRID_DEMO_LOCALES } from './bento-grid-demo.locales';
 
 @Component({
   selector: 'app-bento-grid-demo',
@@ -19,20 +21,18 @@ import {
   template: `
     <section class="space-y-4">
       <div class="flex items-center justify-between">
-        <h2 id="bento-grid" class="text-2xl font-semibold scroll-m-20">Bento Grid (Dashboard)</h2>
+        <h2 id="bento-grid" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
         <button (click)="toggleEditMode()" (keydown.enter)="toggleEditMode()"
           class="px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors">
-          {{ isEditMode() ? 'Done' : 'Edit Layout' }}
+          {{ isEditMode() ? t().done : t().editLayout }}
         </button>
       </div>
-      <p class="text-muted-foreground">
-        A dashboard builder with drag-and-drop, resizable, and mergeable cells.
-      </p>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="flex gap-6">
         @if (isEditMode()) {
         <aside class="w-64 flex-none space-y-4">
-          <div class="font-medium text-sm text-muted-foreground mb-2">Components</div>
+          <div class="font-medium text-sm text-muted-foreground mb-2">{{ t().componentsLabel }}</div>
           <div class="grid gap-2">
             @for (widget of widgets(); track widget.id) {
             <div
@@ -45,7 +45,7 @@ import {
             }
           </div>
           <div class="p-4 bg-muted/50 rounded-lg text-xs text-muted-foreground">
-            <p>Drag components onto the grid to add them.</p>
+            <p>{{ t().dragHint }}</p>
           </div>
         </aside>
         }
@@ -60,51 +60,33 @@ import {
 })
 export class BentoGridDemoComponent {
   private readonly toastService = inject(ToastService);
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => BENTO_GRID_DEMO_LOCALES[this.localeId()] ?? BENTO_GRID_DEMO_LOCALES['en']);
 
   readonly isEditMode = signal(false);
-  readonly widgets = signal<{ id: string; title: string; component: DashboardItem['content']; icon: string }[]>([
-    { id: 'metric', title: 'Metric Card', component: MetricWidgetComponent, icon: '📊' },
-    { id: 'calendar', title: 'Calendar', component: CalendarWidgetComponent, icon: '📅' },
-    { id: 'team', title: 'Team Members', component: TeamWidgetComponent, icon: '👥' },
-    { id: 'activity', title: 'Activity Feed', component: ActivityWidgetComponent, icon: '🔔' },
-  ]);
+  readonly widgets = signal<{ id: string; title: string; component: DashboardItem['content']; icon: string }[]>([]);
+  readonly dashboardItems = signal<DashboardItem[]>([]);
 
-  readonly dashboardItems = signal<DashboardItem[]>([
-    {
-      id: '1', x: 1, y: 1, cols: 4, rows: 2,
-      content: MetricWidgetComponent,
-      inputs: { title: 'Total Revenue', value: '$45,231.89', trend: 20.1 },
-    },
-    {
-      id: '2', x: 5, y: 1, cols: 4, rows: 2,
-      content: MetricWidgetComponent,
-      inputs: { title: 'Subscriptions', value: '+2350', trend: 180.1 },
-    },
-    {
-      id: '3', x: 9, y: 1, cols: 4, rows: 2,
-      content: MetricWidgetComponent,
-      inputs: { title: 'Sales', value: '+12,234', trend: 19 },
-    },
-    {
-      id: '4', x: 1, y: 3, cols: 8, rows: 4,
-      content: ActivityWidgetComponent,
-    },
-    {
-      id: '5', x: 9, y: 3, cols: 4, rows: 4,
-      content: TeamWidgetComponent,
-    },
-    {
-      id: '6', x: 1, y: 7, cols: 4, rows: 4,
-      content: CalendarWidgetComponent,
-    },
-    {
-      id: '7', x: 5, y: 7, cols: 4, rows: 3,
-      content: ActionWidgetComponent,
-      outputs: {
-        action: (type: string) => this.onWidgetAction(type),
-      },
-    },
-  ]);
+  constructor() {
+    effect(() => {
+      const loc = this.t();
+      this.widgets.set([
+        { id: 'metric', title: loc.widgetMetricTitle, component: MetricWidgetComponent, icon: '📊' },
+        { id: 'calendar', title: loc.widgetCalendarTitle, component: CalendarWidgetComponent, icon: '📅' },
+        { id: 'team', title: loc.widgetTeamTitle, component: TeamWidgetComponent, icon: '👥' },
+        { id: 'activity', title: loc.widgetActivityTitle, component: ActivityWidgetComponent, icon: '🔔' },
+      ]);
+      this.dashboardItems.set([
+        { id: '1', x: 1, y: 1, cols: 4, rows: 2, content: MetricWidgetComponent, inputs: { title: loc.metricRevenue, value: '$45,231.89', trend: 20.1 } },
+        { id: '2', x: 5, y: 1, cols: 4, rows: 2, content: MetricWidgetComponent, inputs: { title: loc.metricSubscriptions, value: '+2350', trend: 180.1 } },
+        { id: '3', x: 9, y: 1, cols: 4, rows: 2, content: MetricWidgetComponent, inputs: { title: loc.metricSales, value: '+12,234', trend: 19 } },
+        { id: '4', x: 1, y: 3, cols: 8, rows: 4, content: ActivityWidgetComponent },
+        { id: '5', x: 9, y: 3, cols: 4, rows: 4, content: TeamWidgetComponent },
+        { id: '6', x: 1, y: 7, cols: 4, rows: 4, content: CalendarWidgetComponent },
+        { id: '7', x: 5, y: 7, cols: 4, rows: 3, content: ActionWidgetComponent, outputs: { action: (type: string) => this.onWidgetAction(type) } },
+      ]);
+    });
+  }
 
   onExternalDrop(event: { widgetId: string; targetId: string | null; x?: number; y?: number }) {
     const widget = this.widgets().find(w => w.id === event.widgetId);
@@ -116,7 +98,7 @@ export class BentoGridDemoComponent {
           return {
             ...item,
             content: widget.component,
-            inputs: widget.id === 'metric' ? { title: 'New Metric', value: '0', trend: 0 } : {},
+            inputs: widget.id === 'metric' ? { title: this.t().metricNewLabel, value: '0', trend: 0 } : {},
           };
         }
         return item;
