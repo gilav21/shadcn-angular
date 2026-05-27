@@ -1,4 +1,6 @@
-import { ChangeDetectionStrategy, Component, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, viewChild } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { ANIMATIONS_DEMO_LOCALES } from './animations-demo.locales';
 import {
   ButtonComponent,
   SeparatorComponent,
@@ -53,20 +55,19 @@ import {
     <ui-scroll-progress [height]="3" />
     <section class="space-y-12">
       <div>
-        <h2 id="animations" class="text-2xl font-semibold scroll-m-20">Animations</h2>
-        <p class="text-muted-foreground mt-1">A collection of animation components for landing pages,
-          micro-interactions, and text effects.</p>
+        <h2 id="animations" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+        <p class="text-muted-foreground mt-1">{{ t().description }}</p>
       </div>
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Gradient Text</h3>
-        <p class="text-muted-foreground text-sm">Animated gradient background on text.</p>
+        <h3 class="text-lg font-medium">{{ t().gradientTextHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().gradientTextDescription }}</p>
         <ui-gradient-text class="text-4xl font-bold">
-          Build beautiful interfaces
+          {{ t().gradientTextContent }}
         </ui-gradient-text>
         <div class="mt-4">
           <ui-gradient-text class="text-2xl font-semibold" [colors]="['#ec4899', '#8b5cf6', '#3b82f6']" [speed]="5">
-            Pink to Blue Gradient
+            {{ t().gradientTextPinkBlue }}
           </ui-gradient-text>
         </div>
       </div>
@@ -76,13 +77,13 @@ import {
       <div class="space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-medium">Flip Text</h3>
-            <p class="text-muted-foreground text-sm">Characters flip in one by one with a staggered delay.</p>
+            <h3 class="text-lg font-medium">{{ t().flipTextHeading }}</h3>
+            <p class="text-muted-foreground text-sm">{{ t().flipTextDescription }}</p>
           </div>
-          <ui-button variant="outline" size="sm" (clicked)="replayFlipText()" label="Replay" />
+          <ui-button variant="outline" size="sm" (clicked)="replayFlipText()" [label]="t().flipTextReplay" />
         </div>
         <div class="text-3xl font-bold">
-          <ui-flip-text #flipTextRef text="Hello World!" [delay]="60" [duration]="600" />
+          <ui-flip-text #flipTextRef [text]="t().flipTextContent" [delay]="60" [duration]="600" />
         </div>
       </div>
 
@@ -91,20 +92,20 @@ import {
       <div class="space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-medium">Blur Fade</h3>
-            <p class="text-muted-foreground text-sm">Elements blur and fade in when they enter the viewport.</p>
+            <h3 class="text-lg font-medium">{{ t().blurFadeHeading }}</h3>
+            <p class="text-muted-foreground text-sm">{{ t().blurFadeDescription }}</p>
           </div>
-          <ui-button variant="outline" size="sm" (clicked)="replayBlurFade()" label="Replay" />
+          <ui-button variant="outline" size="sm" (clicked)="replayBlurFade()" [label]="t().blurFadeReplay" />
         </div>
         <div class="space-y-4">
           <ui-blur-fade #blurFadeRef1 [delay]="0" direction="up">
-            <div class="p-6 rounded-xl border bg-card">First item fades up</div>
+            <div class="p-6 rounded-xl border bg-card">{{ t().blurFadeItem1 }}</div>
           </ui-blur-fade>
           <ui-blur-fade #blurFadeRef2 [delay]="200" direction="up">
-            <div class="p-6 rounded-xl border bg-card">Second item with 200ms delay</div>
+            <div class="p-6 rounded-xl border bg-card">{{ t().blurFadeItem2 }}</div>
           </ui-blur-fade>
           <ui-blur-fade #blurFadeRef3 [delay]="400" direction="left">
-            <div class="p-6 rounded-xl border bg-card">Third item fades from the left</div>
+            <div class="p-6 rounded-xl border bg-card">{{ t().blurFadeItem3 }}</div>
           </ui-blur-fade>
         </div>
       </div>
@@ -112,12 +113,11 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Typing Animation</h3>
-        <p class="text-muted-foreground text-sm">A typewriter effect that types, pauses, deletes, and cycles through
-          strings.</p>
+        <h3 class="text-lg font-medium">{{ t().typingHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().typingDescription }}</p>
         <div class="text-2xl font-mono">
-          <span>I am a </span>
-          <ui-typing-animation [strings]="['Developer', 'Designer', 'Creator', 'Problem Solver']" [typeSpeed]="60"
+          <span>{{ t().typingPrefix }}</span>
+          <ui-typing-animation [strings]="t().typingStrings" [typeSpeed]="60"
             [deleteSpeed]="40" [pauseDuration]="2000" />
         </div>
       </div>
@@ -125,21 +125,21 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Morphing Text</h3>
-        <p class="text-muted-foreground text-sm">Text morphs between words with a blur cross-fade transition.</p>
+        <h3 class="text-lg font-medium">{{ t().morphingHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().morphingDescription }}</p>
         <div class="text-4xl font-bold h-16 flex items-center">
-          <ui-morphing-text [texts]="['Innovation', 'Technology', 'Future', 'Design']" [interval]="3000" />
+          <ui-morphing-text [texts]="t().morphingTexts" [interval]="3000" />
         </div>
       </div>
 
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Word Rotate</h3>
-        <p class="text-muted-foreground text-sm">Words slide up and rotate through a list on an interval.</p>
+        <h3 class="text-lg font-medium">{{ t().wordRotateHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().wordRotateDescription }}</p>
         <div class="text-2xl font-semibold flex items-center gap-2">
-          <span>We build</span>
-          <ui-word-rotate class="text-primary h-[1.2em] w-32" [words]="['websites', 'apps', 'tools', 'products']"
+          <span>{{ t().wordRotatePrefix }}</span>
+          <ui-word-rotate class="text-primary h-[1.2em] w-32" [words]="t().wordRotateWords"
             [duration]="2000" />
         </div>
       </div>
@@ -147,8 +147,8 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Marquee</h3>
-        <p class="text-muted-foreground text-sm">Infinite scrolling content loop.</p>
+        <h3 class="text-lg font-medium">{{ t().marqueeHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().marqueeDescription }}</p>
         <ui-marquee [speed]="25" [pauseOnHover]="true" [gap]="24">
           @for (item of ['Angular', 'React', 'Vue', 'Svelte', 'Next.js', 'Nuxt', 'Remix', 'Astro']; track item) {
           <div class="flex items-center gap-2 px-4 py-2 rounded-full border bg-card">
@@ -169,19 +169,19 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Shine Border</h3>
-        <p class="text-muted-foreground text-sm">A rotating gradient border that shines around an element.</p>
+        <h3 class="text-lg font-medium">{{ t().shineHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().shineDescription }}</p>
         <div class="flex gap-6 flex-wrap">
           <ui-shine-border [borderRadius]="12" [duration]="3">
             <div class="p-6 text-center">
-              <h4 class="font-semibold">Shine Card</h4>
-              <p class="text-sm text-muted-foreground mt-1">Hover to admire the glow</p>
+              <h4 class="font-semibold">{{ t().shineCard1Title }}</h4>
+              <p class="text-sm text-muted-foreground mt-1">{{ t().shineCard1Desc }}</p>
             </div>
           </ui-shine-border>
           <ui-shine-border [colors]="['#ec4899', '#8b5cf6', '#06b6d4']" [borderWidth]="3" [borderRadius]="16">
             <div class="p-6 text-center">
-              <h4 class="font-semibold">Custom Colors</h4>
-              <p class="text-sm text-muted-foreground mt-1">Pink, purple, and cyan</p>
+              <h4 class="font-semibold">{{ t().shineCard2Title }}</h4>
+              <p class="text-sm text-muted-foreground mt-1">{{ t().shineCard2Desc }}</p>
             </div>
           </ui-shine-border>
         </div>
@@ -190,13 +190,13 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Meteors</h3>
-        <p class="text-muted-foreground text-sm">Diagonal meteor shower animation overlay.</p>
+        <h3 class="text-lg font-medium">{{ t().meteorsHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().meteorsDescription }}</p>
         <div class="relative h-64 rounded-xl border bg-slate-950 overflow-hidden flex items-center justify-center">
           <ui-meteors [count]="20" speed="fast" color="white" />
           <div class="relative z-10 text-center text-white">
-            <h4 class="text-2xl font-bold">Meteor Shower</h4>
-            <p class="text-slate-400 mt-2">Watch them fall</p>
+            <h4 class="text-2xl font-bold">{{ t().meteorsTitle }}</h4>
+            <p class="text-slate-400 mt-2">{{ t().meteorsSubtitle }}</p>
           </div>
         </div>
       </div>
@@ -204,8 +204,8 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Orbit</h3>
-        <p class="text-muted-foreground text-sm">Elements orbit around a center point.</p>
+        <h3 class="text-lg font-medium">{{ t().orbitHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().orbitDescription }}</p>
         <div class="flex justify-center py-12">
           <div class="relative" style="width:280px;height:280px">
             <div class="absolute inset-0 flex items-center justify-center">
@@ -235,18 +235,16 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Wobble Card</h3>
-        <p class="text-muted-foreground text-sm">Cards that tilt toward the mouse cursor with a 3D perspective
-          effect.</p>
+        <h3 class="text-lg font-medium">{{ t().wobbleHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().wobbleDescription }}</p>
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
           <ui-wobble-card class="p-8 border bg-card rounded-xl">
-            <h4 class="text-lg font-semibold">Hover Me</h4>
-            <p class="text-sm text-muted-foreground mt-2">This card tilts toward your cursor with a perspective
-              transform.</p>
+            <h4 class="text-lg font-semibold">{{ t().wobbleCard1Title }}</h4>
+            <p class="text-sm text-muted-foreground mt-2">{{ t().wobbleCard1Desc }}</p>
           </ui-wobble-card>
           <ui-wobble-card class="p-8 border bg-primary text-primary-foreground rounded-xl" [intensity]="20">
-            <h4 class="text-lg font-semibold">High Intensity</h4>
-            <p class="text-sm opacity-80 mt-2">More dramatic tilt effect on this one.</p>
+            <h4 class="text-lg font-semibold">{{ t().wobbleCard2Title }}</h4>
+            <p class="text-sm opacity-80 mt-2">{{ t().wobbleCard2Desc }}</p>
           </ui-wobble-card>
         </div>
       </div>
@@ -256,18 +254,17 @@ import {
       <div class="space-y-4">
         <div class="flex items-center justify-between">
           <div>
-            <h3 class="text-lg font-medium">Stagger Children</h3>
-            <p class="text-muted-foreground text-sm">Children animate in one by one with a staggered delay when they
-              enter the viewport.</p>
+            <h3 class="text-lg font-medium">{{ t().staggerHeading }}</h3>
+            <p class="text-muted-foreground text-sm">{{ t().staggerDescription }}</p>
           </div>
-          <ui-button variant="outline" size="sm" (clicked)="replayStagger()" label="Replay" />
+          <ui-button variant="outline" size="sm" (clicked)="replayStagger()" [label]="t().staggerReplay" />
         </div>
         <ui-stagger-children #staggerRef [staggerDelay]="100" [duration]="500" direction="up"
           class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
           @for (i of [1,2,3,4,5,6,7,8]; track i) {
           <div class="p-6 rounded-xl border bg-card text-center">
             <div class="text-2xl font-bold text-primary">{{ i }}</div>
-            <p class="text-sm text-muted-foreground mt-1">Card {{ i }}</p>
+            <p class="text-sm text-muted-foreground mt-1">{{ t().staggerCardLabel }} {{ i }}</p>
           </div>
           }
         </ui-stagger-children>
@@ -276,20 +273,19 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Ripple</h3>
-        <p class="text-muted-foreground text-sm">A click ripple effect directive that can be applied to any element.
-        </p>
+        <h3 class="text-lg font-medium">{{ t().rippleHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().rippleDescription }}</p>
         <div class="flex gap-4 flex-wrap">
           <button uiRipple class="px-6 py-3 rounded-lg bg-primary text-primary-foreground font-medium">
-            Click for Ripple
+            {{ t().rippleButton1 }}
           </button>
           <button uiRipple uiRippleColor="rgba(59,130,246,0.4)"
             class="px-6 py-3 rounded-lg border bg-card font-medium">
-            Blue Ripple
+            {{ t().rippleButton2 }}
           </button>
           <div uiRipple class="p-6 rounded-xl border bg-card cursor-pointer">
-            <p class="font-medium">Ripple on a card</p>
-            <p class="text-sm text-muted-foreground">Click anywhere</p>
+            <p class="font-medium">{{ t().rippleCard1Title }}</p>
+            <p class="text-sm text-muted-foreground">{{ t().rippleCard1Desc }}</p>
           </div>
         </div>
       </div>
@@ -297,11 +293,11 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Magnetic</h3>
-        <p class="text-muted-foreground text-sm">Elements that are magnetically pulled toward the mouse cursor.</p>
+        <h3 class="text-lg font-medium">{{ t().magneticHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().magneticDescription }}</p>
         <div class="flex gap-8 items-center justify-center py-8">
           <button uiMagnetic class="px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium">
-            Hover Near Me
+            {{ t().magneticButton1 }}
           </button>
           <button uiMagnetic [uiMagneticStrength]="0.5"
             class="h-16 w-16 rounded-full border-2 flex items-center justify-center text-2xl">
@@ -309,7 +305,7 @@ import {
           </button>
           <button uiMagnetic [uiMagneticStrength]="0.6" [uiMagneticRadius]="150"
             class="px-6 py-3 rounded-lg border font-medium">
-            Strong Pull
+            {{ t().magneticButton3 }}
           </button>
         </div>
       </div>
@@ -317,15 +313,14 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Particles</h3>
-        <p class="text-muted-foreground text-sm">Interactive particle network rendered on canvas with mouse
-          repulsion.</p>
+        <h3 class="text-lg font-medium">{{ t().particlesHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().particlesDescription }}</p>
         <div class="relative h-72 rounded-xl border overflow-hidden">
           <ui-particles [count]="60" [connectDistance]="100" [speed]="0.4" />
           <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
             <div class="text-center">
-              <h4 class="text-2xl font-bold">Particle Network</h4>
-              <p class="text-muted-foreground mt-1">Move your mouse to interact</p>
+              <h4 class="text-2xl font-bold">{{ t().particlesTitle }}</h4>
+              <p class="text-muted-foreground mt-1">{{ t().particlesSubtitle }}</p>
             </div>
           </div>
         </div>
@@ -334,47 +329,51 @@ import {
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Scroll Progress</h3>
-        <p class="text-muted-foreground text-sm">A fixed progress bar that tracks scroll position.</p>
+        <h3 class="text-lg font-medium">{{ t().scrollProgressHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().scrollProgressDescription }}</p>
         <div class="p-4 rounded-xl border bg-primary/10 text-sm font-medium">
-          Look at the very top of the browser window — there is a thin colored bar. Scroll this page up and down to
-          see it grow and shrink.
+          {{ t().scrollProgressHint }}
         </div>
       </div>
 
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Streaming Text</h3>
-        <p class="text-muted-foreground text-sm">Typewriter effect for text.</p>
+        <h3 class="text-lg font-medium">{{ t().streamingHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().streamingDescription }}</p>
         <div class="border rounded-md p-6 min-h-[100px]">
-          <ui-streaming-text text="The quick brown fox jumps over the lazy dog." class="font-mono text-lg" />
+          <ui-streaming-text [text]="t().streamingText" class="font-mono text-lg" />
         </div>
       </div>
 
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Text Reveal</h3>
-        <p class="text-muted-foreground text-sm">Blur-in animation for text.</p>
+        <h3 class="text-lg font-medium">{{ t().textRevealHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().textRevealDescription }}</p>
         <div class="border rounded-md p-6 flex justify-center items-center">
-          <ui-text-reveal text="The truth will be revealed." class="text-3xl font-bold" />
+          <ui-text-reveal [text]="t().textRevealText" class="text-3xl font-bold" />
         </div>
       </div>
 
       <ui-separator />
 
       <div class="space-y-4">
-        <h3 class="text-lg font-medium">Sparkles</h3>
-        <p class="text-muted-foreground text-sm">Animated particles effect around a button.</p>
+        <h3 class="text-lg font-medium">{{ t().sparklesHeading }}</h3>
+        <p class="text-muted-foreground text-sm">{{ t().sparklesDescription }}</p>
         <div class="flex gap-4 items-center">
-          <ui-sparkles-button>Magic Button</ui-sparkles-button>
+          <ui-sparkles-button>{{ t().sparklesButton }}</ui-sparkles-button>
         </div>
       </div>
     </section>
   `,
 })
 export class AnimationsDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => ANIMATIONS_DEMO_LOCALES[this.localeId()] ?? ANIMATIONS_DEMO_LOCALES['en'],
+  );
+
   readonly flipTextRef = viewChild<FlipTextComponent>('flipTextRef');
   readonly blurFadeRef1 = viewChild<BlurFadeComponent>('blurFadeRef1');
   readonly blurFadeRef2 = viewChild<BlurFadeComponent>('blurFadeRef2');
