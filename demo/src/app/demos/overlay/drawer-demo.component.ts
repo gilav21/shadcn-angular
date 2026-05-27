@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   ButtonComponent,
   DrawerCloseComponent,
@@ -10,6 +10,8 @@ import {
   DrawerTitleComponent,
   DrawerTriggerComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { DRAWER_DEMO_LOCALES } from './drawer-demo.locales';
 
 @Component({
   selector: 'app-drawer-demo',
@@ -27,26 +29,26 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="drawer" class="text-2xl font-semibold scroll-m-20">Drawer</h2>
-      <p class="text-muted-foreground">A panel that slides in from the edge of the screen.</p>
+      <h2 id="drawer" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="flex gap-2">
         <ui-drawer>
           <ui-drawer-trigger>
-            <ui-button variant="outline">Open Bottom Drawer</ui-button>
+            <ui-button variant="outline">{{ t().openBottomLabel }}</ui-button>
           </ui-drawer-trigger>
           <ui-drawer-content>
             <ui-drawer-header>
-              <ui-drawer-title>Edit Profile</ui-drawer-title>
-              <ui-drawer-description>Make changes to your profile here.</ui-drawer-description>
+              <ui-drawer-title>{{ t().drawerTitle }}</ui-drawer-title>
+              <ui-drawer-description>{{ t().drawerDescription }}</ui-drawer-description>
             </ui-drawer-header>
             <div class="p-4">
-              <p>Drawer content goes here...</p>
+              <p>{{ t().drawerContent }}</p>
             </div>
             <ui-drawer-footer>
-              <ui-button>Save changes</ui-button>
+              <ui-button>{{ t().saveLabel }}</ui-button>
               <ui-drawer-close>
-                <ui-button variant="outline">Cancel</ui-button>
+                <ui-button variant="outline">{{ t().cancelLabel }}</ui-button>
               </ui-drawer-close>
             </ui-drawer-footer>
           </ui-drawer-content>
@@ -55,4 +57,9 @@ import {
     </section>
   `,
 })
-export class DrawerDemoComponent {}
+export class DrawerDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => DRAWER_DEMO_LOCALES[this.localeId()] ?? DRAWER_DEMO_LOCALES['en'],
+  );
+}
