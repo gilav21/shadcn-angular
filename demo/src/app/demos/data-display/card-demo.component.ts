@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   ButtonComponent,
   CardComponent,
@@ -11,6 +11,8 @@ import {
   LabelComponent,
   SwitchComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { CARD_DEMO_LOCALES } from './card-demo.locales';
 
 @Component({
   selector: 'app-card-demo',
@@ -29,46 +31,46 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="card" class="text-2xl font-semibold scroll-m-20">Card</h2>
-      <p class="text-muted-foreground">Card component with header, content, and footer.</p>
+      <h2 id="card" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="grid md:grid-cols-2 gap-6">
         <ui-card>
           <ui-card-header>
-            <ui-card-title>Create Project</ui-card-title>
-            <ui-card-description>Deploy your new project in one-click.</ui-card-description>
+            <ui-card-title>{{ t().card1Title }}</ui-card-title>
+            <ui-card-description>{{ t().card1Description }}</ui-card-description>
           </ui-card-header>
           <ui-card-content>
             <div class="space-y-4">
               <div class="space-y-2">
-                <ui-label for="project-name">Name</ui-label>
-                <ui-input id="project-name" placeholder="Name of your project" />
+                <ui-label for="project-name">{{ t().labelName }}</ui-label>
+                <ui-input id="project-name" [placeholder]="t().placeholderName" />
               </div>
               <div class="space-y-2">
-                <ui-label for="project-framework">Framework</ui-label>
-                <ui-input id="project-framework" placeholder="Angular" />
+                <ui-label for="project-framework">{{ t().labelFramework }}</ui-label>
+                <ui-input id="project-framework" [placeholder]="t().placeholderFramework" />
               </div>
             </div>
           </ui-card-content>
           <ui-card-footer class="flex justify-between">
-            <ui-button variant="outline">Cancel</ui-button>
-            <ui-button>Deploy</ui-button>
+            <ui-button variant="outline">{{ t().buttonCancel }}</ui-button>
+            <ui-button>{{ t().buttonDeploy }}</ui-button>
           </ui-card-footer>
         </ui-card>
 
         <ui-card>
           <ui-card-header>
-            <ui-card-title>Notifications</ui-card-title>
-            <ui-card-description>Manage your notification preferences.</ui-card-description>
+            <ui-card-title>{{ t().card2Title }}</ui-card-title>
+            <ui-card-description>{{ t().card2Description }}</ui-card-description>
           </ui-card-header>
           <ui-card-content>
             <div class="space-y-4">
               <div class="flex items-center justify-between">
-                <ui-label>Push Notifications</ui-label>
+                <ui-label>{{ t().labelPushNotifications }}</ui-label>
                 <ui-switch />
               </div>
               <div class="flex items-center justify-between">
-                <ui-label>Email Notifications</ui-label>
+                <ui-label>{{ t().labelEmailNotifications }}</ui-label>
                 <ui-switch />
               </div>
             </div>
@@ -76,15 +78,17 @@ import {
         </ui-card>
       </div>
 
-      <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
-      <p class="text-muted-foreground text-sm mb-4">Using title, description, and content inputs instead of content
-        projection.</p>
+      <h3 class="text-lg font-medium mt-8">{{ t().simpleHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().simpleDescription }}</p>
       <div class="grid md:grid-cols-2 gap-6">
-        <ui-card title="Quick Card" description="A card created with simple inputs."
-          content="This card content was passed via the [content] input." />
-        <ui-card title="Another Card" description="Minimal configuration required." />
+        <ui-card [title]="t().simpleCard1Title" [description]="t().simpleCard1Description"
+          [content]="t().simpleCard1Content" />
+        <ui-card [title]="t().simpleCard2Title" [description]="t().simpleCard2Description" />
       </div>
     </section>
   `,
 })
-export class CardDemoComponent {}
+export class CardDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => CARD_DEMO_LOCALES[this.localeId()] ?? CARD_DEMO_LOCALES['en']);
+}
