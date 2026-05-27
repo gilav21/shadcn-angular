@@ -1,6 +1,8 @@
-import { ChangeDetectionStrategy, Component, type WritableSignal, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, type WritableSignal, signal } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { ButtonComponent } from '../../../../../packages/components/ui';
 import { UiConfettiDirective } from '../../../../../packages/components/ui/confetti.directive';
+import { CONFETTI_DEMO_LOCALES } from './confetti-demo.locales';
 
 @Component({
   selector: 'app-confetti-demo',
@@ -8,24 +10,24 @@ import { UiConfettiDirective } from '../../../../../packages/components/ui/confe
   imports: [ButtonComponent, UiConfettiDirective],
   template: `
     <section class="space-y-4">
-      <h2 id="confetti" class="text-2xl font-semibold scroll-m-20">Confetti</h2>
+      <h2 id="confetti" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
       <p class="text-muted-foreground">
-        A canvas-based celebration effect for success states.
+        {{ t().description }}
       </p>
 
       <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div class="space-y-4">
-          <h3 class="text-lg font-semibold">Basic Trigger</h3>
+          <h3 class="text-lg font-semibold">{{ t().basicTriggerHeading }}</h3>
           <div
             class="relative h-[200px] w-full border rounded-lg flex items-center justify-center bg-background overflow-hidden"
             uiConfetti [manualTrigger]="confettiTrigger1()"
             [options]="{ spread: 90, particleCount: 100, origin: { x: 0.6, y: 0.6 } }">
-            <ui-button (click)="fireConfetti(confettiTrigger1)">Celebrate!</ui-button>
+            <ui-button (click)="fireConfetti(confettiTrigger1)" [label]="t().basicButton" />
           </div>
         </div>
 
         <div class="space-y-4">
-          <h3 class="text-lg font-semibold">Custom Design</h3>
+          <h3 class="text-lg font-semibold">{{ t().customDesignHeading }}</h3>
           <div
             class="relative h-[200px] w-full border rounded-lg flex items-center justify-center bg-background overflow-hidden"
             uiConfetti [manualTrigger]="confettiTrigger2()" [options]="{
@@ -36,17 +38,17 @@ import { UiConfettiDirective } from '../../../../../packages/components/ui/confe
                 startVelocity: 50,
                 gravity: 0.1
              }">
-            <ui-button variant="outline" (click)="fireConfetti(confettiTrigger2)">Black & Red</ui-button>
+            <ui-button variant="outline" (click)="fireConfetti(confettiTrigger2)" [label]="t().customButton" />
           </div>
         </div>
 
         <div class="space-y-4 md:col-span-2">
-          <h3 class="text-lg font-semibold">Side Cannons</h3>
+          <h3 class="text-lg font-semibold">{{ t().sideCannonsHeading }}</h3>
           <div
             class="relative h-[200px] w-full border rounded-lg flex items-center justify-center bg-background overflow-hidden"
             uiConfetti [manualTrigger]="confettiTrigger3()"
             [options]="{ variant: 'side-cannons', particleCount: 300, ticks: 400, startVelocity: 60 }">
-            <ui-button variant="secondary" (click)="fireConfetti(confettiTrigger3)">Fill Container</ui-button>
+            <ui-button variant="secondary" (click)="fireConfetti(confettiTrigger3)" [label]="t().sideCannonsButton" />
           </div>
         </div>
 
@@ -54,14 +56,18 @@ import { UiConfettiDirective } from '../../../../../packages/components/ui/confe
           <div class="relative h-full w-full border flex items-center justify-center" uiConfetti
             [manualTrigger]="confettiTrigger4()"
             [options]="{ variant: 'side-cannons', particleCount: 85, ticks: 500, startVelocity: 15, angle: 120, gravity: 0.02 }">
-            Fill
-            Button</div>
+            {{ t().fillButton }}</div>
         </ui-button>
       </div>
     </section>
   `,
 })
 export class ConfettiDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => CONFETTI_DEMO_LOCALES[this.localeId()] ?? CONFETTI_DEMO_LOCALES['en'],
+  );
+
   readonly confettiTrigger1 = signal(false);
   readonly confettiTrigger2 = signal(false);
   readonly confettiTrigger3 = signal(false);

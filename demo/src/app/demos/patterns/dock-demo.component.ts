@@ -1,4 +1,5 @@
-import { ChangeDetectionStrategy, Component, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, effect, inject, signal } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import {
   DockComponent,
   DockIconComponent,
@@ -8,6 +9,7 @@ import {
   LabelComponent,
   SliderComponent,
 } from '../../../../../packages/components/ui';
+import { DOCK_DEMO_LOCALES } from './dock-demo.locales';
 
 @Component({
   selector: 'app-dock-demo',
@@ -23,30 +25,30 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="dock" class="text-2xl font-semibold scroll-m-20">Dock</h2>
+      <h2 id="dock" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
       <p class="text-muted-foreground">
-        A macOS-style dock with magnification effect.
+        {{ t().description }}
       </p>
 
       <div class="flex items-center gap-8 p-4 border rounded-lg">
         <div class="space-y-2 w-full max-w-xs">
           <div class="flex justify-between">
-            <ui-label>Magnification ({{ dockMagnification() }}px)</ui-label>
+            <ui-label>{{ t().magnificationLabel }} ({{ dockMagnification() }}px)</ui-label>
           </div>
           <ui-slider [min]="40" [max]="100" [step]="1" [defaultValue]="dockMagnification()"
             (valueChange)="dockMagnification.set($event)" />
         </div>
         <div class="space-y-2 w-full max-w-xs">
           <div class="flex justify-between">
-            <ui-label>Distance ({{ dockDistance() }}px)</ui-label>
+            <ui-label>{{ t().distanceLabel }} ({{ dockDistance() }}px)</ui-label>
           </div>
           <ui-slider [min]="0" [max]="300" [step]="10" [defaultValue]="dockDistance()"
             (valueChange)="dockDistance.set($event)" />
         </div>
       </div>
 
-      <h3 class="text-lg font-medium mt-8">Simple Mode (Data-driven)</h3>
-      <p class="text-muted-foreground text-sm mb-4">Using the items input array.</p>
+      <h3 class="text-lg font-medium mt-8">{{ t().simpleModeHeading }}</h3>
+      <p class="text-muted-foreground text-sm mb-4">{{ t().simpleModeDescription }}</p>
       <div
         class="relative h-[200px] w-full border rounded-lg overflow-hidden bg-muted/20 flex flex-col items-center justify-center">
         <div class="absolute inset-x-0 bottom-4">
@@ -147,15 +149,25 @@ import {
   `,
 })
 export class DockDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => DOCK_DEMO_LOCALES[this.localeId()] ?? DOCK_DEMO_LOCALES['en'],
+  );
+
   readonly dockMagnification = signal(60);
   readonly dockDistance = signal(100);
-  readonly dockItems = signal([
-    { label: 'Home', icon: '🏠', active: true },
-    { label: 'Profile', icon: '👤', active: false },
-    { label: 'Settings', icon: '⚙️', active: false },
-    { label: 'Messages', icon: '✉️', active: false },
-    { label: 'Calendar', icon: '📅', active: false },
-  ]);
+  readonly dockItems = signal([...this.t().dockItems]);
+
+  constructor() {
+    let prev = this.t();
+    effect(() => {
+      const next = this.t();
+      if (next !== prev) {
+        this.dockItems.set([...next.dockItems]);
+        prev = next;
+      }
+    }, { allowSignalWrites: true });
+  }
 
   toggleDockItem(index: number) {
     this.dockItems.update(items => items.map((item, i) =>
