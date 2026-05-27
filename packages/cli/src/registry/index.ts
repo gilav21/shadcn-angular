@@ -33,6 +33,7 @@ export const registry = defineRegistry({
   autocomplete: {
     name: 'autocomplete',
     files: ['autocomplete/autocomplete.component.html', 'autocomplete/autocomplete.component.ts', 'autocomplete/highlight.pipe.ts', 'autocomplete/index.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['badge', 'command', 'popover'],
   },
   alert: {
@@ -42,6 +43,7 @@ export const registry = defineRegistry({
   'alert-dialog': {
     name: 'alert-dialog',
     files: ['alert-dialog/alert-dialog.component.ts', 'alert-dialog/index.ts', 'alert-dialog/sub/alert-dialog-action.component.ts', 'alert-dialog/sub/alert-dialog-cancel.component.ts', 'alert-dialog/sub/alert-dialog-content.component.ts', 'alert-dialog/sub/alert-dialog-description.component.ts', 'alert-dialog/sub/alert-dialog-footer.component.ts', 'alert-dialog/sub/alert-dialog-header.component.ts', 'alert-dialog/sub/alert-dialog-title.component.ts', 'alert-dialog/sub/alert-dialog-trigger.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'aspect-ratio': {
     name: 'aspect-ratio',
@@ -57,7 +59,8 @@ export const registry = defineRegistry({
   },
   breadcrumb: {
     name: 'breadcrumb',
-    files: ['breadcrumb/breadcrumb.component.ts', 'breadcrumb/index.ts', 'breadcrumb/sub/breadcrumb-ellipsis.component.ts', 'breadcrumb/sub/breadcrumb-item.component.ts', 'breadcrumb/sub/breadcrumb-link.component.ts', 'breadcrumb/sub/breadcrumb-list.component.ts', 'breadcrumb/sub/breadcrumb-page.component.ts', 'breadcrumb/sub/breadcrumb-separator.component.ts'],
+    files: ['breadcrumb/breadcrumb.component.ts', 'breadcrumb/breadcrumb.locales.ts', 'breadcrumb/index.ts', 'breadcrumb/sub/breadcrumb-ellipsis.component.ts', 'breadcrumb/sub/breadcrumb-item.component.ts', 'breadcrumb/sub/breadcrumb-link.component.ts', 'breadcrumb/sub/breadcrumb-list.component.ts', 'breadcrumb/sub/breadcrumb-page.component.ts', 'breadcrumb/sub/breadcrumb-separator.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   button: {
     name: 'button',
@@ -71,7 +74,7 @@ export const registry = defineRegistry({
   calendar: {
     name: 'calendar',
     files: ['calendar/calendar.component.html', 'calendar/calendar.component.ts', 'calendar/index.ts'],
-    libFiles: ['calendar-locales.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'select'],
   },
   card: {
@@ -80,7 +83,8 @@ export const registry = defineRegistry({
   },
   carousel: {
     name: 'carousel',
-    files: ['carousel/carousel.component.ts', 'carousel/index.ts', 'carousel/sub/carousel-content.component.ts', 'carousel/sub/carousel-item.component.ts', 'carousel/sub/carousel-next.component.ts', 'carousel/sub/carousel-previous.component.ts'],
+    files: ['carousel/carousel.component.ts', 'carousel/carousel.locales.ts', 'carousel/index.ts', 'carousel/sub/carousel-content.component.ts', 'carousel/sub/carousel-item.component.ts', 'carousel/sub/carousel-next.component.ts', 'carousel/sub/carousel-previous.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   checkbox: {
     name: 'checkbox',
@@ -92,9 +96,9 @@ export const registry = defineRegistry({
   },
   'color-picker': {
     name: 'color-picker',
-    files: ['color-picker/color-picker.component.css', 'color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/color-picker.utils.ts', 'color-picker/index.ts'],
+    files: ['color-picker/color-picker.component.css', 'color-picker/color-picker.component.html', 'color-picker/color-picker.component.ts', 'color-picker/color-picker.locales.ts', 'color-picker/color-picker.utils.ts', 'color-picker/index.ts'],
     dependencies: ['eyedropper', 'icon', 'input', 'popover', 'tabs', 'tooltip'],
-    libFiles: ['color-extract.ts', 'color.ts', 'touch.ts'],
+    libFiles: ['color-extract.ts', 'color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
   },
   confetti: {
     name: 'confetti',
@@ -104,7 +108,7 @@ export const registry = defineRegistry({
     name: 'command',
     files: ['command/command.component.ts', 'command/index.ts', 'command/sub/command-dialog.component.ts', 'command/sub/command-empty.component.ts', 'command/sub/command-group.component.ts', 'command/sub/command-input.component.ts', 'command/sub/command-item.component.ts', 'command/sub/command-list.component.ts', 'command/sub/command-separator.component.ts', 'command/sub/command-shortcut.component.ts'],
     dependencies: ['dialog'],
-    libFiles: ['shortcut-binding.service.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts'],
     shortcutDefinitions: [
       {
         exportName: 'COMMAND_DIALOG_SHORTCUT_DEFINITIONS',
@@ -139,8 +143,8 @@ export const registry = defineRegistry({
   },
   'code-block': {
     name: 'code-block',
-    files: ['code-block/code-block.component.html', 'code-block/code-block.component.ts', 'code-block/index.ts'],
-    libFiles: ['code-scopes.ts'],
+    files: ['code-block/code-block.component.html', 'code-block/code-block.component.ts', 'code-block/code-block.locales.ts', 'code-block/index.ts'],
+    libFiles: ['code-scopes.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
   'text-reveal': {
@@ -149,7 +153,7 @@ export const registry = defineRegistry({
   },
   'data-table': {
     name: 'data-table',
-    files: ['data-table/component-pool.service.ts', 'data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
+    files: ['data-table/component-pool.service.ts', 'data-table/data-table-column-builder.ts', 'data-table/data-table.component.html', 'data-table/data-table.component.ts', 'data-table/data-table.locales.ts', 'data-table/data-table.types.ts', 'data-table/data-table.utils.ts', 'data-table/index.ts', 'data-table/sub/data-table-column-header.component.html', 'data-table/sub/data-table-column-header.component.ts', 'data-table/sub/data-table-date-filter.component.html', 'data-table/sub/data-table-date-filter.component.ts', 'data-table/sub/data-table-date-range-filter.component.html', 'data-table/sub/data-table-date-range-filter.component.ts', 'data-table/sub/data-table-date-utils.ts', 'data-table/sub/data-table-multiselect-filter.component.html', 'data-table/sub/data-table-multiselect-filter.component.ts', 'data-table/sub/data-table-pagination.component.html', 'data-table/sub/data-table-pagination.component.ts'],
     peerFiles: [
       'context-menu-integrations.ts',
       'context-menu-attach.directive.ts',
@@ -158,7 +162,7 @@ export const registry = defineRegistry({
       'data-table-context-menu.directive.ts',
     ],
     dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'table'],
-    libFiles: ['calendar-locales.ts', 'parsers/xlsx.ts', 'touch.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
     ],
@@ -166,6 +170,7 @@ export const registry = defineRegistry({
   dialog: {
     name: 'dialog',
     files: ['dialog/dialog.component.ts', 'dialog/index.ts', 'dialog/sub/dialog-content.component.html', 'dialog/sub/dialog-content.component.ts', 'dialog/sub/dialog-description.component.ts', 'dialog/sub/dialog-footer.component.ts', 'dialog/sub/dialog-header.component.ts', 'dialog/sub/dialog-title.component.ts', 'dialog/sub/dialog-trigger.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   dock: {
     name: 'dock',
@@ -174,6 +179,7 @@ export const registry = defineRegistry({
   'tree-select': {
     name: 'tree-select',
     files: ['tree-select/index.ts', 'tree-select/sub/tree-select-content.component.ts', 'tree-select/sub/tree-select-trigger.component.ts', 'tree-select/tree-select.component.css', 'tree-select/tree-select.component.html', 'tree-select/tree-select.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['popover', 'tree'],
   },
   'virtual-scroll': {
@@ -209,7 +215,8 @@ export const registry = defineRegistry({
 
   'file-upload': {
     name: 'file-upload',
-    files: ['file-upload/file-upload.component.html', 'file-upload/file-upload.component.ts', 'file-upload/index.ts'],
+    files: ['file-upload/file-upload.component.html', 'file-upload/file-upload.component.ts', 'file-upload/file-upload.locales.ts', 'file-upload/index.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'progress'],
   },
   'file-viewer': {
@@ -262,21 +269,23 @@ export const registry = defineRegistry({
   'number-input': {
     name: 'number-input',
     files: ['number-input/index.ts', 'number-input/number-input.component.html', 'number-input/number-input.component.ts'],
-    libFiles: ['input-group.token.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'input-group.token.ts'],
     dependencies: ['input'],
   },
   'number-ticker': {
     name: 'number-ticker',
     files: ['number-ticker/index.ts', 'number-ticker/number-ticker.component.html', 'number-ticker/number-ticker.component.ts', 'number-ticker/sub/number-ticker-digit.component.html', 'number-ticker/sub/number-ticker-digit.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   pagination: {
     name: 'pagination',
-    files: ['pagination/index.ts', 'pagination/pagination.component.ts', 'pagination/sub/pagination-content.component.ts', 'pagination/sub/pagination-ellipsis.component.ts', 'pagination/sub/pagination-item.component.ts', 'pagination/sub/pagination-link.component.ts', 'pagination/sub/pagination-next.component.ts', 'pagination/sub/pagination-previous.component.ts'],
+    files: ['pagination/index.ts', 'pagination/pagination.component.ts', 'pagination/pagination.locales.ts', 'pagination/sub/pagination-content.component.ts', 'pagination/sub/pagination-ellipsis.component.ts', 'pagination/sub/pagination-item.component.ts', 'pagination/sub/pagination-link.component.ts', 'pagination/sub/pagination-next.component.ts', 'pagination/sub/pagination-previous.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'phone-input': {
     name: 'phone-input',
-    files: ['phone-input/index.ts', 'phone-input/phone-input-data.ts', 'phone-input/phone-input.component.html', 'phone-input/phone-input.component.ts'],
-    libFiles: ['input-group.token.ts'],
+    files: ['phone-input/index.ts', 'phone-input/phone-input-data.ts', 'phone-input/phone-input.component.html', 'phone-input/phone-input.component.ts', 'phone-input/phone-input.locales.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'input-group.token.ts'],
     dependencies: ['input', 'input-group', 'input-mask', 'popover'],
   },
   popover: {
@@ -286,6 +295,7 @@ export const registry = defineRegistry({
   progress: {
     name: 'progress',
     files: ['progress/index.ts', 'progress/progress.component.html', 'progress/progress.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'radio-group': {
     name: 'radio-group',
@@ -293,8 +303,8 @@ export const registry = defineRegistry({
   },
   rating: {
     name: 'rating',
-    files: ['rating/index.ts', 'rating/rating.component.html', 'rating/rating.component.ts'],
-    libFiles: ['touch.ts'],
+    files: ['rating/index.ts', 'rating/rating.component.html', 'rating/rating.component.ts', 'rating/rating.locales.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
   },
   resizable: {
     name: 'resizable',
@@ -308,6 +318,7 @@ export const registry = defineRegistry({
   select: {
     name: 'select',
     files: ['select/index.ts', 'select/select.component.ts', 'select/sub/select-content.component.ts', 'select/sub/select-group.component.ts', 'select/sub/select-item.component.ts', 'select/sub/select-label.component.ts', 'select/sub/select-separator.component.ts', 'select/sub/select-trigger.component.ts', 'select/sub/select-value.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   separator: {
     name: 'separator',
@@ -316,6 +327,7 @@ export const registry = defineRegistry({
   sheet: {
     name: 'sheet',
     files: ['sheet/index.ts', 'sheet/sheet.component.ts', 'sheet/sub/sheet-close.component.ts', 'sheet/sub/sheet-content.component.ts', 'sheet/sub/sheet-description.component.ts', 'sheet/sub/sheet-footer.component.ts', 'sheet/sub/sheet-header.component.ts', 'sheet/sub/sheet-title.component.ts', 'sheet/sub/sheet-trigger.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   sidebar: {
     name: 'sidebar',
@@ -329,6 +341,7 @@ export const registry = defineRegistry({
   slider: {
     name: 'slider',
     files: ['slider/index.ts', 'slider/slider.component.html', 'slider/slider.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   spinner: {
     name: 'spinner',
@@ -362,6 +375,7 @@ export const registry = defineRegistry({
   toast: {
     name: 'toast',
     files: ['toast/index.ts', 'toast/sub/toaster.component.html', 'toast/sub/toaster.component.ts', 'toast/toast.component.html', 'toast/toast.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   toggle: {
     name: 'toggle',
@@ -402,7 +416,7 @@ export const registry = defineRegistry({
     name: 'rich-text-editor',
     files: ['rich-text-editor/index.ts', 'rich-text-editor/rich-text-command-registry.service.ts', 'rich-text-editor/rich-text-editor.component.html', 'rich-text-editor/rich-text-editor.component.ts', 'rich-text-editor/rich-text-locales.ts', 'rich-text-editor/rich-text-markdown.service.ts', 'rich-text-editor/rich-text-paste-normalizer.service.ts', 'rich-text-editor/rich-text-sanitizer.service.ts', 'rich-text-editor/sub/rich-text-image-resizer.component.html', 'rich-text-editor/sub/rich-text-image-resizer.component.ts', 'rich-text-editor/sub/rich-text-mention.component.html', 'rich-text-editor/sub/rich-text-mention.component.ts', 'rich-text-editor/sub/rich-text-toolbar.component.css', 'rich-text-editor/sub/rich-text-toolbar.component.html', 'rich-text-editor/sub/rich-text-toolbar.component.ts'],
     dependencies: ['autocomplete', 'button', 'dialog', 'emoji-picker', 'popover', 'scroll-area', 'separator'],
-    libFiles: ['parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/docx-parser.ts', 'parsers/docx-to-editor-html.ts', 'parsers/image-validator.ts', 'parsers/inflate.ts', 'parsers/pdf-parser.ts', 'parsers/svg-sanitizer.ts', 'parsers/zip-reader.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     shortcutDefinitions: [
       {
         exportName: 'RICH_TEXT_SHORTCUT_DEFINITIONS',
@@ -444,8 +458,8 @@ export const registry = defineRegistry({
   },
   'bar-race-chart': {
     name: 'bar-race-chart',
-    files: ['bar-race-chart/bar-race-chart.component.html', 'bar-race-chart/bar-race-chart.component.ts', 'bar-race-chart/index.ts'],
-    libFiles: ['chart.types.ts', 'chart.utils.ts'],
+    files: ['bar-race-chart/bar-race-chart.component.html', 'bar-race-chart/bar-race-chart.component.ts', 'bar-race-chart/bar-race-chart.locales.ts', 'bar-race-chart/index.ts'],
+    libFiles: ['chart.types.ts', 'chart.utils.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'org-chart': {
     name: 'org-chart',
@@ -548,29 +562,30 @@ export const registry = defineRegistry({
   kanban: {
     name: 'kanban',
     files: ['kanban/index.ts', 'kanban/kanban-locales.ts', 'kanban/kanban.component.ts', 'kanban/sub/kanban-card-content.component.ts', 'kanban/sub/kanban-card-dialog.component.ts', 'kanban/sub/kanban-card.component.ts', 'kanban/sub/kanban-column-dialog.component.ts', 'kanban/sub/kanban-column-header.component.ts', 'kanban/sub/kanban-column.component.ts', 'kanban/sub/kanban-delete-column-dialog.component.ts'],
-    libFiles: ['shortcut-binding.service.ts', 'touch.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts', 'touch.ts'],
     dependencies: ['alert-dialog', 'autocomplete', 'avatar', 'badge', 'button', 'chip-list', 'context-menu', 'dialog', 'input', 'label', 'scroll-area', 'separator', 'textarea'],
   },
   'shortcut-bindings-dialog': {
     name: 'shortcut-bindings-dialog',
-    files: ['shortcut-bindings-dialog/index.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.html', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.ts'],
-    libFiles: ['shortcut-binding.service.ts'],
+    files: ['shortcut-bindings-dialog/index.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.html', 'shortcut-bindings-dialog/shortcut-bindings-dialog.component.ts', 'shortcut-bindings-dialog/shortcut-bindings-dialog.locales.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts'],
     dependencies: ['accordion', 'badge', 'button', 'dialog', 'scroll-area'],
   },
   tour: {
     name: 'tour',
     files: ['tour/index.ts', 'tour/tour.component.html', 'tour/tour.component.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button'],
   },
   'comparison-slider': {
     name: 'comparison-slider',
-    files: ['comparison-slider/comparison-slider.component.html', 'comparison-slider/comparison-slider.component.ts', 'comparison-slider/index.ts'],
-    libFiles: ['touch.ts'],
+    files: ['comparison-slider/comparison-slider.component.html', 'comparison-slider/comparison-slider.component.ts', 'comparison-slider/comparison-slider.locales.ts', 'comparison-slider/index.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
   },
   sortable: {
     name: 'sortable',
     files: ['sortable/index.ts', 'sortable/sortable-locales.ts', 'sortable/sortable.component.html', 'sortable/sortable.component.ts', 'sortable/sortable.types.ts', 'sortable/sub/sortable-ghost.directive.ts', 'sortable/sub/sortable-item.component.html', 'sortable/sub/sortable-item.component.ts', 'sortable/sub/sortable-placeholder.directive.ts'],
-    libFiles: ['auto-scroll.ts', 'flip.ts', 'sortable-aria-live.ts', 'sortable-registry.ts', 'touch.ts'],
+    libFiles: ['auto-scroll.ts', 'flip.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'sortable-aria-live.ts', 'sortable-registry.ts', 'touch.ts'],
   },
   'context-menu-attach': {
     name: 'context-menu-attach',
@@ -594,8 +609,8 @@ export const registry = defineRegistry({
   },
   eyedropper: {
     name: 'eyedropper',
-    files: ['eyedropper/eyedropper.component.html', 'eyedropper/eyedropper.component.ts', 'eyedropper/index.ts'],
-    libFiles: ['color.ts', 'touch.ts'],
+    files: ['eyedropper/eyedropper.component.html', 'eyedropper/eyedropper.component.ts', 'eyedropper/eyedropper.locales.ts', 'eyedropper/index.ts'],
+    libFiles: ['color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     dependencies: ['icon'],
   },
 });

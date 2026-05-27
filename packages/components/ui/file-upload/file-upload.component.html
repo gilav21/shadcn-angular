@@ -1,4 +1,4 @@
-<div [class]="classes()" [attr.data-slot]="'file-upload'">
+<div [class]="classes()" [attr.data-slot]="'file-upload'" [attr.dir]="dir()">
   <div
     [class]="dropzoneClasses()"
     [attr.data-dragging]="isDragging() || null"
@@ -11,7 +11,7 @@
       #fileInput
       type="file"
       class="sr-only"
-      aria-label="Upload files"
+      [attr.aria-label]="t().uploadFiles"
       [accept]="accept()"
       [multiple]="multiple()"
       [disabled]="isDisabled()"
@@ -36,13 +36,11 @@
           <line x1="12" x2="12" y1="3" y2="15"/>
         </svg>
         <div>
-          <p class="text-sm font-medium">Drag &amp; drop files here</p>
-          <p class="text-xs text-muted-foreground">or click to browse</p>
+          <p class="text-sm font-medium">{{ t().dragDropHere }}</p>
+          <p class="text-xs text-muted-foreground">{{ t().orClickToBrowse }}</p>
         </div>
-        @if (maxSize()) {
-          <p class="text-xs text-muted-foreground">
-            Max size: {{ formatSize(maxSize()) }}
-          </p>
+        @if (maxSizeLabel()) {
+          <p class="text-xs text-muted-foreground">{{ maxSizeLabel() }}</p>
         }
       </div>
     } @else {
@@ -85,7 +83,7 @@
               variant="outline"
               class="shrink-0 rounded-full p-1 hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
               (click)="removeFile(file.id, $event)"
-              aria-label="Remove file"
+              [attr.aria-label]="t().removeFile"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -109,7 +107,7 @@
           class="w-full text-sm text-primary hover:underline"
           (click)="openFilePicker(); $event.stopPropagation()"
         >
-          Add more files
+          {{ t().addMoreFiles }}
         </ui-button>
       </div>
     }

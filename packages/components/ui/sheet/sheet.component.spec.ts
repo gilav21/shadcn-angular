@@ -325,3 +325,53 @@ describe('Sheet Simple Mode', () => {
         expect(content.nativeElement.textContent).toContain('Body content');
     });
 });
+
+describe('SheetContentComponent — i18n integration', () => {
+    @Component({
+        template: `
+            <ui-sheet>
+                <ui-sheet-content [locale]="locale">Hi</ui-sheet-content>
+            </ui-sheet>
+        `,
+        imports: [SheetComponent, SheetContentComponent],
+    })
+    class SheetI18nHost {
+        locale: string | undefined = undefined;
+    }
+
+    async function setup(locale?: string, providerLocale?: string) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [SheetI18nHost],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(SheetI18nHost);
+        if (locale) fixture.componentInstance.locale = locale;
+        fixture.detectChanges();
+        const sheet = fixture.debugElement.query(By.directive(SheetComponent)).componentInstance as SheetComponent;
+        sheet.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        return fixture;
+    }
+
+    it('renders English "Close" by default', async () => {
+        const fixture = await setup();
+        const closeBtn = fixture.debugElement.query(By.css('[aria-label]'));
+        expect(closeBtn.nativeElement.getAttribute('aria-label')).toBe('Close');
+    });
+
+    it('renders Hebrew + RTL when locale="he"', async () => {
+        const fixture = await setup('he');
+        const closeBtn = fixture.debugElement.query(By.css('button[aria-label]'));
+        expect(closeBtn.nativeElement.getAttribute('aria-label')).toBe('סגור');
+        const wrapper = fixture.debugElement.query(By.css('[dir]'));
+        expect(wrapper.nativeElement.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'fr');
+        const closeBtn = fixture.debugElement.query(By.css('button[aria-label]'));
+        expect(closeBtn.nativeElement.getAttribute('aria-label')).toBe('Fermer');
+    });
+});

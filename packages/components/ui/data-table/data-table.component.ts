@@ -19,7 +19,8 @@ import {
 import { CommonModule, DOCUMENT } from "@angular/common";
 import { FormsModule } from "@angular/forms";
 import { cn, isRtl } from "../../lib/utils";
-import { CALENDAR_LOCALES, CalendarLocale } from "../../lib/calendar-locales";
+import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
+import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
 import { generateXlsx } from "../../lib/parsers/xlsx";
 import {
   TableComponent,
@@ -118,9 +119,13 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     IconComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
-  providers: [ComponentPoolService],
+  providers: [
+    ComponentPoolService,
+    provideComponentLocale(() => DataTableComponent),
+  ],
   host: {
     class: "block h-full w-full",
+    '[attr.dir]': 'dir()',
   },
   templateUrl: './data-table.component.html',
 })
@@ -241,7 +246,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly fullWidthRowTemplate = input<TemplateRef<unknown>>();
   readonly fullWidthRowComponent = input<Type<unknown>>();
 
-  readonly locale = input("en");
+  /**
+   * Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when
+   * not set. The DataTableLocale covers data-table chrome (filter
+   * placeholder, columns menu, sort/pin actions, pagination labels,
+   * etc.). Date filters embedded in the table still read from
+   * `CalendarLocale` separately.
+   */
+  readonly locale = input<LocaleInput<DataTableLocale>>();
   readonly filterDebounce = input(0);
 
   /**
@@ -451,24 +463,37 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     () => this.virtualColumnRange().paddingRight,
   );
 
-  private readonly activeLocale = computed(
-    (): CalendarLocale =>
-      CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES["en"],
-  );
-  readonly filterPlaceholder = computed(
-    () => this.activeLocale().filterPlaceholder ?? "Filter...",
-  );
-  readonly columnsLabel = computed(
-    () => this.activeLocale().columnsLabel ?? "Columns",
-  );
-  readonly noResultsLabel = computed(
-    () => this.activeLocale().noResultsLabel ?? "No results found.",
-  );
-  readonly rowsPerPageLabel = computed(
-    () => this.activeLocale().rowsPerPageLabel ?? "Rows per page",
-  );
-  readonly pageLabel = computed(() => this.activeLocale().pageLabel ?? "Page");
-  readonly ofLabel = computed(() => this.activeLocale().ofLabel ?? "of");
+  private readonly i18n = createLocaleBindings(this.locale, DATA_TABLE_LOCALES);
+  /**
+   * Resolved DataTableLocale for the table chrome (column menu, filters,
+   * pagination). Protected — internal template binding only; consumer
+   * components should set their own `locale` input.
+   */
+  protected readonly t = this.i18n.t;
+  /** `'rtl'` when the active locale is RTL, otherwise `null` — bind to `[attr.dir]`. */
+  readonly dir = this.i18n.dir;
+
+  // Chrome label computeds — each carries an English fallback so a consumer
+  // who passes a partial custom DataTableLocale (via an `as` cast or
+  // dynamic translation source) sees the prior baseline rather than the
+  // literal string "undefined" reaching the template or pagination child.
+  readonly filterPlaceholder = computed(() => this.t().filterPlaceholder ?? 'Filter...');
+  readonly columnsLabel = computed(() => this.t().columnsLabel ?? 'Columns');
+  readonly noResultsLabel = computed(() => this.t().noResultsLabel ?? 'No results found.');
+  readonly rowsPerPageLabel = computed(() => this.t().rowsPerPageLabel ?? 'Rows per page');
+  readonly pageLabel = computed(() => this.t().pageLabel ?? 'Page');
+  readonly ofLabel = computed(() => this.t().ofLabel ?? 'of');
+  readonly toggleColumnsLabel = computed(() => this.t().toggleColumns ?? 'Toggle columns');
+
+  /**
+   * Build the localised `Toggle X column` aria-label for the
+   * column-visibility checkbox. Guards against a missing dictionary key
+   * (which would otherwise crash `interpolate(undefined, …)`).
+   */
+  toggleColumnAriaLabel(columnHeader: string): string {
+    const template = this.t().toggleColumnAriaLabel ?? 'Toggle {column} column';
+    return interpolate(template, { column: columnHeader });
+  }
 
   readonly rowActions = input<
     ((context: RowActionContext<T>) => ContextMenuItem[]) | undefined
@@ -3434,12 +3459,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const key = String(col.accessorKey);
     const currentSort = this.getSortDirection(key);
     const currentPin = this.columnPinOverrides()[key] ?? col.pin;
+    const t = this.t();
 
     const sortItems = this.buildSortMenuItems(key, col, currentSort);
     const pinItems = this.buildPinMenuItems(key, currentPin);
     const visibilityItems: ContextMenuItem[] = [
-      ...(col.enableHiding === false ? [] : [{ label: 'Hide Column', icon: 'eye-off', click: () => this.setColumnVisibility(key, false) }]),
-      { label: 'Show All Columns', icon: 'eye', click: () => this.showAllColumns() },
+      ...(col.enableHiding === false ? [] : [{ label: t.hideColumn ?? 'Hide Column', icon: 'eye-off', click: () => this.setColumnVisibility(key, false) }]),
+      { label: t.showAllColumns ?? 'Show All Columns', icon: 'eye', click: () => this.showAllColumns() },
     ];
 
     return [...sortItems, ...pinItems, ...visibilityItems];
@@ -3447,12 +3473,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private buildSortMenuItems(key: string, col: ColumnDef<T>, currentSort: SortDirection): ContextMenuItem[] {
     if (col.enableSorting === false) return [];
+    const t = this.t();
     const items: ContextMenuItem[] = [
-      { label: 'Sort Ascending', icon: 'arrow-up', disabled: currentSort === 'asc', click: () => this.onSortChange(key, 'asc') },
-      { label: 'Sort Descending', icon: 'arrow-down', disabled: currentSort === 'desc', click: () => this.onSortChange(key, 'desc') },
+      { label: t.sortAscending ?? 'Sort Ascending', icon: 'arrow-up', disabled: currentSort === 'asc', click: () => this.onSortChange(key, 'asc') },
+      { label: t.sortDescending ?? 'Sort Descending', icon: 'arrow-down', disabled: currentSort === 'desc', click: () => this.onSortChange(key, 'desc') },
     ];
     if (currentSort) {
-      items.push({ label: 'Clear Sort', icon: 'x', click: () => this.onSortChange(key, null) });
+      items.push({ label: t.clearSort ?? 'Clear Sort', icon: 'x', click: () => this.onSortChange(key, null) });
     }
     items.push({ type: 'separator' });
     return items;
@@ -3460,9 +3487,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
   private buildPinMenuItems(key: string, currentPin: string | undefined): ContextMenuItem[] {
     const items: ContextMenuItem[] = [];
-    if (currentPin !== 'left') items.push({ label: 'Pin Left', icon: 'pin', click: () => this.pinColumn(key, 'left') });
-    if (currentPin !== 'right') items.push({ label: 'Pin Right', icon: 'pin', click: () => this.pinColumn(key, 'right') });
-    if (currentPin) items.push({ label: 'Unpin', icon: 'pin-off', click: () => this.pinColumn(key, undefined) });
+    const t = this.t();
+    if (currentPin !== 'left') items.push({ label: t.pinLeft ?? 'Pin Left', icon: 'pin', click: () => this.pinColumn(key, 'left') });
+    if (currentPin !== 'right') items.push({ label: t.pinRight ?? 'Pin Right', icon: 'pin', click: () => this.pinColumn(key, 'right') });
+    if (currentPin) items.push({ label: t.unpin ?? 'Unpin', icon: 'pin-off', click: () => this.pinColumn(key, undefined) });
     items.push({ type: 'separator' });
     return items;
   }

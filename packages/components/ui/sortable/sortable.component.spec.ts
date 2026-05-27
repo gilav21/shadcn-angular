@@ -10,6 +10,8 @@ import {
     type SortableReorderEvent,
     type SortableDropRejectedEvent,
 } from './sortable.component';
+import { provideUiLocale } from '../../lib/i18n';
+import type { SortableLocale } from './sortable-locales';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 import { peersInGroup, groupSize, clearRegistry, type SortableRegistryEntry } from '../../lib/sortable-registry';
@@ -1107,6 +1109,40 @@ describe('SortableComponent', () => {
         document.body.removeChild(f.nativeElement);
     });
 
+    it('accepts a fully custom SortableLocale object as input', () => {
+        const customLocale: SortableLocale = {
+            code: 'xx',
+            pickedUp: (label, n, total) => `XX-PICKED ${label} ${n}/${total}`,
+            moved: (n, total) => `XX-MOVED ${n}/${total}`,
+            movedToList: (l, n, t) => `XX-MTL ${l} ${n}/${t}`,
+            dropped: (n) => `XX-DROP ${n}`,
+            rejected: (reason) => `XX-REJ ${reason ?? ''}`,
+            cancelled: 'XX-CANCELLED',
+        };
+
+        @Component({
+            selector: 'app-custom-loc-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows" [locale]="loc">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class CustomLocHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+            readonly loc = customLocale;
+        }
+        const f = TestBed.createComponent(CustomLocHost);
+        f.detectChanges();
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+        expect(sortable.currentLocale().cancelled).toBe('XX-CANCELLED');
+        expect(sortable.currentLocale().pickedUp('A', 1, 3)).toBe('XX-PICKED A 1/3');
+    });
+
     it('Home jumps the lifted item to position 0', () => {
         const sortable = getSortable<TestRow>(fixture);
         sortable.handleItemKeyDown(2, new KeyboardEvent('keydown', { key: ' ' }));
@@ -1306,5 +1342,94 @@ describe('SortableComponent', () => {
         expect(animateSpy).toHaveBeenCalled();
         animateSpy.mockRestore();
         detachFixture();
+    });
+});
+
+describe('SortableComponent — i18n integration', () => {
+    it('falls back to global UI_LOCALE_ID when no locale input is set', async () => {
+        @Component({
+            selector: 'app-global-loc-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class GlobalLocHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }, { id: 2, name: 'B' }]);
+        }
+        await TestBed.configureTestingModule({
+            imports: [GlobalLocHost],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const f = TestBed.createComponent(GlobalLocHost);
+        f.detectChanges();
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+        expect(sortable.currentLocale().code).toBe('he');
+        expect(sortable.currentLocale().cancelled).toContain('בוטל');
+    });
+
+    it('per-instance locale input overrides the global signal', async () => {
+        @Component({
+            selector: 'app-override-loc-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows" locale="fr">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class OverrideLocHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+        }
+        await TestBed.configureTestingModule({
+            imports: [OverrideLocHost],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const f = TestBed.createComponent(OverrideLocHost);
+        f.detectChanges();
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+        expect(sortable.currentLocale().code).toBe('fr');
+        expect(sortable.currentLocale().cancelled).toContain('annulée');
+    });
+
+    it('reacts to a signal-based global locale change', async () => {
+        const localeSignal = signal('en');
+
+        @Component({
+            selector: 'app-signal-loc-host',
+            standalone: true,
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            template: `
+                <ui-sortable [(items)]="rows">
+                    <ng-template uiSortableItem let-row let-i="index">
+                        <ui-sortable-item [index]="i">{{ $any(row).name }}</ui-sortable-item>
+                    </ng-template>
+                </ui-sortable>
+            `,
+        })
+        class SignalLocHost {
+            readonly rows = signal<TestRow[]>([{ id: 1, name: 'A' }]);
+        }
+        await TestBed.configureTestingModule({
+            imports: [SignalLocHost],
+            providers: [provideUiLocale(localeSignal)],
+        }).compileComponents();
+        const f = TestBed.createComponent(SignalLocHost);
+        f.detectChanges();
+        const sortable = f.debugElement.query(el => el.componentInstance instanceof SortableComponent).componentInstance as SortableComponent<TestRow>;
+        expect(sortable.currentLocale().code).toBe('en');
+
+        localeSignal.set('ar');
+        f.detectChanges();
+        expect(sortable.currentLocale().code).toBe('ar');
+        expect(sortable.currentLocale().rtl).toBe(true);
     });
 });

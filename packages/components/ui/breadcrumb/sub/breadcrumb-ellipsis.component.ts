@@ -5,6 +5,8 @@ import {
   computed,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { createLocaleSelector, type LocaleInput } from '../../../lib/i18n';
+import { BREADCRUMB_LOCALES, type BreadcrumbLocale } from '../breadcrumb.locales';
 
 @Component({
   selector: 'ui-breadcrumb-ellipsis',
@@ -16,7 +18,7 @@ import { cn } from '../../../lib/utils';
         <circle cx="19" cy="12" r="1" />
         <circle cx="5" cy="12" r="1" />
       </svg>
-      <span class="sr-only">More</span>
+      <span class="sr-only">{{ t().more }}</span>
     </span>
   `,
   host: {
@@ -25,7 +27,11 @@ import { cn } from '../../../lib/utils';
   },
 })
 export class BreadcrumbEllipsisComponent {
-  class = input('');
+  readonly class = input('');
 
-  classes = computed(() => cn('flex h-9 w-9 items-center justify-center', this.class()));
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` (which is broadcast by the parent `<ui-breadcrumb>`). */
+  readonly locale = input<LocaleInput<BreadcrumbLocale>>();
+  protected readonly t = createLocaleSelector(this.locale, BREADCRUMB_LOCALES);
+
+  readonly classes = computed(() => cn('flex h-9 w-9 items-center justify-center', this.class()));
 }

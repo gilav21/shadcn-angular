@@ -16,6 +16,8 @@ import {
 import { isPlatformBrowser } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { COLOR_PICKER_LOCALES, type ColorPickerLocale } from './color-picker.locales';
 import { onPointerDrag } from '../../lib/touch';
 import {
     parseColor,
@@ -103,6 +105,12 @@ export class ColorPickerComponent implements ControlValueAccessor {
     readonly storageKey = input<string | null>(null);
     readonly enableEyedropper = input(true);
     readonly fallbackTarget = input<HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | null>(null);
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<ColorPickerLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, COLOR_PICKER_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
     readonly enableImagePick = input(false);
     readonly imageExtractAlgorithm = input<ExtractAlgorithm>('median-cut');
     readonly imageExtractCount = input(6);

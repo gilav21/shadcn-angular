@@ -265,3 +265,32 @@ describe('NumberInputComponent with ngModel', () => {
         expect(numberInput.displayValue()).toBe('7');
     });
 });
+
+describe('NumberInputComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [NumberInputComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(NumberInputComponent);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults resolvedLocale to "en"', async () => {
+        const fixture = await setup();
+        expect(fixture.componentInstance.resolvedLocale()).toBe('en');
+    });
+
+    it('resolves locale from the per-instance input', async () => {
+        const fixture = await setup({ locale: 'de' });
+        expect(fixture.componentInstance.resolvedLocale()).toBe('de');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        expect(fixture.componentInstance.resolvedLocale()).toBe('fr');
+    });
+});

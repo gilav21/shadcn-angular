@@ -691,3 +691,89 @@ describe('CodeBlockComponent', () => {
         });
     });
 });
+
+describe('CodeBlockComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [CodeBlockComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CodeBlockComponent);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.componentRef.setInput('code', 'const x = 1;');
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults copy-button aria-label to English "Copy"', async () => {
+        const fixture = await setup();
+        const root = fixture.nativeElement.querySelector('[data-slot="code-block"]');
+        const button = root.querySelector('ui-button[aria-label]') ?? root.querySelector('button[aria-label]');
+        expect(button.getAttribute('aria-label')).toBe('Copy');
+        expect(root.hasAttribute('dir')).toBe(false);
+    });
+
+    it('localises copy aria-label and applies dir="rtl" when locale="he"', async () => {
+        const fixture = await setup({ locale: 'he' });
+        const root = fixture.nativeElement.querySelector('[data-slot="code-block"]');
+        const button = root.querySelector('ui-button[aria-label]') ?? root.querySelector('button[aria-label]');
+        expect(button.getAttribute('aria-label')).toBe('העתק');
+        expect(root.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('copy aria-label flips to "copied" state after a successful click', async () => {
+        const fixture = await setup({ locale: 'fr' });
+        const cmp = fixture.componentInstance;
+        cmp.copied.set(true);
+        fixture.detectChanges();
+        const button = fixture.nativeElement.querySelector('ui-button[aria-label]') ?? fixture.nativeElement.querySelector('button[aria-label]');
+        expect(button.getAttribute('aria-label')).toBe('Copié');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'de' });
+        const button = fixture.nativeElement.querySelector('ui-button[aria-label]') ?? fixture.nativeElement.querySelector('button[aria-label]');
+        expect(button.getAttribute('aria-label')).toBe('Kopieren');
+    });
+
+    it('accepts a fully custom CodeBlockLocale object', async () => {
+        const fixture = await setup();
+        fixture.componentRef.setInput('locale', {
+            code: 'xx',
+            copy: 'XX_COPY', copied: 'XX_COPIED',
+            expandScope: 'XX_EXPAND', collapseScope: 'XX_COLLAPSE',
+        });
+        fixture.detectChanges();
+        const button = fixture.nativeElement.querySelector('ui-button[aria-label]') ?? fixture.nativeElement.querySelector('button[aria-label]');
+        expect(button.getAttribute('aria-label')).toBe('XX_COPY');
+    });
+
+    it('localises the scope-fold chevron aria-label and flips between collapseScope/expandScope on toggle', async () => {
+        const foldableCode = [
+            'function add(a, b) {',
+            '    return a + b;',
+            '}',
+        ].join('\n');
+
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [CodeBlockComponent],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CodeBlockComponent);
+        fixture.componentRef.setInput('code', foldableCode);
+        fixture.componentRef.setInput('collapseScope', true);
+        fixture.detectChanges();
+
+        const chevron = fixture.debugElement.query(By.css('[data-slot="code-block-chevron"][role="button"]'));
+        expect(chevron).toBeTruthy();
+        // Scope is open by default → aria-label reads t().collapseScope (Hebrew).
+        expect(chevron.nativeElement.getAttribute('aria-label')).toBe('כווץ טווח');
+
+        fixture.componentInstance.toggleScope(0);
+        fixture.detectChanges();
+        // After toggle the scope is closed → aria-label flips to t().expandScope.
+        expect(chevron.nativeElement.getAttribute('aria-label')).toBe('הרחב טווח');
+    });
+});

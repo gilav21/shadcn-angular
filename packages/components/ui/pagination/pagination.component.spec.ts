@@ -382,3 +382,169 @@ describe('Pagination Simple Mode (Data-Driven)', () => {
         expect(ellipsis.length).toBeGreaterThan(0);
     });
 });
+
+describe('PaginationComponent — i18n integration', () => {
+    it('defaults to English when no locale input and no provider is configured', async () => {
+        await TestBed.configureTestingModule({
+            imports: [PaginationComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(PaginationComponent);
+        fixture.componentRef.setInput('currentPage', 1);
+        fixture.componentRef.setInput('totalPages', 3);
+        fixture.detectChanges();
+        const nav = fixture.debugElement.query(By.css('[data-slot="pagination"]'));
+        expect(nav.attributes['aria-label']).toBe('pagination');
+        expect(nav.nativeElement.hasAttribute('dir')).toBe(false);
+        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
+        expect(prev.nativeElement.textContent).toContain('Previous');
+        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
+        expect(next.nativeElement.textContent).toContain('Next');
+    });
+
+    it('renders Hebrew strings and dir="rtl" when locale="he"', async () => {
+        await TestBed.configureTestingModule({
+            imports: [PaginationComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(PaginationComponent);
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.componentRef.setInput('currentPage', 1);
+        fixture.componentRef.setInput('totalPages', 20);
+        fixture.detectChanges();
+        const nav = fixture.debugElement.query(By.css('[data-slot="pagination"]'));
+        expect(nav.attributes['aria-label']).toBe('ניווט עמודים');
+        expect(nav.attributes['dir']).toBe('rtl');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent).toContain('הקודם');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent).toContain('הבא');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent).toContain('עוד עמודים');
+    });
+
+    it('falls back to the global UI_LOCALE_ID when no locale input is set', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [PaginationComponent],
+            providers: [provideUiLocale('ar')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(PaginationComponent);
+        fixture.componentRef.setInput('currentPage', 1);
+        fixture.componentRef.setInput('totalPages', 3);
+        fixture.detectChanges();
+        const nav = fixture.debugElement.query(By.css('[data-slot="pagination"]'));
+        expect(nav.attributes['aria-label']).toBe('ترقيم الصفحات');
+        expect(nav.attributes['dir']).toBe('rtl');
+    });
+
+    it('per-instance locale input overrides the global signal', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [PaginationComponent],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(PaginationComponent);
+        fixture.componentRef.setInput('locale', 'fr');
+        fixture.componentRef.setInput('currentPage', 1);
+        fixture.componentRef.setInput('totalPages', 3);
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent).toContain('Précédent');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination"]')).nativeElement.hasAttribute('dir')).toBe(false);
+    });
+
+    it('accepts a fully custom PaginationLocale object as input', async () => {
+        await TestBed.configureTestingModule({
+            imports: [PaginationComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(PaginationComponent);
+        fixture.componentRef.setInput('locale', {
+            code: 'xx',
+            rtl: true,
+            previous: 'CUSTOM_PREV',
+            next: 'CUSTOM_NEXT',
+            morePages: 'CUSTOM_MORE',
+            pagination: 'CUSTOM_NAV',
+        });
+        fixture.componentRef.setInput('currentPage', 5);
+        fixture.componentRef.setInput('totalPages', 20);
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination"]')).attributes['aria-label']).toBe('CUSTOM_NAV');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent).toContain('CUSTOM_PREV');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent).toContain('CUSTOM_NEXT');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent).toContain('CUSTOM_MORE');
+    });
+
+    it('auto-propagates the parent locale to projected sub-components via viewProviders', async () => {
+        @Component({
+            standalone: true,
+            imports: [
+                PaginationComponent,
+                PaginationContentComponent,
+                PaginationItemComponent,
+                PaginationPreviousComponent,
+                PaginationNextComponent,
+                PaginationEllipsisComponent,
+            ],
+            template: `
+                <ui-pagination locale="he">
+                    <ui-pagination-content>
+                        <ui-pagination-item><ui-pagination-previous /></ui-pagination-item>
+                        <ui-pagination-item><ui-pagination-ellipsis /></ui-pagination-item>
+                        <ui-pagination-item><ui-pagination-next /></ui-pagination-item>
+                    </ui-pagination-content>
+                </ui-pagination>
+            `,
+        })
+        class CompositionHost {}
+
+        await TestBed.configureTestingModule({
+            imports: [CompositionHost],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CompositionHost);
+        fixture.detectChanges();
+
+        const nav = fixture.debugElement.query(By.css('[data-slot="pagination"]'));
+        expect(nav.attributes['aria-label']).toBe('ניווט עמודים');
+        expect(nav.attributes['dir']).toBe('rtl');
+
+        const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent;
+        const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent;
+        const more = fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent;
+        expect(prev).toContain('הקודם');
+        expect(next).toContain('הבא');
+        expect(more).toContain('עוד עמודים');
+    });
+
+    it('a global provideUiLocale propagates to ALL sub-components without per-instance locale wiring', async () => {
+        const { provideUiLocale } = await import('../../lib/i18n');
+
+        @Component({
+            standalone: true,
+            imports: [
+                PaginationComponent,
+                PaginationContentComponent,
+                PaginationItemComponent,
+                PaginationPreviousComponent,
+                PaginationNextComponent,
+                PaginationEllipsisComponent,
+            ],
+            template: `
+                <ui-pagination>
+                    <ui-pagination-content>
+                        <ui-pagination-item><ui-pagination-previous /></ui-pagination-item>
+                        <ui-pagination-item><ui-pagination-ellipsis /></ui-pagination-item>
+                        <ui-pagination-item><ui-pagination-next /></ui-pagination-item>
+                    </ui-pagination-content>
+                </ui-pagination>
+            `,
+        })
+        class GlobalHost {}
+
+        await TestBed.configureTestingModule({
+            imports: [GlobalHost],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(GlobalHost);
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-previous"]')).nativeElement.textContent).toContain('הקודם');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-next"]')).nativeElement.textContent).toContain('הבא');
+        expect(fixture.debugElement.query(By.css('[data-slot="pagination-ellipsis"]')).nativeElement.textContent).toContain('עוד עמודים');
+    });
+});

@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { TreeComponent, TreeNode } from '../tree';
 import { PopoverComponent, PopoverContentComponent, PopoverTriggerComponent } from '../popover';
 import { TreeSelectTriggerComponent } from './sub/tree-select-trigger.component';
@@ -45,10 +46,17 @@ export const TREE_SELECT = new InjectionToken<TreeSelectComponent>('TREE_SELECT'
 })
 export class TreeSelectComponent implements ControlValueAccessor {
   nodes = input<TreeNode[]>([]);
-  placeholder = input('Select an item');
+  /** Override for the placeholder. Falls back to the locale's `selectPlaceholder`. */
+  placeholder = input<string>();
   disabled = input(false);
   class = input('');
   value = input<string | null | undefined>(undefined);
+
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<CommonLocale>>();
+  private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
+  protected readonly t = this.i18n.t;
+  protected readonly dir = this.i18n.dir;
 
   selectionChange = output<string[]>();
 

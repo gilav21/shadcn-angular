@@ -16,6 +16,7 @@ import {
 import { DOCUMENT } from '@angular/common';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 
 export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
 
@@ -40,7 +41,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                         @if (hasValue()) {
                             {{ selectedDisplayValue() }}
                         } @else {
-                            <span class="text-muted-foreground">{{ placeholder() }}</span>
+                            <span class="text-muted-foreground">{{ resolvedPlaceholder() }}</span>
                         }
                     </span>
                     <svg
@@ -94,7 +95,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
             <ng-content />
         }
     `,
-    host: { class: 'relative inline-block' },
+    host: { class: 'relative inline-block', '[attr.dir]': 'dir()' },
     providers: [
         { provide: SELECT, useExisting: forwardRef(() => SelectComponent) },
         { provide: NG_VALUE_ACCESSOR, useExisting: forwardRef(() => SelectComponent), multi: true }
@@ -105,8 +106,17 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     private readonly document = inject(DOCUMENT);
 
     readonly disabled = input(false);
-    readonly placeholder = input('Select an option');
+    /** Override for the placeholder. Falls back to the locale's `selectPlaceholder`. */
+    readonly placeholder = input<string>();
     readonly defaultValue = input<T | undefined>(undefined);
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<CommonLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
+    /** Effective placeholder — explicit input wins; otherwise falls back to the locale. */
+    readonly resolvedPlaceholder = computed(() => this.placeholder() ?? this.t().selectPlaceholder);
     readonly position = input<'popper' | 'item-aligned'>('item-aligned');
     readonly options = input<T[]>([]);
     readonly displayWith = input<(option: T) => string>(String);

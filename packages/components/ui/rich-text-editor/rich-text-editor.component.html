@@ -23,7 +23,7 @@
   />
 }
 
-<div [class]="editorContainerClasses()" [dir]="isRtl() ? 'rtl' : 'ltr'">
+<div [class]="editorContainerClasses()" [dir]="dir()">
   @if (showHistoryPanel() && !readonly() && showHistoryButton()) {
     <div #historyShortcutAnchor class="absolute top-2 z-30 ltr:right-2 rtl:left-2">
       <ui-popover

@@ -12,7 +12,7 @@
  */
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
-import { renderPixelPerfectPaged, toStandaloneHtml, setFallbackFontData } from '../packages/components/lib/pdf-pixel-perfect';
+import { renderPixelPerfectPaged, toStandaloneHtml, setFallbackFontData } from '../packages/components/lib/parsers/pdf-pixel-perfect';
 
 // Load fallback font for missing glyph coverage
 const fallbackPaths = [

@@ -725,3 +725,65 @@ describe('Select Data-Driven Keyboard Navigation', () => {
     });
 });
 
+describe('SelectComponent — i18n integration', () => {
+    @Component({
+        template: `
+            <ui-select [locale]="locale">
+                <ui-select-trigger>
+                    <ui-select-value />
+                </ui-select-trigger>
+                <ui-select-content>
+                    <ui-select-item [value]="'a'">A</ui-select-item>
+                </ui-select-content>
+            </ui-select>
+        `,
+        imports: [SelectComponent, SelectTriggerComponent, SelectContentComponent, SelectValueComponent, SelectItemComponent],
+    })
+    class SelectI18nHost {
+        locale: string | undefined = undefined;
+    }
+
+    async function setup(locale?: string, providerLocale?: string) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [SelectI18nHost],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(SelectI18nHost);
+        if (locale) fixture.componentInstance.locale = locale;
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults placeholder to English "Select..."', async () => {
+        const fixture = await setup();
+        const valueEl = fixture.debugElement.query(By.css('[data-slot="select-value"]'));
+        expect(valueEl.nativeElement.textContent.trim()).toBe('Select...');
+    });
+
+    it('localises placeholder when locale="he"', async () => {
+        const fixture = await setup('he');
+        const valueEl = fixture.debugElement.query(By.css('[data-slot="select-value"]'));
+        expect(valueEl.nativeElement.textContent.trim()).toBe('...בחר');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'fr');
+        const valueEl = fixture.debugElement.query(By.css('[data-slot="select-value"]'));
+        expect(valueEl.nativeElement.textContent.trim()).toBe('Sélectionner...');
+    });
+
+    it('renders the resolved placeholder in data-driven mode (regression: was empty when placeholder unset)', async () => {
+        await TestBed.configureTestingModule({ imports: [SelectComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(SelectComponent);
+        fixture.componentRef.setInput('options', ['a', 'b']);
+        fixture.detectChanges();
+        const trigger = fixture.nativeElement.querySelector('[role="combobox"]');
+        expect(trigger.textContent).toContain('Select...');
+
+        fixture.componentRef.setInput('locale', 'he');
+        fixture.detectChanges();
+        expect(trigger.textContent).toContain('...בחר');
+    });
+});
+

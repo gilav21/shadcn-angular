@@ -1,4 +1,5 @@
 export * from './pagination.component';
+export * from './pagination.locales';
 export * from './sub/pagination-content.component';
 export * from './sub/pagination-item.component';
 export * from './sub/pagination-link.component';

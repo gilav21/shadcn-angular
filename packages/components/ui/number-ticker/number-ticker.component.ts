@@ -9,6 +9,7 @@ import {
     signal,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { UI_LOCALE_ID } from '../../lib/i18n';
 import { NumberTickerDigitComponent } from './sub/number-ticker-digit.component';
 export { NumberTickerDigitComponent };
 
@@ -27,6 +28,15 @@ export class NumberTickerComponent implements OnDestroy {
     duration = input<number>(1);
     decimalPlaces = input<number>(0);
     class = input<string>('');
+    /**
+     * BCP-47 locale tag passed straight to `Intl.NumberFormat` for the
+     * displayed digits (controls grouping + decimal separator). Falls
+     * back to the app-wide `UI_LOCALE_ID` (default `'en'`).
+     */
+    locale = input<string>();
+    private readonly globalLocale = inject(UI_LOCALE_ID);
+    /** Effective locale id used for Intl.NumberFormat. */
+    readonly resolvedLocale = computed(() => this.locale() ?? this.globalLocale());
 
     classes = computed(() => cn('inline-block tabular-nums tracking-wider text-black dark:text-white', this.class()));
 
@@ -78,7 +88,7 @@ export class NumberTickerComponent implements OnDestroy {
 
         this._currentValue = this._startValue + (this._endValue - this._startValue) * easedProgress;
 
-        this.displayValue.set(new Intl.NumberFormat('en-US', {
+        this.displayValue.set(new Intl.NumberFormat(this.resolvedLocale(), {
             minimumFractionDigits: this.decimalPlaces(),
             maximumFractionDigits: this.decimalPlaces(),
         }).format(this._currentValue));
@@ -87,7 +97,7 @@ export class NumberTickerComponent implements OnDestroy {
             this._animationFrameId = requestAnimationFrame(this._animate);
         } else {
             this._currentValue = this._endValue;
-            this.displayValue.set(new Intl.NumberFormat('en-US', {
+            this.displayValue.set(new Intl.NumberFormat(this.resolvedLocale(), {
                 minimumFractionDigits: this.decimalPlaces(),
                 maximumFractionDigits: this.decimalPlaces(),
             }).format(this._endValue));

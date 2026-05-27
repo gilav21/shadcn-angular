@@ -12,6 +12,8 @@ import {
     AfterViewInit,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { COMPARISON_SLIDER_LOCALES, type ComparisonSliderLocale } from './comparison-slider.locales';
 import { onPointerDrag } from '../../lib/touch';
 
 export type ComparisonSliderOrientation = 'horizontal' | 'vertical';
@@ -32,6 +34,12 @@ export class ComparisonSliderComponent implements AfterViewInit {
     readonly position = model<number>(50);
     readonly orientation = input<ComparisonSliderOrientation>('horizontal');
     readonly class = input('');
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<ComparisonSliderLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, COMPARISON_SLIDER_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
 
     readonly rootRef = viewChild.required<ElementRef<HTMLDivElement>>('root');
 

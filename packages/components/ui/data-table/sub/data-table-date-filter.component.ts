@@ -10,7 +10,7 @@ import {
 import { cn } from '../../../lib/utils';
 import { CalendarComponent } from '../../calendar';
 import { ButtonComponent } from '../../button';
-import { CALENDAR_LOCALES, CalendarLocale } from '../../../lib/calendar-locales';
+import { CALENDAR_LOCALES, type CalendarLocale, createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { toDate, toDateOnlyTimestamp } from './data-table-date-utils';
 
 @Component({
@@ -23,7 +23,12 @@ import { toDate, toDateOnlyTimestamp } from './data-table-date-utils';
 export class DataTableDateFilterComponent {
   readonly class = input('');
   readonly title = input<string | undefined>(undefined);
-  readonly locale = input('en');
+  /**
+   * Locale dictionary or registry key (BCP-47). Falls back to `UI_LOCALE_ID`
+   * when not set — so an embedded date filter inside `<ui-data-table
+   * locale="he">` is automatically Hebrew without per-column wiring.
+   */
+  readonly locale = input<LocaleInput<CalendarLocale>>();
   readonly selected = input<Date | null>(null);
 
   readonly filterChange = output<Date | null>();
@@ -31,10 +36,11 @@ export class DataTableDateFilterComponent {
   private readonly _selected = signal<Date | null>(null);
   readonly selectedValue = this._selected.asReadonly();
 
-  private readonly activeLocale = computed((): CalendarLocale =>
-    CALENDAR_LOCALES[this.locale()] ?? CALENDAR_LOCALES['en']
-  );
-  readonly isRtl = computed(() => this.activeLocale().rtl === true);
+  private readonly i18n = createLocaleBindings(this.locale, CALENDAR_LOCALES);
+  private readonly activeLocale = this.i18n.t;
+  readonly isRtl = this.i18n.isRtl;
+  /** `'rtl'` when the active locale is RTL, otherwise `null` — bind to `[attr.dir]`. */
+  readonly dir = this.i18n.dir;
   readonly todayLabel = computed(() => this.activeLocale().todayLabel ?? 'Today');
   readonly clearLabel = computed(() => this.activeLocale().clearLabel ?? 'Clear');
 

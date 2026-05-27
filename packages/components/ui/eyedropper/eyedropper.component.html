@@ -2,14 +2,15 @@
   type="button"
   [class]="classes()"
   [disabled]="isDisabled()"
-  [attr.aria-label]="label()"
+  [attr.aria-label]="resolvedLabel()"
   [attr.aria-pressed]="picking()"
   [attr.title]="tooltip()"
+  [attr.dir]="dir()"
   (click)="pick()"
   data-slot="eyedropper-trigger"
 >
   <ui-icon name="pipette" class="h-4 w-4" />
   @if (variant() === 'button') {
-    <span>{{ label() }}</span>
+    <span>{{ resolvedLabel() }}</span>
   }
 </button>

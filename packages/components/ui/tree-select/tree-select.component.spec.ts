@@ -391,3 +391,47 @@ describe('TreeSelect select method', () => {
         expect(emitted).toEqual([]);
     });
 });
+
+describe('TreeSelectComponent — i18n integration', () => {
+    async function setup(locale?: string, providerLocale?: string) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [TreeSelectComponent],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(TreeSelectComponent);
+        fixture.componentRef.setInput('nodes', SAMPLE_NODES);
+        if (locale) fixture.componentRef.setInput('locale', locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults placeholder to English "Select..."', async () => {
+        const fixture = await setup();
+        const placeholderEl = fixture.nativeElement.querySelector('.text-muted-foreground');
+        expect(placeholderEl.textContent.trim()).toBe('Select...');
+    });
+
+    it('localises placeholder when locale="he" and applies dir="rtl" on both the trigger and the dropdown wrapper', async () => {
+        const fixture = await setup('he');
+        const placeholderEl = fixture.nativeElement.querySelector('.text-muted-foreground');
+        expect(placeholderEl.textContent.trim()).toBe('...בחר');
+        const popover = fixture.nativeElement.querySelector('[data-slot="tree-select"]');
+        expect(popover.getAttribute('dir')).toBe('rtl');
+        // Open the popover so the dropdown wrapper renders. The inner wrapper
+        // around <ui-tree> must also carry dir="rtl" because ui-popover-content
+        // may portal to document.body and lose the host's dir.
+        fixture.componentInstance.isOpen.set(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const dropdownWrappers = Array.from(document.querySelectorAll('div[dir="rtl"]'));
+        expect(dropdownWrappers.length).toBeGreaterThan(0);
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'es');
+        const placeholderEl = fixture.nativeElement.querySelector('.text-muted-foreground');
+        expect(placeholderEl.textContent.trim()).toBe('Seleccionar...');
+    });
+});

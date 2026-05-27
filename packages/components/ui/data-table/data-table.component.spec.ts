@@ -4,6 +4,7 @@ import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
 import { ContextMenuItem } from '../context-menu';
 import { buildTreeFromFlat } from './data-table.utils';
+import type { DataTableLocale } from './data-table.locales';
 import { dateFilterFn } from './sub/data-table-date-filter.component';
 import { dateRangeFilterFn } from './sub/data-table-date-range-filter.component';
 import { DateRange } from '../calendar';
@@ -2819,5 +2820,157 @@ describe('DataTableComponent - Row Grouping', () => {
         expect(page2.length).toBe(2);
         expect((page2[0] as { groupKey: string }).groupKey).toBe('delivered');
         expect((page2[1] as { row: OrderData }).row.id).toBe('o4');
+    });
+});
+
+describe('DataTableComponent — i18n integration', () => {
+    interface Row { id: number; name: string }
+    const ROWS: Row[] = [{ id: 1, name: 'A' }, { id: 2, name: 'B' }];
+    const COLS: ColumnDef<Row>[] = [
+        { accessorKey: 'id', header: 'ID' },
+        { accessorKey: 'name', header: 'Name' },
+    ];
+
+    async function setup(
+        locale?: string | DataTableLocale,
+        providerLocale?: string,
+    ): Promise<ComponentFixture<DataTableComponent<Row>>> {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [DataTableComponent],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(DataTableComponent<Row>);
+        fixture.componentRef.setInput('data', ROWS);
+        fixture.componentRef.setInput('columns', COLS);
+        if (locale !== undefined) fixture.componentRef.setInput('locale', locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults all chrome strings to English when no locale is configured', async () => {
+        const fixture = await setup();
+        const cmp = fixture.componentInstance;
+        expect(cmp.filterPlaceholder()).toBe('Filter...');
+        expect(cmp.columnsLabel()).toBe('Columns');
+        expect(cmp.noResultsLabel()).toBe('No results found.');
+        expect(cmp.rowsPerPageLabel()).toBe('Rows per page');
+        expect(cmp.pageLabel()).toBe('Page');
+        expect(cmp.ofLabel()).toBe('of');
+        expect(cmp.toggleColumnAriaLabel('Name')).toBe('Toggle Name column');
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.hasAttribute('dir')).toBe(false);
+    });
+
+    it('localises chrome strings + sets dir="rtl" when locale="he"', async () => {
+        const fixture = await setup('he');
+        const cmp = fixture.componentInstance;
+        expect(cmp.filterPlaceholder()).toBe('...סינון');
+        expect(cmp.columnsLabel()).toBe('עמודות');
+        expect(cmp.noResultsLabel()).toBe('לא נמצאו תוצאות.');
+        expect(cmp.rowsPerPageLabel()).toBe('שורות בעמוד');
+        expect(cmp.pageLabel()).toBe('עמוד');
+        expect(cmp.ofLabel()).toBe('מתוך');
+        expect(cmp.toggleColumnAriaLabel('שם')).toBe('החלף תצוגה של עמודת שם');
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('column menu builder uses localised labels for sort / pin / hide actions', async () => {
+        const fixture = await setup('he');
+        const cmp = fixture.componentInstance;
+        const builder = (cmp as unknown as {
+            buildColumnMenuItems: (col: ColumnDef<Row>) => ContextMenuItem[];
+        }).buildColumnMenuItems.bind(cmp);
+        const items = builder({ accessorKey: 'name', header: 'Name' });
+        const labels = items.map(i => ('label' in i ? i.label : '__sep__'));
+        expect(labels).toContain('מיון עולה');
+        expect(labels).toContain('מיון יורד');
+        expect(labels).toContain('הצמד לשמאל');
+        expect(labels).toContain('הצמד לימין');
+        expect(labels).toContain('הסתר עמודה');
+        expect(labels).toContain('הצג את כל העמודות');
+    });
+
+    it('accepts a fully custom DataTableLocale object as input', async () => {
+        const custom: DataTableLocale = {
+            code: 'xx', rtl: true,
+            filterPlaceholder: 'XX_FILTER',
+            columnsLabel: 'XX_COLUMNS',
+            noResultsLabel: 'XX_NO_RESULTS',
+            rowsPerPageLabel: 'XX_RPP',
+            pageLabel: 'XX_PAGE',
+            ofLabel: 'XX_OF',
+            sortAscending: 'XX_SORT_ASC',
+            sortDescending: 'XX_SORT_DESC',
+            clearSort: 'XX_CLEAR',
+            pinLeft: 'XX_PIN_L',
+            pinRight: 'XX_PIN_R',
+            unpin: 'XX_UNPIN',
+            hideColumn: 'XX_HIDE',
+            showAllColumns: 'XX_SHOW_ALL',
+            toggleColumnAriaLabel: 'XX_TOGGLE {column}',
+            toggleColumns: 'XX_TOGGLE_COLS',
+            searchPlaceholder: 'XX_SEARCH',
+            selectAllRows: 'XX_SELECT_ALL',
+            clearAll: 'XX_CLEAR_ALL',
+        };
+        const fixture = await setup(custom);
+        const cmp = fixture.componentInstance;
+        expect(cmp.filterPlaceholder()).toBe('XX_FILTER');
+        expect(cmp.toggleColumnAriaLabel('Name')).toBe('XX_TOGGLE Name');
+        expect(fixture.nativeElement.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'fr');
+        const cmp = fixture.componentInstance;
+        expect(cmp.filterPlaceholder()).toBe('Filtrer...');
+        expect(cmp.columnsLabel()).toBe('Colonnes');
+    });
+
+    it('re-broadcasts its locale via UI_LOCALE_ID so embedded filter sub-components auto-localise', async () => {
+        // The data-table provides `UI_LOCALE_ID` via provideComponentLocale,
+        // so any descendant component that injects UI_LOCALE_ID (e.g.
+        // ui-data-table-multiselect-filter, ui-data-table-date-filter,
+        // ui-data-table-date-range-filter) sees the parent's locale
+        // without each column needing to forward `filterComponentInputs.locale`.
+        const { UI_LOCALE_ID } = await import('../../lib/i18n');
+        const fixture = await setup('he');
+        const childInjector = fixture.debugElement.injector;
+        const broadcast = childInjector.get(UI_LOCALE_ID);
+        expect(broadcast()).toBe('he');
+    });
+
+    it('renders English fallbacks when a custom DataTableLocale partial omits keys (no "undefined" strings reach the DOM)', async () => {
+        // Consumers escape strict typing via `as DataTableLocale` casts or
+        // dynamic translation sources. Per-field `??` fallbacks keep the
+        // chrome usable even with a partial dictionary.
+        const partial = { code: 'xx' } as unknown as DataTableLocale;
+        const fixture = await setup(partial);
+        const cmp = fixture.componentInstance;
+        expect(cmp.filterPlaceholder()).toBe('Filter...');
+        expect(cmp.columnsLabel()).toBe('Columns');
+        expect(cmp.noResultsLabel()).toBe('No results found.');
+        expect(cmp.rowsPerPageLabel()).toBe('Rows per page');
+        expect(cmp.pageLabel()).toBe('Page');
+        expect(cmp.ofLabel()).toBe('of');
+        expect(cmp.toggleColumnsLabel()).toBe('Toggle columns');
+        // toggleColumnAriaLabel must not throw on a missing template.
+        expect(cmp.toggleColumnAriaLabel('Name')).toBe('Toggle Name column');
+
+        // Column-menu builders also fall back per-field so a partial locale
+        // never surfaces literal "undefined" labels in the popover.
+        const builder = (cmp as unknown as {
+            buildColumnMenuItems: (col: ColumnDef<Row>) => ContextMenuItem[];
+        }).buildColumnMenuItems.bind(cmp);
+        const items = builder({ accessorKey: 'name', header: 'Name' });
+        const labels = items.map(i => ('label' in i ? i.label : '__sep__'));
+        expect(labels).toContain('Sort Ascending');
+        expect(labels).toContain('Sort Descending');
+        expect(labels).toContain('Pin Left');
+        expect(labels).toContain('Pin Right');
+        expect(labels).toContain('Hide Column');
+        expect(labels).toContain('Show All Columns');
     });
 });

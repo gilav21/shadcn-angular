@@ -18,6 +18,7 @@ import {
 } from '@angular/core';
 import { DOCUMENT } from '@angular/common';
 import { cn } from '../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import { ButtonComponent } from '../button';
 
 /**
@@ -161,14 +162,22 @@ export class TourComponent {
     readonly active = model<boolean>(false);
     /** Whether the Skip button is shown on intermediate steps. */
     readonly showSkip = input<boolean>(true);
-    /** Label for the forward button on non-final steps. */
-    readonly nextLabel = input<string>('Next');
-    /** Label for the back button on non-first steps. */
-    readonly prevLabel = input<string>('Previous');
-    /** Label for the forward button on the final step. */
-    readonly finishLabel = input<string>('Done');
-    /** Label for the skip button. */
-    readonly skipLabel = input<string>('Skip');
+    /** Override for the forward button label on non-final steps. Falls back to `t().next`. */
+    readonly nextLabel = input<string>();
+    /** Override for the back button label on non-first steps. Falls back to `t().previous`. */
+    readonly prevLabel = input<string>();
+    /** Override for the forward button label on the final step. Falls back to `t().finish`. */
+    readonly finishLabel = input<string>();
+    /** Override for the skip button label. Falls back to `t().skip`. */
+    readonly skipLabel = input<string>();
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<CommonLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
+    protected readonly t = this.i18n.t;
+    /** `'rtl'` when the active locale is RTL, otherwise `null` — bind to `[attr.dir]`. */
+    readonly dir = this.i18n.dir;
+
     /** Extra CSS classes applied to the floating step card. */
     readonly class = input('');
 

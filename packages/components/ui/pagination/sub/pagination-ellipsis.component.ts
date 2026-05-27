@@ -5,6 +5,8 @@ import {
   computed,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { createLocaleSelector, type LocaleInput } from '../../../lib/i18n';
+import { PAGINATION_LOCALES, type PaginationLocale } from '../pagination.locales';
 
 @Component({
   selector: 'ui-pagination-ellipsis',
@@ -16,15 +18,20 @@ import { cn } from '../../../lib/utils';
         <circle cx="19" cy="12" r="1.5" />
         <circle cx="5" cy="12" r="1.5" />
       </svg>
-      <span class="sr-only">More pages</span>
+      <span class="sr-only">{{ t().morePages }}</span>
     </span>
   `,
   host: { class: 'contents' },
 })
 export class PaginationEllipsisComponent {
-  class = input('');
+  readonly class = input('');
 
-  classes = computed(() => cn(
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<PaginationLocale>>();
+
+  protected readonly t = createLocaleSelector(this.locale, PAGINATION_LOCALES);
+
+  readonly classes = computed(() => cn(
     'flex h-9 w-9 items-center justify-center',
     this.class()
   ));

@@ -483,3 +483,38 @@ describe('KanbanComponent', () => {
         });
     });
 });
+
+describe('KanbanComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [KanbanComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(KanbanComponent);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults resolvedLocale to English KanbanLocale', async () => {
+        const fixture = await setup();
+        const t = fixture.componentInstance.resolvedLocale();
+        expect(t.code).toBe('en');
+        expect(t.addCard).toBe('Add Card');
+        expect(t.addColumn).toBe('Add Column');
+    });
+
+    it('localises resolvedLocale when locale="he" and sets rtl=true', async () => {
+        const fixture = await setup({ locale: 'he' });
+        const cmp = fixture.componentInstance;
+        expect(cmp.resolvedLocale().code).toBe('he');
+        expect(cmp.resolvedLocale().rtl).toBe(true);
+        expect(cmp.dir()).toBe('rtl');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        expect(fixture.componentInstance.resolvedLocale().code).toBe('fr');
+    });
+});

@@ -8,7 +8,8 @@
     [attr.aria-valuenow]="value()"
     [attr.aria-valuemin]="0"
     [attr.aria-valuemax]="max()"
-    [attr.aria-label]="ariaLabel()"
+    [attr.aria-label]="resolvedAriaLabel()"
+    [attr.dir]="dir()"
     [attr.tabindex]="isDisabled() || readonly() ? -1 : 0"
     (keydown)="onKeydown($event)"
     (mouseleave)="onMouseLeave()"
@@ -20,7 +21,7 @@
             type="button"
             data-star
             [class]="starClasses(star)"
-            [attr.aria-label]="'Rate ' + (star.index + 1) + ' out of ' + max()"
+            [attr.aria-label]="starAriaLabel(star.index + 1)"
             [disabled]="isDisabled() || readonly()"
             (mousemove)="onStarHover($event, star.index)"
             (click)="onStarClick($event, star.index)"

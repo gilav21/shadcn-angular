@@ -1,4 +1,6 @@
-export interface KanbanLocale {
+import type { LocaleMeta } from '../../lib/i18n';
+
+export interface KanbanLocale extends LocaleMeta {
     addCard: string;
     editCard: string;
     addColumn: string;
@@ -51,11 +53,11 @@ export interface KanbanLocale {
     lastColumnWarning: string;
     columnHasCards: string;
     deleteEmptyColumn: string;
-    rtl: boolean;
 }
 
 export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
     en: {
+        code: 'en',
         addCard: 'Add Card',
         editCard: 'Edit Card',
         addColumn: 'Add Column',
@@ -111,6 +113,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: false,
     },
     he: {
+        code: 'he',
         addCard: 'הוסף כרטיס',
         editCard: 'ערוך כרטיס',
         addColumn: 'הוסף עמודה',
@@ -166,6 +169,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: true,
     },
     ar: {
+        code: 'ar',
         addCard: 'إضافة بطاقة',
         editCard: 'تعديل البطاقة',
         addColumn: 'إضافة عمود',
@@ -221,6 +225,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: true,
     },
     de: {
+        code: 'de',
         addCard: 'Karte hinzufügen',
         editCard: 'Karte bearbeiten',
         addColumn: 'Spalte hinzufügen',
@@ -276,6 +281,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: false,
     },
     fr: {
+        code: 'fr',
         addCard: 'Ajouter une carte',
         editCard: 'Modifier la carte',
         addColumn: 'Ajouter une colonne',
@@ -331,6 +337,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: false,
     },
     es: {
+        code: 'es',
         addCard: 'Agregar tarjeta',
         editCard: 'Editar tarjeta',
         addColumn: 'Agregar columna',
@@ -386,6 +393,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: false,
     },
     ja: {
+        code: 'ja',
         addCard: 'カードを追加',
         editCard: 'カードを編集',
         addColumn: '列を追加',
@@ -441,6 +449,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: false,
     },
     zh: {
+        code: 'zh',
         addCard: '添加卡片',
         editCard: '编辑卡片',
         addColumn: '添加列',
@@ -496,6 +505,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: false,
     },
     ru: {
+        code: 'ru',
         addCard: 'Добавить карточку',
         editCard: 'Редактировать карточку',
         addColumn: 'Добавить колонку',
@@ -551,6 +561,7 @@ export const KANBAN_LOCALES: Record<string, KanbanLocale> = {
         rtl: false,
     },
     pt: {
+        code: 'pt',
         addCard: 'Adicionar cartão',
         editCard: 'Editar cartão',
         addColumn: 'Adicionar coluna',

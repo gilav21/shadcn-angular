@@ -194,3 +194,40 @@ describe('Slider RTL Support', () => {
         expect(slider).toBeTruthy();
     });
 });
+
+describe('SliderComponent — i18n integration', () => {
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [SliderComponent],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(SliderComponent);
+        if (opts.locale) fixture.componentRef.setInput('locale', opts.locale);
+        fixture.componentRef.setInput('max', 10000);
+        fixture.componentInstance.value.set(1234);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults aria-valuetext to en-US grouping', async () => {
+        const fixture = await setup();
+        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        expect(handle.getAttribute('aria-valuetext')).toBe('1,234');
+    });
+
+    it('localises aria-valuetext when locale="de" (uses German decimal/grouping)', async () => {
+        const fixture = await setup({ locale: 'de' });
+        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        expect(handle.getAttribute('aria-valuetext')).toBe('1.234');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        const v = handle.getAttribute('aria-valuetext');
+        // French uses narrow no-break space (U+202F) or regular space — both are non-ASCII.
+        expect(v).toContain('234');
+        expect(v.length).toBe('1 234'.length);
+    });
+});

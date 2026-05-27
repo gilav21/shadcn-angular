@@ -9,6 +9,7 @@ import {
     ElementRef,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
+import { COMMON_LOCALES, type CommonLocale, createLocaleBindings, type LocaleInput } from '../../../lib/i18n';
 import { DIALOG } from '../dialog.component';
 import { DialogHeaderComponent } from './dialog-header.component';
 import { DialogTitleComponent } from './dialog-title.component';
@@ -28,11 +29,18 @@ import { DialogDescriptionComponent } from './dialog-description.component';
 export class DialogContentComponent implements AfterViewInit {
     readonly dialog = inject(DIALOG, { optional: true });
     private readonly el = inject(ElementRef);
-    class = input('');
-    title = input<string>();
-    description = input<string>();
+    readonly class = input('');
+    readonly title = input<string>();
+    readonly description = input<string>();
 
-    classes = computed(() =>
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<CommonLocale>>();
+
+    private readonly i18n = createLocaleBindings(this.locale, COMMON_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
+
+    readonly classes = computed(() =>
         cn(
             'fixed z-50 grid w-full max-w-[calc(100vw-2rem)] sm:max-w-lg gap-3 sm:gap-4 border bg-background p-4 sm:p-6 shadow-lg duration-200 sm:rounded-lg',
             this.class()

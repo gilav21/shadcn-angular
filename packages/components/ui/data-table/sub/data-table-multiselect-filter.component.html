@@ -7,19 +7,19 @@
       }
     </div>
   }
-  <ui-command [shouldFilter]="true">
-    <ui-command-input [placeholder]="placeholder()" />
+  <ui-command [shouldFilter]="true" [attr.dir]="dir()">
+    <ui-command-input [placeholder]="resolvedPlaceholder()" />
     <div class="flex items-center gap-1 px-2 py-1.5">
       <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="selectAll()">
-        Select all
+        {{ selectAllLabel() }}
       </ui-button>
       <ui-button variant="ghost" size="sm" class="h-7 text-xs" (clicked)="clearAll()">
-        Clear
+        {{ clearAllLabel() }}
       </ui-button>
     </div>
     <ui-command-separator />
     <ui-command-list class="max-h-64">
-      <ui-command-empty>No results.</ui-command-empty>
+      <ui-command-empty>{{ noResultsLabel() }}</ui-command-empty>
       @for (option of options(); track trackOption(option)) {
         <ui-command-item
           [value]="getDisplayLabel(option)"

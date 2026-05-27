@@ -8,7 +8,7 @@
     <ui-sidebar-content>
       @for (category of categories(); track category) {
       <ui-sidebar-group>
-        <ui-sidebar-group-label>{{ category }}</ui-sidebar-group-label>
+        <ui-sidebar-group-label>{{ categoryLabel(category) }}</ui-sidebar-group-label>
         <ui-sidebar-group-content>
           <ui-sidebar-menu>
             @for (link of getLinksByCategory(category); track link.id) {
@@ -39,11 +39,11 @@
       </span>
       <div class="ml-auto flex items-center gap-1 sm:gap-2">
         <ui-button variant="ghost" size="icon" class="hidden sm:inline-flex" (click)="showShortcutBindingsDialog.set(true)" (keydown.enter)="showShortcutBindingsDialog.set(true)">
-          <span class="sr-only">Keyboard Shortcuts</span>
+          <span class="sr-only">{{ t().srOnly.keyboardShortcuts }}</span>
           <ui-icon name="keyboard" size="sm" />
         </ui-button>
         <ui-button variant="ghost" size="icon" (click)="showCommandDialog.set(true)" (keydown.enter)="showCommandDialog.set(true)">
-          <span class="sr-only">Search</span>
+          <span class="sr-only">{{ t().srOnly.search }}</span>
           <ui-icon name="search" size="sm" />
         </ui-button>
         <div class="flex items-center gap-1 sm:gap-2">
@@ -52,13 +52,35 @@
           </ui-button>
           <ui-select [ngModel]="sidebarCollapseMode()" (ngModelChange)="sidebarCollapseMode.set($event)">
             <ui-select-trigger class="w-[80px] sm:w-[100px] h-8 sm:h-9 text-xs sm:text-sm">
-              <ui-select-value placeholder="Mode" />
+              <ui-select-value [placeholder]="t().modePlaceholder" />
             </ui-select-trigger>
             <ui-select-content>
               <ui-select-item value="icon">Icon</ui-select-item>
               <ui-select-item value="hidden">Hidden</ui-select-item>
             </ui-select-content>
           </ui-select>
+          <ui-dropdown-menu>
+            <ui-dropdown-menu-trigger>
+              <ui-button variant="ghost" size="icon" data-slot="locale-switcher" [attr.aria-label]="'Language: ' + currentLocaleLabel()">
+                <span class="sr-only">{{ t().srOnly.language }}</span>
+                <ui-icon name="languages" size="sm" />
+              </ui-button>
+            </ui-dropdown-menu-trigger>
+            <ui-dropdown-menu-content align="end" class="w-44">
+              <ui-dropdown-menu-label>{{ t().languageMenuHeader }}</ui-dropdown-menu-label>
+              <ui-dropdown-menu-separator />
+              @for (option of localeOptions; track option.code) {
+                <ui-dropdown-menu-item (click)="setAppLocale(option.code)" [class.bg-accent]="appLocale() === option.code">
+                  <div class="flex w-full items-center justify-between gap-2">
+                    <span>{{ option.label }}</span>
+                    @if (appLocale() === option.code) {
+                      <ui-icon name="check" size="sm" />
+                    }
+                  </div>
+                </ui-dropdown-menu-item>
+              }
+            </ui-dropdown-menu-content>
+          </ui-dropdown-menu>
           <ui-button variant="ghost" size="icon" (click)="toggleTheme(!isDark())" (keydown.enter)="toggleTheme(!isDark())">
             @if (isDark()) {
             <ui-icon name="moon" size="sm" />

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   MenubarComponent,
   MenubarContentComponent,
@@ -11,6 +11,8 @@ import {
   MenubarSubTriggerComponent,
   MenubarTriggerComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { MENUBAR_DEMO_LOCALES } from './menubar-demo.locales';
 
 @Component({
   selector: 'app-menubar-demo',
@@ -29,74 +31,77 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="menubar" class="text-2xl font-semibold scroll-m-20">Menubar</h2>
-      <p class="text-muted-foreground">A horizontal menu bar with dropdown menus.</p>
+      <h2 id="menubar" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <ui-menubar>
         <ui-menubar-menu>
-          <ui-menubar-trigger>File</ui-menubar-trigger>
+          <ui-menubar-trigger>{{ t().menuFile }}</ui-menubar-trigger>
           <ui-menubar-content>
-            <ui-menubar-item>New Tab <ui-menubar-shortcut>⌘T</ui-menubar-shortcut></ui-menubar-item>
-            <ui-menubar-item>New Window <ui-menubar-shortcut>⌘N</ui-menubar-shortcut></ui-menubar-item>
-            <ui-menubar-item disabled>New Incognito Window</ui-menubar-item>
+            <ui-menubar-item>{{ t().fileNewTab }} <ui-menubar-shortcut>⌘T</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>{{ t().fileNewWindow }} <ui-menubar-shortcut>⌘N</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item disabled>{{ t().fileNewIncognito }}</ui-menubar-item>
             <ui-menubar-separator />
             <ui-menubar-sub>
-              <ui-menubar-sub-trigger>Share</ui-menubar-sub-trigger>
+              <ui-menubar-sub-trigger>{{ t().fileShare }}</ui-menubar-sub-trigger>
               <ui-menubar-sub-content>
                 <ui-menubar-sub>
-                  <ui-menubar-sub-trigger>Email</ui-menubar-sub-trigger>
+                  <ui-menubar-sub-trigger>{{ t().fileShareEmail }}</ui-menubar-sub-trigger>
                   <ui-menubar-sub-content>
-                    <ui-menubar-item>Personal</ui-menubar-item>
-                    <ui-menubar-item>Work</ui-menubar-item>
+                    <ui-menubar-item>{{ t().fileShareEmailPersonal }}</ui-menubar-item>
+                    <ui-menubar-item>{{ t().fileShareEmailWork }}</ui-menubar-item>
                   </ui-menubar-sub-content>
                 </ui-menubar-sub>
-                <ui-menubar-item>Messages</ui-menubar-item>
-                <ui-menubar-item>Notes</ui-menubar-item>
+                <ui-menubar-item>{{ t().fileShareMessages }}</ui-menubar-item>
+                <ui-menubar-item>{{ t().fileShareNotes }}</ui-menubar-item>
               </ui-menubar-sub-content>
             </ui-menubar-sub>
             <ui-menubar-separator />
-            <ui-menubar-item>Print <ui-menubar-shortcut>⌘P</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>{{ t().filePrint }} <ui-menubar-shortcut>⌘P</ui-menubar-shortcut></ui-menubar-item>
           </ui-menubar-content>
         </ui-menubar-menu>
         <ui-menubar-menu>
-          <ui-menubar-trigger>Edit</ui-menubar-trigger>
+          <ui-menubar-trigger>{{ t().menuEdit }}</ui-menubar-trigger>
           <ui-menubar-content>
-            <ui-menubar-item>Undo <ui-menubar-shortcut>⌘Z</ui-menubar-shortcut></ui-menubar-item>
-            <ui-menubar-item>Redo <ui-menubar-shortcut>⇧⌘Z</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>{{ t().editUndo }} <ui-menubar-shortcut>⌘Z</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>{{ t().editRedo }} <ui-menubar-shortcut>⇧⌘Z</ui-menubar-shortcut></ui-menubar-item>
             <ui-menubar-separator />
-            <ui-menubar-item>Cut <ui-menubar-shortcut>⌘X</ui-menubar-shortcut></ui-menubar-item>
-            <ui-menubar-item>Copy <ui-menubar-shortcut>⌘C</ui-menubar-shortcut></ui-menubar-item>
-            <ui-menubar-item>Paste <ui-menubar-shortcut>⌘V</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>{{ t().editCut }} <ui-menubar-shortcut>⌘X</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>{{ t().editCopy }} <ui-menubar-shortcut>⌘C</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>{{ t().editPaste }} <ui-menubar-shortcut>⌘V</ui-menubar-shortcut></ui-menubar-item>
             <ui-menubar-separator />
-            <ui-menubar-item>Select All <ui-menubar-shortcut>⌘A</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item>{{ t().editSelectAll }} <ui-menubar-shortcut>⌘A</ui-menubar-shortcut></ui-menubar-item>
           </ui-menubar-content>
         </ui-menubar-menu>
         <ui-menubar-menu>
-          <ui-menubar-trigger>View</ui-menubar-trigger>
+          <ui-menubar-trigger>{{ t().menuView }}</ui-menubar-trigger>
           <ui-menubar-content>
-            <ui-menubar-item [inset]="true">Reload <ui-menubar-shortcut>⌘R</ui-menubar-shortcut></ui-menubar-item>
-            <ui-menubar-item [inset]="true" [disabled]="true">Force Reload
+            <ui-menubar-item [inset]="true">{{ t().viewReload }} <ui-menubar-shortcut>⌘R</ui-menubar-shortcut></ui-menubar-item>
+            <ui-menubar-item [inset]="true" [disabled]="true">{{ t().viewForceReload }}
               <ui-menubar-shortcut>⇧⌘R</ui-menubar-shortcut></ui-menubar-item>
             <ui-menubar-separator />
-            <ui-menubar-item [inset]="true">Toggle Fullscreen</ui-menubar-item>
+            <ui-menubar-item [inset]="true">{{ t().viewToggleFullscreen }}</ui-menubar-item>
             <ui-menubar-separator />
-            <ui-menubar-item [inset]="true">Hide Sidebar</ui-menubar-item>
+            <ui-menubar-item [inset]="true">{{ t().viewHideSidebar }}</ui-menubar-item>
           </ui-menubar-content>
         </ui-menubar-menu>
         <ui-menubar-menu>
-          <ui-menubar-trigger>Profiles</ui-menubar-trigger>
+          <ui-menubar-trigger>{{ t().menuProfiles }}</ui-menubar-trigger>
           <ui-menubar-content>
-            <ui-menubar-item [inset]="true">Andy</ui-menubar-item>
-            <ui-menubar-item [inset]="true">Benoit</ui-menubar-item>
-            <ui-menubar-item [inset]="true">Luis</ui-menubar-item>
+            <ui-menubar-item [inset]="true">{{ t().profile1 }}</ui-menubar-item>
+            <ui-menubar-item [inset]="true">{{ t().profile2 }}</ui-menubar-item>
+            <ui-menubar-item [inset]="true">{{ t().profile3 }}</ui-menubar-item>
             <ui-menubar-separator />
-            <ui-menubar-item [inset]="true">Edit...</ui-menubar-item>
+            <ui-menubar-item [inset]="true">{{ t().profileEdit }}</ui-menubar-item>
             <ui-menubar-separator />
-            <ui-menubar-item [inset]="true">Add Profile...</ui-menubar-item>
+            <ui-menubar-item [inset]="true">{{ t().profileAdd }}</ui-menubar-item>
           </ui-menubar-content>
         </ui-menubar-menu>
       </ui-menubar>
     </section>
   `,
 })
-export class MenubarDemoComponent {}
+export class MenubarDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => MENUBAR_DEMO_LOCALES[this.localeId()] ?? MENUBAR_DEMO_LOCALES['en']);
+}

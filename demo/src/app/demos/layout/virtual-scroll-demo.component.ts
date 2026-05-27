@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild } from '@angular/core';
 import {
   ButtonComponent,
   IconComponent,
@@ -6,7 +6,9 @@ import {
   VirtualItemDirective,
   VirtualScrollState,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { VirtualScrollItem } from '../shared/types';
+import { VIRTUAL_SCROLL_DEMO_LOCALES } from './virtual-scroll-demo.locales';
 
 @Component({
   selector: 'app-virtual-scroll-demo',
@@ -15,6 +17,9 @@ import { VirtualScrollItem } from '../shared/types';
   templateUrl: './virtual-scroll-demo.component.html',
 })
 export class VirtualScrollDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => VIRTUAL_SCROLL_DEMO_LOCALES[this.localeId()] ?? VIRTUAL_SCROLL_DEMO_LOCALES['en']);
+
   readonly virtualScrollRef = viewChild<VirtualScrollComponent<VirtualScrollItem>>('virtualScrollRef');
   readonly virtualScrollItems = signal<VirtualScrollItem[]>([]);
   readonly virtualScrollLoading = signal(false);
@@ -105,7 +110,7 @@ export class VirtualScrollDemoComponent {
   private createItem(id: number, type: string, color: string, height: number): VirtualScrollItem {
     return {
       id,
-      title: `Complex Item #${id}`,
+      title: `${this.t().userLabel} #${id}`,
       description: `This is a ${type} item with ${height}px height. It demonstrates the virtual scroll's ability to handle dramatically different item sizes efficiently.`,
       height,
       type,

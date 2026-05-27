@@ -79,7 +79,7 @@ describe('DataTableDateFilterComponent', () => {
 
   it('should render English labels by default', () => {
     const buttons = fixture.nativeElement.querySelectorAll('button');
-    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    const texts = Array.from(buttons, (b: Element) => b.textContent?.trim());
     expect(texts).toContain('Today');
     expect(texts).toContain('Clear');
   });
@@ -88,7 +88,7 @@ describe('DataTableDateFilterComponent', () => {
     fixture.componentRef.setInput('locale', 'he');
     fixture.detectChanges();
     const buttons = fixture.nativeElement.querySelectorAll('button');
-    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    const texts = Array.from(buttons, (b: Element) => b.textContent?.trim());
     expect(texts).toContain('היום');
     expect(texts).toContain('נקה');
   });
@@ -100,11 +100,13 @@ describe('DataTableDateFilterComponent', () => {
     expect(root.getAttribute('dir')).toBe('rtl');
   });
 
-  it('should set dir="ltr" for LTR locales', () => {
+  it('omits the dir attribute for LTR locales so ancestor dir="rtl" still applies', () => {
+    // dir signal returns `'rtl' | null`; null removes the attribute, which
+    // lets a `<html dir="rtl">` ancestor keep applying for LTR-base locales.
     fixture.componentRef.setInput('locale', 'de');
     fixture.detectChanges();
     const root = fixture.nativeElement.querySelector('[data-slot="date-filter"]');
-    expect(root.getAttribute('dir')).toBe('ltr');
+    expect(root.hasAttribute('dir')).toBe(false);
   });
 });
 
@@ -206,7 +208,7 @@ describe('DataTableDateRangeFilterComponent', () => {
     fixture.componentRef.setInput('locale', 'he');
     fixture.detectChanges();
     const buttons = fixture.nativeElement.querySelectorAll('button');
-    const texts = Array.from(buttons).map((b: Element) => b.textContent?.trim());
+    const texts = Array.from(buttons, (b: Element) => b.textContent?.trim());
     expect(texts).toContain('נקה');
     expect(texts).not.toContain('Clear');
   });

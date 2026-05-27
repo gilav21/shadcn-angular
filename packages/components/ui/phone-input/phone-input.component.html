@@ -1,4 +1,4 @@
-<ui-input-group [variant]="variant()" [disabled]="isDisabled()" [class]="class()" [attr.data-slot]="'phone-input'">
+<ui-input-group [variant]="variant()" [disabled]="isDisabled()" [class]="class()" [attr.data-slot]="'phone-input'" [attr.dir]="dir()">
   <ui-input-group-addon class="!pr-0">
     <ui-popover>
       <ui-popover-trigger>
@@ -15,12 +15,13 @@
         </button>
       </ui-popover-trigger>
       <ui-popover-content class="w-64 p-0" align="start">
+        <div [attr.dir]="dir()">
         <div class="p-2 border-b">
           <input
             type="text"
             [value]="searchQuery()"
             (input)="onSearchInput($event)"
-            placeholder="Search country..."
+            [placeholder]="t().searchCountryPlaceholder"
             class="w-full bg-transparent text-sm outline-none placeholder:text-muted-foreground"
           />
         </div>
@@ -37,8 +38,9 @@
             </button>
           }
           @if (filteredCountries().length === 0) {
-            <p class="px-3 py-4 text-sm text-muted-foreground text-center">No countries found</p>
+            <p class="px-3 py-4 text-sm text-muted-foreground text-center">{{ t().noCountryFound }}</p>
           }
+        </div>
         </div>
       </ui-popover-content>
     </ui-popover>

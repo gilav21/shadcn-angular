@@ -453,3 +453,56 @@ describe('AutocompleteComponent', () => {
         });
     });
 });
+
+describe('AutocompleteComponent — i18n integration', () => {
+    async function setup(locale?: string, providerLocale?: string) {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [AutocompleteComponent],
+            providers: providerLocale ? [provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(AutocompleteComponent);
+        if (locale) fixture.componentRef.setInput('locale', locale);
+        fixture.detectChanges();
+        return fixture;
+    }
+
+    it('defaults the trigger placeholder to English "Select..."', async () => {
+        const fixture = await setup();
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('Select...');
+    });
+
+    it('localises the placeholder when locale="he"', async () => {
+        const fixture = await setup('he');
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('...בחר');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'de');
+        const input = fixture.nativeElement.querySelector('input');
+        expect(input.getAttribute('placeholder')).toBe('Auswählen...');
+    });
+
+    it('renders the localised noResults text in the embedded ui-command-empty when filter excludes all options', async () => {
+        const fixture = await setup('he');
+        fixture.componentRef.setInput('options', ['apple', 'banana']);
+        fixture.detectChanges();
+        const cmp = fixture.componentInstance;
+        (cmp as unknown as { open: { set: (v: boolean) => void } }).open.set(true);
+        cmp.searchTerm.set('zzzzzz');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+        const empty = document.querySelector('[data-slot="command-empty"]');
+        expect(empty).toBeTruthy();
+        expect(empty!.textContent!.trim()).toBe('לא נמצאו תוצאות.');
+    });
+
+    it('applies dir="rtl" to the autocomplete container when locale="he"', async () => {
+        const fixture = await setup('he');
+        const container = fixture.nativeElement.querySelector('[data-state]');
+        expect(container.getAttribute('dir')).toBe('rtl');
+    });
+});

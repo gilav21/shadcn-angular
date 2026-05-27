@@ -1,10 +1,13 @@
-import { Component, ChangeDetectionStrategy } from '@angular/core';
+// demo/src/app/demos/inputs/input-demo.component.ts
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import {
   InputComponent,
   LabelComponent,
   InputGroupComponent,
   InputGroupAddonComponent,
 } from '../../../../../packages/components/ui';
+import { INPUT_DEMO_LOCALES } from './input-demo.locales';
 
 @Component({
   selector: 'app-input-demo',
@@ -17,54 +20,54 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="input" class="text-2xl font-semibold scroll-m-20">Input</h2>
-      <p class="text-muted-foreground">Text input with label support.</p>
+      <h2 id="input" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="space-y-2 max-w-sm">
-        <ui-label>Input Group (Standard Input)</ui-label>
+        <ui-label>{{ t().groupStandardLabel }}</ui-label>
         <ui-input-group>
           <ui-input-group-addon>$</ui-input-group-addon>
-          <ui-input placeholder="0.00"></ui-input>
+          <ui-input [placeholder]="t().amountPlaceholder"></ui-input>
           <ui-input-group-addon>USD</ui-input-group-addon>
         </ui-input-group>
-        <p class="text-xs text-muted-foreground">Using standard ui-input inside group (auto-ghost)</p>
+        <p class="text-xs text-muted-foreground">{{ t().groupStandardHint }}</p>
       </div>
 
       <div class="grid gap-4 max-w-sm">
         <div class="space-y-2">
-          <ui-label for="email">Email</ui-label>
-          <ui-input type="email" placeholder="Enter your email" [attr.id]="'email'" />
+          <ui-label for="email">{{ t().emailLabel }}</ui-label>
+          <ui-input type="email" [placeholder]="t().emailPlaceholder" [attr.id]="'email'" />
         </div>
 
         <div class="space-y-2">
-          <ui-label for="password">Password</ui-label>
-          <ui-input type="password" placeholder="Enter password" [attr.id]="'password'" />
+          <ui-label for="password">{{ t().passwordLabel }}</ui-label>
+          <ui-input type="password" [placeholder]="t().passwordPlaceholder" [attr.id]="'password'" />
         </div>
 
         <div class="space-y-2">
-          <ui-label for="underline-input">Underline Variant</ui-label>
-          <ui-input placeholder="Underline input" [attr.id]="'underline-input'" variant="underline" />
+          <ui-label for="underline-input">{{ t().underlineLabel }}</ui-label>
+          <ui-input [placeholder]="t().underlinePlaceholder" [attr.id]="'underline-input'" variant="underline" />
         </div>
 
-        <ui-input placeholder="Disabled input" [disabled]="true" />
+        <ui-input [placeholder]="t().disabledPlaceholder" [disabled]="true" />
       </div>
 
       <div class="grid gap-4 max-w-sm pt-4">
         <div class="space-y-2">
-          <ui-label>Input Group (Underline)</ui-label>
+          <ui-label>{{ t().groupUnderlineLabel }}</ui-label>
           <ui-input-group variant="underline">
             <ui-input-group-addon>$</ui-input-group-addon>
-            <ui-input placeholder="0.00"></ui-input>
+            <ui-input [placeholder]="t().amountPlaceholder"></ui-input>
             <ui-input-group-addon>USD</ui-input-group-addon>
           </ui-input-group>
         </div>
 
         <div class="space-y-2">
-          <ui-label>Input Group (Ghost)</ui-label>
+          <ui-label>{{ t().groupGhostLabel }}</ui-label>
           <div class="rounded-lg border p-1">
             <ui-input-group variant="ghost">
               <ui-input-group-addon>$</ui-input-group-addon>
-              <ui-input placeholder="0.00"></ui-input>
+              <ui-input [placeholder]="t().amountPlaceholder"></ui-input>
               <ui-input-group-addon>USD</ui-input-group-addon>
             </ui-input-group>
           </div>
@@ -73,4 +76,9 @@ import {
     </section>
   `,
 })
-export class InputDemoComponent {}
+export class InputDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(
+    () => INPUT_DEMO_LOCALES[this.localeId()] ?? INPUT_DEMO_LOCALES['en'],
+  );
+}

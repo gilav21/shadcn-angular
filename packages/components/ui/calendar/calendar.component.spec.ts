@@ -10,6 +10,8 @@ import {
 } from '../select';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { signal } from '@angular/core';
+import { provideUiLocale, type CalendarLocale } from '../../lib/i18n';
 
 describe('CalendarComponent', () => {
     let fixture: ComponentFixture<CalendarComponent>;
@@ -320,5 +322,118 @@ describe('CalendarComponent', () => {
                 expect(endVal.end?.getMinutes()).toBe(0);
             }
         });
+    });
+});
+
+describe('CalendarComponent — i18n integration', () => {
+    it('defaults to English when no locale input and no provider is configured', async () => {
+        await TestBed.configureTestingModule({
+            imports: [CalendarComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CalendarComponent);
+        fixture.detectChanges();
+        const dayLabels = fixture.debugElement
+            .queryAll(By.css('.text-muted-foreground > div'))
+            .map(d => d.nativeElement.textContent.trim());
+        expect(dayLabels).toEqual(['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']);
+        const calendarDiv = fixture.debugElement.query(By.css('[data-slot="calendar"]'));
+        expect(calendarDiv.attributes['dir']).not.toBe('rtl');
+    });
+
+    it('falls back to the global UI_LOCALE_ID when no locale input is set', async () => {
+        await TestBed.configureTestingModule({
+            imports: [CalendarComponent],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CalendarComponent);
+        fixture.detectChanges();
+        const dayLabels = fixture.debugElement
+            .queryAll(By.css('.text-muted-foreground > div'))
+            .map(d => d.nativeElement.textContent.trim());
+        expect(dayLabels).toContain('א׳');
+        const calendarDiv = fixture.debugElement.query(By.css('[data-slot="calendar"]'));
+        expect(calendarDiv.attributes['dir']).toBe('rtl');
+    });
+
+    it('per-instance locale input overrides the global signal', async () => {
+        await TestBed.configureTestingModule({
+            imports: [CalendarComponent],
+            providers: [provideUiLocale('he')],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CalendarComponent);
+        fixture.componentRef.setInput('locale', 'fr');
+        fixture.detectChanges();
+        const dayLabels = fixture.debugElement
+            .queryAll(By.css('.text-muted-foreground > div'))
+            .map(d => d.nativeElement.textContent.trim());
+        expect(dayLabels[0]).toBe('Di');
+        const calendarDiv = fixture.debugElement.query(By.css('[data-slot="calendar"]'));
+        expect(calendarDiv.attributes['dir']).not.toBe('rtl');
+    });
+
+    it('reacts to a signal-based global locale change', async () => {
+        const localeSignal = signal('en');
+        await TestBed.configureTestingModule({
+            imports: [CalendarComponent],
+            providers: [provideUiLocale(localeSignal)],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CalendarComponent);
+        fixture.detectChanges();
+
+        const enDayLabels = fixture.debugElement
+            .queryAll(By.css('.text-muted-foreground > div'))
+            .map(d => d.nativeElement.textContent.trim());
+        expect(enDayLabels[0]).toBe('Su');
+
+        localeSignal.set('ar');
+        fixture.detectChanges();
+
+        const arDayLabels = fixture.debugElement
+            .queryAll(By.css('.text-muted-foreground > div'))
+            .map(d => d.nativeElement.textContent.trim());
+        expect(arDayLabels[0]).toBe('أح');
+        const calendarDiv = fixture.debugElement.query(By.css('[data-slot="calendar"]'));
+        expect(calendarDiv.attributes['dir']).toBe('rtl');
+    });
+
+    it('preserves a consumer-set rtl model when the active locale omits the rtl field', async () => {
+        const ambiguousLocale: CalendarLocale = {
+            code: 'xx',
+            monthNames: ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10', 'M11', 'M12'],
+            dayNames: ['D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6'],
+        };
+        await TestBed.configureTestingModule({
+            imports: [CalendarComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CalendarComponent);
+        fixture.componentRef.setInput('rtl', true);
+        fixture.componentRef.setInput('locale', ambiguousLocale);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(fixture.componentInstance.rtl()).toBe(true);
+    });
+
+    it('accepts a fully custom locale object as input', async () => {
+        const customLocale: CalendarLocale = {
+            code: 'xx',
+            rtl: true,
+            monthNames: ['M1', 'M2', 'M3', 'M4', 'M5', 'M6', 'M7', 'M8', 'M9', 'M10', 'M11', 'M12'],
+            dayNames: ['D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6'],
+            prevMonthLabel: 'Prev',
+            nextMonthLabel: 'Next',
+        };
+        await TestBed.configureTestingModule({
+            imports: [CalendarComponent],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(CalendarComponent);
+        fixture.componentRef.setInput('locale', customLocale);
+        fixture.detectChanges();
+
+        const dayLabels = fixture.debugElement
+            .queryAll(By.css('.text-muted-foreground > div'))
+            .map(d => d.nativeElement.textContent.trim());
+        expect(dayLabels).toEqual(['D0', 'D1', 'D2', 'D3', 'D4', 'D5', 'D6']);
+        const calendarDiv = fixture.debugElement.query(By.css('[data-slot="calendar"]'));
+        expect(calendarDiv.attributes['dir']).toBe('rtl');
     });
 });

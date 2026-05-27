@@ -18,6 +18,7 @@
     [style.visibility]="isReady() ? 'visible' : 'hidden'"
     style="z-index:10000;"
     [attr.data-slot]="'tour-card'"
+    [attr.dir]="dir()"
     tabindex="-1"
     (keydown)="onKeydown($event)"
   >
@@ -28,12 +29,12 @@
     }
     <div class="flex flex-wrap gap-2 mt-4 justify-end">
       @if (showSkip() && !isLastStep()) {
-        <ui-button variant="ghost" size="sm" (click)="skip()">{{ skipLabel() }}</ui-button>
+        <ui-button variant="ghost" size="sm" (click)="skip()">{{ skipLabel() ?? t().skip }}</ui-button>
       }
       @if (currentIndex() > 0) {
-        <ui-button variant="outline" size="sm" (click)="previous()">{{ prevLabel() }}</ui-button>
+        <ui-button variant="outline" size="sm" (click)="previous()">{{ prevLabel() ?? t().previous }}</ui-button>
       }
-      <ui-button size="sm" (click)="next()">{{ isLastStep() ? finishLabel() : nextLabel() }}</ui-button>
+      <ui-button size="sm" (click)="next()">{{ isLastStep() ? (finishLabel() ?? t().finish) : (nextLabel() ?? t().next) }}</ui-button>
     </div>
   </div>
 }

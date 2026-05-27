@@ -1,4 +1,4 @@
-<ui-popover [(open)]="isOpen" [attr.data-slot]="'tree-select'">
+<ui-popover [(open)]="isOpen" [attr.data-slot]="'tree-select'" [attr.dir]="dir()">
   @if (isDataDriven()) {
     <ui-popover-trigger class="w-full">
       <button
@@ -13,7 +13,7 @@
           @if (selectedNode(); as node) {
             {{ node.label }}
           } @else {
-            <span class="text-muted-foreground">{{ placeholder() }}</span>
+            <span class="text-muted-foreground">{{ placeholder() ?? t().selectPlaceholder }}</span>
           }
         </span>
         <svg
@@ -33,12 +33,14 @@
       </button>
     </ui-popover-trigger>
     <ui-popover-content class="w-[--trigger-width] p-2" align="start">
-      <ui-tree
-        [data]="nodes()"
-        [selectable]="'single'"
-        class="w-full"
-        (selectionChange)="onSelectionChange($event)"
-      />
+      <div [attr.dir]="dir()">
+        <ui-tree
+          [data]="nodes()"
+          [selectable]="'single'"
+          class="w-full"
+          (selectionChange)="onSelectionChange($event)"
+        />
+      </div>
     </ui-popover-content>
   } @else {
     <ng-content />

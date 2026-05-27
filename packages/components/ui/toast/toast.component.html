@@ -1,4 +1,4 @@
-<div [class]="classes()" [attr.data-slot]="'toast'" role="alert">
+<div [class]="classes()" [attr.data-slot]="'toast'" role="alert" [attr.dir]="dir()">
   <div class="grid gap-1 flex-1">
     @if (title()) {
       <div class="text-sm font-semibold" [attr.data-slot]="'toast-title'">{{ title() }}</div>
@@ -20,7 +20,7 @@
   <button
     class="absolute ltr:right-1 rtl:left-1 top-1 rounded-md p-1 text-foreground/50 opacity-0 transition-opacity hover:text-foreground focus:opacity-100 focus:outline-none focus:ring-1 group-hover:opacity-100 group-[.destructive]:text-red-300 group-[.destructive]:hover:text-red-50 group-[.destructive]:focus:ring-red-400 group-[.destructive]:focus:ring-offset-red-600"
     (click)="close.emit()"
-    aria-label="Close"
+    [attr.aria-label]="t().close"
   >
     <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
       <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />

@@ -6,14 +6,18 @@ import {
   computed,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, provideComponentLocale, type LocaleInput } from '../../lib/i18n';
+import { PAGINATION_LOCALES, type PaginationLocale } from './pagination.locales';
 
 @Component({
   selector: 'ui-pagination',
+  providers: [provideComponentLocale(() => PaginationComponent)],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <nav 
-      role="navigation" 
-      aria-label="pagination" 
+    <nav
+      role="navigation"
+      [attr.aria-label]="t().pagination"
+      [attr.dir]="dir()"
       [class]="classes()"
       [attr.data-slot]="'pagination'">
       @if (totalPages() > 0) {
@@ -21,8 +25,8 @@ import { cn } from '../../lib/utils';
         <ul class="flex flex-row flex-wrap items-center gap-1" data-slot="pagination-content">
           <!-- Previous button -->
           <li>
-            <button 
-              type="button" 
+            <button
+              type="button"
               [class]="navButtonClasses()"
               [disabled]="currentPage() <= 1"
               data-slot="pagination-previous"
@@ -30,10 +34,10 @@ import { cn } from '../../lib/utils';
               <svg class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7" />
               </svg>
-              <span>Previous</span>
+              <span>{{ t().previous }}</span>
             </button>
           </li>
-          
+
           <!-- Page numbers -->
           @for (page of pageNumbers(); track page) {
             <li>
@@ -44,11 +48,11 @@ import { cn } from '../../lib/utils';
                     <circle cx="19" cy="12" r="1.5" />
                     <circle cx="5" cy="12" r="1.5" />
                   </svg>
-                  <span class="sr-only">More pages</span>
+                  <span class="sr-only">{{ t().morePages }}</span>
                 </span>
               } @else {
-                <button 
-                  type="button" 
+                <button
+                  type="button"
                   [class]="pageLinkClasses(page === currentPage())"
                   [attr.aria-current]="page === currentPage() ? 'page' : null"
                   data-slot="pagination-link"
@@ -58,16 +62,16 @@ import { cn } from '../../lib/utils';
               }
             </li>
           }
-          
+
           <!-- Next button -->
           <li>
-            <button 
-              type="button" 
+            <button
+              type="button"
               [class]="navButtonClasses()"
               [disabled]="currentPage() >= totalPages()"
               data-slot="pagination-next"
               (click)="onPageChange(currentPage() + 1)">
-              <span>Next</span>
+              <span>{{ t().next }}</span>
               <svg class="h-4 w-4 rtl:rotate-180" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
                 <path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7" />
               </svg>
@@ -83,26 +87,36 @@ import { cn } from '../../lib/utils';
   host: { class: 'contents' },
 })
 export class PaginationComponent {
-  class = input('');
+  readonly class = input('');
 
   // Simple mode inputs
-  currentPage = input(0);
-  totalPages = input(0);
-  siblingCount = input(1);
+  readonly currentPage = input(0);
+  readonly totalPages = input(0);
+  readonly siblingCount = input(1);
+
+  /**
+   * Locale dictionary or registry key (`'en'`, `'he'`, …). Falls back to the
+   * app-wide `UI_LOCALE_ID` token when not set.
+   */
+  readonly locale = input<LocaleInput<PaginationLocale>>();
 
   // Output for page changes
-  pageChange = output<number>();
+  readonly pageChange = output<number>();
 
-  classes = computed(() => cn('mx-auto flex w-full justify-center', this.class()));
+  private readonly i18n = createLocaleBindings(this.locale, PAGINATION_LOCALES);
+  protected readonly t = this.i18n.t;
+  protected readonly dir = this.i18n.dir;
 
-  navButtonClasses = computed(() => cn(
+  readonly classes = computed(() => cn('mx-auto flex w-full justify-center', this.class()));
+
+  readonly navButtonClasses = computed(() => cn(
     'inline-flex items-center justify-center gap-1 whitespace-nowrap rounded-md text-sm font-medium h-9 px-4 py-2 cursor-pointer',
     'hover:bg-accent hover:text-accent-foreground transition-colors',
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
     'disabled:pointer-events-none disabled:opacity-50'
   ));
 
-  pageLinkClasses = (isActive: boolean) => cn(
+  readonly pageLinkClasses = (isActive: boolean): string => cn(
     'inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors cursor-pointer h-9 w-9',
     'focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring',
     isActive
@@ -110,7 +124,7 @@ export class PaginationComponent {
       : 'hover:bg-accent hover:text-accent-foreground'
   );
 
-  pageNumbers = computed(() => {
+  readonly pageNumbers = computed(() => {
     const total = this.totalPages();
     const current = this.currentPage();
     const siblings = this.siblingCount();

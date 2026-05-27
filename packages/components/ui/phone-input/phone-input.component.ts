@@ -10,6 +10,8 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
+import { PHONE_INPUT_LOCALES, type PhoneInputLocale } from './phone-input.locales';
 import { InputComponent } from '../input';
 import { InputGroupComponent, InputGroupAddonComponent } from '../input-group';
 import { PopoverComponent, PopoverTriggerComponent, PopoverContentComponent } from '../popover';
@@ -116,6 +118,12 @@ export class PhoneInputComponent implements ControlValueAccessor {
     readonly countries = input<PhoneCountry[]>(DEFAULT_COUNTRIES);
     /** External value (E.164 string). Use this for one-way binding without forms. */
     readonly value = input<string | null>(null);
+
+    /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+    readonly locale = input<LocaleInput<PhoneInputLocale>>();
+    private readonly i18n = createLocaleBindings(this.locale, PHONE_INPUT_LOCALES);
+    protected readonly t = this.i18n.t;
+    protected readonly dir = this.i18n.dir;
 
     /** Emits the E.164-formatted phone number on every change (`''` when empty). */
     readonly valueChange = output<string>();

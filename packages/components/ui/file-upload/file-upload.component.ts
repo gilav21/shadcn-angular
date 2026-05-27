@@ -9,6 +9,8 @@ import {
   viewChild,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
+import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
+import { FILE_UPLOAD_LOCALES, type FileUploadLocale } from './file-upload.locales';
 import { ButtonComponent } from '../button';
 import { ProgressComponent } from '../progress';
 
@@ -29,32 +31,45 @@ export interface FileUploadItem {
   host: { class: 'block' },
 })
 export class FileUploadComponent {
-  accept = input('');
-  multiple = input(true);
-  maxFiles = input<number | null>(null);
-  maxSize = input<number | null>(null); // bytes
-  disabled = input(false);
-  class = input('');
+  readonly accept = input('');
+  readonly multiple = input(true);
+  readonly maxFiles = input<number | null>(null);
+  readonly maxSize = input<number | null>(null); // bytes
+  readonly disabled = input(false);
+  readonly class = input('');
 
-  filesChange = output<FileUploadItem[]>();
-  fileAdded = output<FileUploadItem>();
-  fileRemoved = output<FileUploadItem>();
-  fileError = output<{ file: File; error: string }>();
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<FileUploadLocale>>();
+  private readonly i18n = createLocaleBindings(this.locale, FILE_UPLOAD_LOCALES);
+  protected readonly t = this.i18n.t;
+  protected readonly dir = this.i18n.dir;
 
-  files = signal<FileUploadItem[]>([]);
-  isDragging = signal(false);
+  readonly filesChange = output<FileUploadItem[]>();
+  readonly fileAdded = output<FileUploadItem>();
+  readonly fileRemoved = output<FileUploadItem>();
+  readonly fileError = output<{ file: File; error: string }>();
 
-  fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+  readonly files = signal<FileUploadItem[]>([]);
+  readonly isDragging = signal(false);
 
-  isDisabled = computed(() => {
+  readonly fileInput = viewChild<ElementRef<HTMLInputElement>>('fileInput');
+
+  readonly isDisabled = computed(() => {
     if (this.disabled()) return true;
     const max = this.maxFiles();
     return max !== null && this.files().length >= max;
   });
 
-  classes = computed(() => cn('w-full', this.class()));
+  readonly classes = computed(() => cn('w-full', this.class()));
 
-  dropzoneClasses = computed(() =>
+  /** Localised max-size label, e.g. `"Max size: 10 MB"`. Empty when `maxSize` is null. */
+  readonly maxSizeLabel = computed(() => {
+    const max = this.maxSize();
+    if (max === null) return '';
+    return interpolate(this.t().maxSize, { size: this.formatSize(max) });
+  });
+
+  readonly dropzoneClasses = computed(() =>
     cn(
       'relative flex min-h-[100px] sm:min-h-[150px] cursor-pointer items-center justify-center rounded-lg border-2 border-dashed p-4 sm:p-6 transition-colors',
       'hover:border-primary/50 hover:bg-accent/50',
@@ -116,11 +131,14 @@ export class FileUploadComponent {
       if (available <= 0) break;
 
       if (accept && !this.isAccepted(file, accept)) {
-        this.fileError.emit({ file, error: 'File type not accepted' });
+        this.fileError.emit({ file, error: this.t().fileTypeNotAccepted });
         continue;
       }
       if (maxSize !== null && file.size > maxSize) {
-        this.fileError.emit({ file, error: `File exceeds maximum size of ${this.formatSize(maxSize)}` });
+        this.fileError.emit({
+          file,
+          error: interpolate(this.t().fileTooLarge, { size: this.formatSize(maxSize) }),
+        });
         continue;
       }
 

@@ -323,3 +323,58 @@ describe('Dialog Simple Mode', () => {
         expect(content.nativeElement.textContent).toContain('Body content');
     });
 });
+
+describe('DialogContentComponent — i18n integration', () => {
+    @Component({
+        template: `
+            <ui-dialog>
+                <ui-dialog-content [locale]="locale">Hello</ui-dialog-content>
+            </ui-dialog>
+        `,
+        imports: [DialogComponent, DialogContentComponent],
+    })
+    class I18nHost {
+        locale: string | undefined = undefined;
+    }
+
+    async function setup(locale?: string, providerLocale?: string) {
+        await TestBed.configureTestingModule({
+            imports: [I18nHost],
+            providers: providerLocale ? [(await import('../../lib/i18n')).provideUiLocale(providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(I18nHost);
+        if (locale) fixture.componentInstance.locale = locale;
+        fixture.detectChanges();
+        const dialog = fixture.debugElement.query(By.directive(DialogComponent)).componentInstance as DialogComponent;
+        dialog.show();
+        fixture.detectChanges();
+        await fixture.whenStable();
+        return fixture;
+    }
+
+    afterEach(() => {
+        document.body.style.overflow = '';
+    });
+
+    it('renders English "Close" by default', async () => {
+        const fixture = await setup();
+        const sr = fixture.debugElement.query(By.css('[data-slot="dialog-content"] .sr-only'));
+        expect(sr.nativeElement.textContent.trim()).toBe('Close');
+    });
+
+    it('renders Hebrew + RTL when locale="he"', async () => {
+        const fixture = await setup('he');
+        const sr = fixture.debugElement.query(By.css('[data-slot="dialog-content"] .sr-only'));
+        expect(sr.nativeElement.textContent.trim()).toBe('סגור');
+        const closeBtn = fixture.debugElement.query(By.css('[data-slot="dialog-content"] button[aria-label]'));
+        expect(closeBtn.nativeElement.getAttribute('aria-label')).toBe('סגור');
+        const wrapper = fixture.debugElement.query(By.css('[dir]'));
+        expect(wrapper.nativeElement.getAttribute('dir')).toBe('rtl');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup(undefined, 'ar');
+        const sr = fixture.debugElement.query(By.css('[data-slot="dialog-content"] .sr-only'));
+        expect(sr.nativeElement.textContent.trim()).toBe('إغلاق');
+    });
+});

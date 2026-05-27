@@ -21,7 +21,8 @@ import { onPointerDrag } from '../../lib/touch';
 import { createFlip, type FlipHandle } from '../../lib/flip';
 import { startAutoScroll, type AutoScrollController } from '../../lib/auto-scroll';
 import { acquireAriaLive, type AriaLiveHandle } from '../../lib/sortable-aria-live';
-import { resolveSortableLocale, type SortableLocale } from './sortable-locales';
+import { SORTABLE_LOCALES, type SortableLocale } from './sortable-locales';
+import { createLocaleBindings, type LocaleInput } from '../../lib/i18n';
 import {
     peersInGroup,
     registerSortable,
@@ -266,7 +267,7 @@ export class SortableComponent<T> {
     readonly group = input<string>('');
     readonly autoScroll = input<boolean>(true);
     readonly accepts = input<SortableAccepts<T>>(true);
-    readonly locale = input<string>('en');
+    readonly locale = input<LocaleInput<SortableLocale>>();
     readonly ariaLabel = input<string>('list');
     readonly ariaItemLabel = input<(item: T, index: number) => string>((_, i) => `item ${i + 1}`);
     readonly positionClass = input<SortablePositionClassFn<T>>(() => '');
@@ -281,8 +282,11 @@ export class SortableComponent<T> {
     private readonly autoListId = `sortable-${++SortableComponent.sortableIdCounter}`;
     /** The list's resolved id — the `listId` input, or an auto-generated value when blank. */
     readonly resolvedListId = computed((): string => this.listId() || this.autoListId);
-    /** The active locale strings (resolves the `locale()` input with English fallback). */
-    readonly currentLocale = computed((): SortableLocale => resolveSortableLocale(this.locale()));
+    private readonly i18n = createLocaleBindings(this.locale, SORTABLE_LOCALES);
+    /** The active locale strings (resolves the `locale()` input with global / English fallback). */
+    readonly currentLocale = this.i18n.t;
+    /** `'rtl'` when the active locale is RTL, otherwise `null` — bind to `[attr.dir]`. */
+    protected readonly dir = this.i18n.dir;
 
     private itemLabel(index: number): string {
         const item = this.items()[index];

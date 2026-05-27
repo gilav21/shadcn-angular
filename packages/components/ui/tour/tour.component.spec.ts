@@ -381,3 +381,118 @@ describe('TourComponent — missing target', () => {
         expect(host.doneCount).toBe(1);
     });
 });
+
+describe('TourComponent — i18n integration', () => {
+    @Component({
+        selector: 'app-tour-i18n-host',
+        standalone: true,
+        imports: [TourComponent],
+        template: `
+            <div id="tour-target-1">Target</div>
+            <ui-tour [(active)]="active" [steps]="steps" [locale]="locale" />
+        `,
+    })
+    class TourI18nHost {
+        readonly active = signal(true);
+        readonly steps: TourStep[] = [
+            { target: '#tour-target-1', title: 'Step 1' },
+            { target: '#tour-target-1', title: 'Step 2' },
+        ];
+        locale: string | undefined = undefined;
+    }
+
+    async function setup(opts: { locale?: string; providerLocale?: string } = {}): Promise<ComponentFixture<TourI18nHost>> {
+        const { provideUiLocale } = await import('../../lib/i18n');
+        await TestBed.configureTestingModule({
+            imports: [TourI18nHost],
+            providers: opts.providerLocale ? [provideUiLocale(opts.providerLocale)] : [],
+        }).compileComponents();
+        const fixture = TestBed.createComponent(TourI18nHost);
+        if (opts.locale) fixture.componentInstance.locale = opts.locale;
+        await flush(fixture);
+        return fixture;
+    }
+
+    it('defaults Skip/Previous/Next/Finish to English', async () => {
+        const fixture = await setup();
+        const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
+        expect(card.textContent).toContain('Skip');
+        expect(card.textContent).toContain('Next');
+    });
+
+    it('localises Skip/Previous/Next/Finish when locale="he" and applies dir="rtl"', async () => {
+        const fixture = await setup({ locale: 'he' });
+        const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
+        expect(card.getAttribute('dir')).toBe('rtl');
+        expect(card.textContent).toContain('דלג');
+        expect(card.textContent).toContain('הבא');
+    });
+
+    it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
+        const fixture = await setup({ providerLocale: 'fr' });
+        const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
+        expect(card.textContent).toContain('Passer');
+        expect(card.textContent).toContain('Suivant');
+    });
+
+    it('accepts a fully custom CommonLocale object as locale input', async () => {
+        @Component({
+            selector: 'app-tour-custom-host',
+            standalone: true,
+            imports: [TourComponent],
+            template: `
+                <div id="tour-target-1">Target</div>
+                <ui-tour [(active)]="active" [steps]="steps" [locale]="loc" />
+            `,
+        })
+        class TourCustomHost {
+            readonly active = signal(true);
+            readonly steps: TourStep[] = [
+                { target: '#tour-target-1', title: 'Step 1' },
+                { target: '#tour-target-1', title: 'Step 2' },
+            ];
+            readonly loc = {
+                code: 'xx',
+                rtl: true,
+                close: 'C', cancel: 'C', confirm: 'C', continue: 'C', save: 'S', delete: 'D', edit: 'E',
+                search: 'S', searchPlaceholder: 'S', selectPlaceholder: 'S', noResults: 'N',
+                previous: 'X-PREV', next: 'X-NEXT', finish: 'X-FIN', skip: 'X-SKIP', loading: 'L',
+            };
+        }
+
+        await TestBed.configureTestingModule({ imports: [TourCustomHost] }).compileComponents();
+        const fixture = TestBed.createComponent(TourCustomHost);
+        await flush(fixture);
+        const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
+        expect(card.getAttribute('dir')).toBe('rtl');
+        expect(card.textContent).toContain('X-SKIP');
+        expect(card.textContent).toContain('X-NEXT');
+    });
+
+    it('explicit nextLabel input wins over the locale', async () => {
+        @Component({
+            selector: 'app-tour-override-host',
+            standalone: true,
+            imports: [TourComponent],
+            template: `
+                <div id="tour-target-1">Target</div>
+                <ui-tour [(active)]="active" [steps]="steps" locale="he" nextLabel="CUSTOM_NEXT" />
+            `,
+        })
+        class TourOverrideHost {
+            readonly active = signal(true);
+            readonly steps: TourStep[] = [
+                { target: '#tour-target-1', title: 'Step 1' },
+                { target: '#tour-target-1', title: 'Step 2' },
+            ];
+        }
+
+        await TestBed.configureTestingModule({ imports: [TourOverrideHost] }).compileComponents();
+        const fixture = TestBed.createComponent(TourOverrideHost);
+        await flush(fixture);
+        const card = document.querySelector('[data-slot="tour-card"]') as HTMLElement;
+        expect(card.textContent).toContain('CUSTOM_NEXT');
+        // skip still falls through to the locale dictionary
+        expect(card.textContent).toContain('דלג');
+    });
+});

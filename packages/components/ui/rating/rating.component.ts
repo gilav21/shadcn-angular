@@ -11,6 +11,8 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, isRtl } from '../../lib/utils';
+import { createLocaleBindings, interpolate, type LocaleInput } from '../../lib/i18n';
+import { RATING_LOCALES, type RatingLocale } from './rating.locales';
 import { isTouchDevice } from '../../lib/touch';
 
 @Component({
@@ -27,13 +29,29 @@ import { isTouchDevice } from '../../lib/touch';
   host: { class: 'inline-flex' },
 })
 export class RatingComponent implements ControlValueAccessor {
-  max = input(5);
-  precision = input<0.5 | 1>(1);
-  readonly = input(false);
-  disabled = input(false);
-  class = input('');
-  ariaLabel = input('Rating');
-  size = input<'sm' | 'md' | 'lg'>('md');
+  readonly max = input(5);
+  readonly precision = input<0.5 | 1>(1);
+  readonly readonly = input(false);
+  readonly disabled = input(false);
+  readonly class = input('');
+  /** Override for the group `aria-label`. Falls back to the locale's `rating`. */
+  readonly ariaLabel = input<string>();
+  readonly size = input<'sm' | 'md' | 'lg'>('md');
+
+  /** Locale dictionary or registry key. Falls back to `UI_LOCALE_ID` when not set. */
+  readonly locale = input<LocaleInput<RatingLocale>>();
+  private readonly i18n = createLocaleBindings(this.locale, RATING_LOCALES);
+  protected readonly t = this.i18n.t;
+  protected readonly dir = this.i18n.dir;
+  /** Effective `aria-label` on the rating group — explicit input wins; otherwise the locale's `rating`. */
+  readonly resolvedAriaLabel = computed(() => this.ariaLabel() ?? this.t().rating);
+  /** Per-star `aria-label`, interpolated from the locale's `rateAriaLabel`. */
+  starAriaLabel(starValue: number): string {
+    return interpolate(this.t().rateAriaLabel ?? 'Rate {n} out of {total}', {
+      n: starValue,
+      total: this.max(),
+    });
+  }
 
   ratingChange = output<number>();
 

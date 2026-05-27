@@ -1,6 +1,10 @@
 import { Meta, StoryObj } from '@storybook/angular';
 import { CalendarComponent } from './calendar.component';
-import { CALENDAR_LOCALES } from '../../lib/calendar-locales';
+import { CALENDAR_LOCALES, resolveLocale, type CalendarLocale, type LocaleInput } from '../../lib/i18n';
+
+function rtlFromArgs(localeArg: LocaleInput<CalendarLocale> | undefined): boolean {
+    return resolveLocale<CalendarLocale>(localeArg, CALENDAR_LOCALES, 'en').rtl ?? false;
+}
 
 const meta: Meta<CalendarComponent> = {
     title: 'UI/Calendar',
@@ -56,8 +60,7 @@ type Story = StoryObj<CalendarComponent>;
 export const Default: Story = {
     render: (args) => {
         // Get RTL from locale if not explicitly set
-        const localeData = CALENDAR_LOCALES[args.locale ?? 'en'];
-        const rtl = localeData?.rtl ?? false;
+        const rtl = rtlFromArgs(args.locale);
 
         return {
             props: { ...args, rtl },
@@ -71,8 +74,7 @@ export const RangeMode: Story = {
         mode: 'range',
     },
     render: (args) => {
-        const localeData = CALENDAR_LOCALES[args.locale ?? 'en'];
-        const rtl = localeData?.rtl ?? false;
+        const rtl = rtlFromArgs(args.locale);
 
         return {
             props: { ...args, rtl },
@@ -86,8 +88,7 @@ export const MultiMode: Story = {
         mode: 'multi',
     },
     render: (args) => {
-        const localeData = CALENDAR_LOCALES[args.locale ?? 'en'];
-        const rtl = localeData?.rtl ?? false;
+        const rtl = rtlFromArgs(args.locale);
 
         return {
             props: { ...args, rtl },
@@ -101,8 +102,7 @@ export const WithTimeSelect: Story = {
         showTimeSelect: true,
     },
     render: (args) => {
-        const localeData = CALENDAR_LOCALES[args.locale ?? 'en'];
-        const rtl = localeData?.rtl ?? false;
+        const rtl = rtlFromArgs(args.locale);
 
         return {
             props: { ...args, rtl },
@@ -117,8 +117,7 @@ export const WithTimeRange: Story = {
         timeMode: 'range',
     },
     render: (args) => {
-        const localeData = CALENDAR_LOCALES[args.locale ?? 'en'];
-        const rtl = localeData?.rtl ?? false;
+        const rtl = rtlFromArgs(args.locale);
 
         return {
             props: { ...args, rtl },
@@ -134,8 +133,7 @@ export const RangeModeWithTimeRange: Story = {
         timeMode: 'range',
     },
     render: (args) => {
-        const localeData = CALENDAR_LOCALES[args.locale ?? 'en'];
-        const rtl = localeData?.rtl ?? false;
+        const rtl = rtlFromArgs(args.locale);
 
         return {
             props: { ...args, rtl },
