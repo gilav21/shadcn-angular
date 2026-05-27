@@ -1,8 +1,10 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   ScrollAreaComponent,
   SeparatorComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { SCROLL_AREA_DEMO_LOCALES } from './scroll-area-demo.locales';
 
 @Component({
   selector: 'app-scroll-area-demo',
@@ -10,12 +12,12 @@ import {
   imports: [ScrollAreaComponent, SeparatorComponent],
   template: `
     <section class="space-y-4">
-      <h2 id="scroll-area" class="text-2xl font-semibold scroll-m-20">Scroll Area</h2>
-      <p class="text-muted-foreground">A custom scrollable area with styled scrollbars.</p>
+      <h2 id="scroll-area" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <ui-scroll-area class="h-72 w-48 rounded-md border">
         <div class="p-4">
-          <h4 class="mb-4 text-sm font-medium leading-none">Tags</h4>
+          <h4 class="mb-4 text-sm font-medium leading-none">{{ t().tagsLabel }}</h4>
           @for (
           tag of tags;
           track tag
@@ -29,6 +31,9 @@ import {
   `,
 })
 export class ScrollAreaDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => SCROLL_AREA_DEMO_LOCALES[this.localeId()] ?? SCROLL_AREA_DEMO_LOCALES['en']);
+
   readonly tags = [
     'v1.2.0-beta.18',
     'v1.2.0-beta.17',
