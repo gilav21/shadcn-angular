@@ -1,5 +1,7 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { FileUploadComponent } from '../../../../../packages/components/ui';
+import { FILE_UPLOAD_DEMO_LOCALES } from './file-upload-demo.locales';
 
 @Component({
   selector: 'app-file-upload-demo',
@@ -7,10 +9,8 @@ import { FileUploadComponent } from '../../../../../packages/components/ui';
   imports: [FileUploadComponent],
   template: `
     <section class="space-y-4">
-      <h2 id="file-upload" class="text-2xl font-semibold scroll-m-20">File Upload</h2>
-      <p class="text-muted-foreground">
-        A drag-and-drop zone with file list preview, progress bars, and remove actions.
-      </p>
+      <h2 id="file-upload" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="max-w-md">
         <ui-file-upload accept="image/*,.pdf" [multiple]="true" [maxFiles]="5" [maxSize]="5242880" />
@@ -18,4 +18,7 @@ import { FileUploadComponent } from '../../../../../packages/components/ui';
     </section>
   `,
 })
-export class FileUploadDemoComponent {}
+export class FileUploadDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => FILE_UPLOAD_DEMO_LOCALES[this.localeId()] ?? FILE_UPLOAD_DEMO_LOCALES['en']);
+}
