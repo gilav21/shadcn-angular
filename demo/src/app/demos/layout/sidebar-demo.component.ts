@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import {
   IconComponent,
   SidebarComponent,
@@ -16,6 +16,8 @@ import {
   SidebarSeparatorComponent,
   SidebarTriggerComponent,
 } from '../../../../../packages/components/ui';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
+import { SIDEBAR_DEMO_LOCALES } from './sidebar-demo.locales';
 
 @Component({
   selector: 'app-sidebar-demo',
@@ -39,42 +41,42 @@ import {
   ],
   template: `
     <section class="space-y-4">
-      <h2 id="sidebar" class="text-2xl font-semibold scroll-m-20">Sidebar</h2>
-      <p class="text-muted-foreground">A composable sidebar component for application layouts.</p>
+      <h2 id="sidebar" class="text-2xl font-semibold scroll-m-20">{{ t().heading }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <div class="border rounded-lg overflow-hidden h-[400px]">
         <ui-sidebar-provider>
           <ui-sidebar>
             <ui-sidebar-header>
-              <div class="font-semibold">My App</div>
+              <div class="font-semibold">{{ t().appName }}</div>
             </ui-sidebar-header>
             <ui-sidebar-content>
               <ui-sidebar-group>
-                <ui-sidebar-group-label>Navigation</ui-sidebar-group-label>
+                <ui-sidebar-group-label>{{ t().navGroup }}</ui-sidebar-group-label>
                 <ui-sidebar-group-content>
                   <ui-sidebar-menu>
                     <ui-sidebar-menu-item>
                       <ui-sidebar-menu-link href="#" [isActive]="true">
                         <ui-icon name="home" />
-                        <span>Home</span>
+                        <span>{{ t().navHome }}</span>
                       </ui-sidebar-menu-link>
                     </ui-sidebar-menu-item>
                     <ui-sidebar-menu-item>
                       <ui-sidebar-menu-link href="#">
                         <ui-icon name="mail" />
-                        <span>Inbox</span>
+                        <span>{{ t().navInbox }}</span>
                       </ui-sidebar-menu-link>
                     </ui-sidebar-menu-item>
                     <ui-sidebar-menu-item>
                       <ui-sidebar-menu-link href="#">
                         <ui-icon name="calendar" />
-                        <span>Calendar</span>
+                        <span>{{ t().navCalendar }}</span>
                       </ui-sidebar-menu-link>
                     </ui-sidebar-menu-item>
                     <ui-sidebar-menu-item>
                       <ui-sidebar-menu-link href="#">
                         <ui-icon name="settings" />
-                        <span>Settings</span>
+                        <span>{{ t().navSettings }}</span>
                       </ui-sidebar-menu-link>
                     </ui-sidebar-menu-item>
                   </ui-sidebar-menu>
@@ -83,18 +85,16 @@ import {
             </ui-sidebar-content>
             <ui-sidebar-footer>
               <ui-sidebar-separator />
-              <div class="text-xs text-muted-foreground">v1.0.0</div>
+              <div class="text-xs text-muted-foreground">{{ t().version }}</div>
             </ui-sidebar-footer>
           </ui-sidebar>
           <ui-sidebar-inset>
             <header class="flex h-12 items-center border-b px-4">
               <ui-sidebar-trigger />
-              <span class="ml-4 text-sm font-medium">Dashboard</span>
+              <span class="ml-4 text-sm font-medium">{{ t().mainContentHeader }}</span>
             </header>
             <div class="p-4">
-              <p class="text-muted-foreground">
-                Main content area. Click the sidebar trigger to toggle.
-              </p>
+              <p class="text-muted-foreground">{{ t().mainContent }}</p>
             </div>
           </ui-sidebar-inset>
         </ui-sidebar-provider>
@@ -102,4 +102,7 @@ import {
     </section>
   `,
 })
-export class SidebarDemoComponent {}
+export class SidebarDemoComponent {
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => SIDEBAR_DEMO_LOCALES[this.localeId()] ?? SIDEBAR_DEMO_LOCALES['en']);
+}
