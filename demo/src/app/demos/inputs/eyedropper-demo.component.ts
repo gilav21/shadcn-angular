@@ -1,28 +1,22 @@
-import { ChangeDetectionStrategy, Component, signal, viewChild, ElementRef } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject, signal, viewChild, ElementRef } from '@angular/core';
+import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import { EyedropperComponent } from '../../../../../packages/components/ui';
+import { EYEDROPPER_DEMO_LOCALES } from './eyedropper-demo.locales';
 
 @Component({
-    selector: 'app-eyedropper-demo',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [EyedropperComponent],
-    template: `
+  selector: 'app-eyedropper-demo',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [EyedropperComponent],
+  template: `
     <section class="space-y-6">
-      <h2 id="eyedropper" class="text-2xl font-semibold scroll-m-20">Eyedropper</h2>
-      <p class="text-muted-foreground">
-        Standalone picker that prefers the native <code>window.EyeDropper</code>
-        API and falls back to canvas-based sampling on any
-        <code>&lt;img&gt;</code>, <code>&lt;canvas&gt;</code>, or
-        <code>&lt;video&gt;</code> element you pass via <code>fallbackTarget</code>.
-      </p>
+      <h2 id="eyedropper" class="text-2xl font-semibold scroll-m-20">{{ t().title }}</h2>
+      <p class="text-muted-foreground">{{ t().description }}</p>
 
       <article class="space-y-2">
-        <h3 class="text-lg font-semibold">Native API</h3>
-        <p class="text-sm text-muted-foreground">
-          Works on Chromium-based browsers. Click the pipette, then click any
-          pixel anywhere on screen.
-        </p>
+        <h3 class="text-lg font-semibold">{{ t().sections.nativeApi }}</h3>
+        <p class="text-sm text-muted-foreground">{{ t().sections.nativeApiDesc }}</p>
         <div class="flex items-center gap-4">
-          <ui-eyedropper variant="button" label="Pick a pixel" (colorPick)="nativePicked.set($event)" />
+          <ui-eyedropper variant="button" [label]="t().buttons.pickPixel" (colorPick)="nativePicked.set($event)" />
           @if (nativePicked()) {
             <div class="flex items-center gap-2">
               <span class="h-8 w-8 rounded border" [style.backgroundColor]="nativePicked()"></span>
@@ -33,11 +27,8 @@ import { EyedropperComponent } from '../../../../../packages/components/ui';
       </article>
 
       <article class="space-y-2">
-        <h3 class="text-lg font-semibold">In-page fallback</h3>
-        <p class="text-sm text-muted-foreground">
-          Pass a target element via <code>[fallbackTarget]</code>. Works in
-          Firefox / Safari where the native API isn't available.
-        </p>
+        <h3 class="text-lg font-semibold">{{ t().sections.inPageFallback }}</h3>
+        <p class="text-sm text-muted-foreground">{{ t().sections.inPageFallbackDesc }}</p>
         <div class="flex items-start gap-4">
           <img
             #target
@@ -47,7 +38,7 @@ import { EyedropperComponent } from '../../../../../packages/components/ui';
             class="rounded-md"
           />
           <div class="flex flex-col gap-3">
-            <ui-eyedropper variant="button" label="Sample from image" [fallbackTarget]="target" (colorPick)="fallbackPicked.set($event)" />
+            <ui-eyedropper variant="button" [label]="t().buttons.sampleFromImage" [fallbackTarget]="target" (colorPick)="fallbackPicked.set($event)" />
             @if (fallbackPicked()) {
               <div class="flex items-center gap-2">
                 <span class="h-8 w-8 rounded border" [style.backgroundColor]="fallbackPicked()"></span>
@@ -59,14 +50,17 @@ import { EyedropperComponent } from '../../../../../packages/components/ui';
       </article>
 
       <article class="space-y-2">
-        <h3 class="text-lg font-semibold">Disabled</h3>
+        <h3 class="text-lg font-semibold">{{ t().sections.disabled }}</h3>
         <ui-eyedropper variant="icon" [disabled]="true" />
       </article>
     </section>
   `,
 })
 export class EyedropperDemoComponent {
-    readonly nativePicked = signal<string | null>(null);
-    readonly fallbackPicked = signal<string | null>(null);
-    readonly target = viewChild<ElementRef<HTMLImageElement>>('target');
+  private readonly localeId = inject(UI_LOCALE_ID);
+  protected readonly t = computed(() => EYEDROPPER_DEMO_LOCALES[this.localeId()] ?? EYEDROPPER_DEMO_LOCALES['en']);
+
+  readonly nativePicked = signal<string | null>(null);
+  readonly fallbackPicked = signal<string | null>(null);
+  readonly target = viewChild<ElementRef<HTMLImageElement>>('target');
 }
