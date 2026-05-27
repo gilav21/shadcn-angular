@@ -34,7 +34,7 @@
               type="button"
               class="inline-flex h-9 w-9 items-center justify-center rounded-md border border-input bg-background text-sm font-medium ring-offset-background transition-colors hover:bg-accent hover:text-accent-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
               (click)="openImagePicker()"
-              [attr.aria-label]="t().pickColorFromImage ?? 'Pick color from image'"
+              [attr.aria-label]="t().pickColorFromImage"
               data-slot="image-pick-trigger"
               uiTooltip="Pick color from image"
             >
@@ -58,7 +58,7 @@
         [style.background]="areaBackground()"
         tabindex="0"
         role="slider"
-        [attr.aria-label]="t().saturationValue ?? 'Saturation and value'"
+        [attr.aria-label]="t().saturationValue"
         [attr.aria-valuetext]="'S ' + saturation() + '%, V ' + value() + '%'"
         (mousedown)="onAreaMouseDown($event)"
         (touchstart)="onAreaTouchStart($event)"
@@ -81,7 +81,7 @@
           max="360"
           [value]="hue()"
           (input)="onHueChange($event)"
-          [attr.aria-label]="t().hue ?? 'Hue'"
+          [attr.aria-label]="t().hue"
           class="w-full h-3 rounded-md cursor-pointer appearance-none"
           [style.background]="hueGradient"
         />
@@ -99,7 +99,7 @@
               step="1"
               [value]="alphaValue() * 100"
               (input)="onAlphaChange($event)"
-              [attr.aria-label]="t().alpha ?? 'Alpha'"
+              [attr.aria-label]="t().alpha"
               class="absolute inset-0 w-full h-3 rounded-md cursor-pointer appearance-none"
               [style.background]="alphaGradient()"
             />
@@ -109,8 +109,8 @@
 
       @if (recents().length > 0) {
         <fieldset class="space-y-1 border-0 p-0 m-0">
-          <legend class="text-xs text-muted-foreground p-0">{{ t().recent ?? 'Recent' }}</legend>
-          <div class="flex flex-wrap gap-1" role="list" [attr.aria-label]="t().recentColors ?? 'Recent colors'">
+          <legend class="text-xs text-muted-foreground p-0">{{ t().recent }}</legend>
+          <div class="flex flex-wrap gap-1" role="list" [attr.aria-label]="t().recentColors">
             @for (color of recents(); track color) {
               <button
                 type="button"
@@ -134,7 +134,7 @@
               (click)="clearExtractedPalette()"
             >Clear</button>
           </div>
-          <div class="flex flex-wrap gap-1" role="list" [attr.aria-label]="t().extractedPalette ?? 'Extracted palette'">
+          <div class="flex flex-wrap gap-1" role="list" [attr.aria-label]="t().extractedPalette">
             @for (color of extractedPalette(); track color) {
               <button
                 type="button"
@@ -220,7 +220,7 @@
               [class.ring-ring]="compareActive() === 'a'"
               (click)="setCompareSlot('a')"
               uiTooltip="Edit color A with the picker above"
-              [attr.aria-label]="t().editColorA ?? 'Edit color A'"
+              [attr.aria-label]="t().editColorA"
             >
               <span
                 class="block h-6 w-6 rounded border"
@@ -236,7 +236,7 @@
               [class.ring-ring]="compareActive() === 'b'"
               (click)="setCompareSlot('b')"
               uiTooltip="Edit color B with the picker above"
-              [attr.aria-label]="t().editColorB ?? 'Edit color B'"
+              [attr.aria-label]="t().editColorB"
             >
               <span
                 class="block h-6 w-6 rounded border"
@@ -279,7 +279,7 @@
                 type="button"
                 class="inline-flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                 (click)="copy('hex')"
-                [attr.aria-label]="t().copyHex ?? 'Copy hex'"
+                [attr.aria-label]="t().copyHex"
               >
                 <ui-icon [name]="copiedFormat() === 'hex' ? 'check' : 'copy'" class="h-4 w-4" />
               </button>
@@ -299,7 +299,7 @@
                     max="255"
                     [ngModel]="rgb().r"
                     (ngModelChange)="onRgbChange('r', $event)"
-                    [attr.aria-label]="t().red ?? 'Red'"
+                    [attr.aria-label]="t().red"
                     class="h-8 text-xs"
                   />
                 </div>
@@ -311,7 +311,7 @@
                     max="255"
                     [ngModel]="rgb().g"
                     (ngModelChange)="onRgbChange('g', $event)"
-                    [attr.aria-label]="t().green ?? 'Green'"
+                    [attr.aria-label]="t().green"
                     class="h-8 text-xs"
                   />
                 </div>
@@ -323,7 +323,7 @@
                     max="255"
                     [ngModel]="rgb().b"
                     (ngModelChange)="onRgbChange('b', $event)"
-                    [attr.aria-label]="t().blue ?? 'Blue'"
+                    [attr.aria-label]="t().blue"
                     class="h-8 text-xs"
                   />
                 </div>
@@ -334,7 +334,7 @@
                   type="button"
                   class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                   (click)="copy('rgb')"
-                  [attr.aria-label]="t().copyRgb ?? 'Copy rgb'"
+                  [attr.aria-label]="t().copyRgb"
                 >
                   <ui-icon [name]="copiedFormat() === 'rgb' ? 'check' : 'copy'" class="h-4 w-4" />
                 </button>
@@ -355,7 +355,7 @@
                     max="360"
                     [ngModel]="hsl().h"
                     (ngModelChange)="onHslHueChange($event)"
-                    [attr.aria-label]="t().hue ?? 'Hue'"
+                    [attr.aria-label]="t().hue"
                     class="h-8 text-xs"
                   />
                 </div>
@@ -367,7 +367,7 @@
                     max="100"
                     [ngModel]="hsl().s"
                     (ngModelChange)="onHslChange('s', $event)"
-                    [attr.aria-label]="t().saturation ?? 'Saturation'"
+                    [attr.aria-label]="t().saturation"
                     class="h-8 text-xs"
                   />
                 </div>
@@ -379,7 +379,7 @@
                     max="100"
                     [ngModel]="hsl().l"
                     (ngModelChange)="onHslChange('l', $event)"
-                    [attr.aria-label]="t().lightness ?? 'Lightness'"
+                    [attr.aria-label]="t().lightness"
                     class="h-8 text-xs"
                   />
                 </div>
@@ -390,7 +390,7 @@
                   type="button"
                   class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                   (click)="copy('hsl')"
-                  [attr.aria-label]="t().copyHsl ?? 'Copy hsl'"
+                  [attr.aria-label]="t().copyHsl"
                 >
                   <ui-icon [name]="copiedFormat() === 'hsl' ? 'check' : 'copy'" class="h-4 w-4" />
                 </button>
@@ -407,7 +407,7 @@
                 type="button"
                 class="inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
                 (click)="copy('oklch')"
-                [attr.aria-label]="t().copyOklch ?? 'Copy oklch'"
+                [attr.aria-label]="t().copyOklch"
               >
                 <ui-icon [name]="copiedFormat() === 'oklch' ? 'check' : 'copy'" class="h-4 w-4" />
               </button>
