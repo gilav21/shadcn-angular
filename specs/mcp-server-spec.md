@@ -183,3 +183,4 @@ Review gate bar: **≥95**. One row per gated task (highest score recorded).
 | 0.2 | 2026-05-28 | 96 | Metadata shape (`CATEGORIES`/`Category` + optional description/category/tags) added cleanly; build + tests pass; taxonomy covers the library. |
 | 1.1 | 2026-05-28 | 96 | `core/fetch.ts` extracted verbatim; add.ts re-exports keep add.spec/diff working; dead imports removed; 48 tests pass. |
 | 1.2 | 2026-05-28 | 96 | `core/resolve.ts` extracted verbatim; add.ts re-exports; self/transitive/diamond tests; 50 tests pass. |
+| 1.3 | 2026-05-28 | 97 | `core/plan.ts` extracted (conflict detection) + `summarizePlan`/`InstallPlan`; add.ts re-exports; dead imports removed; 51 tests pass. |
