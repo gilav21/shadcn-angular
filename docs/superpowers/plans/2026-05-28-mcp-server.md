@@ -18,6 +18,7 @@ Review gate bar: **≥95**. Highest score across iterations is recorded.
 |---|---|---|---|
 | 0.1 | 2026-05-28 | n/a | Trivial dependency bump (`@modelcontextprotocol/sdk`, `zod`); review-gate explicitly excludes version bumps. |
 | 0.2 | 2026-05-28 | 96 | `CATEGORIES` exported `as const` with `Category` derived correctly; three optional readonly fields added with JSDoc; build + tests pass; taxonomy covers all components. |
+| 1.1 | 2026-05-28 | 96 | Verbatim extraction to `core/fetch.ts` (`FetchOptions`, normalize/fetch/transform); `add.ts` re-exports + `AddOptions extends FetchOptions`; dead imports removed; 48 tests pass. |
 
 ---
 

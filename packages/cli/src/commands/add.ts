@@ -4,33 +4,34 @@ import prompts from 'prompts';
 import chalk from 'chalk';
 import ora, { type Ora } from 'ora';
 import { getConfig, getPrefix, type Config } from '../utils/config.js';
-import { applyPrefixTransforms, DEFAULT_PREFIX } from '../utils/prefix.js';
+import { DEFAULT_PREFIX } from '../utils/prefix.js';
 import { registry, getComponentNames, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 import {
-    getRegistryBaseUrl,
-    getLibRegistryBaseUrl,
-    getLocalComponentsDir,
-    getLocalLibDir,
     resolveProjectPath,
     aliasToProjectPath,
 } from '../utils/paths.js';
+import {
+    fetchAndTransform,
+    fetchLibContent,
+    normalizeContent,
+    type FetchOptions,
+} from '../core/fetch.js';
+
+export { fetchAndTransform, normalizeContent };
 
 const onCancel = () => {
     console.log(chalk.dim('\nCancelled.'));
     process.exit(0);
 };
 
-export interface AddOptions {
+export interface AddOptions extends FetchOptions {
     yes?: boolean;
     overwrite?: boolean;
     all?: boolean;
     path?: string;
-    remote?: boolean;
     dryRun?: boolean;
-    branch: string;
-    registry?: string;
 }
 
 interface ConflictCheckResult {
@@ -39,73 +40,6 @@ interface ConflictCheckResult {
     conflicting: ComponentName[];
     peerFilesToUpdate: Set<string>;
     contentCache: Map<string, string>;
-}
-
-export function normalizeContent(str: string): string {
-    return str.replaceAll('\r\n', '\n').trim();
-}
-
-// ---------------------------------------------------------------------------
-// Remote content fetching
-// ---------------------------------------------------------------------------
-
-async function fetchComponentContent(file: string, options: AddOptions): Promise<string> {
-    const localDir = getLocalComponentsDir();
-
-    if (localDir && !options.remote) {
-        const localPath = path.join(localDir, file);
-        if (await fs.pathExists(localPath)) {
-            return fs.readFile(localPath, 'utf-8');
-        }
-    }
-
-    const url = `${getRegistryBaseUrl(options.branch, options.registry)}/${file}`;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch component from ${url}: ${response.statusText}`);
-        }
-        return await response.text();
-    } catch (error) {
-        if (localDir) {
-            throw new Error(`Component file not found locally or remotely: ${file}`);
-        }
-        throw error;
-    }
-}
-
-async function fetchLibContent(file: string, options: AddOptions): Promise<string> {
-    const localDir = getLocalLibDir();
-
-    if (localDir && !options.remote) {
-        const localPath = path.join(localDir, file);
-        if (await fs.pathExists(localPath)) {
-            return fs.readFile(localPath, 'utf-8');
-        }
-    }
-
-    const url = `${getLibRegistryBaseUrl(options.branch, options.registry)}/${file}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
-    }
-    return response.text();
-}
-
-export async function fetchAndTransform(
-    file: string,
-    options: AddOptions,
-    utilsAlias: string,
-    prefix: string = DEFAULT_PREFIX,
-): Promise<string> {
-    const raw = await fetchComponentContent(file, options);
-    // The `../lib/` → alias rewrite only applies to TypeScript sources.
-    // Template (.html) and style (.css) files are copied verbatim apart
-    // from any prefix rewrite below.
-    const withAlias = file.endsWith('.ts')
-        ? raw.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/')
-        : raw;
-    return applyPrefixTransforms(file, withAlias, prefix);
 }
 
 // ---------------------------------------------------------------------------
