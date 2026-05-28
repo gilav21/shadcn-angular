@@ -183,3 +183,15 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T18 block polish | 2026-05-28 | 97 | User-feedback polish: login gains Google sign-in button (4-color logo, projected) + wider card (max-w-lg) keeping remember-me; settings-profile fleshed out (avatar controls, name/username/email/role/bio/location/website); fixed demo-wrapper flex bug that collapsed block max-width; registry descriptions updated. sync clean, registry-meta pass, visually confirmed by user. |
 | T19 blocks sync hook | 2026-05-28 | 97 | Made registry tooling block-aware: validate-registry hook now treats packages/blocks/ edits as relevant (re-runs sync); sync-registry detects orphan block folders (no registry entry) and warns non-fatally on stdout, surfaced through the hook's additionalContext. Auto-append correctly stays UI-only. Verified end-to-end (block path triggers sync + orphan warning; unrelated path skips); 32 registry tests pass. Block `dependencies` remain hand-maintained (deferred). |
 | T20 block drift detection | 2026-05-28 | 96 | Closed the deferred gap from T19: `walkBlockTree` import-walks each block (packages/blocks → packages/components) to auto-derive files/dependencies/libFiles; `analyzeBlock` runs blocks through the same drift→report(exit 1)/--fix flow as components, preserving hand-authored type/category/description/tags. Own-folder guard; orphan + libFiles paths exercised; 4 block deps canonicalized (sorted). 196 CLI tests (4 new walkBlockTree), tsc clean. Supersedes T8's skip-the-walker approach. |
+
+### Spec B — focused catalog (6 new blocks)
+Parallel subagents authored each block source (frontend-conventions of the seeds); controller integrated registry entry + demo page/route/nav and verified `sync --fix` derived deps match. Demo `ng build` clean; fixture install clean; each block independently review-gated ≥95.
+
+| Task | Completed | Score | Rationale |
+|---|---|---|---|
+| T21 signup block | 2026-05-28 | 97 | Auth registration page (card/input/label/button/checkbox); `SignupSubmit` + Google sign-up (projected logo). Faithful login-seed extension; sync-derived deps matched hand-authored. |
+| T22 forgot-password block | 2026-05-28 | 96 | Auth reset-request page (card/input/label/button); `ForgotPasswordSubmit`; RTL-safe plain-text back link; dropped login's unused checkbox import. |
+| T23 settings-account block | 2026-05-28 | 97 | Settings account/security (card/input/label/button/separator/alert); change-password grid + danger-zone delete (emits `deleteRequested` only, no destructive action). |
+| T24 hero block | 2026-05-28 | 97 | Marketing hero (button/badge); eyebrow/headline/subhead/dual-CTA inputs + click outputs; responsive type scale, flex-wrap CTAs. |
+| T25 features block | 2026-05-28 | 97 | Marketing feature grid (card/icon); 6 verified `IconName` cards; responsive 1/2/3-col grid; design tokens. |
+| T26 faq block | 2026-05-28 | 97 | Marketing FAQ on accordion; `FaqItem[]`; verified real accordion API (`type="single"`, required `value`); no phantom inputs. |

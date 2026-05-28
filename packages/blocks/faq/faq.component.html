@@ -1,0 +1,15 @@
+<div [class]="classes()" data-slot="faq-block">
+  <div class="mx-auto max-w-2xl text-center">
+    <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">{{ heading() }}</h2>
+    <p class="mt-4 text-muted-foreground">{{ subheading() }}</p>
+  </div>
+
+  <ui-accordion type="single" class="mt-10">
+    @for (item of items(); track item.question) {
+      <ui-accordion-item [value]="$index.toString()">
+        <ui-accordion-trigger>{{ item.question }}</ui-accordion-trigger>
+        <ui-accordion-content>{{ item.answer }}</ui-accordion-content>
+      </ui-accordion-item>
+    }
+  </ui-accordion>
+</div>

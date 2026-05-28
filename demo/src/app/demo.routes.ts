@@ -116,6 +116,12 @@ export const DEMO_ROUTES: Routes = [
   { path: 'dashboard', loadComponent: () => import('./demos/blocks/dashboard-block-demo.component').then(m => m.DashboardBlockDemoComponent) },
   { path: 'settings-profile', loadComponent: () => import('./demos/blocks/settings-profile-block-demo.component').then(m => m.SettingsProfileBlockDemoComponent) },
   { path: 'pricing', loadComponent: () => import('./demos/blocks/pricing-block-demo.component').then(m => m.PricingBlockDemoComponent) },
+  { path: 'signup', loadComponent: () => import('./demos/blocks/signup-block-demo.component').then(m => m.SignupBlockDemoComponent) },
+  { path: 'forgot-password', loadComponent: () => import('./demos/blocks/forgot-password-block-demo.component').then(m => m.ForgotPasswordBlockDemoComponent) },
+  { path: 'settings-account', loadComponent: () => import('./demos/blocks/settings-account-block-demo.component').then(m => m.SettingsAccountBlockDemoComponent) },
+  { path: 'hero', loadComponent: () => import('./demos/blocks/hero-block-demo.component').then(m => m.HeroBlockDemoComponent) },
+  { path: 'features', loadComponent: () => import('./demos/blocks/features-block-demo.component').then(m => m.FeaturesBlockDemoComponent) },
+  { path: 'faq', loadComponent: () => import('./demos/blocks/faq-block-demo.component').then(m => m.FaqBlockDemoComponent) },
 
   // Wildcard
   { path: '**', redirectTo: '' },
