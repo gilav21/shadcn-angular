@@ -4,11 +4,17 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js';
 import { createMcpServer } from './server.js';
 
 type TextContent = { type: string; text: string };
-const firstText = (res: { content: unknown }): string =>
-  (res.content as TextContent[])[0].text;
+type ToolCallResult = { content: TextContent[]; isError?: boolean };
+const firstText = (res: ToolCallResult): string => res.content[0].text;
 
 describe('MCP server (in-memory)', () => {
   let client: Client;
+
+  const callTool = async (
+    name: string,
+    args: Record<string, unknown> = {},
+  ): Promise<ToolCallResult> =>
+    (await client.callTool({ name, arguments: args })) as unknown as ToolCallResult;
 
   beforeAll(async () => {
     // cwd = repo root: no components.json, so mutating/plan tools hit the init guard.
@@ -40,32 +46,32 @@ describe('MCP server (in-memory)', () => {
   });
 
   it('list_components returns enriched entries', async () => {
-    const res = await client.callTool({ name: 'list_components', arguments: {} });
+    const res = await callTool('list_components');
     const list = JSON.parse(firstText(res)) as Array<{ name: string; category?: string }>;
     expect(list.find(c => c.name === 'button')?.category).toBe('navigation');
   });
 
   it('search_components ranks an exact match first', async () => {
-    const res = await client.callTool({ name: 'search_components', arguments: { query: 'button' } });
+    const res = await callTool('search_components', { query: 'button' });
     const hits = JSON.parse(firstText(res)) as Array<{ name: string }>;
     expect(hits[0].name).toBe('button');
   });
 
   it('get_component resolves transitive dependencies', async () => {
-    const res = await client.callTool({ name: 'get_component', arguments: { name: 'button' } });
+    const res = await callTool('get_component', { name: 'button' });
     const def = JSON.parse(firstText(res)) as { resolvedDependencies: string[] };
     expect(def.resolvedDependencies).toContain('button');
     expect(def.resolvedDependencies).toContain('ripple');
   });
 
   it('returns a tool error for an unknown component', async () => {
-    const res = await client.callTool({ name: 'get_component', arguments: { name: 'definitely-not-real' } });
+    const res = await callTool('get_component', { name: 'definitely-not-real' });
     expect(res.isError).toBe(true);
     expect(firstText(res)).toContain('Unknown component');
   });
 
   it('get_install_plan errors cleanly when the project is uninitialized', async () => {
-    const res = await client.callTool({ name: 'get_install_plan', arguments: { names: ['button'] } });
+    const res = await callTool('get_install_plan', { names: ['button'] });
     expect(res.isError).toBe(true);
     expect(firstText(res)).toContain('init_project');
   });

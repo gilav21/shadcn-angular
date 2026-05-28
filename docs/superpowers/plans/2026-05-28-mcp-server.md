@@ -29,6 +29,14 @@ Review gate bar: **≥95**. Highest score across iterations is recorded.
 | 2.2 | 2026-05-28 | 97 | `help.ts` derives categories from registry via exported `groupByCategory`; removed all hardcoded category sets/heuristics; updated add.spec help labels; full suite 170 tests green. |
 | 3.1+3.2 | 2026-05-28 | 95 | `shadcn-angular mcp` stdio server: 10 tools (6 read + 4 write) reusing core/; theme validated via z.enum (fixed cast); shared result helpers; stderr logging; stdio smoke confirms all 10 tools + search/list calls. (2 rounds) |
 | 3.3 | 2026-05-28 | 95 | In-memory MCP integration test (Client + InMemoryTransport): exactly 10 tools, annotations, enriched list, search ranking, transitive deps, unknown-component + uninitialized errors. Full suite 176 tests. |
+| 4.1 | 2026-05-28 | verified | E2E: drove the real `mcp` server over stdio against e2e/fixture-app — init_project + get_install_plan + add_component(button,card)→installed button/ripple/card, deps installed, `ng build` succeeded. Fixture reset after. (verification-only, no diff) |
+| 4.2 | 2026-05-28 | verified | Final regression: full CLI suite 176 tests pass, registry sync clean, `tsc` build clean. Fixed a tsc-only break in server.spec.ts (callTool union typing) that vitest/esbuild had not caught. |
+
+## Publish note
+
+The registry-metadata enrichment (Task 2.1) is a **registry change** → per release policy
+`@gilav21/shadcn-angular` must be published once this branch merges. The MCP server ships
+inside the same package (new `mcp` subcommand). New runtime deps to ship: `@modelcontextprotocol/sdk`, `zod`.
 
 ---
 

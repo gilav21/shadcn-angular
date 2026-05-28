@@ -192,3 +192,5 @@ Review gate bar: **≥95**. One row per gated task (highest score recorded).
 | 2.2 | 2026-05-28 | 97 | `help.ts` categories now flow from registry (`groupByCategory`); hardcoded sets removed; 170 tests green. |
 | 3.1+3.2 | 2026-05-28 | 95 | `shadcn-angular mcp` stdio server: 10 tools reusing core/; z.enum-validated init; stderr logging; stdio smoke passes. |
 | 3.3 | 2026-05-28 | 95 | In-memory MCP integration test (Client + InMemoryTransport): tool surface, annotations, behaviors, error guards; 176 tests. |
+| 4.1 | 2026-05-28 | verified | Real stdio MCP install against e2e/fixture-app: init+plan+add(button,card) → ng build succeeded; fixture reset. |
+| 4.2 | 2026-05-28 | verified | Final regression: 176 CLI tests, sync clean, tsc build clean (fixed server.spec.ts union typing). |
