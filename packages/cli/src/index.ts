@@ -7,6 +7,7 @@ import { diff } from './commands/diff.js';
 import { list } from './commands/list.js';
 import { why } from './commands/why.js';
 import { help } from './commands/help.js';
+import { search } from './commands/search.js';
 import { startMcpServer } from './mcp/server.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as { version: string };
@@ -67,6 +68,13 @@ program
     .command('help')
     .description('Show detailed usage information')
     .action(help);
+
+program
+    .command('search')
+    .description('Search components by name, tag, or description')
+    .argument('[query...]', 'Search terms')
+    .option('--json', 'Output raw JSON')
+    .action((query: string[], options: { json?: boolean }) => search(query, options));
 
 program
     .command('mcp')

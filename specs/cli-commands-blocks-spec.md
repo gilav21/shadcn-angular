@@ -151,4 +151,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 
 | Task | Completed | Score | Rationale |
 |---|---|---|---|
-| _(pending)_ | | | |
+| T1 search | 2026-05-28 | 96 | `search` command over core/search; ranked + `--json` + usage; 3 tests. |

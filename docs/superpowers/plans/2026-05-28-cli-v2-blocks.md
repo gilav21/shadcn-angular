@@ -927,4 +927,4 @@ Review gate bar: **≥95**.
 
 | Task | Completed | Score | Rationale |
 |---|---|---|---|
-| _(pending)_ | | | |
+| T1 search | 2026-05-28 | 96 | `search` command wraps core/search; ranked output + `--json` + usage; registered with variadic arg; 3 tests; clean reuse, no any. |
