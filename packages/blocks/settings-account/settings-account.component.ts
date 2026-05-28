@@ -5,6 +5,12 @@ import { ButtonComponent } from '../../components/ui/button';
 import { InputComponent } from '../../components/ui/input';
 import { LabelComponent } from '../../components/ui/label';
 import { SeparatorComponent } from '../../components/ui/separator';
+import { IconComponent } from '../../components/ui/icon';
+import {
+  CollapsibleComponent,
+  CollapsibleTriggerComponent,
+  CollapsibleContentComponent,
+} from '../../components/ui/collapsible';
 import {
   AlertComponent,
   AlertTitleComponent,
@@ -34,6 +40,10 @@ export interface AccountSubmit {
     InputComponent,
     LabelComponent,
     SeparatorComponent,
+    IconComponent,
+    CollapsibleComponent,
+    CollapsibleTriggerComponent,
+    CollapsibleContentComponent,
     AlertComponent,
     AlertTitleComponent,
     AlertDescriptionComponent,

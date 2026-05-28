@@ -949,6 +949,7 @@ Review gate bar: **≥95**.
 | T21 signup block (Spec B) | 2026-05-28 | 97 | Auth registration block (card/input/label/button/checkbox), SignupSubmit + Google sign-up. Subagent-authored, controller-integrated (registry/demo/nav), sync-derived deps matched. |
 | T22 forgot-password block (Spec B) | 2026-05-28 | 96 | Auth reset-request block (card/input/label/button), ForgotPasswordSubmit, RTL-safe back link, no unused imports. |
 | T23 settings-account block (Spec B) | 2026-05-28 | 97 | Settings account/security block (card/input/label/button/separator/alert): change-password grid + danger-zone delete (emits only). |
+| T23a settings-account danger-zone collapsible | 2026-05-29 | 97 | User feedback: danger zone moved INSIDE the card under a `collapsible` (trigger row + rotating chevron → reveals destructive alert + delete). Form-safe (`type="button"` on trigger + delete); deps auto-grew (`collapsible`+`icon`) via the drift hook; demo build clean; expand/collapse visually verified. |
 | T24 hero block (Spec B) | 2026-05-28 | 97 | Marketing hero (button/badge): eyebrow/headline/subhead/dual-CTA inputs + outputs; responsive type scale. |
 | T25 features block (Spec B) | 2026-05-28 | 97 | Marketing feature grid (card/icon): 6 verified IconName cards; responsive 1/2/3-col. |
 | T26 faq block (Spec B) | 2026-05-28 | 97 | Marketing FAQ on accordion: FaqItem[]; verified accordion API (type=single, required value). |

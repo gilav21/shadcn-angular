@@ -1010,7 +1010,7 @@ export const registry = defineRegistry({
   dashboard: {
     name: 'dashboard',
     type: 'block',
-    files: ['dashboard/index.ts', 'dashboard/dashboard.component.html', 'dashboard/dashboard.component.ts'],
+    files: ['dashboard/dashboard.component.html', 'dashboard/dashboard.component.ts', 'dashboard/index.ts'],
     dependencies: ['avatar', 'badge', 'bar-chart', 'card', 'table'],
     category: 'dashboard',
     description: 'Analytics dashboard with stat cards, a revenue bar chart, and a recent-activity table.',
@@ -1046,7 +1046,7 @@ export const registry = defineRegistry({
   'forgot-password': {
     name: 'forgot-password',
     type: 'block',
-    files: ['forgot-password/index.ts', 'forgot-password/forgot-password.component.html', 'forgot-password/forgot-password.component.ts'],
+    files: ['forgot-password/forgot-password.component.html', 'forgot-password/forgot-password.component.ts', 'forgot-password/index.ts'],
     dependencies: ['button', 'card', 'input', 'label'],
     category: 'auth',
     description: 'Password-reset request page with an email field and a back-to-sign-in link.',
@@ -1056,7 +1056,7 @@ export const registry = defineRegistry({
     name: 'settings-account',
     type: 'block',
     files: ['settings-account/index.ts', 'settings-account/settings-account.component.html', 'settings-account/settings-account.component.ts'],
-    dependencies: ['alert', 'button', 'card', 'input', 'label', 'separator'],
+    dependencies: ['alert', 'button', 'card', 'collapsible', 'icon', 'input', 'label', 'separator'],
     category: 'settings',
     description: 'Account settings page with email, a change-password section, and a danger-zone delete action.',
     tags: ['settings', 'account', 'security', 'form'],
@@ -1064,7 +1064,7 @@ export const registry = defineRegistry({
   hero: {
     name: 'hero',
     type: 'block',
-    files: ['hero/index.ts', 'hero/hero.component.html', 'hero/hero.component.ts'],
+    files: ['hero/hero.component.html', 'hero/hero.component.ts', 'hero/index.ts'],
     dependencies: ['badge', 'button'],
     category: 'marketing',
     description: 'Centered landing hero with an eyebrow badge, headline, subheading, and dual call-to-action buttons.',
@@ -1073,7 +1073,7 @@ export const registry = defineRegistry({
   features: {
     name: 'features',
     type: 'block',
-    files: ['features/index.ts', 'features/features.component.html', 'features/features.component.ts'],
+    files: ['features/features.component.html', 'features/features.component.ts', 'features/index.ts'],
     dependencies: ['card', 'icon'],
     category: 'marketing',
     description: 'Responsive feature grid of icon cards with titles and descriptions.',
@@ -1082,7 +1082,7 @@ export const registry = defineRegistry({
   faq: {
     name: 'faq',
     type: 'block',
-    files: ['faq/index.ts', 'faq/faq.component.html', 'faq/faq.component.ts'],
+    files: ['faq/faq.component.html', 'faq/faq.component.ts', 'faq/index.ts'],
     dependencies: ['accordion'],
     category: 'marketing',
     description: 'Frequently-asked-questions section built on an accordion with expandable answers.',
