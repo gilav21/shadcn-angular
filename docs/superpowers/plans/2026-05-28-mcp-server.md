@@ -24,6 +24,7 @@ Review gate bar: **≥95**. Highest score across iterations is recorded.
 | 1.4 | 2026-05-28 | 96 | Non-interactive `core/install.ts` (planInstall/performInstall) with corrected overwrite/skip semantics (rejected plan's forced-overwrite bug); add.ts delegates writes + passes precomputedConflicts to avoid double-fetch; 52 tests. (4 review rounds) |
 | 1.5 | 2026-05-28 | 97 | `core/init-core.ts` `initProject` reproduces all init side effects, returns created/warnings; init.ts keeps prompts + delegates; reuses fetchLibContent; no unused imports; 3 tests. |
 | 1.6 | 2026-05-28 | 97 | `core/diff-core.ts` structured diff (`unifiedDiff`/`diffComponentFiles`); `hasChanges` counts fetch errors (fixed a regression); diff.ts re-colors + decoupled from add.js; 5 tests. (2 rounds) |
+| 1.7 | 2026-05-28 | 97 | `core/search.ts` ranked registry search (name/tag/desc/fuzzy) reusing exported `levenshtein`; scoring extracted to a helper for low complexity; full CLI suite 167 tests green. |
 
 ---
 
