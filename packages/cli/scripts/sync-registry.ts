@@ -23,6 +23,7 @@ import {
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CLI_SRC = path.resolve(SCRIPT_DIR, '../src');
 const COMPONENTS_ROOT = path.resolve(SCRIPT_DIR, '../../components');
+const BLOCKS_ROOT = path.resolve(SCRIPT_DIR, '../../blocks');
 const REGISTRY_PATH = path.join(CLI_SRC, 'registry/index.ts');
 
 // utils.ts is always installed during init — not a component libFile
@@ -35,6 +36,7 @@ interface RegistryEntry {
     files: string[];
     libFiles: string[];
     dependencies: string[];
+    isBlock: boolean;
 }
 
 function parseRegistry(): RegistryEntry[] {
@@ -61,7 +63,9 @@ function parseRegistry(): RegistryEntry[] {
             ? [...depsMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
             : [];
 
-        entries.push({ name, files, libFiles, dependencies });
+        const isBlock = /type:\s*['"]block['"]/.test(fullBlock);
+
+        entries.push({ name, files, libFiles, dependencies, isBlock });
     }
 
     return entries;
@@ -306,11 +310,38 @@ function validateRegistryFiles(updates: ComponentUpdate[]): string[] {
     return problems;
 }
 
+// Blocks are hand-maintained registry entries whose source lives in
+// packages/blocks (not packages/components) — the component import-walker does
+// not apply. Validate only that each declared block file exists on disk.
+function validateBlockFiles(blocks: RegistryEntry[]): string[] {
+    const problems: string[] = [];
+    for (const block of blocks) {
+        for (const file of block.files) {
+            const fullPath = path.join(BLOCKS_ROOT, file);
+            if (!existsSync(fullPath)) {
+                problems.push(`  ${block.name}: block file '${file}' -> ${fullPath} does not exist`);
+            }
+        }
+    }
+    return problems;
+}
+
 // ── Main ────────────────────────────────────────────────────────────────
 
 function main(): void {
     const fix = process.argv.includes('--fix');
-    const entries = parseRegistry();
+    const allEntries = parseRegistry();
+    const blockEntries = allEntries.filter(e => e.isBlock);
+    const entries = allEntries.filter(e => !e.isBlock);
+
+    const blockProblems = validateBlockFiles(blockEntries);
+    if (blockProblems.length > 0) {
+        console.error('Block entries reference files that do not exist on disk:');
+        for (const problem of blockProblems) console.error(problem);
+        process.exitCode = 1;
+        return;
+    }
+
     const entryFileToComponent = buildBoundaryMap(entries);
     const ctx: BoundaryContext = {
         entryFileToComponent,

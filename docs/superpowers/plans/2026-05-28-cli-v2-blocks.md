@@ -934,3 +934,4 @@ Review gate bar: **≥95**.
 | T5 block fetch routing | 2026-05-28 | 97 | `getBlockRegistryBaseUrl`/`getLocalBlocksDir` (→ packages/blocks); `SourceKind` threaded through fetch with 'component' default; component+block routing tests; 189 tests. |
 | T6 block install routing | 2026-05-28 | 97 | performInstall routes block entries → blocksBase (kind:block), deps → ui; `blocksPath` input; per-entry ensureDir; backward-compatible defaults; 5 install tests green (block-install test deferred to T12). |
 | T7 add block prompt | 2026-05-28 | 97 | `resolveBlockDestination`: block+--path→blocksPath, block+interactive→prompt(default aliases.blocks), block+--yes→fallback; pure-component keeps --path meaning; deps→ui; 47 add tests. |
+| T8 sync-registry blocks | 2026-05-28 | 96 | parse `isBlock`; main partitions blocks out of the component walker; `validateBlockFiles` errors on missing block files under packages/blocks; sync clean (118), scripts typecheck. |
