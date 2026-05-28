@@ -106,7 +106,11 @@ Ordered by leverage (systemic-first) and risk (mechanical/verifiable before beha
 
 | Wave | Completed | Score | Rationale |
 |---|---|---|---|
-| _(recorded as waves complete)_ | | | |
+| Wave A (W1 RTL S1 + W2 responsive S2) | 2026-05-29 | 95 | 47 files: physical→logical Tailwind utility swaps across ~30 components + max-w/overflow on overlays/drawer/sheet/table. LTR-identical, true equivalents, correct edge semantics, no over-reach; kanban assertion updated. demo build clean, changed-component tests pass. |
+| Wave B (W8 chart keyboard + W5 status politeness + W4 partial icon names) | 2026-05-29 | 96 | column-range/stacked-bar keyboard activation (2 criticals) + bar-race scrubber aria; alert/toast variant-driven role/aria-live + toast Esc + touch-visible dismiss; icon-only aria-labels (chat/file-viewer/bento-grid). Additive, faithful to bar-chart ref, correct WCAG mapping; alert spec updated; 204 tests pass. |
+| Wave C (W6 reduced-motion) | 2026-05-29 | 97 | 8 components honor prefers-reduced-motion (CSS guards + JS settle-to-final via reused prefersReducedMotion()); confetti dead option wired; default motion unchanged; sync clean; 92 tests pass. |
+
+**Status:** Waves A–C complete (gated 95/96/97). Remaining W3/W4-remainder/W7/W9 + axe pass documented in the plan doc's "Remaining" section — these involve behavioral keyboard/ARIA rewrites, touch DnD, and i18n that benefit from runtime + screen-reader + visual validation, so they were left for daytime review rather than shipped blind overnight.
 
 ## Notes
 - **axe pass deferred:** browser automation overnight is unreliable (drives the user's Chrome + permission). The source audit + rubric is the backbone; an interactive axe pass on the demo routes is a recommended morning step to catch contrast/rendered-focus issues flagged `needsRuntimeCheck`.
