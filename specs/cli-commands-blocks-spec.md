@@ -157,3 +157,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T4 block primitives | 2026-05-28 | 96 | `type` field + block categories + `aliases.blocks`/`getBlocksAlias`; coverage test extended; 187 tests. |
 | T5 block fetch routing | 2026-05-28 | 97 | block base url + local dir; SourceKind threaded through fetch; routing tests; 189 tests. |
 | T6 block install routing | 2026-05-28 | 97 | performInstall routes block files → blocksBase, deps → ui; `blocksPath`; backward-compatible. |
+| T7 add block prompt | 2026-05-28 | 97 | `add` prompts/`--path` for block destination; deps→ui; pure-component `--path` unchanged; 47 tests. |

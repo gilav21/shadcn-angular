@@ -3,7 +3,7 @@ import path from 'node:path';
 import prompts from 'prompts';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getConfig, getPrefix } from '../utils/config.js';
+import { getConfig, getPrefix, getBlocksAlias, type Config } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import {
     resolveProjectPath,
@@ -212,6 +212,27 @@ function printSkipSummary(toSkip: string[], declined: ComponentName[]): void {
     }
 }
 
+/**
+ * Resolve where component vs block files install. With a block in the set,
+ * `--path` (or an interactive prompt) targets the block destination and
+ * components fall back to `aliases.ui`. Without a block, `--path` keeps its
+ * original component-target meaning.
+ */
+async function resolveBlockDestination(
+    hasBlock: boolean, options: AddOptions, config: Config,
+): Promise<{ componentPath?: string; blocksPath?: string }> {
+    if (!hasBlock) return { componentPath: options.path };
+    if (options.path) return { blocksPath: options.path };
+    if (options.yes) return {};
+    const { dest } = await prompts({
+        type: 'text',
+        name: 'dest',
+        message: 'Where should blocks be installed?',
+        initial: aliasToProjectPath(getBlocksAlias(config)),
+    }, { onCancel });
+    return { blocksPath: dest || undefined };
+}
+
 // ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
@@ -244,7 +265,11 @@ export async function add(components: string[], options: AddOptions) {
     const allComponents = optionalChoices.length > 0
         ? resolveDependencies([...resolvedComponents, ...optionalChoices])
         : resolvedComponents;
-    const uiBasePath = options.path ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
+
+    const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
+    const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
+
+    const uiBasePath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const targetDir = resolveProjectPath(cwd, uiBasePath);
     const utilsAlias = config.aliases.utils;
     const prefix = getPrefix(config);
@@ -274,7 +299,7 @@ export async function add(components: string[], options: AddOptions) {
             components: componentsToAdd,
             optionalDeps: optionalChoices,
             overwrite: toOverwrite,
-            cwd, config, options, path: options.path,
+            cwd, config, options, path: componentPath, blocksPath,
             precomputedConflicts: conflicts,
         });
 

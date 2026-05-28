@@ -933,3 +933,4 @@ Review gate bar: **≥95**.
 | T4 block primitives | 2026-05-28 | 96 | `type` discriminator + 4 block categories + `aliases.blocks`/`getBlocksAlias` (Pick) + optional validation; coverage test gates block categories; help labels kept exhaustive; 187 tests. |
 | T5 block fetch routing | 2026-05-28 | 97 | `getBlockRegistryBaseUrl`/`getLocalBlocksDir` (→ packages/blocks); `SourceKind` threaded through fetch with 'component' default; component+block routing tests; 189 tests. |
 | T6 block install routing | 2026-05-28 | 97 | performInstall routes block entries → blocksBase (kind:block), deps → ui; `blocksPath` input; per-entry ensureDir; backward-compatible defaults; 5 install tests green (block-install test deferred to T12). |
+| T7 add block prompt | 2026-05-28 | 97 | `resolveBlockDestination`: block+--path→blocksPath, block+interactive→prompt(default aliases.blocks), block+--yes→fallback; pure-component keeps --path meaning; deps→ui; 47 add tests. |
