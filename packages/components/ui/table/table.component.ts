@@ -19,5 +19,5 @@ import { cn } from '../../lib/utils';
 export class TableComponent {
     class = input('');
 
-    classes = computed(() => cn('flex flex-col w-full min-h-0', this.class()));
+    classes = computed(() => cn('flex flex-col w-full min-h-0 overflow-x-auto', this.class()));
 }

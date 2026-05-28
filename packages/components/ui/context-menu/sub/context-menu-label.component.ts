@@ -22,7 +22,7 @@ export class ContextMenuLabelComponent {
 
     classes = computed(() => cn(
         'px-2 py-1.5 text-sm font-semibold text-foreground',
-        this.inset() && 'pl-8',
+        this.inset() && 'ps-8',
         this.class()
     ));
 }

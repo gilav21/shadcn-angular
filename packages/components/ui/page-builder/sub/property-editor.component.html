@@ -50,10 +50,10 @@
                                         type="number"
                                         [ngModel]="item()!.cols"
                                         (ngModelChange)="onPropertyChange('cols', $event)"
-                                        class="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pl-9"
+                                        class="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ps-9"
                                         min="1" max="12"
                                     />
-                                    <div class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                    <div class="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                                         <ui-icon name="columns-2" class="h-4 w-4" />
                                     </div>
                                 </div>
@@ -65,10 +65,10 @@
                                         type="number"
                                         [ngModel]="item()!.rows"
                                         (ngModelChange)="onPropertyChange('rows', $event)"
-                                        class="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 pl-9"
+                                        class="flex h-10 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 ps-9"
                                         min="1"
                                     />
-                                    <div class="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                                    <div class="absolute start-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                                         <ui-icon name="rows-2" class="h-4 w-4" />
                                     </div>
                                 </div>
@@ -107,10 +107,10 @@
                                             type="text"
                                             [ngModel]="getBinding(inputDef.name)"
                                             (ngModelChange)="onBindingChange(inputDef.name, $event)"
-                                            class="flex h-10 w-full rounded-md border border-primary/50 bg-primary/5 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring pl-8 font-mono text-primary"
+                                            class="flex h-10 w-full rounded-md border border-primary/50 bg-primary/5 px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring ps-8 font-mono text-primary"
                                             placeholder="e.g. user.name"
                                         />
-                                        <div class="absolute left-2.5 top-1/2 -translate-y-1/2 text-primary">
+                                        <div class="absolute start-2.5 top-1/2 -translate-y-1/2 text-primary">
                                             <span class="text-xs font-bold">@</span>
                                         </div>
                                     </div>

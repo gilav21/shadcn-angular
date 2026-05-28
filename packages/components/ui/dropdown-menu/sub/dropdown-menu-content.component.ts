@@ -43,7 +43,7 @@ export class DropdownMenuContentComponent {
             end: 'ltr:right-0 rtl:left-0',
         };
         return cn(
-            'absolute top-full z-50 mt-1 min-w-[8rem] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+            'absolute top-full z-50 mt-1 min-w-[8rem] max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
             alignClasses[this.align()],
             this.class()
         );

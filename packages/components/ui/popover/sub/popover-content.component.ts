@@ -290,8 +290,8 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         const sideClasses = {
             top: 'bottom-full mb-1',
             bottom: 'top-full mt-1',
-            left: 'right-full mr-1 top-0',
-            right: 'left-full ml-1 top-0',
+            left: 'right-full me-1 top-0',
+            right: 'left-full ms-1 top-0',
         };
         const isFixed = this.strategy() === 'fixed';
         return cn(

@@ -45,8 +45,8 @@ export class ChatMessageComponent implements AfterContentInit {
 
   rootClasses = computed(() => cn(
     'flex w-full gap-3 mb-4',
-    this.role() === 'user' && 'justify-end pl-8',
-    this.role() === 'assistant' && 'justify-start pr-8',
+    this.role() === 'user' && 'justify-end ps-8',
+    this.role() === 'assistant' && 'justify-start pe-8',
     this.role() === 'system' && 'justify-center px-4 mb-2',
     this.class()
   ));

@@ -29,7 +29,7 @@ import { FormsModule } from '@angular/forms';
         size="icon"
         [disabled]="!inputValue() || disabled()"
         (click)="onSubmit()"
-        class="absolute right-2 bottom-2 h-8 w-8"
+        class="absolute end-2 bottom-2 h-8 w-8"
       >
         <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4">
             <path d="m5 12 7-7 7 7"/>
@@ -49,7 +49,7 @@ export class ChatInputComponent {
   inputValue = signal('');
 
   classes = computed(() => cn('relative flex items-center', this.class()));
-  textareaClasses = computed(() => cn('min-h-[44px] w-full resize-none bg-background pr-12 py-3 rounded-lg border focus-visible:ring-offset-0 focus-visible:ring-1'));
+  textareaClasses = computed(() => cn('min-h-[44px] w-full resize-none bg-background pe-12 py-3 rounded-lg border focus-visible:ring-offset-0 focus-visible:ring-1'));
 
   onEnter(event: Event) {
     const kEvent = event as KeyboardEvent;

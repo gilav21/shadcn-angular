@@ -26,7 +26,7 @@ export class CarouselContentComponent {
         const isHorizontal = this.carousel.orientation() === 'horizontal';
         return cn(
             'flex',
-            isHorizontal ? '-ml-4' : '-mt-4 flex-col',
+            isHorizontal ? '-ms-4' : '-mt-4 flex-col',
             'scroll-smooth snap-mandatory scrollbar-hide',
             isHorizontal ? 'overflow-x-auto snap-x' : 'overflow-y-auto snap-y',
             this.class()

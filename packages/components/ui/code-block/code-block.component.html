@@ -23,12 +23,12 @@
     <div dir="ltr" class="p-4 overflow-auto font-mono text-sm bg-zinc-950 text-zinc-50">
         <pre><code [class]="'language-' + language()">@for (line of visibleLines(); track line.index) {<div class="flex items-start"
           >@if (lineNumbers()) {<span
-            class="inline-block mr-3 select-none text-zinc-600 leading-5 text-right tabular-nums"
+            class="inline-block me-3 select-none text-zinc-600 leading-5 text-right tabular-nums"
             [style.width]="lineNumberWidth()"
             data-slot="code-block-line-number"
             aria-hidden="true"
           >{{ line.index + 1 }}</span>}@if (collapseScope()) {<span
-            class="inline-block w-4 mr-2 select-none text-zinc-500 leading-5 text-center"
+            class="inline-block w-4 me-2 select-none text-zinc-500 leading-5 text-center"
             [class.cursor-pointer]="line.foldStart !== undefined"
             [class.hover:text-zinc-300]="line.foldStart !== undefined"
             (click)="onChevronClick(line.foldStart)"
@@ -39,6 +39,6 @@
             [attr.aria-expanded]="line.foldStart !== undefined ? line.isOpen : null"
             [attr.aria-label]="line.foldStart !== undefined ? (line.isOpen ? t().collapseScope : t().expandScope) : null"
             data-slot="code-block-chevron"
-          >@if (line.foldStart !== undefined) { @if (line.isOpen) { ▾ } @else { ▸ } }</span>}<span class="flex-1 whitespace-pre">@for (token of line.tokens; track $index) {<span [class]="getTokenClass(token)">{{ token.text }}</span>}@if (line.foldStart !== undefined && !line.isOpen) {<span class="text-zinc-500 ml-1" data-slot="code-block-collapsed-marker">…</span>}</span></div>}</code></pre>
+          >@if (line.foldStart !== undefined) { @if (line.isOpen) { ▾ } @else { ▸ } }</span>}<span class="flex-1 whitespace-pre">@for (token of line.tokens; track $index) {<span [class]="getTokenClass(token)">{{ token.text }}</span>}@if (line.foldStart !== undefined && !line.isOpen) {<span class="text-zinc-500 ms-1" data-slot="code-block-collapsed-marker">…</span>}</span></div>}</code></pre>
     </div>
 </div>

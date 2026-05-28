@@ -51,7 +51,7 @@ export function computePopupClasses(position: PopupPosition): string {
     bottom: 'top-full mt-1',
   };
   return cn(
-    'absolute ltr:left-0 rtl:right-0 z-50 rounded-md border bg-popover p-0 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95',
+    'absolute ltr:left-0 rtl:right-0 z-50 max-w-[calc(100vw-2rem)] rounded-md border bg-popover p-0 text-popover-foreground shadow-md animate-in fade-in-0 zoom-in-95',
     sideClasses[position.actualSide]
   );
 }

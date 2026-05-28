@@ -20,7 +20,7 @@ export class NavigationMenuListComponent {
   class = input('');
 
   classes = computed(() => cn(
-    'group flex flex-1 list-none items-center justify-center space-x-1 overflow-x-auto scrollbar-hide',
+    'group flex flex-1 list-none items-center justify-center gap-1 overflow-x-auto scrollbar-hide',
     this.class()
   ));
 }

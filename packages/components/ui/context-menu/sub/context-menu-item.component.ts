@@ -14,7 +14,7 @@ import { CONTEXT_MENU } from '../context-menu.component';
     template: `
         <ng-content />
         @if (shortcut()) {
-            <span class="ml-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
+            <span class="ms-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
         }
     `,
     host: {
@@ -39,7 +39,7 @@ export class ContextMenuItemComponent {
         'focus:bg-accent focus:text-accent-foreground',
         'hover:bg-accent hover:text-accent-foreground',
         '[&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0',
-        this.inset() && 'pl-8',
+        this.inset() && 'ps-8',
         this.variant() === 'destructive' && 'text-destructive focus:bg-destructive/10 focus:text-destructive',
         this.disabled() && 'pointer-events-none opacity-50',
         this.class()

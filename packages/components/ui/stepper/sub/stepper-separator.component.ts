@@ -34,7 +34,7 @@ export class StepperSeparatorComponent {
       'transition-colors',
       this.stepper?.orientation() === 'horizontal'
         ? 'mx-2 h-0.5 w-full'
-        : 'ml-4 mt-2 mb-2 w-0.5 h-8',
+        : 'ms-4 mt-2 mb-2 w-0.5 h-8',
       this.isComplete() ? 'bg-primary' : 'bg-border',
       this.class()
     )

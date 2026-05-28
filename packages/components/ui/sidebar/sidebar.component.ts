@@ -127,7 +127,7 @@ export class SidebarComponent implements AfterViewInit {
 
     return cn(
       'flex flex-col bg-sidebar text-sidebar-foreground',
-      'border-r border-sidebar-border',
+      'border-e border-sidebar-border',
       isMobile ? [
         'fixed inset-y-0 z-50',
         sideValue === 'left' ? 'left-0' : 'right-0',
@@ -136,7 +136,7 @@ export class SidebarComponent implements AfterViewInit {
         isOpen ? 'translate-x-0' : mobileTransform,
       ] : [
         'sticky top-0 h-screen',
-        'border-r border-sidebar-border hidden md:flex',
+        'border-e border-sidebar-border hidden md:flex',
         'transition-[width] duration-300 ease-in-out',
         isCollapsed ? collapsedWidth : 'w-[280px]',
       ],
