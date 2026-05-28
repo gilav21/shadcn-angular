@@ -186,3 +186,4 @@ Review gate bar: **≥95**. One row per gated task (highest score recorded).
 | 1.3 | 2026-05-28 | 97 | `core/plan.ts` extracted (conflict detection) + `summarizePlan`/`InstallPlan`; add.ts re-exports; dead imports removed; 51 tests pass. |
 | 1.4 | 2026-05-28 | 96 | `core/install.ts` non-interactive orchestrator; corrected overwrite/skip semantics; add.ts delegates writes via precomputedConflicts (single detect); 52 tests. |
 | 1.5 | 2026-05-28 | 97 | `core/init-core.ts` `initProject` (created/warnings); init.ts keeps prompts + delegates; reuses fetchLibContent; 3 tests. |
+| 1.6 | 2026-05-28 | 97 | `core/diff-core.ts` structured diff; hasChanges counts fetch errors; diff.ts re-colors + decoupled from add.js; 5 tests. |
