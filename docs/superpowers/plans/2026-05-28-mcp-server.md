@@ -21,6 +21,7 @@ Review gate bar: **≥95**. Highest score across iterations is recorded.
 | 1.1 | 2026-05-28 | 96 | Verbatim extraction to `core/fetch.ts` (`FetchOptions`, normalize/fetch/transform); `add.ts` re-exports + `AddOptions extends FetchOptions`; dead imports removed; 48 tests pass. |
 | 1.2 | 2026-05-28 | 96 | `resolveDependencies` moved verbatim to `core/resolve.ts`; add.ts re-exports; test covers self/transitive/diamond; 50 tests pass. (leftover blank line cleaned post-review) |
 | 1.3 | 2026-05-28 | 97 | Conflict-detection machinery moved verbatim to `core/plan.ts` + new `summarizePlan`/`InstallPlan`; add.ts re-exports 6 symbols add.spec needs; dead imports removed; 51 tests pass. |
+| 1.4 | 2026-05-28 | 96 | Non-interactive `core/install.ts` (planInstall/performInstall) with corrected overwrite/skip semantics (rejected plan's forced-overwrite bug); add.ts delegates writes + passes precomputedConflicts to avoid double-fetch; 52 tests. (4 review rounds) |
 
 ---
 
