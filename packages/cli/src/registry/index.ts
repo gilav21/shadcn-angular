@@ -1025,6 +1025,15 @@ export const registry = defineRegistry({
     description: 'Profile settings form with avatar, name/email/bio fields, and save/cancel actions.',
     tags: ['settings', 'profile', 'form', 'account'],
   },
+  pricing: {
+    name: 'pricing',
+    type: 'block',
+    files: ['pricing/index.ts', 'pricing/pricing.component.html', 'pricing/pricing.component.ts'],
+    dependencies: ['card', 'button', 'badge', 'separator', 'icon'],
+    category: 'marketing',
+    description: 'Responsive three-tier pricing section with feature lists, a highlighted plan, and CTAs.',
+    tags: ['pricing', 'marketing', 'plans', 'landing'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

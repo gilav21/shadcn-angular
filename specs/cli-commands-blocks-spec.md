@@ -164,3 +164,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T12 login block | 2026-05-28 | 96 | login auth block (card/input/label/button/checkbox); registry type:block; CLI install→fixture ng build passed. |
 | T13 dashboard block | 2026-05-28 | 97 | dashboard block (cards/bar-chart/table/avatar/badge); responsive + RTL logical utils; fixture ng build passed. |
 | T14 settings-profile | 2026-05-28 | 96 | profile settings form (card/input/textarea/label/avatar/button/separator); fixture ng build passed. |
+| T15 pricing block | 2026-05-28 | 97 | 3-tier pricing (card/button/badge/separator/icon); highlighted plan; fixture ng build passed. |

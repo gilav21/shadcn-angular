@@ -1,0 +1,47 @@
+<div [class]="classes()" data-slot="pricing-block">
+  <div class="mx-auto max-w-2xl text-center">
+    <h2 class="text-3xl font-bold tracking-tight">Pricing</h2>
+    <p class="mt-2 text-muted-foreground">Simple, transparent pricing that scales with you.</p>
+  </div>
+
+  <div class="mx-auto mt-8 grid max-w-5xl grid-cols-1 gap-6 md:grid-cols-3">
+    @for (tier of tiers; track tier.name) {
+      <ui-card [class]="cardClasses(tier)">
+        <ui-card-header>
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <ui-card-title>{{ tier.name }}</ui-card-title>
+            @if (tier.badge) {
+              <ui-badge [label]="tier.badge" />
+            }
+          </div>
+          <ui-card-description>{{ tier.description }}</ui-card-description>
+          <div class="mt-2 flex items-baseline gap-1">
+            <span class="text-4xl font-bold">{{ tier.price }}</span>
+            @if (tier.period) {
+              <span class="text-muted-foreground">{{ tier.period }}</span>
+            }
+          </div>
+        </ui-card-header>
+
+        <ui-card-content class="flex-1">
+          <ui-separator class="mb-4" />
+          <ul class="flex flex-col gap-3">
+            @for (feature of tier.features; track feature) {
+              <li class="flex items-center gap-2">
+                <ui-icon name="check" size="sm" class="text-primary" />
+                <span>{{ feature }}</span>
+              </li>
+            }
+          </ul>
+        </ui-card-content>
+
+        <ui-card-footer>
+          <ui-button
+            class="w-full"
+            [variant]="tier.highlighted ? 'default' : 'outline'"
+            [label]="tier.cta" />
+        </ui-card-footer>
+      </ui-card>
+    }
+  </div>
+</div>
