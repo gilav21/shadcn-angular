@@ -13,6 +13,11 @@ export const CATEGORIES = [
   'media',         // avatar, carousel, file-viewer, comparison-slider
   'editor',        // rich-text-editor, code-block, kanban, page-builder
   'utility',       // icon, label, kbd, dock, collapsible, accordion, stepper, timeline
+  // block families — used only by type:'block' entries
+  'auth',          // login, signup, forgot-password
+  'dashboard',     // analytics dashboards
+  'settings',      // settings/profile forms
+  'marketing',     // landing, pricing, feature sections
 ] as const;
 
 export type Category = (typeof CATEGORIES)[number];
@@ -41,6 +46,8 @@ export interface ComponentDefinition {
   readonly category?: Category;
   /** Free-text search keywords (synonyms, use-cases). 3-6 per component. */
   readonly tags?: readonly string[];
+  /** 'component' (default) or 'block' (a composed page that reuses components). */
+  readonly type?: 'component' | 'block';
 }
 
 function defineRegistry<T extends Record<string, ComponentDefinition>>(reg: T): { readonly [K in keyof T]: ComponentDefinition } {

@@ -13,6 +13,10 @@ const CATEGORY_LABELS: Record<Category, string> = {
   media: 'Media',
   editor: 'Editor',
   utility: 'Utility',
+  auth: 'Auth',
+  dashboard: 'Dashboard',
+  settings: 'Settings',
+  marketing: 'Marketing',
 };
 
 /**

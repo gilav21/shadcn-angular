@@ -22,12 +22,19 @@ export interface Config {
         components: string;
         utils: string;
         ui: string;
+        /** Destination for installed blocks. Defaults to `@/blocks`. */
+        blocks?: string;
     };
 }
 
 /** Returns the configured prefix or the default when none is set. */
 export function getPrefix(config: Pick<Config, 'prefix'>): string {
     return config.prefix ?? DEFAULT_PREFIX;
+}
+
+/** Returns the configured blocks alias or the default when none is set. */
+export function getBlocksAlias(config: Pick<Config, 'aliases'>): string {
+    return config.aliases.blocks ?? '@/blocks';
 }
 
 export function getDefaultConfig(): Config {
@@ -43,6 +50,7 @@ export function getDefaultConfig(): Config {
             components: '@/components',
             utils: '@/components/lib',
             ui: '@/components/ui',
+            blocks: '@/blocks',
         },
     };
 }
@@ -58,6 +66,7 @@ function validateConfig(data: unknown): data is Config {
     if (!obj['aliases'] || typeof obj['aliases'] !== 'object') return false;
     const aliases = obj['aliases'] as Record<string, unknown>;
     if (typeof aliases['components'] !== 'string' || typeof aliases['utils'] !== 'string' || typeof aliases['ui'] !== 'string') return false;
+    if ('blocks' in aliases && aliases['blocks'] !== undefined && typeof aliases['blocks'] !== 'string') return false;
 
     if ('prefix' in obj && obj['prefix'] !== undefined && !isValidPrefix(obj['prefix'])) return false;
 

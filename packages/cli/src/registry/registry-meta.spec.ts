@@ -9,12 +9,16 @@ describe('registry metadata shape', () => {
   });
 
   it('every component has category + description + >=3 tags', () => {
+    const BLOCK_CATS = ['auth', 'dashboard', 'settings', 'marketing'];
     for (const [name, def] of Object.entries(registry)) {
       expect(def.category, `${name}.category`).toBeDefined();
       expect(CATEGORIES as readonly string[]).toContain(def.category);
       expect(def.description, `${name}.description`).toBeTruthy();
       expect((def.description ?? '').length, `${name}.description length`).toBeLessThanOrEqual(140);
       expect((def.tags ?? []).length, `${name}.tags`).toBeGreaterThanOrEqual(3);
+      if (def.type === 'block') {
+        expect(BLOCK_CATS, `${name}.category (block)`).toContain(def.category);
+      }
     }
   });
 });
