@@ -8,7 +8,7 @@ import {
     input,
     signal,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 import { UI_LOCALE_ID } from '../../lib/i18n';
 import { NumberTickerDigitComponent } from './sub/number-ticker-digit.component';
 export { NumberTickerDigitComponent };
@@ -62,6 +62,16 @@ export class NumberTickerComponent implements OnDestroy {
 
         this._endValue = value;
         this._startValue = this._currentValue;
+
+        if (prefersReducedMotion()) {
+            this._currentValue = value;
+            this._startValue = value;
+            this.displayValue.set(new Intl.NumberFormat(this.resolvedLocale(), {
+                minimumFractionDigits: this.decimalPlaces(),
+                maximumFractionDigits: this.decimalPlaces(),
+            }).format(value));
+            return;
+        }
 
         const delayMs = delay * 1000;
 

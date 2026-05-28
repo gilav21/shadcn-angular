@@ -8,7 +8,7 @@ import {
     output,
     OnDestroy,
 } from '@angular/core';
-import { cn } from '../../lib/utils';
+import { cn, prefersReducedMotion } from '../../lib/utils';
 
 @Component({
     selector: 'ui-streaming-text',
@@ -48,6 +48,12 @@ export class StreamingTextComponent implements OnDestroy {
 
     private startTyping() {
         if (this.intervalId) return; // Already typing
+
+        if (prefersReducedMotion()) {
+            this.displayedText.set(this.text());
+            this.complete.emit();
+            return;
+        }
 
         this.isTyping.set(true);
 
