@@ -18,8 +18,12 @@ import {
 
 export interface ProfileSubmit {
   readonly name: string;
+  readonly username: string;
   readonly email: string;
+  readonly role: string;
   readonly bio: string;
+  readonly location: string;
+  readonly website: string;
 }
 
 @Component({
@@ -47,8 +51,12 @@ export interface ProfileSubmit {
 export class SettingsProfileBlockComponent {
   readonly class = input('');
   readonly name = signal('Ada Lovelace');
+  readonly username = signal('ada');
   readonly email = signal('ada@example.com');
+  readonly role = signal('Software Engineer');
   readonly bio = signal('');
+  readonly location = signal('London, UK');
+  readonly website = signal('');
   readonly submitted = output<ProfileSubmit>();
 
   readonly initials = computed(() =>
@@ -65,6 +73,14 @@ export class SettingsProfileBlockComponent {
   );
 
   onSubmit(): void {
-    this.submitted.emit({ name: this.name(), email: this.email(), bio: this.bio() });
+    this.submitted.emit({
+      name: this.name(),
+      username: this.username(),
+      email: this.email(),
+      role: this.role(),
+      bio: this.bio(),
+      location: this.location(),
+      website: this.website(),
+    });
   }
 }

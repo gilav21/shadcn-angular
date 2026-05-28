@@ -13,7 +13,8 @@ import {
       <div>
         <h2 id="settings-profile-block" class="text-2xl font-semibold scroll-m-20">Settings — Profile</h2>
         <p class="text-muted-foreground mt-1">
-          A profile settings form with an avatar, name/email inputs and a bio textarea.
+          A full profile settings form — avatar with upload controls, identity fields
+          (name, username, email, role), a bio, and contact details (location, website).
           Composed from <code>card</code>, <code>input</code>, <code>textarea</code>,
           <code>label</code>, <code>avatar</code>, <code>separator</code> and <code>button</code>.
         </p>
@@ -26,7 +27,7 @@ import {
           <span class="h-3 w-3 rounded-full bg-yellow-400/70"></span>
           <span class="h-3 w-3 rounded-full bg-green-400/70"></span>
         </div>
-        <div class="flex justify-center bg-muted/20 p-4 sm:p-8">
+        <div class="bg-muted/20 p-4 sm:p-8">
           <ui-settings-profile-block (submitted)="onSubmit($event)" />
         </div>
       </div>

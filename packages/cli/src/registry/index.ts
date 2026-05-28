@@ -1004,7 +1004,7 @@ export const registry = defineRegistry({
     files: ['login/index.ts', 'login/login.component.html', 'login/login.component.ts'],
     dependencies: ['button', 'input', 'label', 'card', 'checkbox'],
     category: 'auth',
-    description: 'Email/password login page with a card layout, remember-me, and a sign-up link.',
+    description: 'Email/password login page with a card layout, remember-me, Google sign-in, and a sign-up link.',
     tags: ['login', 'auth', 'sign-in', 'form'],
   },
   dashboard: {
@@ -1022,7 +1022,7 @@ export const registry = defineRegistry({
     files: ['settings-profile/index.ts', 'settings-profile/settings-profile.component.html', 'settings-profile/settings-profile.component.ts'],
     dependencies: ['card', 'input', 'textarea', 'label', 'avatar', 'button', 'separator'],
     category: 'settings',
-    description: 'Profile settings form with avatar, name/email/bio fields, and save/cancel actions.',
+    description: 'Profile settings form with an avatar, identity and contact fields, a bio, and save/cancel actions.',
     tags: ['settings', 'profile', 'form', 'account'],
   },
   pricing: {
