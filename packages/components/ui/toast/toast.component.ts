@@ -117,7 +117,10 @@ export class ToastService {
   selector: 'ui-toast',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './toast.component.html',
-  host: { class: 'contents' },
+  host: {
+    class: 'contents',
+    '(keydown.escape)': 'close.emit()',
+  },
 })
 export class ToastComponent {
   readonly variant = input<ToastVariant>('default');
@@ -139,6 +142,13 @@ export class ToastComponent {
   protected readonly dir = this.i18n.dir;
 
   readonly classes = computed(() => toastVariants({ variant: this.variant() }));
+
+  readonly role = computed(() =>
+    this.variant() === 'destructive' ? 'alert' : 'status'
+  );
+  readonly ariaLive = computed(() =>
+    this.variant() === 'destructive' ? 'assertive' : 'polite'
+  );
 
   readonly progressPercent = computed(() => {
     const dur = this.duration();

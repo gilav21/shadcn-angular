@@ -27,6 +27,7 @@ import { FormsModule } from '@angular/forms';
       />
       <ui-button
         size="icon"
+        aria-label="Send message"
         [disabled]="!inputValue() || disabled()"
         (click)="onSubmit()"
         class="absolute end-2 bottom-2 h-8 w-8"

@@ -65,6 +65,8 @@
           (focus)="onBarHover(bar)"
           (blur)="onBarLeave()"
           (click)="onBarClick($event, bar)"
+          (keydown.enter)="onBarClick($event, bar)"
+          (keydown.space)="onBarClick($event, bar)"
         >
           <rect
             [attr.x]="bar.x"

@@ -34,7 +34,8 @@ export type AlertVariant = VariantProps<typeof alertVariants>['variant'];
     host: {
         class: 'block',
         '[class]': 'classes()',
-        '[attr.role]': '"alert"',
+        '[attr.role]': 'role()',
+        '[attr.aria-live]': 'ariaLive()',
         '[attr.data-slot]': '"alert"',
     },
 })
@@ -46,6 +47,11 @@ export class AlertComponent {
 
     classes = computed(() =>
         cn(alertVariants({ variant: this.variant() }), this.class())
+    );
+
+    role = computed(() => (this.variant() === 'destructive' ? 'alert' : 'status'));
+    ariaLive = computed(() =>
+        this.variant() === 'destructive' ? 'assertive' : 'polite'
     );
 }
 
