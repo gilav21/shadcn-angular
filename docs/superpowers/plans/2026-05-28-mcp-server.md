@@ -28,6 +28,7 @@ Review gate bar: **≥95**. Highest score across iterations is recorded.
 | 2.1 | 2026-05-28 | 96 | All 118 registry entries given category/description(≤140)/tags(≥3); pure additions, sync clean, coverage test enforces. Fixed date-picker→form, stepper→navigation post-review. (2 rounds) |
 | 2.2 | 2026-05-28 | 97 | `help.ts` derives categories from registry via exported `groupByCategory`; removed all hardcoded category sets/heuristics; updated add.spec help labels; full suite 170 tests green. |
 | 3.1+3.2 | 2026-05-28 | 95 | `shadcn-angular mcp` stdio server: 10 tools (6 read + 4 write) reusing core/; theme validated via z.enum (fixed cast); shared result helpers; stderr logging; stdio smoke confirms all 10 tools + search/list calls. (2 rounds) |
+| 3.3 | 2026-05-28 | 95 | In-memory MCP integration test (Client + InMemoryTransport): exactly 10 tools, annotations, enriched list, search ranking, transitive deps, unknown-component + uninitialized errors. Full suite 176 tests. |
 
 ---
 

@@ -191,3 +191,4 @@ Review gate bar: **≥95**. One row per gated task (highest score recorded).
 | 2.1 | 2026-05-28 | 96 | All 118 entries given category/description/tags; pure additions; sync clean; coverage test enforces. |
 | 2.2 | 2026-05-28 | 97 | `help.ts` categories now flow from registry (`groupByCategory`); hardcoded sets removed; 170 tests green. |
 | 3.1+3.2 | 2026-05-28 | 95 | `shadcn-angular mcp` stdio server: 10 tools reusing core/; z.enum-validated init; stderr logging; stdio smoke passes. |
+| 3.3 | 2026-05-28 | 95 | In-memory MCP integration test (Client + InMemoryTransport): tool surface, annotations, behaviors, error guards; 176 tests. |
