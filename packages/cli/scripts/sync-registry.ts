@@ -9,7 +9,7 @@
  *   npx tsx packages/cli/scripts/sync-registry.ts --fix     # update registry
  */
 
-import { readFileSync, existsSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
@@ -328,6 +328,19 @@ function validateBlockFiles(blocks: RegistryEntry[]): string[] {
 
 // ── Main ────────────────────────────────────────────────────────────────
 
+// A block's source lives in packages/blocks/<name>/, and the component
+// import-walker never visits it — so a block folder with no matching registry
+// entry would be silently absent from every install. Report such orphans on
+// stdout (so the Edit/Write hook can surface them) as a non-fatal warning:
+// a new block legitimately exists on disk before its entry is hand-authored.
+function detectOrphanBlockFolders(blocks: RegistryEntry[]): string[] {
+    if (!existsSync(BLOCKS_ROOT)) return [];
+    const claimed = new Set(blocks.flatMap(b => b.files.map(f => f.split('/')[0])));
+    return readdirSync(BLOCKS_ROOT, { withFileTypes: true })
+        .filter(entry => entry.isDirectory() && !claimed.has(entry.name))
+        .map(entry => entry.name);
+}
+
 function main(): void {
     const fix = process.argv.includes('--fix');
     const allEntries = parseRegistry();
@@ -340,6 +353,15 @@ function main(): void {
         for (const problem of blockProblems) console.error(problem);
         process.exitCode = 1;
         return;
+    }
+
+    const orphanBlocks = detectOrphanBlockFolders(blockEntries);
+    if (orphanBlocks.length > 0) {
+        console.log(
+            `Orphan block folder(s) with no registry entry: ${orphanBlocks.join(', ')}. ` +
+            `Add a type:'block' entry (name, files, dependencies, category, description, tags) ` +
+            `in packages/cli/src/registry/index.ts before publishing.`,
+        );
     }
 
     const entryFileToComponent = buildBoundaryMap(entries);

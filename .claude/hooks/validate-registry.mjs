@@ -29,7 +29,8 @@ const filePath = (() => {
 const normalizedPath = filePath.replaceAll('\\', '/');
 const isRelevant =
     normalizedPath.includes('packages/components/ui/') ||
-    normalizedPath.includes('packages/components/lib/');
+    normalizedPath.includes('packages/components/lib/') ||
+    normalizedPath.includes('packages/blocks/');
 
 if (!isRelevant) process.exit(0);
 
@@ -104,13 +105,19 @@ const relativePath = componentName ? uiRelativePath(normalizedPath) : null;
 
 let autoAdded = null;
 let registryUpdated = false;
+let orphanWarning = null;
 
 try {
     // Sync first so every registered component's own import walk claims its
     // sub-files — a new data-table sub-component is absorbed by the
     // data-table walk, not registered standalone. Only a file that no walk
     // reaches is treated as a new top-level component below.
-    if (runSync().includes('Registry updated')) registryUpdated = true;
+    // A block edit reaches here too (it lives under packages/blocks/); the
+    // component auto-append below is naturally skipped because uiRelativePath
+    // returns null for non-ui paths, so the block edit just re-runs the sync.
+    const syncOutput = runSync();
+    if (syncOutput.includes('Registry updated')) registryUpdated = true;
+    orphanWarning = syncOutput.split('\n').find(line => line.includes('Orphan block folder')) ?? null;
 
     if (componentName && relativePath) {
         const absolutePath = resolve(UI_DIR, relativePath);
@@ -140,13 +147,16 @@ try {
     process.exitCode = 1;
 }
 
-if (autoAdded || registryUpdated) {
+if (autoAdded || registryUpdated || orphanWarning) {
     const lines = [];
     if (autoAdded) {
         lines.push(`Auto-registered new component "${autoAdded}" in packages/cli/src/registry/index.ts.`);
     }
     if (registryUpdated) {
         lines.push('The sync-registry hook detected and auto-fixed registry changes. The registry file has been updated on disk — no action needed.');
+    }
+    if (orphanWarning) {
+        lines.push(orphanWarning);
     }
     const msg = JSON.stringify({
         hookSpecificOutput: {
