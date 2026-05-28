@@ -163,3 +163,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T10 init blocks alias | 2026-05-28 | 98 | interactive init records `aliases.blocks`; defaults covered; 191 tests. |
 | T12 login block | 2026-05-28 | 96 | login auth block (card/input/label/button/checkbox); registry type:block; CLI install→fixture ng build passed. |
 | T13 dashboard block | 2026-05-28 | 97 | dashboard block (cards/bar-chart/table/avatar/badge); responsive + RTL logical utils; fixture ng build passed. |
+| T14 settings-profile | 2026-05-28 | 96 | profile settings form (card/input/textarea/label/avatar/button/separator); fixture ng build passed. |

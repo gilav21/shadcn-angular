@@ -1,0 +1,56 @@
+<div [class]="classes()" data-slot="settings-profile-block">
+  <form (ngSubmit)="onSubmit()">
+    <ui-card>
+      <ui-card-header>
+        <ui-card-title>Profile</ui-card-title>
+        <ui-card-description>Update your personal information and how others see you.</ui-card-description>
+      </ui-card-header>
+
+      <ui-card-content class="flex flex-col gap-6">
+        <div class="flex flex-wrap items-center gap-4">
+          <ui-avatar class="size-16">
+            <ui-avatar-fallback>{{ initials() }}</ui-avatar-fallback>
+          </ui-avatar>
+          <ui-button variant="outline" type="button" label="Change avatar" />
+        </div>
+
+        <ui-separator />
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-2">
+            <ui-label for="profile-name">Name</ui-label>
+            <ui-input
+              elementId="profile-name"
+              name="name"
+              [ngModel]="name()"
+              (ngModelChange)="name.set($event)" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <ui-label for="profile-email">Email</ui-label>
+            <ui-input
+              elementId="profile-email"
+              name="email"
+              type="email"
+              [ngModel]="email()"
+              (ngModelChange)="email.set($event)" />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <ui-label>Bio</ui-label>
+          <ui-textarea
+            placeholder="Tell us a little about yourself"
+            [rows]="4"
+            name="bio"
+            [ngModel]="bio()"
+            (ngModelChange)="bio.set($event)" />
+        </div>
+      </ui-card-content>
+
+      <ui-card-footer class="flex flex-wrap justify-end gap-2">
+        <ui-button variant="ghost" type="button" label="Cancel" />
+        <ui-button type="submit" label="Save changes" />
+      </ui-card-footer>
+    </ui-card>
+  </form>
+</div>

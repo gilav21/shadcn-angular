@@ -1016,6 +1016,15 @@ export const registry = defineRegistry({
     description: 'Analytics dashboard with stat cards, a revenue bar chart, and a recent-activity table.',
     tags: ['dashboard', 'analytics', 'admin', 'stats', 'chart'],
   },
+  'settings-profile': {
+    name: 'settings-profile',
+    type: 'block',
+    files: ['settings-profile/index.ts', 'settings-profile/settings-profile.component.html', 'settings-profile/settings-profile.component.ts'],
+    dependencies: ['card', 'input', 'textarea', 'label', 'avatar', 'button', 'separator'],
+    category: 'settings',
+    description: 'Profile settings form with avatar, name/email/bio fields, and save/cancel actions.',
+    tags: ['settings', 'profile', 'form', 'account'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;
