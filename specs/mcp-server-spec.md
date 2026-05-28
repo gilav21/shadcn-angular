@@ -172,3 +172,12 @@ before the search/list tools depend on it.
 The MCP server ships inside `@gilav21/shadcn-angular`. Per release policy, the
 registry-metadata enrichment is a registry change → the package must be published
 once merged.
+
+## Completion Review
+
+Review gate bar: **≥95**. One row per gated task (highest score recorded).
+
+| Task | Completed | Score | Rationale |
+|---|---|---|---|
+| 0.1 | 2026-05-28 | n/a | Trivial dependency bump; review-gate excludes version bumps. |
+| 0.2 | 2026-05-28 | 96 | Metadata shape (`CATEGORIES`/`Category` + optional description/category/tags) added cleanly; build + tests pass; taxonomy covers the library. |

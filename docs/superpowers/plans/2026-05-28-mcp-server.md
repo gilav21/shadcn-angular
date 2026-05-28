@@ -10,6 +10,17 @@
 
 ---
 
+## Completion Log
+
+Review gate bar: **≥95**. Highest score across iterations is recorded.
+
+| Task | Completed | Score | Rationale |
+|---|---|---|---|
+| 0.1 | 2026-05-28 | n/a | Trivial dependency bump (`@modelcontextprotocol/sdk`, `zod`); review-gate explicitly excludes version bumps. |
+| 0.2 | 2026-05-28 | 96 | `CATEGORIES` exported `as const` with `Category` derived correctly; three optional readonly fields added with JSDoc; build + tests pass; taxonomy covers all components. |
+
+---
+
 ## Conventions for this plan
 
 - **Working dir:** all paths are relative to repo root `D:\Development\shadcd\shadcn-angular`. CLI package root is `packages/cli/`.

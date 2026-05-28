@@ -1,6 +1,22 @@
 // Component Registry - Defines available components and their file mappings
 // Actual component files are stored in packages/components/ui/
 
+export const CATEGORIES = [
+  'form',          // inputs, selects, checkboxes, sliders, pickers
+  'navigation',    // buttons, tabs, menus, breadcrumb, pagination, sidebar
+  'layout',        // card, separator, scroll-area, resizable, bento-grid
+  'overlay',       // dialog, sheet, drawer, popover, tooltip, command
+  'data-display',  // table, data-table, tree, virtual-scroll, empty
+  'feedback',      // alert, toast, progress, skeleton, spinner, badge
+  'charts',        // bar/pie/stacked/range/race/org charts
+  'animation',     // text effects, particles, marquee, blur-fade, etc.
+  'media',         // avatar, carousel, file-viewer, comparison-slider
+  'editor',        // rich-text-editor, code-block, kanban, page-builder
+  'utility',       // icon, label, kbd, dock, collapsible, accordion, stepper, timeline
+] as const;
+
+export type Category = (typeof CATEGORIES)[number];
+
 export interface OptionalDependency {
   readonly name: string;
   readonly description: string;
@@ -19,6 +35,12 @@ export interface ComponentDefinition {
     readonly componentName: string;
     readonly sourceFile: string;
   }[];
+  /** One-line, human-readable summary used by discovery tools (<= ~140 chars). */
+  readonly description?: string;
+  /** Single taxonomy bucket for grouping in `list`/`help`/MCP. */
+  readonly category?: Category;
+  /** Free-text search keywords (synonyms, use-cases). 3-6 per component. */
+  readonly tags?: readonly string[];
 }
 
 function defineRegistry<T extends Record<string, ComponentDefinition>>(reg: T): { readonly [K in keyof T]: ComponentDefinition } {
