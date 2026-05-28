@@ -26,6 +26,7 @@ Review gate bar: **≥95**. Highest score across iterations is recorded.
 | 1.6 | 2026-05-28 | 97 | `core/diff-core.ts` structured diff (`unifiedDiff`/`diffComponentFiles`); `hasChanges` counts fetch errors (fixed a regression); diff.ts re-colors + decoupled from add.js; 5 tests. (2 rounds) |
 | 1.7 | 2026-05-28 | 97 | `core/search.ts` ranked registry search (name/tag/desc/fuzzy) reusing exported `levenshtein`; scoring extracted to a helper for low complexity; full CLI suite 167 tests green. |
 | 2.1 | 2026-05-28 | 96 | All 118 registry entries given category/description(≤140)/tags(≥3); pure additions, sync clean, coverage test enforces. Fixed date-picker→form, stepper→navigation post-review. (2 rounds) |
+| 2.2 | 2026-05-28 | 97 | `help.ts` derives categories from registry via exported `groupByCategory`; removed all hardcoded category sets/heuristics; updated add.spec help labels; full suite 170 tests green. |
 
 ---
 

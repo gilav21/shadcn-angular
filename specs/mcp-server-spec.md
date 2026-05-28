@@ -189,3 +189,4 @@ Review gate bar: **≥95**. One row per gated task (highest score recorded).
 | 1.6 | 2026-05-28 | 97 | `core/diff-core.ts` structured diff; hasChanges counts fetch errors; diff.ts re-colors + decoupled from add.js; 5 tests. |
 | 1.7 | 2026-05-28 | 97 | `core/search.ts` ranked search (name/tag/desc/fuzzy) reusing `levenshtein`; CLI suite 167 tests green. |
 | 2.1 | 2026-05-28 | 96 | All 118 entries given category/description/tags; pure additions; sync clean; coverage test enforces. |
+| 2.2 | 2026-05-28 | 97 | `help.ts` categories now flow from registry (`groupByCategory`); hardcoded sets removed; 170 tests green. |
