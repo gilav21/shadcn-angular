@@ -22,6 +22,7 @@ Review gate bar: **≥95**. Highest score across iterations is recorded.
 | 1.2 | 2026-05-28 | 96 | `resolveDependencies` moved verbatim to `core/resolve.ts`; add.ts re-exports; test covers self/transitive/diamond; 50 tests pass. (leftover blank line cleaned post-review) |
 | 1.3 | 2026-05-28 | 97 | Conflict-detection machinery moved verbatim to `core/plan.ts` + new `summarizePlan`/`InstallPlan`; add.ts re-exports 6 symbols add.spec needs; dead imports removed; 51 tests pass. |
 | 1.4 | 2026-05-28 | 96 | Non-interactive `core/install.ts` (planInstall/performInstall) with corrected overwrite/skip semantics (rejected plan's forced-overwrite bug); add.ts delegates writes + passes precomputedConflicts to avoid double-fetch; 52 tests. (4 review rounds) |
+| 1.5 | 2026-05-28 | 97 | `core/init-core.ts` `initProject` reproduces all init side effects, returns created/warnings; init.ts keeps prompts + delegates; reuses fetchLibContent; no unused imports; 3 tests. |
 
 ---
 
