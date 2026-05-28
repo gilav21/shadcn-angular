@@ -8,16 +8,13 @@ describe('registry metadata shape', () => {
     expect(CATEGORIES).toContain('charts');
   });
 
-  it('allows optional category/description/tags on entries', () => {
-    // button is enriched in Phase 2; here we only assert the fields are
-    // type-compatible and that, when present, category is in the taxonomy.
-    for (const def of Object.values(registry)) {
-      if (def.category !== undefined) {
-        expect(CATEGORIES as readonly string[]).toContain(def.category);
-      }
-      if (def.tags !== undefined) {
-        expect(Array.isArray(def.tags)).toBe(true);
-      }
+  it('every component has category + description + >=3 tags', () => {
+    for (const [name, def] of Object.entries(registry)) {
+      expect(def.category, `${name}.category`).toBeDefined();
+      expect(CATEGORIES as readonly string[]).toContain(def.category);
+      expect(def.description, `${name}.description`).toBeTruthy();
+      expect((def.description ?? '').length, `${name}.description length`).toBeLessThanOrEqual(140);
+      expect((def.tags ?? []).length, `${name}.tags`).toBeGreaterThanOrEqual(3);
     }
   });
 });
