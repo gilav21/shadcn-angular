@@ -996,6 +996,17 @@ export const registry = defineRegistry({
     libFiles: ['color.ts', 'i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'touch.ts'],
     dependencies: ['icon'],
   },
+
+  // ── Blocks (type:'block') ───────────────────────────────────────────────
+  login: {
+    name: 'login',
+    type: 'block',
+    files: ['login/index.ts', 'login/login.component.html', 'login/login.component.ts'],
+    dependencies: ['button', 'input', 'label', 'card', 'checkbox'],
+    category: 'auth',
+    description: 'Email/password login page with a card layout, remember-me, and a sign-up link.',
+    tags: ['login', 'auth', 'sign-in', 'form'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

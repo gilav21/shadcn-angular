@@ -937,3 +937,4 @@ Review gate bar: **≥95**.
 | T8 sync-registry blocks | 2026-05-28 | 96 | parse `isBlock`; main partitions blocks out of the component walker; `validateBlockFiles` errors on missing block files under packages/blocks; sync clean (118), scripts typecheck. |
 | T9 discovery | 2026-05-28 | 97 | help `groupByCategory` excludes blocks + new `groupBlocks`/Blocks section; list separates components(ui)/blocks(aliases.blocks); MCP list/get surface `type`; 191 tests. |
 | T10 init blocks alias | 2026-05-28 | 98 | interactive init prompts for blocks path → `aliases.blocks` via toAlias; --defaults/--yes already covered by getDefaultConfig; 191 tests. |
+| T12 login block | 2026-05-28 | 96 | `packages/blocks/login` (card/input/label/button/checkbox), OnPush+class+responsive+RTL; registry entry type:block/auth; block-install test; CLI install→fixture `ng build` SUCCEEDED. |

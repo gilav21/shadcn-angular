@@ -22,6 +22,18 @@ vi.mock('../utils/shortcut-registry.js', () => ({ writeShortcutRegistryIndex: vi
 
 const base = { cwd: '/proj', config: getDefaultConfig(), options: { branch: 'master' } };
 
+describe('performInstall blocks', () => {
+  beforeEach(() => vi.clearAllMocks());
+  it('writes a block under the blocks base and its component deps under ui', async () => {
+    const result = await performInstall({ ...base, components: ['login'], blocksPath: 'src/blocks' });
+    expect(result.installed).toContain('login');
+    const writes = (fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls
+      .map(c => String(c[0]).replaceAll('\\', '/'));
+    expect(writes.some(p => p.includes('/blocks/login/'))).toBe(true);
+    expect(writes.some(p => p.includes('/components/ui/button/'))).toBe(true);
+  });
+});
+
 describe('planInstall', () => {
   beforeEach(() => vi.clearAllMocks());
   it('reports a fresh install (no files present)', async () => {
