@@ -9,6 +9,7 @@ import { why } from './commands/why.js';
 import { help } from './commands/help.js';
 import { search } from './commands/search.js';
 import { doctor } from './commands/doctor.js';
+import { update } from './commands/update.js';
 import { startMcpServer } from './mcp/server.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as { version: string };
@@ -69,6 +70,16 @@ program
     .command('help')
     .description('Show detailed usage information')
     .action(help);
+
+program
+    .command('update')
+    .description('Update installed components to the latest registry version')
+    .argument('[components...]', 'Components to update (all installed if omitted)')
+    .option('--dry-run', 'Show what would update without writing')
+    .option('--remote', 'Force remote fetch from GitHub registry')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
+    .option('-r, --registry <url>', 'Custom registry base URL')
+    .action(update);
 
 program
     .command('doctor')
