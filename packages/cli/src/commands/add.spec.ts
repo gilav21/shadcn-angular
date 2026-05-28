@@ -710,7 +710,8 @@ describe('help command', () => {
     expect(output).toContain('add');
     expect(output).toContain('Optional Dependencies');
     expect(output).toContain('Available Components');
-    expect(output).toContain('UI');
+    expect(output).toContain('Form');
+    expect(output).toContain('Navigation');
     expect(output).toContain('Charts');
     expect(output).toContain('Animation');
 

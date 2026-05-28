@@ -9,11 +9,12 @@
  *   npx tsx packages/cli/scripts/sync-registry.ts --fix     # update registry
  */
 
-import { readFileSync, existsSync, writeFileSync } from 'node:fs';
+import { readFileSync, existsSync, writeFileSync, readdirSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
     walkTree,
+    walkBlockTree,
     buildDirOwners,
     getEntryFile,
     type BoundaryContext,
@@ -23,6 +24,7 @@ import {
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const CLI_SRC = path.resolve(SCRIPT_DIR, '../src');
 const COMPONENTS_ROOT = path.resolve(SCRIPT_DIR, '../../components');
+const BLOCKS_ROOT = path.resolve(SCRIPT_DIR, '../../blocks');
 const REGISTRY_PATH = path.join(CLI_SRC, 'registry/index.ts');
 
 // utils.ts is always installed during init — not a component libFile
@@ -35,6 +37,7 @@ interface RegistryEntry {
     files: string[];
     libFiles: string[];
     dependencies: string[];
+    isBlock: boolean;
 }
 
 function parseRegistry(): RegistryEntry[] {
@@ -61,7 +64,9 @@ function parseRegistry(): RegistryEntry[] {
             ? [...depsMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])
             : [];
 
-        entries.push({ name, files, libFiles, dependencies });
+        const isBlock = /type:\s*['"]block['"]/.test(fullBlock);
+
+        entries.push({ name, files, libFiles, dependencies, isBlock });
     }
 
     return entries;
@@ -139,6 +144,52 @@ function analyzeComponent(
 
     return {
         update: { name: entry.name, files: uiFiles, libFiles: mergedLibFiles, dependencies: finalDeps },
+        changed,
+        deepImports,
+    };
+}
+
+// Re-derives a block entry's drift-prone arrays — files (block-relative),
+// dependencies (ui components it imports), and libFiles — by walking its
+// import tree across packages/blocks → packages/components. The block's
+// hand-authored type/category/description/tags are untouched. Mirrors
+// analyzeComponent's report+update shape so blocks share the apply/report flow.
+function analyzeBlock(
+    entry: RegistryEntry,
+    ctx: BoundaryContext,
+): { update: ComponentUpdate; changed: boolean; deepImports: DeepImport[] } {
+    const entryFile = getEntryFile(entry.name, entry.files);
+    const { ownFiles, dependencies, libFiles, deepImports } =
+        walkBlockTree(entryFile, BLOCKS_ROOT, COMPONENTS_ROOT, ctx);
+
+    const files = [...ownFiles].sort((a, b) => a.localeCompare(b));
+    const discoveredLibs = [...libFiles]
+        .filter(f => !BASELINE_LIB_FILES.has(f))
+        .sort((a, b) => a.localeCompare(b));
+    const deps = [...dependencies].sort((a, b) => a.localeCompare(b));
+
+    const mergedLibFiles = [...new Set([...entry.libFiles, ...discoveredLibs])]
+        .sort((a, b) => a.localeCompare(b));
+
+    const addedFiles = files.filter(f => !entry.files.includes(f));
+    const removedFiles = entry.files.filter(f => !files.includes(f));
+    const addedLibs = discoveredLibs.filter(f => !entry.libFiles.includes(f));
+    const addedDeps = deps.filter(d => !entry.dependencies.includes(d));
+    const removedDeps = entry.dependencies.filter(d => !deps.includes(d));
+    const changed = addedFiles.length > 0 || removedFiles.length > 0
+        || addedLibs.length > 0 || addedDeps.length > 0 || removedDeps.length > 0;
+
+    if (changed) {
+        console.log(`  ${entry.name} (block):`);
+        for (const f of addedFiles) console.log(`    + files: ${f}`);
+        for (const f of removedFiles) console.log(`    - files: ${f}`);
+        for (const f of addedLibs) console.log(`    + libFiles: ${f}`);
+        for (const d of addedDeps) console.log(`    + dependencies: ${d}`);
+        for (const d of removedDeps) console.log(`    - dependencies: ${d}`);
+    }
+
+    return {
+        update: { name: entry.name, files, libFiles: mergedLibFiles, dependencies: deps },
         changed,
         deepImports,
     };
@@ -306,21 +357,61 @@ function validateRegistryFiles(updates: ComponentUpdate[]): string[] {
     return problems;
 }
 
+// A block's own files live under packages/blocks; its libFiles (if any) live
+// under packages/components/lib. analyzeBlock re-derives both by walking the
+// block's imports, but a stale hand-authored libFile can survive the merge, so
+// validate every declared path resolves on disk before a write.
+function validateBlockFiles(blocks: ComponentUpdate[]): string[] {
+    const libDir = path.join(COMPONENTS_ROOT, 'lib');
+    const problems: string[] = [];
+    for (const block of blocks) {
+        problems.push(...findMissingFiles('block file', block.name, block.files, BLOCKS_ROOT));
+        problems.push(...findMissingFiles('libFiles', block.name, block.libFiles, libDir));
+    }
+    return problems;
+}
+
 // ── Main ────────────────────────────────────────────────────────────────
+
+// A block's source lives in packages/blocks/<name>/, and the component
+// import-walker never visits it — so a block folder with no matching registry
+// entry would be silently absent from every install. Report such orphans on
+// stdout (so the Edit/Write hook can surface them) as a non-fatal warning:
+// a new block legitimately exists on disk before its entry is hand-authored.
+function detectOrphanBlockFolders(blocks: RegistryEntry[]): string[] {
+    if (!existsSync(BLOCKS_ROOT)) return [];
+    const claimed = new Set(blocks.flatMap(b => b.files.map(f => f.split('/')[0])));
+    return readdirSync(BLOCKS_ROOT, { withFileTypes: true })
+        .filter(entry => entry.isDirectory() && !claimed.has(entry.name))
+        .map(entry => entry.name);
+}
 
 function main(): void {
     const fix = process.argv.includes('--fix');
-    const entries = parseRegistry();
+    const allEntries = parseRegistry();
+    const blockEntries = allEntries.filter(e => e.isBlock);
+    const entries = allEntries.filter(e => !e.isBlock);
+
+    const orphanBlocks = detectOrphanBlockFolders(blockEntries);
+    if (orphanBlocks.length > 0) {
+        console.log(
+            `Orphan block folder(s) with no registry entry: ${orphanBlocks.join(', ')}. ` +
+            `Add a type:'block' entry (name, files, dependencies, category, description, tags) ` +
+            `in packages/cli/src/registry/index.ts before publishing.`,
+        );
+    }
+
     const entryFileToComponent = buildBoundaryMap(entries);
     const ctx: BoundaryContext = {
         entryFileToComponent,
         dirOwners: buildDirOwners(entryFileToComponent),
     };
 
-    console.log(`Scanning ${entries.length} components...\n`);
+    console.log(`Scanning ${entries.length} components and ${blockEntries.length} blocks...\n`);
 
     let hasChanges = false;
     const updates: ComponentUpdate[] = [];
+    const blockUpdates: ComponentUpdate[] = [];
     const deepImports: DeepImport[] = [];
 
     for (const entry of entries) {
@@ -330,9 +421,19 @@ function main(): void {
         deepImports.push(...result.deepImports);
     }
 
+    for (const entry of blockEntries) {
+        const result = analyzeBlock(entry, ctx);
+        if (result.changed) hasChanges = true;
+        blockUpdates.push(result.update);
+        deepImports.push(...result.deepImports);
+    }
+
     if (!fix) reportDeepImports(deepImports);
 
-    const missingFiles = validateRegistryFiles(updates);
+    const missingFiles = [
+        ...validateRegistryFiles(updates),
+        ...validateBlockFiles(blockUpdates),
+    ];
     if (missingFiles.length > 0) {
         console.error('\nRegistry references files that do not exist on disk:');
         for (const problem of missingFiles) console.error(problem);
@@ -342,14 +443,14 @@ function main(): void {
     }
 
     if (!hasChanges) {
-        console.log('All components are in sync.');
+        console.log('All components and blocks are in sync.');
         return;
     }
 
     console.log('');
 
     if (fix) {
-        applyUpdates(updates);
+        applyUpdates([...updates, ...blockUpdates]);
     } else {
         console.log('Run with --fix to update the registry.');
         process.exitCode = 1;

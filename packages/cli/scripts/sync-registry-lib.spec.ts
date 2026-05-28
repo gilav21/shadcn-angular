@@ -10,6 +10,7 @@ import {
     classifyImport,
     getEntryFile,
     walkTree,
+    walkBlockTree,
     type BoundaryContext,
 } from './sync-registry-lib';
 
@@ -314,5 +315,98 @@ describe('getEntryFile', () => {
 
     it('falls back to the first file when no convention matches', () => {
         expect(getEntryFile('mystery', ['some-helper.ts'])).toBe('some-helper.ts');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// walkBlockTree — a block lives under blocksRoot and imports across into
+// componentsRoot. Build a base/{components,blocks} layout so the real
+// ../../components/ui/* specifiers resolve.
+// ---------------------------------------------------------------------------
+
+describe('walkBlockTree', () => {
+    let base: string;
+    let blocksRoot: string;
+    let componentsRoot: string;
+    let ctx: BoundaryContext;
+
+    function write(rel: string, content = ''): void {
+        const full = path.join(base, rel);
+        mkdirSync(path.dirname(full), { recursive: true });
+        writeFileSync(full, content);
+    }
+
+    beforeAll(() => {
+        base = mkdtempSync(path.join(tmpdir(), 'block-walk-'));
+        blocksRoot = path.join(base, 'blocks');
+        componentsRoot = path.join(base, 'components');
+
+        write('components/ui/button/index.ts', "export * from './button.component';");
+        write('components/ui/button/button.component.ts', 'export class ButtonComponent {}');
+        write('components/ui/input/index.ts', "export * from './input.component';");
+        write('components/ui/input/input.component.ts', 'export class InputComponent {}');
+        write('components/ui/card/index.ts', "export * from './card.component';");
+        write('components/ui/card/card.component.ts', 'export class CardComponent {}');
+        write('components/lib/utils.ts', 'export function cn() {}');
+
+        write('blocks/login/index.ts', "export * from './login.component';");
+        write(
+            'blocks/login/login.component.ts',
+            [
+                "import { ButtonComponent } from '../../components/ui/button';",
+                "import { InputComponent } from '../../components/ui/input';",
+                "import { cn } from '../../components/lib/utils';",
+                '@Component({',
+                "  templateUrl: './login.component.html',",
+                '})',
+                'export class LoginBlockComponent {}',
+            ].join('\n'),
+        );
+        write('blocks/login/login.component.html', '<form></form>');
+
+        // Deep import: a block reaching into card's folder, bypassing its barrel.
+        write(
+            'blocks/deep/index.ts',
+            "import { CardComponent } from '../../components/ui/card/card.component';\nexport class DeepBlockComponent {}",
+        );
+
+        const entryFileToComponent = new Map<string, string>([
+            ['ui/button/index.ts', 'button'],
+            ['ui/input/index.ts', 'input'],
+            ['ui/card/index.ts', 'card'],
+        ]);
+        ctx = { entryFileToComponent, dirOwners: buildDirOwners(entryFileToComponent) };
+    });
+
+    afterAll(() => {
+        rmSync(base, { recursive: true, force: true });
+    });
+
+    it('collects the block own files (entry, component, templateUrl asset)', () => {
+        const result = walkBlockTree('login/index.ts', blocksRoot, componentsRoot, ctx);
+        expect([...result.ownFiles].sort((a, b) => a.localeCompare(b))).toEqual([
+            'login/index.ts',
+            'login/login.component.html',
+            'login/login.component.ts',
+        ]);
+    });
+
+    it('records imported ui components as dependencies and does not recurse into them', () => {
+        const result = walkBlockTree('login/index.ts', blocksRoot, componentsRoot, ctx);
+        expect([...result.dependencies].sort((a, b) => a.localeCompare(b))).toEqual(['button', 'input']);
+        // button.component.ts must NOT be pulled into the block's own files.
+        expect([...result.ownFiles].some(f => f.includes('button'))).toBe(false);
+    });
+
+    it('records a direct lib import as a libFile (unfiltered — baseline filtering is the caller’s job)', () => {
+        const result = walkBlockTree('login/index.ts', blocksRoot, componentsRoot, ctx);
+        expect([...result.libFiles]).toEqual(['utils.ts']);
+    });
+
+    it('flags a deep import that bypasses a component barrel', () => {
+        const result = walkBlockTree('deep/index.ts', blocksRoot, componentsRoot, ctx);
+        expect(result.dependencies.has('card')).toBe(true);
+        expect(result.deepImports).toHaveLength(1);
+        expect(result.deepImports[0].owner).toBe('card');
     });
 });

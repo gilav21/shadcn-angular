@@ -1,0 +1,20 @@
+<div [class]="classes()" data-slot="features-block">
+  <div class="mx-auto max-w-2xl text-center">
+    <h2 class="text-3xl font-bold tracking-tight sm:text-4xl">{{ heading() }}</h2>
+    <p class="mx-auto mt-4 max-w-2xl text-muted-foreground">{{ subheading() }}</p>
+  </div>
+
+  <div class="mt-12 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    @for (feature of features(); track feature.title) {
+      <ui-card class="h-full">
+        <ui-card-content class="flex flex-col gap-4">
+          <div class="flex size-10 items-center justify-center rounded-lg bg-primary/10">
+            <ui-icon [name]="feature.icon" size="md" class="text-primary" />
+          </div>
+          <h3 class="font-semibold">{{ feature.title }}</h3>
+          <p class="text-sm text-muted-foreground">{{ feature.description }}</p>
+        </ui-card-content>
+      </ui-card>
+    }
+  </div>
+</div>

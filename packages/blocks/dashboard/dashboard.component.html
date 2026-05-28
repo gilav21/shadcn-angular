@@ -1,0 +1,65 @@
+<div [class]="classes()" data-slot="dashboard-block">
+  <div class="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    @for (stat of stats; track stat.label) {
+      <ui-card>
+        <ui-card-header>
+          <ui-card-description>{{ stat.label }}</ui-card-description>
+          <ui-card-title>{{ stat.value }}</ui-card-title>
+        </ui-card-header>
+        <ui-card-content>
+          <ui-badge
+            [variant]="stat.positive ? 'default' : 'destructive'"
+            [label]="stat.delta" />
+        </ui-card-content>
+      </ui-card>
+    }
+  </div>
+
+  <ui-card>
+    <ui-card-header>
+      <ui-card-title>Revenue</ui-card-title>
+      <ui-card-description>Last 6 months (in thousands)</ui-card-description>
+    </ui-card-header>
+    <ui-card-content>
+      <div class="overflow-x-auto">
+        <ui-bar-chart [data]="chartData" [height]="280" />
+      </div>
+    </ui-card-content>
+  </ui-card>
+
+  <ui-card>
+    <ui-card-header>
+      <ui-card-title>Recent activity</ui-card-title>
+      <ui-card-description>What your team has been up to</ui-card-description>
+    </ui-card-header>
+    <ui-card-content>
+      <div class="overflow-x-auto">
+        <ui-table>
+          <ui-table-header>
+            <ui-table-row>
+              <ui-table-head>User</ui-table-head>
+              <ui-table-head>Activity</ui-table-head>
+              <ui-table-head class="text-end">When</ui-table-head>
+            </ui-table-row>
+          </ui-table-header>
+          <ui-table-body>
+            @for (row of activity; track row.name) {
+              <ui-table-row>
+                <ui-table-cell>
+                  <div class="flex items-center gap-3">
+                    <ui-avatar>
+                      <ui-avatar-fallback>{{ row.initials }}</ui-avatar-fallback>
+                    </ui-avatar>
+                    <span class="font-medium">{{ row.name }}</span>
+                  </div>
+                </ui-table-cell>
+                <ui-table-cell>{{ row.action }}</ui-table-cell>
+                <ui-table-cell class="text-end text-muted-foreground">{{ row.time }}</ui-table-cell>
+              </ui-table-row>
+            }
+          </ui-table-body>
+        </ui-table>
+      </div>
+    </ui-card-content>
+  </ui-card>
+</div>

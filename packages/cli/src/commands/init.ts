@@ -5,38 +5,12 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getDefaultConfig, type Config } from '../utils/config.js';
 import { DEFAULT_PREFIX, isValidPrefix } from '../utils/prefix.js';
-import { getStylesTemplate } from '../templates/styles.js';
-import { getUtilsTemplate } from '../templates/utils.js';
-import { installPackages } from '../utils/package-manager.js';
-import { writeShortcutRegistryIndex } from '../utils/shortcut-registry.js';
-import {
-    getLibRegistryBaseUrl,
-    getLocalLibDir,
-    resolveProjectPath,
-    aliasToProjectPath,
-} from '../utils/paths.js';
+import { initProject, toAlias } from '../core/init-core.js';
 
 const onCancel = () => {
     console.log(chalk.dim('\nCancelled.'));
     process.exit(0);
 };
-
-async function fetchLibFileContent(file: string, branch: string, remote?: boolean, registry?: string): Promise<string> {
-    const localLibDir = getLocalLibDir();
-    if (localLibDir && !remote) {
-        const localPath = path.join(localLibDir, file);
-        if (await fs.pathExists(localPath)) {
-            return fs.readFile(localPath, 'utf-8');
-        }
-    }
-
-    const url = `${getLibRegistryBaseUrl(branch, registry)}/${file}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
-    }
-    return response.text();
-}
 
 interface InitOptions {
     yes?: boolean;
@@ -50,16 +24,6 @@ interface InitOptions {
 interface InitConfig {
     readonly config: Config;
     readonly createShortcutRegistry: boolean;
-}
-
-function resolveAliasOrPath(cwd: string, aliasOrPath: string): string {
-    return resolveProjectPath(cwd, aliasToProjectPath(aliasOrPath));
-}
-
-function toAlias(inputPath: string): string {
-    return inputPath.startsWith('src/')
-        ? '@/' + inputPath.slice(4)
-        : inputPath;
 }
 
 async function promptForConfig(initialPrefix: string): Promise<InitConfig> {
@@ -120,6 +84,12 @@ async function promptForConfig(initialPrefix: string): Promise<InitConfig> {
         },
         {
             type: 'text',
+            name: 'blocksPath',
+            message: 'Where would you like to install blocks?',
+            initial: 'src/blocks',
+        },
+        {
+            type: 'text',
             name: 'globalCss',
             message: 'Where is your global styles file?',
             initial: 'src/styles.scss',
@@ -161,88 +131,11 @@ async function promptForConfig(initialPrefix: string): Promise<InitConfig> {
                 components: componentsAlias.replace(/\/ui$/, ''),
                 utils: toAlias(responses.utilsPath),
                 ui: uiAlias,
+                blocks: toAlias(responses.blocksPath),
             },
         },
         createShortcutRegistry: responses.createShortcutRegistry ?? true,
     };
-}
-
-async function installMissingDeps(cwd: string): Promise<void> {
-    const allDependencies = [
-        'clsx', 'tailwind-merge', 'class-variance-authority',
-        'tailwindcss', 'postcss', '@tailwindcss/postcss',
-    ];
-
-    const packageJsonPath = path.join(cwd, 'package.json');
-    let missingDeps = allDependencies;
-    if (await fs.pathExists(packageJsonPath)) {
-        const packageJson = await fs.readJson(packageJsonPath) as {
-            dependencies?: Record<string, string>;
-            devDependencies?: Record<string, string>;
-        };
-        const installed = { ...packageJson.dependencies, ...packageJson.devDependencies };
-        missingDeps = allDependencies.filter(dep => !installed[dep]);
-    }
-
-    if (missingDeps.length > 0) {
-        await installPackages(missingDeps, { cwd });
-    }
-}
-
-async function setupPostcss(cwd: string): Promise<void> {
-    const postcssConfigFiles = [
-        '.postcssrc.json', '.postcssrc.js', '.postcssrc.yaml',
-        'postcss.config.js', 'postcss.config.cjs', 'postcss.config.mjs',
-    ];
-    const existing = (await Promise.all(
-        postcssConfigFiles.map(async f => await fs.pathExists(path.join(cwd, f)) ? f : null)
-    )).filter(Boolean);
-
-    if (existing.length === 0) {
-        await fs.writeJson(path.join(cwd, '.postcssrc.json'), {
-            plugins: { '@tailwindcss/postcss': {} },
-        }, { spaces: 4 });
-        return;
-    }
-
-    if (!existing.includes('.postcssrc.json')) {
-        console.log(chalk.yellow(`  Existing PostCSS config found (${existing[0]}). Skipping .postcssrc.json creation.`));
-        console.log(chalk.dim('  Make sure @tailwindcss/postcss is configured in your PostCSS config.'));
-    }
-}
-
-async function autoConfigureTsconfig(cwd: string, spinner: ReturnType<typeof ora>): Promise<void> {
-    const tsconfigPath = path.join(cwd, 'tsconfig.json');
-    if (!await fs.pathExists(tsconfigPath)) return;
-
-    try {
-        const raw = await fs.readFile(tsconfigPath, 'utf-8');
-        // Strip block comments BEFORE line comments so URLs like
-        // `https://example.com` inside a `/* ... */` block don't get
-        // partially eaten by the line-comment regex and leave a dangling
-        // `/*` that breaks JSON.parse.
-        const stripped = raw
-            .replaceAll(/\/\*[\s\S]*?\*\//g, '')
-            .replaceAll(/\/\/.*$/gm, '');
-        const tsconfig = JSON.parse(stripped) as {
-            compilerOptions?: { baseUrl?: string; paths?: Record<string, string[]> };
-        };
-
-        const compilerOptions = tsconfig.compilerOptions ??= {};
-        const paths = compilerOptions.paths ??= {};
-
-        if (paths['@/*']) return;
-
-        if (!compilerOptions.baseUrl) {
-            compilerOptions.baseUrl = '.';
-        }
-        paths['@/*'] = ['./src/*'];
-
-        await fs.writeJson(tsconfigPath, tsconfig, { spaces: 2 });
-        spinner.text = 'Configured tsconfig.json paths';
-    } catch {
-        console.log(chalk.dim('  Could not auto-configure tsconfig.json — please add "@/*": ["./src/*"] to paths manually.'));
-    }
 }
 
 export async function init(options: InitOptions) {
@@ -304,53 +197,14 @@ export async function init(options: InitOptions) {
     const spinner = ora('Initializing project...').start();
 
     try {
-        await fs.writeJson(componentsJsonPath, config, { spaces: 2 });
-        spinner.text = 'Created components.json';
-
-        const libDir = resolveAliasOrPath(cwd, config.aliases.utils);
-        await fs.ensureDir(libDir);
-        await fs.writeFile(path.join(libDir, 'utils.ts'), getUtilsTemplate());
-        spinner.text = 'Created utils.ts';
-
-        if (createShortcutRegistry) {
-            const content = await fetchLibFileContent('shortcut-binding.service.ts', options.branch, options.remote, options.registry);
-            await fs.writeFile(path.join(libDir, 'shortcut-binding.service.ts'), content);
-            spinner.text = 'Created shortcut-binding.service.ts';
-
-            await writeShortcutRegistryIndex(cwd, config, []);
-            spinner.text = 'Created shortcut-registry.index.ts';
-        }
-
-        const userStylesPath = resolveProjectPath(cwd, config.tailwind.css);
-        const stylesDir = path.dirname(userStylesPath);
-
-        await fs.ensureDir(stylesDir);
-        await fs.writeFile(path.join(stylesDir, 'tailwind.css'), getStylesTemplate(config.tailwind.baseColor, config.tailwind.theme));
-        spinner.text = 'Created tailwind.css';
-
-        let userStyles = await fs.pathExists(userStylesPath)
-            ? await fs.readFile(userStylesPath, 'utf-8')
-            : '';
-
-        if (!userStyles.includes('tailwind.css')) {
-            userStyles = '@import "./tailwind.css";\n\n' + userStyles;
-            await fs.writeFile(userStylesPath, userStyles);
-            spinner.text = 'Added tailwind.css import to styles';
-        }
-
-        const uiDir = resolveAliasOrPath(cwd, config.aliases.ui);
-        await fs.ensureDir(uiDir);
-        spinner.text = 'Created components directory';
-
-        spinner.text = 'Installing dependencies...';
-        await installMissingDeps(cwd);
-
-        spinner.text = 'Configuring PostCSS...';
-        await setupPostcss(cwd);
-
-        await autoConfigureTsconfig(cwd, spinner);
+        const { created, warnings } = await initProject({
+            cwd, config, createShortcutRegistry,
+            fetchOptions: { branch: options.branch, remote: options.remote, registry: options.registry },
+        });
 
         spinner.succeed(chalk.green('Project initialized successfully!'));
+        for (const c of created) console.log(chalk.dim('  + ') + chalk.cyan(c));
+        for (const w of warnings) console.log(chalk.yellow('  ' + w));
 
         console.log('\n' + chalk.bold('Next steps:'));
         console.log(chalk.dim('  1. Add components: ') + chalk.cyan('npx @gilav21/shadcn-angular add button'));

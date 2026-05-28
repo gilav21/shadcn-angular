@@ -26,6 +26,15 @@ export function getLibRegistryBaseUrl(branch: string, customRegistry?: string): 
     return `${base}/lib`;
 }
 
+function getDefaultBlocksBaseUrl(branch: string): string {
+    validateBranch(branch);
+    return `https://raw.githubusercontent.com/gilav21/shadcn-angular/${branch}/packages/blocks`;
+}
+
+export function getBlockRegistryBaseUrl(branch: string, customRegistry?: string): string {
+    return customRegistry ? `${customRegistry}/blocks` : getDefaultBlocksBaseUrl(branch);
+}
+
 // From the built CLI at packages/cli/dist/utils/, the monorepo's component
 // sources are three levels up: dist/utils -> dist -> cli -> packages.
 export function getLocalComponentsDir(): string | null {
@@ -35,6 +44,11 @@ export function getLocalComponentsDir(): string | null {
 
 export function getLocalLibDir(): string | null {
     const localPath = path.resolve(__dirname, '../../../components/lib');
+    return fs.existsSync(localPath) ? localPath : null;
+}
+
+export function getLocalBlocksDir(): string | null {
+    const localPath = path.resolve(__dirname, '../../../blocks');
     return fs.existsSync(localPath) ? localPath : null;
 }
 

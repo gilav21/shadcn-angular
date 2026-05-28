@@ -241,3 +241,121 @@ export function walkTree(
     collect(entryFile);
     return { ownFiles, discoveredDeps, deepImports };
 }
+
+// ── Block import walking ─────────────────────────────────────────────────
+
+/** True when `abs` lives inside `dir` (not the directory itself, not outside). */
+function isUnder(dir: string, abs: string): boolean {
+    const rel = path.relative(dir, abs);
+    return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
+/**
+ * Resolve a relative specifier to an absolute file, mirroring Node/TS
+ * resolution (`.ts` wins, a directory resolves to its `index.ts` barrel).
+ * Root-agnostic — used for block walks that cross from packages/blocks into
+ * packages/components. Returns null when nothing resolves.
+ */
+function resolveAbsolute(importPath: string, fromAbsFile: string): string | null {
+    const base = path.resolve(path.dirname(fromAbsFile), importPath);
+    const asTsFile = `${base}.ts`;
+    if (existsSync(asTsFile)) return asTsFile;
+    if (!existsSync(base)) return null;
+    if (statSync(base).isDirectory()) {
+        const barrel = path.join(base, 'index.ts');
+        return existsSync(barrel) ? barrel : null;
+    }
+    return base;
+}
+
+export interface BlockWalkResult {
+    /** Block-root-relative files belonging to the block (e.g. 'login/index.ts'). */
+    readonly ownFiles: Set<string>;
+    /** Component names the block depends on (imported from packages/components/ui). */
+    readonly dependencies: Set<string>;
+    /** Lib-root-relative files the block imports directly (e.g. 'utils.ts'). */
+    readonly libFiles: Set<string>;
+    /** Cross-boundary imports that bypassed a component's barrel. */
+    readonly deepImports: DeepImport[];
+}
+
+/**
+ * Walk a block's import tree from its entry file. Unlike a component, a block
+ * lives under `blocksRoot` and imports *across* into `componentsRoot`, so each
+ * resolved import is categorized by which root it falls under:
+ *  - inside the block        → an own file (recurse), plus its decorator assets;
+ *  - under components/ui/     → a component dependency (recorded via the shared
+ *                               boundary `ctx`; not recursed into);
+ *  - under components/lib/    → a lib file (leaf; not recursed into).
+ * Component `category`/`description`/`tags` are authored by hand — this only
+ * derives `files` / `dependencies` / `libFiles`, exactly the drift-prone parts.
+ */
+export function walkBlockTree(
+    entryFile: string,
+    blocksRoot: string,
+    componentsRoot: string,
+    ctx: BoundaryContext,
+): BlockWalkResult {
+    const ownFiles = new Set<string>();
+    const dependencies = new Set<string>();
+    const libFiles = new Set<string>();
+    const deepImports: DeepImport[] = [];
+
+    const uiDir = path.join(componentsRoot, 'ui');
+    const libDir = path.join(componentsRoot, 'lib');
+    const toBlockRel = (abs: string) => path.relative(blocksRoot, abs).replaceAll('\\', '/');
+    // A block owns only files inside its own `<name>/` folder; a stray import
+    // of a sibling block is outside the model and is not absorbed.
+    const ownPrefix = `${entryFile.split('/')[0]}/`;
+
+    function recordDependency(resolvedAbs: string, fromBlockRelFile: string): void {
+        const uiRel = 'ui/' + path.relative(uiDir, resolvedAbs).replaceAll('\\', '/');
+        const { kind, owner } = classifyImport(uiRel, '', ctx);
+        if (!owner) return;
+        dependencies.add(owner);
+        if (kind === 'deep-import') {
+            deepImports.push({ fromFile: fromBlockRelFile, importedFile: uiRel, owner });
+        }
+    }
+
+    function categorize(resolvedAbs: string, fromBlockRelFile: string): void {
+        if (isUnder(uiDir, resolvedAbs)) {
+            recordDependency(resolvedAbs, fromBlockRelFile);
+            return;
+        }
+        if (isUnder(libDir, resolvedAbs)) {
+            libFiles.add(path.relative(libDir, resolvedAbs).replaceAll('\\', '/'));
+            return;
+        }
+        const blockRel = toBlockRel(resolvedAbs);
+        if (isUnder(blocksRoot, resolvedAbs) && blockRel.startsWith(ownPrefix)) collect(blockRel);
+    }
+
+    function addAssets(blockRelFile: string, absFile: string, content: string): void {
+        if (!blockRelFile.endsWith('.component.ts')) return;
+        for (const url of parseDecoratorUrls(content)) {
+            const assetAbs = path.resolve(path.dirname(absFile), url);
+            if (existsSync(assetAbs) && isUnder(blocksRoot, assetAbs)) {
+                ownFiles.add(toBlockRel(assetAbs));
+            }
+        }
+    }
+
+    function collect(blockRelFile: string): void {
+        if (ownFiles.has(blockRelFile)) return;
+        ownFiles.add(blockRelFile);
+
+        const abs = path.join(blocksRoot, blockRelFile);
+        if (!existsSync(abs)) return;
+        const content = readFileSync(abs, 'utf-8');
+        addAssets(blockRelFile, abs, content);
+
+        for (const match of content.matchAll(IMPORT_REGEX)) {
+            const resolved = resolveAbsolute(match[1], abs);
+            if (resolved) categorize(resolved, blockRelFile);
+        }
+    }
+
+    collect(entryFile);
+    return { ownFiles, dependencies, libFiles, deepImports };
+}

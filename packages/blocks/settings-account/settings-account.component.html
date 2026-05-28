@@ -1,0 +1,97 @@
+<div [class]="classes()" data-slot="settings-account-block">
+  <form (ngSubmit)="onSubmit()">
+    <ui-card>
+      <ui-card-header>
+        <ui-card-title>Account</ui-card-title>
+        <ui-card-description>Manage your account email, password, and security.</ui-card-description>
+      </ui-card-header>
+
+      <ui-card-content class="flex flex-col gap-6">
+        <div class="flex flex-col gap-2">
+          <ui-label for="account-email">Email</ui-label>
+          <ui-input
+            elementId="account-email"
+            name="email"
+            type="email"
+            [ngModel]="email()"
+            (ngModelChange)="email.set($event)" />
+          <p class="text-xs text-muted-foreground">Used for sign-in and account notifications.</p>
+        </div>
+
+        <ui-separator />
+
+        <div class="flex flex-col gap-4">
+          <div class="flex flex-col gap-2">
+            <ui-label for="account-current-password">Current password</ui-label>
+            <ui-input
+              elementId="account-current-password"
+              name="currentPassword"
+              type="password"
+              [ngModel]="currentPassword()"
+              (ngModelChange)="currentPassword.set($event)" />
+          </div>
+
+          <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div class="flex flex-col gap-2">
+              <ui-label for="account-new-password">New password</ui-label>
+              <ui-input
+                elementId="account-new-password"
+                name="newPassword"
+                type="password"
+                [ngModel]="newPassword()"
+                (ngModelChange)="newPassword.set($event)" />
+            </div>
+            <div class="flex flex-col gap-2">
+              <ui-label for="account-confirm-password">Confirm new password</ui-label>
+              <ui-input
+                elementId="account-confirm-password"
+                name="confirmPassword"
+                type="password"
+                [ngModel]="confirmPassword()"
+                (ngModelChange)="confirmPassword.set($event)" />
+            </div>
+          </div>
+          <p class="text-xs text-muted-foreground">Use at least 8 characters with a mix of letters and numbers.</p>
+        </div>
+
+        <ui-separator />
+
+        <ui-collapsible #danger class="space-y-3">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex flex-col">
+              <span class="text-sm font-medium text-destructive">Danger zone</span>
+              <span class="text-xs text-muted-foreground">Irreversible and destructive actions.</span>
+            </div>
+            <ui-collapsible-trigger>
+              <ui-button variant="ghost" size="sm" type="button" class="w-9 p-0">
+                <ui-icon
+                  name="chevron-down"
+                  size="sm"
+                  class="transition-transform"
+                  [class.rotate-180]="danger.open()" />
+                <span class="sr-only">Toggle danger zone</span>
+              </ui-button>
+            </ui-collapsible-trigger>
+          </div>
+
+          <ui-collapsible-content class="space-y-4">
+            <ui-alert variant="destructive">
+              <ui-alert-title>Delete account</ui-alert-title>
+              <ui-alert-description>
+                Permanently delete your account and all associated data. This action is irreversible and cannot be undone.
+              </ui-alert-description>
+            </ui-alert>
+            <div class="flex flex-wrap justify-end">
+              <ui-button variant="destructive" type="button" label="Delete account" (clicked)="onDelete()" />
+            </div>
+          </ui-collapsible-content>
+        </ui-collapsible>
+      </ui-card-content>
+
+      <ui-card-footer class="flex flex-wrap justify-end gap-2">
+        <ui-button variant="ghost" type="button" label="Cancel" />
+        <ui-button type="submit" label="Save changes" />
+      </ui-card-footer>
+    </ui-card>
+  </form>
+</div>

@@ -1,0 +1,106 @@
+<div [class]="classes()" data-slot="settings-profile-block">
+  <form (ngSubmit)="onSubmit()">
+    <ui-card>
+      <ui-card-header>
+        <ui-card-title>Profile</ui-card-title>
+        <ui-card-description>Update your personal information and how others see you.</ui-card-description>
+      </ui-card-header>
+
+      <ui-card-content class="flex flex-col gap-6">
+        <div class="flex flex-wrap items-center gap-4">
+          <ui-avatar class="size-20">
+            <ui-avatar-fallback>{{ initials() }}</ui-avatar-fallback>
+          </ui-avatar>
+          <div class="flex flex-col gap-1.5">
+            <div class="flex flex-wrap gap-2">
+              <ui-button variant="outline" size="sm" type="button" label="Change avatar" />
+              <ui-button variant="ghost" size="sm" type="button" label="Remove" />
+            </div>
+            <p class="text-xs text-muted-foreground">JPG, GIF or PNG. 1MB max.</p>
+          </div>
+        </div>
+
+        <ui-separator />
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-2">
+            <ui-label for="profile-name">Name</ui-label>
+            <ui-input
+              elementId="profile-name"
+              name="name"
+              [ngModel]="name()"
+              (ngModelChange)="name.set($event)" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <ui-label for="profile-username">Username</ui-label>
+            <ui-input
+              elementId="profile-username"
+              name="username"
+              placeholder="username"
+              [ngModel]="username()"
+              (ngModelChange)="username.set($event)" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-2">
+            <ui-label for="profile-email">Email</ui-label>
+            <ui-input
+              elementId="profile-email"
+              name="email"
+              type="email"
+              [ngModel]="email()"
+              (ngModelChange)="email.set($event)" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <ui-label for="profile-role">Role</ui-label>
+            <ui-input
+              elementId="profile-role"
+              name="role"
+              placeholder="Your job title"
+              [ngModel]="role()"
+              (ngModelChange)="role.set($event)" />
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-2">
+          <ui-label>Bio</ui-label>
+          <ui-textarea
+            placeholder="Tell us a little about yourself"
+            [rows]="4"
+            name="bio"
+            [ngModel]="bio()"
+            (ngModelChange)="bio.set($event)" />
+          <p class="text-xs text-muted-foreground">Brief description shown on your public profile.</p>
+        </div>
+
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div class="flex flex-col gap-2">
+            <ui-label for="profile-location">Location</ui-label>
+            <ui-input
+              elementId="profile-location"
+              name="location"
+              placeholder="City, Country"
+              [ngModel]="location()"
+              (ngModelChange)="location.set($event)" />
+          </div>
+          <div class="flex flex-col gap-2">
+            <ui-label for="profile-website">Website</ui-label>
+            <ui-input
+              elementId="profile-website"
+              name="website"
+              type="url"
+              placeholder="https://example.com"
+              [ngModel]="website()"
+              (ngModelChange)="website.set($event)" />
+          </div>
+        </div>
+      </ui-card-content>
+
+      <ui-card-footer class="flex flex-wrap justify-end gap-2">
+        <ui-button variant="ghost" type="button" label="Cancel" />
+        <ui-button type="submit" label="Save changes" />
+      </ui-card-footer>
+    </ui-card>
+  </form>
+</div>

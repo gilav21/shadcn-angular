@@ -2,111 +2,32 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import prompts from 'prompts';
 import chalk from 'chalk';
-import ora, { type Ora } from 'ora';
-import { getConfig, getPrefix, type Config } from '../utils/config.js';
-import { applyPrefixTransforms, DEFAULT_PREFIX } from '../utils/prefix.js';
-import { registry, getComponentNames, type ComponentDefinition, type ComponentName } from '../registry/index.js';
-import { installPackages } from '../utils/package-manager.js';
-import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
+import ora from 'ora';
+import { getConfig, getPrefix, getBlocksAlias, type Config } from '../utils/config.js';
+import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import {
-    getRegistryBaseUrl,
-    getLibRegistryBaseUrl,
-    getLocalComponentsDir,
-    getLocalLibDir,
     resolveProjectPath,
     aliasToProjectPath,
 } from '../utils/paths.js';
+import {
+    fetchAndTransform,
+    normalizeContent,
+} from '../core/fetch.js';
+import { resolveDependencies } from '../core/resolve.js';
+import {
+    checkFileConflict,
+    classifyComponent,
+    detectConflicts,
+    type AddOptions,
+} from '../core/plan.js';
+import { performInstall } from '../core/install.js';
+
+export { fetchAndTransform, normalizeContent, resolveDependencies, checkFileConflict, classifyComponent, detectConflicts, type AddOptions };
 
 const onCancel = () => {
     console.log(chalk.dim('\nCancelled.'));
     process.exit(0);
 };
-
-export interface AddOptions {
-    yes?: boolean;
-    overwrite?: boolean;
-    all?: boolean;
-    path?: string;
-    remote?: boolean;
-    dryRun?: boolean;
-    branch: string;
-    registry?: string;
-}
-
-interface ConflictCheckResult {
-    toInstall: ComponentName[];
-    toSkip: string[];
-    conflicting: ComponentName[];
-    peerFilesToUpdate: Set<string>;
-    contentCache: Map<string, string>;
-}
-
-export function normalizeContent(str: string): string {
-    return str.replaceAll('\r\n', '\n').trim();
-}
-
-// ---------------------------------------------------------------------------
-// Remote content fetching
-// ---------------------------------------------------------------------------
-
-async function fetchComponentContent(file: string, options: AddOptions): Promise<string> {
-    const localDir = getLocalComponentsDir();
-
-    if (localDir && !options.remote) {
-        const localPath = path.join(localDir, file);
-        if (await fs.pathExists(localPath)) {
-            return fs.readFile(localPath, 'utf-8');
-        }
-    }
-
-    const url = `${getRegistryBaseUrl(options.branch, options.registry)}/${file}`;
-    try {
-        const response = await fetch(url);
-        if (!response.ok) {
-            throw new Error(`Failed to fetch component from ${url}: ${response.statusText}`);
-        }
-        return await response.text();
-    } catch (error) {
-        if (localDir) {
-            throw new Error(`Component file not found locally or remotely: ${file}`);
-        }
-        throw error;
-    }
-}
-
-async function fetchLibContent(file: string, options: AddOptions): Promise<string> {
-    const localDir = getLocalLibDir();
-
-    if (localDir && !options.remote) {
-        const localPath = path.join(localDir, file);
-        if (await fs.pathExists(localPath)) {
-            return fs.readFile(localPath, 'utf-8');
-        }
-    }
-
-    const url = `${getLibRegistryBaseUrl(options.branch, options.registry)}/${file}`;
-    const response = await fetch(url);
-    if (!response.ok) {
-        throw new Error(`Failed to fetch library file from ${url}: ${response.statusText}`);
-    }
-    return response.text();
-}
-
-export async function fetchAndTransform(
-    file: string,
-    options: AddOptions,
-    utilsAlias: string,
-    prefix: string = DEFAULT_PREFIX,
-): Promise<string> {
-    const raw = await fetchComponentContent(file, options);
-    // The `../lib/` → alias rewrite only applies to TypeScript sources.
-    // Template (.html) and style (.css) files are copied verbatim apart
-    // from any prefix rewrite below.
-    const withAlias = file.endsWith('.ts')
-        ? raw.replaceAll(/(\.\.\/)+lib\//g, utilsAlias + '/')
-        : raw;
-    return applyPrefixTransforms(file, withAlias, prefix);
-}
 
 // ---------------------------------------------------------------------------
 // Component selection & dependency resolution
@@ -141,19 +62,6 @@ function validateComponents(names: ComponentName[]): void {
         console.log(chalk.dim('Available components: ' + getComponentNames().join(', ')));
         process.exit(1);
     }
-}
-
-export function resolveDependencies(names: ComponentName[]): Set<ComponentName> {
-    const all = new Set<ComponentName>();
-    const walk = (name: ComponentName) => {
-        if (all.has(name)) return;
-        all.add(name);
-        for (const dep of registry[name].dependencies ?? []) {
-            walk(dep as ComponentName);
-        }
-    };
-    for (const name of names) walk(name);
-    return all;
 }
 
 // ---------------------------------------------------------------------------
@@ -200,140 +108,6 @@ export async function promptOptionalDependencies(
     }, { onCancel });
 
     return selected || [];
-}
-
-// ---------------------------------------------------------------------------
-// Conflict detection
-// ---------------------------------------------------------------------------
-
-export async function checkFileConflict(
-    file: string,
-    targetDir: string,
-    options: AddOptions,
-    utilsAlias: string,
-    contentCache: Map<string, string>,
-    prefix: string = DEFAULT_PREFIX,
-): Promise<'identical' | 'changed' | 'missing'> {
-    const targetPath = path.join(targetDir, file);
-
-    if (!await fs.pathExists(targetPath)) {
-        return 'missing';
-    }
-
-    const localContent = await fs.readFile(targetPath, 'utf-8');
-    try {
-        const remoteContent = await fetchAndTransform(file, options, utilsAlias, prefix);
-        contentCache.set(file, remoteContent);
-
-        return normalizeContent(localContent) === normalizeContent(remoteContent)
-            ? 'identical'
-            : 'changed';
-    } catch {
-        return 'changed';
-    }
-}
-
-async function checkPeerFiles(
-    component: ComponentDefinition,
-    targetDir: string,
-    options: AddOptions,
-    utilsAlias: string,
-    contentCache: Map<string, string>,
-    peerFilesToUpdate: Set<string>,
-    prefix: string,
-): Promise<void> {
-    if (!component.peerFiles) return;
-
-    for (const file of component.peerFiles) {
-        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
-        if (status === 'changed') {
-            peerFilesToUpdate.add(file);
-        }
-    }
-}
-
-export async function classifyComponent(
-    name: ComponentName,
-    targetDir: string,
-    options: AddOptions,
-    utilsAlias: string,
-    contentCache: Map<string, string>,
-    peerFilesToUpdate: Set<string>,
-    prefix: string = DEFAULT_PREFIX,
-): Promise<'install' | 'skip' | 'conflict'> {
-    const component = registry[name];
-    let ownFilesChanged = false;
-    let isFullyPresent = true;
-
-    for (const file of component.files) {
-        const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
-        if (status === 'missing') isFullyPresent = false;
-        if (status === 'changed') ownFilesChanged = true;
-    }
-
-    await checkPeerFiles(
-        component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, prefix,
-    );
-
-    if (options.overwrite) return isFullyPresent ? 'conflict' : 'install';
-    if (isFullyPresent && !ownFilesChanged) return 'skip';
-    if (ownFilesChanged) return 'conflict';
-    return 'install';
-}
-
-class ConcurrencyLimiter {
-    private active = 0;
-    private readonly queue: Array<() => void> = [];
-
-    constructor(private readonly concurrency: number) {}
-
-    async run<T>(fn: () => Promise<T>): Promise<T> {
-        if (this.active >= this.concurrency) {
-            await new Promise<void>(resolve => this.queue.push(resolve));
-        }
-        this.active++;
-        try {
-            return await fn();
-        } finally {
-            this.active--;
-            if (this.queue.length > 0) this.queue.shift()!();
-        }
-    }
-}
-
-export async function detectConflicts(
-    allComponents: Set<ComponentName>,
-    targetDir: string,
-    options: AddOptions,
-    utilsAlias: string,
-    prefix: string = DEFAULT_PREFIX,
-): Promise<ConflictCheckResult> {
-    const toInstall: ComponentName[] = [];
-    const toSkip: string[] = [];
-    const conflicting: ComponentName[] = [];
-    const peerFilesToUpdate = new Set<string>();
-    const contentCache = new Map<string, string>();
-
-    const limiter = new ConcurrencyLimiter(8);
-
-    const results = await Promise.all(
-        [...allComponents].map(name =>
-            limiter.run(async () => ({
-                name,
-                result: await classifyComponent(
-                    name, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, prefix,
-                ),
-            })),
-        ),
-    );
-
-    for (const { name, result } of results) {
-        if (result === 'skip') toSkip.push(name);
-        else if (result === 'conflict') conflicting.push(name);
-        else toInstall.push(name);
-    }
-
-    return { toInstall, toSkip, conflicting, peerFilesToUpdate, contentCache };
 }
 
 // ---------------------------------------------------------------------------
@@ -397,193 +171,8 @@ async function promptOverwrite(
 }
 
 // ---------------------------------------------------------------------------
-// File writing
-// ---------------------------------------------------------------------------
-
-async function writeComponentFiles(
-    component: ComponentDefinition,
-    targetDir: string,
-    options: AddOptions,
-    utilsAlias: string,
-    contentCache: Map<string, string>,
-    spinner: Ora,
-    prefix: string,
-): Promise<boolean> {
-    let success = true;
-
-    for (const file of component.files) {
-        const targetPath = path.join(targetDir, file);
-        try {
-            const content = contentCache.get(file)
-                ?? await fetchAndTransform(file, options, utilsAlias, prefix);
-
-            await fs.ensureDir(path.dirname(targetPath));
-            await fs.writeFile(targetPath, content);
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            spinner.warn(`Could not add ${file}: ${message}`);
-            success = false;
-        }
-    }
-
-    return success;
-}
-
-async function writePeerFiles(
-    component: ComponentDefinition,
-    targetDir: string,
-    options: AddOptions,
-    utilsAlias: string,
-    contentCache: Map<string, string>,
-    peerFilesToUpdate: Set<string>,
-    spinner: Ora,
-    prefix: string,
-): Promise<void> {
-    if (!component.peerFiles) return;
-
-    for (const file of component.peerFiles) {
-        if (!peerFilesToUpdate.has(file)) continue;
-
-        const targetPath = path.join(targetDir, file);
-        try {
-            const content = contentCache.get(file)
-                ?? await fetchAndTransform(file, options, utilsAlias, prefix);
-
-            await fs.ensureDir(path.dirname(targetPath));
-            await fs.writeFile(targetPath, content);
-            spinner.text = `Updated peer file ${file}`;
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            spinner.warn(`Could not update peer file ${file}: ${message}`);
-        }
-    }
-}
-
-async function installSingleLibFile(
-    libFile: string,
-    libDir: string,
-    options: AddOptions,
-): Promise<void> {
-    const targetPath = path.join(libDir, libFile);
-    const content = await fetchLibContent(libFile, options);
-
-    if (!await fs.pathExists(targetPath) || options.overwrite) {
-        await fs.ensureDir(path.dirname(targetPath));
-        await fs.writeFile(targetPath, content);
-        return;
-    }
-
-    const local = normalizeContent(await fs.readFile(targetPath, 'utf-8'));
-    if (local !== normalizeContent(content)) {
-        console.log(chalk.yellow(`  Lib file ${libFile} differs from remote (use --overwrite to update)`));
-    }
-}
-
-async function installLibFiles(
-    allComponents: Set<ComponentName>,
-    cwd: string,
-    libDir: string,
-    options: AddOptions,
-): Promise<void> {
-    const required = new Set<string>();
-    for (const name of allComponents) {
-        for (const f of registry[name].libFiles ?? []) required.add(f);
-    }
-
-    if (required.size === 0) return;
-
-    await fs.ensureDir(libDir);
-    for (const libFile of required) {
-        try {
-            await installSingleLibFile(libFile, libDir, options);
-        } catch (err: unknown) {
-            const message = err instanceof Error ? err.message : String(err);
-            console.warn(chalk.yellow(`Could not install lib file ${libFile}: ${message}`));
-        }
-    }
-}
-
-async function installNpmDependencies(
-    finalComponents: ComponentName[],
-    cwd: string,
-): Promise<void> {
-    const deps = new Set<string>();
-    for (const name of finalComponents) {
-        for (const dep of registry[name].npmDependencies ?? []) deps.add(dep);
-    }
-
-    if (deps.size === 0) return;
-
-    const spinner = ora('Installing dependencies...').start();
-    try {
-        await installPackages(Array.from(deps), { cwd });
-        spinner.succeed('Dependencies installed.');
-    } catch (e: unknown) {
-        spinner.fail('Failed to install dependencies.');
-        if (e && typeof e === 'object' && 'stderr' in e && typeof e.stderr === 'string') {
-            console.error(chalk.red(e.stderr));
-        } else {
-            console.error(e);
-        }
-    }
-}
-
-async function ensureShortcutService(
-    targetDir: string,
-    cwd: string,
-    config: Config,
-    options: AddOptions,
-): Promise<void> {
-    const entries = collectInstalledShortcutEntries(targetDir);
-
-    if (entries.length > 0) {
-        const libDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.utils));
-        const servicePath = path.join(libDir, 'shortcut-binding.service.ts');
-        if (!await fs.pathExists(servicePath)) {
-            const content = await fetchLibContent('shortcut-binding.service.ts', options);
-            await fs.ensureDir(libDir);
-            await fs.writeFile(servicePath, content);
-        }
-    }
-
-    await writeShortcutRegistryIndex(cwd, config, entries);
-}
-
-function collectInstalledShortcutEntries(targetDir: string): ShortcutRegistryEntry[] {
-    const entries: ShortcutRegistryEntry[] = [];
-    for (const definition of Object.values(registry)) {
-        if (!definition.shortcutDefinitions?.length) continue;
-        for (const sd of definition.shortcutDefinitions) {
-            if (fs.existsSync(path.join(targetDir, sd.sourceFile))) {
-                entries.push(sd);
-            }
-        }
-    }
-    return entries;
-}
-
-// ---------------------------------------------------------------------------
 // Peer file & summary helpers
 // ---------------------------------------------------------------------------
-
-function pruneDeclinedPeerFiles(
-    declined: ComponentName[],
-    finalComponents: ComponentName[],
-    peerFilesToUpdate: Set<string>,
-): void {
-    for (const name of declined) {
-        const component = registry[name];
-        if (!component.peerFiles) continue;
-        for (const file of component.peerFiles) {
-            const stillNeeded = finalComponents.some(fc =>
-                registry[fc].peerFiles?.includes(file),
-            );
-            if (!stillNeeded) {
-                peerFilesToUpdate.delete(file);
-            }
-        }
-    }
-}
 
 function printNothingToInstall(toSkip: string[], declined: ComponentName[]): void {
     if (toSkip.length > 0 || declined.length > 0) {
@@ -623,6 +212,27 @@ function printSkipSummary(toSkip: string[], declined: ComponentName[]): void {
     }
 }
 
+/**
+ * Resolve where component vs block files install. With a block in the set,
+ * `--path` (or an interactive prompt) targets the block destination and
+ * components fall back to `aliases.ui`. Without a block, `--path` keeps its
+ * original component-target meaning.
+ */
+async function resolveBlockDestination(
+    hasBlock: boolean, options: AddOptions, config: Config,
+): Promise<{ componentPath?: string; blocksPath?: string }> {
+    if (!hasBlock) return { componentPath: options.path };
+    if (options.path) return { blocksPath: options.path };
+    if (options.yes) return {};
+    const { dest } = await prompts({
+        type: 'text',
+        name: 'dest',
+        message: 'Where should blocks be installed?',
+        initial: aliasToProjectPath(getBlocksAlias(config)),
+    }, { onCancel });
+    return { blocksPath: dest || undefined };
+}
+
 // ---------------------------------------------------------------------------
 // Main entry point
 // ---------------------------------------------------------------------------
@@ -655,62 +265,54 @@ export async function add(components: string[], options: AddOptions) {
     const allComponents = optionalChoices.length > 0
         ? resolveDependencies([...resolvedComponents, ...optionalChoices])
         : resolvedComponents;
-    const uiBasePath = options.path ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
+
+    const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
+    const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
+
+    const uiBasePath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const targetDir = resolveProjectPath(cwd, uiBasePath);
     const utilsAlias = config.aliases.utils;
     const prefix = getPrefix(config);
 
     const checkSpinner = ora('Checking for conflicts...').start();
-    const { toInstall, toSkip, conflicting, peerFilesToUpdate, contentCache } =
-        await detectConflicts(allComponents, targetDir, options, utilsAlias, prefix);
+    const conflicts = await detectConflicts(allComponents, targetDir, options, utilsAlias, prefix);
+    const { toInstall, toSkip, conflicting, contentCache } = conflicts;
     checkSpinner.stop();
 
     const toOverwrite = await promptOverwrite(conflicting, options, targetDir, contentCache);
-    const finalComponents = [...toInstall, ...toOverwrite];
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
-
-    pruneDeclinedPeerFiles(declined, finalComponents, peerFilesToUpdate);
 
     if (options.dryRun) {
         printDryRunSummary(toInstall, toOverwrite, toSkip, declined);
         return;
     }
 
-    if (finalComponents.length === 0) {
+    if (toInstall.length === 0 && toOverwrite.length === 0) {
         printNothingToInstall(toSkip, declined);
         return;
     }
 
     const spinner = ora('Installing components...').start();
-    let successCount = 0;
 
     try {
-        await fs.ensureDir(targetDir);
+        const result = await performInstall({
+            components: componentsToAdd,
+            optionalDeps: optionalChoices,
+            overwrite: toOverwrite,
+            cwd, config, options, path: componentPath, blocksPath,
+            precomputedConflicts: conflicts,
+        });
 
-        for (const name of finalComponents) {
-            const component = registry[name];
-            const ok = await writeComponentFiles(component, targetDir, options, utilsAlias, contentCache, spinner, prefix);
-            await writePeerFiles(component, targetDir, options, utilsAlias, contentCache, peerFilesToUpdate, spinner, prefix);
-            if (ok) {
-                successCount++;
-                spinner.text = `Added ${name}`;
-            }
-        }
-
-        if (successCount > 0) {
-            spinner.succeed(chalk.green(`Success! Added ${successCount} component(s)`));
+        if (result.installed.length > 0) {
+            spinner.succeed(chalk.green(`Success! Added ${result.installed.length} component(s)`));
             console.log('\n' + chalk.dim('Components added:'));
-            for (const name of finalComponents) console.log(chalk.dim('  - ') + chalk.cyan(name));
+            for (const name of result.installed) console.log(chalk.dim('  - ') + chalk.cyan(name));
         } else {
             spinner.info('No new components installed.');
         }
 
-        const libDir = resolveProjectPath(cwd, aliasToProjectPath(utilsAlias));
-        await installLibFiles(new Set(finalComponents), cwd, libDir, options);
-        await installNpmDependencies(finalComponents, cwd);
-        await ensureShortcutService(targetDir, cwd, config, options);
-
-        printSkipSummary(toSkip, declined);
+        for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
+        printSkipSummary(result.skipped, result.declined);
         console.log('');
     } catch (error) {
         spinner.fail('Failed to add components');

@@ -1,55 +1,55 @@
 import chalk from 'chalk';
-import { registry, getComponentNames } from '../registry/index.js';
+import { registry, getComponentNames, CATEGORIES, type Category } from '../registry/index.js';
 
-type Category = 'UI' | 'Charts' | 'Layout / Page Building' | 'Animation' | 'Kanban';
+const CATEGORY_LABELS: Record<Category, string> = {
+  form: 'Form',
+  navigation: 'Navigation',
+  layout: 'Layout',
+  overlay: 'Overlay',
+  'data-display': 'Data Display',
+  feedback: 'Feedback',
+  charts: 'Charts',
+  animation: 'Animation',
+  media: 'Media',
+  editor: 'Editor',
+  utility: 'Utility',
+  auth: 'Auth',
+  dashboard: 'Dashboard',
+  settings: 'Settings',
+  marketing: 'Marketing',
+};
 
-const CATEGORY_ORDER: readonly Category[] = ['UI', 'Charts', 'Layout / Page Building', 'Animation', 'Kanban'];
+const BLOCK_CATEGORIES: readonly Category[] = ['auth', 'dashboard', 'settings', 'marketing'];
 
-const ANIMATION_COMPONENTS = new Set([
-  'gradient-text', 'flip-text', 'meteors', 'shine-border', 'scroll-progress',
-  'blur-fade', 'ripple', 'marquee', 'word-rotate', 'morphing-text',
-  'typing-animation', 'wobble-card', 'magnetic', 'orbit', 'stagger-children',
-  'particles', 'confetti', 'number-ticker', 'text-reveal', 'streaming-text', 'sparkles',
-]);
-
-const KANBAN_COMPONENTS = new Set(['kanban']);
-
-const LAYOUT_COMPONENTS = new Set(['bento-grid', 'page-builder', 'page-renderer']);
-
-function categorize(name: string): Category {
-  if (!(name in registry)) return 'UI';
-  const def = registry[name as keyof typeof registry];
-
-  // Post-refactor, chart components live in their own folders but share
-  // `chart.types.ts` / `chart.utils.ts` via `libFiles` — that's the reliable
-  // signal regardless of where their source files live.
-  const isChart = def.libFiles?.some(f => f === 'chart.types.ts' || f === 'chart.utils.ts');
-  if (isChart) return 'Charts';
-
-  if (LAYOUT_COMPONENTS.has(name)) return 'Layout / Page Building';
-  if (ANIMATION_COMPONENTS.has(name)) return 'Animation';
-  if (KANBAN_COMPONENTS.has(name)) return 'Kanban';
-
-  return 'UI';
-}
-
-function buildComponentsByCategory(): Map<Category, readonly string[]> {
-  const groups = new Map<Category, string[]>();
-
-  for (const cat of CATEGORY_ORDER) {
-    groups.set(cat, []);
-  }
-
+/**
+ * Group every non-block component under its declared `category` (slug-keyed).
+ * Components without a category fall back to `'utility'`. Blocks are excluded
+ * (see {@link groupBlocks}).
+ */
+export function groupByCategory(): Record<string, string[]> {
+  const groups: Record<string, string[]> = {};
   for (const name of getComponentNames()) {
-    const cat = categorize(name);
-    const list = groups.get(cat);
-    if (list) list.push(name);
+    if (registry[name].type === 'block') continue;
+    const cat = registry[name].category ?? 'utility';
+    (groups[cat] ??= []).push(name);
   }
-
-  for (const list of groups.values()) {
+  for (const list of Object.values(groups)) {
     list.sort((a, b) => a.localeCompare(b));
   }
+  return groups;
+}
 
+/** Group block entries (`type:'block'`) under their block-family category. */
+export function groupBlocks(): Record<string, string[]> {
+  const groups: Record<string, string[]> = {};
+  for (const name of getComponentNames()) {
+    if (registry[name].type !== 'block') continue;
+    const cat = registry[name].category ?? 'utility';
+    (groups[cat] ??= []).push(name);
+  }
+  for (const list of Object.values(groups)) {
+    list.sort((a, b) => a.localeCompare(b));
+  }
   return groups;
 }
 
@@ -110,22 +110,41 @@ function buildOptionalDepsSection(): string[] {
 }
 
 function buildComponentsSection(): string[] {
-  const groups = buildComponentsByCategory();
+  const groups = groupByCategory();
   const lines: string[] = [
     chalk.bold('Available Components'),
     '',
   ];
 
-  for (const [category, names] of groups) {
-    if (names.length === 0) continue;
+  for (const category of CATEGORIES) {
+    const names = groups[category];
+    if (!names || names.length === 0) continue;
     const countLabel = chalk.gray('(' + String(names.length) + ')');
     lines.push(
-      '  ' + chalk.yellow(category) + ' ' + countLabel,
+      '  ' + chalk.yellow(CATEGORY_LABELS[category]) + ' ' + countLabel,
       formatComponentList(names),
       '',
     );
   }
 
+  return lines;
+}
+
+function buildBlocksSection(): string[] {
+  const groups = groupBlocks();
+  if (Object.keys(groups).length === 0) return [];
+
+  const lines: string[] = [chalk.bold('Available Blocks'), ''];
+  for (const category of BLOCK_CATEGORIES) {
+    const names = groups[category];
+    if (!names || names.length === 0) continue;
+    const countLabel = chalk.gray('(' + String(names.length) + ')');
+    lines.push(
+      '  ' + chalk.yellow(CATEGORY_LABELS[category]) + ' ' + countLabel,
+      formatComponentList(names),
+      '',
+    );
+  }
   return lines;
 }
 
@@ -137,6 +156,7 @@ export function help(): void {
     ...buildCommandsSection(),
     ...buildOptionalDepsSection(),
     ...buildComponentsSection(),
+    ...buildBlocksSection(),
   ];
 
   console.log(output.join('\n'));

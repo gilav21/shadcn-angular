@@ -49,7 +49,7 @@ import {
   DropdownMenuSeparatorComponent,
 } from '../../../packages/components/ui';
 
-export type ComponentCategory = 'Inputs' | 'Layout' | 'Navigation' | 'Overlay' | 'Data Display' | 'Feedback' | 'Charts' | 'Animations' | 'Patterns';
+export type ComponentCategory = 'Inputs' | 'Layout' | 'Navigation' | 'Overlay' | 'Data Display' | 'Feedback' | 'Charts' | 'Animations' | 'Patterns' | 'Blocks';
 
 export interface ComponentNavItem {
   readonly id: string;
@@ -269,6 +269,18 @@ export class AppComponent {
     { id: 'page-builder', name: 'Page Builder', category: 'Patterns', icon: '🏗️' },
     { id: 'page-renderer', name: 'Page Renderer', category: 'Patterns', icon: '📄' },
     { id: 'tour', name: 'Tour', category: 'Patterns', icon: '🧭' },
+
+    // Blocks
+    { id: 'login', name: 'Login', category: 'Blocks', icon: '🔑' },
+    { id: 'signup', name: 'Signup', category: 'Blocks', icon: '📝' },
+    { id: 'forgot-password', name: 'Forgot Password', category: 'Blocks', icon: '🔁' },
+    { id: 'dashboard', name: 'Dashboard', category: 'Blocks', icon: '📊' },
+    { id: 'settings-profile', name: 'Settings — Profile', category: 'Blocks', icon: '⚙️' },
+    { id: 'settings-account', name: 'Settings — Account', category: 'Blocks', icon: '🔐' },
+    { id: 'hero', name: 'Hero', category: 'Blocks', icon: '🚀' },
+    { id: 'features', name: 'Features', category: 'Blocks', icon: '✨' },
+    { id: 'faq', name: 'FAQ', category: 'Blocks', icon: '❓' },
+    { id: 'pricing', name: 'Pricing', category: 'Blocks', icon: '💳' },
   ];
 
   readonly categories = computed(() => {

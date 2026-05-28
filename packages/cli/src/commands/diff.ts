@@ -1,10 +1,8 @@
-import fs from 'fs-extra';
-import path from 'node:path';
 import chalk from 'chalk';
 import { getConfig } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { fetchAndTransform, normalizeContent } from './add.js';
+import { diffComponentFiles } from '../core/diff-core.js';
 
 interface DiffOptions {
     branch: string;
@@ -12,79 +10,15 @@ interface DiffOptions {
     registry?: string;
 }
 
-function formatLineDiff(localLine: string | undefined, remoteLine: string | undefined): string[] {
-    if (localLine !== undefined && remoteLine !== undefined) {
-        return [chalk.red(`- ${localLine}`), chalk.green(`+ ${remoteLine}`)];
-    }
-    if (localLine === undefined) {
-        return [chalk.green(`+ ${remoteLine}`)];
-    }
-    return [chalk.red(`- ${localLine}`)];
-}
-
-export function formatUnifiedDiff(fileName: string, localContent: string, remoteContent: string): string {
-    const localLines = localContent.split('\n');
-    const remoteLines = remoteContent.split('\n');
-    const output: string[] = [
-        chalk.bold(`--- local/${fileName}`),
-        chalk.bold(`+++ remote/${fileName}`),
-    ];
-
-    const maxLines = Math.max(localLines.length, remoteLines.length);
-    let diffFound = false;
-
-    for (let i = 0; i < maxLines; i++) {
-        const localLine = localLines[i];
-        const remoteLine = remoteLines[i];
-
-        if (localLine === remoteLine) continue;
-
-        diffFound = true;
-        output.push(chalk.cyan(`@@ line ${i + 1} @@`), ...formatLineDiff(localLine, remoteLine));
-    }
-
-    return diffFound ? output.join('\n') : '';
-}
-
-async function diffFile(
-    file: string,
-    targetDir: string,
-    options: DiffOptions,
-    utilsAlias: string,
-): Promise<string | null> {
-    const targetPath = path.join(targetDir, file);
-    if (!await fs.pathExists(targetPath)) return null;
-
-    try {
-        const localContent = normalizeContent(await fs.readFile(targetPath, 'utf-8'));
-        const remoteContent = normalizeContent(
-            await fetchAndTransform(file, { branch: options.branch, remote: options.remote, registry: options.registry }, utilsAlias),
-        );
-
-        if (localContent === remoteContent) return null;
-
-        const diffOutput = formatUnifiedDiff(file, localContent, remoteContent);
-        return diffOutput || null;
-    } catch {
-        return chalk.yellow(`  Could not fetch remote version of ${file}`);
-    }
-}
-
-async function diffComponent(
-    name: ComponentName,
-    targetDir: string,
-    options: DiffOptions,
-    utilsAlias: string,
-): Promise<string[]> {
-    const component = registry[name];
-    const fileDiffs: string[] = [];
-
-    for (const file of component.files) {
-        const result = await diffFile(file, targetDir, options, utilsAlias);
-        if (result) fileDiffs.push(result);
-    }
-
-    return fileDiffs;
+/** Re-apply the CLI's colors to the plain unified diff produced by core. */
+function colorizeDiff(diff: string): string {
+    return diff.split('\n').map(line => {
+        if (line.startsWith('--- ') || line.startsWith('+++ ')) return chalk.bold(line);
+        if (line.startsWith('@@')) return chalk.cyan(line);
+        if (line.startsWith('-')) return chalk.red(line);
+        if (line.startsWith('+')) return chalk.green(line);
+        return line;
+    }).join('\n');
 }
 
 export async function diff(components: string[], options: DiffOptions) {
@@ -117,11 +51,19 @@ export async function diff(components: string[], options: DiffOptions) {
             continue;
         }
 
-        const fileDiffs = await diffComponent(name, targetDir, options, utilsAlias);
-        if (fileDiffs.length > 0) {
+        const cd = await diffComponentFiles(
+            name, targetDir,
+            { branch: options.branch, remote: options.remote, registry: options.registry },
+            utilsAlias,
+        );
+
+        if (cd.hasChanges) {
             totalDiffs++;
             console.log(chalk.bold.cyan(`\n${name}:`));
-            for (const d of fileDiffs) console.log(d);
+            for (const f of cd.files) {
+                if (f.diff) console.log(colorizeDiff(f.diff));
+                if (f.error) console.log(chalk.yellow(`  Could not fetch remote version of ${f.file}`));
+            }
         }
     }
 
