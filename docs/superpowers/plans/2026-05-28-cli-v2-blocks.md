@@ -932,3 +932,4 @@ Review gate bar: **≥95**.
 | T3 update | 2026-05-28 | 95 | `update` resolves named/installed targets, diffs via core/diff-core, applies forced-overwrite via performInstall; `--dry-run`; pure resolveUpdateTargets; 3 tests. |
 | T4 block primitives | 2026-05-28 | 96 | `type` discriminator + 4 block categories + `aliases.blocks`/`getBlocksAlias` (Pick) + optional validation; coverage test gates block categories; help labels kept exhaustive; 187 tests. |
 | T5 block fetch routing | 2026-05-28 | 97 | `getBlockRegistryBaseUrl`/`getLocalBlocksDir` (→ packages/blocks); `SourceKind` threaded through fetch with 'component' default; component+block routing tests; 189 tests. |
+| T6 block install routing | 2026-05-28 | 97 | performInstall routes block entries → blocksBase (kind:block), deps → ui; `blocksPath` input; per-entry ensureDir; backward-compatible defaults; 5 install tests green (block-install test deferred to T12). |

@@ -1,9 +1,9 @@
 import fs from 'fs-extra';
 import path from 'node:path';
-import { fetchAndTransform, fetchLibContent, normalizeContent } from './fetch.js';
+import { fetchAndTransform, fetchLibContent, normalizeContent, type SourceKind } from './fetch.js';
 import { resolveDependencies } from './resolve.js';
 import { detectConflicts, summarizePlan, type AddOptions, type ConflictCheckResult, type InstallPlan } from './plan.js';
-import { type Config, getPrefix } from '../utils/config.js';
+import { type Config, getPrefix, getBlocksAlias } from '../utils/config.js';
 import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
@@ -20,12 +20,13 @@ export interface InstallResult {
 async function writeComponentFiles(
     component: ComponentDefinition, targetDir: string, options: AddOptions,
     utilsAlias: string, contentCache: Map<string, string>, prefix: string, warnings: string[],
+    kind: SourceKind = 'component',
 ): Promise<boolean> {
     let success = true;
     for (const file of component.files) {
         const targetPath = path.join(targetDir, file);
         try {
-            const content = contentCache.get(file) ?? await fetchAndTransform(file, options, utilsAlias, prefix);
+            const content = contentCache.get(file) ?? await fetchAndTransform(file, options, utilsAlias, prefix, kind);
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
         } catch (err: unknown) {
@@ -39,13 +40,14 @@ async function writeComponentFiles(
 async function writePeerFiles(
     component: ComponentDefinition, targetDir: string, options: AddOptions, utilsAlias: string,
     contentCache: Map<string, string>, peerFilesToUpdate: Set<string>, prefix: string, warnings: string[],
+    kind: SourceKind = 'component',
 ): Promise<void> {
     if (!component.peerFiles) return;
     for (const file of component.peerFiles) {
         if (!peerFilesToUpdate.has(file)) continue;
         const targetPath = path.join(targetDir, file);
         try {
-            const content = contentCache.get(file) ?? await fetchAndTransform(file, options, utilsAlias, prefix);
+            const content = contentCache.get(file) ?? await fetchAndTransform(file, options, utilsAlias, prefix, kind);
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
         } catch (err: unknown) {
@@ -130,8 +132,10 @@ export interface InstallInput {
     cwd: string;
     config: Config;
     options: AddOptions;
-    /** Override the UI target dir (else derived from config.aliases.ui). */
+    /** Override the UI target dir for component entries (else config.aliases.ui). */
     path?: string;
+    /** Override the destination for block entries (else config.aliases.blocks). */
+    blocksPath?: string;
     /**
      * Conflict detection the caller already ran. The interactive `add` command
      * passes this so the file set isn't detected (and remote files re-fetched)
@@ -188,12 +192,18 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
         return { installed: [], skipped: result.toSkip, declined, warnings };
     }
 
-    await fs.ensureDir(targetDir);
+    const blocksBase = resolveProjectPath(
+        input.cwd, input.blocksPath ?? aliasToProjectPath(getBlocksAlias(input.config)),
+    );
     const installed: ComponentName[] = [];
     for (const name of finalComponents) {
         const component = registry[name];
-        const ok = await writeComponentFiles(component, targetDir, input.options, utilsAlias, result.contentCache, prefix, warnings);
-        await writePeerFiles(component, targetDir, input.options, utilsAlias, result.contentCache, result.peerFilesToUpdate, prefix, warnings);
+        const isBlock = component.type === 'block';
+        const dir = isBlock ? blocksBase : targetDir;
+        const kind: SourceKind = isBlock ? 'block' : 'component';
+        await fs.ensureDir(dir);
+        const ok = await writeComponentFiles(component, dir, input.options, utilsAlias, result.contentCache, prefix, warnings, kind);
+        await writePeerFiles(component, dir, input.options, utilsAlias, result.contentCache, result.peerFilesToUpdate, prefix, warnings, kind);
         if (ok) installed.push(name);
     }
 
