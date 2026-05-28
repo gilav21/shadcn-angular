@@ -155,3 +155,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T2 doctor | 2026-05-28 | 95 | `doctor` drift report via detectConflicts + missing npm deps; pure collector + exit-1 wrapper; 2 tests. |
 | T3 update | 2026-05-28 | 95 | `update` diffs installed/named + applies overwrite via performInstall; `--dry-run`; 3 tests. |
 | T4 block primitives | 2026-05-28 | 96 | `type` field + block categories + `aliases.blocks`/`getBlocksAlias`; coverage test extended; 187 tests. |
+| T5 block fetch routing | 2026-05-28 | 97 | block base url + local dir; SourceKind threaded through fetch; routing tests; 189 tests. |

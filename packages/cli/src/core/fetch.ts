@@ -4,8 +4,10 @@ import { applyPrefixTransforms, DEFAULT_PREFIX } from '../utils/prefix.js';
 import {
     getRegistryBaseUrl,
     getLibRegistryBaseUrl,
+    getBlockRegistryBaseUrl,
     getLocalComponentsDir,
     getLocalLibDir,
+    getLocalBlocksDir,
 } from '../utils/paths.js';
 
 export interface FetchOptions {
@@ -14,28 +16,36 @@ export interface FetchOptions {
     registry?: string;
 }
 
+/** Which source root a file is fetched from. */
+export type SourceKind = 'component' | 'block';
+
 export function normalizeContent(str: string): string {
     return str.replaceAll('\r\n', '\n').trim();
 }
 
-export async function fetchComponentContent(file: string, options: FetchOptions): Promise<string> {
-    const localDir = getLocalComponentsDir();
+export async function fetchComponentContent(
+    file: string, options: FetchOptions, kind: SourceKind = 'component',
+): Promise<string> {
+    const localDir = kind === 'block' ? getLocalBlocksDir() : getLocalComponentsDir();
     if (localDir && !options.remote) {
         const localPath = path.join(localDir, file);
         if (await fs.pathExists(localPath)) {
             return fs.readFile(localPath, 'utf-8');
         }
     }
-    const url = `${getRegistryBaseUrl(options.branch, options.registry)}/${file}`;
+    const baseUrl = kind === 'block'
+        ? getBlockRegistryBaseUrl(options.branch, options.registry)
+        : getRegistryBaseUrl(options.branch, options.registry);
+    const url = `${baseUrl}/${file}`;
     try {
         const response = await fetch(url);
         if (!response.ok) {
-            throw new Error(`Failed to fetch component from ${url}: ${response.statusText}`);
+            throw new Error(`Failed to fetch from ${url}: ${response.statusText}`);
         }
         return await response.text();
     } catch (error) {
         if (localDir) {
-            throw new Error(`Component file not found locally or remotely: ${file}`);
+            throw new Error(`File not found locally or remotely: ${file}`);
         }
         throw error;
     }
@@ -62,8 +72,9 @@ export async function fetchAndTransform(
     options: FetchOptions,
     utilsAlias: string,
     prefix: string = DEFAULT_PREFIX,
+    kind: SourceKind = 'component',
 ): Promise<string> {
-    const raw = await fetchComponentContent(file, options);
+    const raw = await fetchComponentContent(file, options, kind);
     // The `../lib/` → alias rewrite only applies to TypeScript sources.
     // Template (.html) and style (.css) files are copied verbatim apart
     // from any prefix rewrite below.
