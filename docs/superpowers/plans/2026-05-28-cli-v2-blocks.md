@@ -941,3 +941,12 @@ Review gate bar: **≥95**.
 | T13 dashboard block | 2026-05-28 | 97 | `packages/blocks/dashboard` (cards/bar-chart/table/avatar/badge); responsive grid + overflow-x-auto; logical `text-end` RTL; registry type:block/dashboard; fixture `ng build` SUCCEEDED. (2 rounds) |
 | T14 settings-profile | 2026-05-28 | 96 | `packages/blocks/settings-profile` (card/input/textarea/label/avatar/button/separator); computed initials; responsive grid + form ngSubmit; registry type:block/settings; fixture `ng build` SUCCEEDED. |
 | T15 pricing block | 2026-05-28 | 97 | `packages/blocks/pricing` (card/button/badge/separator/icon); 3 tiers, highlighted plan via cn, icon check features, md:grid-cols-3 equal-height; registry type:block/marketing; fixture `ng build` SUCCEEDED. |
+| T16 e2e + regression | 2026-05-28 | verified | Installed all 4 blocks together into fixture via CLI → `ng build` SUCCEEDED; smoked search/doctor(exit 0)/update --dry-run/list(Blocks section). Full CLI suite 192 tests, sync clean (blocks validated), build clean. Fixture reset. |
+
+## Publish note
+
+Bundled with the MCP server work in PR #68 (same branch `claude/mcp-server`). Registry
+changes (new commands don't change the registry, but the 4 block entries + `type`/block
+categories do) → **publish `@gilav21/shadcn-angular` on merge**. New deps already added by
+the MCP work (`@modelcontextprotocol/sdk`, `zod`). Spec B (full block catalog) is post-publish,
+incremental — each new block ships as a registry entry without re-releasing the mechanism.
