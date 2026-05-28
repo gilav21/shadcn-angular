@@ -18,8 +18,9 @@ import {
     normalizeContent,
     type FetchOptions,
 } from '../core/fetch.js';
+import { resolveDependencies } from '../core/resolve.js';
 
-export { fetchAndTransform, normalizeContent };
+export { fetchAndTransform, normalizeContent, resolveDependencies };
 
 const onCancel = () => {
     console.log(chalk.dim('\nCancelled.'));
@@ -75,19 +76,6 @@ function validateComponents(names: ComponentName[]): void {
         console.log(chalk.dim('Available components: ' + getComponentNames().join(', ')));
         process.exit(1);
     }
-}
-
-export function resolveDependencies(names: ComponentName[]): Set<ComponentName> {
-    const all = new Set<ComponentName>();
-    const walk = (name: ComponentName) => {
-        if (all.has(name)) return;
-        all.add(name);
-        for (const dep of registry[name].dependencies ?? []) {
-            walk(dep as ComponentName);
-        }
-    };
-    for (const name of names) walk(name);
-    return all;
 }
 
 // ---------------------------------------------------------------------------
