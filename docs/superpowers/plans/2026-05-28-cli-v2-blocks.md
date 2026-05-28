@@ -928,3 +928,4 @@ Review gate bar: **≥95**.
 | Task | Completed | Score | Rationale |
 |---|---|---|---|
 | T1 search | 2026-05-28 | 96 | `search` command wraps core/search; ranked output + `--json` + usage; registered with variadic arg; 3 tests; clean reuse, no any. |
+| T2 doctor | 2026-05-28 | 95 | `doctor` maps detectConflicts→missing/modified + missing npm deps; pure `collectDoctorReport` + exit-1-on-issues wrapper; reuses core/plan; 2 tests. |

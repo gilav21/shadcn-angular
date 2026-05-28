@@ -152,3 +152,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | Task | Completed | Score | Rationale |
 |---|---|---|---|
 | T1 search | 2026-05-28 | 96 | `search` command over core/search; ranked + `--json` + usage; 3 tests. |
+| T2 doctor | 2026-05-28 | 95 | `doctor` drift report via detectConflicts + missing npm deps; pure collector + exit-1 wrapper; 2 tests. |
