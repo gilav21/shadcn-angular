@@ -942,6 +942,7 @@ Review gate bar: **≥95**.
 | T14 settings-profile | 2026-05-28 | 96 | `packages/blocks/settings-profile` (card/input/textarea/label/avatar/button/separator); computed initials; responsive grid + form ngSubmit; registry type:block/settings; fixture `ng build` SUCCEEDED. |
 | T15 pricing block | 2026-05-28 | 97 | `packages/blocks/pricing` (card/button/badge/separator/icon); 3 tiers, highlighted plan via cn, icon check features, md:grid-cols-3 equal-height; registry type:block/marketing; fixture `ng build` SUCCEEDED. |
 | T16 e2e + regression | 2026-05-28 | verified | Installed all 4 blocks together into fixture via CLI → `ng build` SUCCEEDED; smoked search/doctor(exit 0)/update --dry-run/list(Blocks section). Full CLI suite 192 tests, sync clean (blocks validated), build clean. Fixture reset. |
+| T17 demo pages | 2026-05-28 | 97 | Demo-app showcase pages for the 4 blocks (demos/blocks/) + "Blocks" nav category (union+links) + 10-locale labels; framed-preview presentation, login `min-h-0` override; demo `ng build` passed. Reviewer verified imports/outputs/route↔nav-id alignment against the block barrels. |
 
 ## Publish note
 

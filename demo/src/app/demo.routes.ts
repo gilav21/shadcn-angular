@@ -111,6 +111,12 @@ export const DEMO_ROUTES: Routes = [
   { path: 'page-builder', loadComponent: () => import('./demos/patterns/page-builder-demo.component').then(m => m.PageBuilderDemoComponent) },
   { path: 'page-renderer', loadComponent: () => import('./demos/patterns/page-renderer-demo.component').then(m => m.PageRendererDemoComponent) },
 
+  // Blocks
+  { path: 'login', loadComponent: () => import('./demos/blocks/login-block-demo.component').then(m => m.LoginBlockDemoComponent) },
+  { path: 'dashboard', loadComponent: () => import('./demos/blocks/dashboard-block-demo.component').then(m => m.DashboardBlockDemoComponent) },
+  { path: 'settings-profile', loadComponent: () => import('./demos/blocks/settings-profile-block-demo.component').then(m => m.SettingsProfileBlockDemoComponent) },
+  { path: 'pricing', loadComponent: () => import('./demos/blocks/pricing-block-demo.component').then(m => m.PricingBlockDemoComponent) },
+
   // Wildcard
   { path: '**', redirectTo: '' },
 ];

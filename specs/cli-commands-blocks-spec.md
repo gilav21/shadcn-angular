@@ -166,3 +166,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T14 settings-profile | 2026-05-28 | 96 | profile settings form (card/input/textarea/label/avatar/button/separator); fixture ng build passed. |
 | T15 pricing block | 2026-05-28 | 97 | 3-tier pricing (card/button/badge/separator/icon); highlighted plan; fixture ng build passed. |
 | T16 e2e + regression | 2026-05-28 | verified | All 4 blocks installed together → fixture ng build passed; search/doctor/update/list smoked; 192 tests, sync clean. |
+| T17 demo pages | 2026-05-28 | 97 | Demo-app showcase pages for the 4 blocks under demos/blocks/ + new "Blocks" nav category + 10-locale labels; framed-preview presentation; demo ng build passed. Imports/outputs/route↔nav ids all verified against the block barrels. |
