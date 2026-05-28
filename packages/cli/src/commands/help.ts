@@ -19,13 +19,31 @@ const CATEGORY_LABELS: Record<Category, string> = {
   marketing: 'Marketing',
 };
 
+const BLOCK_CATEGORIES: readonly Category[] = ['auth', 'dashboard', 'settings', 'marketing'];
+
 /**
- * Group every registry component under its declared `category` (slug-keyed).
- * Components without a category fall back to `'utility'`.
+ * Group every non-block component under its declared `category` (slug-keyed).
+ * Components without a category fall back to `'utility'`. Blocks are excluded
+ * (see {@link groupBlocks}).
  */
 export function groupByCategory(): Record<string, string[]> {
   const groups: Record<string, string[]> = {};
   for (const name of getComponentNames()) {
+    if (registry[name].type === 'block') continue;
+    const cat = registry[name].category ?? 'utility';
+    (groups[cat] ??= []).push(name);
+  }
+  for (const list of Object.values(groups)) {
+    list.sort((a, b) => a.localeCompare(b));
+  }
+  return groups;
+}
+
+/** Group block entries (`type:'block'`) under their block-family category. */
+export function groupBlocks(): Record<string, string[]> {
+  const groups: Record<string, string[]> = {};
+  for (const name of getComponentNames()) {
+    if (registry[name].type !== 'block') continue;
     const cat = registry[name].category ?? 'utility';
     (groups[cat] ??= []).push(name);
   }
@@ -112,6 +130,24 @@ function buildComponentsSection(): string[] {
   return lines;
 }
 
+function buildBlocksSection(): string[] {
+  const groups = groupBlocks();
+  if (Object.keys(groups).length === 0) return [];
+
+  const lines: string[] = [chalk.bold('Available Blocks'), ''];
+  for (const category of BLOCK_CATEGORIES) {
+    const names = groups[category];
+    if (!names || names.length === 0) continue;
+    const countLabel = chalk.gray('(' + String(names.length) + ')');
+    lines.push(
+      '  ' + chalk.yellow(CATEGORY_LABELS[category]) + ' ' + countLabel,
+      formatComponentList(names),
+      '',
+    );
+  }
+  return lines;
+}
+
 export function help(): void {
   const output = [
     '',
@@ -120,6 +156,7 @@ export function help(): void {
     ...buildCommandsSection(),
     ...buildOptionalDepsSection(),
     ...buildComponentsSection(),
+    ...buildBlocksSection(),
   ];
 
   console.log(output.join('\n'));

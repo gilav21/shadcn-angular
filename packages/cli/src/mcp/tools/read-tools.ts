@@ -20,7 +20,7 @@ export function registerReadTools(server: McpServer, cwd: string): void {
     }, async () => json(
         getComponentNames().map(name => {
             const d = registry[name];
-            return { name, category: d.category, description: d.description, tags: d.tags };
+            return { name, type: d.type ?? 'component', category: d.category, description: d.description, tags: d.tags };
         }),
     ));
 
@@ -44,6 +44,7 @@ export function registerReadTools(server: McpServer, cwd: string): void {
         for (const c of resolved) for (const d of registry[c].npmDependencies ?? []) npm.add(d);
         return json({
             name,
+            type: def.type ?? 'component',
             category: def.category,
             description: def.description,
             tags: def.tags,
