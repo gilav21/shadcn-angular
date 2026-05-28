@@ -84,6 +84,12 @@ async function promptForConfig(initialPrefix: string): Promise<InitConfig> {
         },
         {
             type: 'text',
+            name: 'blocksPath',
+            message: 'Where would you like to install blocks?',
+            initial: 'src/blocks',
+        },
+        {
+            type: 'text',
             name: 'globalCss',
             message: 'Where is your global styles file?',
             initial: 'src/styles.scss',
@@ -125,6 +131,7 @@ async function promptForConfig(initialPrefix: string): Promise<InitConfig> {
                 components: componentsAlias.replace(/\/ui$/, ''),
                 utils: toAlias(responses.utilsPath),
                 ui: uiAlias,
+                blocks: toAlias(responses.blocksPath),
             },
         },
         createShortcutRegistry: responses.createShortcutRegistry ?? true,

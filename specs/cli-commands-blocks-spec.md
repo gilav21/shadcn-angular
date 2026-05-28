@@ -160,3 +160,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T7 add block prompt | 2026-05-28 | 97 | `add` prompts/`--path` for block destination; deps→ui; pure-component `--path` unchanged; 47 tests. |
 | T8 sync-registry blocks | 2026-05-28 | 96 | sync-registry skips block entries from the component walker + validates their files exist under packages/blocks; sync clean. |
 | T9 discovery | 2026-05-28 | 97 | help/list group blocks separately; MCP surfaces `type`; 191 tests. |
+| T10 init blocks alias | 2026-05-28 | 98 | interactive init records `aliases.blocks`; defaults covered; 191 tests. |
