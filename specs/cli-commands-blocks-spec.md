@@ -162,3 +162,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T9 discovery | 2026-05-28 | 97 | help/list group blocks separately; MCP surfaces `type`; 191 tests. |
 | T10 init blocks alias | 2026-05-28 | 98 | interactive init records `aliases.blocks`; defaults covered; 191 tests. |
 | T12 login block | 2026-05-28 | 96 | login auth block (card/input/label/button/checkbox); registry type:block; CLI install→fixture ng build passed. |
+| T13 dashboard block | 2026-05-28 | 97 | dashboard block (cards/bar-chart/table/avatar/badge); responsive + RTL logical utils; fixture ng build passed. |

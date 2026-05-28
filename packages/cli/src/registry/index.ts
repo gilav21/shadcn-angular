@@ -1007,6 +1007,15 @@ export const registry = defineRegistry({
     description: 'Email/password login page with a card layout, remember-me, and a sign-up link.',
     tags: ['login', 'auth', 'sign-in', 'form'],
   },
+  dashboard: {
+    name: 'dashboard',
+    type: 'block',
+    files: ['dashboard/index.ts', 'dashboard/dashboard.component.html', 'dashboard/dashboard.component.ts'],
+    dependencies: ['card', 'bar-chart', 'table', 'badge', 'avatar'],
+    category: 'dashboard',
+    description: 'Analytics dashboard with stat cards, a revenue bar chart, and a recent-activity table.',
+    tags: ['dashboard', 'analytics', 'admin', 'stats', 'chart'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

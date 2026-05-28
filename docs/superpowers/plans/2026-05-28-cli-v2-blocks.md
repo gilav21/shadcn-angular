@@ -938,3 +938,4 @@ Review gate bar: **≥95**.
 | T9 discovery | 2026-05-28 | 97 | help `groupByCategory` excludes blocks + new `groupBlocks`/Blocks section; list separates components(ui)/blocks(aliases.blocks); MCP list/get surface `type`; 191 tests. |
 | T10 init blocks alias | 2026-05-28 | 98 | interactive init prompts for blocks path → `aliases.blocks` via toAlias; --defaults/--yes already covered by getDefaultConfig; 191 tests. |
 | T12 login block | 2026-05-28 | 96 | `packages/blocks/login` (card/input/label/button/checkbox), OnPush+class+responsive+RTL; registry entry type:block/auth; block-install test; CLI install→fixture `ng build` SUCCEEDED. |
+| T13 dashboard block | 2026-05-28 | 97 | `packages/blocks/dashboard` (cards/bar-chart/table/avatar/badge); responsive grid + overflow-x-auto; logical `text-end` RTL; registry type:block/dashboard; fixture `ng build` SUCCEEDED. (2 rounds) |
