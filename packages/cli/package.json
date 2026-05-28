@@ -1,14 +1,20 @@
 {
     "name": "@gilav21/shadcn-angular",
-    "version": "0.0.31",
+    "version": "0.0.32",
     "description": "CLI for adding shadcn-angular components to your project",
     "bin": {
         "shadcn-angular": "./dist/index.js"
     },
     "main": "./dist/index.js",
     "type": "module",
+    "files": [
+        "dist",
+        "README.md"
+    ],
     "scripts": {
-        "build": "tsc",
+        "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\"",
+        "build": "npm run clean && tsc",
+        "prepublishOnly": "npm run build",
         "dev": "tsc --watch",
         "start": "node dist/index.js",
         "typecheck:scripts": "tsc -p tsconfig.scripts.json",
