@@ -95,6 +95,19 @@ entry kind:
 - `sync-registry.ts` scans `packages/blocks/` in addition to `packages/components/ui`,
   emitting block entries with `type:'block'`; `validate-registry` accepts them.
 
+> **Update (T19/T20 — supersedes T8's "skip the walker" approach):** blocks are
+> now first-class in the sync, not merely file-existence-checked. The
+> `validate-registry` Edit/Write hook treats `packages/blocks/` edits as relevant
+> (re-runs the sync), and `sync-registry.ts` import-walks each block across
+> `packages/blocks → packages/components` (`walkBlockTree`) to auto-derive its
+> `files`, `dependencies`, and `libFiles` — detecting drift in report mode and
+> auto-fixing under `--fix`, exactly like components. Only a block's
+> `type`/`category`/`description`/`tags` remain hand-authored (they can't be
+> inferred). The sync also reports **orphan block folders** (a
+> `packages/blocks/<name>/` with no registry entry) as a non-fatal warning. T8's
+> original "skip the component walker, validate files only" decision is retained
+> in the Completion Log as history but no longer describes the system.
+
 ### Install destination
 - `Config.aliases` gains optional `blocks?: string` (default `@/blocks` →
   `src/blocks`). Missing in an existing `components.json` → fall back to the default.
@@ -169,3 +182,4 @@ Review gate bar: **≥95**. Highest score per task recorded.
 | T17 demo pages | 2026-05-28 | 97 | Demo-app showcase pages for the 4 blocks under demos/blocks/ + new "Blocks" nav category + 10-locale labels; framed-preview presentation; demo ng build passed. Imports/outputs/route↔nav ids all verified against the block barrels. |
 | T18 block polish | 2026-05-28 | 97 | User-feedback polish: login gains Google sign-in button (4-color logo, projected) + wider card (max-w-lg) keeping remember-me; settings-profile fleshed out (avatar controls, name/username/email/role/bio/location/website); fixed demo-wrapper flex bug that collapsed block max-width; registry descriptions updated. sync clean, registry-meta pass, visually confirmed by user. |
 | T19 blocks sync hook | 2026-05-28 | 97 | Made registry tooling block-aware: validate-registry hook now treats packages/blocks/ edits as relevant (re-runs sync); sync-registry detects orphan block folders (no registry entry) and warns non-fatally on stdout, surfaced through the hook's additionalContext. Auto-append correctly stays UI-only. Verified end-to-end (block path triggers sync + orphan warning; unrelated path skips); 32 registry tests pass. Block `dependencies` remain hand-maintained (deferred). |
+| T20 block drift detection | 2026-05-28 | 96 | Closed the deferred gap from T19: `walkBlockTree` import-walks each block (packages/blocks → packages/components) to auto-derive files/dependencies/libFiles; `analyzeBlock` runs blocks through the same drift→report(exit 1)/--fix flow as components, preserving hand-authored type/category/description/tags. Own-folder guard; orphan + libFiles paths exercised; 4 block deps canonicalized (sorted). 196 CLI tests (4 new walkBlockTree), tsc clean. Supersedes T8's skip-the-walker approach. |
