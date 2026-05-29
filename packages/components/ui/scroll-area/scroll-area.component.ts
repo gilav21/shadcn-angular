@@ -46,8 +46,8 @@ export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
 
   verticalScrollbarClasses = computed(() =>
     cn(
-      'absolute right-0 top-0 flex touch-none p-px transition-colors select-none',
-      'h-full w-2.5 border-l border-l-transparent'
+      'absolute end-0 top-0 flex touch-none p-px transition-colors select-none',
+      'h-full w-2.5 border-s border-s-transparent'
     )
   );
 

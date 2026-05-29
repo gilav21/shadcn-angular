@@ -13,3 +13,10 @@
     transform: translateY(0);
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .animate-blur-in {
+    animation: none;
+    opacity: 1;
+    filter: none;
+  }
+}

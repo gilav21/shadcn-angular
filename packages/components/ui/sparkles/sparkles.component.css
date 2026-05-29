@@ -7,3 +7,8 @@
     opacity: 0;
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  .animate-ping-slow {
+    animation: none;
+  }
+}

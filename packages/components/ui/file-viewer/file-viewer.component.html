@@ -12,6 +12,7 @@
       <div class="flex items-center gap-1 shrink-0">
         @if (isPaginated()) {
           <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
+                  [attr.aria-label]="'Previous page'"
                   [disabled]="currentPage() <= 1"
                   (click)="prevPage()">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>
@@ -20,6 +21,7 @@
             {{ currentPage() }} / {{ totalPages() }}
           </span>
           <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
+                  [attr.aria-label]="'Next page'"
                   [disabled]="currentPage() >= totalPages()"
                   (click)="nextPage()">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg>
@@ -27,6 +29,7 @@
         }
         @if (isZoomable()) {
           <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
+                  [attr.aria-label]="'Zoom out'"
                   [disabled]="currentZoom() <= 0.25"
                   (click)="zoomOut()">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="8" x2="14" y1="11" y2="11"/></svg>
@@ -35,6 +38,7 @@
             {{ zoomPercent() }}%
           </span>
           <button class="inline-flex items-center justify-center h-7 w-7 rounded hover:bg-muted disabled:opacity-50"
+                  [attr.aria-label]="'Zoom in'"
                   [disabled]="currentZoom() >= 3"
                   (click)="zoomIn()">
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" x2="16.65" y1="21" y2="16.65"/><line x1="11" x2="11" y1="8" y2="14"/><line x1="8" x2="14" y1="11" y2="11"/></svg>

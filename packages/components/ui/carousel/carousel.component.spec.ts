@@ -307,6 +307,47 @@ describe('Carousel RTL Support', () => {
     });
 });
 
+@Component({
+    standalone: true,
+    imports: [CarouselComponent, CarouselContentComponent, CarouselItemComponent, CarouselPreviousComponent, CarouselNextComponent],
+    template: `
+        <div dir="rtl">
+            <ui-carousel>
+                <ui-carousel-content>
+                    <ui-carousel-item>شريحة 1</ui-carousel-item>
+                    <ui-carousel-item>شريحة 2</ui-carousel-item>
+                </ui-carousel-content>
+                <ui-carousel-previous />
+                <ui-carousel-next />
+            </ui-carousel>
+        </div>
+    `,
+})
+class RtlInitHost { }
+
+describe('Carousel RTL auto-detection on init', () => {
+    afterEach(() => {
+        document.documentElement.removeAttribute('dir');
+    });
+
+    it('re-reads RTL direction after content init so a direct rtl load is detected', async () => {
+        await TestBed.configureTestingModule({ imports: [RtlInitHost] }).compileComponents();
+        const rtlFixture = TestBed.createComponent(RtlInitHost);
+        document.body.appendChild(rtlFixture.nativeElement);
+        rtlFixture.detectChanges();
+        await rtlFixture.whenStable();
+
+        const carousel = rtlFixture.debugElement.query(By.directive(CarouselComponent)).componentInstance as CarouselComponent;
+
+        carousel.rtl.set(false);
+        carousel.ngAfterContentInit();
+        await new Promise(resolve => setTimeout(resolve, 5));
+
+        expect(carousel.rtl()).toBe(true);
+        rtlFixture.nativeElement.remove();
+    });
+});
+
 describe('Carousel — i18n integration', () => {
     it('defaults Previous/Next slide aria-labels to English', async () => {
         await TestBed.configureTestingModule({ imports: [TestHostComponent] }).compileComponents();

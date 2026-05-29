@@ -9,7 +9,7 @@
         [attr.aria-expanded]="isOpen()"
         aria-haspopup="tree"
       >
-        <span class="flex-1 truncate text-left">
+        <span class="flex-1 truncate text-start">
           @if (selectedNode(); as node) {
             {{ node.label }}
           } @else {
@@ -32,7 +32,7 @@
         </svg>
       </button>
     </ui-popover-trigger>
-    <ui-popover-content class="w-[--trigger-width] p-2" align="start">
+    <ui-popover-content class="w-[--trigger-width] max-w-[calc(100vw-2rem)] p-2" align="start">
       <div [attr.dir]="dir()">
         <ui-tree
           [data]="nodes()"

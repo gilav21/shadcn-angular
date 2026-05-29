@@ -42,7 +42,7 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
                     <!-- Search Input -->
                     <div class="relative">
                         <svg
-                            class="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none"
+                            class="absolute start-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none"
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 24 24"
                             fill="none"
@@ -57,7 +57,7 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
                         <ui-input
                             type="text"
                             placeholder="Search emojis..."
-                            class="pl-8 h-8 text-sm"
+                            class="ps-8 h-8 text-sm"
                             [ngModel]="searchQuery()"
                             (ngModelChange)="searchQuery.set($event)"
                         />
@@ -79,7 +79,7 @@ import { EMOJI_PICKER, EMOJI_CATEGORIES, EmojiCategory } from '../emoji-picker.c
 
                     <!-- Emoji Grid -->
                     <ui-scroll-area class="h-64">
-                        <div class="pr-3">
+                        <div class="pe-3">
                             @for (category of filteredCategories(); track category.id) {
                                 <div
                                     class="mb-4"
@@ -177,8 +177,8 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
     contentClasses = computed(() =>
         cn(
             this.strategy() === 'fixed'
-                ? 'fixed z-50 w-80 max-w-[calc(100vw-1rem)] p-3 rounded-md border bg-popover text-popover-foreground shadow-md outline-none overflow-hidden'
-                : 'absolute left-0 top-full z-50 mt-1 w-80 p-3 rounded-md border bg-popover text-popover-foreground shadow-md outline-none overflow-hidden',
+                ? 'fixed z-50 w-80 max-w-[calc(100vw-2rem)] p-3 rounded-md border bg-popover text-popover-foreground shadow-md outline-none overflow-hidden'
+                : 'absolute start-0 top-full z-50 mt-1 w-80 max-w-[calc(100vw-2rem)] p-3 rounded-md border bg-popover text-popover-foreground shadow-md outline-none overflow-hidden',
             'animate-in fade-in-0 zoom-in-95',
             this.class()
         )

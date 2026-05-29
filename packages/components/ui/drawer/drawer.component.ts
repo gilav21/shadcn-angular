@@ -14,7 +14,7 @@ import { DOCUMENT } from '@angular/common';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 export const drawerVariants = cva(
-    'fixed z-50 flex flex-col bg-background',
+    'fixed z-50 flex flex-col bg-background overflow-y-auto',
     {
         variants: {
             direction: {

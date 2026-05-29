@@ -178,7 +178,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     ));
 
     readonly contentClasses = computed(() => cn(
-        'absolute z-50 max-h-60 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover p-0 text-popover-foreground shadow-md',
+        'absolute z-50 max-h-60 min-w-[8rem] w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border bg-popover p-0 text-popover-foreground shadow-md',
         'animate-in fade-in-0 zoom-in-95',
         'top-full mt-1 ltr:left-0 rtl:right-0'
     ));

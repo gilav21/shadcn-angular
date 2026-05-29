@@ -17,3 +17,9 @@
     background-position: 800px 0;
   }
 }
+@media (prefers-reduced-motion: reduce) {
+  :host.animate-shimmer,
+  .animate-shimmer {
+    animation: none;
+  }
+}

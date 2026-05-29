@@ -36,8 +36,16 @@ describe('AlertComponent', () => {
         expect(component).toBeTruthy();
     });
 
-    it('should have role="alert"', () => {
+    it('should have role="status" + aria-live="polite" for the default variant', () => {
+        expect(fixture.nativeElement.getAttribute('role')).toBe('status');
+        expect(fixture.nativeElement.getAttribute('aria-live')).toBe('polite');
+    });
+
+    it('should have assertive role="alert" for the destructive variant', () => {
+        fixture.componentRef.setInput('variant', 'destructive');
+        fixture.detectChanges();
         expect(fixture.nativeElement.getAttribute('role')).toBe('alert');
+        expect(fixture.nativeElement.getAttribute('aria-live')).toBe('assertive');
     });
 
     it('should have data-slot="alert"', () => {

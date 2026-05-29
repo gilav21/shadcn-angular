@@ -29,7 +29,7 @@ import { SPLIT_BUTTON } from '../split-button.component';
 export class SplitButtonPrimaryComponent {
     readonly splitButton = inject(SPLIT_BUTTON);
 
-    classes = computed(() => cn('rounded-r-none border-r-0'));
+    classes = computed(() => cn('rounded-e-none border-e-0'));
 
     onClick(event: MouseEvent) {
         this.splitButton.primaryClick.emit(event);

@@ -22,7 +22,7 @@ export class InputGroupAddonComponent {
   classes = computed(() => cn(
     'text-muted-foreground flex h-auto items-center justify-center gap-2 py-1.5 text-sm font-medium select-none',
     '[&>svg:not([class*="size-"])]:size-4',
-    this.align() === 'inline-start' ? 'pl-3 pr-1' : 'pl-1 pr-3',
+    this.align() === 'inline-start' ? 'ps-3 pe-1' : 'ps-1 pe-3',
     this.class()
   ));
 }

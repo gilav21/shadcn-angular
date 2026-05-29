@@ -8,6 +8,7 @@ import {
     inject,
     input,
 } from '@angular/core';
+import { prefersReducedMotion } from '../lib/utils';
 
 export interface ConfettiOptions {
     /** Number of particles to launch. Default 50. */
@@ -133,6 +134,9 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
         if (!this._canvas || !this._ctx) return;
 
         const opts = this.options();
+
+        if (prefersReducedMotion() && (opts.disableForReducedMotion ?? true)) return;
+
         const variant = opts.variant || 'default';
 
         if (variant === 'side-cannons') {

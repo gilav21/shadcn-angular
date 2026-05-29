@@ -122,9 +122,9 @@ export class HoverCardContentComponent implements AfterViewInit {
 
     classes = computed(() => {
         const alignClasses = {
-            start: 'left-0',
+            start: 'start-0',
             center: 'left-1/2 -translate-x-1/2',
-            end: 'right-0',
+            end: 'end-0',
         };
         const pos = this.adjustedPosition();
         const sideClasses = {

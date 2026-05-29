@@ -31,7 +31,7 @@ import { COMMAND_GROUP } from './command-group.component';
     >
       <ng-content />
       @if (shortcut()) {
-        <span class="ml-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
+        <span class="ms-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
       }
     </div>
   `,

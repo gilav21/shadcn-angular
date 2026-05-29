@@ -199,7 +199,7 @@ export class SelectContentComponent implements AfterViewInit {
         const popperSideClass = side === 'top' ? 'bottom-full mb-1' : 'top-full mt-1';
 
         return cn(
-            'absolute z-50 max-h-96 min-w-[8rem] w-full overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+            'absolute z-50 max-h-96 min-w-[8rem] w-full max-w-[calc(100vw-2rem)] overflow-y-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
             'animate-in fade-in-0 zoom-in-95',
             isItemAligned ? 'top-0' : popperSideClass,
             'ltr:left-0 rtl:right-0',

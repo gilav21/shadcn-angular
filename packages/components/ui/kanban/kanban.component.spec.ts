@@ -157,7 +157,7 @@ describe('KanbanComponent', () => {
 
         it('should render priority border on cards', () => {
             const cards = fixture.debugElement.queryAll(By.css('[data-slot="kanban-card"]'));
-            expect(cards[0].nativeElement.className).toContain('border-l-orange-500');
+            expect(cards[0].nativeElement.className).toContain('border-s-orange-500');
         });
 
         it('should render card labels as badges', () => {

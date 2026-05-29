@@ -112,7 +112,7 @@ export interface SplitButtonItem {
                 tabindex="-1"
               >
                 @if (item.icon) {
-                  <span class="mr-2">{{ item.icon }}</span>
+                  <span class="me-2">{{ item.icon }}</span>
                 }
                 {{ item.label }}
               </button>
@@ -164,12 +164,12 @@ export class SplitButtonComponent {
     ));
 
     primaryClasses = computed(() => cn(
-        'rounded-r-none border-r-0',
+        'rounded-e-none border-e-0',
         this.class()
     ));
 
     dropdownClasses = computed(() => cn(
-        'rounded-l-none px-2'
+        'rounded-s-none px-2'
     ));
 
     private readonly menuPosition = signal<'below' | 'above'>('below');
@@ -177,8 +177,8 @@ export class SplitButtonComponent {
     menuClasses = computed(() => cn(
         'absolute z-50 min-w-[8rem] max-w-[calc(100vw-2rem)]',
         this.menuPosition() === 'below'
-            ? 'top-full right-0 mt-1'
-            : 'bottom-full right-0 mb-1',
+            ? 'top-full end-0 mt-1'
+            : 'bottom-full end-0 mb-1',
         'rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
         'animate-in fade-in-0 zoom-in-95'
     ));

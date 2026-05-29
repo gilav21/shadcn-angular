@@ -63,7 +63,7 @@ export class StepperComponent {
 
   stepTriggerClasses = (canClick: boolean) =>
     cn(
-      'group flex items-center gap-3 text-left',
+      'group flex items-center gap-3 text-start',
       'focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-md',
       !canClick && 'cursor-not-allowed opacity-50'
     );
