@@ -79,6 +79,24 @@ describe('Chat Components', () => {
                 const avatar = fixture.debugElement.query(By.css('ui-avatar'));
                 expect(avatar).toBeTruthy();
             });
+
+            it('should mirror the user avatar to the outer (end) side', () => {
+                host.role = 'user';
+                host.content = 'User message';
+                fixture.detectChanges();
+
+                const root = fixture.debugElement.query(By.css('[data-slot="chat-message"]'));
+                expect(root.nativeElement.className).toContain('[&>ui-avatar]:order-last');
+            });
+
+            it('should keep the assistant avatar on the outer (start) side without reordering', () => {
+                host.role = 'assistant';
+                host.content = 'Assistant message';
+                fixture.detectChanges();
+
+                const root = fixture.debugElement.query(By.css('[data-slot="chat-message"]'));
+                expect(root.nativeElement.className).not.toContain('order-last');
+            });
         });
 
         describe('custom mode (content projection)', () => {

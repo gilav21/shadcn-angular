@@ -81,11 +81,11 @@ export class CarouselComponent implements AfterContentInit, OnDestroy {
             if (this.scrollContainer) {
                 this.scrollListener = () => this.updateScrollState();
                 this.scrollContainer.addEventListener('scroll', this.scrollListener);
-                this.updateScrollState();
 
                 this.resizeObserver = new ResizeObserver(() => this.updateScrollState());
                 this.resizeObserver.observe(this.scrollContainer);
             }
+            this.updateRtlState();
         }, 0);
     }
 
