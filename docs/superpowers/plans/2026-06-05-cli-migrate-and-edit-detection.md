@@ -12,6 +12,14 @@
 
 ---
 
+## Completion Log
+
+| Phase / Task | Completed | Score | Rationale |
+|---|---|---|---|
+| Phase 1 (Tasks 1–3): layout detection + bounded update + dry-run + legacy guard | 2026-06-05 | 95 | Bounded write set proven structurally (`precomputedConflicts` skips dependency re-resolution; `options.overwrite` never forced), so the "Updated 16" blast radius is impossible; closure-wide legacy guard + newly-required-deps consent split both exercised by the `update-guards` cli-spec. `update()` complexity <15 after helper extraction; 9 unit tests + `update-bounded`/`update-guards` cli-specs green. Cosmetic nit: dry-run omits a "skipped" line. |
+
+---
+
 ## File-structure map
 
 **New files**

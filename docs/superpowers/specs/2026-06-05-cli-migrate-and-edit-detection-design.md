@@ -325,3 +325,9 @@ that unit/integration layers can't fully prove.
 
 Fixes only reach consumers on **npm publish** of the CLI (per the project's
 registry-publish policy). "Code merged" ≠ "user fixed" — a publish must follow.
+
+## Completion Review
+
+| Phase / Task | Completed | Score | Rationale |
+|---|---|---|---|
+| Phase 1 (Tasks 1–3): layout detection + bounded update + dry-run + legacy guard | 2026-06-05 | 95 | Bounded write set proven structurally (`precomputedConflicts` skips dependency re-resolution; `options.overwrite` never forced); closure-wide legacy guard + newly-required-deps consent split exercised by the `update-guards` cli-spec. `update()` complexity <15; 9 unit tests + two cli-specs green. Cosmetic nit: dry-run omits a "skipped" line. |
