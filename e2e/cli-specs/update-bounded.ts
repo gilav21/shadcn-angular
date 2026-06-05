@@ -19,6 +19,7 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     // Introduce local drift so `update` has something to write.
     const buttonTs = path.join(uiDir, 'button/button.component.ts');
     fs.appendFileSync(buttonTs, '\n// local drift\n');
+    const driftedContent = fs.readFileSync(buttonTs, 'utf-8');
 
     // --- dry-run: must list button and change nothing on disk ---
     const dry = await captureCli(['update', 'button', '--dry-run']);
@@ -33,6 +34,10 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
         throw new Error(
             `dry-run must not add/remove component folders.\nbefore: ${before}\nafter:  ${afterDry}`,
         );
+    }
+    // dry-run must not touch file CONTENTS either.
+    if (fs.readFileSync(buttonTs, 'utf-8') !== driftedContent) {
+        throw new Error('dry-run must not modify file contents');
     }
 
     // --- real run: bounded to button (+ its installed dep ripple) ---
