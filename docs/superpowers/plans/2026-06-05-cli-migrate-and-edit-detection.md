@@ -17,6 +17,7 @@
 | Phase / Task | Completed | Score | Rationale |
 |---|---|---|---|
 | Phase 1 (Tasks 1–3): layout detection + bounded update + dry-run + legacy guard | 2026-06-05 | 95 | Bounded write set proven structurally (`precomputedConflicts` skips dependency re-resolution; `options.overwrite` never forced), so the "Updated 16" blast radius is impossible; closure-wide legacy guard + newly-required-deps consent split both exercised by the `update-guards` cli-spec. `update()` complexity <15 after helper extraction; 9 unit tests + `update-bounded`/`update-guards` cli-specs green. Cosmetic nit: dry-run omits a "skipped" line. |
+| Phase 2 (Tasks 4–7): manifest + edit-aware doctor + update warning | 2026-06-05 | 95 | `components.lock.json` hashes through `normalizeContent` (CRLF/LF-safe); two axes correct (local-vs-manifest = edited, manifest-vs-registry = update available); `readManifest` never throws on missing/corrupt. `performInstall` records component+peer writes; pure-skip correctly writes nothing. `classifyDrift`/`worstLocalStatus`/`customizedAmong` correct, non-blocking warning per spec. 203 unit tests + cli-specs green, complexity <15. Cosmetic nits: no manifest version-migration hook; `trim()` in hash (symmetric). |
 
 ---
 
