@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import fs from 'fs-extra';
 import path from 'node:path';
 import os from 'node:os';
-import { planMigration, rewriteProjectImports } from './migrate-core.js';
+import { planMigration, rewriteProjectImports, deleteLegacyFiles } from './migrate-core.js';
 
 describe('planMigration', () => {
   it('migrates legacy components, refreshes current, and pulls newly-required deps', () => {
@@ -54,6 +54,26 @@ describe('rewriteProjectImports', () => {
       await fs.outputFile(path.join(dir, 'src/a.ts'), `import { B } from './button.component';\n`);
       const changed = await rewriteProjectImports(dir, new Set());
       expect(changed).toEqual([]);
+    } finally {
+      await fs.remove(dir);
+    }
+  });
+});
+
+describe('deleteLegacyFiles', () => {
+  it('deletes the legacy flat files for a migrated component only', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'del-'));
+    try {
+      await fs.outputFile(path.join(dir, 'button.component.ts'), 'x');
+      await fs.outputFile(path.join(dir, 'button.component.html'), 'x');
+      await fs.outputFile(path.join(dir, 'input.component.ts'), 'x'); // not migrated
+
+      const deleted = await deleteLegacyFiles(dir, ['button']);
+
+      expect(deleted).toContain('button.component.ts');
+      expect(deleted).toContain('button.component.html');
+      expect(await fs.pathExists(path.join(dir, 'button.component.ts'))).toBe(false);
+      expect(await fs.pathExists(path.join(dir, 'input.component.ts'))).toBe(true);
     } finally {
       await fs.remove(dir);
     }

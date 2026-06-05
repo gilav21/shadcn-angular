@@ -72,3 +72,26 @@ export async function rewriteProjectImports(
     }
     return changed;
 }
+
+const LEGACY_SUFFIXES = [
+    '.component.ts', '.component.html', '.component.css',
+    '.component.spec.ts', '.component.stories.ts',
+];
+
+/** Remove legacy flat files for each migrated component; return deleted rel paths. */
+export async function deleteLegacyFiles(
+    uiDir: string, structural: ComponentName[],
+): Promise<string[]> {
+    const deleted: string[] = [];
+    for (const name of structural) {
+        for (const suffix of LEGACY_SUFFIXES) {
+            const rel = `${name}${suffix}`;
+            const abs = path.join(uiDir, rel);
+            if (await fs.pathExists(abs)) {
+                await fs.remove(abs);
+                deleted.push(rel);
+            }
+        }
+    }
+    return deleted;
+}
