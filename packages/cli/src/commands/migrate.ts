@@ -7,6 +7,7 @@ import { getConfig, getPrefix } from '../utils/config.js';
 import { registry, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { scanLayouts } from '../core/layout.js';
+import { resolveDependencies } from '../core/resolve.js';
 import { planMigration, rewriteProjectImports, deleteLegacyFiles, type MigrationPlan } from '../core/migrate-core.js';
 import { performInstall, type InstallResult } from '../core/install.js';
 import { readManifest, fileStatus, removeFiles, writeManifest, type Manifest } from '../core/manifest.js';
@@ -24,7 +25,12 @@ function gitTreeClean(cwd: string): boolean {
 }
 
 function ensureCleanTreeOrExit(cwd: string, options: AddOptions): void {
-    if (options.force || gitTreeClean(cwd)) return;
+    if (gitTreeClean(cwd)) return;
+    if (options.force) {
+        console.log(chalk.yellow('\n--force: proceeding on an unclean working tree.'));
+        console.log(chalk.dim('Uncommitted changes to migrated files have no git backstop and may be overwritten.'));
+        return;
+    }
     console.log(chalk.red('\nYour git working tree is not clean (or this is not a git repo).'));
     console.log(chalk.dim('Commit or stash first so the migration is one reviewable diff, or pass --force.'));
     process.exit(1);
@@ -113,30 +119,55 @@ async function executeMigration(
         options: { ...options, overwrite: true },
         precomputedConflicts: conflicts,
     });
-
-    // CRITICAL: only finalize (delete the flat file + rewrite imports) for legacy
-    // components whose folder was ACTUALLY written. A failed write (e.g. registry
-    // unreachable) must NOT delete the consumer's working flat file or rewrite
-    // imports to a folder that doesn't exist.
     const installed = new Set(result.installed);
-    const migratedOk = plan.structural.filter(n => installed.has(n));
-    const failed = plan.structural.filter(n => !installed.has(n));
+    // "Present" = written this run OR skipped because already up-to-date. A
+    // dependency that was identical is skipped (not in `installed`) yet is on
+    // disk and fine, so it must count toward closure-consistency.
+    const present = new Set<ComponentName>([...result.installed, ...result.skipped as ComponentName[]]);
+
+    // Roll back partially-written NEW folders (legacy→folder + brand-new deps
+    // that didn't fully write) so a mid-stream failure can't leave an orphan
+    // folder with a dangling templateUrl. Pre-existing (refreshed) folders are
+    // left to the git guard — we can't restore their prior content.
+    await rollbackPartialNewFolders(uiDir, plan, installed);
+
+    // Finalize (delete flat + rewrite imports) ONLY for legacy components whose
+    // folder AND every in-writeSet dependency are present — otherwise the
+    // working flat file and its imports are kept intact.
+    const migratedOk = plan.structural.filter(n => closureWritten(n, plan, present));
+    const failed = plan.structural.filter(n => !closureWritten(n, plan, present));
 
     const deleted = await deleteLegacyFiles(uiDir, migratedOk);
     const manifest = await readManifest(cwd);
     removeFiles(manifest, deleted);
     await writeManifest(cwd, manifest);
 
-    // Rewrite consumer imports of the migrated components. rewriteProjectImports
-    // skips uiDir (the components' own barrels) and is scoped so only imports
-    // resolving to <uiDir>/<name>.component are touched.
+    // rewriteProjectImports skips uiDir (the components' own barrels) and is
+    // scoped so only imports resolving to <uiDir>/<name>.component are touched.
     const rewritten = await rewriteProjectImports(cwd, new Set(migratedOk), uiDir, config.aliases.ui);
 
     spinner.stop();
     printReport(result, deleted, rewritten, plan);
     if (failed.length > 0) {
-        console.log(chalk.red(`\n${failed.length} component(s) could not be written and were left as legacy: ${failed.join(', ')}`));
-        console.log(chalk.dim('Their flat files were kept and imports left intact. Fix the errors above and re-run `migrate`.'));
+        console.log(chalk.red(`\n${failed.length} component(s) could not be migrated and were left as legacy: ${failed.join(', ')}`));
+        console.log(chalk.dim('Their flat files and imports are untouched. Fix the errors above and re-run `migrate`.'));
+    }
+}
+
+/** A legacy component is safe to finalize only if it and all of its
+ * in-writeSet dependencies are present (written or already up-to-date). */
+export function closureWritten(name: ComponentName, plan: MigrationPlan, present: Set<ComponentName>): boolean {
+    const inWriteSet = new Set(plan.writeSet);
+    return [...resolveDependencies([name])].every(d => !inWriteSet.has(d) || present.has(d));
+}
+
+/** Remove any partially-written folder for a NEW component (structural or a
+ * brand-new dep) that did not fully install, restoring the pre-migrate state. */
+async function rollbackPartialNewFolders(
+    uiDir: string, plan: MigrationPlan, installed: Set<ComponentName>,
+): Promise<void> {
+    for (const name of new Set<ComponentName>([...plan.structural, ...plan.newDeps])) {
+        if (!installed.has(name)) await fs.remove(path.join(uiDir, name));
     }
 }
 
