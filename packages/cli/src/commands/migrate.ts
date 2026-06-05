@@ -114,16 +114,18 @@ export async function migrate(options: AddOptions): Promise<void> {
         return;
     }
 
-    if (!options.dryRun) ensureCleanTreeOrExit(cwd, options);
+    if (options.dryRun) {
+        printMigrationPlan(plan);
+        console.log(chalk.dim('\n[Dry Run] No changes written.'));
+        return;
+    }
+
+    ensureCleanTreeOrExit(cwd, options);
 
     const customized = await customizedComponents(cwd, uiDir, plan.structural);
     if (customized.length > 0 && !options.yes) blockOnCustomized(customized);
 
     printMigrationPlan(plan);
-    if (options.dryRun) {
-        console.log(chalk.dim('\n[Dry Run] No changes written.'));
-        return;
-    }
 
     await executeMigration(plan, cwd, uiDir, config, options);
 }
