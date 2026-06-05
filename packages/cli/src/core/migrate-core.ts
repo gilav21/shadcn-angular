@@ -1,6 +1,9 @@
+import fs from 'fs-extra';
+import path from 'node:path';
 import { type ComponentName } from '../registry/index.js';
 import { resolveDependencies } from './resolve.js';
 import { type LayoutScan } from './layout.js';
+import { rewriteImports } from './import-rewrite.js';
 
 export interface MigrationPlan {
     /** Legacy (flat) components to convert to folder form. */
@@ -33,4 +36,39 @@ export function planMigration(scan: LayoutScan): MigrationPlan {
         newDeps,
         migratedNames: new Set<string>(scan.legacy),
     };
+}
+
+const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.angular', 'coverage']);
+const SOURCE_EXT = new Set(['.ts', '.html']);
+
+async function collectSourceFiles(root: string): Promise<string[]> {
+    const out: string[] = [];
+    const walk = async (dir: string): Promise<void> => {
+        for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+            if (entry.isDirectory()) {
+                if (!SKIP_DIRS.has(entry.name)) await walk(path.join(dir, entry.name));
+            } else if (SOURCE_EXT.has(path.extname(entry.name))) {
+                out.push(path.join(dir, entry.name));
+            }
+        }
+    };
+    await walk(root);
+    return out;
+}
+
+/** Rewrite migrated imports across all project source files; return changed paths. */
+export async function rewriteProjectImports(
+    projectRoot: string, migratedNames: ReadonlySet<string>,
+): Promise<string[]> {
+    if (migratedNames.size === 0) return [];
+    const changed: string[] = [];
+    for (const file of await collectSourceFiles(projectRoot)) {
+        const source = await fs.readFile(file, 'utf-8');
+        const result = rewriteImports(source, migratedNames);
+        if (result.changed) {
+            await fs.writeFile(file, result.content);
+            changed.push(file);
+        }
+    }
+    return changed;
 }
