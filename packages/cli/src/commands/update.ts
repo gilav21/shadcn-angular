@@ -9,6 +9,7 @@ import { resolveDependencies } from '../core/resolve.js';
 import { detectConflicts, type AddOptions, type ConflictCheckResult } from '../core/plan.js';
 import { performInstall } from '../core/install.js';
 import { scanLayouts } from '../core/layout.js';
+import { readManifest, fileStatus, type Manifest } from '../core/manifest.js';
 
 export async function resolveUpdateTargets(
     names: string[], cwd: string, config: Config,
@@ -92,6 +93,36 @@ function printUpdatePlan(modified: ComponentName[], created: ComponentName[]): v
     for (const n of created) console.log(chalk.green('  + ') + n + chalk.dim(' (new dependency)'));
 }
 
+/** Components (among `names`) with at least one locally-modified file vs the baseline. */
+export function customizedAmong(
+    names: ComponentName[], manifest: Manifest,
+    localContent: Map<string, string>, filesOf: (n: ComponentName) => readonly string[],
+): ComponentName[] {
+    return names.filter(n =>
+        filesOf(n).some(f => {
+            const local = localContent.get(f);
+            return local !== undefined && fileStatus(manifest, f, local) === 'modified';
+        }),
+    );
+}
+
+async function warnCustomized(modified: ComponentName[], cwd: string, targetDir: string): Promise<void> {
+    if (modified.length === 0) return;
+    const manifest = await readManifest(cwd);
+    const localContent = new Map<string, string>();
+    for (const name of modified) {
+        for (const file of registry[name].files) {
+            const p = path.join(targetDir, file);
+            if (await fs.pathExists(p)) localContent.set(file, await fs.readFile(p, 'utf-8'));
+        }
+    }
+    const customized = customizedAmong(modified, manifest, localContent, n => registry[n].files);
+    if (customized.length === 0) return;
+    console.log(chalk.yellow('\nThese components have local edits that update will overwrite:'));
+    for (const n of customized) console.log(chalk.yellow('  ~ ') + n);
+    console.log(chalk.dim('Review with `git diff` after updating and re-apply your changes.'));
+}
+
 async function detectUpdates(
     universe: Set<ComponentName>, targetDir: string, options: AddOptions, config: Config,
 ): Promise<ConflictCheckResult> {
@@ -148,6 +179,8 @@ export async function update(names: string[], options: AddOptions): Promise<void
     }
 
     printUpdatePlan(conflicts.conflicting, conflicts.toInstall);
+    await warnCustomized(conflicts.conflicting, cwd, targetDir);
+
     if (options.dryRun) {
         console.log(chalk.dim('\n[Dry Run] No changes written.'));
         return;

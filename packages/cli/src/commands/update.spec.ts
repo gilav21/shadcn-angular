@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { resolveUpdateTargets, partitionClosure } from './update.js';
+import { resolveUpdateTargets, partitionClosure, customizedAmong } from './update.js';
 import { getDefaultConfig } from '../utils/config.js';
+import { emptyManifest, recordFile } from '../core/manifest.js';
 import type { ComponentName } from '../registry/index.js';
 
 vi.mock('fs-extra', () => ({ default: { pathExists: vi.fn() } }));
@@ -46,5 +47,23 @@ describe('partitionClosure', () => {
     );
     expect(res.newlyRequired).toEqual([]);
     expect(res.alreadyInstalled.sort()).toEqual(['button', 'ripple']);
+  });
+});
+
+describe('customizedAmong', () => {
+  const filesOf = (n: ComponentName) => [`${n}/${n}.component.ts`];
+
+  it('returns components whose local content drifts from the manifest baseline', () => {
+    const m = emptyManifest();
+    recordFile(m, 'button/button.component.ts', 'orig', 'button');
+    const local = new Map([['button/button.component.ts', 'edited']]);
+    expect(customizedAmong(['button'] as ComponentName[], m, local, filesOf)).toEqual(['button']);
+  });
+
+  it('excludes components whose local content matches the baseline', () => {
+    const m = emptyManifest();
+    recordFile(m, 'button/button.component.ts', 'orig', 'button');
+    const local = new Map([['button/button.component.ts', 'orig']]);
+    expect(customizedAmong(['button'] as ComponentName[], m, local, filesOf)).toEqual([]);
   });
 });
