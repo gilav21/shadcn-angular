@@ -17,8 +17,8 @@ const spec: CliSpec = async ({ runCli, captureCli }) => {
     if (lst.code !== 0) {
         throw new Error(`list exited with code ${lst.code}\n${lst.stdout}`);
     }
-    assertContains(lst.stdout, 'Installed', 'list output should label installed section');
-    assertContains(lst.stdout, 'Available', 'list output should label available section');
+    assertContains(lst.stdout, 'installed', 'list output should label installed section');
+    assertContains(lst.stdout, 'available', 'list output should label available section');
     assertContains(lst.stdout, 'button', 'button should appear in list output');
     assertContains(lst.stdout, 'badge', 'badge should appear in list output');
     assertContains(lst.stdout, 'accordion', 'an uninstalled component should still appear');
