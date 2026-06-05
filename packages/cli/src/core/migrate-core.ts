@@ -41,14 +41,16 @@ export function planMigration(scan: LayoutScan): MigrationPlan {
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.angular', 'coverage']);
 const SOURCE_EXT = new Set(['.ts', '.html']);
 
-async function collectSourceFiles(root: string): Promise<string[]> {
+async function collectSourceFiles(root: string, skip: ReadonlySet<string>): Promise<string[]> {
     const out: string[] = [];
     const walk = async (dir: string): Promise<void> => {
+        if (skip.has(path.resolve(dir))) return;
         for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
+            const full = path.join(dir, entry.name);
             if (entry.isDirectory()) {
-                if (!SKIP_DIRS.has(entry.name)) await walk(path.join(dir, entry.name));
+                if (!SKIP_DIRS.has(entry.name)) await walk(full);
             } else if (SOURCE_EXT.has(path.extname(entry.name))) {
-                out.push(path.join(dir, entry.name));
+                out.push(full);
             }
         }
     };
@@ -56,13 +58,20 @@ async function collectSourceFiles(root: string): Promise<string[]> {
     return out;
 }
 
-/** Rewrite migrated imports across all project source files; return changed paths. */
+/**
+ * Rewrite migrated imports across project source files; return changed paths.
+ * `skipDirs` are excluded entirely — pass the CLI-managed `ui` component dir so
+ * the migrated components' own barrels (`export * from './button.component'`,
+ * an intra-folder reference to a file that still exists) are left untouched.
+ * Only consumer code outside `ui/` should have its imports rewritten.
+ */
 export async function rewriteProjectImports(
-    projectRoot: string, migratedNames: ReadonlySet<string>,
+    projectRoot: string, migratedNames: ReadonlySet<string>, skipDirs: string[] = [],
 ): Promise<string[]> {
     if (migratedNames.size === 0) return [];
+    const skip = new Set(skipDirs.map(d => path.resolve(d)));
     const changed: string[] = [];
-    for (const file of await collectSourceFiles(projectRoot)) {
+    for (const file of await collectSourceFiles(projectRoot, skip)) {
         const source = await fs.readFile(file, 'utf-8');
         const result = rewriteImports(source, migratedNames);
         if (result.changed) {

@@ -58,6 +58,26 @@ describe('rewriteProjectImports', () => {
       await fs.remove(dir);
     }
   });
+
+  it('skips the ui dir so a component barrel self-reference is not rewritten', async () => {
+    const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mig-'));
+    const ui = path.join(dir, 'src/components/ui');
+    try {
+      // The migrated component's own barrel: an intra-folder reference that
+      // must survive (button/button.component.ts still exists post-migration).
+      await fs.outputFile(path.join(ui, 'button/index.ts'), `export * from './button.component';\n`);
+      // Consumer code outside ui/ must still be rewritten.
+      await fs.outputFile(path.join(dir, 'src/app.ts'), `import { B } from '@/components/ui/button.component';\n`);
+
+      const changed = await rewriteProjectImports(dir, new Set(['button']), [ui]);
+
+      expect(await fs.readFile(path.join(ui, 'button/index.ts'), 'utf-8')).toContain(`'./button.component'`);
+      expect(await fs.readFile(path.join(dir, 'src/app.ts'), 'utf-8')).toContain(`'@/components/ui/button'`);
+      expect(changed).toHaveLength(1);
+    } finally {
+      await fs.remove(dir);
+    }
+  });
 });
 
 describe('deleteLegacyFiles', () => {

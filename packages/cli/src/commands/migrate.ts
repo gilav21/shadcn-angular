@@ -87,7 +87,10 @@ async function executeMigration(
     removeFiles(manifest, deleted);
     await writeManifest(cwd, manifest);
 
-    const rewritten = await rewriteProjectImports(cwd, plan.migratedNames);
+    // Skip the CLI-managed ui dir: the migrated components' barrels reference
+    // their own `./<name>.component` (a file that still exists), which must not
+    // be rewritten — only consumer code outside ui/ should change.
+    const rewritten = await rewriteProjectImports(cwd, plan.migratedNames, [uiDir]);
 
     spinner.stop();
     printReport(result, deleted, rewritten, plan);
