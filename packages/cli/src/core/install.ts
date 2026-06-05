@@ -215,7 +215,13 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     await installLibFiles(new Set(finalComponents), libDir, input.options, warnings);
     await installNpmDependencies(finalComponents, input.cwd, warnings);
     await ensureShortcutService(targetDir, input.cwd, input.config, input.options);
-    await writeManifest(input.cwd, manifest);
+    try {
+        await writeManifest(input.cwd, manifest);
+    } catch (err: unknown) {
+        // The lockfile is a non-critical sidecar — a write failure must not
+        // make a successful install report failure.
+        warnings.push(`Could not write components.lock.json: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     return { installed, skipped: result.toSkip, declined, warnings };
 }

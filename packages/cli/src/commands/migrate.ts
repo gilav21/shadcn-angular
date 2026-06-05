@@ -4,12 +4,12 @@ import fs from 'fs-extra';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getConfig } from '../utils/config.js';
-import { type ComponentName } from '../registry/index.js';
+import { registry, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { scanLayouts } from '../core/layout.js';
 import { planMigration, rewriteProjectImports, deleteLegacyFiles, type MigrationPlan } from '../core/migrate-core.js';
 import { performInstall, type InstallResult } from '../core/install.js';
-import { readManifest, fileStatus, removeFiles, writeManifest } from '../core/manifest.js';
+import { readManifest, fileStatus, removeFiles, writeManifest, type Manifest } from '../core/manifest.js';
 import { type AddOptions } from '../core/plan.js';
 
 function gitTreeClean(cwd: string): boolean {
@@ -28,17 +28,32 @@ function ensureCleanTreeOrExit(cwd: string, options: AddOptions): void {
     process.exit(1);
 }
 
-/** Structural components whose legacy flat file was edited vs the manifest baseline. */
+async function fileIsModified(manifest: Manifest, uiDir: string, rel: string): Promise<boolean> {
+    const p = path.join(uiDir, rel);
+    if (!await fs.pathExists(p)) return false;
+    return fileStatus(manifest, rel, await fs.readFile(p, 'utf-8')) === 'modified';
+}
+
+/**
+ * Components migrate would overwrite that have local edits vs the manifest
+ * baseline — both legacy (flat `<name>.component.ts`) and already-folder
+ * components that the refresh step would replace. Legacy consumers with no
+ * manifest yield none (the clean-git guard is their backstop).
+ */
 async function customizedComponents(
-    cwd: string, uiDir: string, structural: ComponentName[],
+    cwd: string, uiDir: string, plan: MigrationPlan,
 ): Promise<ComponentName[]> {
     const manifest = await readManifest(cwd);
     const out: ComponentName[] = [];
-    for (const name of structural) {
-        const legacy = `${name}.component.ts`;
-        const p = path.join(uiDir, legacy);
-        if (!await fs.pathExists(p)) continue;
-        if (fileStatus(manifest, legacy, await fs.readFile(p, 'utf-8')) === 'modified') out.push(name);
+    for (const name of plan.structural) {
+        if (await fileIsModified(manifest, uiDir, `${name}.component.ts`)) out.push(name);
+    }
+    for (const name of plan.refresh) {
+        let edited = false;
+        for (const rel of registry[name].files) {
+            if (await fileIsModified(manifest, uiDir, rel)) { edited = true; break; }
+        }
+        if (edited) out.push(name);
     }
     return out;
 }
@@ -122,7 +137,7 @@ export async function migrate(options: AddOptions): Promise<void> {
 
     ensureCleanTreeOrExit(cwd, options);
 
-    const customized = await customizedComponents(cwd, uiDir, plan.structural);
+    const customized = await customizedComponents(cwd, uiDir, plan);
     if (customized.length > 0 && !options.yes) blockOnCustomized(customized);
 
     printMigrationPlan(plan);

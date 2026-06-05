@@ -39,7 +39,10 @@ export function planMigration(scan: LayoutScan): MigrationPlan {
 }
 
 const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.angular', 'coverage']);
-const SOURCE_EXT = new Set(['.ts', '.html']);
+// Only TS/JS carry ES import specifiers. HTML templates never do, so rewriting
+// them is pure risk (a template string like `from './x.component'` could be
+// mangled) for no benefit.
+const SOURCE_EXT = new Set(['.ts', '.mts', '.cts', '.js', '.mjs']);
 
 async function collectSourceFiles(root: string, skip: ReadonlySet<string>): Promise<string[]> {
     const out: string[] = [];
