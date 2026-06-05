@@ -17,8 +17,10 @@ test('sortable: keyboard reorder moves the DOM node, not just the data', async (
     await page.keyboard.press('Space');
     await page.keyboard.press('ArrowDown');
 
-    const after = await singleItems.allTextContents();
-    expect(after.map(s => s.trim())).toEqual(['Beta', 'Alpha', 'Gamma']);
+    // The reorder is an async DOM update; use the auto-retrying matcher rather
+    // than a one-shot allTextContents() read (which races the update — the
+    // source of this test's historical flakiness). toHaveText trims/normalizes.
+    await expect(singleItems).toHaveText(['Beta', 'Alpha', 'Gamma']);
 });
 
 test('sortable: cross-list Tab hand-off moves the item between lists', async ({ page }) => {
