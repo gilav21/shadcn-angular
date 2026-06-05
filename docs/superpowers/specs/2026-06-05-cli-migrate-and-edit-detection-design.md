@@ -64,6 +64,11 @@ capability every fix depends on.
 - **Edit detection** → introduce an **install manifest (lockfile)** as the
   baseline; warn the user about components they may have customized before
   overwriting.
+- **`components.lock.json` is git-committed** (not ignored) — the baseline must
+  travel with the project so edit-detection is shared across the team and CI.
+- **`customized[]` blocks `migrate`** — if any component has local edits and the
+  user did not pass `--yes`, `migrate` stops and lists them, so the user
+  consciously confirms before their changes are overwritten.
 
 ## Design
 
@@ -127,7 +132,9 @@ no migration. Already-folder components (e.g. `data-table` in the report) get a
 4. `importRewrites[]` — every project source file importing a migrated
    component's old path.
 5. `customized[]` — components whose local content differs from baseline
-   (manifest if present, else current library version) — surfaced as warnings.
+   (manifest if present, else current library version). If any are present and
+   `--yes` was not passed, `migrate` **stops** and lists them — the user must
+   re-run with `--yes` to consciously accept overwriting their edits.
 
 **Execute:**
 1. Write new folder/trio files for `structural ∪ refresh ∪ newDeps`. Files come
@@ -166,8 +173,9 @@ CLI wrote**:
 }
 ```
 
-Every write path updates it — `add`, `update`, `migrate`. Two independent
-comparison axes:
+`components.lock.json` is **committed to git** (alongside `components.json`) so
+the baseline is shared across the team and CI. Every write path updates it —
+`add`, `update`, `migrate`. Two independent comparison axes:
 
 | Compare | Verdict |
 |---|---|
@@ -201,18 +209,117 @@ exact, or heuristic for legacy) plus the `git diff` pointer.
 
 ## Testing strategy
 
-- **Unit (pure):** import-rewrite transform (alias + relative + `.component`
-  inside an unrelated path must NOT match); old-layout detection over a
-  synthesized file tree; manifest read/write + hash comparison.
-- **`update` regression (cli-spec):** `add data-table` → `update data-table`
-  touches only the expected set; `--dry-run` output equals the real run's
-  effect. This is the regression gate that proves bugs 1+2 fixed.
-- **`migrate` integration:** synthesize a legacy old-layout fixture (flat
-  `button.component.ts` + an app file importing `@/…/button.component`), run
-  `migrate`, assert: folder/trio files created, flat files deleted, imports
-  rewritten, newly-required deps pulled, manifest written, and the result
-  compiles.
-- **`doctor`:** with and without a manifest, asserts the correct sections.
+Tooling: Vitest for unit/integration (matches existing `*.spec.ts` under
+`packages/cli/src`); the `e2e/cli-specs/` harness (`runCli`/`captureCli`) for
+black-box CLI behavior on a real temp project; the Playwright e2e harness only
+where a true consumer install/compile is needed.
+
+### Part A — `update` / `doctor` / `--dry-run`
+
+- **`update` regression (cli-spec)** — the gate that proves bugs 1+2:
+  - `add data-table` → `update data-table` touches **only** the named component
+    + already-installed required deps (assert the exact set; assert it is **not**
+    the full 16-component closure).
+  - `--dry-run` output **equals** the real run's effect (same created / modified
+    / skipped / newly-required-dep list).
+  - A target whose new version newly-requires an uninstalled dep: without `--yes`
+    it does **not** write the dep and says so; with `--yes` it installs the dep
+    and the tree resolves.
+- **`doctor`** — with a manifest: separates "Locally modified" from "Update
+  available"; without a manifest: single "Differs from registry" section; with a
+  legacy install present: shows the "Legacy single-file layout — run `migrate`"
+  section.
+
+### Part C — manifest (pure unit)
+
+- Write-then-read round-trips; hash of written content matches.
+- Local edit flips local-vs-manifest to "modified"; an untouched file stays
+  clean. Registry bump flips manifest-vs-registry to "update available" while
+  local-vs-manifest stays clean (the two axes are independent).
+- Missing manifest → graceful legacy path (no crash). Corrupt/partial manifest →
+  treated as "no baseline for these files", never throws.
+
+### Part B — `migrate`: extensive
+
+**B-unit. Import-rewrite transform (pure, exhaustive — this is the riskiest
+code).** For a fixed set of migrated names, assert each case rewrites or is left
+untouched exactly:
+- Alias import: `from '@/components/ui/button.component'` →
+  `from '@/components/ui/button'`.
+- Relative imports at every depth: `'./button.component'`,
+  `'../button.component'`, `'../../ui/button.component'`.
+- With explicit extension: `'./button.component.ts'` → `'./button'`.
+- `export { X } from '…/button.component'` rewritten the same as `import`.
+- Dynamic `import('…/button.component')` and lazy `loadComponent` specifiers.
+- Single-line multi-import files and multi-line `import {\n …\n }` blocks: named
+  bindings preserved verbatim; only the specifier changes.
+- **Must NOT match (negative cases):**
+  - Substring collision: migrating `button` must not touch
+    `'…/button-group.component'` or `'…/icon-button.component'` (word-boundary
+    on the component segment).
+  - A component **not** in the migrated set is left alone.
+  - `.component` appearing inside an unrelated path segment
+    (`'…/my-button.component-helpers'`) or inside a string/comment that is not an
+    import specifier.
+- **Preservation:** CRLF vs LF line endings, quote style (`'` vs `"`), and
+  trailing semicolons are preserved.
+- **Idempotency:** running the transform twice yields no further change.
+
+**B-detect. Layout detection (pure, over a synthesized tree).**
+- Old-layout (`<name>.component.ts` present, `<name>/` absent) → `structural`.
+- New-layout (`<name>/<name>.component.ts` present) → `refresh`-eligible only.
+- Not installed (neither) → ignored.
+- Directive/pipe (flat `files[]`, no `/`) → never migrated.
+- Mixed project (some flat, some folder) → correctly partitioned.
+
+**B-integ. End-to-end migration on a synthesized legacy fixture (Vitest +
+temp dir).** Because the current CLI can no longer *produce* old layout, the test
+**fabricates** legacy state: writes flat `button.component.ts` / `input.component.ts`
+(inline template), an already-folder outdated `data-table`, a flat
+`app.component.ts` importing both `@/components/ui/button.component` (alias) and
+`../components/ui/input.component` (relative), a `components.json`, and `git init`
++ commit for a clean tree. Then run `migrate` and assert:
+1. Folder/trio created for every migrated component (`button/button.component.ts`,
+   `button/button.component.html`, `button/index.ts`, …).
+2. Old flat files deleted (`button.component.ts` gone; sibling flat
+   `button.component.{html,css}` gone if they existed).
+3. App imports rewritten — both the alias and the relative form now point at the
+   folder barrel; no `.component` specifier for a migrated name remains anywhere
+   in the project.
+4. Newly-required deps (context-menu directives) fetched and present.
+5. npm deps + lib files installed; `package.json` updated.
+6. `components.lock.json` written with a hash entry per written file.
+7. Summary lists files written/deleted, import-rewrite file count, deps added,
+   and the `customized[]` warnings.
+8. **The migrated project type-checks** (run `tsc --noEmit` against the temp
+   project, or assert no unresolved-import remains via a resolver pass).
+
+**B-guard. Flags & safety.**
+- Dirty git tree → aborts with guidance; **nothing written**; `--force`
+  overrides.
+- `--dry-run` → prints the full plan; the working tree (and git status) is
+  **byte-for-byte unchanged**; no manifest written.
+- `--yes` → no interactive prompt; non-interactive CI path works.
+- Not-a-git-repo → treated like a guard failure unless `--force` (don't strand
+  the user with no revert path silently).
+
+**B-edge.**
+- **Already fully new-layout** project → "Nothing to migrate."
+- **Partially migrated** project → completes to all-folder; no duplicate writes.
+- **Idempotency:** a second `migrate` run is a clean no-op.
+- **Customized component:** local content differs from baseline → `migrate`
+  **blocks and lists** them without `--yes`; with `--yes` it proceeds and the
+  user can still recover the old version via `git diff`.
+- **`--prefix` install:** selectors/tags rewritten at install time must survive
+  migration (files fetched with the project's prefix).
+- **Mid-run failure:** if a fetch/write throws partway, the clean-git guard
+  guarantees `git checkout .` fully restores; assert no partial manifest claims
+  success.
+
+**B-e2e (smoke, Playwright harness).** One end-to-end spec that fabricates a
+legacy install inside the pristine fixture app, runs `migrate`, then runs the
+real `ng build` — the ultimate "the consumer's app compiles after upgrade" gate
+that unit/integration layers can't fully prove.
 
 ## Rollout note
 
