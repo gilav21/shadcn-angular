@@ -114,7 +114,15 @@ async function executeMigration(
         precomputedConflicts: conflicts,
     });
 
-    const deleted = await deleteLegacyFiles(uiDir, plan.structural);
+    // CRITICAL: only finalize (delete the flat file + rewrite imports) for legacy
+    // components whose folder was ACTUALLY written. A failed write (e.g. registry
+    // unreachable) must NOT delete the consumer's working flat file or rewrite
+    // imports to a folder that doesn't exist.
+    const installed = new Set(result.installed);
+    const migratedOk = plan.structural.filter(n => installed.has(n));
+    const failed = plan.structural.filter(n => !installed.has(n));
+
+    const deleted = await deleteLegacyFiles(uiDir, migratedOk);
     const manifest = await readManifest(cwd);
     removeFiles(manifest, deleted);
     await writeManifest(cwd, manifest);
@@ -122,10 +130,14 @@ async function executeMigration(
     // Rewrite consumer imports of the migrated components. rewriteProjectImports
     // skips uiDir (the components' own barrels) and is scoped so only imports
     // resolving to <uiDir>/<name>.component are touched.
-    const rewritten = await rewriteProjectImports(cwd, plan.migratedNames, uiDir, config.aliases.ui);
+    const rewritten = await rewriteProjectImports(cwd, new Set(migratedOk), uiDir, config.aliases.ui);
 
     spinner.stop();
     printReport(result, deleted, rewritten, plan);
+    if (failed.length > 0) {
+        console.log(chalk.red(`\n${failed.length} component(s) could not be written and were left as legacy: ${failed.join(', ')}`));
+        console.log(chalk.dim('Their flat files were kept and imports left intact. Fix the errors above and re-run `migrate`.'));
+    }
 }
 
 export async function migrate(options: AddOptions): Promise<void> {

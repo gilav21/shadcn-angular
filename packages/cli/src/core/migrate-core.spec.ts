@@ -14,7 +14,6 @@ describe('planMigration', () => {
     expect(plan.writeSet).toContain('ripple');
     expect(plan.newDeps).toContain('ripple');
     expect(plan.untouched).toEqual(['badge']);
-    expect(plan.migratedNames.has('button')).toBe(true);
   });
 
   it('refreshes an already-folder dependency of the legacy set', () => {
@@ -32,7 +31,6 @@ describe('planMigration', () => {
     expect(plan.writeSet).toEqual([]);
     expect(plan.newDeps).toEqual([]);
     expect(plan.untouched).toEqual(['button', 'ripple']);
-    expect(plan.migratedNames.size).toBe(0);
   });
 });
 

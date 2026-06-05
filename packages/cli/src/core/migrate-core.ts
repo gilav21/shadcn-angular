@@ -16,8 +16,6 @@ export interface MigrationPlan {
     refreshed: ComponentName[];
     /** Installed folder components NOT needed by the legacy set — left as-is. */
     untouched: ComponentName[];
-    /** Names whose consumer imports must be rewritten (the structural set). */
-    migratedNames: Set<string>;
 }
 
 /**
@@ -41,7 +39,6 @@ export function planMigration(scan: LayoutScan): MigrationPlan {
         newDeps: writeSet.filter(n => !installed.has(n)),
         refreshed: writeSet.filter(n => scan.current.includes(n)),
         untouched: scan.current.filter(n => !writeSetSet.has(n)),
-        migratedNames: new Set<string>(structural),
     };
 }
 
