@@ -12,6 +12,7 @@
 
 ---
 
+<<<<<<< HEAD
 ## Completion Log
 
 | Phase / Task | Completed | Score | Rationale |
@@ -26,6 +27,8 @@
 
 ---
 
+=======
+>>>>>>> bbc1308 (docs: implementation plan for safe update, migrate, and edit detection)
 ## File-structure map
 
 **New files**
@@ -1536,6 +1539,7 @@ Use the `sonar` skill / `npm run` Sonar task per CLAUDE.md §4 on every new/chan
 - **Spec coverage:** A1 → Task 2; A2 → Task 2 (+ Task 3 gate); A3 → Task 6; B detection → Task 1; B import-rewrite → Task 8; B plan/execute → Tasks 9–12; B guards (git-clean, --dry-run, --yes, customized-block) → Task 12; C manifest → Tasks 4–5; C doctor split → Task 6; C update warning → Task 7; testing: B-unit/detect → Tasks 1,8; B-integ/B-guard → Tasks 10,11,13; B-e2e → Task 14; update regression → Task 3. **No gaps.**
 - **Placeholder scan:** two snippets carry an inline instruction to replace with the clean form before committing — `scan.structural ?? scan.legacy` in Task 9 (use `[...scan.legacy]`) and the `void …` honesty line in Task 12 (delete unused imports instead). No "TBD/handle edge cases" left.
 - **Type consistency:** `ComponentName`, `Manifest`, `FileStatus`, `LayoutScan`, `MigrationPlan`, `ClosurePartition` names are used identically across tasks; `recordFile(manifest,file,content,component)`, `fileStatus(manifest,file,local)`, `rewriteImports(source,migrated)→{content,changed}`, `rewriteSpecifier(spec,migrated)→string|null` signatures match every call site.
+<<<<<<< HEAD
 
 ---
 
@@ -1879,3 +1883,5 @@ function writeRealLegacyButton(uiDir: string): void {
   sites compiling; `canonicalize`/`isPristine`/`neutralizePrefix` signatures match
   all call sites and the generator.
 - **Bootstrapping:** baseline.ts ⇄ generator circular import resolved by stub-then-generate.
+=======
+>>>>>>> bbc1308 (docs: implementation plan for safe update, migrate, and edit detection)
