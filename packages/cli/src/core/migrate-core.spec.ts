@@ -5,19 +5,33 @@ import os from 'node:os';
 import { planMigration, rewriteProjectImports, deleteLegacyFiles } from './migrate-core.js';
 
 describe('planMigration', () => {
-  it('migrates legacy components, refreshes current, and pulls newly-required deps', () => {
-    // button depends on ripple; with ripple not installed it becomes a new dep.
+  it('writes the legacy set closure and leaves unrelated folder components alone', () => {
+    // button depends on ripple (not installed -> a new dep). badge is an
+    // unrelated already-folder component -> left untouched.
     const plan = planMigration({ legacy: ['button'], current: ['badge'] });
     expect(plan.structural).toEqual(['button']);
-    expect(plan.refresh).toEqual(['badge']);
-    expect(plan.migratedNames.has('button')).toBe(true);
+    expect(plan.writeSet).toContain('button');
+    expect(plan.writeSet).toContain('ripple');
     expect(plan.newDeps).toContain('ripple');
+    expect(plan.untouched).toEqual(['badge']);
+    expect(plan.migratedNames.has('button')).toBe(true);
   });
 
-  it('returns an empty structural plan when nothing is legacy', () => {
+  it('refreshes an already-folder dependency of the legacy set', () => {
+    // ripple is button's dep and is already installed as a folder component;
+    // migrating button refreshes ripple (it's in the closure), not "untouched".
+    const plan = planMigration({ legacy: ['button'], current: ['ripple'] });
+    expect(plan.refreshed).toContain('ripple');
+    expect(plan.untouched).not.toContain('ripple');
+    expect(plan.newDeps).not.toContain('ripple');
+  });
+
+  it('returns an empty plan when nothing is legacy', () => {
     const plan = planMigration({ legacy: [], current: ['button', 'ripple'] });
     expect(plan.structural).toEqual([]);
+    expect(plan.writeSet).toEqual([]);
     expect(plan.newDeps).toEqual([]);
+    expect(plan.untouched).toEqual(['button', 'ripple']);
     expect(plan.migratedNames.size).toBe(0);
   });
 });

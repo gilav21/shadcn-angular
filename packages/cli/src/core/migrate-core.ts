@@ -8,11 +8,15 @@ import { rewriteImports } from './import-rewrite.js';
 export interface MigrationPlan {
     /** Legacy (flat) components to convert to folder form. */
     structural: ComponentName[];
-    /** Already-folder components whose content will be refreshed. */
-    refresh: ComponentName[];
-    /** Dependencies newly required by the migrated set, not yet installed. */
+    /** Everything migrate writes: the dependency closure of the legacy set. */
+    writeSet: ComponentName[];
+    /** writeSet members not currently installed — pulled fresh. */
     newDeps: ComponentName[];
-    /** Names whose imports must be rewritten project-wide (the structural set). */
+    /** Already-folder deps of the legacy set — refreshed to a compatible version. */
+    refreshed: ComponentName[];
+    /** Installed folder components NOT needed by the legacy set — left as-is. */
+    untouched: ComponentName[];
+    /** Names whose consumer imports must be rewritten (the structural set). */
     migratedNames: Set<string>;
 }
 
@@ -20,21 +24,24 @@ export interface MigrationPlan {
  * Compute the migration plan from a layout scan (pure). Only legacy (flat)
  * components change structurally — their import paths move from
  * `<name>.component` to the `<name>` folder barrel — so they are the only
- * names whose consumer imports need rewriting. Already-folder components are
- * refreshed in place; dependencies of the migrated set that aren't installed
- * are pulled fresh so every folder-barrel import resolves.
+ * names whose consumer imports need rewriting. migrate writes the dependency
+ * CLOSURE of the legacy set (the legacy components plus the deps they need),
+ * so a freshly-written component never calls a newer API on a stale dep;
+ * installed folder components the legacy set does NOT depend on are left
+ * untouched (run `update` to refresh those).
  */
 export function planMigration(scan: LayoutScan): MigrationPlan {
     const structural = [...scan.legacy];
-    const refresh = [...scan.current];
     const installed = new Set<ComponentName>([...scan.legacy, ...scan.current]);
-    const closure = resolveDependencies([...installed]);
-    const newDeps = [...closure].filter(n => !installed.has(n));
+    const writeSet = [...resolveDependencies(structural)];
+    const writeSetSet = new Set(writeSet);
     return {
         structural,
-        refresh,
-        newDeps,
-        migratedNames: new Set<string>(scan.legacy),
+        writeSet,
+        newDeps: writeSet.filter(n => !installed.has(n)),
+        refreshed: writeSet.filter(n => scan.current.includes(n)),
+        untouched: scan.current.filter(n => !writeSetSet.has(n)),
+        migratedNames: new Set<string>(structural),
     };
 }
 

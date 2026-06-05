@@ -4,7 +4,7 @@ import fs from 'fs-extra';
 import chalk from 'chalk';
 import ora from 'ora';
 import { getConfig, getPrefix } from '../utils/config.js';
-import { type ComponentName } from '../registry/index.js';
+import { registry, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { scanLayouts } from '../core/layout.js';
 import { planMigration, rewriteProjectImports, deleteLegacyFiles, type MigrationPlan } from '../core/migrate-core.js';
@@ -36,19 +36,29 @@ async function fileIsModified(manifest: Manifest, uiDir: string, rel: string): P
     return fileStatus(manifest, rel, await fs.readFile(p, 'utf-8')) === 'modified';
 }
 
+async function folderComponentEdited(manifest: Manifest, uiDir: string, name: ComponentName): Promise<boolean> {
+    for (const rel of registry[name].files) {
+        if (await fileIsModified(manifest, uiDir, rel)) return true;
+    }
+    return false;
+}
+
 /**
- * Legacy components migrate would overwrite that have local edits vs the
- * manifest baseline. (Already-folder components are left untouched, so they
- * can't be clobbered.) Legacy consumers with no manifest yield none — the
+ * Components migrate would overwrite that have local edits vs the manifest
+ * baseline: legacy components (flat `<name>.component.ts`) and the already-
+ * folder deps it refreshes. Legacy consumers with no manifest yield none — the
  * clean-git guard is their backstop.
  */
 async function customizedComponents(
-    cwd: string, uiDir: string, structural: ComponentName[],
+    cwd: string, uiDir: string, plan: MigrationPlan,
 ): Promise<ComponentName[]> {
     const manifest = await readManifest(cwd);
     const out: ComponentName[] = [];
-    for (const name of structural) {
+    for (const name of plan.structural) {
         if (await fileIsModified(manifest, uiDir, `${name}.component.ts`)) out.push(name);
+    }
+    for (const name of plan.refreshed) {
+        if (await folderComponentEdited(manifest, uiDir, name)) out.push(name);
     }
     return out;
 }
@@ -64,8 +74,9 @@ function printMigrationPlan(plan: MigrationPlan): void {
     console.log(chalk.bold('\nMigration plan:'));
     console.log(chalk.dim('  Convert to folder layout: ') + plan.structural.join(', '));
     if (plan.newDeps.length) console.log(chalk.dim('  Install new dependencies: ') + plan.newDeps.join(', '));
-    if (plan.refresh.length) {
-        console.log(chalk.dim('  Left as-is (run `update` to refresh): ') + plan.refresh.join(', '));
+    if (plan.refreshed.length) console.log(chalk.dim('  Refresh required deps: ') + plan.refreshed.join(', '));
+    if (plan.untouched.length) {
+        console.log(chalk.dim('  Left as-is (run `update` to refresh): ') + plan.untouched.join(', '));
     }
 }
 
@@ -86,19 +97,18 @@ async function executeMigration(
 ): Promise<void> {
     const spinner = ora('Migrating...').start();
 
-    // Only the legacy components (→ folder) and newly-required deps are written.
-    // Already-folder components are deliberately left untouched. Precompute
-    // conflicts over exactly this set so performInstall does NOT re-resolve the
-    // dependency closure and overwrite installed components the user didn't ask
-    // to change. `overwrite: true` still refreshes shared lib files for the
-    // written set.
-    const writeSet = [...new Set<ComponentName>([...plan.structural, ...plan.newDeps])];
+    // migrate writes the legacy set's dependency closure (plan.writeSet):
+    // legacy components → folder, plus the deps they need (refreshed/installed)
+    // so nothing calls a newer API on a stale dep. Precompute conflicts over
+    // exactly this set so performInstall does NOT re-resolve and pull in
+    // unrelated installed components. `overwrite: true` refreshes shared lib
+    // files for the written set.
     const conflicts = await detectConflicts(
-        new Set(writeSet), uiDir, options, config.aliases.utils, getPrefix(config),
+        new Set(plan.writeSet), uiDir, options, config.aliases.utils, getPrefix(config),
     );
     const result = await performInstall({
-        components: writeSet,
-        overwrite: writeSet,
+        components: plan.writeSet,
+        overwrite: plan.writeSet,
         cwd, config,
         options: { ...options, overwrite: true },
         precomputedConflicts: conflicts,
@@ -144,7 +154,7 @@ export async function migrate(options: AddOptions): Promise<void> {
 
     ensureCleanTreeOrExit(cwd, options);
 
-    const customized = await customizedComponents(cwd, uiDir, plan.structural);
+    const customized = await customizedComponents(cwd, uiDir, plan);
     if (customized.length > 0 && !options.yes) blockOnCustomized(customized);
 
     printMigrationPlan(plan);
