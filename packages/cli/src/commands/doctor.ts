@@ -5,12 +5,44 @@ import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { detectConflicts, type AddOptions } from '../core/plan.js';
+import { readManifest, fileStatus, type FileStatus, type Manifest } from '../core/manifest.js';
+import { scanLayouts } from '../core/layout.js';
 
 export interface DoctorReport {
     missingFiles: string[];
+    /** Components whose installed files differ from the registry. */
     modified: string[];
+    /** Subset of `modified` the user edited locally (drift from manifest baseline). */
+    userEdited: string[];
+    /** Subset of `modified` that simply has a newer registry version. */
+    updateAvailable: string[];
+    /** Folderized components installed in the legacy flat layout. */
+    legacy: string[];
     missingNpmDeps: string[];
     ok: boolean;
+}
+
+export interface DriftSplit {
+    userEdited: string[];
+    updateAvailable: string[];
+}
+
+/**
+ * Split components that differ from the registry into "you edited it" vs "a
+ * newer version exists", using each component's local-vs-manifest status.
+ * Only a `modified` baseline status counts as a user edit; `clean` and
+ * `untracked` (no baseline) are treated as an available update.
+ */
+export function classifyDrift(
+    differsFromRegistry: string[], localStatus: Record<string, FileStatus>,
+): DriftSplit {
+    const userEdited: string[] = [];
+    const updateAvailable: string[] = [];
+    for (const name of differsFromRegistry) {
+        if (localStatus[name] === 'modified') userEdited.push(name);
+        else updateAvailable.push(name);
+    }
+    return { userEdited, updateAvailable };
 }
 
 async function installedComponents(targetDir: string): Promise<ComponentName[]> {
@@ -54,8 +86,32 @@ export async function collectDoctorReport(
     const modified = installed.filter(c => conflicting.includes(c));
     const missingNpmDeps = await collectMissingNpmDeps(installed, cwd);
 
-    const ok = missingFiles.length === 0 && modified.length === 0 && missingNpmDeps.length === 0;
-    return { missingFiles, modified, missingNpmDeps, ok };
+    const manifest = await readManifest(cwd);
+    const localStatus: Record<string, FileStatus> = {};
+    for (const name of modified) {
+        localStatus[name] = await worstLocalStatus(manifest, targetDir, name);
+    }
+    const { userEdited, updateAvailable } = classifyDrift(modified, localStatus);
+    const { legacy } = await scanLayouts(targetDir);
+
+    const ok = missingFiles.length === 0 && modified.length === 0
+        && missingNpmDeps.length === 0 && legacy.length === 0;
+    return { missingFiles, modified, userEdited, updateAvailable, legacy, missingNpmDeps, ok };
+}
+
+/** Worst local-vs-manifest status across a component's files (modified > untracked > clean). */
+async function worstLocalStatus(
+    manifest: Manifest, targetDir: string, name: ComponentName,
+): Promise<FileStatus> {
+    let worst: FileStatus = 'clean';
+    for (const file of registry[name].files) {
+        const p = path.join(targetDir, file);
+        if (!await fs.pathExists(p)) continue;
+        const status = fileStatus(manifest, file, await fs.readFile(p, 'utf-8'));
+        if (status === 'modified') return 'modified';
+        if (status === 'untracked') worst = 'untracked';
+    }
+    return worst;
 }
 
 function printSection(title: string, items: string[], colorFn: (s: string) => string): void {
@@ -81,7 +137,9 @@ export async function doctor(options: AddOptions): Promise<void> {
         return;
     }
     printSection('Partially installed (missing files):', report.missingFiles, chalk.yellow);
-    printSection('Modified locally (drift from registry):', report.modified, chalk.yellow);
+    printSection('Locally modified (your edits — back them up before update):', report.userEdited, chalk.yellow);
+    printSection('Update available (newer registry version):', report.updateAvailable, chalk.cyan);
+    printSection('Legacy single-file layout — run `migrate`:', report.legacy, chalk.magenta);
     printSection('Missing npm dependencies:', report.missingNpmDeps, chalk.red);
     console.log('');
     process.exit(1);
