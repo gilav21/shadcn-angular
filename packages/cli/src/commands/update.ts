@@ -138,10 +138,14 @@ async function applyUpdates(
     universe: Set<ComponentName>, conflicts: ConflictCheckResult,
     cwd: string, config: Config, options: AddOptions,
 ): Promise<void> {
+    // `overwrite: true` refreshes shared lib files (utils, i18n, touch) for the
+    // updated set; the write set stays bounded to `universe` because
+    // precomputedConflicts is computed over exactly that set (no re-resolution).
     const result = await performInstall({
         components: [...universe],
         overwrite: [...universe],
-        cwd, config, options,
+        cwd, config,
+        options: { ...options, overwrite: true },
         precomputedConflicts: conflicts,
     });
     console.log(chalk.green(`\nUpdated ${result.installed.length} component(s).`));

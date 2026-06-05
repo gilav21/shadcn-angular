@@ -63,20 +63,29 @@ async function collectSourceFiles(root: string, skip: ReadonlySet<string>): Prom
 
 /**
  * Rewrite migrated imports across project source files; return changed paths.
- * `skipDirs` are excluded entirely — pass the CLI-managed `ui` component dir so
- * the migrated components' own barrels (`export * from './button.component'`,
- * an intra-folder reference to a file that still exists) are left untouched.
- * Only consumer code outside `ui/` should have its imports rewritten.
+ * The CLI-managed `uiDir` is excluded entirely so the migrated components' own
+ * barrels (`export * from './button.component'`, an intra-folder reference to a
+ * file that still exists) are left untouched. Each rewrite is scoped to imports
+ * that actually resolve to `<uiDir>/<name>.component` (via `uiAlias` or a
+ * relative path), so a consumer file that merely shares a component name is
+ * never corrupted.
  */
 export async function rewriteProjectImports(
-    projectRoot: string, migratedNames: ReadonlySet<string>, skipDirs: string[] = [],
+    projectRoot: string, migratedNames: ReadonlySet<string>,
+    uiDir: string, uiAlias: string,
 ): Promise<string[]> {
     if (migratedNames.size === 0) return [];
-    const skip = new Set(skipDirs.map(d => path.resolve(d)));
+    const resolvedUiDir = path.resolve(uiDir);
+    const alias = uiAlias.replace(/\/+$/, '');
     const changed: string[] = [];
-    for (const file of await collectSourceFiles(projectRoot, skip)) {
+    for (const file of await collectSourceFiles(projectRoot, new Set([resolvedUiDir]))) {
         const source = await fs.readFile(file, 'utf-8');
-        const result = rewriteImports(source, migratedNames);
+        const result = rewriteImports(source, {
+            migrated: migratedNames,
+            uiAlias: alias,
+            uiDir: resolvedUiDir,
+            fileDir: path.dirname(file),
+        });
         if (result.changed) {
             await fs.writeFile(file, result.content);
             changed.push(file);
@@ -85,10 +94,10 @@ export async function rewriteProjectImports(
     return changed;
 }
 
-const LEGACY_SUFFIXES = [
-    '.component.ts', '.component.html', '.component.css',
-    '.component.spec.ts', '.component.stories.ts',
-];
+// Only the component source migrate replaces. Deliberately NOT spec/stories —
+// those are the consumer's own tests and must not be deleted (the folder layout
+// doesn't reinstall them).
+const LEGACY_SUFFIXES = ['.component.ts', '.component.html', '.component.css'];
 
 /** Remove legacy flat files for each migrated component; return deleted rel paths. */
 export async function deleteLegacyFiles(

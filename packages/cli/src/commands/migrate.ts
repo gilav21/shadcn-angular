@@ -3,18 +3,20 @@ import path from 'node:path';
 import fs from 'fs-extra';
 import chalk from 'chalk';
 import ora from 'ora';
-import { getConfig } from '../utils/config.js';
-import { registry, type ComponentName } from '../registry/index.js';
+import { getConfig, getPrefix } from '../utils/config.js';
+import { type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { scanLayouts } from '../core/layout.js';
 import { planMigration, rewriteProjectImports, deleteLegacyFiles, type MigrationPlan } from '../core/migrate-core.js';
 import { performInstall, type InstallResult } from '../core/install.js';
 import { readManifest, fileStatus, removeFiles, writeManifest, type Manifest } from '../core/manifest.js';
-import { type AddOptions } from '../core/plan.js';
+import { detectConflicts, type AddOptions } from '../core/plan.js';
 
 function gitTreeClean(cwd: string): boolean {
     try {
-        return execSync('git status --porcelain', { cwd, encoding: 'utf-8' }).trim() === '';
+        // Scope to the project dir (`-- .`) so an unrelated dirty file elsewhere
+        // in a monorepo doesn't refuse a clean app subdir.
+        return execSync('git status --porcelain -- .', { cwd, encoding: 'utf-8' }).trim() === '';
     } catch {
         // Not a git repo, or git is unavailable — treat as "not clean".
         return false;
@@ -35,25 +37,18 @@ async function fileIsModified(manifest: Manifest, uiDir: string, rel: string): P
 }
 
 /**
- * Components migrate would overwrite that have local edits vs the manifest
- * baseline — both legacy (flat `<name>.component.ts`) and already-folder
- * components that the refresh step would replace. Legacy consumers with no
- * manifest yield none (the clean-git guard is their backstop).
+ * Legacy components migrate would overwrite that have local edits vs the
+ * manifest baseline. (Already-folder components are left untouched, so they
+ * can't be clobbered.) Legacy consumers with no manifest yield none — the
+ * clean-git guard is their backstop.
  */
 async function customizedComponents(
-    cwd: string, uiDir: string, plan: MigrationPlan,
+    cwd: string, uiDir: string, structural: ComponentName[],
 ): Promise<ComponentName[]> {
     const manifest = await readManifest(cwd);
     const out: ComponentName[] = [];
-    for (const name of plan.structural) {
+    for (const name of structural) {
         if (await fileIsModified(manifest, uiDir, `${name}.component.ts`)) out.push(name);
-    }
-    for (const name of plan.refresh) {
-        let edited = false;
-        for (const rel of registry[name].files) {
-            if (await fileIsModified(manifest, uiDir, rel)) { edited = true; break; }
-        }
-        if (edited) out.push(name);
     }
     return out;
 }
@@ -68,8 +63,10 @@ function blockOnCustomized(customized: ComponentName[]): void {
 function printMigrationPlan(plan: MigrationPlan): void {
     console.log(chalk.bold('\nMigration plan:'));
     console.log(chalk.dim('  Convert to folder layout: ') + plan.structural.join(', '));
-    if (plan.refresh.length) console.log(chalk.dim('  Refresh: ') + plan.refresh.join(', '));
-    if (plan.newDeps.length) console.log(chalk.dim('  New dependencies: ') + plan.newDeps.join(', '));
+    if (plan.newDeps.length) console.log(chalk.dim('  Install new dependencies: ') + plan.newDeps.join(', '));
+    if (plan.refresh.length) {
+        console.log(chalk.dim('  Left as-is (run `update` to refresh): ') + plan.refresh.join(', '));
+    }
 }
 
 function printReport(
@@ -89,12 +86,22 @@ async function executeMigration(
 ): Promise<void> {
     const spinner = ora('Migrating...').start();
 
-    const writeSet = [...new Set<ComponentName>([...plan.structural, ...plan.refresh, ...plan.newDeps])];
+    // Only the legacy components (→ folder) and newly-required deps are written.
+    // Already-folder components are deliberately left untouched. Precompute
+    // conflicts over exactly this set so performInstall does NOT re-resolve the
+    // dependency closure and overwrite installed components the user didn't ask
+    // to change. `overwrite: true` still refreshes shared lib files for the
+    // written set.
+    const writeSet = [...new Set<ComponentName>([...plan.structural, ...plan.newDeps])];
+    const conflicts = await detectConflicts(
+        new Set(writeSet), uiDir, options, config.aliases.utils, getPrefix(config),
+    );
     const result = await performInstall({
         components: writeSet,
         overwrite: writeSet,
         cwd, config,
         options: { ...options, overwrite: true },
+        precomputedConflicts: conflicts,
     });
 
     const deleted = await deleteLegacyFiles(uiDir, plan.structural);
@@ -102,10 +109,10 @@ async function executeMigration(
     removeFiles(manifest, deleted);
     await writeManifest(cwd, manifest);
 
-    // Skip the CLI-managed ui dir: the migrated components' barrels reference
-    // their own `./<name>.component` (a file that still exists), which must not
-    // be rewritten — only consumer code outside ui/ should change.
-    const rewritten = await rewriteProjectImports(cwd, plan.migratedNames, [uiDir]);
+    // Rewrite consumer imports of the migrated components. rewriteProjectImports
+    // skips uiDir (the components' own barrels) and is scoped so only imports
+    // resolving to <uiDir>/<name>.component are touched.
+    const rewritten = await rewriteProjectImports(cwd, plan.migratedNames, uiDir, config.aliases.ui);
 
     spinner.stop();
     printReport(result, deleted, rewritten, plan);
@@ -137,7 +144,7 @@ export async function migrate(options: AddOptions): Promise<void> {
 
     ensureCleanTreeOrExit(cwd, options);
 
-    const customized = await customizedComponents(cwd, uiDir, plan);
+    const customized = await customizedComponents(cwd, uiDir, plan.structural);
     if (customized.length > 0 && !options.yes) blockOnCustomized(customized);
 
     printMigrationPlan(plan);
