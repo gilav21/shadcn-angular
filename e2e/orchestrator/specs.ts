@@ -191,6 +191,7 @@ export const CLI_SPECS: readonly CliSpecEntry[] = [
     { label: 'add-without-init',        module: 'add-without-init' },
     { label: 'list-and-diff',           module: 'list-and-diff' },
     { label: 'update-bounded',          module: 'update-bounded' },
+    { label: 'update-guards',           module: 'update-guards' },
     // add-all-smoke is intentionally last — it's the slowest spec
     // (~3-5 min) because it installs every component in the registry
     // and runs `ng build --configuration production`.
