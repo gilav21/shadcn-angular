@@ -10,6 +10,8 @@ vi.mock('fs-extra', () => ({
     writeFile: vi.fn(async () => undefined),
     ensureDir: vi.fn(async () => undefined),
     existsSync: vi.fn(() => false),
+    readJson: vi.fn(async () => ({ version: 1, files: {} })),
+    writeJson: vi.fn(async () => undefined),
   },
 }));
 vi.mock('./fetch.js', () => ({
@@ -49,6 +51,19 @@ describe('performInstall', () => {
     const result = await performInstall({ ...base, components: ['badge'] });
     expect(result.installed).toContain('badge');
     expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
+  });
+
+  it('records installed files in components.lock.json with content hashes', async () => {
+    await performInstall({ ...base, components: ['badge'] });
+    const writeJson = fs.writeJson as unknown as ReturnType<typeof vi.fn>;
+    const lockCall = writeJson.mock.calls.find(c =>
+      String(c[0]).replaceAll('\\', '/').endsWith('components.lock.json'));
+    expect(lockCall).toBeDefined();
+    const manifest = lockCall![1] as { files: Record<string, { sha256: string; component: string }> };
+    const entries = Object.values(manifest.files);
+    expect(entries.length).toBeGreaterThan(0);
+    expect(entries[0].sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(entries[0].component).toBe('badge');
   });
 
   it('overwrites a changed component only when listed in overwrite, else declines it', async () => {
