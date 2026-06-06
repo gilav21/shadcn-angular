@@ -6,15 +6,20 @@ import { type LayoutScan } from './layout.js';
 import { rewriteImports } from './import-rewrite.js';
 
 export interface MigrationPlan {
-    /** Legacy (flat) components to convert to folder form. */
+    /** Legacy (flat) components to convert to folder form (pristine closure). */
     structural: ComponentName[];
-    /** Everything migrate writes: the dependency closure of the legacy set. */
+    /** Legacy components the consumer customized — left untouched, flagged. */
+    customized: ComponentName[];
+    /** Pristine legacy components deferred because they depend on a customized
+     *  one (a folder component cannot import a still-flat dependency). */
+    blocked: ComponentName[];
+    /** Everything migrate writes: the dependency closure of `structural`. */
     writeSet: ComponentName[];
     /** writeSet members not currently installed — pulled fresh. */
     newDeps: ComponentName[];
-    /** Already-folder deps of the legacy set — refreshed to a compatible version. */
+    /** Already-folder deps of the migrated set — refreshed to a compatible version. */
     refreshed: ComponentName[];
-    /** Installed folder components NOT needed by the legacy set — left as-is. */
+    /** Installed folder components NOT needed by the migrated set — left as-is. */
     untouched: ComponentName[];
 }
 
@@ -23,18 +28,32 @@ export interface MigrationPlan {
  * components change structurally — their import paths move from
  * `<name>.component` to the `<name>` folder barrel — so they are the only
  * names whose consumer imports need rewriting. migrate writes the dependency
- * CLOSURE of the legacy set (the legacy components plus the deps they need),
- * so a freshly-written component never calls a newer API on a stale dep;
- * installed folder components the legacy set does NOT depend on are left
- * untouched (run `update` to refresh those).
+ * CLOSURE of the migrated set, so a freshly-written component never calls a
+ * newer API on a stale dep; installed folder components it does NOT depend on
+ * are left untouched (run `update` to refresh those).
+ *
+ * `customized` (legacy components the consumer edited) are NEVER overwritten: a
+ * legacy component is migrated only when its entire dependency closure is
+ * customization-free, because a folder component cannot import a still-flat
+ * dependency. Edited components are left as-is and flagged; pristine components
+ * that depend on an edited one are deferred (`blocked`).
  */
-export function planMigration(scan: LayoutScan): MigrationPlan {
-    const structural = [...scan.legacy];
+export function planMigration(
+    scan: LayoutScan, customized: ReadonlySet<ComponentName> = new Set(),
+): MigrationPlan {
+    const customizedLegacy = scan.legacy.filter(n => customized.has(n));
+    const customizedSet = new Set(customizedLegacy);
+    const migratable = (n: ComponentName) =>
+        [...resolveDependencies([n])].every(d => !customizedSet.has(d));
+    const structural = scan.legacy.filter(migratable);
+    const blocked = scan.legacy.filter(n => !customizedSet.has(n) && !migratable(n));
     const installed = new Set<ComponentName>([...scan.legacy, ...scan.current]);
     const writeSet = [...resolveDependencies(structural)];
     const writeSetSet = new Set(writeSet);
     return {
         structural,
+        customized: customizedLegacy,
+        blocked,
         writeSet,
         newDeps: writeSet.filter(n => !installed.has(n)),
         refreshed: writeSet.filter(n => scan.current.includes(n)),
@@ -48,10 +67,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.angular', 'coverage
 // mangled) for no benefit.
 const SOURCE_EXT = new Set(['.ts', '.mts', '.cts', '.js', '.mjs']);
 
-async function collectSourceFiles(root: string, skip: ReadonlySet<string>): Promise<string[]> {
+async function collectSourceFiles(root: string): Promise<string[]> {
     const out: string[] = [];
     const walk = async (dir: string): Promise<void> => {
-        if (skip.has(path.resolve(dir))) return;
         for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
             const full = path.join(dir, entry.name);
             if (entry.isDirectory()) {
@@ -67,12 +85,14 @@ async function collectSourceFiles(root: string, skip: ReadonlySet<string>): Prom
 
 /**
  * Rewrite migrated imports across project source files; return changed paths.
- * The CLI-managed `uiDir` is excluded entirely so the migrated components' own
- * barrels (`export * from './button.component'`, an intra-folder reference to a
- * file that still exists) are left untouched. Each rewrite is scoped to imports
- * that actually resolve to `<uiDir>/<name>.component` (via `uiAlias` or a
- * relative path), so a consumer file that merely shares a component name is
- * never corrupted.
+ * Every file (INCLUDING those under `uiDir`) is scanned, because a pre-existing
+ * folder component can import a now-migrated sibling via the old flat path
+ * (`../switch.component`) and must be fixed too. Each rewrite is scoped to
+ * imports that actually resolve to `<uiDir>/<name>.component` (via `uiAlias` or
+ * a relative path), so a component's own barrel self-reference
+ * (`./switch.component` → resolves to `<uiDir>/switch/switch.component`, which
+ * still exists) and a consumer file that merely shares a component name are
+ * both left untouched.
  */
 export async function rewriteProjectImports(
     projectRoot: string, migratedNames: ReadonlySet<string>,
@@ -82,7 +102,7 @@ export async function rewriteProjectImports(
     const resolvedUiDir = path.resolve(uiDir);
     const alias = uiAlias.replace(/\/+$/, '');
     const changed: string[] = [];
-    for (const file of await collectSourceFiles(projectRoot, new Set([resolvedUiDir]))) {
+    for (const file of await collectSourceFiles(projectRoot)) {
         const source = await fs.readFile(file, 'utf-8');
         const result = rewriteImports(source, {
             migrated: migratedNames,

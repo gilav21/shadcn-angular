@@ -19,6 +19,9 @@
 | Phase 1 (Tasks 1–3): layout detection + bounded update + dry-run + legacy guard | 2026-06-05 | 95 | Bounded write set proven structurally (`precomputedConflicts` skips dependency re-resolution; `options.overwrite` never forced), so the "Updated 16" blast radius is impossible; closure-wide legacy guard + newly-required-deps consent split both exercised by the `update-guards` cli-spec. `update()` complexity <15 after helper extraction; 9 unit tests + `update-bounded`/`update-guards` cli-specs green. Cosmetic nit: dry-run omits a "skipped" line. |
 | Phase 2 (Tasks 4–7): manifest + edit-aware doctor + update warning | 2026-06-05 | 95 | `components.lock.json` hashes through `normalizeContent` (CRLF/LF-safe); two axes correct (local-vs-manifest = edited, manifest-vs-registry = update available); `readManifest` never throws on missing/corrupt. `performInstall` records component+peer writes; pure-skip correctly writes nothing. `classifyDrift`/`worstLocalStatus`/`customizedAmong` correct, non-blocking warning per spec. 203 unit tests + cli-specs green, complexity <15. Cosmetic nits: no manifest version-migration hook; `trim()` in hash (symmetric). |
 | Phase 3 (Tasks 8–14): migrate command | 2026-06-05 | 93 | End-to-end flow correct (scan→plan→git-guard→customized-block→dry-run→execute); write set provably bounded to `closure(installed)`; legacy flat files deleted + dropped from manifest. The compile-smoke gate (real production `ng build`) caught a build-breaking bug — `rewriteProjectImports` rewrote the component's own barrel `export * from './button.component'`; fixed by skipping the ui dir, with a regression test. 222 unit tests + migrate/migrate-build cli-specs green; complexity <15. Documented limitation: no-manifest legacy consumers aren't flagged via the spec-C2 remote-compare heuristic — the clean-git guard + "review with git diff" report is the backstop. `--dry-run` made a safe non-blocking preview. |
+| Phase 4 Tasks 19–21: Bug 1 partition + migrate wiring + e2e | 2026-06-06 | 93 | Reviewer traced the data-loss gate as structurally airtight: `migratable(n)` checks `resolveDependencies([n])` (includes `n`), so no customized name reaches `structural` or `writeSet`; `executeMigration` writes only `writeSet` and deletes only `migratedOk ⊆ structural`, so a customized flat file is never written/deleted even with `--yes`; the old `--yes`-overwrite/`blockOnCustomized` is gone; `detectCustomizedLegacy` treats unreadable as customized. Tone warm + actionable throughout. e2e judged MEANINGFUL not hollow: `migrate` uses `realLegacyBlob` (pristine migrates) + asserts customized badge left flat/un-folderized/preserved/reported; `migrate-build` proves Bug 3 via real `ng build`; `peerfiles-missing` fails under the old `=== 'changed'`. 252 unit + all 5 cli-specs (migrate, peerfiles-missing, migrate-build, prod-build, add-all-smoke) green. Three cosmetic nits; **#2 (empty dry-run header) and #3 (clean-tree guard firing on the no-op path) fixed post-gate**; #1 (the `--overwrite` comment) verified correct (a plain re-add `skip`s → `writePeerFiles` never runs). |
+| Phase 4 Tasks 17–18: Bug 1 historical-hash baseline | 2026-06-06 | 94→fixed | Reviewer confirmed the load-bearing direction is sound — `neutralizePrefix` mirrors `applyPrefixTransforms` token-for-token while preserving the selector segment, so a real rename survives into the hash and a false-"pristine" (data-loss) collapse is structurally impossible; per-name comparison rules out cross-component collisions; `@@`-sentinels can't occur in selectors/import paths; alias `replaceAll` is substring-safe (`@/lib`≠`@/library/`). Closed-loop test ran non-vacuously on a real `button` blob (default + custom prefix), ruling out stale-dist divergence. Sole ding (score 94): the spec's "never throws" wasn't self-contained — a regex-metachar prefix could throw via `new RegExp`. **Fixed post-gate:** `isPristine` now try/catches → conservative `false`, with a regression test (10 baseline tests green). |
+| Phase 4 Tasks 15–16: Bug 2 (missing peerFiles) + Bug 3 (cross-component imports) | 2026-06-06 | 95 | Fresh-context reviewer empirically confirmed the Bug 2 regression (reverting `plan.ts:63` to `=== 'changed'` fails the test; `'missing' \|\| 'changed'` passes; identical-peer behavior preserved) and traced Bug 3's scope-safety via `pointsAtUiComponent` — barrel `./button.component` → `ui/button/button.component` (preserved), sibling `../button.component` → `ui/button.component` (rewritten), same-named consumer file untouched. 13 tests + `tsc --noEmit` clean; unused `skip`/`SKIP_DIRS` args fully removed. Nit addressed post-gate: Bug 2 test now asserts all five peer directives. |
 | Consumer-safety hardening (4 adversarial review rounds) | 2026-06-06 | — | Paranoid "break a real consumer app" reviews drove fixes: (1) BLOCKER — import-rewrite now scope-aware (only specifiers resolving to `<uiDir>/<name>.component` via alias or relative path), so a consumer's own `foo/card.component` sharing a library name is never corrupted; (2) migrate writes `closure(structural)` (legacy + the deps they need) so no new-API-on-stale-dep skew, leaving unrelated folder components untouched; (3) deletion limited to `.component.{ts,html,css}` (never consumer spec/stories); (4) `update` refreshes shared lib files for its bounded set; (5) partial-failure safety — roll back orphan new folders + finalize a component only when it AND its in-writeSet deps are present (closureWritten, unit-tested), so a mid-stream failure leaves a working tree; (6) `--force`-on-dirty warns of no git backstop; non-fatal lockfile write; git guard scoped to cwd. 231 unit tests + 12/12 CLI e2e (incl. prod-build, add-all-smoke, migrate-build) green. |
 
 ---
@@ -1533,3 +1536,346 @@ Use the `sonar` skill / `npm run` Sonar task per CLAUDE.md §4 on every new/chan
 - **Spec coverage:** A1 → Task 2; A2 → Task 2 (+ Task 3 gate); A3 → Task 6; B detection → Task 1; B import-rewrite → Task 8; B plan/execute → Tasks 9–12; B guards (git-clean, --dry-run, --yes, customized-block) → Task 12; C manifest → Tasks 4–5; C doctor split → Task 6; C update warning → Task 7; testing: B-unit/detect → Tasks 1,8; B-integ/B-guard → Tasks 10,11,13; B-e2e → Task 14; update regression → Task 3. **No gaps.**
 - **Placeholder scan:** two snippets carry an inline instruction to replace with the clean form before committing — `scan.structural ?? scan.legacy` in Task 9 (use `[...scan.legacy]`) and the `void …` honesty line in Task 12 (delete unused imports instead). No "TBD/handle edge cases" left.
 - **Type consistency:** `ComponentName`, `Manifest`, `FileStatus`, `LayoutScan`, `MigrationPlan`, `ClosurePartition` names are used identically across tasks; `recordFile(manifest,file,content,component)`, `fileStatus(manifest,file,local)`, `rewriteImports(source,migrated)→{content,changed}`, `rewriteSpecifier(spec,migrated)→string|null` signatures match every call site.
+
+---
+
+# Phase 4 — Customization-safe migrate (Bugs 1–4 from published 0.0.33)
+
+> Implements **Revision 2** of the spec. Execution mode: **inline**, TDD,
+> **review-gate after every task** (bar ≥95). Bugs 2 & 3 are already coded
+> (uncommitted) — Tasks 15–16 add their tests and finalize them; Tasks 17–20
+> build the Bug 1 baseline/partition; Tasks 21–22 verify end-to-end. CLI wording
+> follows the spec's **warm, customer-first tone note**.
+
+**New files**
+- `packages/cli/scripts/gen-legacy-baselines.mjs` — one-shot git-history miner.
+- `packages/cli/src/registry/legacy-baselines.ts` — generated, committed
+  `export const LEGACY_BASELINES` (~55 KB; `.ts` not `.json` so it bundles with
+  zero build config).
+- `packages/cli/src/core/baseline.ts` — `canonicalize`, `canonicalHash`,
+  `isPristine`, `loadBaselines`.
+- `packages/cli/src/core/baseline.spec.ts`
+
+**Modified files**
+- `packages/cli/src/core/plan.ts` — (Bug 2, done) queue `'missing'` peer files.
+- `packages/cli/src/core/plan.spec.ts` — add the `'missing'`-peer test.
+- `packages/cli/src/core/migrate-core.ts` — (Bug 3, done) uiDir-inclusive rewrite;
+  `planMigration(scan, customized)` partition (customized / blocked).
+- `packages/cli/src/core/migrate-core.spec.ts` — partition tests.
+- `packages/cli/src/utils/prefix.ts` — export `neutralizePrefix` (ungated mirror).
+- `packages/cli/src/commands/migrate.ts` — baseline detection, never-overwrite-
+  customized, warm 3-group report, backup notice, stale-comment + Bug 4 wording.
+- `e2e/cli-specs/migrate.ts`, `e2e/cli-specs/migrate-build.ts`.
+
+---
+
+## Task 15: Bug 2 — install a `'missing'` peer file (finalize + test)
+
+**Files:** Modify (done) `packages/cli/src/core/plan.ts`; Test `packages/cli/src/core/plan.spec.ts`.
+
+- [ ] **Step 1: Add the failing test** — a component whose `peerFiles` target is
+  absent on disk gets that file into `peerFilesToUpdate`.
+
+```ts
+it('queues a peer file that is missing on disk (not just changed)', async () => {
+  const targetDir = await fs.mkdtemp(path.join(os.tmpdir(), 'peer-'));
+  try {
+    const peerSet = new Set<string>();
+    const cache = new Map<string, string>();
+    await classifyComponent(
+      'data-table', targetDir, { branch: 'main', remote: false } as AddOptions,
+      '@/components/lib', cache, peerSet, 'ui',
+    );
+    expect(peerSet.has('context-menu-attach.directive.ts')).toBe(true);
+  } finally { await fs.remove(targetDir); }
+});
+```
+
+- [ ] **Step 2: Run** `cd packages/cli && npx vitest run src/core/plan.spec.ts` — PASS (code in place).
+- [ ] **Step 3: review-gate** (Task 15) → commit `fix(cli): install missing peerFiles on add/update/migrate (review >=95)`.
+
+---
+
+## Task 16: Bug 3 — uiDir-inclusive scoped rewrite (finalize) + stale comment + Bug 4 wording
+
+**Files:** Modify (done) `migrate-core.ts`; Modify `commands/migrate.ts`; Test (done) `migrate-core.spec.ts`.
+
+- [ ] **Step 1** `cd packages/cli && npx vitest run src/core/migrate-core.spec.ts` — PASS.
+- [ ] **Step 2** Replace the now-false `migrate.ts` comment ("skips uiDir") with:
+
+```ts
+// rewriteProjectImports scans every project file INCLUDING the ui dir, because a
+// pre-existing folder component can import a now-migrated sibling via the old
+// flat path (`../button.component`). Each rewrite is scoped to specifiers that
+// resolve to <uiDir>/<name>.component, so a component's own barrel self-reference
+// and a consumer file sharing a library name are both left untouched.
+```
+
+- [ ] **Step 3** Retarget the report "Next" line to `git diff` + `ng build` (Bug 4: no manual step).
+- [ ] **Step 4: review-gate** (Task 16) → commit `fix(cli): rewrite cross-component sibling imports on migrate (review >=95)`.
+
+---
+
+## Task 17: Baseline generator + generated data file
+
+**Files:** Create `packages/cli/scripts/gen-legacy-baselines.mjs`; Create (generated) `packages/cli/src/registry/legacy-baselines.ts`.
+
+- [ ] **Step 1: Write the generator.** Mines every distinct historical blob of
+  each `ui/<name>.component.ts` across `git log --all`, canonicalizes with the
+  SAME projection as `baseline.ts` (`prefix:'ui'`, repo-relative `../lib/`),
+  hashes, dedupes, emits a sorted TS module.
+
+```js
+// packages/cli/scripts/gen-legacy-baselines.mjs
+import { execFileSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { createHash } from 'node:crypto';
+import { canonicalize } from '../dist/core/baseline.js'; // built first (see Task 18)
+
+const git = (a) => execFileSync('git', a, { encoding: 'utf-8', maxBuffer: 1 << 30 });
+const UI = 'packages/components/ui';
+const paths = [...new Set(
+  git(['log','--all','--name-only','--pretty=format:','--',`${UI}/*.component.ts`])
+    .split('\n').filter(p => /^packages\/components\/ui\/[a-z][a-z0-9-]*\.component\.ts$/.test(p)),
+)];
+const out = {};
+for (const p of paths) {
+  const name = p.slice(UI.length + 1, -'.component.ts'.length);
+  const commits = git(['log','--all','--pretty=format:%H','--',p]).split('\n').filter(Boolean);
+  const hashes = new Set();
+  for (const c of commits) {
+    let raw; try { raw = git(['show', `${c}:${p}`]); } catch { continue; }
+    hashes.add(createHash('sha256').update(canonicalize(raw, 'ui', '')).digest('hex'));
+  }
+  if (hashes.size) out[name] = [...hashes].sort();
+}
+const sorted = Object.fromEntries(Object.entries(out).sort(([a],[b]) => a.localeCompare(b)));
+writeFileSync(new URL('../src/registry/legacy-baselines.ts', import.meta.url),
+  `// GENERATED by scripts/gen-legacy-baselines.mjs — do not edit by hand.\n` +
+  `export const LEGACY_BASELINES: Readonly<Record<string, readonly string[]>> = ${JSON.stringify(sorted, null, 2)} as const;\n`);
+console.log(`Wrote ${Object.keys(sorted).length} components, ${Object.values(sorted).reduce((n,a)=>n+a.length,0)} hashes.`);
+```
+
+- [ ] **Step 2: Run** after `baseline.ts` + build (Task 18):
+  `cd packages/cli && node scripts/gen-legacy-baselines.mjs` → ~103 comps / ~850 hashes.
+- [ ] **Step 3: Commit** script + generated file with Task 18.
+
+---
+
+## Task 18: `baseline.ts` — canonicalize / hash / isPristine (TDD)
+
+**Files:** Create `core/baseline.ts` + `core/baseline.spec.ts`; Modify `utils/prefix.ts` (export `neutralizePrefix`).
+
+- [ ] **Step 1: Failing tests** — canonical projection invariant under the
+  install transform across a prefix/alias matrix; `isPristine` true for an
+  installed-but-unedited file (default + custom prefix/alias), false for an edit,
+  false when no baseline entry exists.
+
+```ts
+import { describe, it, expect } from 'vitest';
+import { createHash } from 'node:crypto';
+import { canonicalize, isPristine } from './baseline.js';
+import { applyPrefixTransforms } from '../utils/prefix.js';
+
+const RAW = `import { x } from '../lib/utils';\n@Component({ selector: 'ui-button', template: '<ui-button-x></ui-button-x>' })\nexport class B {}`;
+const install = (raw: string, prefix: string, alias: string) =>
+  applyPrefixTransforms('x.component.ts', raw.replaceAll(/(\.\.\/)+lib\//g, alias + '/'), prefix);
+
+it('canonical form is invariant under install transform', () => {
+  const base = canonicalize(RAW, 'ui', '');
+  for (const p of ['ui','acme','my-ui']) for (const a of ['@/components/lib','@/lib','~/ui/lib'])
+    expect(canonicalize(install(RAW, p, a), p, a)).toBe(base);
+});
+
+const baselines = { button: [createHash('sha256').update(canonicalize(RAW,'ui','')).digest('hex')] };
+it('isPristine true for unedited install, false for edit, false for unknown', () => {
+  expect(isPristine(baselines,'button',install(RAW,'ui','@/components/lib'),'ui','@/components/lib')).toBe(true);
+  expect(isPristine(baselines,'button',install(RAW,'acme','@/lib'),'acme','@/lib')).toBe(true);
+  expect(isPristine(baselines,'button',install(RAW,'ui','@/components/lib')+'\n// edit','ui','@/components/lib')).toBe(false);
+  expect(isPristine(baselines,'unknown',RAW,'ui','@/components/lib')).toBe(false);
+});
+```
+
+- [ ] **Step 2: `neutralizePrefix` in `prefix.ts`** — ungated mirror of the
+  anchored selector/tag rewrites, mapping a given (validated kebab) prefix to a
+  fixed token; safe to interpolate into a RegExp.
+- [ ] **Step 3: `baseline.ts`** — `neutralizeAlias` (repo `../lib/` AND installed
+  `<alias>/` → fixed token), `canonicalize = normalize(neutralizePrefix(neutralizeAlias(...)))`,
+  `canonicalHash`, `loadBaselines() = LEGACY_BASELINES`, `isPristine` (no entry → false/conservative).
+
+  > **Bootstrap:** create a 1-line stub `export const LEGACY_BASELINES = {} as const;`
+  > first, `npm run build`, run the Task 17 generator (imports `dist/core/baseline.js`),
+  > then rebuild. Generator and runtime share ONE `canonicalize` — that identity
+  > is what makes a pristine file match.
+
+- [ ] **Step 4: Run** `npx vitest run src/core/baseline.spec.ts` — PASS.
+- [ ] **Step 5: Generate real baseline** (Task 17 Step 2), rebuild, re-run suite.
+- [ ] **Step 5b: Closed-loop test against the REAL generated baseline** (advisor
+  #2 — the synthetic round-trip can't catch generator↔runtime divergence, stale
+  `dist`, or real-blob edge cases). Add a test that reads an actual historical
+  blob via git, forward-transforms it (default prefix + a real alias), and
+  asserts `isPristine` is `true` against the generated `LEGACY_BASELINES`:
+
+```ts
+import { execFileSync } from 'node:child_process';
+import { loadBaselines, isPristine } from './baseline.js';
+// `it` guarded: skip when not in a git checkout (published-package test runs).
+it('a real historical button blob is recognized as pristine end-to-end', () => {
+  let raw: string;
+  try {
+    raw = execFileSync('git', ['show', 'e57aa55:packages/components/ui/button.component.ts'], { encoding: 'utf-8' });
+  } catch { return; } // not a git checkout → skip
+  const installed = raw.replaceAll(/(\.\.\/)+lib\//g, '@/components/lib/'); // default prefix → no selector rewrite
+  expect(isPristine(loadBaselines(), 'button', installed, 'ui', '@/components/lib')).toBe(true);
+});
+```
+
+  This exercises generator → baked hashes → runtime `canonicalize` on REAL data,
+  the default-prefix majority case (reduces to "does the alias rewrite invert").
+- [ ] **Step 6: review-gate** (Task 18) → commit `feat(cli): historical-hash baseline for legacy edit detection (review >=95)`.
+
+---
+
+## Task 19: `planMigration` partition — customized / blocked (TDD)
+
+**Files:** Modify `core/migrate-core.ts` + `core/migrate-core.spec.ts`.
+
+- [ ] **Step 1: Failing tests.**
+
+```ts
+it('migrates a pristine closure and flags a customized leaf only', () => {
+  const plan = planMigration({ legacy: ['button','badge'], current: [] }, new Set(['badge']));
+  expect(plan.customized).toEqual(['badge']);
+  expect(plan.structural).toContain('button');
+  expect(plan.blocked).toEqual([]);
+});
+it('blocks the dependents of a customized shared dependency', () => {
+  const plan = planMigration({ legacy: ['button','ripple'], current: [] }, new Set(['ripple']));
+  expect(plan.customized).toEqual(['ripple']);
+  expect(plan.blocked).toContain('button');
+  expect(plan.structural).not.toContain('button');
+  expect(plan.writeSet).not.toContain('ripple');
+});
+```
+
+- [ ] **Step 2: Implement** — extend `MigrationPlan` with `customized` +
+  `blocked`; `planMigration(scan, customized = new Set())`:
+
+```ts
+export function planMigration(scan: LayoutScan, customized: ReadonlySet<ComponentName> = new Set()): MigrationPlan {
+  const customizedLegacy = scan.legacy.filter(n => customized.has(n));
+  const customizedSet = new Set(customizedLegacy);
+  const migratable = (n: ComponentName) => [...resolveDependencies([n])].every(d => !customizedSet.has(d));
+  const structural = scan.legacy.filter(migratable);
+  const blocked = scan.legacy.filter(n => !customizedSet.has(n) && !migratable(n));
+  const installed = new Set<ComponentName>([...scan.legacy, ...scan.current]);
+  const writeSet = [...resolveDependencies(structural)];
+  const writeSetSet = new Set(writeSet);
+  return { structural, customized: customizedLegacy, blocked, writeSet,
+    newDeps: writeSet.filter(n => !installed.has(n)),
+    refreshed: writeSet.filter(n => scan.current.includes(n)),
+    untouched: scan.current.filter(n => !writeSetSet.has(n)) };
+}
+```
+
+- [ ] **Step 3: Run** migrate-core suite — PASS (optional arg keeps old tests green).
+- [ ] **Step 4: review-gate** (Task 19) → commit `feat(cli): migrate partitions customized vs migratable closures (review >=95)`.
+
+---
+
+## Task 20: `migrate.ts` wiring — never overwrite customized, warm report, backup notice
+
+**Files:** Modify `commands/migrate.ts`.
+
+- [ ] **Step 1** `detectCustomizedLegacy(uiDir, legacy, prefix, utilsAlias)` reads
+  each `<name>.component.ts` and collects those failing `isPristine` (unreadable → customized).
+- [ ] **Step 2** Rebuild `migrate()`: scan → if no legacy, "Nothing to migrate" →
+  detect customized → `planMigration(scan, customized)` → **remove** `blockOnCustomized`
+  and the `--yes`-gated overwrite (customized are never in `structural` now) →
+  print backup notice → if `structural` empty, print warm customized/blocked
+  report and return 0 → else `executeMigration` + warm report.
+- [ ] **Step 3** Warm, customer-first 3-group report (Migrated / "we kept your
+  customizations safe" / "deferred — builds on a customized component"), each
+  flagged line paired with a friendly concrete next step (back up, `add --overwrite`,
+  `git diff`). No apologies/curtness (spec tone note).
+- [ ] **Step 4** Backup notice helper printed once before execute (first-migration
+  blind-spot; clean-tree = safety net).
+- [ ] **Step 5: Run** `cd packages/cli && npm test` — PASS; `npm run build`.
+- [ ] **Step 6: review-gate** (Task 20) → commit `feat(cli): migrate protects customized components, never overwrites (review >=95)`.
+
+---
+
+## Task 21: e2e — customized-skipped, peerFiles, cross-component build
+
+> **CRITICAL (advisor #1):** the existing `migrate.ts`/`migrate-build.ts` fabricate
+> a *synthetic* `ui-button` (`template: ''`). Under the new logic that content
+> matches no historical blob → classified **customized → NOT migrated**, so every
+> "button migrates / flat deleted / import rewritten" assertion breaks. The
+> pristine-migrate path now **requires real baseline-matching content.** Both
+> facts established from history: no flat `.html`/`.css` ever shipped (inline-only,
+> so detection-reads-`.ts` vs deletes-`.{ts,html,css}` is a non-issue); and
+> `data-table` was **never** a flat file (so Bug 2 cannot be tested via "migrate a
+> legacy data-table" — use the add/refresh vector).
+
+**Files:** Modify `e2e/cli-specs/migrate.ts`, `e2e/cli-specs/migrate-build.ts`; add `e2e/cli-specs/peerfiles-missing.ts`.
+
+- [ ] **Step 1 — real-content helper.** Both migrate specs need a *pristine* flat
+  button. Fetch a real historical blob in-repo and write it as the legacy flat
+  file (canonicalizes to a baseline hash → classified pristine → migrates):
+
+```ts
+import { execFileSync } from 'node:child_process';
+function writeRealLegacyButton(uiDir: string): void {
+  const raw = execFileSync('git',
+    ['show', 'e57aa55:packages/components/ui/button.component.ts'], { encoding: 'utf-8' });
+  // Write the repo-form blob verbatim; canonicalize() neutralizes `../lib/` too,
+  // so it matches the baseline whether or not the alias is rewritten.
+  fs.writeFileSync(path.join(uiDir, 'button.component.ts'), raw);
+  fs.rmSync(path.join(uiDir, 'button'), { recursive: true, force: true });
+}
+```
+
+- [ ] **Step 2 — `migrate.ts`:** replace the synthetic button with
+  `writeRealLegacyButton`; keep the existing migrate/delete/import-rewrite
+  assertions (now they pass because button is pristine). **Add a customized
+  component:** write a *second* flat component with our selector but
+  non-baseline content (e.g. an edited `badge.component.ts` carrying
+  `selector: 'ui-badge'` + extra code); assert after migrate it is **left flat**,
+  **no `badge/` folder** was created, and the report lists it under "kept your
+  customizations." Keep the existing consumer-`card` (own selector) untouched check.
+- [ ] **Step 3 — `migrate-build.ts`:** replace synthetic button with
+  `writeRealLegacyButton`; add consumer-owned `my-widget/my-widget.component.ts`
+  importing button via `../button.component`, referenced from `app.ts`; assert
+  it's rewritten to `../button` and the production `ng build` succeeds (Bug 3 e2e).
+- [ ] **Step 4 — Bug 2 vector (`peerfiles-missing.ts`):** `init` → `add data-table --yes`
+  → delete the 5 context-menu peer `.directive.ts` files from the ui dir →
+  `add data-table --overwrite --yes` (re-classifies; `'missing'` peer files
+  re-queued) → assert all 5 directive files exist again on disk. No build (file-level).
+- [ ] **Step 5: Run** `npm run build:cli && npm run e2e -- migrate migrate-build peerfiles-missing add-all-smoke prod-build`.
+- [ ] **Step 6: review-gate** (Task 21) → commit `test(e2e): customized-safe migrate + cross-component build + missing peerFiles (review >=95)`.
+
+---
+
+## Task 22: Final verification + finish
+
+- [ ] Full CLI unit suite `cd packages/cli && npm test` green.
+- [ ] Sonar on every new/changed file (zero issues; `readonly`, `Number.*`,
+  `.replaceAll`, complexity ≤15, no unused, validated-prefix regex).
+- [ ] Full e2e `npm run e2e` (or impacted subset + add-all-smoke + prod-build + migrate-build).
+- [ ] Update spec + plan Completion Logs with Phase 4 scores.
+- [ ] finishing-a-development-branch → push, update PR #71, reply to the 0.0.33
+  report. **Registry-publish policy: a new publish is required — confirm with the
+  user first.** Teammate verifies `file-viewer` keeps its `reextract*` inputs.
+
+---
+
+## Self-review (Phase 4)
+
+- **Spec coverage (Rev 2):** Bug 2 → 15; Bug 3 → 16; Bug 1 baseline → 17–18;
+  partition/policy → 19; never-overwrite + warm report + backup → 20; Bug 4 →
+  16/20; tests → 21. No gaps.
+- **Tone:** every flagged-component string pairs "what" with a friendly next step.
+- **Type consistency:** optional `customized` arg keeps old `planMigration` call
+  sites compiling; `canonicalize`/`isPristine`/`neutralizePrefix` signatures match
+  all call sites and the generator.
+- **Bootstrapping:** baseline.ts ⇄ generator circular import resolved by stub-then-generate.

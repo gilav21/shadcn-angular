@@ -86,6 +86,30 @@ function rewriteCssSelectors(content: string, newPrefix: string): string {
     );
 }
 
+/** Canonical token a prefixed selector collapses to. `@@` cannot appear in a
+ *  kebab-case selector, so this can never collide with real source. */
+const NEUTRAL_PREFIX = '@@UI@@-';
+
+/**
+ * Map `<prefix>-X` selector occurrences to a fixed canonical token, in the SAME
+ * anchored positions `applyPrefixTransforms` rewrites (a TypeScript source's
+ * `selector:` metadata and inline-template tags). Unlike `applyPrefixTransforms`
+ * this is NOT gated on the default prefix — the canonical form must neutralize
+ * `ui-` too, so a default install and a custom-prefix install of the same
+ * source collapse to one hash for edit-detection. `prefix` is validated
+ * kebab-case (no regex metacharacters), so interpolating it is safe.
+ */
+export function neutralizePrefix(content: string, prefix: string): string {
+    const segment = new RegExp(`\\b${prefix}-([a-z][a-z0-9-]*)`, 'g');
+    const inSelectors = content.replaceAll(
+        /(selector\s*:\s*)(['"])([^'"]*)\2/g,
+        (_match, key: string, quote: string, value: string) =>
+            `${key}${quote}${value.replaceAll(segment, `${NEUTRAL_PREFIX}$1`)}${quote}`,
+    );
+    const tag = new RegExp(`(<\\/?)${prefix}-([a-z][a-z0-9-]*)(?=[\\s/>])`, 'g');
+    return inSelectors.replaceAll(tag, `$1${NEUTRAL_PREFIX}$2`);
+}
+
 /**
  * Apply prefix-rewrite transforms appropriate for the given file extension.
  * Returns the input unchanged when `newPrefix === DEFAULT_PREFIX` so the

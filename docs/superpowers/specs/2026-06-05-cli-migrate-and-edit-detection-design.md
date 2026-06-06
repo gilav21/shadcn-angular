@@ -326,6 +326,173 @@ that unit/integration layers can't fully prove.
 Fixes only reach consumers on **npm publish** of the CLI (per the project's
 registry-publish policy). "Code merged" ≠ "user fixed" — a publish must follow.
 
+## Revision 2 (2026-06-06) — customization-safe migrate
+
+A teammate test-drove the **published 0.0.33** CLI against a real legacy
+consumer app. `migrate` reported success, then `ng build` failed three ways and
+a customized component lost the user's edits. Four bugs, fixed together as one
+publish:
+
+> **Tone note (from the user):** customer experience comes first — the messaging
+> must be **warm, helpful, and reassuring**, never terse, blaming, or
+> condescending. The customization detection is a courtesy (we protect edits we
+> have no baseline for), and the output should *feel* like that: *"We spotted the
+> changes you made and kept them safe — here's exactly how to bring them
+> forward."* Every flagged-component message pairs the "what" with a concrete,
+> friendly next step (back up / `git diff` / re-run). No apologies, no failure
+> framing, no curtness.
+
+### Bug 2 — missing `peerFiles` are never installed
+
+`checkPeerFiles` only queued peer files whose status was `'changed'`. A peer
+file that was **`'missing'`** (a newer component version references it but it was
+never installed — exactly the context-menu directives `data-table` needs) was
+skipped, so `context-menu-integrations.ts` imported files that didn't exist →
+`ng build` failed. **Fix:** queue a peer file that is `'missing'` *or*
+`'changed'`; only an identical, already-present peer file is left alone. Applies
+to every write path (`add` / `update` / `migrate`).
+
+### Bug 3 — cross-component sibling imports not rewritten
+
+`rewriteProjectImports` skipped the entire ui dir to protect a component's own
+barrel (`export * from './button.component'`). That also skipped a **pre-existing
+folder component importing a now-migrated sibling via the old flat path**
+(`../button.component`), leaving a dangling import → build failure. **Fix:** scan
+*all* files including the ui dir; rely on the existing **scope check**
+(`pointsAtUiComponent`) to leave a component's own barrel self-reference alone
+(`./button.component` resolves to `<uiDir>/button/button.component`, which still
+exists) while rewriting genuine cross-component flat imports
+(`../button.component` → `../button`). Supersedes the "skips uiDir" mechanism in
+**Part B → Execute → step 3**.
+
+### Bug 4 — documented remedy is a no-op
+
+The 0.0.33 report's suggested manual fix didn't actually resolve anything;
+**resolved by the Bug 3 fix** — the cross-component imports that needed manual
+patching are now rewritten automatically. The migrate report's "Next" wording is
+updated to point at `git diff` + `ng build` rather than a manual step.
+
+### Bug 1 — `migrate` overwrote a customized component (data loss)
+
+**Root cause.** Edit detection keys off `components.lock.json`. A legacy install
+predates the manifest, so `fileStatus` returns `'untracked'` for every legacy
+file and `customizedComponents()` is always empty → migrate overwrote a
+hand-customized `file-viewer` and the user lost their added inputs. The original
+**Part B → Plan → step 5** ("`customized[]` blocks unless `--yes`, then
+overwrites") is unsafe: with `--yes` it still destroys edits, and on a legacy
+install it never even detects them. This revision **supersedes** that step and
+the **Part C → C2** heuristic.
+
+**Detection without a baseline — historical-hash set.** The registry only ships
+the new (folder) layout, so there is nothing to hash-diff a legacy flat file
+against. Instead we mine a baseline from **our own git history**:
+
+- A build script (`scripts/gen-legacy-baselines.mjs`) walks `git log --all` for
+  `packages/components/ui/*.component.ts`, collects **every distinct historical
+  blob** of each legacy flat component, computes a **canonical-form hash** of
+  each, and writes a committed, generated
+  `packages/cli/src/registry/legacy-baselines.json`:
+  `{ "<name>": ["<sha256>", …] }`. Measured: 103 legacy components, 854 distinct
+  blobs, **~55 KB of hashes** (the raw sources are 17.7 MB — far too big to bake,
+  so we bake only hashes).
+- **Why all blobs, not tagged releases:** this repo has **zero git tags**. Using
+  every blob is strictly safer — a pristine install matches *some* real past
+  version, while a user's edit cannot coincidentally equal a real blob.
+
+**Canonical form (config-aware matching).** The user's installed file is not
+byte-identical to our repo source: the installer rewrote the selector prefix
+(`ui-` → their prefix) and the lib alias (`../lib/` → their `aliases.utils`). The
+canonical projection neutralizes **exactly those two axes** so a pristine install
+and the repo blob hash to the same value:
+
+- alias: replace `(\.\./)+lib/` **and** `<utilsAlias>/` → a fixed `\0LIB/` token
+  (the repo form and the installed form both collapse to the same token);
+- prefix: replace the **given prefix** in the *anchored* `selector:` / template-
+  tag positions (mirroring `applyPrefixTransforms`, but ungated so even the
+  default `ui` is neutralized) → a fixed `\0UI-` token;
+- `normalizeContent` (LF, trim) last.
+
+Build time canonicalizes the raw blob with `(prefix: 'ui')`; run time
+canonicalizes the user's file with their configured prefix + utils alias. A
+**round-trip unit test** (`canonicalize(transform(raw, p, a), p, a) ===
+canonicalize(raw, 'ui')` across a prefix/alias matrix) proves the projection is
+faithful, so the inversion can never silently drift.
+
+**Error characteristics (accepted trade-off).**
+- **False "pristine"** (an edited file wrongly treated as clean and overwritten):
+  **effectively impossible** — an edit changes content, so it won't match any
+  real historical blob.
+- **False "customized"** (a pristine file wrongly flagged): **possible but safe**
+  — if the blob set misses a version, a clean file is flagged for manual
+  handling; `git diff` shows it was identical and the user just proceeds. No data
+  loss.
+
+**Policy — migrate the clean closure, flag the rest (never overwrite a
+customized component, even with `--yes`).**
+
+- `customized` = legacy components whose current content is **not** in their
+  baseline hash set (or have no baseline entry → conservatively customized).
+- A legacy component is **migratable** iff its **entire dependency closure**
+  (`resolveDependencies([name])`) contains **no customized component**. (A folder
+  component cannot import a still-flat one, so a customized dependency blocks all
+  of its dependents — the user's chosen safest behavior.)
+- `structural` (migrated to folder) = `scan.legacy ∩ migratable`.
+- `blocked` = pristine legacy components left as legacy **because** they depend
+  (transitively) on a customized one.
+- migrate writes `closure(structural)`, deletes only those flat files, rewrites
+  only those imports. `customized` and `blocked` flat files are **left
+  untouched**; their imports to *migrated* siblings are still rewritten (Bug 3)
+  so they keep compiling.
+
+**Backstop (load-bearing).** The very first migrate is the one blind spot — the
+manifest only exists *after* it runs. So migrate keeps **requiring a clean git
+tree** (or `--force`) and prints a prominent **"back up any files you hand-edited
+before this first migration"** notice. The hash set is *precision*; git is
+*correctness*. Every operation after the first migrate is exact hash-diffing.
+
+**Report.** migrate ends with three clearly-labelled groups, framed as a
+courtesy: *Migrated* (N components → folder layout), *Kept your edits — migrate
+manually when ready* (`customized`, with the back-up/`git diff` pointer), and
+*Deferred — depends on a component you customized* (`blocked`). Next step is
+`git diff` + `ng build`, not a manual patch.
+
+### Revision 2 — testing additions
+
+- **`baseline` (pure unit):** canonicalize round-trip across a prefix/alias
+  matrix; `isPristine` true for a known historical blob (default + custom
+  prefix + custom alias), false for an edited file; missing/corrupt baseline →
+  every component conservatively customized, never throws. **Plus a closed-loop
+  test** against the *real generated* `LEGACY_BASELINES`: a real historical blob
+  (via `git show`), forward-transformed, is recognized pristine — this is the only
+  check that catches generator↔runtime divergence, a stale `dist`, or real-blob
+  edge cases (the synthetic round-trip cannot).
+- **`migrate-core` partition (pure unit):** customized leaf → only itself
+  flagged, rest migrated; customized shared dep → it + all dependents blocked;
+  pristine closure → migrated; `writeSet = closure(structural)` excludes
+  customized/blocked.
+- **`plan` (pure unit):** a `'missing'` peer file is queued; an identical one is
+  not (Bug 2).
+- **`migrate-core` rewrite (pure unit):** a folder component's `../button.component`
+  sibling import is rewritten while its own barrel self-reference is preserved
+  (Bug 3) — already added.
+- **cli-spec `migrate`:** the **pristine** path uses a *real historical blob*
+  (synthetic content would be flagged customized) — it migrates flat→folder and
+  rewrites imports; a *second*, edited flat component (non-baseline content) is
+  left flat, gets no folder, and is listed under "kept your customizations." A
+  consumer's own same-named component (own selector) stays untouched.
+- **cli-spec `peerfiles-missing` (Bug 2 vector):** `data-table` was never a flat
+  file, so Bug 2 is tested via `add data-table` → delete the 5 peer
+  `.directive.ts` → `add --overwrite` → assert all 5 are restored (the
+  `'missing'`-peer install path). `add-all-smoke` already build-covers the fresh
+  peerFile *add* path.
+- **cli-spec `migrate-build` (real `ng build`):** pristine button (real blob)
+  migrates; a consumer-owned folder component importing it via `../button.component`
+  compiles after migrate (Bug 3 end-to-end).
+
+> History-confirmed: no flat `ui/*.component.{html,css}` ever shipped (inline-only),
+> so reading only `<name>.component.ts` for detection while deleting
+> `.component.{ts,html,css}` cannot orphan a customized sibling template.
+
 ## Completion Review
 
 | Phase / Task | Completed | Score | Rationale |
@@ -333,4 +500,6 @@ registry-publish policy). "Code merged" ≠ "user fixed" — a publish must foll
 | Phase 1 (Tasks 1–3): layout detection + bounded update + dry-run + legacy guard | 2026-06-05 | 95 | Bounded write set proven structurally (`precomputedConflicts` skips dependency re-resolution; `options.overwrite` never forced); closure-wide legacy guard + newly-required-deps consent split exercised by the `update-guards` cli-spec. `update()` complexity <15; 9 unit tests + two cli-specs green. Cosmetic nit: dry-run omits a "skipped" line. |
 | Phase 2 (Tasks 4–7): manifest + edit-aware doctor + update warning | 2026-06-05 | 95 | CRLF/LF-safe hash baseline; two comparison axes correct; `readManifest` never throws. `performInstall` records component+peer writes and persists the lock; doctor splits user-edits vs updates + legacy section; `update` non-blocking customization warning. 203 unit tests green, complexity <15. Cosmetic nits only. |
 | Phase 3 (Tasks 8–14): migrate command | 2026-06-05 | 93 | Correct scan→plan→guard→execute flow; bounded write set; legacy files deleted + dropped from manifest; barrel-skip fix (caught by the real `ng build` compile-smoke gate) with regression test. 222 unit tests + migrate/migrate-build cli-specs green. Documented limitation: no-manifest legacy edit-flagging relies on the clean-git guard + git-diff report (spec-C2 remote heuristic not implemented). |
+| Rev2 Tasks 17–21: Bug 1 baseline + partition + migrate wiring + e2e | 2026-06-06 | 94 / 93 | Baseline canonicalization sound in the load-bearing direction (false-"pristine" structurally impossible); `isPristine` made self-contained "never throws" post-gate. Partition gate airtight — no customized name reaches `structural`/`writeSet`, never written/deleted even with `--yes`; old `--yes`-overwrite removed; warm customer-first messaging. Closed-loop test on a real blob rules out generator↔runtime drift. All 5 cli-specs green (migrate, peerfiles-missing, migrate-build [real ng build, Bug 3], prod-build, add-all-smoke); e2e judged meaningful not hollow. Post-gate polish: empty dry-run header + no-op clean-tree-guard ordering. |
+| Rev2 Tasks 15–16: Bug 2 (missing peerFiles) + Bug 3 (cross-component imports) | 2026-06-06 | 95 | Reviewer confirmed Bug 2 regression empirically (missing-peer now queued; identical left alone; all 5 directives asserted) and Bug 3 scope-safety via `pointsAtUiComponent` (barrel preserved, sibling rewritten, same-named consumer file untouched). 13 tests + `tsc` clean. |
 | Consumer-safety hardening (4 adversarial review rounds) | 2026-06-06 | — | Scope-aware import-rewrite (no corruption of consumer files sharing a library name); migrate writes `closure(structural)` (no version skew, unrelated folder components untouched); deletion limited to component source (no spec/stories loss); `update` refreshes lib files; partial-failure safety (orphan-folder rollback + closure-consistent finalization); `--force`-dirty warning; non-fatal lockfile; cwd-scoped git guard. 231 unit tests + 12/12 CLI e2e green. |

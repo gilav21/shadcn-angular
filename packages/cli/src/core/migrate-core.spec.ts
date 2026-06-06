@@ -31,6 +31,33 @@ describe('planMigration', () => {
     expect(plan.writeSet).toEqual([]);
     expect(plan.newDeps).toEqual([]);
     expect(plan.untouched).toEqual(['button', 'ripple']);
+    expect(plan.customized).toEqual([]);
+    expect(plan.blocked).toEqual([]);
+  });
+
+  it('migrates a pristine closure and flags a customized leaf only', () => {
+    // badge is an unrelated edited leaf; button (deps: ripple) is pristine.
+    const plan = planMigration({ legacy: ['button', 'badge'], current: [] }, new Set(['badge']));
+    expect(plan.customized).toEqual(['badge']);
+    expect(plan.structural).toContain('button');
+    expect(plan.structural).not.toContain('badge');
+    expect(plan.blocked).toEqual([]);
+  });
+
+  it('blocks the dependents of a customized shared dependency', () => {
+    // ripple is button's dependency. Editing ripple must defer button: a folder
+    // component cannot import a still-flat dependency.
+    const plan = planMigration({ legacy: ['button', 'ripple'], current: [] }, new Set(['ripple']));
+    expect(plan.customized).toEqual(['ripple']);
+    expect(plan.blocked).toContain('button');
+    expect(plan.structural).not.toContain('button');
+    expect(plan.writeSet).not.toContain('ripple'); // never overwritten
+  });
+
+  it('only treats legacy components as customized (a customized name not in the legacy set is ignored)', () => {
+    const plan = planMigration({ legacy: ['button'], current: [] }, new Set(['badge']));
+    expect(plan.customized).toEqual([]);
+    expect(plan.structural).toContain('button');
   });
 });
 
@@ -91,18 +118,32 @@ describe('rewriteProjectImports', () => {
     }
   });
 
-  it('skips the ui dir so a component barrel self-reference is not rewritten', async () => {
+  it('preserves a component barrel self-reference but rewrites a cross-component sibling import', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mig-'));
     const ui = path.join(dir, 'src/components/ui');
     try {
+      // button's own barrel: `./button.component` resolves to button/button.component
+      // (the folder's own file, still exists) — must NOT be rewritten.
       await fs.outputFile(path.join(ui, 'button/index.ts'), `export * from './button.component';\n`);
+      // A pre-existing folder component importing a now-migrated SIBLING via the
+      // old flat path — this MUST be rewritten (`../button.component` → `../button`).
+      await fs.outputFile(
+        path.join(ui, 'page-builder/page-builder.component.ts'),
+        `import { ButtonComponent } from '../button.component';\n`,
+      );
+      // And an app-code import (outside ui/) — rewritten as before.
       await fs.outputFile(path.join(dir, 'src/app.ts'), `import { B } from '@/components/ui/button.component';\n`);
 
       const changed = await rewriteProjectImports(dir, new Set(['button']), ui, ALIAS);
 
+      // Barrel self-reference preserved (scope, not a uiDir skip).
       expect(await fs.readFile(path.join(ui, 'button/index.ts'), 'utf-8')).toContain(`'./button.component'`);
+      // Cross-component sibling import rewritten.
+      expect(await fs.readFile(path.join(ui, 'page-builder/page-builder.component.ts'), 'utf-8'))
+        .toContain(`'../button'`);
+      // App import rewritten.
       expect(await fs.readFile(path.join(dir, 'src/app.ts'), 'utf-8')).toContain(`'@/components/ui/button'`);
-      expect(changed).toHaveLength(1);
+      expect(changed).toHaveLength(2);
     } finally {
       await fs.remove(dir);
     }

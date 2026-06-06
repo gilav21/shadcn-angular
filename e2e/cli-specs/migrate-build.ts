@@ -2,13 +2,17 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { assertContains, type CliSpec } from './_types.js';
+import { realLegacyBlob } from './_git.js';
 
 /**
- * The ultimate migrate gate: after migrating a fabricated legacy install,
- * the consumer app must still PRODUCTION-BUILD. A real `ng build` type-checks
- * the whole program, so it proves both that the rewritten folder/trio
- * compiles and that the consumer's rewritten import resolves — the thing unit
- * and black-box specs can't fully guarantee.
+ * The ultimate migrate gate: after migrating a fabricated legacy install, the
+ * consumer app must still PRODUCTION-BUILD. A real `ng build` type-checks the
+ * whole program, proving the rewritten folder/trio compiles AND that every
+ * rewritten import resolves. Covers two paths unit specs can't:
+ *  - the consumer's own app file imports button via the legacy path (rewritten
+ *    to the barrel);
+ *  - a pre-existing consumer FOLDER component imports a now-migrated sibling via
+ *    the old flat path `../button.component` (Bug 3 — must become `../button`).
  */
 const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     await runCli(['init', '--yes']);
@@ -18,14 +22,15 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     const folder = path.join(uiDir, 'button');
     const flat = path.join(uiDir, 'button.component.ts');
     const appTs = path.join(fixtureApp, 'src/app/app.ts');
+    const widgetTs = path.join(uiDir, 'my-widget/my-widget.component.ts');
 
-    // A consumer (the bootstrap component, always in the compile graph) imports
-    // the button via the LEGACY path and references the symbol as a value, so
-    // `ng build` type-checks the import. migrate must rewrite it to the barrel.
+    // Consumer bootstrap component imports button via the LEGACY path and
+    // references a consumer-owned widget, so both are in the compile graph.
     fs.writeFileSync(appTs,
         `import { Component, signal } from '@angular/core';\n` +
         `import { RouterOutlet } from '@angular/router';\n` +
-        `import { ButtonComponent } from '@/components/ui/button.component';\n\n` +
+        `import { ButtonComponent } from '@/components/ui/button.component';\n` +
+        `import { MyWidgetComponent } from '@/components/ui/my-widget/my-widget.component';\n\n` +
         `@Component({\n` +
         `  selector: 'app-root',\n` +
         `  imports: [RouterOutlet],\n` +
@@ -35,26 +40,46 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
         `export class App {\n` +
         `  protected readonly title = signal('shadcn-angular-e2e-fixture');\n` +
         `  protected readonly buttonRef: unknown = ButtonComponent;\n` +
+        `  protected readonly widgetRef: unknown = MyWidgetComponent;\n` +
         `}\n`,
     );
 
-    // Fabricate a legacy flat install of button — carries OUR selector so
-    // detection recognizes it as a genuine shadcn install.
-    fs.writeFileSync(flat, `import { Component } from '@angular/core';\n@Component({ selector: 'ui-button', template: '' })\nexport class ButtonComponent {}\n`);
+    // A consumer-owned FOLDER component that imports the button via the old FLAT
+    // sibling path. migrate must rewrite `../button.component` → `../button`.
+    fs.mkdirSync(path.dirname(widgetTs), { recursive: true });
+    fs.writeFileSync(widgetTs,
+        `import { Component } from '@angular/core';\n` +
+        `import { ButtonComponent } from '../button.component';\n` +
+        `@Component({\n` +
+        `  selector: 'app-my-widget',\n` +
+        `  imports: [ButtonComponent],\n` +
+        `  template: '<ui-button>hi</ui-button>'\n` +
+        `})\n` +
+        `export class MyWidgetComponent {}\n`,
+    );
+
+    // Fabricate a PRISTINE legacy flat button (real historical source) so migrate
+    // classifies it unmodified and converts it.
+    fs.writeFileSync(flat, realLegacyBlob('button'));
     fs.rmSync(folder, { recursive: true, force: true });
 
-    // Migrate (dirty tree → needs --force; no manifest edits → no --yes needed,
-    // but pass it to be safe).
     const run = await captureCli(['migrate', '--force', '--yes']);
     if (run.code !== 0) {
         throw new Error(`migrate --force --yes failed\n${run.stdout}`);
     }
 
-    // Sanity: the consumer import was rewritten to the folder barrel.
-    const rewritten = fs.readFileSync(appTs, 'utf-8');
-    assertContains(rewritten, `'@/components/ui/button'`, 'app import should point at the folder barrel');
-    if (rewritten.includes('button.component')) {
-        throw new Error(`no legacy ".component" specifier should remain in app.ts:\n${rewritten}`);
+    // App import rewritten to the barrel.
+    const appAfter = fs.readFileSync(appTs, 'utf-8');
+    assertContains(appAfter, `'@/components/ui/button'`, 'app import should point at the folder barrel');
+    if (appAfter.includes(`ui/button.component`)) {
+        throw new Error(`no legacy ui/button.component specifier should remain in app.ts:\n${appAfter}`);
+    }
+
+    // The consumer folder component's flat sibling import rewritten (Bug 3).
+    const widgetAfter = fs.readFileSync(widgetTs, 'utf-8');
+    assertContains(widgetAfter, `from '../button'`, 'widget sibling import should be rewritten to the barrel');
+    if (widgetAfter.includes(`'../button.component'`)) {
+        throw new Error(`Bug 3: widget still imports the deleted flat sibling:\n${widgetAfter}`);
     }
 
     // The real gate: production build must succeed.

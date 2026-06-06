@@ -12,6 +12,8 @@ import { planMigration, rewriteProjectImports, deleteLegacyFiles, type Migration
 import { performInstall, type InstallResult } from '../core/install.js';
 import { readManifest, fileStatus, removeFiles, writeManifest, type Manifest } from '../core/manifest.js';
 import { detectConflicts, type AddOptions } from '../core/plan.js';
+import { loadBaselines, isPristine } from '../core/baseline.js';
+import { type LayoutScan } from '../core/layout.js';
 
 function gitTreeClean(cwd: string): boolean {
     try {
@@ -50,33 +52,60 @@ async function folderComponentEdited(manifest: Manifest, uiDir: string, name: Co
 }
 
 /**
- * Components migrate would overwrite that have local edits vs the manifest
- * baseline: legacy components (flat `<name>.component.ts`) and the already-
- * folder deps it refreshes. Legacy consumers with no manifest yield none — the
- * clean-git guard is their backstop.
+ * Legacy (flat) components the consumer customized. A legacy install predates
+ * `components.lock.json`, so we can't hash-diff against a recorded baseline;
+ * instead we match each file against the known historical release hashes
+ * (`isPristine`). A real edit matches none → flagged; an unreadable file is
+ * treated conservatively as customized. These are NEVER overwritten.
  */
-async function customizedComponents(
+async function detectCustomizedLegacy(
+    uiDir: string, legacy: ComponentName[], prefix: string, utilsAlias: string,
+): Promise<Set<ComponentName>> {
+    const baselines = loadBaselines();
+    const out = new Set<ComponentName>();
+    for (const name of legacy) {
+        const content = await fs.readFile(path.join(uiDir, `${name}.component.ts`), 'utf-8').catch(() => null);
+        if (content === null || !isPristine(baselines, name, content, prefix, utilsAlias)) out.add(name);
+    }
+    return out;
+}
+
+/**
+ * Already-folder deps the migrated set refreshes that have local edits vs the
+ * manifest baseline. These ARE refreshed (a migrated component needs a current
+ * dep), so we surface them as a non-blocking heads-up. Empty on a pure legacy
+ * install (no manifest) — the clean-git guard is the backstop there.
+ */
+async function editedRefreshedDeps(
     cwd: string, uiDir: string, plan: MigrationPlan,
 ): Promise<ComponentName[]> {
     const manifest = await readManifest(cwd);
     const out: ComponentName[] = [];
-    for (const name of plan.structural) {
-        if (await fileIsModified(manifest, uiDir, `${name}.component.ts`)) out.push(name);
-    }
     for (const name of plan.refreshed) {
         if (await folderComponentEdited(manifest, uiDir, name)) out.push(name);
     }
     return out;
 }
 
-function blockOnCustomized(customized: ComponentName[]): void {
-    console.log(chalk.yellow('\nThese components have local edits and would be overwritten:'));
-    for (const n of customized) console.log(chalk.yellow('  ~ ') + n);
-    console.log(chalk.dim('\nBack them up, then re-run with --yes to proceed.'));
-    process.exit(1);
+/** Warm, customer-first listing of components migrate protected or deferred. */
+function printProtectedGroups(plan: MigrationPlan): void {
+    if (plan.customized.length) {
+        console.log(chalk.cyan('\nWe spotted changes you made and kept these exactly as they are:'));
+        for (const n of plan.customized) console.log(chalk.cyan('  • ') + n);
+        console.log(chalk.dim(
+            `  When you're ready, migrate one at your own pace — back it up, run\n` +
+            `  \`npx @gilav21/shadcn-angular add <name> --overwrite\`, then re-apply your tweaks.`,
+        ));
+    }
+    if (plan.blocked.length) {
+        console.log(chalk.cyan('\nHeld back for now (these build on a component you customized):'));
+        for (const n of plan.blocked) console.log(chalk.cyan('  • ') + n);
+        console.log(chalk.dim('  They\'ll migrate cleanly once you\'ve migrated the component above.'));
+    }
 }
 
 function printMigrationPlan(plan: MigrationPlan): void {
+    if (plan.structural.length === 0) return; // nothing-migratable is reported separately
     console.log(chalk.bold('\nMigration plan:'));
     console.log(chalk.dim('  Convert to folder layout: ') + plan.structural.join(', '));
     if (plan.newDeps.length) console.log(chalk.dim('  Install new dependencies: ') + plan.newDeps.join(', '));
@@ -87,14 +116,19 @@ function printMigrationPlan(plan: MigrationPlan): void {
 }
 
 function printReport(
-    result: InstallResult, deleted: string[], rewritten: string[], plan: MigrationPlan,
+    result: InstallResult, deleted: string[], rewritten: string[],
+    plan: MigrationPlan, editedRefreshed: ComponentName[],
 ): void {
-    console.log(chalk.green(`\nMigrated ${result.installed.length} component(s).`));
-    console.log(chalk.dim(`  Deleted ${deleted.length} legacy file(s).`));
-    console.log(chalk.dim(`  Rewrote imports in ${rewritten.length} file(s).`));
-    if (plan.newDeps.length) console.log(chalk.dim(`  Installed deps: ${plan.newDeps.join(', ')}`));
+    console.log(chalk.green(`\n✓ Migrated ${result.installed.length} component(s) to the folder layout.`));
+    console.log(chalk.dim(`  Updated imports in ${rewritten.length} file(s); removed ${deleted.length} legacy file(s).`));
+    if (plan.newDeps.length) console.log(chalk.dim(`  Pulled new dependencies: ${plan.newDeps.join(', ')}`));
+    printProtectedGroups(plan);
+    if (editedRefreshed.length) {
+        console.log(chalk.yellow('\nRefreshed these shared dependencies — if you tweaked them, re-check after:'));
+        for (const n of editedRefreshed) console.log(chalk.yellow('  • ') + n);
+    }
     for (const w of result.warnings) console.log(chalk.yellow('  ' + w));
-    console.log(chalk.cyan('\nNext: run `ng build` to verify, then review with `git diff`.'));
+    console.log(chalk.cyan('\nAll set. Next: review with `git diff`, then `ng build` to confirm.'));
 }
 
 async function executeMigration(
@@ -142,12 +176,17 @@ async function executeMigration(
     removeFiles(manifest, deleted);
     await writeManifest(cwd, manifest);
 
-    // rewriteProjectImports skips uiDir (the components' own barrels) and is
-    // scoped so only imports resolving to <uiDir>/<name>.component are touched.
+    // rewriteProjectImports scans every project file INCLUDING the ui dir,
+    // because a pre-existing folder component can import a now-migrated sibling
+    // via the old flat path (`../button.component`). Each rewrite is scoped to
+    // specifiers that resolve to <uiDir>/<name>.component, so a component's own
+    // barrel self-reference and a consumer file sharing a library name are both
+    // left untouched.
     const rewritten = await rewriteProjectImports(cwd, new Set(migratedOk), uiDir, config.aliases.ui);
+    const editedRefreshed = await editedRefreshedDeps(cwd, uiDir, plan);
 
     spinner.stop();
-    printReport(result, deleted, rewritten, plan);
+    printReport(result, deleted, rewritten, plan, editedRefreshed);
     if (failed.length > 0) {
         console.log(chalk.red(`\n${failed.length} component(s) could not be migrated and were left as legacy: ${failed.join(', ')}`));
         console.log(chalk.dim('Their flat files and imports are untouched. Fix the errors above and re-run `migrate`.'));
@@ -171,6 +210,33 @@ async function rollbackPartialNewFolders(
     }
 }
 
+/** First-migration heads-up: the lock file only exists AFTER this run, so the
+ *  clean-git tree is the safety net for anything our hashes can't recognize. */
+function printBackupNotice(): void {
+    console.log(chalk.bold('\nBefore we start:'));
+    console.log(chalk.dim(
+        '  We use our published release fingerprints to recognize the components you\n' +
+        '  customized and leave them untouched. We also require a clean git tree, so every\n' +
+        '  change here lands as one reviewable, revertible diff — your safety net.',
+    ));
+}
+
+/** Nothing could be auto-migrated (every legacy component is customized or
+ *  depends on one). Reassure and point at the manual path — never an error. */
+function reportNothingMigratable(plan: MigrationPlan): void {
+    console.log(chalk.green('\nEverything here is yours — nothing to migrate automatically.'));
+    printProtectedGroups(plan);
+    console.log(chalk.cyan('\nMigrate any of the above whenever you like; your code is left exactly as-is.'));
+}
+
+async function buildPlan(
+    uiDir: string, config: NonNullable<Awaited<ReturnType<typeof getConfig>>>,
+): Promise<{ scan: LayoutScan; plan: MigrationPlan }> {
+    const scan = await scanLayouts(uiDir, getPrefix(config));
+    const customized = await detectCustomizedLegacy(uiDir, scan.legacy, getPrefix(config), config.aliases.utils);
+    return { scan, plan: planMigration(scan, customized) };
+}
+
 export async function migrate(options: AddOptions): Promise<void> {
     const cwd = process.cwd();
     const config = await getConfig(cwd);
@@ -182,25 +248,29 @@ export async function migrate(options: AddOptions): Promise<void> {
     if (!options.registry && config.registry) options.registry = config.registry;
 
     const uiDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
-    const plan = planMigration(await scanLayouts(uiDir, getPrefix(config)));
+    const { scan, plan } = await buildPlan(uiDir, config);
 
-    if (plan.structural.length === 0) {
+    if (scan.legacy.length === 0) {
         console.log(chalk.green('Nothing to migrate — no legacy single-file components found.'));
         return;
     }
 
     if (options.dryRun) {
         printMigrationPlan(plan);
+        printProtectedGroups(plan);
         console.log(chalk.dim('\n[Dry Run] No changes written.'));
         return;
     }
 
+    // Nothing to convert (every legacy component is customized or depends on
+    // one): a friendly, write-free exit — no clean-tree guard needed.
+    if (plan.structural.length === 0) {
+        reportNothingMigratable(plan);
+        return;
+    }
+
     ensureCleanTreeOrExit(cwd, options);
-
-    const customized = await customizedComponents(cwd, uiDir, plan);
-    if (customized.length > 0 && !options.yes) blockOnCustomized(customized);
-
+    printBackupNotice();
     printMigrationPlan(plan);
-
     await executeMigration(plan, cwd, uiDir, config, options);
 }

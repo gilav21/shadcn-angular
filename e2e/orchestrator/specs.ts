@@ -192,6 +192,7 @@ export const CLI_SPECS: readonly CliSpecEntry[] = [
     { label: 'list-and-diff',           module: 'list-and-diff' },
     { label: 'update-bounded',          module: 'update-bounded' },
     { label: 'update-guards',           module: 'update-guards' },
+    { label: 'peerfiles-missing',       module: 'peerfiles-missing' },
     { label: 'migrate',                 module: 'migrate' },
     { label: 'migrate-build',           module: 'migrate-build' },
     // add-all-smoke is intentionally last — it's the slowest spec
