@@ -6,15 +6,20 @@ import { type LayoutScan } from './layout.js';
 import { rewriteImports } from './import-rewrite.js';
 
 export interface MigrationPlan {
-    /** Legacy (flat) components to convert to folder form. */
+    /** Legacy (flat) components to convert to folder form (pristine closure). */
     structural: ComponentName[];
-    /** Everything migrate writes: the dependency closure of the legacy set. */
+    /** Legacy components the consumer customized — left untouched, flagged. */
+    customized: ComponentName[];
+    /** Pristine legacy components deferred because they depend on a customized
+     *  one (a folder component cannot import a still-flat dependency). */
+    blocked: ComponentName[];
+    /** Everything migrate writes: the dependency closure of `structural`. */
     writeSet: ComponentName[];
     /** writeSet members not currently installed — pulled fresh. */
     newDeps: ComponentName[];
-    /** Already-folder deps of the legacy set — refreshed to a compatible version. */
+    /** Already-folder deps of the migrated set — refreshed to a compatible version. */
     refreshed: ComponentName[];
-    /** Installed folder components NOT needed by the legacy set — left as-is. */
+    /** Installed folder components NOT needed by the migrated set — left as-is. */
     untouched: ComponentName[];
 }
 
@@ -23,18 +28,32 @@ export interface MigrationPlan {
  * components change structurally — their import paths move from
  * `<name>.component` to the `<name>` folder barrel — so they are the only
  * names whose consumer imports need rewriting. migrate writes the dependency
- * CLOSURE of the legacy set (the legacy components plus the deps they need),
- * so a freshly-written component never calls a newer API on a stale dep;
- * installed folder components the legacy set does NOT depend on are left
- * untouched (run `update` to refresh those).
+ * CLOSURE of the migrated set, so a freshly-written component never calls a
+ * newer API on a stale dep; installed folder components it does NOT depend on
+ * are left untouched (run `update` to refresh those).
+ *
+ * `customized` (legacy components the consumer edited) are NEVER overwritten: a
+ * legacy component is migrated only when its entire dependency closure is
+ * customization-free, because a folder component cannot import a still-flat
+ * dependency. Edited components are left as-is and flagged; pristine components
+ * that depend on an edited one are deferred (`blocked`).
  */
-export function planMigration(scan: LayoutScan): MigrationPlan {
-    const structural = [...scan.legacy];
+export function planMigration(
+    scan: LayoutScan, customized: ReadonlySet<ComponentName> = new Set(),
+): MigrationPlan {
+    const customizedLegacy = scan.legacy.filter(n => customized.has(n));
+    const customizedSet = new Set(customizedLegacy);
+    const migratable = (n: ComponentName) =>
+        [...resolveDependencies([n])].every(d => !customizedSet.has(d));
+    const structural = scan.legacy.filter(migratable);
+    const blocked = scan.legacy.filter(n => !customizedSet.has(n) && !migratable(n));
     const installed = new Set<ComponentName>([...scan.legacy, ...scan.current]);
     const writeSet = [...resolveDependencies(structural)];
     const writeSetSet = new Set(writeSet);
     return {
         structural,
+        customized: customizedLegacy,
+        blocked,
         writeSet,
         newDeps: writeSet.filter(n => !installed.has(n)),
         refreshed: writeSet.filter(n => scan.current.includes(n)),

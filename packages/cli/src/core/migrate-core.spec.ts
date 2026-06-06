@@ -31,6 +31,33 @@ describe('planMigration', () => {
     expect(plan.writeSet).toEqual([]);
     expect(plan.newDeps).toEqual([]);
     expect(plan.untouched).toEqual(['button', 'ripple']);
+    expect(plan.customized).toEqual([]);
+    expect(plan.blocked).toEqual([]);
+  });
+
+  it('migrates a pristine closure and flags a customized leaf only', () => {
+    // badge is an unrelated edited leaf; button (deps: ripple) is pristine.
+    const plan = planMigration({ legacy: ['button', 'badge'], current: [] }, new Set(['badge']));
+    expect(plan.customized).toEqual(['badge']);
+    expect(plan.structural).toContain('button');
+    expect(plan.structural).not.toContain('badge');
+    expect(plan.blocked).toEqual([]);
+  });
+
+  it('blocks the dependents of a customized shared dependency', () => {
+    // ripple is button's dependency. Editing ripple must defer button: a folder
+    // component cannot import a still-flat dependency.
+    const plan = planMigration({ legacy: ['button', 'ripple'], current: [] }, new Set(['ripple']));
+    expect(plan.customized).toEqual(['ripple']);
+    expect(plan.blocked).toContain('button');
+    expect(plan.structural).not.toContain('button');
+    expect(plan.writeSet).not.toContain('ripple'); // never overwritten
+  });
+
+  it('only treats legacy components as customized (a customized name not in the legacy set is ignored)', () => {
+    const plan = planMigration({ legacy: ['button'], current: [] }, new Set(['badge']));
+    expect(plan.customized).toEqual([]);
+    expect(plan.structural).toContain('button');
   });
 });
 
