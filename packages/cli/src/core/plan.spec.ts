@@ -54,8 +54,15 @@ describe('classifyComponent', () => {
       'data-table', '/proj/ui', opts, '@/lib', new Map(), peerSet,
     );
     // Before the fix, "missing" peer files were skipped (only "changed" queued),
-    // so the context-menu directives never installed and the build broke.
-    expect(peerSet.has('context-menu-attach.directive.ts')).toBe(true);
+    // so the context-menu directives never installed and the build broke. All
+    // five of data-table's peer files must now be queued.
+    expect([...peerSet].sort()).toEqual([
+      'context-menu-attach.directive.ts',
+      'context-menu-integrations.ts',
+      'data-table-context-menu.directive.ts',
+      'table-context-menu.directive.ts',
+      'tree-context-menu.directive.ts',
+    ]);
   });
 });
 
