@@ -142,8 +142,12 @@ async function executeMigration(
     removeFiles(manifest, deleted);
     await writeManifest(cwd, manifest);
 
-    // rewriteProjectImports skips uiDir (the components' own barrels) and is
-    // scoped so only imports resolving to <uiDir>/<name>.component are touched.
+    // rewriteProjectImports scans every project file INCLUDING the ui dir,
+    // because a pre-existing folder component can import a now-migrated sibling
+    // via the old flat path (`../button.component`). Each rewrite is scoped to
+    // specifiers that resolve to <uiDir>/<name>.component, so a component's own
+    // barrel self-reference and a consumer file sharing a library name are both
+    // left untouched.
     const rewritten = await rewriteProjectImports(cwd, new Set(migratedOk), uiDir, config.aliases.ui);
 
     spinner.stop();

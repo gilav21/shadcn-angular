@@ -48,10 +48,9 @@ const SKIP_DIRS = new Set(['node_modules', 'dist', '.git', '.angular', 'coverage
 // mangled) for no benefit.
 const SOURCE_EXT = new Set(['.ts', '.mts', '.cts', '.js', '.mjs']);
 
-async function collectSourceFiles(root: string, skip: ReadonlySet<string>): Promise<string[]> {
+async function collectSourceFiles(root: string): Promise<string[]> {
     const out: string[] = [];
     const walk = async (dir: string): Promise<void> => {
-        if (skip.has(path.resolve(dir))) return;
         for (const entry of await fs.readdir(dir, { withFileTypes: true })) {
             const full = path.join(dir, entry.name);
             if (entry.isDirectory()) {
@@ -67,12 +66,14 @@ async function collectSourceFiles(root: string, skip: ReadonlySet<string>): Prom
 
 /**
  * Rewrite migrated imports across project source files; return changed paths.
- * The CLI-managed `uiDir` is excluded entirely so the migrated components' own
- * barrels (`export * from './button.component'`, an intra-folder reference to a
- * file that still exists) are left untouched. Each rewrite is scoped to imports
- * that actually resolve to `<uiDir>/<name>.component` (via `uiAlias` or a
- * relative path), so a consumer file that merely shares a component name is
- * never corrupted.
+ * Every file (INCLUDING those under `uiDir`) is scanned, because a pre-existing
+ * folder component can import a now-migrated sibling via the old flat path
+ * (`../switch.component`) and must be fixed too. Each rewrite is scoped to
+ * imports that actually resolve to `<uiDir>/<name>.component` (via `uiAlias` or
+ * a relative path), so a component's own barrel self-reference
+ * (`./switch.component` → resolves to `<uiDir>/switch/switch.component`, which
+ * still exists) and a consumer file that merely shares a component name are
+ * both left untouched.
  */
 export async function rewriteProjectImports(
     projectRoot: string, migratedNames: ReadonlySet<string>,
@@ -82,7 +83,7 @@ export async function rewriteProjectImports(
     const resolvedUiDir = path.resolve(uiDir);
     const alias = uiAlias.replace(/\/+$/, '');
     const changed: string[] = [];
-    for (const file of await collectSourceFiles(projectRoot, new Set([resolvedUiDir]))) {
+    for (const file of await collectSourceFiles(projectRoot)) {
         const source = await fs.readFile(file, 'utf-8');
         const result = rewriteImports(source, {
             migrated: migratedNames,

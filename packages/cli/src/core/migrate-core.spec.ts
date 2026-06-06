@@ -91,18 +91,32 @@ describe('rewriteProjectImports', () => {
     }
   });
 
-  it('skips the ui dir so a component barrel self-reference is not rewritten', async () => {
+  it('preserves a component barrel self-reference but rewrites a cross-component sibling import', async () => {
     const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'mig-'));
     const ui = path.join(dir, 'src/components/ui');
     try {
+      // button's own barrel: `./button.component` resolves to button/button.component
+      // (the folder's own file, still exists) — must NOT be rewritten.
       await fs.outputFile(path.join(ui, 'button/index.ts'), `export * from './button.component';\n`);
+      // A pre-existing folder component importing a now-migrated SIBLING via the
+      // old flat path — this MUST be rewritten (`../button.component` → `../button`).
+      await fs.outputFile(
+        path.join(ui, 'page-builder/page-builder.component.ts'),
+        `import { ButtonComponent } from '../button.component';\n`,
+      );
+      // And an app-code import (outside ui/) — rewritten as before.
       await fs.outputFile(path.join(dir, 'src/app.ts'), `import { B } from '@/components/ui/button.component';\n`);
 
       const changed = await rewriteProjectImports(dir, new Set(['button']), ui, ALIAS);
 
+      // Barrel self-reference preserved (scope, not a uiDir skip).
       expect(await fs.readFile(path.join(ui, 'button/index.ts'), 'utf-8')).toContain(`'./button.component'`);
+      // Cross-component sibling import rewritten.
+      expect(await fs.readFile(path.join(ui, 'page-builder/page-builder.component.ts'), 'utf-8'))
+        .toContain(`'../button'`);
+      // App import rewritten.
       expect(await fs.readFile(path.join(dir, 'src/app.ts'), 'utf-8')).toContain(`'@/components/ui/button'`);
-      expect(changed).toHaveLength(1);
+      expect(changed).toHaveLength(2);
     } finally {
       await fs.remove(dir);
     }
