@@ -57,7 +57,10 @@ async function checkPeerFiles(
     if (!component.peerFiles) return;
     for (const file of component.peerFiles) {
         const status = await checkFileConflict(file, targetDir, options, utilsAlias, contentCache, prefix);
-        if (status === 'changed') peerFilesToUpdate.add(file);
+        // Install a peer file that's MISSING (a new component version references
+        // it but it was never installed) as well as one that's CHANGED. Only an
+        // identical, already-present peer file is left alone.
+        if (status === 'missing' || status === 'changed') peerFilesToUpdate.add(file);
     }
 }
 

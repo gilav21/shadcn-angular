@@ -44,6 +44,19 @@ describe('classifyComponent', () => {
     );
     expect(result).toBe('conflict');
   });
+
+  it('queues a peer file that is MISSING on disk, not just changed (Bug 2)', async () => {
+    // data-table is the only registry entry with peerFiles; nothing on disk →
+    // every file (including its peer directives) reads as "missing".
+    (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(false);
+    const peerSet = new Set<string>();
+    await classifyComponent(
+      'data-table', '/proj/ui', opts, '@/lib', new Map(), peerSet,
+    );
+    // Before the fix, "missing" peer files were skipped (only "changed" queued),
+    // so the context-menu directives never installed and the build broke.
+    expect(peerSet.has('context-menu-attach.directive.ts')).toBe(true);
+  });
 });
 
 describe('summarizePlan', () => {
