@@ -56,6 +56,14 @@ describe('isPristine', () => {
   it('is false when the baseline entry is empty', () => {
     expect(isPristine({ button: [] }, 'button', install(RAW, 'ui', '@/lib'), 'ui', '@/lib')).toBe(false);
   });
+
+  it('never throws on a malformed prefix — returns false (conservative)', () => {
+    const baselines: Baselines = { button: [canonicalHash(RAW, 'ui', '')] };
+    // A prefix with regex metacharacters would break the internal RegExp build;
+    // isPristine must swallow it and treat the file as customized, not crash.
+    expect(() => isPristine(baselines, 'button', RAW, '(', '@/lib')).not.toThrow();
+    expect(isPristine(baselines, 'button', RAW, '(', '@/lib')).toBe(false);
+  });
 });
 
 describe('canonicalHash', () => {

@@ -42,13 +42,20 @@ export function loadBaselines(): Baselines {
 
 /**
  * A legacy flat file is "pristine" iff its canonical hash matches some recorded
- * historical release of that component. No baseline entry → conservatively
- * treated as customized: we cannot prove it is untouched, so we protect it.
+ * historical release of that component. No baseline entry — or any failure to
+ * canonicalize (e.g. an unexpected prefix) — is treated conservatively as
+ * customized: we cannot prove the file is untouched, so we protect it rather
+ * than risk overwriting the user's edits. This makes the "never throws"
+ * guarantee self-contained, independent of caller-side prefix validation.
  */
 export function isPristine(
     baselines: Baselines, name: string, content: string, prefix: string, utilsAlias: string,
 ): boolean {
     const hashes = baselines[name];
     if (!hashes?.length) return false;
-    return hashes.includes(canonicalHash(content, prefix, utilsAlias));
+    try {
+        return hashes.includes(canonicalHash(content, prefix, utilsAlias));
+    } catch {
+        return false;
+    }
 }
