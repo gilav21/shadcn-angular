@@ -105,10 +105,9 @@ function printProtectedGroups(plan: MigrationPlan): void {
 }
 
 function printMigrationPlan(plan: MigrationPlan): void {
+    if (plan.structural.length === 0) return; // nothing-migratable is reported separately
     console.log(chalk.bold('\nMigration plan:'));
-    if (plan.structural.length) {
-        console.log(chalk.dim('  Convert to folder layout: ') + plan.structural.join(', '));
-    }
+    console.log(chalk.dim('  Convert to folder layout: ') + plan.structural.join(', '));
     if (plan.newDeps.length) console.log(chalk.dim('  Install new dependencies: ') + plan.newDeps.join(', '));
     if (plan.refreshed.length) console.log(chalk.dim('  Refresh required deps: ') + plan.refreshed.join(', '));
     if (plan.untouched.length) {
@@ -263,14 +262,15 @@ export async function migrate(options: AddOptions): Promise<void> {
         return;
     }
 
-    ensureCleanTreeOrExit(cwd, options);
-    printBackupNotice();
-
+    // Nothing to convert (every legacy component is customized or depends on
+    // one): a friendly, write-free exit — no clean-tree guard needed.
     if (plan.structural.length === 0) {
         reportNothingMigratable(plan);
         return;
     }
 
+    ensureCleanTreeOrExit(cwd, options);
+    printBackupNotice();
     printMigrationPlan(plan);
     await executeMigration(plan, cwd, uiDir, config, options);
 }
