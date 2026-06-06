@@ -14,8 +14,13 @@ export type InstallLayout = 'new' | 'legacy' | 'absent';
  */
 async function isOurLegacyComponent(absPath: string, prefix: string, name: ComponentName): Promise<boolean> {
     if (!await fs.pathExists(absPath)) return false;
-    const content = await fs.readFile(absPath, 'utf-8');
-    return content.includes(`${prefix}-${name}`);
+    try {
+        const content = await fs.readFile(absPath, 'utf-8');
+        return content.includes(`${prefix}-${name}`);
+    } catch {
+        // Unreadable — treat as "not ours" so nothing deletes/converts it.
+        return false;
+    }
 }
 
 /** True when a component's registry files live under a `<name>/` folder. */
