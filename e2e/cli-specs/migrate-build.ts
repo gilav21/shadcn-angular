@@ -38,8 +38,9 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
         `}\n`,
     );
 
-    // Fabricate a legacy flat install of button.
-    fs.writeFileSync(flat, '// legacy single-file button\nexport class ButtonComponent {}\n');
+    // Fabricate a legacy flat install of button — carries OUR selector so
+    // detection recognizes it as a genuine shadcn install.
+    fs.writeFileSync(flat, `import { Component } from '@angular/core';\n@Component({ selector: 'ui-button', template: '' })\nexport class ButtonComponent {}\n`);
     fs.rmSync(folder, { recursive: true, force: true });
 
     // Migrate (dirty tree → needs --force; no manifest edits → no --yes needed,

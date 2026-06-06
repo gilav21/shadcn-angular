@@ -6,7 +6,7 @@ import { isComponentName, type ComponentName } from '../../registry/index.js';
 import { performInstall } from '../../core/install.js';
 import { initProject } from '../../core/init-core.js';
 import { diffComponentFiles, type ComponentDiff } from '../../core/diff-core.js';
-import { getConfig, getDefaultConfig, type Config } from '../../utils/config.js';
+import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils/config.js';
 import { aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
 import { isValidPrefix, DEFAULT_PREFIX } from '../../utils/prefix.js';
 import { json, err } from './result.js';
@@ -105,7 +105,7 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
         const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
         const out: ComponentDiff[] = [];
         for (const name of names as ComponentName[]) {
-            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils));
+            out.push(await diffComponentFiles(name, targetDir, { branch: 'master' }, config.aliases.utils, getPrefix(config)));
         }
         return json(out);
     });

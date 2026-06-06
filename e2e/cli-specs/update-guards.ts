@@ -39,8 +39,12 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     }
 
     // --- legacy-layout abort ---
-    // Fabricate a flat (legacy) install of a folderized component.
-    fs.writeFileSync(path.join(uiDir, 'badge.component.ts'), '// legacy flat badge\n');
+    // Fabricate a flat (legacy) install of a folderized component — must carry
+    // our selector ('ui-badge') so detection recognizes it as a genuine install.
+    fs.writeFileSync(
+        path.join(uiDir, 'badge.component.ts'),
+        `import { Component } from '@angular/core';\n@Component({ selector: 'ui-badge', template: '' })\nexport class BadgeComponent {}\n`,
+    );
     const legacy = await captureCli(['update', 'badge']);
     if (legacy.code === 0) {
         throw new Error(`update must abort on a legacy flat install\n${legacy.stdout}`);

@@ -20,9 +20,15 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     const folder = path.join(uiDir, 'button');
     const flat = path.join(uiDir, 'button.component.ts');
 
-    // Fabricate a legacy flat install of button.
-    fs.writeFileSync(flat, '// legacy single-file button (inline template)\nexport class ButtonComponent {}\n');
+    // Fabricate a legacy flat install of button — must carry OUR selector
+    // (`ui-button`) so detection recognizes it as a genuine shadcn install.
+    fs.writeFileSync(flat, `import { Component } from '@angular/core';\n@Component({ selector: 'ui-button', template: '' })\nexport class ButtonComponent {}\n`);
     fs.rmSync(folder, { recursive: true, force: true });
+
+    // A consumer's OWN component that merely shares a registry name ('card'),
+    // declaring their own selector — migrate must NOT touch or delete it.
+    const userCard = path.join(uiDir, 'card.component.ts');
+    fs.writeFileSync(userCard, `import { Component } from '@angular/core';\n@Component({ selector: 'app-card', template: '' })\nexport class MyCardComponent {}\n`);
 
     // A consumer app file importing the legacy path (alias form).
     const appFile = path.join(fixtureApp, 'src/legacy-consumer.ts');
@@ -54,6 +60,16 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     }
     if (fs.existsSync(flat)) {
         throw new Error('migrate must delete the legacy flat button.component.ts');
+    }
+
+    // The consumer's own card.component.ts (different selector) must survive.
+    if (!fs.existsSync(userCard)) {
+        throw new Error("migrate must NOT delete the consumer's own card.component.ts");
+    }
+    assertContains(fs.readFileSync(userCard, 'utf-8'), `selector: 'app-card'`,
+        "the consumer's card component must be left untouched");
+    if (fs.existsSync(path.join(uiDir, 'card'))) {
+        throw new Error("migrate must NOT create a card/ folder over the consumer's own card");
     }
 
     const rewritten = fs.readFileSync(appFile, 'utf-8');

@@ -2,6 +2,7 @@ import fs from 'fs-extra';
 import path from 'node:path';
 import { fetchAndTransform, normalizeContent, type FetchOptions } from './fetch.js';
 import { registry, type ComponentName } from '../registry/index.js';
+import { DEFAULT_PREFIX } from '../utils/prefix.js';
 
 export interface FileDiff {
     file: string;
@@ -36,6 +37,7 @@ export function unifiedDiff(fileName: string, local: string, remote: string): st
 
 export async function diffComponentFiles(
     name: ComponentName, targetDir: string, options: FetchOptions, utilsAlias: string,
+    prefix: string = DEFAULT_PREFIX,
 ): Promise<ComponentDiff> {
     const files: FileDiff[] = [];
     for (const file of registry[name].files) {
@@ -46,7 +48,9 @@ export async function diffComponentFiles(
         }
         try {
             const local = normalizeContent(await fs.readFile(targetPath, 'utf-8'));
-            const remote = normalizeContent(await fetchAndTransform(file, options, utilsAlias));
+            // Apply the project's configured selector prefix so a custom-prefix
+            // install doesn't read as "changed" against the default-prefix remote.
+            const remote = normalizeContent(await fetchAndTransform(file, options, utilsAlias, prefix));
             const text = local === remote ? '' : unifiedDiff(file, local, remote);
             files.push({ file, diff: text || null });
         } catch (err: unknown) {

@@ -92,7 +92,7 @@ export async function collectDoctorReport(
         localStatus[name] = await worstLocalStatus(manifest, targetDir, name);
     }
     const { userEdited, updateAvailable } = classifyDrift(modified, localStatus);
-    const { legacy } = await scanLayouts(targetDir);
+    const { legacy } = await scanLayouts(targetDir, getPrefix(config));
 
     const ok = missingFiles.length === 0 && modified.length === 0
         && missingNpmDeps.length === 0 && legacy.length === 0;

@@ -182,7 +182,7 @@ export async function migrate(options: AddOptions): Promise<void> {
     if (!options.registry && config.registry) options.registry = config.registry;
 
     const uiDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
-    const plan = planMigration(await scanLayouts(uiDir));
+    const plan = planMigration(await scanLayouts(uiDir, getPrefix(config)));
 
     if (plan.structural.length === 0) {
         console.log(chalk.green('Nothing to migrate — no legacy single-file components found.'));

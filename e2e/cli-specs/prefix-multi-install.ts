@@ -7,9 +7,11 @@ import { assertContains, type CliSpec } from './_types.js';
  * a multi-component `add button dialog popover`. Every installed
  * component's selector must be rewritten — catches a class of bug where
  * the prefix transform applies per-file but a batch later in the chain
- * ends up reading cached default-prefix content.
+ * ends up reading cached default-prefix content. Also asserts that
+ * `diff` is prefix-aware: a clean custom-prefix install must read as
+ * up-to-date, not as a wall of selector diffs.
  */
-const spec: CliSpec = async ({ runCli, fixtureApp }) => {
+const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     await runCli(['init', '--yes', '--prefix', 'acme']);
     await runCli(['add', 'button', 'dialog', 'popover', '--yes']);
 
@@ -35,6 +37,16 @@ const spec: CliSpec = async ({ runCli, fixtureApp }) => {
             );
         }
     }
+
+    // `diff` must apply the configured prefix: a clean acme-prefixed install
+    // must report up-to-date, not flag every component as changed because the
+    // remote was fetched with the default 'ui' prefix.
+    const dff = await captureCli(['diff']);
+    if (dff.code !== 0) {
+        throw new Error(`diff exited ${dff.code}\n${dff.stdout}`);
+    }
+    assertContains(dff.stdout, 'up to date',
+        'diff of a clean custom-prefix install must be prefix-aware (no false diffs)');
 };
 
 export default spec;

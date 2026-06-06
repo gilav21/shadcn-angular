@@ -1,5 +1,5 @@
 import chalk from 'chalk';
-import { getConfig } from '../utils/config.js';
+import { getConfig, getPrefix } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { diffComponentFiles } from '../core/diff-core.js';
@@ -54,7 +54,7 @@ export async function diff(components: string[], options: DiffOptions) {
         const cd = await diffComponentFiles(
             name, targetDir,
             { branch: options.branch, remote: options.remote, registry: options.registry },
-            utilsAlias,
+            utilsAlias, getPrefix(config),
         );
 
         if (cd.hasChanges) {

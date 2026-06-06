@@ -159,7 +159,7 @@ export async function update(names: string[], options: AddOptions): Promise<void
     if (!options.registry && config.registry) options.registry = config.registry;
 
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
-    const scan = await scanLayouts(targetDir);
+    const scan = await scanLayouts(targetDir, getPrefix(config));
     const targets = await resolveTargetsOrExit(names, cwd, config);
 
     if (targets.length === 0) {
