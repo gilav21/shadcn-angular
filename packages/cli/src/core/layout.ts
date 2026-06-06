@@ -6,17 +6,26 @@ import { DEFAULT_PREFIX } from '../utils/prefix.js';
 export type InstallLayout = 'new' | 'legacy' | 'absent';
 
 /**
- * True when the flat file declares OUR component's selector token
- * (`<prefix>-<name>`). A genuine legacy install was written by the CLI with
- * that selector; a consumer's own `<name>.component.ts` that merely shares a
- * registry name uses a different selector and must never be treated as ours
- * (so migrate won't delete/convert it, and update/doctor won't flag it).
+ * True when the file DECLARES our component's selector token (`<prefix>-<name>`)
+ * inside `selector: '...'` metadata — anchored to the selector key, not bare
+ * file content, so a consumer file that merely renders `<ui-card>` in its
+ * template or mentions it in a comment is NOT mistaken for ours. A genuine
+ * legacy install was written by the CLI with that selector; a consumer's own
+ * `<name>.component.ts` declares a different selector and must never be treated
+ * as ours (so migrate won't delete/convert it, update/doctor won't flag it).
  */
+export function declaresOurSelector(content: string, prefix: string, name: ComponentName): boolean {
+    const token = `${prefix}-${name}`;
+    for (const m of content.matchAll(/selector\s*:\s*(['"])([^'"]*)\1/g)) {
+        if (m[2].includes(token)) return true;
+    }
+    return false;
+}
+
 async function isOurLegacyComponent(absPath: string, prefix: string, name: ComponentName): Promise<boolean> {
     if (!await fs.pathExists(absPath)) return false;
     try {
-        const content = await fs.readFile(absPath, 'utf-8');
-        return content.includes(`${prefix}-${name}`);
+        return declaresOurSelector(await fs.readFile(absPath, 'utf-8'), prefix, name);
     } catch {
         // Unreadable — treat as "not ours" so nothing deletes/converts it.
         return false;

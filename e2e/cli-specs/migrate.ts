@@ -25,10 +25,13 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     fs.writeFileSync(flat, `import { Component } from '@angular/core';\n@Component({ selector: 'ui-button', template: '' })\nexport class ButtonComponent {}\n`);
     fs.rmSync(folder, { recursive: true, force: true });
 
-    // A consumer's OWN component that merely shares a registry name ('card'),
-    // declaring their own selector — migrate must NOT touch or delete it.
+    // A consumer's OWN component that shares a registry name ('card') AND even
+    // renders our <ui-card> in its template — but declares its OWN selector.
+    // migrate must NOT touch/delete it: detection is anchored to the selector:
+    // metadata, not bare file content (a content `.includes('ui-card')` would
+    // have wrongly matched and deleted it).
     const userCard = path.join(uiDir, 'card.component.ts');
-    fs.writeFileSync(userCard, `import { Component } from '@angular/core';\n@Component({ selector: 'app-card', template: '' })\nexport class MyCardComponent {}\n`);
+    fs.writeFileSync(userCard, `import { Component } from '@angular/core';\n@Component({ selector: 'app-card', template: '<ui-card>wrapped</ui-card>' })\nexport class MyCardComponent {}\n`);
 
     // A consumer app file importing the legacy path (alias form).
     const appFile = path.join(fixtureApp, 'src/legacy-consumer.ts');
