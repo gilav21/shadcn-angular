@@ -10,6 +10,7 @@ import { help } from './commands/help.js';
 import { search } from './commands/search.js';
 import { doctor } from './commands/doctor.js';
 import { update } from './commands/update.js';
+import { migrate } from './commands/migrate.js';
 import { startMcpServer } from './mcp/server.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as { version: string };
@@ -75,6 +76,7 @@ program
     .command('update')
     .description('Update installed components to the latest registry version')
     .argument('[components...]', 'Components to update (all installed if omitted)')
+    .option('-y, --yes', 'Install newly-required dependencies without prompting')
     .option('--dry-run', 'Show what would update without writing')
     .option('--remote', 'Force remote fetch from GitHub registry')
     .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
@@ -88,6 +90,17 @@ program
     .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
     .option('-r, --registry <url>', 'Custom registry base URL')
     .action(doctor);
+
+program
+    .command('migrate')
+    .description('Migrate legacy single-file components to the folder/trio layout')
+    .option('-y, --yes', 'Overwrite locally-customized components without prompting')
+    .option('--dry-run', 'Show the migration plan without writing')
+    .option('--force', 'Proceed even if the git working tree is dirty / not a repo')
+    .option('--remote', 'Force remote fetch from GitHub registry')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
+    .option('-r, --registry <url>', 'Custom registry base URL')
+    .action(migrate);
 
 program
     .command('search')

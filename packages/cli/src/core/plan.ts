@@ -10,6 +10,8 @@ export interface AddOptions extends FetchOptions {
     all?: boolean;
     path?: string;
     dryRun?: boolean;
+    /** `migrate`: proceed even if the git working tree is dirty / not a repo. */
+    force?: boolean;
 }
 
 export interface ConflictCheckResult {

@@ -8,6 +8,7 @@ import { installPackages } from '../utils/package-manager.js';
 import { writeShortcutRegistryIndex, type ShortcutRegistryEntry } from '../utils/shortcut-registry.js';
 import { registry, type ComponentDefinition, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
+import { readManifest, writeManifest, recordFile, type Manifest } from './manifest.js';
 
 export interface InstallResult {
     installed: ComponentName[];
@@ -20,7 +21,7 @@ export interface InstallResult {
 async function writeComponentFiles(
     component: ComponentDefinition, targetDir: string, options: AddOptions,
     utilsAlias: string, contentCache: Map<string, string>, prefix: string, warnings: string[],
-    kind: SourceKind = 'component',
+    manifest: Manifest, kind: SourceKind = 'component',
 ): Promise<boolean> {
     let success = true;
     for (const file of component.files) {
@@ -29,6 +30,7 @@ async function writeComponentFiles(
             const content = contentCache.get(file) ?? await fetchAndTransform(file, options, utilsAlias, prefix, kind);
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
+            recordFile(manifest, file, content, component.name);
         } catch (err: unknown) {
             warnings.push(`Could not add ${file}: ${err instanceof Error ? err.message : String(err)}`);
             success = false;
@@ -40,7 +42,7 @@ async function writeComponentFiles(
 async function writePeerFiles(
     component: ComponentDefinition, targetDir: string, options: AddOptions, utilsAlias: string,
     contentCache: Map<string, string>, peerFilesToUpdate: Set<string>, prefix: string, warnings: string[],
-    kind: SourceKind = 'component',
+    manifest: Manifest, kind: SourceKind = 'component',
 ): Promise<void> {
     if (!component.peerFiles) return;
     for (const file of component.peerFiles) {
@@ -50,6 +52,7 @@ async function writePeerFiles(
             const content = contentCache.get(file) ?? await fetchAndTransform(file, options, utilsAlias, prefix, kind);
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
+            recordFile(manifest, file, content, component.name);
         } catch (err: unknown) {
             warnings.push(`Could not update peer file ${file}: ${err instanceof Error ? err.message : String(err)}`);
         }
@@ -192,6 +195,7 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
         return { installed: [], skipped: result.toSkip, declined, warnings };
     }
 
+    const manifest = await readManifest(input.cwd);
     const blocksBase = resolveProjectPath(
         input.cwd, input.blocksPath ?? aliasToProjectPath(getBlocksAlias(input.config)),
     );
@@ -202,8 +206,8 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
         const dir = isBlock ? blocksBase : targetDir;
         const kind: SourceKind = isBlock ? 'block' : 'component';
         await fs.ensureDir(dir);
-        const ok = await writeComponentFiles(component, dir, input.options, utilsAlias, result.contentCache, prefix, warnings, kind);
-        await writePeerFiles(component, dir, input.options, utilsAlias, result.contentCache, result.peerFilesToUpdate, prefix, warnings, kind);
+        const ok = await writeComponentFiles(component, dir, input.options, utilsAlias, result.contentCache, prefix, warnings, manifest, kind);
+        await writePeerFiles(component, dir, input.options, utilsAlias, result.contentCache, result.peerFilesToUpdate, prefix, warnings, manifest, kind);
         if (ok) installed.push(name);
     }
 
@@ -211,6 +215,13 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     await installLibFiles(new Set(finalComponents), libDir, input.options, warnings);
     await installNpmDependencies(finalComponents, input.cwd, warnings);
     await ensureShortcutService(targetDir, input.cwd, input.config, input.options);
+    try {
+        await writeManifest(input.cwd, manifest);
+    } catch (err: unknown) {
+        // The lockfile is a non-critical sidecar — a write failure must not
+        // make a successful install report failure.
+        warnings.push(`Could not write components.lock.json: ${err instanceof Error ? err.message : String(err)}`);
+    }
 
     return { installed, skipped: result.toSkip, declined, warnings };
 }

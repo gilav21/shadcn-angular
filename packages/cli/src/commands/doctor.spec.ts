@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs-extra';
-import { collectDoctorReport } from './doctor.js';
+import { collectDoctorReport, classifyDrift } from './doctor.js';
 import { getDefaultConfig } from '../utils/config.js';
 
 vi.mock('fs-extra', () => ({
@@ -32,5 +32,25 @@ describe('collectDoctorReport', () => {
     const report = await collectDoctorReport('/proj', cfg, { branch: 'master' });
     expect(report.modified).toContain('button');
     expect(report.ok).toBe(false);
+  });
+});
+
+describe('classifyDrift', () => {
+  it('flags user-edited when local differs from the manifest baseline', () => {
+    const out = classifyDrift(['button'], { button: 'modified' });
+    expect(out.userEdited).toEqual(['button']);
+    expect(out.updateAvailable).toEqual([]);
+  });
+
+  it('flags update-available when local matches manifest but registry moved on', () => {
+    const out = classifyDrift(['button'], { button: 'clean' });
+    expect(out.updateAvailable).toEqual(['button']);
+    expect(out.userEdited).toEqual([]);
+  });
+
+  it('treats untracked (no manifest baseline) drift as update-available', () => {
+    const out = classifyDrift(['button'], { button: 'untracked' });
+    expect(out.updateAvailable).toEqual(['button']);
+    expect(out.userEdited).toEqual([]);
   });
 });
