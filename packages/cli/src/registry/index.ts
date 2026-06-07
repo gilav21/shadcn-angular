@@ -122,8 +122,8 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Clickable button with variants (default, destructive, outline, ghost, link) and sizes.',
     tags: ['button', 'action', 'cta', 'submit', 'click'],
-    files: ['button/button.component.css', 'button/button.component.html', 'button/button.component.ts', 'button/index.ts'],
-    dependencies: ['ripple', 'skeleton', 'spinner'],
+    files: ['button/button.component.css', 'button/button.component.html', 'button/button.component.ts', 'button/confirm-dialog.component.ts', 'button/confirm.directive.ts', 'button/index.ts'],
+    dependencies: ['alert-dialog', 'ripple', 'skeleton', 'spinner'],
   },
   'button-group': {
     name: 'button-group',
