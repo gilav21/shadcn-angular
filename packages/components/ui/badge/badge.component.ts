@@ -41,7 +41,7 @@ export class BadgeComponent {
     label = input<string>('');
     class = input('');
 
-    classes = computed(() =>
+    readonly classes = computed(() =>
         cn(badgeVariants({ variant: this.variant() }), this.class())
     );
 

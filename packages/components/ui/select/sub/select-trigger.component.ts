@@ -44,14 +44,14 @@ export class SelectTriggerComponent {
     class = input('');
     ariaLabel = input<string | undefined>(undefined);
 
-    classes = computed(() =>
+    readonly classes = computed(() =>
         cn(
             'border-input data-[placeholder]:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-[calc(0.5rem*var(--_d))] rounded-md border bg-transparent px-[calc(0.75rem*var(--_d))] py-[calc(0.5rem*var(--_d))] text-sm whitespace-nowrap shadow-xs transition-[color,box-shadow] outline-none focus-visible:ring-[3px] disabled:cursor-not-allowed disabled:opacity-50 h-[calc(2.25rem*var(--_d))] [&>span]:line-clamp-1 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg]:size-4 dark:bg-input/50 dark:hover:bg-input/70',
             this.class()
         )
     );
 
-    chevronClasses = computed(() =>
+    readonly chevronClasses = computed(() =>
         cn(
             'size-4 opacity-50 shrink-0'
         )

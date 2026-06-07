@@ -71,7 +71,7 @@ export class ButtonComponent {
 
     clicked = output<MouseEvent>();
 
-    classes = computed(() =>
+    readonly classes = computed(() =>
         cn(buttonVariants({ variant: this.variant(), size: this.size() }), this.class())
     );
 }

@@ -19,5 +19,5 @@ import { cn } from '../../../lib/utils';
 export class CardContentComponent {
     class = input('');
 
-    classes = computed(() => cn('px-[calc(1rem*var(--_d))] sm:px-6', this.class()));
+    readonly classes = computed(() => cn('px-[calc(1rem*var(--_d))] sm:px-6', this.class()));
 }

@@ -19,7 +19,7 @@ import { cn } from '../../../lib/utils';
 export class CardFooterComponent {
     class = input('');
 
-    classes = computed(() =>
+    readonly classes = computed(() =>
         cn('flex items-center px-[calc(1rem*var(--_d))] sm:px-6 [.border-t]:pt-6', this.class())
     );
 }

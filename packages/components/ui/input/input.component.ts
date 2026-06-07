@@ -88,9 +88,9 @@ export class InputComponent implements ControlValueAccessor {
 
     private readonly formDisabled = signal(false);
 
-    isDisabled = computed(() => this.disabled() || this.formDisabled());
+    readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
 
-    classes = computed(() =>
+    readonly classes = computed(() =>
         cn(inputVariants({ variant: this.effectiveVariant() }), this.class())
     );
 

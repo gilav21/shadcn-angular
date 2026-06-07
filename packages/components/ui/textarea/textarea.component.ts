@@ -12,7 +12,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
 const textareaVariants = cva(
-    'flex min-h-[calc(48px*var(--_d))] sm:min-h-[calc(60px*var(--_d))] w-full border-input bg-transparent text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+    'flex min-h-[calc(3rem*var(--_d))] sm:min-h-[calc(3.75rem*var(--_d))] w-full border-input bg-transparent text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
     {
         variants: {
             variant: {
@@ -68,7 +68,7 @@ export class TextareaComponent implements ControlValueAccessor {
     private onChange: (value: string) => void = () => { };
     onTouched: () => void = () => { };
 
-    classes = computed(() =>
+    readonly classes = computed(() =>
         cn(textareaVariants({ variant: this.effectiveVariant() }), this.class())
     );
 

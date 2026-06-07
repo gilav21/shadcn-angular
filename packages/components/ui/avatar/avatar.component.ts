@@ -28,7 +28,7 @@ export class AvatarComponent {
     fallback = input('');
     status = signal<'loading' | 'loaded' | 'error'>('loading');
 
-    classes = computed(() =>
+    readonly classes = computed(() =>
         cn(
             'relative flex h-[calc(2.5rem*var(--_d))] w-[calc(2.5rem*var(--_d))] shrink-0 overflow-hidden rounded-full',
             this.class()

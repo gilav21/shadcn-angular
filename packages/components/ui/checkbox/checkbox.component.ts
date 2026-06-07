@@ -32,7 +32,7 @@ export class CheckboxComponent implements ControlValueAccessor {
   readonly _disabled = signal(false);
   disabled = input(false);
 
-  protected isDisabled = computed(() => this.disabled() || this._disabled());
+  protected readonly isDisabled = computed(() => this.disabled() || this._disabled());
   class = input('');
   elementId = input<string | undefined>(undefined);
   ariaLabel = input<string | undefined>(undefined);
@@ -47,12 +47,12 @@ export class CheckboxComponent implements ControlValueAccessor {
 
   // Auto-generate ID when label is used
   private readonly _generatedId = `checkbox-${++CheckboxComponent.idCounter}`;
-  computedId = computed(() => this.elementId() ?? this._generatedId);
+  readonly computedId = computed(() => this.elementId() ?? this._generatedId);
 
   private onChange: (value: boolean) => void = () => { };
   private onTouched: () => void = () => { };
 
-  classes = computed(() =>
+  readonly classes = computed(() =>
     cn(
       'peer h-[calc(1rem*var(--_d))] w-[calc(1rem*var(--_d))] shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center',
       this.checked() || this.indeterminate()
