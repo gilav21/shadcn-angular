@@ -99,6 +99,7 @@ export const registry = defineRegistry({
     description: 'User profile image with automatic fallback to initials or a placeholder.',
     tags: ['avatar', 'profile', 'user', 'image', 'fallback'],
     files: ['avatar/avatar.component.css', 'avatar/avatar.component.html', 'avatar/avatar.component.ts', 'avatar/index.ts', 'avatar/sub/avatar-fallback.component.html', 'avatar/sub/avatar-fallback.component.ts', 'avatar/sub/avatar-image.component.html', 'avatar/sub/avatar-image.component.ts'],
+    dependencies: ['skeleton', 'spinner'],
   },
   badge: {
     name: 'badge',
@@ -106,6 +107,7 @@ export const registry = defineRegistry({
     description: 'Small label for statuses, counts, or tags with color variants.',
     tags: ['badge', 'tag', 'label', 'status', 'pill', 'chip'],
     files: ['badge/badge.component.css', 'badge/badge.component.html', 'badge/badge.component.ts', 'badge/index.ts'],
+    dependencies: ['skeleton'],
   },
   breadcrumb: {
     name: 'breadcrumb',
@@ -121,7 +123,7 @@ export const registry = defineRegistry({
     description: 'Clickable button with variants (default, destructive, outline, ghost, link) and sizes.',
     tags: ['button', 'action', 'cta', 'submit', 'click'],
     files: ['button/button.component.css', 'button/button.component.html', 'button/button.component.ts', 'button/index.ts'],
-    dependencies: ['ripple'],
+    dependencies: ['ripple', 'skeleton', 'spinner'],
   },
   'button-group': {
     name: 'button-group',
@@ -145,6 +147,7 @@ export const registry = defineRegistry({
     description: 'Container with header, content, and footer slots for grouping related information.',
     tags: ['card', 'panel', 'container', 'surface', 'box'],
     files: ['card/card.component.ts', 'card/index.ts', 'card/sub/card-content.component.css', 'card/sub/card-content.component.ts', 'card/sub/card-description.component.ts', 'card/sub/card-footer.component.css', 'card/sub/card-footer.component.ts', 'card/sub/card-header.component.css', 'card/sub/card-header.component.ts', 'card/sub/card-title.component.ts'],
+    dependencies: ['skeleton', 'spinner'],
   },
   carousel: {
     name: 'carousel',
@@ -268,7 +271,7 @@ export const registry = defineRegistry({
       'table-context-menu.directive.ts',
       'data-table-context-menu.directive.ts',
     ],
-    dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'table'],
+    dependencies: ['badge', 'button', 'calendar', 'checkbox', 'command', 'component-outlet', 'context-menu', 'icon', 'input', 'pagination', 'popover', 'select', 'skeleton', 'table'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'parsers/xlsx.ts', 'touch.ts'],
     optionalDependencies: [
       { name: 'context-menu', description: 'Enables right-click context menus on rows and headers' },
@@ -383,6 +386,7 @@ export const registry = defineRegistry({
     tags: ['input', 'text', 'field', 'textbox', 'form'],
     files: ['input/index.ts', 'input/input.component.css', 'input/input.component.html', 'input/input.component.ts'],
     libFiles: ['input-group.token.ts'],
+    dependencies: ['skeleton', 'spinner'],
   },
   'input-group': {
     name: 'input-group',
@@ -522,6 +526,7 @@ export const registry = defineRegistry({
     tags: ['select', 'dropdown', 'combobox', 'picker', 'options'],
     files: ['select/index.ts', 'select/select.component.ts', 'select/sub/select-content.component.ts', 'select/sub/select-group.component.ts', 'select/sub/select-item.component.ts', 'select/sub/select-label.component.ts', 'select/sub/select-separator.component.ts', 'select/sub/select-trigger.component.css', 'select/sub/select-trigger.component.ts', 'select/sub/select-value.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['skeleton', 'spinner'],
   },
   separator: {
     name: 'separator',

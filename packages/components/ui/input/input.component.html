@@ -1,16 +1,42 @@
-<input
-  [class]="classes()"
-  [type]="type()"
-  [disabled]="isDisabled()"
-  [placeholder]="placeholder()"
-  [attr.id]="elementId()"
-  [attr.name]="name()"
-  [attr.aria-label]="ariaLabel()"
-  [attr.aria-labelledby]="ariaLabelledby()"
-  [attr.aria-describedby]="ariaDescribedby()"
-  [attr.data-slot]="'input'"
-  #inputRef
-  [ngModel]="value()"
-  (ngModelChange)="onValueChange($event)"
-  (blur)="onTouched()"
-/>
+@if (skeleton()) {
+  <ui-skeleton class="h-[calc(2.25rem*var(--_d))] w-full rounded-md" />
+} @else if (loading()) {
+  <div class="relative flex items-center">
+    <input
+      [class]="classes()"
+      [type]="type()"
+      [disabled]="isDisabled()"
+      [placeholder]="placeholder()"
+      [attr.id]="elementId()"
+      [attr.name]="name()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-labelledby]="ariaLabelledby()"
+      [attr.aria-describedby]="ariaDescribedby()"
+      [attr.data-slot]="'input'"
+      #inputRef
+      [ngModel]="value()"
+      (ngModelChange)="onValueChange($event)"
+      (blur)="onTouched()"
+    />
+    <div class="absolute right-2 flex items-center pointer-events-none">
+      <ui-spinner size="xs" />
+    </div>
+  </div>
+} @else {
+  <input
+    [class]="classes()"
+    [type]="type()"
+    [disabled]="isDisabled()"
+    [placeholder]="placeholder()"
+    [attr.id]="elementId()"
+    [attr.name]="name()"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-labelledby]="ariaLabelledby()"
+    [attr.aria-describedby]="ariaDescribedby()"
+    [attr.data-slot]="'input'"
+    #inputRef
+    [ngModel]="value()"
+    (ngModelChange)="onValueChange($event)"
+    (blur)="onTouched()"
+  />
+}

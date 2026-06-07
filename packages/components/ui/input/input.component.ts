@@ -12,6 +12,8 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
+import { SpinnerComponent } from '../spinner';
+import { SkeletonComponent } from '../skeleton';
 
 const inputVariants = cva(
     'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent py-[calc(0.25rem*var(--_d))] text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
@@ -35,7 +37,7 @@ import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 @Component({
     selector: 'ui-input',
-    imports: [FormsModule],
+    imports: [FormsModule, SpinnerComponent, SkeletonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './input.component.css',
     providers: [
@@ -73,6 +75,8 @@ export class InputComponent implements ControlValueAccessor {
     ariaDescribedby = input<string | undefined>(undefined);
 
     variant = input<InputVariant>('outline');
+    readonly loading = input(false);
+    readonly skeleton = input(false);
 
     private readonly group = inject(UI_INPUT_GROUP, { optional: true });
 

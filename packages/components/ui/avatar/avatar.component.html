@@ -1,4 +1,7 @@
-@if (src()) {
+@if (skeleton()) {
+  <ui-skeleton class="h-[calc(2.5rem*var(--_d))] w-[calc(2.5rem*var(--_d))] rounded-full" />
+} @else {
+  @if (src()) {
     <!-- Simple mode: auto-generate avatar -->
     <img
         [src]="src()"
@@ -14,10 +17,16 @@
             {{ fallback() }}
         </div>
     }
-} @else if (fallback()) {
+  } @else if (fallback()) {
     <div class="flex h-full w-full items-center justify-center rounded-full bg-muted" data-slot="avatar-fallback">
         {{ fallback() }}
     </div>
-} @else {
+  } @else {
     <ng-content />
+  }
+  @if (loading()) {
+    <div class="absolute inset-0 flex items-center justify-center rounded-full bg-background/60">
+      <ui-spinner size="xs" />
+    </div>
+  }
 }

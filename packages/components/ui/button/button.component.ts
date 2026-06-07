@@ -8,6 +8,8 @@ import {
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 import { UiRippleDirective } from '../ripple.directive';
+import { SpinnerComponent } from '../spinner';
+import { SkeletonComponent } from '../skeleton';
 
 const buttonVariants = cva(
     'focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive rounded-lg border border-transparent text-sm font-medium focus-visible:ring-[3px] aria-invalid:ring-[3px] inline-flex items-center justify-center whitespace-nowrap transition-all disabled:pointer-events-none disabled:opacity-50 shrink-0 outline-none select-none cursor-pointer',
@@ -43,7 +45,7 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
 @Component({
     selector: 'ui-button',
     changeDetection: ChangeDetectionStrategy.OnPush,
-    imports: [UiRippleDirective],
+    imports: [UiRippleDirective, SpinnerComponent, SkeletonComponent],
     templateUrl: './button.component.html',
     styleUrl: './button.component.css',
     host: {
@@ -68,11 +70,13 @@ export class ButtonComponent {
     label = input<string>('');
     ripple = input(false);
     rippleColor = input('color-mix(in srgb, currentColor 35%, transparent)');
+    readonly loading = input(false);
+    readonly skeleton = input(false);
 
     clicked = output<MouseEvent>();
 
     readonly classes = computed(() =>
-        cn(buttonVariants({ variant: this.variant(), size: this.size() }), this.class())
+        cn(buttonVariants({ variant: this.variant(), size: this.size() }), this.loading() && 'relative', this.class())
     );
 }
 

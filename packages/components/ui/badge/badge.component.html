@@ -1,5 +1,9 @@
-@if (label()) {
-    {{ label() }}
+@if (skeleton()) {
+  <ui-skeleton class="h-5 w-16 rounded-md" />
 } @else {
+  @if (label()) {
+    {{ label() }}
+  } @else {
     <ng-content />
+  }
 }

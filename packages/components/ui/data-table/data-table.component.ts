@@ -46,6 +46,7 @@ import {
 } from "../context-menu";
 import { ButtonComponent } from "../button";
 import { IconComponent } from "../icon";
+import { SkeletonComponent } from "../skeleton";
 import {
   ColumnDef,
   SortState,
@@ -117,6 +118,7 @@ const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
     ContextMenuComponent,
     ButtonComponent,
     IconComponent,
+    SkeletonComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [
@@ -152,6 +154,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly localPagination = input(true);
   readonly localFiltering = input(true);
   readonly loading = input(false);
+  readonly skeleton = input(false);
+  readonly skeletonRows = input(5);
   readonly loadingVisibility = input<DataTableLoadingVisibility>({
     initial: true,
     pagination: true,
@@ -315,6 +319,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly virtualRowElements = viewChildren("virtualRow", {
     read: ElementRef,
   });
+
+  readonly skeletonRowsArray = computed(() => new Array(this.skeletonRows()));
 
   readonly isVirtualScrollActive = computed(() => {
     const mode = this.enableVirtualScroll();
