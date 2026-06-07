@@ -386,7 +386,7 @@ export const registry = defineRegistry({
     tags: ['input', 'text', 'field', 'textbox', 'form'],
     files: ['input/index.ts', 'input/input.component.css', 'input/input.component.html', 'input/input.component.ts'],
     libFiles: ['input-group.token.ts'],
-    dependencies: ['skeleton', 'spinner'],
+    dependencies: ['icon', 'skeleton', 'spinner'],
   },
   'input-group': {
     name: 'input-group',
