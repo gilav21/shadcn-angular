@@ -8,6 +8,8 @@ import {
 	NgZone,
 	OnDestroy,
 } from '@angular/core';
+import { COMMON_LOCALES, type CommonLocale, createLocaleSelector } from '../../lib/i18n';
+import type { LocaleInput } from '../../lib/i18n';
 
 @Directive({
 	selector: '[uiCopyTo]',
@@ -18,8 +20,10 @@ import {
 })
 export class CopyToDirective implements OnDestroy {
 	readonly uiCopyTo = input.required<string>();
+	readonly locale = input<LocaleInput<CommonLocale>>();
 	readonly copied = output<void>();
 
+	private readonly t = createLocaleSelector(this.locale, COMMON_LOCALES);
 	private readonly el = inject(ElementRef);
 	private readonly renderer = inject(Renderer2);
 	private readonly zone = inject(NgZone);
@@ -35,13 +39,10 @@ export class CopyToDirective implements OnDestroy {
 	}
 
 	private showIndicator() {
-		// Remove existing indicator if any
 		this.clearIndicator();
 
-		// Create the "Copied!" element
 		const el = this.renderer.createElement('span') as HTMLElement;
 		this.renderer.addClass(el, 'ui-copy-indicator');
-		// Position it above the host element
 		const rect = (this.el.nativeElement as HTMLElement).getBoundingClientRect();
 		this.renderer.setStyle(el, 'position', 'fixed');
 		this.renderer.setStyle(el, 'top', `${rect.top - 30}px`);
@@ -56,12 +57,11 @@ export class CopyToDirective implements OnDestroy {
 		this.renderer.setStyle(el, 'z-index', '9999');
 		this.renderer.setStyle(el, 'white-space', 'nowrap');
 		this.renderer.setStyle(el, 'animation', 'fadeIn 0.15s ease-in');
-		const text = this.renderer.createText('Copied!');
+		const text = this.renderer.createText(this.t().copied);
 		this.renderer.appendChild(el, text);
 		this.renderer.appendChild(document.body, el);
 		this.indicatorEl = el;
 
-		// Auto-remove after 1500ms
 		this.timeoutId = setTimeout(() => {
 			this.clearIndicator();
 		}, 1500);

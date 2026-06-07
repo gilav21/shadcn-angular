@@ -7,6 +7,7 @@ import { filter, map, startWith } from 'rxjs';
 import { APP_LOCALE } from './app.config';
 import { CALENDAR_LOCALES, UI_LOCALE_ID } from '../../../packages/components/lib/i18n';
 import { APP_LOCALES } from './app.locales';
+import { CssSettingsComponent } from './css-settings.component';
 import {
   ButtonComponent,
   SeparatorComponent,
@@ -100,6 +101,7 @@ export interface ComponentNavItem {
     DropdownMenuItemComponent,
     DropdownMenuLabelComponent,
     DropdownMenuSeparatorComponent,
+    CssSettingsComponent,
   ],
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './app.html',

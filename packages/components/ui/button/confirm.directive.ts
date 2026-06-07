@@ -1,5 +1,6 @@
 import {
     Directive,
+    computed,
     input,
     output,
     inject,
@@ -9,6 +10,8 @@ import {
     createComponent,
     HostListener,
 } from '@angular/core';
+import { COMMON_LOCALES, type CommonLocale, createLocaleSelector } from '../../lib/i18n';
+import type { LocaleInput } from '../../lib/i18n';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 
 @Directive({
@@ -16,12 +19,19 @@ import { ConfirmDialogComponent } from './confirm-dialog.component';
     standalone: true,
 })
 export class ConfirmDirective {
-    readonly uiConfirm = input<string>('Are you sure?');
-    readonly confirmTitle = input<string>('Confirm');
-    readonly confirmLabel = input<string>('Confirm');
-    readonly cancelLabel = input<string>('Cancel');
+    readonly locale = input<LocaleInput<CommonLocale>>();
+    readonly uiConfirm = input<string>();
+    readonly confirmTitle = input<string>();
+    readonly confirmLabel = input<string>();
+    readonly cancelLabel = input<string>();
 
     readonly confirmed = output<void>();
+
+    private readonly t = createLocaleSelector(this.locale, COMMON_LOCALES);
+    private readonly resolvedTitle = computed(() => this.confirmTitle() ?? this.t().confirm);
+    private readonly resolvedConfirmLabel = computed(() => this.confirmLabel() ?? this.t().confirm);
+    private readonly resolvedCancelLabel = computed(() => this.cancelLabel() ?? this.t().cancel);
+    private readonly resolvedDescription = computed(() => this.uiConfirm() ?? '');
 
     private readonly appRef = inject(ApplicationRef);
     private readonly injector = inject(EnvironmentInjector);
@@ -36,10 +46,10 @@ export class ConfirmDirective {
             elementInjector: this.elementInjector,
         });
 
-        ref.instance.title.set(this.confirmTitle());
-        ref.instance.description.set(this.uiConfirm());
-        ref.instance.confirmLabel.set(this.confirmLabel());
-        ref.instance.cancelLabel.set(this.cancelLabel());
+        ref.instance.title.set(this.resolvedTitle());
+        ref.instance.description.set(this.resolvedDescription());
+        ref.instance.confirmLabel.set(this.resolvedConfirmLabel());
+        ref.instance.cancelLabel.set(this.resolvedCancelLabel());
 
         this.appRef.attachView(ref.hostView);
         document.body.appendChild(ref.location.nativeElement);
