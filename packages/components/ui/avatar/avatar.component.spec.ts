@@ -44,8 +44,8 @@ describe('AvatarComponent', () => {
 
     it('should apply default classes', () => {
         expect(fixture.nativeElement.className).toContain('flex');
-        expect(fixture.nativeElement.className).toContain('h-10');
-        expect(fixture.nativeElement.className).toContain('w-10');
+        expect(fixture.nativeElement.className).toContain('h-[calc(2.5rem*var(--_d))]');
+        expect(fixture.nativeElement.className).toContain('w-[calc(2.5rem*var(--_d))]');
         expect(fixture.nativeElement.className).toContain('rounded-full');
     });
 

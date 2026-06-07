@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component } from '@angular/core';
 import { SpinnerComponent } from './spinner.component';
 import { PageSpinnerComponent } from './sub/page-spinner.component';
 import { By } from '@angular/platform-browser';
@@ -54,6 +55,139 @@ describe('SpinnerComponent', () => {
     it('should have animate-spin class', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
         expect(svg.nativeElement.getAttribute('class')).toContain('animate-spin');
+    });
+
+    it('should default to ring variant', () => {
+        expect(component.variant()).toBe('ring');
+        const svg = fixture.debugElement.query(By.css('svg'));
+        expect(svg).toBeTruthy();
+    });
+
+    describe('dots variant', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('variant', 'dots');
+            fixture.detectChanges();
+        });
+
+        it('should render three bouncing dots', () => {
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            expect(container).toBeTruthy();
+            const dots = container.queryAll(By.css('div'));
+            expect(dots.length).toBe(3);
+        });
+
+        it('should have role=status on dots container', () => {
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            expect(container.nativeElement.getAttribute('role')).toBe('status');
+        });
+
+        it('should apply correct dot size for sm', () => {
+            fixture.componentRef.setInput('size', 'sm');
+            fixture.detectChanges();
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            const dot = container.queryAll(By.css('div'))[0];
+            expect(dot.nativeElement.className).toContain('h-1.5');
+            expect(dot.nativeElement.className).toContain('w-1.5');
+        });
+
+        it('should not render svg ring', () => {
+            const svg = fixture.debugElement.query(By.css('svg'));
+            expect(svg).toBeNull();
+        });
+    });
+
+    describe('bars variant', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('variant', 'bars');
+            fixture.detectChanges();
+        });
+
+        it('should render five bars', () => {
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            expect(container).toBeTruthy();
+            const bars = container.queryAll(By.css('div'));
+            expect(bars.length).toBe(5);
+        });
+
+        it('should have role=status on bars container', () => {
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            expect(container.nativeElement.getAttribute('role')).toBe('status');
+        });
+
+        it('should apply staggered animation delays to bars', () => {
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            const bars = container.queryAll(By.css('div'));
+            expect(bars[0].nativeElement.style.animationDelay).toBe('0s');
+            expect(bars[1].nativeElement.style.animationDelay).toBe('0.1s');
+            expect(bars[4].nativeElement.style.animationDelay).toBe('0.4s');
+        });
+
+        it('should apply correct bar size for lg', () => {
+            fixture.componentRef.setInput('size', 'lg');
+            fixture.detectChanges();
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            const bar = container.queryAll(By.css('div'))[0];
+            expect(bar.nativeElement.className).toContain('w-1.5');
+            expect(bar.nativeElement.className).toContain('h-6');
+        });
+    });
+
+    describe('pulse variant', () => {
+        beforeEach(() => {
+            fixture.componentRef.setInput('variant', 'pulse');
+            fixture.detectChanges();
+        });
+
+        it('should render a pulsing circle', () => {
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            expect(container).toBeTruthy();
+            expect(container.nativeElement.className).toContain('rounded-full');
+            expect(container.nativeElement.className).toContain('animate-pulse');
+        });
+
+        it('should have role=status', () => {
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            expect(container.nativeElement.getAttribute('role')).toBe('status');
+        });
+
+        it('should apply correct pulse size for xl', () => {
+            fixture.componentRef.setInput('size', 'xl');
+            fixture.detectChanges();
+            const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+            expect(container.nativeElement.className).toContain('h-8');
+            expect(container.nativeElement.className).toContain('w-8');
+        });
+    });
+});
+
+@Component({
+    template: `<ui-spinner><div class="custom-loader">Custom</div></ui-spinner>`,
+    imports: [SpinnerComponent],
+    standalone: true,
+})
+class SpinnerWithCustomContentComponent {}
+
+describe('SpinnerComponent with custom content', () => {
+    let fixture: ComponentFixture<SpinnerWithCustomContentComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [SpinnerWithCustomContentComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(SpinnerWithCustomContentComponent);
+        fixture.detectChanges();
+    });
+
+    it('should render projected content', () => {
+        const custom = fixture.debugElement.query(By.css('.custom-loader'));
+        expect(custom).toBeTruthy();
+        expect(custom.nativeElement.textContent).toBe('Custom');
+    });
+
+    it('should hide built-in spinner when content is projected', () => {
+        const svg = fixture.debugElement.query(By.css('svg'));
+        expect(svg).toBeNull();
     });
 });
 

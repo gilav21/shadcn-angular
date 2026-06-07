@@ -69,7 +69,7 @@ describe('ButtonComponent', () => {
         fixture.detectChanges();
 
         const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('h-8');
+        expect(button.nativeElement.className).toContain('h-[calc(2rem*var(--_d))]');
         expect(button.nativeElement.className).toContain('text-xs');
     });
 
@@ -78,8 +78,8 @@ describe('ButtonComponent', () => {
         fixture.detectChanges();
 
         const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('h-10');
-        expect(button.nativeElement.className).toContain('px-8');
+        expect(button.nativeElement.className).toContain('h-[calc(2.5rem*var(--_d))]');
+        expect(button.nativeElement.className).toContain('px-[calc(2rem*var(--_d))]');
     });
 
     it('should apply icon size classes', () => {
@@ -87,8 +87,8 @@ describe('ButtonComponent', () => {
         fixture.detectChanges();
 
         const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('h-9');
-        expect(button.nativeElement.className).toContain('w-9');
+        expect(button.nativeElement.className).toContain('h-[calc(2.25rem*var(--_d))]');
+        expect(button.nativeElement.className).toContain('w-[calc(2.25rem*var(--_d))]');
     });
 
     it('should be disabled when disabled input is true', () => {
