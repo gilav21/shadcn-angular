@@ -1093,6 +1093,10 @@ export const registry = defineRegistry({
     description: 'Frequently-asked-questions section built on an accordion with expandable answers.',
     tags: ['faq', 'marketing', 'accordion', 'support'],
   },
+  'copy-to': {
+    name: 'copy-to',
+    files: ['directives/copy-to.directive.ts'],
+  },
 });
 
 export type ComponentName = keyof typeof registry;

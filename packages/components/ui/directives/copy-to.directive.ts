@@ -1,0 +1,84 @@
+import {
+	Directive,
+	input,
+	output,
+	inject,
+	ElementRef,
+	Renderer2,
+	NgZone,
+	OnDestroy,
+} from '@angular/core';
+
+@Directive({
+	selector: '[uiCopyTo]',
+	standalone: true,
+	host: {
+		'(click)': 'onClick()',
+	},
+})
+export class CopyToDirective implements OnDestroy {
+	readonly uiCopyTo = input.required<string>();
+	readonly copied = output<void>();
+
+	private readonly el = inject(ElementRef);
+	private readonly renderer = inject(Renderer2);
+	private readonly zone = inject(NgZone);
+
+	private indicatorEl: HTMLElement | null = null;
+	private timeoutId: ReturnType<typeof setTimeout> | null = null;
+
+	onClick() {
+		navigator.clipboard.writeText(this.uiCopyTo()).then(() => {
+			this.copied.emit();
+			this.zone.run(() => this.showIndicator());
+		});
+	}
+
+	private showIndicator() {
+		// Remove existing indicator if any
+		this.clearIndicator();
+
+		// Create the "Copied!" element
+		const el = this.renderer.createElement('span') as HTMLElement;
+		this.renderer.addClass(el, 'ui-copy-indicator');
+		// Position it above the host element
+		const rect = (this.el.nativeElement as HTMLElement).getBoundingClientRect();
+		this.renderer.setStyle(el, 'position', 'fixed');
+		this.renderer.setStyle(el, 'top', `${rect.top - 30}px`);
+		this.renderer.setStyle(el, 'left', `${rect.left + rect.width / 2}px`);
+		this.renderer.setStyle(el, 'transform', 'translateX(-50%)');
+		this.renderer.setStyle(el, 'background', 'var(--foreground)');
+		this.renderer.setStyle(el, 'color', 'var(--background)');
+		this.renderer.setStyle(el, 'padding', '2px 8px');
+		this.renderer.setStyle(el, 'border-radius', '4px');
+		this.renderer.setStyle(el, 'font-size', '12px');
+		this.renderer.setStyle(el, 'pointer-events', 'none');
+		this.renderer.setStyle(el, 'z-index', '9999');
+		this.renderer.setStyle(el, 'white-space', 'nowrap');
+		this.renderer.setStyle(el, 'animation', 'fadeIn 0.15s ease-in');
+		const text = this.renderer.createText('Copied!');
+		this.renderer.appendChild(el, text);
+		this.renderer.appendChild(document.body, el);
+		this.indicatorEl = el;
+
+		// Auto-remove after 1500ms
+		this.timeoutId = setTimeout(() => {
+			this.clearIndicator();
+		}, 1500);
+	}
+
+	private clearIndicator() {
+		if (this.indicatorEl) {
+			this.renderer.removeChild(document.body, this.indicatorEl);
+			this.indicatorEl = null;
+		}
+		if (this.timeoutId !== null) {
+			clearTimeout(this.timeoutId);
+			this.timeoutId = null;
+		}
+	}
+
+	ngOnDestroy() {
+		this.clearIndicator();
+	}
+}
