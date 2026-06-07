@@ -119,10 +119,10 @@ export class InputComponent implements ControlValueAccessor {
         this.formDisabled.set(isDisabled);
     }
 
-    readonly inputRef = viewChild.required<ElementRef<HTMLInputElement>>('inputRef');
+    readonly inputRef = viewChild<ElementRef<HTMLInputElement>>('inputRef');
 
     focus() {
-        this.inputRef().nativeElement.focus();
+        this.inputRef()?.nativeElement.focus();
     }
 
     toString(): string {
