@@ -1,7 +1,9 @@
-type BaseColor = 'neutral' | 'slate' | 'stone' | 'gray' | 'zinc';
-type ThemeColor = 'zinc' | 'slate' | 'stone' | 'gray' | 'neutral' | 'red' | 'rose' | 'orange' | 'green' | 'blue' | 'yellow' | 'violet' | 'amber';
+export type BaseColor = 'neutral' | 'slate' | 'stone' | 'gray' | 'zinc';
+export type ThemeColor = 'zinc' | 'slate' | 'stone' | 'gray' | 'neutral' | 'red' | 'rose' | 'orange' | 'green' | 'blue' | 'yellow' | 'violet' | 'amber';
 
-const baseColors: Record<BaseColor, { light: Record<string, string>; dark: Record<string, string> }> = {
+export type ColorBlock = { light: Record<string, string>; dark: Record<string, string> };
+
+export const baseColors: Record<BaseColor, ColorBlock> = {
   neutral: {
     light: {
       '--background': 'oklch(1 0 0)',
@@ -184,7 +186,7 @@ const baseColors: Record<BaseColor, { light: Record<string, string>; dark: Recor
   },
 };
 
-const themeColors: Record<ThemeColor, { light: Record<string, string>; dark: Record<string, string> }> = {
+export const themeColors: Record<ThemeColor, ColorBlock> = {
   neutral: {
     light: { '--primary': 'oklch(0.205 0 0)', '--primary-foreground': 'oklch(0.985 0 0)', '--ring': 'oklch(0.708 0 0)' },
     dark: { '--primary': 'oklch(0.985 0 0)', '--primary-foreground': 'oklch(0.205 0 0)', '--ring': 'oklch(0.708 0 0)' },

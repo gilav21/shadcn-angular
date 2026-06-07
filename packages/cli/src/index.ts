@@ -11,6 +11,10 @@ import { search } from './commands/search.js';
 import { doctor } from './commands/doctor.js';
 import { update } from './commands/update.js';
 import { migrate } from './commands/migrate.js';
+import { setDensity } from './commands/set-density.js';
+import { setRadius } from './commands/set-radius.js';
+import { setMotion } from './commands/set-motion.js';
+import { changeTheme } from './commands/change-theme.js';
 import { startMcpServer } from './mcp/server.js';
 
 const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf-8')) as { version: string };
@@ -108,6 +112,31 @@ program
     .argument('[query...]', 'Search terms')
     .option('--json', 'Output raw JSON')
     .action((query: string[], options: { json?: boolean }) => search(query, options));
+
+program
+    .command('set-density')
+    .description('Set the global density level (1=compact to 5=spacious)')
+    .argument('<level>', 'Density level 1-5')
+    .option('-c, --component <components>', 'Comma-separated component names to set individually (e.g. card,button)')
+    .action((level: string, options: { component?: string }) => setDensity(level, options));
+
+program
+    .command('set-radius')
+    .description('Set the global border radius (none, sm, md, lg, xl, full, or a raw value like 0.5rem)')
+    .argument('<value>', 'Radius name or raw CSS value')
+    .action((value: string) => setRadius(value));
+
+program
+    .command('set-motion')
+    .description('Set the global motion level (0=none, 1=default, 2=expressive)')
+    .argument('<level>', 'Motion level 0-2')
+    .action((level: string) => setMotion(level));
+
+program
+    .command('change-theme')
+    .description('Change the color theme (zinc, slate, stone, gray, neutral, red, rose, orange, green, blue, yellow, violet, amber)')
+    .argument('<name>', 'Theme name')
+    .action((name: string) => changeTheme(name));
 
 program
     .command('mcp')

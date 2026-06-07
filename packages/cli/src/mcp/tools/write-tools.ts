@@ -10,6 +10,11 @@ import { getConfig, getDefaultConfig, getPrefix, type Config } from '../../utils
 import { aliasToProjectPath, resolveProjectPath } from '../../utils/paths.js';
 import { isValidPrefix, DEFAULT_PREFIX } from '../../utils/prefix.js';
 import { json, err } from './result.js';
+import { setDensityCore, COMPONENT_DENSITY_VARS } from '../../commands/set-density.js';
+import { setRadiusCore, RADIUS_NAMED } from '../../commands/set-radius.js';
+import { setMotionCore } from '../../commands/set-motion.js';
+import { changeThemeCore, VALID_THEMES } from '../../commands/change-theme.js';
+import type { ThemeColor } from '../../templates/styles.js';
 
 function validateNames(names: string[]): string[] {
     return names.filter(n => !isComponentName(n));
@@ -90,6 +95,71 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
             cwd, config, options: { branch: 'master', overwrite: true },
         });
         return json(result);
+    });
+
+    server.registerTool('set_density', {
+        title: 'Set density',
+        description: 'Set the global density level (1=ultra-compact to 5=spacious). Optionally override specific components.',
+        inputSchema: {
+            level: z.number().int().min(1).max(5).describe('Density level: 1=ultra-compact, 2=compact, 3=default, 4=comfortable, 5=spacious'),
+            components: z.array(z.string()).optional().describe(`Component names to set individually (e.g. ["card", "button"]). Valid: ${Object.keys(COMPONENT_DENSITY_VARS).join(', ')}`),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            const message = await setDensityCore(args.level, args.components, cwd);
+            return json({ success: true, message });
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+
+    server.registerTool('set_radius', {
+        title: 'Set border radius',
+        description: `Set the global border radius (--radius). Named values: ${Object.keys(RADIUS_NAMED).join(', ')}. Also accepts raw values like "0.5rem" or "8px".`,
+        inputSchema: {
+            value: z.string().describe('Radius name (none, sm, md, lg, xl, full) or raw CSS value (e.g. "0.5rem", "8px")'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            const message = await setRadiusCore(args.value, cwd);
+            return json({ success: true, message });
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+
+    server.registerTool('set_motion', {
+        title: 'Set motion level',
+        description: 'Set the global animation/motion multiplier (--motion). 0=no motion, 1=default, 2=expressive.',
+        inputSchema: {
+            level: z.number().int().min(0).max(2).describe('Motion level: 0=no motion, 1=default, 2=expressive'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            const message = await setMotionCore(args.level, cwd);
+            return json({ success: true, message });
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+
+    server.registerTool('change_theme', {
+        title: 'Change color theme',
+        description: `Change the color theme (replaces color CSS vars in :root and .dark). Available themes: ${VALID_THEMES.join(', ')}.`,
+        inputSchema: {
+            name: z.enum(VALID_THEMES as [ThemeColor, ...ThemeColor[]]).describe('Theme name'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            const message = await changeThemeCore(args.name, cwd);
+            return json({ success: true, message });
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
     });
 
     server.registerTool('diff_component', {
