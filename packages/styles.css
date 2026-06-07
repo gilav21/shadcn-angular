@@ -8,6 +8,25 @@
 
 :root {
     --radius: 0.625rem;
+    --density: 1;         /* spacing/size multiplier — 0.75 | 0.875 | 1.0 | 1.125 | 1.25 */
+    --motion: 1;          /* animation speed multiplier — 0: none | 1: default | 1.5: expressive */
+
+    /* ─── Per-component density overrides ────────────────────────────────────
+       Set any of these to override density for ONE component only.
+       Same multiplier values as --density above (0.75 / 0.875 / 1.0 / 1.125 / 1.25).
+       Leave commented to inherit the global --density.
+       ──────────────────────────────────────────────────────────────────────── */
+    /* --density-button:   1; */
+    /* --density-input:    1; */
+    /* --density-select:   1; */
+    /* --density-card:     1; */
+    /* --density-badge:    1; */
+    /* --density-avatar:   1; */
+    /* --density-table:    1; */
+    /* --density-tabs:     1; */
+    /* --density-checkbox: 1; */
+    /* --density-switch:   1; */
+
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);
     --card: oklch(1 0 0);
