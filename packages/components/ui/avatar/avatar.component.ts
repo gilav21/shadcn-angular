@@ -15,6 +15,7 @@ export { AvatarImageComponent, AvatarFallbackComponent };
     selector: 'ui-avatar',
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './avatar.component.html',
+    styleUrl: './avatar.component.css',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"avatar"',
@@ -29,7 +30,7 @@ export class AvatarComponent {
 
     classes = computed(() =>
         cn(
-            'relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full',
+            'relative flex h-[calc(2.5rem*var(--_d))] w-[calc(2.5rem*var(--_d))] shrink-0 overflow-hidden rounded-full',
             this.class()
         )
     );

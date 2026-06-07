@@ -1,0 +1,3 @@
+:host {
+    --_d: var(--density-tabs, var(--density, 1));
+}

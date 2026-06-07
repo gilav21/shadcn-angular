@@ -8,7 +8,7 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
 const badgeVariants = cva(
-    'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+    'inline-flex items-center rounded-md border px-[calc(0.625rem*var(--_d))] py-[calc(0.125rem*var(--_d))] text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
     {
         variants: {
             variant: {
@@ -30,6 +30,7 @@ export type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
     selector: 'ui-badge',
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './badge.component.html',
+    styleUrl: './badge.component.css',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"badge"',

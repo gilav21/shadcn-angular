@@ -1,0 +1,3 @@
+:host {
+    --_d: var(--density-input, var(--density, 1));
+}

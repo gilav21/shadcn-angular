@@ -1,0 +1,3 @@
+:host {
+    --_d: var(--density-checkbox, var(--density, 1));
+}

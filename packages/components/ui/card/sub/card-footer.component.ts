@@ -10,6 +10,7 @@ import { cn } from '../../../lib/utils';
     selector: 'ui-card-footer',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
+    styleUrl: './card-footer.component.css',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"card-footer"',
@@ -19,6 +20,6 @@ export class CardFooterComponent {
     class = input('');
 
     classes = computed(() =>
-        cn('flex items-center px-4 sm:px-6 [.border-t]:pt-6', this.class())
+        cn('flex items-center px-[calc(1rem*var(--_d))] sm:px-6 [.border-t]:pt-6', this.class())
     );
 }

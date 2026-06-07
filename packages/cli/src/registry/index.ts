@@ -98,14 +98,14 @@ export const registry = defineRegistry({
     category: 'media',
     description: 'User profile image with automatic fallback to initials or a placeholder.',
     tags: ['avatar', 'profile', 'user', 'image', 'fallback'],
-    files: ['avatar/avatar.component.html', 'avatar/avatar.component.ts', 'avatar/index.ts', 'avatar/sub/avatar-fallback.component.html', 'avatar/sub/avatar-fallback.component.ts', 'avatar/sub/avatar-image.component.html', 'avatar/sub/avatar-image.component.ts'],
+    files: ['avatar/avatar.component.css', 'avatar/avatar.component.html', 'avatar/avatar.component.ts', 'avatar/index.ts', 'avatar/sub/avatar-fallback.component.html', 'avatar/sub/avatar-fallback.component.ts', 'avatar/sub/avatar-image.component.html', 'avatar/sub/avatar-image.component.ts'],
   },
   badge: {
     name: 'badge',
     category: 'feedback',
     description: 'Small label for statuses, counts, or tags with color variants.',
     tags: ['badge', 'tag', 'label', 'status', 'pill', 'chip'],
-    files: ['badge/badge.component.html', 'badge/badge.component.ts', 'badge/index.ts'],
+    files: ['badge/badge.component.css', 'badge/badge.component.html', 'badge/badge.component.ts', 'badge/index.ts'],
   },
   breadcrumb: {
     name: 'breadcrumb',
@@ -120,7 +120,7 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Clickable button with variants (default, destructive, outline, ghost, link) and sizes.',
     tags: ['button', 'action', 'cta', 'submit', 'click'],
-    files: ['button/button.component.html', 'button/button.component.ts', 'button/index.ts'],
+    files: ['button/button.component.css', 'button/button.component.html', 'button/button.component.ts', 'button/index.ts'],
     dependencies: ['ripple'],
   },
   'button-group': {
@@ -144,7 +144,7 @@ export const registry = defineRegistry({
     category: 'layout',
     description: 'Container with header, content, and footer slots for grouping related information.',
     tags: ['card', 'panel', 'container', 'surface', 'box'],
-    files: ['card/card.component.ts', 'card/index.ts', 'card/sub/card-content.component.ts', 'card/sub/card-description.component.ts', 'card/sub/card-footer.component.ts', 'card/sub/card-header.component.ts', 'card/sub/card-title.component.ts'],
+    files: ['card/card.component.ts', 'card/index.ts', 'card/sub/card-content.component.css', 'card/sub/card-content.component.ts', 'card/sub/card-description.component.ts', 'card/sub/card-footer.component.css', 'card/sub/card-footer.component.ts', 'card/sub/card-header.component.css', 'card/sub/card-header.component.ts', 'card/sub/card-title.component.ts'],
   },
   carousel: {
     name: 'carousel',
@@ -159,7 +159,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Toggleable checkbox input with checked, unchecked, and indeterminate states.',
     tags: ['checkbox', 'check', 'toggle', 'form', 'boolean'],
-    files: ['checkbox/checkbox.component.html', 'checkbox/checkbox.component.ts', 'checkbox/index.ts'],
+    files: ['checkbox/checkbox.component.css', 'checkbox/checkbox.component.html', 'checkbox/checkbox.component.ts', 'checkbox/index.ts'],
   },
   collapsible: {
     name: 'collapsible',
@@ -381,7 +381,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Single-line text input with variants and add-on support for forms.',
     tags: ['input', 'text', 'field', 'textbox', 'form'],
-    files: ['input/index.ts', 'input/input.component.html', 'input/input.component.ts'],
+    files: ['input/index.ts', 'input/input.component.css', 'input/input.component.html', 'input/input.component.ts'],
     libFiles: ['input-group.token.ts'],
   },
   'input-group': {
@@ -520,7 +520,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Custom dropdown select with grouped, searchable, keyboard-navigable options.',
     tags: ['select', 'dropdown', 'combobox', 'picker', 'options'],
-    files: ['select/index.ts', 'select/select.component.ts', 'select/sub/select-content.component.ts', 'select/sub/select-group.component.ts', 'select/sub/select-item.component.ts', 'select/sub/select-label.component.ts', 'select/sub/select-separator.component.ts', 'select/sub/select-trigger.component.ts', 'select/sub/select-value.component.ts'],
+    files: ['select/index.ts', 'select/select.component.ts', 'select/sub/select-content.component.ts', 'select/sub/select-group.component.ts', 'select/sub/select-item.component.ts', 'select/sub/select-label.component.ts', 'select/sub/select-separator.component.ts', 'select/sub/select-trigger.component.css', 'select/sub/select-trigger.component.ts', 'select/sub/select-value.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   separator: {
@@ -580,7 +580,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'On/off toggle switch for binary settings, an alternative to a checkbox.',
     tags: ['switch', 'toggle', 'on-off', 'boolean', 'setting'],
-    files: ['switch/index.ts', 'switch/switch.component.html', 'switch/switch.component.ts'],
+    files: ['switch/index.ts', 'switch/switch.component.css', 'switch/switch.component.html', 'switch/switch.component.ts'],
   },
   table: {
     name: 'table',
@@ -594,14 +594,14 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Tabbed interface that switches between panels via a list of triggers.',
     tags: ['tabs', 'tab', 'panels', 'navigation', 'segmented'],
-    files: ['tabs/index.ts', 'tabs/sub/tabs-content.component.ts', 'tabs/sub/tabs-list.component.ts', 'tabs/sub/tabs-trigger.component.ts', 'tabs/tabs.component.ts'],
+    files: ['tabs/index.ts', 'tabs/sub/tabs-content.component.ts', 'tabs/sub/tabs-list.component.ts', 'tabs/sub/tabs-trigger.component.css', 'tabs/sub/tabs-trigger.component.ts', 'tabs/tabs.component.ts'],
   },
   textarea: {
     name: 'textarea',
     category: 'form',
     description: 'Multi-line text input for longer free-form content, with add-on support.',
     tags: ['textarea', 'text', 'multiline', 'input', 'form'],
-    files: ['textarea/index.ts', 'textarea/textarea.component.html', 'textarea/textarea.component.ts'],
+    files: ['textarea/index.ts', 'textarea/textarea.component.css', 'textarea/textarea.component.html', 'textarea/textarea.component.ts'],
     libFiles: ['input-group.token.ts'],
   },
   timeline: {

@@ -13,6 +13,7 @@ import { cn } from '../../lib/utils';
 @Component({
   selector: 'ui-checkbox',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './checkbox.component.css',
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -53,7 +54,7 @@ export class CheckboxComponent implements ControlValueAccessor {
 
   classes = computed(() =>
     cn(
-      'peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center',
+      'peer h-[calc(1rem*var(--_d))] w-[calc(1rem*var(--_d))] shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center',
       this.checked() || this.indeterminate()
         ? 'bg-primary text-primary-foreground'
         : 'bg-background',
