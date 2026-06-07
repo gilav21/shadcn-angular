@@ -38,9 +38,7 @@ export class InputMaskDirective implements AfterViewInit, OnDestroy {
 
     ngAfterViewInit() {
         if (this.uiInput) {
-            // If used on ui-input component, get the inner input ref
-            // Since ui-input uses signals and viewChild, we can access strict inputRef
-            this.inputElement = this.uiInput.inputRef().nativeElement;
+            this.inputElement = this.uiInput.inputRef()?.nativeElement ?? this.el.nativeElement;
         } else {
             // If used on native input, assume host is the input
             this.inputElement = this.el.nativeElement;
