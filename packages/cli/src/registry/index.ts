@@ -60,7 +60,8 @@ export const registry = defineRegistry({
     category: 'utility',
     description: 'Vertically stacked, collapsible sections that expand one or more panels to reveal content.',
     tags: ['accordion', 'collapse', 'expand', 'disclosure', 'faq'],
-    files: ['accordion/accordion.component.html', 'accordion/accordion.component.ts', 'accordion/index.ts', 'accordion/sub/accordion-content.component.html', 'accordion/sub/accordion-content.component.ts', 'accordion/sub/accordion-item.component.html', 'accordion/sub/accordion-item.component.ts', 'accordion/sub/accordion-trigger.component.html', 'accordion/sub/accordion-trigger.component.ts'],
+    files: ['accordion/accordion.component.html', 'accordion/accordion.component.ts', 'accordion/index.ts', 'accordion/sub/accordion-content.component.html', 'accordion/sub/accordion-content.component.ts', 'accordion/sub/accordion-item.component.css', 'accordion/sub/accordion-item.component.html', 'accordion/sub/accordion-item.component.ts', 'accordion/sub/accordion-trigger.component.css', 'accordion/sub/accordion-trigger.component.html', 'accordion/sub/accordion-trigger.component.ts'],
+    dependencies: ['skeleton'],
   },
   autocomplete: {
     name: 'autocomplete',
@@ -116,6 +117,7 @@ export const registry = defineRegistry({
     tags: ['breadcrumb', 'navigation', 'trail', 'path', 'hierarchy'],
     files: ['breadcrumb/breadcrumb.component.ts', 'breadcrumb/breadcrumb.locales.ts', 'breadcrumb/index.ts', 'breadcrumb/sub/breadcrumb-ellipsis.component.ts', 'breadcrumb/sub/breadcrumb-item.component.ts', 'breadcrumb/sub/breadcrumb-link.component.ts', 'breadcrumb/sub/breadcrumb-list.component.ts', 'breadcrumb/sub/breadcrumb-page.component.ts', 'breadcrumb/sub/breadcrumb-separator.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
+    dependencies: ['skeleton'],
   },
   button: {
     name: 'button',
@@ -164,6 +166,7 @@ export const registry = defineRegistry({
     description: 'Toggleable checkbox input with checked, unchecked, and indeterminate states.',
     tags: ['checkbox', 'check', 'toggle', 'form', 'boolean'],
     files: ['checkbox/checkbox.component.css', 'checkbox/checkbox.component.html', 'checkbox/checkbox.component.ts', 'checkbox/index.ts'],
+    dependencies: ['skeleton'],
   },
   collapsible: {
     name: 'collapsible',
@@ -193,7 +196,7 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Searchable command palette with grouped, keyboard-navigable actions and a dialog mode.',
     tags: ['command', 'palette', 'cmdk', 'search', 'menu', 'spotlight'],
-    files: ['command/command.component.ts', 'command/index.ts', 'command/sub/command-dialog.component.ts', 'command/sub/command-empty.component.ts', 'command/sub/command-group.component.ts', 'command/sub/command-input.component.ts', 'command/sub/command-item.component.ts', 'command/sub/command-list.component.ts', 'command/sub/command-separator.component.ts', 'command/sub/command-shortcut.component.ts'],
+    files: ['command/command.component.ts', 'command/index.ts', 'command/sub/command-dialog.component.ts', 'command/sub/command-empty.component.ts', 'command/sub/command-group.component.ts', 'command/sub/command-input.component.ts', 'command/sub/command-item.component.css', 'command/sub/command-item.component.ts', 'command/sub/command-list.component.ts', 'command/sub/command-separator.component.ts', 'command/sub/command-shortcut.component.ts'],
     dependencies: ['dialog'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'shortcut-binding.service.ts'],
     shortcutDefinitions: [
@@ -283,7 +286,7 @@ export const registry = defineRegistry({
     category: 'overlay',
     description: 'Modal dialog overlay with header, content, and footer for focused tasks.',
     tags: ['dialog', 'modal', 'popup', 'overlay', 'window'],
-    files: ['dialog/dialog.component.ts', 'dialog/index.ts', 'dialog/sub/dialog-content.component.html', 'dialog/sub/dialog-content.component.ts', 'dialog/sub/dialog-description.component.ts', 'dialog/sub/dialog-footer.component.ts', 'dialog/sub/dialog-header.component.ts', 'dialog/sub/dialog-title.component.ts', 'dialog/sub/dialog-trigger.component.ts'],
+    files: ['dialog/dialog.component.ts', 'dialog/index.ts', 'dialog/sub/dialog-content.component.css', 'dialog/sub/dialog-content.component.html', 'dialog/sub/dialog-content.component.ts', 'dialog/sub/dialog-description.component.ts', 'dialog/sub/dialog-footer.component.css', 'dialog/sub/dialog-footer.component.ts', 'dialog/sub/dialog-header.component.css', 'dialog/sub/dialog-header.component.ts', 'dialog/sub/dialog-title.component.ts', 'dialog/sub/dialog-trigger.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   dock: {
@@ -329,7 +332,7 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Button-triggered menu of actions with labels, separators, and submenus.',
     tags: ['dropdown-menu', 'dropdown', 'menu', 'actions', 'overflow'],
-    files: ['dropdown-menu/dropdown-menu.component.ts', 'dropdown-menu/index.ts', 'dropdown-menu/sub/dropdown-menu-content.component.ts', 'dropdown-menu/sub/dropdown-menu-item.component.ts', 'dropdown-menu/sub/dropdown-menu-label.component.ts', 'dropdown-menu/sub/dropdown-menu-separator.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-content.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-trigger.component.ts', 'dropdown-menu/sub/dropdown-menu-sub.component.ts', 'dropdown-menu/sub/dropdown-menu-trigger.component.ts'],
+    files: ['dropdown-menu/dropdown-menu.component.ts', 'dropdown-menu/index.ts', 'dropdown-menu/sub/dropdown-menu-content.component.ts', 'dropdown-menu/sub/dropdown-menu-item.component.css', 'dropdown-menu/sub/dropdown-menu-item.component.ts', 'dropdown-menu/sub/dropdown-menu-label.component.ts', 'dropdown-menu/sub/dropdown-menu-separator.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-content.component.ts', 'dropdown-menu/sub/dropdown-menu-sub-trigger.component.ts', 'dropdown-menu/sub/dropdown-menu-sub.component.ts', 'dropdown-menu/sub/dropdown-menu-trigger.component.ts'],
     libFiles: ['touch.ts'],
   },
   empty: {
@@ -463,7 +466,7 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Page navigation control with prev/next, numbered links, and ellipsis.',
     tags: ['pagination', 'pager', 'pages', 'navigation', 'paging'],
-    files: ['pagination/index.ts', 'pagination/pagination.component.ts', 'pagination/pagination.locales.ts', 'pagination/sub/pagination-content.component.ts', 'pagination/sub/pagination-ellipsis.component.ts', 'pagination/sub/pagination-item.component.ts', 'pagination/sub/pagination-link.component.ts', 'pagination/sub/pagination-next.component.ts', 'pagination/sub/pagination-previous.component.ts'],
+    files: ['pagination/index.ts', 'pagination/pagination.component.ts', 'pagination/pagination.locales.ts', 'pagination/sub/pagination-content.component.ts', 'pagination/sub/pagination-ellipsis.component.ts', 'pagination/sub/pagination-item.component.ts', 'pagination/sub/pagination-link.component.css', 'pagination/sub/pagination-link.component.ts', 'pagination/sub/pagination-next.component.ts', 'pagination/sub/pagination-previous.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'phone-input': {
@@ -587,13 +590,15 @@ export const registry = defineRegistry({
     description: 'On/off toggle switch for binary settings, an alternative to a checkbox.',
     tags: ['switch', 'toggle', 'on-off', 'boolean', 'setting'],
     files: ['switch/index.ts', 'switch/switch.component.css', 'switch/switch.component.html', 'switch/switch.component.ts'],
+    dependencies: ['skeleton'],
   },
   table: {
     name: 'table',
     category: 'data-display',
     description: 'Composable styled table primitives: header, body, row, cell, and caption.',
     tags: ['table', 'grid', 'rows', 'columns', 'data'],
-    files: ['table/index.ts', 'table/sub/table-body.component.ts', 'table/sub/table-caption.component.ts', 'table/sub/table-cell.component.ts', 'table/sub/table-footer.component.ts', 'table/sub/table-head.component.ts', 'table/sub/table-header-directive.ts', 'table/sub/table-header.component.ts', 'table/sub/table-row.component.ts', 'table/table.component.ts'],
+    files: ['table/index.ts', 'table/sub/table-body.component.ts', 'table/sub/table-caption.component.ts', 'table/sub/table-cell.component.css', 'table/sub/table-cell.component.ts', 'table/sub/table-footer.component.ts', 'table/sub/table-head.component.css', 'table/sub/table-head.component.ts', 'table/sub/table-header-directive.ts', 'table/sub/table-header.component.ts', 'table/sub/table-row.component.ts', 'table/table.component.ts'],
+    dependencies: ['skeleton'],
   },
   tabs: {
     name: 'tabs',
@@ -601,6 +606,7 @@ export const registry = defineRegistry({
     description: 'Tabbed interface that switches between panels via a list of triggers.',
     tags: ['tabs', 'tab', 'panels', 'navigation', 'segmented'],
     files: ['tabs/index.ts', 'tabs/sub/tabs-content.component.ts', 'tabs/sub/tabs-list.component.ts', 'tabs/sub/tabs-trigger.component.css', 'tabs/sub/tabs-trigger.component.ts', 'tabs/tabs.component.ts'],
+    dependencies: ['skeleton'],
   },
   textarea: {
     name: 'textarea',
@@ -609,6 +615,7 @@ export const registry = defineRegistry({
     tags: ['textarea', 'text', 'multiline', 'input', 'form'],
     files: ['textarea/index.ts', 'textarea/textarea.component.css', 'textarea/textarea.component.html', 'textarea/textarea.component.ts'],
     libFiles: ['input-group.token.ts'],
+    dependencies: ['skeleton'],
   },
   timeline: {
     name: 'timeline',
@@ -1096,6 +1103,9 @@ export const registry = defineRegistry({
   },
   'copy-to': {
     name: 'copy-to',
+    category: 'utility',
+    description: 'Directive that copies a string to the clipboard on click and shows a localized "Copied!" indicator.',
+    tags: ['copy', 'clipboard', 'directive', 'copy-to-clipboard'],
     files: ['directives/copy-to.directive.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },

@@ -71,16 +71,16 @@ describe('performInstall', () => {
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('LOCAL EDIT');
 
-    const declinedRun = await performInstall({ ...base, components: ['badge'] });
+    const declinedRun = await performInstall({ ...base, components: ['separator'] });
     expect(declinedRun.installed).toEqual([]);
-    expect(declinedRun.declined).toContain('badge');
+    expect(declinedRun.declined).toContain('separator');
 
     vi.clearAllMocks();
     (fs.pathExists as unknown as ReturnType<typeof vi.fn>).mockResolvedValue(true);
     (fs.readFile as unknown as ReturnType<typeof vi.fn>).mockResolvedValue('LOCAL EDIT');
 
-    const overwriteRun = await performInstall({ ...base, components: ['badge'], overwrite: ['badge'] });
-    expect(overwriteRun.installed).toContain('badge');
+    const overwriteRun = await performInstall({ ...base, components: ['separator'], overwrite: ['separator'] });
+    expect(overwriteRun.installed).toContain('separator');
     expect(overwriteRun.declined).toEqual([]);
     expect((fs.writeFile as unknown as ReturnType<typeof vi.fn>).mock.calls.length).toBeGreaterThan(0);
   });

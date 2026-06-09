@@ -501,8 +501,8 @@ describe('peer file filtering logic', () => {
 
 describe('resolveDependencies', () => {
   it('resolves a single component without dependencies', () => {
-    const result = resolveDependencies(['badge']);
-    expect(result).toContain('badge');
+    const result = resolveDependencies(['separator']);
+    expect(result).toContain('separator');
     expect(result.size).toBe(1);
   });
 
