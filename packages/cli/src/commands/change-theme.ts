@@ -3,6 +3,7 @@ import ora from 'ora';
 import fs from 'fs-extra';
 import { getConfig } from '../utils/config.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
+import { resolveTokenCssPath } from '../utils/styles-vars.js';
 import { baseColors, themeColors, type ThemeColor, type BaseColor } from '../templates/styles.js';
 import { buildBrandTriplet, isValidHex } from '../utils/color.js';
 
@@ -115,7 +116,7 @@ export async function changeThemeCore(
         throw new Error('Project not initialized — run shadcn-angular init first.');
     }
 
-    const cssPath = resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css));
+    const cssPath = await resolveTokenCssPath(resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css)));
     if (!await fs.pathExists(cssPath)) {
         throw new Error(`CSS file not found: ${cssPath}`);
     }

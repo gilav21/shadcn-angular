@@ -1,5 +1,8 @@
-import { describe, it, expect } from 'vitest';
-import { readRootVar, readBlockVar } from './styles-vars.js';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import fs from 'fs-extra';
+import os from 'node:os';
+import path from 'node:path';
+import { readRootVar, readBlockVar, resolveTokenCssPath } from './styles-vars.js';
 
 const CSS = `
 @import "tailwindcss";
@@ -66,5 +69,51 @@ describe('readBlockVar', () => {
 
     it('returns null when the var is missing from the block', () => {
         expect(readBlockVar(CSS, '.dark', '--radius')).toBeNull();
+    });
+});
+
+describe('resolveTokenCssPath', () => {
+    let dir: string;
+
+    beforeEach(async () => {
+        dir = await fs.mkdtemp(path.join(os.tmpdir(), 'styles-vars-'));
+    });
+
+    afterEach(async () => {
+        await fs.remove(dir);
+    });
+
+    it('returns the configured file when it contains a :root block', async () => {
+        const configured = path.join(dir, 'styles.scss');
+        await fs.writeFile(configured, ':root { --density: 1; }');
+        await fs.writeFile(path.join(dir, 'tailwind.css'), ':root { --density: 2; }');
+        expect(await resolveTokenCssPath(configured)).toBe(configured);
+    });
+
+    it('falls back to the sibling tailwind.css when the configured file has no :root block', async () => {
+        const configured = path.join(dir, 'styles.scss');
+        const sibling = path.join(dir, 'tailwind.css');
+        await fs.writeFile(configured, '@import "./tailwind.css";\n');
+        await fs.writeFile(sibling, ':root { --density: 1; }');
+        expect(await resolveTokenCssPath(configured)).toBe(sibling);
+    });
+
+    it('falls back to the sibling tailwind.css when the configured file does not exist', async () => {
+        const configured = path.join(dir, 'styles.scss');
+        const sibling = path.join(dir, 'tailwind.css');
+        await fs.writeFile(sibling, ':root { --density: 1; }');
+        expect(await resolveTokenCssPath(configured)).toBe(sibling);
+    });
+
+    it('returns the configured file when no sibling tailwind.css exists', async () => {
+        const configured = path.join(dir, 'styles.scss');
+        await fs.writeFile(configured, '@import "something";\n');
+        expect(await resolveTokenCssPath(configured)).toBe(configured);
+    });
+
+    it('returns the configured path unchanged when the configured file IS tailwind.css without :root', async () => {
+        const configured = path.join(dir, 'tailwind.css');
+        await fs.writeFile(configured, '@import "tailwindcss";\n');
+        expect(await resolveTokenCssPath(configured)).toBe(configured);
     });
 });

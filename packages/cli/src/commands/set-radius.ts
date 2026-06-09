@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getConfig } from '../utils/config.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { setRootVar } from '../utils/styles-vars.js';
+import { setRootVar, resolveTokenCssPath } from '../utils/styles-vars.js';
 
 /** Named radius → rem/px value map. */
 export const RADIUS_NAMED: Record<string, string> = {
@@ -46,7 +46,7 @@ export async function setRadiusCore(input: string, cwd: string): Promise<string>
         throw new Error('Project not initialized — run shadcn-angular init first.');
     }
 
-    const cssPath = resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css));
+    const cssPath = await resolveTokenCssPath(resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css)));
     await setRootVar(cssPath, '--radius', value);
     return `Set --radius to ${value}`;
 }

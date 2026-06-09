@@ -1,4 +1,30 @@
 import fs from 'fs-extra';
+import path from 'node:path';
+
+/**
+ * Resolve the CSS file that actually holds the design-token blocks.
+ *
+ * `init` writes the `:root` / `.dark` token blocks into a `tailwind.css`
+ * generated next to the user's configured global styles file, and only adds
+ * an `@import "./tailwind.css"` line to the configured file. Commands that
+ * read or write tokens therefore can't target `config.tailwind.css` blindly:
+ * when the configured file has no `:root` block but a sibling `tailwind.css`
+ * exists, the sibling is the token file.
+ *
+ * @param configuredCssPath - Absolute path of the configured global styles file.
+ * @returns The absolute path of the file containing the token blocks.
+ */
+export async function resolveTokenCssPath(configuredCssPath: string): Promise<string> {
+    if (await fs.pathExists(configuredCssPath)) {
+        const css = await fs.readFile(configuredCssPath, 'utf-8');
+        if (/:root\s*\{/.test(css)) return configuredCssPath;
+    }
+    const sibling = path.join(path.dirname(configuredCssPath), 'tailwind.css');
+    if (sibling !== configuredCssPath && await fs.pathExists(sibling)) {
+        return sibling;
+    }
+    return configuredCssPath;
+}
 
 /**
  * Escapes special regex characters in a string.

@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import fs from 'fs-extra';
 import { getConfig, getPrefix, type Config } from '../utils/config.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { readRootVar } from '../utils/styles-vars.js';
+import { readRootVar, resolveTokenCssPath } from '../utils/styles-vars.js';
 import { DENSITY_MULTIPLIERS, COMPONENT_DENSITY_VARS } from './set-density.js';
 import { MOTION_MULTIPLIERS, MOTION_LABELS } from './set-motion.js';
 import { RADIUS_NAMED } from './set-radius.js';
@@ -117,7 +117,7 @@ export async function statusCore(cwd: string, options: AddOptions): Promise<Stat
     }
     if (!options.registry && config.registry) options.registry = config.registry;
 
-    const cssPath = resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css));
+    const cssPath = await resolveTokenCssPath(resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css)));
     let css = '';
     if (await fs.pathExists(cssPath)) {
         css = await fs.readFile(cssPath, 'utf-8');

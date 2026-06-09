@@ -2,7 +2,7 @@ import chalk from 'chalk';
 import ora from 'ora';
 import { getConfig } from '../utils/config.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { setRootVar } from '../utils/styles-vars.js';
+import { setRootVar, resolveTokenCssPath } from '../utils/styles-vars.js';
 
 /** Motion level → multiplier map. */
 export const MOTION_MULTIPLIERS: Record<number, number> = {
@@ -38,7 +38,7 @@ export async function setMotionCore(level: number, cwd: string): Promise<string>
         throw new Error('Project not initialized — run shadcn-angular init first.');
     }
 
-    const cssPath = resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css));
+    const cssPath = await resolveTokenCssPath(resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css)));
     await setRootVar(cssPath, '--motion', String(multiplier));
 
     const label = MOTION_LABELS[level];
