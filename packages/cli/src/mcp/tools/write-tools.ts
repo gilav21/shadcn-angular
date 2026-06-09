@@ -148,14 +148,15 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
 
     server.registerTool('change_theme', {
         title: 'Change color theme',
-        description: `Change the color theme (replaces color CSS vars in :root and .dark). Available themes: ${VALID_THEMES.join(', ')}.`,
+        description: `Change the color theme (replaces color CSS vars in :root and .dark). Available themes: ${VALID_THEMES.join(', ')}. Alternatively pass "from" with a brand hex color to generate a custom theme.`,
         inputSchema: {
-            name: z.enum(VALID_THEMES as [ThemeColor, ...ThemeColor[]]).describe('Theme name'),
+            name: z.enum(VALID_THEMES as [ThemeColor, ...ThemeColor[]]).optional().describe('Preset theme name'),
+            from: z.string().optional().describe('Brand hex color (e.g. "#3b82f6") to generate the theme from — mutually exclusive with name'),
         },
         annotations: { destructiveHint: true },
     }, async (args) => {
         try {
-            const message = await changeThemeCore(args.name, cwd);
+            const message = await changeThemeCore(args.name ?? null, cwd, { from: args.from });
             return json({ success: true, message });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));

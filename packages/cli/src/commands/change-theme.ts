@@ -4,6 +4,7 @@ import fs from 'fs-extra';
 import { getConfig } from '../utils/config.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
 import { baseColors, themeColors, type ThemeColor, type BaseColor } from '../templates/styles.js';
+import { buildBrandTriplet, isValidHex } from '../utils/color.js';
 
 export const VALID_THEMES: ThemeColor[] = [
     'zinc', 'slate', 'stone', 'gray', 'neutral',
@@ -83,15 +84,32 @@ function replaceBlock(
  * For accent-only themes (red, rose, orange, green, blue, yellow, violet, amber):
  *   - replaces only the theme triplet (--primary, --primary-foreground, --ring)
  *   - base colors are inherited from the project's configured baseColor
+ * With `opts.from` (a brand hex color):
+ *   - generates the triplet from the hex instead of a preset; base colors are
+ *     inherited from the project's configured baseColor
  */
-export async function changeThemeCore(themeName: string, cwd: string): Promise<string> {
-    if (!VALID_THEMES.includes(themeName as ThemeColor)) {
+export async function changeThemeCore(
+    themeName: string | null,
+    cwd: string,
+    opts: { from?: string } = {},
+): Promise<string> {
+    if (themeName && opts.from) {
+        throw new Error('Pass either a theme name or --from <hex>, not both.');
+    }
+    if (!themeName && !opts.from) {
+        throw new Error(
+            `Missing theme. Pass a preset name (${VALID_THEMES.join(', ')}) or --from "#hex".`,
+        );
+    }
+    if (themeName && !VALID_THEMES.includes(themeName as ThemeColor)) {
         throw new Error(
             `Unknown theme "${themeName}". Valid themes: ${VALID_THEMES.join(', ')}`,
         );
     }
+    if (opts.from && !isValidHex(opts.from)) {
+        throw new Error(`Invalid hex color "${opts.from}" — expected #rgb or #rrggbb.`);
+    }
 
-    const theme = themeName as ThemeColor;
     const config = await getConfig(cwd);
     if (!config) {
         throw new Error('Project not initialized — run shadcn-angular init first.');
@@ -104,10 +122,11 @@ export async function changeThemeCore(themeName: string, cwd: string): Promise<s
 
     let css = await fs.readFile(cssPath, 'utf-8');
 
-    const isBaseTheme = theme in baseColors;
+    const theme = themeName as ThemeColor | null;
+    const isBaseTheme = theme !== null && theme in baseColors;
     const baseColor: BaseColor = config.tailwind.baseColor ?? 'neutral';
 
-    // Build light vars: base colors (if applicable) + theme triplet
+    // Build light vars: base colors + theme triplet
     const lightVars: Record<string, string> = {};
     const darkVars: Record<string, string> = {};
 
@@ -116,29 +135,40 @@ export async function changeThemeCore(themeName: string, cwd: string): Promise<s
         Object.assign(lightVars, base.light);
         Object.assign(darkVars, base.dark);
     } else {
-        // For accent-only themes, use the project's configured base color
+        // For accent-only and brand themes, use the project's configured base color
         const base = baseColors[baseColor];
         Object.assign(lightVars, base.light);
         Object.assign(darkVars, base.dark);
     }
 
     // Always apply the theme triplet
-    const themeTriplet = themeColors[theme];
-    Object.assign(lightVars, themeTriplet.light);
-    Object.assign(darkVars, themeTriplet.dark);
+    const triplet = theme ? themeColors[theme] : buildBrandTriplet(opts.from as string);
+    Object.assign(lightVars, triplet.light);
+    Object.assign(darkVars, triplet.dark);
 
     css = replaceBlock(css, ':root', lightVars);
     css = replaceBlock(css, '.dark', darkVars);
 
     await fs.writeFile(cssPath, css, 'utf-8');
 
-    return `Changed theme to "${theme}"`;
+    return theme
+        ? `Changed theme to "${theme}"`
+        : `Changed theme to brand color ${opts.from} (${triplet.light['--primary']})`;
 }
 
-export async function changeTheme(name: string, cwd = process.cwd()): Promise<void> {
-    const spinner = ora(`Applying theme "${name}"…`).start();
+interface ChangeThemeOptions {
+    readonly from?: string;
+}
+
+export async function changeTheme(
+    name: string | undefined,
+    options: ChangeThemeOptions = {},
+    cwd = process.cwd(),
+): Promise<void> {
+    const label = name ?? options.from ?? '';
+    const spinner = ora(`Applying theme "${label}"…`).start();
     try {
-        const message = await changeThemeCore(name, cwd);
+        const message = await changeThemeCore(name ?? null, cwd, { from: options.from });
         spinner.succeed(chalk.green(message));
     } catch (error) {
         spinner.fail(chalk.red(error instanceof Error ? error.message : String(error)));

@@ -144,9 +144,10 @@ program
 
 program
     .command('change-theme')
-    .description('Change the color theme (zinc, slate, stone, gray, neutral, red, rose, orange, green, blue, yellow, violet, amber)')
-    .argument('<name>', 'Theme name')
-    .action((name: string) => changeTheme(name));
+    .description('Change the color theme (zinc, slate, stone, gray, neutral, red, rose, orange, green, blue, yellow, violet, amber) or generate one from a brand color')
+    .argument('[name]', 'Theme name')
+    .option('--from <hex>', 'Generate the theme from a brand hex color (e.g. "#3b82f6")')
+    .action((name: string | undefined, options: { from?: string }) => changeTheme(name, options));
 
 program
     .command('mcp')
