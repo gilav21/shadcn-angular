@@ -12,11 +12,11 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
 
 const textareaVariants = cva(
-    'flex min-h-[calc(3rem*var(--_d))] sm:min-h-[calc(3.75rem*var(--_d))] w-full border-input bg-transparent text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+    'flex min-h-12 sm:min-h-[3.75rem] w-full border-input bg-transparent text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
     {
         variants: {
             variant: {
-                outline: 'rounded-md border px-[calc(0.75rem*var(--_d))] py-[calc(0.5rem*var(--_d))] shadow-sm focus-visible:ring-1 focus-visible:ring-ring',
+                outline: 'rounded-md border px-3 py-2 shadow-sm focus-visible:ring-1 focus-visible:ring-ring',
                 underline: 'rounded-none border-b focus-visible:border-ring px-0 shadow-none resize-none',
                 ghost: 'border-none shadow-none focus-visible:ring-0 resize-none px-0',
             },

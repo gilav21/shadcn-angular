@@ -4,6 +4,8 @@ import {
   signal,
   computed,
   viewChild,
+  effect,
+  untracked,
 } from '@angular/core';
 import {
   ButtonComponent,
@@ -47,7 +49,7 @@ const DENSITY_LABELS: Record<number, string> = {
     <ui-popover>
       <ui-popover-trigger>
         <ui-button variant="ghost" size="icon" aria-label="CSS settings">
-          <ui-icon name="sliders-horizontal" size="sm" />
+          <ui-icon name="settings-2" size="sm" />
         </ui-button>
       </ui-popover-trigger>
       <ui-popover-content align="end" class="w-72">
@@ -65,7 +67,6 @@ const DENSITY_LABELS: Record<number, string> = {
               [min]="1"
               [max]="5"
               [step]="1"
-              [defaultValue]="densityLevel()"
               (valueChange)="setDensity($event)"
               ariaLabel="Density level"
             />
@@ -82,7 +83,6 @@ const DENSITY_LABELS: Record<number, string> = {
               [min]="0"
               [max]="1"
               [step]="0.05"
-              [defaultValue]="radiusValue()"
               (valueChange)="setRadius($event)"
               ariaLabel="Border radius"
             />
@@ -119,6 +119,17 @@ export class CssSettingsComponent {
   readonly densityLevel = signal(3);
   readonly radiusValue = signal(0.625);
   readonly motionLevel = signal(1);
+
+  constructor() {
+    effect(() => {
+      const s = this.densitySliderRef();
+      if (s) untracked(() => s.value.set(this.densityLevel()));
+    });
+    effect(() => {
+      const s = this.radiusSliderRef();
+      if (s) untracked(() => s.value.set(this.radiusValue()));
+    });
+  }
 
   readonly densityLabel = computed(() => DENSITY_LABELS[this.densityLevel()] ?? 'Default');
   readonly radiusDisplay = computed(() => `${this.radiusValue().toFixed(3)}rem`);

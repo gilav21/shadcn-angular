@@ -24,12 +24,12 @@ const buttonVariants = cva(
                 link: 'text-primary underline-offset-4 hover:underline',
             },
             size: {
-                default: 'h-[calc(2.25rem*var(--_d))] px-[calc(1rem*var(--_d))] py-[calc(0.5rem*var(--_d))]',
-                sm: 'h-[calc(2rem*var(--_d))] rounded-md px-[calc(0.75rem*var(--_d))] text-xs',
-                lg: 'h-[calc(2.5rem*var(--_d))] rounded-md px-[calc(2rem*var(--_d))]',
-                icon: 'h-[calc(2.25rem*var(--_d))] w-[calc(2.25rem*var(--_d))]',
-                'icon-sm': 'h-[calc(2rem*var(--_d))] w-[calc(2rem*var(--_d))]',
-                'icon-lg': 'h-[calc(2.5rem*var(--_d))] w-[calc(2.5rem*var(--_d))]',
+                default: 'h-9 px-4 py-2',
+                sm: 'h-8 rounded-md px-3 text-xs',
+                lg: 'h-10 rounded-md px-8',
+                icon: 'h-9 w-9',
+                'icon-sm': 'h-8 w-8',
+                'icon-lg': 'h-10 w-10',
             },
         },
         defaultVariants: {
@@ -50,6 +50,7 @@ export type ButtonSize = VariantProps<typeof buttonVariants>['size'];
     styleUrl: './button.component.css',
     host: {
         '[class]': '"contents"',
+        '[attr.data-size]': 'size()',
     },
 })
 /**

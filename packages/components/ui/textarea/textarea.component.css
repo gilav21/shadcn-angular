@@ -1,3 +1,8 @@
 :host {
     --_d: var(--density-input, var(--density, 1));
 }
+[data-slot="textarea"] {
+    padding-inline: calc(0.75rem * var(--_d));
+    padding-block: calc(0.5rem * var(--_d));
+    min-height: calc(3rem * var(--_d));
+}

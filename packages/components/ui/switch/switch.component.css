@@ -1,3 +1,17 @@
 :host {
     --_d: var(--density-switch, var(--density, 1));
 }
+[data-slot="switch"] {
+    height: calc(1.25rem * var(--_d));
+    width: calc(2.25rem * var(--_d));
+}
+[data-slot="switch"] > span {
+    height: calc(1rem * var(--_d));
+    width: calc(1rem * var(--_d));
+}
+[data-slot="switch"][aria-checked="true"] > span {
+    translate: calc(1rem * var(--_d)) 0;
+}
+[dir="rtl"] [data-slot="switch"][aria-checked="true"] > span {
+    translate: calc(-1rem * var(--_d)) 0;
+}

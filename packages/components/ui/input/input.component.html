@@ -1,9 +1,9 @@
 @if (skeleton()) {
-  <ui-skeleton class="h-[calc(2.25rem*var(--_d))] w-full rounded-md" />
+  <ui-skeleton class="h-9 w-full rounded-md" />
 } @else if (needsContainer()) {
   <div [class]="containerClasses()" [attr.data-slot]="'input-container'">
     @if (floating() && label()) {
-      <label [for]="elementId()" [class]="floatingLabelClasses()">{{ label() }}</label>
+      <label [for]="elementId()" [class]="floatingLabelClasses()" [attr.data-active]="labelIsActive() ? '' : null">{{ label() }}</label>
     }
     @if (prefix()) {
       <span class="text-muted-foreground flex shrink-0 items-center ps-3 pe-1 text-sm select-none">{{ prefix() }}</span>

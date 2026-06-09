@@ -123,6 +123,7 @@ export const registry = defineRegistry({
     description: 'Clickable button with variants (default, destructive, outline, ghost, link) and sizes.',
     tags: ['button', 'action', 'cta', 'submit', 'click'],
     files: ['button/button.component.css', 'button/button.component.html', 'button/button.component.ts', 'button/confirm-dialog.component.ts', 'button/confirm.directive.ts', 'button/index.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['alert-dialog', 'ripple', 'skeleton', 'spinner'],
   },
   'button-group': {
@@ -1096,6 +1097,7 @@ export const registry = defineRegistry({
   'copy-to': {
     name: 'copy-to',
     files: ['directives/copy-to.directive.ts'],
+    libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
 });
 

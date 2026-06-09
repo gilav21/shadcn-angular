@@ -17,11 +17,11 @@ import { SkeletonComponent } from '../skeleton';
 import { IconComponent } from '../icon';
 
 const inputVariants = cva(
-    'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent py-[calc(0.25rem*var(--_d))] text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+    'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent py-1 text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
     {
         variants: {
             variant: {
-                outline: 'dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-[calc(2.25rem*var(--_d))] rounded-lg border px-[calc(0.75rem*var(--_d))] focus-visible:ring-[3px] aria-invalid:ring-[3px]',
+                outline: 'dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 rounded-lg border px-3 focus-visible:ring-[3px] aria-invalid:ring-[3px]',
                 underline: 'rounded-none border-b focus-visible:border-ring px-0 shadow-none',
                 ghost: 'border-none shadow-none focus-visible:ring-0 px-0',
             },
@@ -121,8 +121,8 @@ export class InputComponent implements ControlValueAccessor {
 
     readonly containerClasses = computed(() => cn(
         'relative flex w-full items-center rounded-lg border border-input shadow-xs',
-        'h-[calc(2.25rem*var(--_d))]',
-        this.floating() && this.label() && 'h-[calc(3.5rem*var(--_d))]',
+        'h-9',
+        this.floating() && this.label() && 'h-14',
         'transition-[color,box-shadow]',
         'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
         'dark:bg-input/30 bg-transparent',
@@ -136,10 +136,10 @@ export class InputComponent implements ControlValueAccessor {
     ));
 
     readonly floatingLabelClasses = computed(() => cn(
-        'absolute left-[calc(0.75rem*var(--_d))] select-none pointer-events-none',
-        'transition-all duration-[calc(150ms*var(--motion,1))]',
+        'absolute left-3 select-none pointer-events-none',
+        'transition-all duration-150',
         this.labelIsActive()
-            ? 'top-[calc(0.375rem*var(--_d))] text-xs text-muted-foreground'
+            ? 'top-1.5 text-xs text-muted-foreground'
             : 'top-1/2 -translate-y-1/2 text-sm text-muted-foreground'
     ));
 

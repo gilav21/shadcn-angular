@@ -64,7 +64,7 @@ export class SliderComponent {
         }
         const val = this.value();
         const range = max - min;
-        return ((val - min) / range) * 100;
+        return Math.max(0, Math.min(100, ((val - min) / range) * 100));
     });
 
     classes = computed(() =>
