@@ -15,6 +15,7 @@ import { migrate } from './commands/migrate.js';
 import { setDensity } from './commands/set-density.js';
 import { setRadius } from './commands/set-radius.js';
 import { setMotion } from './commands/set-motion.js';
+import { setLocale } from './commands/set-locale.js';
 import { changeTheme } from './commands/change-theme.js';
 import { startMcpServer } from './mcp/server.js';
 
@@ -36,6 +37,12 @@ program
     .option('-b, --branch <branch>', 'GitHub branch to fetch components from', 'master')
     .option('-r, --registry <url>', 'Custom registry base URL (e.g., https://gitlab.com/org/repo/-/raw/main/packages/components)')
     .option('--prefix <prefix>', 'Component selector prefix to use (default: "ui")')
+    .option('--density <level>', 'Initial density level 1-5 (default: 3)')
+    .option('--radius <value>', 'Initial border radius (none, sm, md, lg, xl, full, or a raw value like 0.5rem)')
+    .option('--motion <level>', 'Initial motion level 0-2 (default: 1)')
+    .option('--theme <name>', 'Initial color theme (zinc, slate, ..., amber)')
+    .option('--theme-from <hex>', 'Generate the initial theme from a brand hex color (e.g. "#3b82f6")')
+    .option('--locale <code>', 'Default UI locale baked into the installed i18n files (e.g. "he")')
     .action(init);
 
 program
@@ -143,6 +150,15 @@ program
     .description('Set the global motion level (0=none, 1=default, 2=expressive)')
     .argument('<level>', 'Motion level 0-2')
     .action((level: string) => setMotion(level));
+
+program
+    .command('set-locale')
+    .description('Set the default UI locale baked into your installed i18n files (e.g. "en", "he", "pt-BR")')
+    .argument('<code>', 'BCP-47 locale code')
+    .option('--remote', 'Force remote fetch from GitHub registry')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
+    .option('-r, --registry <url>', 'Custom registry base URL')
+    .action((code: string, options: { remote?: boolean; branch: string; registry?: string }) => setLocale(code, options));
 
 program
     .command('change-theme')

@@ -14,6 +14,9 @@ import { setDensityCore, COMPONENT_DENSITY_VARS } from '../../commands/set-densi
 import { setRadiusCore, RADIUS_NAMED } from '../../commands/set-radius.js';
 import { setMotionCore } from '../../commands/set-motion.js';
 import { changeThemeCore, VALID_THEMES } from '../../commands/change-theme.js';
+import { setLocaleCore } from '../../commands/set-locale.js';
+import { applyInitDefaults, type InitDefaults } from '../../commands/init.js';
+import { isValidHex } from '../../utils/color.js';
 import { collectDoctorReport, buildFixPlan, doctorFixCore } from '../../commands/doctor.js';
 import type { ThemeColor } from '../../templates/styles.js';
 
@@ -34,6 +37,11 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
             ]).optional(),
             cssPath: z.string().optional().describe('Global styles file (default src/styles.scss).'),
             createShortcutRegistry: z.boolean().optional(),
+            density: z.number().int().min(1).max(5).optional().describe('Initial density level (default 3).'),
+            radius: z.string().optional().describe('Initial border radius: none, sm, md, lg, xl, full, or a raw value like "0.5rem".'),
+            motion: z.number().int().min(0).max(2).optional().describe('Initial motion level (default 1).'),
+            themeFrom: z.string().optional().describe('Generate the initial theme from a brand hex color (e.g. "#3b82f6") — mutually exclusive with theme.'),
+            locale: z.string().optional().describe('Default UI locale baked into the installed i18n files (e.g. "he").'),
         },
         annotations: { destructiveHint: true },
     }, async (args) => {
@@ -42,6 +50,12 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
         }
         if (args.prefix !== undefined && !isValidPrefix(args.prefix)) {
             return err(`Invalid prefix "${args.prefix}" — must be lowercase kebab-case starting with a letter.`);
+        }
+        if (args.theme && args.themeFrom) {
+            return err('Pass either theme or themeFrom, not both.');
+        }
+        if (args.themeFrom !== undefined && !isValidHex(args.themeFrom)) {
+            return err(`Invalid themeFrom "${args.themeFrom}" — use a hex color like "#3b82f6".`);
         }
         const config: Config = getDefaultConfig();
         config.prefix = args.prefix ?? DEFAULT_PREFIX;
@@ -53,7 +67,20 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
             createShortcutRegistry: args.createShortcutRegistry ?? true,
             fetchOptions: { branch: 'master' },
         });
-        return json(result);
+        const defaults: InitDefaults = {
+            density: args.density, radius: args.radius, motion: args.motion,
+            themeFrom: args.themeFrom, locale: args.locale,
+        };
+        try {
+            const applied = await applyInitDefaults(cwd, defaults, { branch: 'master' });
+            return json({ ...result, defaultsApplied: applied });
+        } catch (error) {
+            return json({
+                ...result,
+                defaultsApplied: [],
+                defaultsError: error instanceof Error ? error.message : String(error),
+            });
+        }
     });
 
     server.registerTool('add_component', {
@@ -141,6 +168,22 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
     }, async (args) => {
         try {
             const message = await setMotionCore(args.level, cwd);
+            return json({ success: true, message });
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+
+    server.registerTool('set_locale', {
+        title: 'Set default UI locale',
+        description: 'Set the default UI locale baked into the project\'s installed i18n files (rewrites the UI_LOCALE_ID default in i18n/i18n.token.ts). Installs the i18n lib files first if missing.',
+        inputSchema: {
+            code: z.string().describe('BCP-47 locale code (e.g. "en", "he", "pt-BR")'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            const message = await setLocaleCore(args.code, cwd, { branch: 'master' });
             return json({ success: true, message });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));

@@ -22,3 +22,5 @@ pdf2htmlEX/
 # pdf2htmlEX reference HTML output
 demo/public/DW2-3-Viruses-www.underwar.co.il.html
 demo/public/med-pp.html
+
+.worktrees/
