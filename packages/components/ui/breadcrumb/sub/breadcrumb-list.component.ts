@@ -6,12 +6,21 @@ import {
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { BreadcrumbItem } from '../breadcrumb.component';
+import { SkeletonComponent } from '../../skeleton';
 
 @Component({
   selector: 'ui-breadcrumb-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [SkeletonComponent],
   template: `
-    @if (items().length > 0) {
+    @if (skeleton()) {
+      @for (item of skeletonItems(); track item; let isLast = $last) {
+        <ui-skeleton class="h-4 w-16 rounded-md" />
+        @if (!isLast) {
+          <ui-skeleton class="size-3.5 rounded-md" />
+        }
+      }
+    } @else if (items().length > 0) {
       <!-- Simple mode: render from items array with auto-separators -->
       @for (item of items(); track item.label; let isLast = $last) {
         <span class="inline-flex items-center gap-1.5" data-slot="breadcrumb-item">
@@ -56,6 +65,13 @@ export class BreadcrumbListComponent {
 
   // Data-driven mode: items array (takes priority over projection)
   items = input<BreadcrumbItem[]>([]);
+
+  readonly skeleton = input(false);
+  readonly skeletonCount = input(3);
+
+  readonly skeletonItems = computed(() =>
+    Array.from({ length: this.skeletonCount() }, (_, i) => i)
+  );
 
   classes = computed(() => cn(
     'text-muted-foreground flex flex-wrap items-center gap-1.5 text-sm break-words sm:gap-2.5',

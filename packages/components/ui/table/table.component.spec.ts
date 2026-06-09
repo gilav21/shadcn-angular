@@ -163,3 +163,29 @@ describe('TableComponent', () => {
     expect(fixture.nativeElement.querySelector('[data-slot="table-caption"]')).toBeTruthy();
   });
 });
+
+describe('TableBodyComponent Skeleton Mode', () => {
+  let fixture: ComponentFixture<TableBodyComponent>;
+
+  beforeEach(async () => {
+    await TestBed.configureTestingModule({
+      imports: [TableBodyComponent],
+    }).compileComponents();
+
+    fixture = TestBed.createComponent(TableBodyComponent);
+    fixture.componentRef.setInput('skeleton', true);
+    fixture.detectChanges();
+  });
+
+  it('should render 5 skeleton rows by default', () => {
+    const rows = fixture.debugElement.queryAll(By.css('[data-slot="table-row"]'));
+    expect(rows.length).toBe(5);
+    expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(5);
+  });
+
+  it('should honor skeletonRows', () => {
+    fixture.componentRef.setInput('skeletonRows', 2);
+    fixture.detectChanges();
+    expect(fixture.debugElement.queryAll(By.css('[data-slot="table-row"]')).length).toBe(2);
+  });
+});

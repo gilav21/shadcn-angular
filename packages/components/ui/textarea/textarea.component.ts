@@ -10,6 +10,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
+import { SkeletonComponent } from '../skeleton';
 
 const textareaVariants = cva(
     'flex min-h-12 sm:min-h-[3.75rem] w-full border-input bg-transparent text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
@@ -33,7 +34,7 @@ import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 @Component({
     selector: 'ui-textarea',
-    imports: [FormsModule],
+    imports: [FormsModule, SkeletonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './textarea.component.css',
     providers: [
@@ -53,6 +54,7 @@ export class TextareaComponent implements ControlValueAccessor {
     disabled = input(false);
     rows = input(3);
     class = input('');
+    readonly skeleton = input(false);
 
     variant = input<TextareaVariant>('outline');
 

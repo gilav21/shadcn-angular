@@ -9,9 +9,11 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
+import { SkeletonComponent } from '../skeleton';
 
 @Component({
   selector: 'ui-checkbox',
+  imports: [SkeletonComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
   styleUrl: './checkbox.component.css',
   providers: [
@@ -34,6 +36,7 @@ export class CheckboxComponent implements ControlValueAccessor {
 
   protected readonly isDisabled = computed(() => this.disabled() || this._disabled());
   class = input('');
+  readonly skeleton = input(false);
   elementId = input<string | undefined>(undefined);
   ariaLabel = input<string | undefined>(undefined);
   ariaLabelledby = input<string | undefined>(undefined);

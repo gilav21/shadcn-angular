@@ -1,3 +1,6 @@
+@if (skeleton()) {
+  <ui-skeleton class="block min-h-12 sm:min-h-[3.75rem] w-full rounded-md" />
+} @else {
 <textarea
   [class]="classes()"
   [disabled]="disabled()"
@@ -8,3 +11,4 @@
   (ngModelChange)="onValueChange($event)"
   (blur)="onTouched()"
 ></textarea>
+}

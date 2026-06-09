@@ -9,19 +9,23 @@ import {
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 import { ACCORDION } from '../accordion.component';
+import { SkeletonComponent } from '../../skeleton';
 
 export const ACCORDION_ITEM = new InjectionToken<AccordionItemComponent>('ACCORDION_ITEM');
 
 @Component({
   selector: 'ui-accordion-item',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  imports: [SkeletonComponent],
   providers: [{ provide: ACCORDION_ITEM, useExisting: forwardRef(() => AccordionItemComponent) }],
   templateUrl: './accordion-item.component.html',
+  styleUrl: './accordion-item.component.css',
   host: { '[class]': '"contents"' },
 })
 export class AccordionItemComponent {
   value = input.required<string>();
   class = input('');
+  readonly skeleton = input(false);
 
   // Simple mode: title and content inputs
   title = input<string | undefined>(undefined);

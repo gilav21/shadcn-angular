@@ -9,9 +9,11 @@ import {
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn } from '../../lib/utils';
+import { SkeletonComponent } from '../skeleton';
 
 @Component({
     selector: 'ui-switch',
+    imports: [SkeletonComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
     styleUrl: './switch.component.css',
     providers: [
@@ -31,6 +33,7 @@ export class SwitchComponent implements ControlValueAccessor {
 
     disabled = input(false);
     class = input('');
+    readonly skeleton = input(false);
     elementId = input<string | undefined>(undefined);
     ariaLabel = input<string | undefined>(undefined);
     ariaLabelledby = input<string | undefined>(undefined);

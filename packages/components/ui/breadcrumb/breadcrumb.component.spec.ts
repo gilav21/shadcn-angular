@@ -251,6 +251,33 @@ describe('Breadcrumb Simple Mode (Data-Driven)', () => {
     });
 });
 
+describe('Breadcrumb Skeleton Mode', () => {
+    let fixture: ComponentFixture<BreadcrumbListComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [BreadcrumbListComponent]
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(BreadcrumbListComponent);
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.detectChanges();
+    });
+
+    it('should render skeleton crumbs with separators between them', () => {
+        // 3 crumbs + 2 separators by default
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(5);
+        expect(fixture.debugElement.query(By.css('[data-slot="breadcrumb-item"]'))).toBeNull();
+    });
+
+    it('should honor skeletonCount', () => {
+        fixture.componentRef.setInput('skeletonCount', 2);
+        fixture.detectChanges();
+        // 2 crumbs + 1 separator
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(3);
+    });
+});
+
 describe('BreadcrumbComponent — i18n integration', () => {
     async function setup(opts: { locale?: string; providerLocale?: string } = {}) {
         const { provideUiLocale } = await import('../../lib/i18n');
