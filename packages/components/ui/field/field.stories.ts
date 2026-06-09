@@ -1,4 +1,5 @@
 import { Meta, StoryObj, moduleMetadata } from '@storybook/angular';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import {
     FieldComponent,
     FieldGroupComponent,
@@ -7,6 +8,7 @@ import {
     FieldLegendComponent,
     FieldDescriptionComponent,
     FieldErrorComponent,
+    FieldAutoErrorsComponent,
     FieldSeparatorComponent,
 } from './index';
 import { InputComponent } from '../input';
@@ -26,9 +28,11 @@ const meta: Meta<FieldComponent> = {
                 FieldLegendComponent,
                 FieldDescriptionComponent,
                 FieldErrorComponent,
+                FieldAutoErrorsComponent,
                 FieldSeparatorComponent,
                 InputComponent,
                 ButtonComponent,
+                ReactiveFormsModule,
             ],
         }),
     ],
@@ -135,6 +139,52 @@ export const FieldGroup: Story = {
                     </ui-field>
                 </ui-field-set>
             </ui-field-group>
+        `,
+    }),
+};
+
+export const AutoErrors: Story = {
+    render: () => ({
+        props: {
+            username: new FormControl('', [Validators.required, Validators.minLength(5)]),
+        },
+        template: `
+            <ui-field>
+                <ui-field-label for="auto-username">Username</ui-field-label>
+                <ui-input id="auto-username" [formControl]="username" placeholder="At least 5 characters" />
+                <ui-field-auto-errors />
+            </ui-field>
+        `,
+    }),
+};
+
+export const AutoErrorsCustomMessages: Story = {
+    render: () => ({
+        props: {
+            nickname: new FormControl('', [Validators.required]),
+            messages: { required: 'Pick a nickname first!' },
+        },
+        template: `
+            <ui-field>
+                <ui-field-label for="auto-nickname">Nickname</ui-field-label>
+                <ui-input id="auto-nickname" [formControl]="nickname" placeholder="Blur to see the custom message" />
+                <ui-field-auto-errors [messages]="messages" />
+            </ui-field>
+        `,
+    }),
+};
+
+export const AutoErrorsLocalized: Story = {
+    render: () => ({
+        props: {
+            email: new FormControl('', [Validators.required]),
+        },
+        template: `
+            <ui-field>
+                <ui-field-label for="auto-he">אימייל</ui-field-label>
+                <ui-input id="auto-he" [formControl]="email" dir="rtl" />
+                <ui-field-auto-errors locale="he" />
+            </ui-field>
         `,
     }),
 };

@@ -1,4 +1,5 @@
 import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
+import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
 import { UI_LOCALE_ID } from '../../../../../packages/components/lib/i18n';
 import {
   CheckboxComponent,
@@ -10,6 +11,7 @@ import {
   FieldLegendComponent,
   FieldDescriptionComponent,
   FieldErrorComponent,
+  FieldAutoErrorsComponent,
   FieldSeparatorComponent,
 } from '../../../../../packages/components/ui';
 import { FIELD_DEMO_LOCALES } from './field-demo.locales';
@@ -27,7 +29,9 @@ import { FIELD_DEMO_LOCALES } from './field-demo.locales';
     FieldLegendComponent,
     FieldDescriptionComponent,
     FieldErrorComponent,
+    FieldAutoErrorsComponent,
     FieldSeparatorComponent,
+    ReactiveFormsModule,
   ],
   template: `
     <section class="space-y-4">
@@ -66,6 +70,19 @@ import { FIELD_DEMO_LOCALES } from './field-demo.locales';
             <ui-checkbox id="terms-field" />
             <ui-field-label for="terms-field" class="font-normal">{{ t().fields.agreeTerms }}</ui-field-label>
           </ui-field>
+
+          <ui-field-separator />
+
+          <ui-field-set>
+            <ui-field-legend>{{ t().autoErrors.legend }}</ui-field-legend>
+            <ui-field-description>{{ t().autoErrors.legendDesc }}</ui-field-description>
+
+            <ui-field>
+              <ui-field-label for="username-field">{{ t().autoErrors.username }}</ui-field-label>
+              <ui-input id="username-field" [formControl]="username" [placeholder]="t().autoErrors.usernamePlaceholder" />
+              <ui-field-auto-errors />
+            </ui-field>
+          </ui-field-set>
         </ui-field-group>
       </div>
     </section>
@@ -74,4 +91,5 @@ import { FIELD_DEMO_LOCALES } from './field-demo.locales';
 export class FieldDemoComponent {
   private readonly localeId = inject(UI_LOCALE_ID);
   protected readonly t = computed(() => FIELD_DEMO_LOCALES[this.localeId()] ?? FIELD_DEMO_LOCALES['en']);
+  protected readonly username = new FormControl('', [Validators.required, Validators.minLength(5)]);
 }

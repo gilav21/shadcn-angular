@@ -347,7 +347,8 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Form field wrapper grouping label, control, description, and error messages.',
     tags: ['field', 'form-field', 'label', 'validation', 'fieldset'],
-    files: ['field/field.component.ts', 'field/field.utils.ts', 'field/index.ts', 'field/sub/field-description.component.ts', 'field/sub/field-error.component.ts', 'field/sub/field-group.component.ts', 'field/sub/field-label.component.ts', 'field/sub/field-legend.component.ts', 'field/sub/field-separator.component.ts', 'field/sub/field-set.component.ts'],
+    files: ['field/field.component.ts', 'field/field.locales.ts', 'field/field.utils.ts', 'field/index.ts', 'field/sub/field-auto-errors.component.ts', 'field/sub/field-description.component.ts', 'field/sub/field-error.component.ts', 'field/sub/field-group.component.ts', 'field/sub/field-label.component.ts', 'field/sub/field-legend.component.ts', 'field/sub/field-separator.component.ts', 'field/sub/field-set.component.ts'],
+    libFiles: ['i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts'],
   },
   icon: {
     name: 'icon',

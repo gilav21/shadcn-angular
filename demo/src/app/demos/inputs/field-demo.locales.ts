@@ -16,6 +16,12 @@ export interface FieldDemoLocale extends LocaleMeta {
     requiredFieldError: string;
     agreeTerms: string;
   };
+  autoErrors: {
+    legend: string;
+    legendDesc: string;
+    username: string;
+    usernamePlaceholder: string;
+  };
 }
 
 export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
@@ -36,6 +42,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldError: 'This field is required.',
       agreeTerms: 'I agree to the terms',
     },
+    autoErrors: {
+      legend: 'Automatic Errors',
+      legendDesc: 'Validation messages appear automatically — no @if boilerplate.',
+      username: 'Username',
+      usernamePlaceholder: 'At least 5 characters',
+    },
   },
   he: {
     code: 'he', rtl: true,
@@ -53,6 +65,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldPlaceholder: 'לשדה זה יש שגיאה',
       requiredFieldError: 'שדה זה נדרש.',
       agreeTerms: 'אני מסכים לתנאים',
+    },
+    autoErrors: {
+      legend: 'שגיאות אוטומטיות',
+      legendDesc: 'הודעות אימות מופיעות אוטומטית — ללא קוד @if חוזר.',
+      username: 'שם משתמש',
+      usernamePlaceholder: 'לפחות 5 תווים',
     },
   },
   ar: {
@@ -72,6 +90,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldError: 'هذا الحقل مطلوب.',
       agreeTerms: 'أوافق على الشروط',
     },
+    autoErrors: {
+      legend: 'أخطاء تلقائية',
+      legendDesc: 'تظهر رسائل التحقق تلقائيًا — دون تكرار @if.',
+      username: 'اسم المستخدم',
+      usernamePlaceholder: '5 أحرف على الأقل',
+    },
   },
   de: {
     code: 'de',
@@ -89,6 +113,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldPlaceholder: 'Dieses Feld hat einen Fehler',
       requiredFieldError: 'Dieses Feld ist erforderlich.',
       agreeTerms: 'Ich stimme den Bedingungen zu',
+    },
+    autoErrors: {
+      legend: 'Automatische Fehler',
+      legendDesc: 'Validierungsmeldungen erscheinen automatisch — kein @if-Boilerplate.',
+      username: 'Benutzername',
+      usernamePlaceholder: 'Mindestens 5 Zeichen',
     },
   },
   fr: {
@@ -108,6 +138,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldError: 'Ce champ est obligatoire.',
       agreeTerms: 'J\'accepte les conditions',
     },
+    autoErrors: {
+      legend: 'Erreurs automatiques',
+      legendDesc: 'Les messages de validation apparaissent automatiquement — sans @if répétitif.',
+      username: 'Nom d\'utilisateur',
+      usernamePlaceholder: 'Au moins 5 caractères',
+    },
   },
   es: {
     code: 'es',
@@ -125,6 +161,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldPlaceholder: 'Este campo tiene un error',
       requiredFieldError: 'Este campo es obligatorio.',
       agreeTerms: 'Acepto los términos',
+    },
+    autoErrors: {
+      legend: 'Errores automáticos',
+      legendDesc: 'Los mensajes de validación aparecen automáticamente — sin código @if repetitivo.',
+      username: 'Nombre de usuario',
+      usernamePlaceholder: 'Al menos 5 caracteres',
     },
   },
   ja: {
@@ -144,6 +186,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldError: 'このフィールドは必須です。',
       agreeTerms: '利用規約に同意します',
     },
+    autoErrors: {
+      legend: '自動エラー',
+      legendDesc: '検証メッセージが自動的に表示されます — @if の定型コードは不要です。',
+      username: 'ユーザー名',
+      usernamePlaceholder: '5文字以上',
+    },
   },
   zh: {
     code: 'zh',
@@ -161,6 +209,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldPlaceholder: '此字段有错误',
       requiredFieldError: '此字段为必填项。',
       agreeTerms: '我同意条款',
+    },
+    autoErrors: {
+      legend: '自动错误',
+      legendDesc: '验证消息自动显示 — 无需重复的 @if 代码。',
+      username: '用户名',
+      usernamePlaceholder: '至少 5 个字符',
     },
   },
   ru: {
@@ -180,6 +234,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldError: 'Это поле обязательно.',
       agreeTerms: 'Я соглашаюсь с условиями',
     },
+    autoErrors: {
+      legend: 'Автоматические ошибки',
+      legendDesc: 'Сообщения валидации появляются автоматически — без шаблонного @if.',
+      username: 'Имя пользователя',
+      usernamePlaceholder: 'Не менее 5 символов',
+    },
   },
   pt: {
     code: 'pt',
@@ -197,6 +257,12 @@ export const FIELD_DEMO_LOCALES: Record<string, FieldDemoLocale> = {
       requiredFieldPlaceholder: 'Este campo tem um erro',
       requiredFieldError: 'Este campo é obrigatório.',
       agreeTerms: 'Concordo com os termos',
+    },
+    autoErrors: {
+      legend: 'Erros automáticos',
+      legendDesc: 'As mensagens de validação aparecem automaticamente — sem código @if repetitivo.',
+      username: 'Nome de usuário',
+      usernamePlaceholder: 'Pelo menos 5 caracteres',
     },
   },
 };
