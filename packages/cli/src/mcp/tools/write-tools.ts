@@ -14,6 +14,7 @@ import { setDensityCore, COMPONENT_DENSITY_VARS } from '../../commands/set-densi
 import { setRadiusCore, RADIUS_NAMED } from '../../commands/set-radius.js';
 import { setMotionCore } from '../../commands/set-motion.js';
 import { changeThemeCore, VALID_THEMES } from '../../commands/change-theme.js';
+import { collectDoctorReport, buildFixPlan, doctorFixCore } from '../../commands/doctor.js';
 import type { ThemeColor } from '../../templates/styles.js';
 
 function validateNames(names: string[]): string[] {
@@ -158,6 +159,31 @@ export function registerWriteTools(server: McpServer, cwd: string): void {
         try {
             const message = await changeThemeCore(args.name ?? null, cwd, { from: args.from });
             return json({ success: true, message });
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
+        }
+    });
+
+    server.registerTool('doctor_fix', {
+        title: 'Doctor fix',
+        description: 'Diagnose component health and repair what is safe to repair: re-install components with missing files or stale registry versions, and install missing npm dependencies. User-edited components are never touched; legacy layouts require the migrate command.',
+        inputSchema: {
+            dryRun: z.boolean().optional().describe('Return the repair plan without making changes'),
+        },
+        annotations: { destructiveHint: true },
+    }, async (args) => {
+        try {
+            const config = await getConfig(cwd);
+            if (!config) return err('Project not initialized — run init_project first.');
+            const options = { branch: 'master', registry: config.registry };
+            const report = await collectDoctorReport(cwd, config, options);
+            const plan = buildFixPlan(report);
+            if (args.dryRun || report.ok) {
+                return json({ ok: report.ok, plan, actions: [] });
+            }
+            const actions = await doctorFixCore(cwd, config, options, plan);
+            const after = await collectDoctorReport(cwd, config, options);
+            return json({ ok: after.ok, plan, actions, remaining: after });
         } catch (error) {
             return err(error instanceof Error ? error.message : String(error));
         }

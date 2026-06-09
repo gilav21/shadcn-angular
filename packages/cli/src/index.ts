@@ -91,6 +91,8 @@ program
 program
     .command('doctor')
     .description('Check installed components for drift, missing files, and missing deps')
+    .option('--fix', 'Repair missing files, stale components, and missing npm deps (never touches your edits)')
+    .option('--dry-run', 'Show what --fix would do without making changes')
     .option('--remote', 'Force remote fetch from GitHub registry')
     .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
     .option('-r, --registry <url>', 'Custom registry base URL')
