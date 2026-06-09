@@ -10,6 +10,7 @@ import { cn } from '../../../lib/utils';
     selector: 'ui-table-cell',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
+    styleUrl: './table-cell.component.css',
     host: {
         class: 'flex items-center flex-shrink-0',
         '[class]': 'classes()',

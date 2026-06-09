@@ -25,6 +25,9 @@ export const COMPONENT_DENSITY_VARS: Record<string, string> = {
     tabs: '--density-tabs',
     checkbox: '--density-checkbox',
     switch: '--density-switch',
+    menu: '--density-menu',
+    dialog: '--density-dialog',
+    accordion: '--density-accordion',
 };
 
 /**

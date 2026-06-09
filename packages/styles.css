@@ -26,6 +26,9 @@
     /* --density-tabs:     1; */
     /* --density-checkbox: 1; */
     /* --density-switch:   1; */
+    /* --density-menu:     1; */  /* dropdown-menu + command items */
+    /* --density-dialog:   1; */
+    /* --density-accordion: 1; */
 
     --background: oklch(1 0 0);
     --foreground: oklch(0.145 0 0);

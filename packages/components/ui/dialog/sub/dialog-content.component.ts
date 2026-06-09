@@ -24,6 +24,7 @@ import { DialogDescriptionComponent } from './dialog-description.component';
         DialogDescriptionComponent,
     ],
     templateUrl: './dialog-content.component.html',
+    styleUrl: './dialog-content.component.css',
     host: { class: 'contents' },
 })
 export class DialogContentComponent implements AfterViewInit {

@@ -18,6 +18,7 @@ import { DROPDOWN_MENU } from '../dropdown-menu.component';
             <span class="ms-auto text-xs tracking-widest text-muted-foreground">{{ shortcut() }}</span>
         }
     `,
+    styleUrl: './dropdown-menu-item.component.css',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"dropdown-item"',

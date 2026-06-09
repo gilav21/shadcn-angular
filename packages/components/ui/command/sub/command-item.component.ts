@@ -35,6 +35,7 @@ import { COMMAND_GROUP } from './command-group.component';
       }
     </div>
   `,
+  styleUrl: './command-item.component.css',
   host: { class: 'contents' },
 })
 export class CommandItemComponent implements OnInit, OnDestroy {
