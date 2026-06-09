@@ -9,6 +9,7 @@ import { why } from './commands/why.js';
 import { help } from './commands/help.js';
 import { search } from './commands/search.js';
 import { doctor } from './commands/doctor.js';
+import { status } from './commands/status.js';
 import { update } from './commands/update.js';
 import { migrate } from './commands/migrate.js';
 import { setDensity } from './commands/set-density.js';
@@ -94,6 +95,15 @@ program
     .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
     .option('-r, --registry <url>', 'Custom registry base URL')
     .action(doctor);
+
+program
+    .command('status')
+    .description('Show project status: design tokens, component health, and config')
+    .option('--json', 'Output the raw status report as JSON')
+    .option('--remote', 'Force remote fetch from GitHub registry')
+    .option('-b, --branch <branch>', 'GitHub branch to fetch from', 'master')
+    .option('-r, --registry <url>', 'Custom registry base URL')
+    .action(status);
 
 program
     .command('migrate')

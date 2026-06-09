@@ -39,6 +39,38 @@ function replaceVarInBlock(block: string, varName: string, value: string): strin
     return null;
 }
 
+/** Removes all CSS block comments so commented-out vars are never matched. */
+function stripCssComments(css: string): string {
+    return css.replaceAll(/\/\*[\s\S]*?\*\//g, '');
+}
+
+/**
+ * Read a CSS custom property value from a named block in a CSS string.
+ * Commented-out declarations are ignored. Returns the trimmed value,
+ * or null when the block or the var is not found.
+ *
+ * @param css      - Full CSS source string.
+ * @param selector - CSS selector for the block (e.g. ":root", ".dark").
+ * @param varName  - CSS custom property name (e.g. "--density").
+ */
+export function readBlockVar(css: string, selector: string, varName: string): string | null {
+    const escapedSelector = escapeRegex(selector);
+    const blockMatch = new RegExp(`${escapedSelector}\\s*\\{([\\s\\S]*?)\\}`, 'm').exec(css);
+    if (!blockMatch) return null;
+
+    const inner = stripCssComments(blockMatch[1]);
+    const varMatch = new RegExp(`(?<![\\w-])${escapeRegex(varName)}\\s*:\\s*([^;]*);`).exec(inner);
+    return varMatch ? varMatch[1].trim() : null;
+}
+
+/**
+ * Read a CSS custom property value from the :root block of a CSS string.
+ * Commented-out declarations are ignored. Returns null when not set.
+ */
+export function readRootVar(css: string, varName: string): string | null {
+    return readBlockVar(css, ':root', varName);
+}
+
 /**
  * Set a CSS custom property in the :root block of a CSS file.
  * If the property exists (even commented out), updates it.
