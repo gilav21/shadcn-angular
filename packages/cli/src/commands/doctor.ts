@@ -208,6 +208,11 @@ async function runFix(
     cwd: string, config: Config, options: DoctorOptions, plan: DoctorFixPlan,
 ): Promise<void> {
     if (!plan.hasActions) {
+        if (plan.legacy.length === 0) {
+            console.log(chalk.green('\nNothing to repair — only locally modified components remain (protected).'));
+            printFixPlan(plan);
+            return;
+        }
         console.log(chalk.yellow('\nNothing doctor --fix can repair automatically.'));
         printFixPlan(plan);
         process.exit(1);

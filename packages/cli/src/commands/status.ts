@@ -115,7 +115,7 @@ export async function statusCore(cwd: string, options: AddOptions): Promise<Stat
     if (!config) {
         throw new Error('Project not initialized — run shadcn-angular init first.');
     }
-    if (!options.registry && config.registry) options.registry = config.registry;
+    const opts: AddOptions = { ...options, registry: options.registry ?? config.registry };
 
     const cssPath = await resolveTokenCssPath(resolveProjectPath(cwd, aliasToProjectPath(config.tailwind.css)));
     let css = '';
@@ -131,7 +131,7 @@ export async function statusCore(cwd: string, options: AddOptions): Promise<Stat
 
     const motionLevel = levelForMultiplier(MOTION_MULTIPLIERS, motion);
 
-    const report = await collectDoctorReport(cwd, config, options);
+    const report = await collectDoctorReport(cwd, config, opts);
     const targetDir = resolveProjectPath(cwd, aliasToProjectPath(config.aliases.ui || 'src/components/ui'));
     const installed = await installedComponents(targetDir);
 

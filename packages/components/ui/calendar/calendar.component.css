@@ -8,6 +8,7 @@ ui-select-trigger {
     --ui-select-trigger-h: 1.75rem;
 }
 
-[data-slot="calendar"] .grid-cols-7 > div:empty {
+[data-slot="calendar-filler"] {
     height: calc(2.25rem * var(--_d));
+    width: calc(2.25rem * var(--_d));
 }

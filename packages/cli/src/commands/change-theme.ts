@@ -12,21 +12,19 @@ export const VALID_THEMES: ThemeColor[] = [
     'red', 'rose', 'orange', 'green', 'blue', 'yellow', 'violet', 'amber',
 ];
 
+function escapeRegex(text: string): string {
+    return text.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
  * Replace a single CSS custom property in a CSS block string by name.
  * Returns the updated block or the original if the var was not found.
  */
 function replaceColorVar(block: string, varName: string, value: string): string {
-    // Escape special chars in varName
-    const escaped = varName.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const pattern = new RegExp(`(${escaped}\\s*:\\s*)[^;]*(;)`, 'g');
-    if (pattern.test(block)) {
-        return block.replace(
-            new RegExp(`(${escaped}\\s*:\\s*)[^;]*(;)`, 'g'),
-            (_m, prefix, semi) => `${prefix}${value}${semi}`,
-        );
-    }
-    return block;
+    return block.replace(
+        new RegExp(`(${escapeRegex(varName)}\\s*:\\s*)[^;]*(;)`, 'g'),
+        (_m, prefix, semi) => `${prefix}${value}${semi}`,
+    );
 }
 
 /**
@@ -38,8 +36,7 @@ function applyVarsToBlock(block: string, vars: Record<string, string>): string {
     const missing: string[] = [];
 
     for (const [varName, value] of Object.entries(vars)) {
-        const escaped = varName.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
-        const pattern = new RegExp(`${escaped}\\s*:\\s*[^;]*;`);
+        const pattern = new RegExp(`${escapeRegex(varName)}\\s*:\\s*[^;]*;`);
         if (pattern.test(result)) {
             result = replaceColorVar(result, varName, value);
         } else {
@@ -48,7 +45,8 @@ function applyVarsToBlock(block: string, vars: Record<string, string>): string {
     }
 
     if (missing.length > 0) {
-        result = `${result}${missing.join('\n')}\n`;
+        const separator = result.endsWith('\n') ? '' : '\n';
+        result = `${result}${separator}${missing.join('\n')}\n`;
     }
 
     return result;
@@ -63,8 +61,7 @@ function replaceBlock(
     selector: string,
     vars: Record<string, string>,
 ): string {
-    const escaped = selector.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
-    const blockPattern = new RegExp(`(${escaped}\\s*\\{)([\\s\\S]*?)(\\})`, 'm');
+    const blockPattern = new RegExp(`(${escapeRegex(selector)}\\s*\\{)([\\s\\S]*?)(\\})`, 'm');
     const match = blockPattern.exec(css);
     if (!match) {
         return css;
