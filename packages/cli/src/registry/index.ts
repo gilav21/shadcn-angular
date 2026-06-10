@@ -802,8 +802,7 @@ export const registry = defineRegistry({
     category: 'utility',
     description: 'Directive that dynamically renders a component by reference into the DOM.',
     tags: ['component-outlet', 'dynamic', 'outlet', 'render', 'directive'],
-    files: ['component-outlet.directive.ts'],
-    dependencies: ['data-table'],
+    files: ['component-outlet.directive.ts', 'data-table/component-pool.service.ts'],
   },
   'split-button': {
     name: 'split-button',
