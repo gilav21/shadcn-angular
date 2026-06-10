@@ -23,6 +23,7 @@ import { NAVIGATION_MENU_ITEM } from './navigation-menu-item.component';
       </div>
     }
   `,
+  styleUrl: './navigation-menu-content.component.css',
   host: { class: 'contents' },
 })
 export class NavigationMenuContentComponent {

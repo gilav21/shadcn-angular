@@ -32,6 +32,7 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
       <ng-content />
     </button>
   `,
+  styleUrl: './menubar-trigger.component.css',
   host: { class: 'contents' },
 })
 export class MenubarTriggerComponent {

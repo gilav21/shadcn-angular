@@ -23,6 +23,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
 @Component({
     selector: 'ui-select',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrl: './select.component.css',
     template: `
         @if (isDataDriven()) {
             <div class="relative inline-block w-full">
@@ -34,6 +35,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                     [attr.aria-expanded]="open()"
                     [attr.data-state]="open() ? 'open' : 'closed'"
                     [attr.aria-controls]="listId"
+                    [attr.data-slot]="'select-trigger'"
                     (click)="toggle()"
                     (keydown)="onTriggerKeyDown($event)"
                 >

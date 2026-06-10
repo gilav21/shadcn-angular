@@ -12,6 +12,7 @@ import { TOGGLE_GROUP, toggleVariants } from '../toggle-group.component';
     selector: 'ui-toggle-group-item',
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './toggle-group-item.component.html',
+    styleUrl: './toggle-group-item.component.css',
     host: {
         class: 'contents',
         '[attr.aria-label]': 'null'

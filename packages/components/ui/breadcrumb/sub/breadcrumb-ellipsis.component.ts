@@ -21,6 +21,7 @@ import { BREADCRUMB_LOCALES, type BreadcrumbLocale } from '../breadcrumb.locales
       <span class="sr-only">{{ t().more }}</span>
     </span>
   `,
+  styleUrl: './breadcrumb-ellipsis.component.css',
   host: {
     class: 'contents',
     '[attr.data-slot]': '"breadcrumb-ellipsis"',

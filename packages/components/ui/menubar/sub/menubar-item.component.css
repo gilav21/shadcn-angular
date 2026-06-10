@@ -1,0 +1,8 @@
+:host {
+    --_d: var(--density-menu, var(--density, 1));
+}
+
+[data-slot="menubar-item"] {
+    padding-inline: calc(0.5rem * var(--_d));
+    padding-block: calc(0.375rem * var(--_d));
+}

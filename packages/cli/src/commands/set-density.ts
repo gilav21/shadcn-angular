@@ -28,6 +28,10 @@ export const COMPONENT_DENSITY_VARS: Record<string, string> = {
     menu: '--density-menu',
     dialog: '--density-dialog',
     accordion: '--density-accordion',
+    radio: '--density-radio',
+    slider: '--density-slider',
+    picker: '--density-picker',
+    popover: '--density-popover',
 };
 
 /**

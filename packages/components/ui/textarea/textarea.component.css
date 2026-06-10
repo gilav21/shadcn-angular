@@ -6,3 +6,8 @@
     padding-block: calc(0.5rem * var(--_d));
     min-height: calc(3rem * var(--_d));
 }
+@media (min-width: 640px) {
+    [data-slot="textarea"] {
+        min-height: calc(3.75rem * var(--_d));
+    }
+}

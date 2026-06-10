@@ -1,0 +1,13 @@
+:host {
+    --_d: var(--density-picker, var(--density, 1));
+    --density-button: var(--_d);
+    --density-select: var(--_d);
+}
+
+ui-select-trigger {
+    --ui-select-trigger-h: 1.75rem;
+}
+
+[data-slot="calendar"] .grid-cols-7 > div:empty {
+    height: calc(2.25rem * var(--_d));
+}

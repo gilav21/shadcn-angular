@@ -20,8 +20,9 @@ import { cn } from '../../lib/utils';
       (keydown)="onKeydown($event)"
     >
       @for (i of slots(); track i; let idx = $index) {
-        <div 
+        <div
           [class]="slotClasses(idx)"
+          [attr.data-slot]="'input-otp-slot'"
           (click)="focusSlot(idx)"
         >
           <span class="text-center">{{ getValue(idx) }}</span>
@@ -53,6 +54,7 @@ import { cn } from '../../lib/utils';
       />
     </div>
   `,
+  styleUrl: './input-otp.component.css',
   host: { class: 'contents' },
 })
 export class InputOTPComponent {

@@ -52,6 +52,7 @@ export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
         },
     ],
     templateUrl: './number-input.component.html',
+    styleUrl: './number-input.component.css',
     host: { class: 'contents' },
 })
 export class NumberInputComponent implements ControlValueAccessor {

@@ -1,0 +1,4 @@
+[data-slot="popover-content"] {
+    --_d: var(--density-popover, var(--density, 1));
+    padding: calc(1rem * var(--_d));
+}

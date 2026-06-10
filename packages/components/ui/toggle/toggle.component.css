@@ -1,0 +1,22 @@
+:host {
+    --_d: var(--density-button, var(--density, 1));
+}
+
+[data-slot="toggle"] {
+    gap: calc(0.5rem * var(--_d));
+    height: calc(2.25rem * var(--_d));
+    padding-inline: calc(0.5rem * var(--_d));
+    min-width: calc(2.25rem * var(--_d));
+}
+
+[data-slot="toggle"][data-size="sm"] {
+    height: calc(2rem * var(--_d));
+    padding-inline: calc(0.375rem * var(--_d));
+    min-width: calc(2rem * var(--_d));
+}
+
+[data-slot="toggle"][data-size="lg"] {
+    height: calc(2.5rem * var(--_d));
+    padding-inline: calc(0.625rem * var(--_d));
+    min-width: calc(2.5rem * var(--_d));
+}

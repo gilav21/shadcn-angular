@@ -1,3 +1,14 @@
+:host {
+    --_d: var(--density-picker, var(--density, 1));
+}
+
+[data-slot="color-picker-trigger"] {
+    height: calc(2.5rem * var(--_d));
+    padding-inline: calc(0.75rem * var(--_d));
+    padding-block: calc(0.5rem * var(--_d));
+    gap: calc(0.5rem * var(--_d));
+}
+
 /* 8×8 transparent-checker pattern for alpha swatches and the alpha slider. */
 .ui-color-picker-checker {
     background-image:

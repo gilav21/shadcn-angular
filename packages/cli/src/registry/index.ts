@@ -68,7 +68,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Text input with a filtered suggestion dropdown and highlighted matches as you type.',
     tags: ['autocomplete', 'typeahead', 'suggestions', 'combobox', 'search'],
-    files: ['autocomplete/autocomplete.component.html', 'autocomplete/autocomplete.component.ts', 'autocomplete/highlight.pipe.ts', 'autocomplete/index.ts'],
+    files: ['autocomplete/autocomplete.component.css', 'autocomplete/autocomplete.component.html', 'autocomplete/autocomplete.component.ts', 'autocomplete/highlight.pipe.ts', 'autocomplete/index.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['badge', 'command', 'popover'],
   },
@@ -84,7 +84,7 @@ export const registry = defineRegistry({
     category: 'overlay',
     description: 'Modal dialog that interrupts the user to confirm or cancel a destructive action.',
     tags: ['alert-dialog', 'confirm', 'modal', 'confirmation', 'prompt'],
-    files: ['alert-dialog/alert-dialog.component.ts', 'alert-dialog/index.ts', 'alert-dialog/sub/alert-dialog-action.component.ts', 'alert-dialog/sub/alert-dialog-cancel.component.ts', 'alert-dialog/sub/alert-dialog-content.component.ts', 'alert-dialog/sub/alert-dialog-description.component.ts', 'alert-dialog/sub/alert-dialog-footer.component.ts', 'alert-dialog/sub/alert-dialog-header.component.ts', 'alert-dialog/sub/alert-dialog-title.component.ts', 'alert-dialog/sub/alert-dialog-trigger.component.ts'],
+    files: ['alert-dialog/alert-dialog.component.ts', 'alert-dialog/index.ts', 'alert-dialog/sub/alert-dialog-action.component.css', 'alert-dialog/sub/alert-dialog-action.component.ts', 'alert-dialog/sub/alert-dialog-cancel.component.css', 'alert-dialog/sub/alert-dialog-cancel.component.ts', 'alert-dialog/sub/alert-dialog-content.component.ts', 'alert-dialog/sub/alert-dialog-description.component.ts', 'alert-dialog/sub/alert-dialog-footer.component.ts', 'alert-dialog/sub/alert-dialog-header.component.ts', 'alert-dialog/sub/alert-dialog-title.component.ts', 'alert-dialog/sub/alert-dialog-trigger.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   'aspect-ratio': {
@@ -115,7 +115,7 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Hierarchy trail showing the current page location with links to ancestor pages.',
     tags: ['breadcrumb', 'navigation', 'trail', 'path', 'hierarchy'],
-    files: ['breadcrumb/breadcrumb.component.ts', 'breadcrumb/breadcrumb.locales.ts', 'breadcrumb/index.ts', 'breadcrumb/sub/breadcrumb-ellipsis.component.ts', 'breadcrumb/sub/breadcrumb-item.component.ts', 'breadcrumb/sub/breadcrumb-link.component.ts', 'breadcrumb/sub/breadcrumb-list.component.ts', 'breadcrumb/sub/breadcrumb-page.component.ts', 'breadcrumb/sub/breadcrumb-separator.component.ts'],
+    files: ['breadcrumb/breadcrumb.component.ts', 'breadcrumb/breadcrumb.locales.ts', 'breadcrumb/index.ts', 'breadcrumb/sub/breadcrumb-ellipsis.component.css', 'breadcrumb/sub/breadcrumb-ellipsis.component.ts', 'breadcrumb/sub/breadcrumb-item.component.ts', 'breadcrumb/sub/breadcrumb-link.component.ts', 'breadcrumb/sub/breadcrumb-list.component.ts', 'breadcrumb/sub/breadcrumb-page.component.ts', 'breadcrumb/sub/breadcrumb-separator.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['skeleton'],
   },
@@ -140,7 +140,7 @@ export const registry = defineRegistry({
     category: 'data-display',
     description: 'Month-grid date calendar for selecting single dates with localized weekdays.',
     tags: ['calendar', 'date', 'datepicker', 'schedule', 'month'],
-    files: ['calendar/calendar.component.html', 'calendar/calendar.component.ts', 'calendar/index.ts'],
+    files: ['calendar/calendar.component.css', 'calendar/calendar.component.html', 'calendar/calendar.component.ts', 'calendar/index.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['button', 'select'],
   },
@@ -149,7 +149,7 @@ export const registry = defineRegistry({
     category: 'layout',
     description: 'Container with header, content, and footer slots for grouping related information.',
     tags: ['card', 'panel', 'container', 'surface', 'box'],
-    files: ['card/card.component.ts', 'card/index.ts', 'card/sub/card-content.component.css', 'card/sub/card-content.component.ts', 'card/sub/card-description.component.ts', 'card/sub/card-footer.component.css', 'card/sub/card-footer.component.ts', 'card/sub/card-header.component.css', 'card/sub/card-header.component.ts', 'card/sub/card-title.component.ts'],
+    files: ['card/card.component.css', 'card/card.component.ts', 'card/index.ts', 'card/sub/card-content.component.css', 'card/sub/card-content.component.ts', 'card/sub/card-description.component.ts', 'card/sub/card-footer.component.css', 'card/sub/card-footer.component.ts', 'card/sub/card-header.component.css', 'card/sub/card-header.component.ts', 'card/sub/card-title.component.ts'],
     dependencies: ['skeleton', 'spinner'],
   },
   carousel: {
@@ -220,7 +220,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Popover date and date-range picker combining an input trigger with a calendar.',
     tags: ['date-picker', 'date', 'calendar', 'range', 'datepicker'],
-    files: ['date-picker/date-picker.component.html', 'date-picker/date-picker.component.ts', 'date-picker/index.ts', 'date-picker/sub/date-range-picker.component.html', 'date-picker/sub/date-range-picker.component.ts'],
+    files: ['date-picker/date-picker.component.css', 'date-picker/date-picker.component.html', 'date-picker/date-picker.component.ts', 'date-picker/index.ts', 'date-picker/sub/date-range-picker.component.css', 'date-picker/sub/date-range-picker.component.html', 'date-picker/sub/date-range-picker.component.ts'],
     dependencies: ['calendar'],
   },
   chat: {
@@ -381,7 +381,7 @@ export const registry = defineRegistry({
     category: 'overlay',
     description: 'Floating card that reveals rich preview content on hover or tap.',
     tags: ['hover-card', 'hover', 'preview', 'popover', 'tooltip'],
-    files: ['hover-card/hover-card.component.ts', 'hover-card/index.ts', 'hover-card/sub/hover-card-content.component.ts', 'hover-card/sub/hover-card-trigger.component.ts'],
+    files: ['hover-card/hover-card.component.ts', 'hover-card/index.ts', 'hover-card/sub/hover-card-content.component.css', 'hover-card/sub/hover-card-content.component.ts', 'hover-card/sub/hover-card-trigger.component.ts'],
     libFiles: ['touch.ts'],
   },
   input: {
@@ -398,7 +398,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Combines an input with leading/trailing add-ons like icons, text, or buttons.',
     tags: ['input-group', 'input', 'addon', 'prefix', 'suffix'],
-    files: ['input-group/index.ts', 'input-group/input-group.component.html', 'input-group/input-group.component.ts', 'input-group/sub/input-group-addon.component.html', 'input-group/sub/input-group-addon.component.ts', 'input-group/sub/input-group-input.component.html', 'input-group/sub/input-group-input.component.ts', 'input-group/sub/input-group-text.component.html', 'input-group/sub/input-group-text.component.ts'],
+    files: ['input-group/index.ts', 'input-group/input-group.component.css', 'input-group/input-group.component.html', 'input-group/input-group.component.ts', 'input-group/sub/input-group-addon.component.css', 'input-group/sub/input-group-addon.component.html', 'input-group/sub/input-group-addon.component.ts', 'input-group/sub/input-group-input.component.css', 'input-group/sub/input-group-input.component.html', 'input-group/sub/input-group-input.component.ts', 'input-group/sub/input-group-text.component.html', 'input-group/sub/input-group-text.component.ts'],
     libFiles: ['input-group.token.ts'],
   },
   'input-otp': {
@@ -406,7 +406,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Segmented one-time-password input with individual slots and auto-advance.',
     tags: ['input-otp', 'otp', 'pin', 'code', '2fa', 'verification'],
-    files: ['input-otp/index.ts', 'input-otp/input-otp.component.ts', 'input-otp/sub/input-otp-group.component.ts', 'input-otp/sub/input-otp-separator.component.ts', 'input-otp/sub/input-otp-slot.component.ts'],
+    files: ['input-otp/index.ts', 'input-otp/input-otp.component.css', 'input-otp/input-otp.component.ts', 'input-otp/sub/input-otp-group.component.ts', 'input-otp/sub/input-otp-separator.component.ts', 'input-otp/sub/input-otp-slot.component.ts'],
   },
   kbd: {
     name: 'kbd',
@@ -427,7 +427,7 @@ export const registry = defineRegistry({
     category: 'navigation',
     description: 'Desktop-style horizontal menu bar with dropdown menus and submenus.',
     tags: ['menubar', 'menu', 'toolbar', 'app-menu', 'navigation'],
-    files: ['menubar/index.ts', 'menubar/menubar.component.ts', 'menubar/sub/menubar-content.component.ts', 'menubar/sub/menubar-item.component.ts', 'menubar/sub/menubar-menu.component.ts', 'menubar/sub/menubar-separator.component.ts', 'menubar/sub/menubar-shortcut.component.ts', 'menubar/sub/menubar-sub-content.component.ts', 'menubar/sub/menubar-sub-trigger.component.ts', 'menubar/sub/menubar-sub.component.ts', 'menubar/sub/menubar-trigger.component.ts'],
+    files: ['menubar/index.ts', 'menubar/menubar.component.css', 'menubar/menubar.component.ts', 'menubar/sub/menubar-content.component.ts', 'menubar/sub/menubar-item.component.css', 'menubar/sub/menubar-item.component.ts', 'menubar/sub/menubar-menu.component.ts', 'menubar/sub/menubar-separator.component.ts', 'menubar/sub/menubar-shortcut.component.ts', 'menubar/sub/menubar-sub-content.component.ts', 'menubar/sub/menubar-sub-trigger.component.css', 'menubar/sub/menubar-sub-trigger.component.ts', 'menubar/sub/menubar-sub.component.ts', 'menubar/sub/menubar-trigger.component.css', 'menubar/sub/menubar-trigger.component.ts'],
     libFiles: ['touch.ts'],
   },
   'native-select': {
@@ -435,14 +435,14 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Styled wrapper around the native HTML select element for dropdown choices.',
     tags: ['native-select', 'select', 'dropdown', 'options', 'form'],
-    files: ['native-select/index.ts', 'native-select/native-select.component.html', 'native-select/native-select.component.ts'],
+    files: ['native-select/index.ts', 'native-select/native-select.component.css', 'native-select/native-select.component.html', 'native-select/native-select.component.ts'],
   },
   'navigation-menu': {
     name: 'navigation-menu',
     category: 'navigation',
     description: 'Site navigation with dropdown panels of links and a sliding indicator.',
     tags: ['navigation-menu', 'navbar', 'menu', 'links', 'navigation'],
-    files: ['navigation-menu/index.ts', 'navigation-menu/navigation-menu.component.html', 'navigation-menu/navigation-menu.component.ts', 'navigation-menu/navigation-menu.service.ts', 'navigation-menu/sub/navigation-menu-content.component.ts', 'navigation-menu/sub/navigation-menu-indicator.component.ts', 'navigation-menu/sub/navigation-menu-item.component.ts', 'navigation-menu/sub/navigation-menu-link.component.ts', 'navigation-menu/sub/navigation-menu-list.component.ts', 'navigation-menu/sub/navigation-menu-trigger.component.ts'],
+    files: ['navigation-menu/index.ts', 'navigation-menu/navigation-menu.component.html', 'navigation-menu/navigation-menu.component.ts', 'navigation-menu/navigation-menu.service.ts', 'navigation-menu/sub/navigation-menu-content.component.css', 'navigation-menu/sub/navigation-menu-content.component.ts', 'navigation-menu/sub/navigation-menu-indicator.component.ts', 'navigation-menu/sub/navigation-menu-item.component.ts', 'navigation-menu/sub/navigation-menu-link.component.css', 'navigation-menu/sub/navigation-menu-link.component.ts', 'navigation-menu/sub/navigation-menu-list.component.ts', 'navigation-menu/sub/navigation-menu-trigger.component.css', 'navigation-menu/sub/navigation-menu-trigger.component.ts'],
     libFiles: ['touch.ts'],
   },
   'number-input': {
@@ -450,7 +450,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Numeric input with stepper buttons, min/max, and locale-aware formatting.',
     tags: ['number-input', 'number', 'stepper', 'spinner', 'quantity'],
-    files: ['number-input/index.ts', 'number-input/number-input.component.html', 'number-input/number-input.component.ts'],
+    files: ['number-input/index.ts', 'number-input/number-input.component.css', 'number-input/number-input.component.html', 'number-input/number-input.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts', 'input-group.token.ts'],
     dependencies: ['input'],
   },
@@ -484,7 +484,7 @@ export const registry = defineRegistry({
     category: 'overlay',
     description: 'Floating panel anchored to a trigger for showing rich, non-modal content.',
     tags: ['popover', 'popup', 'floating', 'overlay', 'flyout'],
-    files: ['popover/index.ts', 'popover/popover.component.ts', 'popover/sub/popover-close.component.ts', 'popover/sub/popover-content.component.ts', 'popover/sub/popover-trigger.component.ts'],
+    files: ['popover/index.ts', 'popover/popover.component.ts', 'popover/sub/popover-close.component.ts', 'popover/sub/popover-content.component.css', 'popover/sub/popover-content.component.ts', 'popover/sub/popover-trigger.component.ts'],
   },
   progress: {
     name: 'progress',
@@ -499,7 +499,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Set of radio buttons for selecting exactly one option from a list.',
     tags: ['radio-group', 'radio', 'options', 'choice', 'form'],
-    files: ['radio-group/index.ts', 'radio-group/radio-group.component.html', 'radio-group/radio-group.component.ts', 'radio-group/sub/radio-group-item.component.html', 'radio-group/sub/radio-group-item.component.ts'],
+    files: ['radio-group/index.ts', 'radio-group/radio-group.component.html', 'radio-group/radio-group.component.ts', 'radio-group/sub/radio-group-item.component.css', 'radio-group/sub/radio-group-item.component.html', 'radio-group/sub/radio-group-item.component.ts'],
   },
   rating: {
     name: 'rating',
@@ -529,7 +529,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Custom dropdown select with grouped, searchable, keyboard-navigable options.',
     tags: ['select', 'dropdown', 'combobox', 'picker', 'options'],
-    files: ['select/index.ts', 'select/select.component.ts', 'select/sub/select-content.component.ts', 'select/sub/select-group.component.ts', 'select/sub/select-item.component.ts', 'select/sub/select-label.component.ts', 'select/sub/select-separator.component.ts', 'select/sub/select-trigger.component.css', 'select/sub/select-trigger.component.ts', 'select/sub/select-value.component.ts'],
+    files: ['select/index.ts', 'select/select.component.css', 'select/select.component.ts', 'select/sub/select-content.component.ts', 'select/sub/select-group.component.ts', 'select/sub/select-item.component.ts', 'select/sub/select-label.component.ts', 'select/sub/select-separator.component.ts', 'select/sub/select-trigger.component.css', 'select/sub/select-trigger.component.ts', 'select/sub/select-value.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
     dependencies: ['skeleton', 'spinner'],
   },
@@ -568,7 +568,7 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Draggable slider for selecting a value or range from a numeric scale.',
     tags: ['slider', 'range', 'track', 'thumb', 'input'],
-    files: ['slider/index.ts', 'slider/slider.component.html', 'slider/slider.component.ts'],
+    files: ['slider/index.ts', 'slider/slider.component.css', 'slider/slider.component.html', 'slider/slider.component.ts'],
     libFiles: ['i18n/calendar.locales.ts', 'i18n/common.locales.ts', 'i18n/i18n.token.ts', 'i18n/i18n.types.ts', 'i18n/i18n.utils.ts', 'i18n/index.ts'],
   },
   spinner: {
@@ -638,14 +638,14 @@ export const registry = defineRegistry({
     category: 'form',
     description: 'Two-state toggle button that can be pressed on or off.',
     tags: ['toggle', 'button', 'press', 'on-off', 'switch'],
-    files: ['toggle/index.ts', 'toggle/toggle.component.html', 'toggle/toggle.component.ts'],
+    files: ['toggle/index.ts', 'toggle/toggle.component.css', 'toggle/toggle.component.html', 'toggle/toggle.component.ts'],
   },
   'toggle-group': {
     name: 'toggle-group',
     category: 'form',
     description: 'Group of toggle buttons supporting single or multiple selection.',
     tags: ['toggle-group', 'toggle', 'segmented', 'buttons', 'selection'],
-    files: ['toggle-group/index.ts', 'toggle-group/sub/toggle-group-item.component.html', 'toggle-group/sub/toggle-group-item.component.ts', 'toggle-group/toggle-group.component.html', 'toggle-group/toggle-group.component.ts']
+    files: ['toggle-group/index.ts', 'toggle-group/sub/toggle-group-item.component.css', 'toggle-group/sub/toggle-group-item.component.html', 'toggle-group/sub/toggle-group-item.component.ts', 'toggle-group/toggle-group.component.html', 'toggle-group/toggle-group.component.ts']
   },
   tooltip: {
     name: 'tooltip',

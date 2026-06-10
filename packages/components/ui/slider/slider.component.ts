@@ -15,6 +15,7 @@ import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
     selector: 'ui-slider',
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './slider.component.html',
+    styleUrl: './slider.component.css',
     host: {
         class: 'contents',
     },

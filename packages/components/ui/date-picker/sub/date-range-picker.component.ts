@@ -33,6 +33,7 @@ import { DEFAULT_POPUP_POSITION, calculatePopupPosition, computePopupClasses, co
     },
   ],
   templateUrl: './date-range-picker.component.html',
+  styleUrl: './date-range-picker.component.css',
   host: {
     class: 'contents',
     '(document:click)': 'onDocumentClick($event)',

@@ -6,6 +6,7 @@
   [attr.data-state]="isSelected() ? 'on' : 'off'"
   [attr.aria-label]="ariaLabel()"
   [attr.data-slot]="'toggle-group-item'"
+  [attr.data-size]="group?.size() ?? 'default'"
   (click)="onClick()"
 >
   <ng-content />

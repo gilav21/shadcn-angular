@@ -2,7 +2,7 @@
     --_d: var(--density-select, var(--density, 1));
 }
 [data-slot="select-trigger"] {
-    height: calc(2.25rem * var(--_d));
+    height: calc(var(--ui-select-trigger-h, 2.25rem) * var(--_d));
     padding-inline: calc(0.75rem * var(--_d));
     padding-block: calc(0.5rem * var(--_d));
     gap: calc(0.5rem * var(--_d));

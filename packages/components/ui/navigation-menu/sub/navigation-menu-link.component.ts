@@ -19,6 +19,7 @@ import { cn } from '../../../lib/utils';
       <ng-content />
     </a>
   `,
+  styleUrl: './navigation-menu-link.component.css',
   host: { class: 'contents' },
 })
 export class NavigationMenuLinkComponent {

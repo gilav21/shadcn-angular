@@ -16,6 +16,7 @@ import { HoverCardComponent } from '../hover-card.component';
 @Component({
     selector: 'ui-hover-card-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrl: './hover-card-content.component.css',
     template: `
     @if (hoverCard?.open()) {
       <div

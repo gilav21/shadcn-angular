@@ -12,6 +12,7 @@ import { SkeletonComponent } from '../skeleton';
     selector: 'ui-card',
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [SpinnerComponent, SkeletonComponent],
+    styleUrl: './card.component.css',
     template: `
         @if (skeleton()) {
             <ui-skeleton class="h-40 w-full rounded-xl" />
@@ -42,6 +43,7 @@ import { SkeletonComponent } from '../skeleton';
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"card"',
+        '[attr.data-skeleton]': 'skeleton() || null',
     },
 })
 export class CardComponent {

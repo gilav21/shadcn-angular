@@ -1,0 +1,12 @@
+:host {
+    --_d: var(--density-slider, var(--density, 1));
+}
+
+[data-slot="slider"] > div:first-child {
+    height: calc(0.375rem * var(--_d));
+}
+
+[data-slot="slider"] [role="slider"] {
+    height: calc(1rem * var(--_d));
+    width: calc(1rem * var(--_d));
+}

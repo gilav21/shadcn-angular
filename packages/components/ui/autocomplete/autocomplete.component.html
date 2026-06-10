@@ -4,6 +4,7 @@
       [class]="containerClasses()"
       [attr.data-state]="open() ? 'open' : 'closed'"
       [attr.data-disabled]="isDisabled() || null"
+      [attr.data-slot]="'autocomplete-container'"
       [attr.dir]="dir()"
       (click)="onContainerClick($event)"
     >

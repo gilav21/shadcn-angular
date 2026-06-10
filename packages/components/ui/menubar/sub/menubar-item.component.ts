@@ -29,6 +29,7 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
       }
     </div>
   `,
+  styleUrl: './menubar-item.component.css',
   host: { class: 'contents' },
 })
 export class MenubarItemComponent {
