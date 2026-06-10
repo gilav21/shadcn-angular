@@ -10,6 +10,8 @@ const plan: MigrationPlan = {
   newDeps: ['ripple'] as ComponentName[],
   refreshed: [] as ComponentName[],
   untouched: [] as ComponentName[],
+  customized: [] as ComponentName[],
+  blocked: [] as ComponentName[],
 };
 
 describe('closureWritten', () => {
