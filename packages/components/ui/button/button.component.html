@@ -1,17 +1,28 @@
-<button
-  uiRipple
-  [uiRippleDisabled]="!ripple()"
-  [uiRippleColor]="rippleColor()"
-  [class]="classes()"
-  [disabled]="disabled()"
-  [type]="type()"
-  [attr.data-slot]="'button'"
-  [attr.aria-label]="ariaLabel()"
-  (click)="clicked.emit($event)"
->
-  @if (label()) {
-    {{ label() }}
-  } @else {
-    <ng-content />
-  }
-</button>
+@if (skeleton()) {
+  <ui-skeleton class="h-9 w-24 rounded-md" />
+} @else {
+  <button
+    uiRipple
+    [uiRippleDisabled]="!ripple()"
+    [uiRippleColor]="rippleColor()"
+    [class]="classes()"
+    [disabled]="disabled() || loading()"
+    [type]="type()"
+    [attr.data-slot]="'button'"
+    [attr.aria-label]="ariaLabel()"
+    (click)="clicked.emit($event)"
+  >
+    @if (loading()) {
+      <div class="absolute inset-0 flex items-center justify-center">
+        <ui-spinner size="xs" />
+      </div>
+    }
+    <span [class]="loading() ? 'opacity-50' : ''">
+      @if (label()) {
+        {{ label() }}
+      } @else {
+        <ng-content />
+      }
+    </span>
+  </button>
+}

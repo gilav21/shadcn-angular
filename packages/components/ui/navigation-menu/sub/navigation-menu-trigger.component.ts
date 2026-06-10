@@ -41,6 +41,7 @@ import { NAVIGATION_MENU_ITEM } from './navigation-menu-item.component';
       </svg>
     </button>
   `,
+  styleUrl: './navigation-menu-trigger.component.css',
   host: { class: 'contents' },
 })
 export class NavigationMenuTriggerComponent {

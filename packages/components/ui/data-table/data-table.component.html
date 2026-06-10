@@ -280,6 +280,15 @@
       </ui-table-row>
     </ng-template>
 
+    @if (skeleton()) {
+      <div class="flex flex-col w-full space-y-3" data-slot="data-table-skeleton">
+        <ui-skeleton class="h-9 w-full rounded-md" />
+        @for (row of skeletonRowsArray(); track $index) {
+          <ui-skeleton class="h-12 w-full rounded-md" />
+        }
+        <ui-skeleton class="h-9 w-full rounded-md" />
+      </div>
+    } @else {
     <div class="flex flex-col w-full h-full space-y-4">
       <div
         class="sr-only"
@@ -1328,3 +1337,4 @@
       <ui-context-menu #columnMenuContextMenu [items]="activeColumnMenuItems()">
       </ui-context-menu>
     }
+    } <!-- end @else skeleton -->

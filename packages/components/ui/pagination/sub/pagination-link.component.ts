@@ -15,11 +15,13 @@ import { cn } from '../../../lib/utils';
       [class]="classes()"
       [attr.aria-current]="isActive() ? 'page' : null"
       [attr.data-slot]="'pagination-link'"
+      [attr.data-size]="size()"
       [disabled]="disabled()"
     >
       <ng-content />
     </button>
   `,
+  styleUrl: './pagination-link.component.css',
   host: { class: 'contents' },
 })
 export class PaginationLinkComponent {

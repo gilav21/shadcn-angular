@@ -32,6 +32,7 @@ import { cn } from '../../lib/utils';
     },
   ],
   templateUrl: './native-select.component.html',
+  styleUrl: './native-select.component.css',
   host: { class: 'contents' },
 })
 export class NativeSelectComponent implements ControlValueAccessor {

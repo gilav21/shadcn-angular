@@ -10,6 +10,7 @@ import { cn } from '../../../lib/utils';
     selector: 'ui-card-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `<ng-content />`,
+    styleUrl: './card-content.component.css',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"card-content"',
@@ -18,5 +19,5 @@ import { cn } from '../../../lib/utils';
 export class CardContentComponent {
     class = input('');
 
-    classes = computed(() => cn('px-4 sm:px-6', this.class()));
+    readonly classes = computed(() => cn('px-4 sm:px-6', this.class()));
 }

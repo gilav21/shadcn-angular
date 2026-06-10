@@ -1,16 +1,45 @@
-<svg
-  [class]="classes()"
-  [style]="customStyles()"
-  [attr.data-slot]="'spinner'"
-  xmlns="http://www.w3.org/2000/svg"
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width="2"
-  stroke-linecap="round"
-  stroke-linejoin="round"
-  role="status"
-  aria-label="Loading"
->
-  <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
-</svg>
+<div #contentWrapper>
+  <ng-content />
+</div>
+@if (!hasCustomContent()) {
+  @if (variant() === 'ring') {
+    <svg
+      [class]="classes()"
+      [style]="customStyles()"
+      [attr.data-slot]="'spinner'"
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      stroke-width="2"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+      role="status"
+      aria-label="Loading"
+    >
+      <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    </svg>
+  } @else if (variant() === 'dots') {
+    <div class="flex items-center gap-1" role="status" aria-label="Loading" [attr.data-slot]="'spinner'">
+      <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce [animation-delay:-0.3s]')"></div>
+      <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce [animation-delay:-0.15s]')"></div>
+      <div [class]="cn(dotClass(), 'rounded-full bg-current animate-bounce')"></div>
+    </div>
+  } @else if (variant() === 'bars') {
+    <div class="flex items-center gap-0.5" role="status" aria-label="Loading" [attr.data-slot]="'spinner'">
+      @for (delay of barDelays; track delay) {
+        <div
+          [class]="cn(barClass(), 'bg-current rounded-sm animate-pulse')"
+          [style.animation-delay]="delay"
+        ></div>
+      }
+    </div>
+  } @else if (variant() === 'pulse') {
+    <div
+      [class]="cn(pulseClass(), 'rounded-full bg-current animate-pulse')"
+      role="status"
+      aria-label="Loading"
+      [attr.data-slot]="'spinner'"
+    ></div>
+  }
+}

@@ -5,6 +5,7 @@
   [attr.aria-pressed]="pressed()"
   [attr.data-state]="pressed() ? 'on' : 'off'"
   [attr.data-slot]="'toggle'"
+  [attr.data-size]="size()"
   (click)="onClick()"
   (touchend)="onTouchEnd($event)"
 >

@@ -50,6 +50,7 @@ export type AutocompleteValue<T> = T | T[] | null;
         },
     ],
     templateUrl: './autocomplete.component.html',
+    styleUrl: './autocomplete.component.css',
     host: { class: 'contents' },
 })
 export class AutocompleteComponent<T = unknown> implements ControlValueAccessor {

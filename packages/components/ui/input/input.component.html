@@ -1,16 +1,67 @@
-<input
-  [class]="classes()"
-  [type]="type()"
-  [disabled]="isDisabled()"
-  [placeholder]="placeholder()"
-  [attr.id]="elementId()"
-  [attr.name]="name()"
-  [attr.aria-label]="ariaLabel()"
-  [attr.aria-labelledby]="ariaLabelledby()"
-  [attr.aria-describedby]="ariaDescribedby()"
-  [attr.data-slot]="'input'"
-  #inputRef
-  [ngModel]="value()"
-  (ngModelChange)="onValueChange($event)"
-  (blur)="onTouched()"
-/>
+@if (skeleton()) {
+  <ui-skeleton class="h-9 w-full rounded-md" />
+} @else if (needsContainer()) {
+  <div [class]="containerClasses()" [attr.data-slot]="'input-container'">
+    @if (floating() && label()) {
+      <label [for]="elementId()" [class]="floatingLabelClasses()" [attr.data-active]="labelIsActive() ? '' : null">{{ label() }}</label>
+    }
+    @if (prefix()) {
+      <span class="text-muted-foreground flex shrink-0 items-center ps-3 pe-1 text-sm select-none">{{ prefix() }}</span>
+    }
+    <input
+      [class]="innerClasses()"
+      [type]="type()"
+      [disabled]="isDisabled()"
+      [placeholder]="floating() && label() && !labelIsActive() ? '' : placeholder()"
+      [attr.id]="elementId()"
+      [attr.name]="name()"
+      [attr.aria-label]="ariaLabel()"
+      [attr.aria-labelledby]="ariaLabelledby()"
+      [attr.aria-describedby]="ariaDescribedby()"
+      [attr.autofocus]="autofocus() || null"
+      [attr.data-slot]="'input'"
+      #inputRef
+      [ngModel]="value()"
+      (ngModelChange)="onValueChange($event)"
+      (focus)="onFocus()"
+      (blur)="onBlur()"
+    />
+    @if (clearable() && value()) {
+      <button
+        type="button"
+        (click)="clearValue()"
+        tabindex="-1"
+        class="flex shrink-0 items-center justify-center pe-2 text-muted-foreground hover:text-foreground"
+        aria-label="Clear"
+      >
+        <ui-icon name="x" class="size-3.5" />
+      </button>
+    }
+    @if (loading()) {
+      <div class="flex shrink-0 items-center pe-2 pointer-events-none">
+        <ui-spinner size="xs" />
+      </div>
+    }
+    @if (suffix() && !loading()) {
+      <span class="text-muted-foreground flex shrink-0 items-center ps-1 pe-3 text-sm select-none">{{ suffix() }}</span>
+    }
+  </div>
+} @else {
+  <input
+    [class]="classes()"
+    [type]="type()"
+    [disabled]="isDisabled()"
+    [placeholder]="placeholder()"
+    [attr.id]="elementId()"
+    [attr.name]="name()"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-labelledby]="ariaLabelledby()"
+    [attr.aria-describedby]="ariaDescribedby()"
+    [attr.autofocus]="autofocus() || null"
+    [attr.data-slot]="'input'"
+    #inputRef
+    [ngModel]="value()"
+    (ngModelChange)="onValueChange($event)"
+    (blur)="onTouched()"
+  />
+}

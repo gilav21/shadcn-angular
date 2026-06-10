@@ -55,6 +55,22 @@ describe('SwitchComponent', () => {
         expect(button.nativeElement.getAttribute('role')).toBe('switch');
     });
 
+    it('should render a skeleton instead of the switch when skeleton is true', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.css('ui-skeleton'))).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('button'))).toBeNull();
+    });
+
+    it('should render two skeletons when skeleton is true and a label is set', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.componentRef.setInput('label', 'Notifications');
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(2);
+        expect(fixture.debugElement.query(By.css('button'))).toBeNull();
+        expect(fixture.debugElement.query(By.css('label'))).toBeNull();
+    });
+
     it('should have aria-checked="false" by default', () => {
         const button = fixture.debugElement.query(By.css('button'));
         expect(button.nativeElement.getAttribute('aria-checked')).toBe('false');

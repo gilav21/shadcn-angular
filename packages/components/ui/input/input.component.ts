@@ -12,6 +12,9 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
+import { SpinnerComponent } from '../spinner';
+import { SkeletonComponent } from '../skeleton';
+import { IconComponent } from '../icon';
 
 const inputVariants = cva(
     'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent py-1 text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
@@ -35,8 +38,9 @@ import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 
 @Component({
     selector: 'ui-input',
-    imports: [FormsModule],
+    imports: [FormsModule, SpinnerComponent, SkeletonComponent, IconComponent],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrl: './input.component.css',
     providers: [
         {
             provide: NG_VALUE_ACCESSOR,
@@ -50,10 +54,10 @@ import { UI_INPUT_GROUP } from '../../lib/input-group.token';
     },
 })
 export class InputComponent implements ControlValueAccessor {
-    type = input<string>('text');
-    placeholder = input<string>('');
-    disabled = input(false);
-    class = input('');
+    readonly type = input<string>('text');
+    readonly placeholder = input<string>('');
+    readonly disabled = input(false);
+    readonly class = input('');
 
     /**
      * Forwarded to the inner <input>'s id so `<label for="x">` outside the
@@ -61,17 +65,26 @@ export class InputComponent implements ControlValueAccessor {
      * `<ui-input>` host (which has class="contents") doesn't reach the
      * real form control and screen readers / axe report no label.
      */
-    elementId = input<string | undefined>(undefined);
+    readonly elementId = input<string | undefined>(undefined);
     /** Forwarded to the inner <input>'s name (for form submission). */
-    name = input<string | undefined>(undefined);
+    readonly name = input<string | undefined>(undefined);
     /** Forwarded to the inner <input>'s aria-label. */
-    ariaLabel = input<string | undefined>(undefined);
+    readonly ariaLabel = input<string | undefined>(undefined);
     /** Forwarded to the inner <input>'s aria-labelledby. */
-    ariaLabelledby = input<string | undefined>(undefined);
+    readonly ariaLabelledby = input<string | undefined>(undefined);
     /** Forwarded to the inner <input>'s aria-describedby. */
-    ariaDescribedby = input<string | undefined>(undefined);
+    readonly ariaDescribedby = input<string | undefined>(undefined);
 
-    variant = input<InputVariant>('outline');
+    readonly variant = input<InputVariant>('outline');
+    readonly loading = input(false);
+    readonly skeleton = input(false);
+
+    readonly autofocus = input(false);
+    readonly clearable = input(false);
+    readonly floating = input(false);
+    readonly label = input<string>();
+    readonly prefix = input<string>();
+    readonly suffix = input<string>();
 
     private readonly group = inject(UI_INPUT_GROUP, { optional: true });
 
@@ -80,22 +93,73 @@ export class InputComponent implements ControlValueAccessor {
         return v === 'outline' && this.group ? 'ghost' : v;
     });
 
-    value = signal('');
+    readonly value = signal('');
 
     private onChange: (value: string) => void = () => { };
     onTouched: () => void = () => { };
 
     private readonly formDisabled = signal(false);
+    private readonly isFocused = signal(false);
 
-    isDisabled = computed(() => this.disabled() || this.formDisabled());
+    readonly isDisabled = computed(() => this.disabled() || this.formDisabled());
 
-    classes = computed(() =>
+    readonly needsContainer = computed(() =>
+        !!this.prefix() ||
+        !!this.suffix() ||
+        this.clearable() ||
+        (this.floating() && !!this.label()) ||
+        this.loading()
+    );
+
+    readonly labelIsActive = computed(() =>
+        this.isFocused() || !!this.value()
+    );
+
+    readonly classes = computed(() =>
         cn(inputVariants({ variant: this.effectiveVariant() }), this.class())
     );
+
+    readonly containerClasses = computed(() => cn(
+        'relative flex w-full items-center rounded-lg border border-input shadow-xs',
+        'h-9',
+        this.floating() && this.label() && 'h-14',
+        'transition-[color,box-shadow]',
+        'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
+        'dark:bg-input/30 bg-transparent',
+        this.isDisabled() && 'opacity-50 pointer-events-none cursor-not-allowed',
+        this.class()
+    ));
+
+    readonly innerClasses = computed(() => cn(
+        inputVariants({ variant: 'ghost' }),
+        'flex-1 h-full',
+    ));
+
+    readonly floatingLabelClasses = computed(() => cn(
+        'absolute left-3 select-none pointer-events-none',
+        'transition-all duration-150',
+        this.labelIsActive()
+            ? 'top-1.5 text-xs text-muted-foreground'
+            : 'top-1/2 -translate-y-1/2 text-sm text-muted-foreground'
+    ));
 
     onValueChange(value: string) {
         this.value.set(value);
         this.onChange(value);
+    }
+
+    onFocus() {
+        this.isFocused.set(true);
+    }
+
+    onBlur() {
+        this.isFocused.set(false);
+        this.onTouched();
+    }
+
+    clearValue() {
+        this.onValueChange('');
+        this.focus();
     }
 
     writeValue(value: string): void {
@@ -114,10 +178,10 @@ export class InputComponent implements ControlValueAccessor {
         this.formDisabled.set(isDisabled);
     }
 
-    readonly inputRef = viewChild.required<ElementRef<HTMLInputElement>>('inputRef');
+    readonly inputRef = viewChild<ElementRef<HTMLInputElement>>('inputRef');
 
     focus() {
-        this.inputRef().nativeElement.focus();
+        this.inputRef()?.nativeElement.focus();
     }
 
     toString(): string {

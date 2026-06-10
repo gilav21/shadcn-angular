@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, input, signal } from '@angular/core';
 import { UiComponentOutletDirective } from './component-outlet.directive';
-import { ComponentPoolService } from './data-table/component-pool.service';
+import { ComponentPoolService } from '../lib/component-pool.service';
 import { describe, it, expect, beforeEach } from 'vitest';
 
 @Component({

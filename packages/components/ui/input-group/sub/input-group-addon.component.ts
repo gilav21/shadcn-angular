@@ -13,6 +13,7 @@ import { cn } from '../../../lib/utils';
   selector: 'ui-input-group-addon',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './input-group-addon.component.html',
+  styleUrl: './input-group-addon.component.css',
   host: { class: 'contents' },
 })
 export class InputGroupAddonComponent {

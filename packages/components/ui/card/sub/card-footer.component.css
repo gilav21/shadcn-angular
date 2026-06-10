@@ -1,0 +1,11 @@
+:host {
+    --_d: var(--density-card, var(--density, 1));
+}
+:host([data-slot="card-footer"]) {
+    padding-inline: calc(1rem * var(--_d));
+}
+@media (min-width: 640px) {
+    :host([data-slot="card-footer"]) {
+        padding-inline: calc(1.5rem * var(--_d));
+    }
+}

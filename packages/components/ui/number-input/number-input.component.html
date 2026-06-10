@@ -1,6 +1,7 @@
 <div
   [class]="wrapperClasses()"
   [attr.data-slot]="'number-input'"
+  [attr.data-variant]="variant()"
   [attr.aria-disabled]="isDisabled() || null"
 >
   <ui-input

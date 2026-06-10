@@ -21,6 +21,22 @@ describe('CheckboxComponent', () => {
         expect(component).toBeTruthy();
     });
 
+    it('should render a skeleton instead of the checkbox when skeleton is true', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.css('ui-skeleton'))).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('button'))).toBeNull();
+    });
+
+    it('should render two skeletons when skeleton is true and a label is set', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.componentRef.setInput('label', 'Accept terms');
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(2);
+        expect(fixture.debugElement.query(By.css('button'))).toBeNull();
+        expect(fixture.debugElement.query(By.css('label'))).toBeNull();
+    });
+
     it('should toggle checked state on click', () => {
         const button = fixture.debugElement.query(By.css('button'));
 

@@ -17,7 +17,7 @@ import {
     Injector
 } from '@angular/core';
 import { Subscription } from 'rxjs';
-import { ComponentPoolService } from './data-table';
+import { ComponentPoolService } from '../lib/component-pool.service';
 
 @Directive({
     selector: '[uiComponentOutlet]',

@@ -7,6 +7,7 @@ import { resolveDependencies } from '../../core/resolve.js';
 import { fetchAndTransform } from '../../core/fetch.js';
 import { planInstall } from '../../core/install.js';
 import { searchComponents } from '../../core/search.js';
+import { statusCore } from '../../commands/status.js';
 import { getConfig, getDefaultConfig, getPrefix } from '../../utils/config.js';
 import { getLocalComponentsDir } from '../../utils/paths.js';
 import { json, err } from './result.js';
@@ -93,6 +94,19 @@ export function registerReadTools(server: McpServer, cwd: string): void {
             return json({ name, file: storyFile, source: src });
         } catch {
             return err(`No examples found for ${name}.`);
+        }
+    });
+
+    server.registerTool('get_project_status', {
+        title: 'Get project status',
+        description: 'Read-only project dashboard: design tokens (density/radius/motion/theme), per-component health, and config.',
+        inputSchema: {},
+        annotations: { readOnlyHint: true },
+    }, async () => {
+        try {
+            return json(await statusCore(cwd, { branch: 'master' }));
+        } catch (error) {
+            return err(error instanceof Error ? error.message : String(error));
         }
     });
 

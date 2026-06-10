@@ -47,6 +47,7 @@ export class MenubarService {
   selector: 'ui-menubar',
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [MenubarService],
+  styleUrl: './menubar.component.css',
   template: `
     <div [class]="classes()" [attr.data-slot]="'menubar'" role="menubar">
       <ng-content />

@@ -11,6 +11,7 @@ import { TABS } from '../tabs.component';
 @Component({
   selector: 'ui-tabs-trigger',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  styleUrl: './tabs-trigger.component.css',
   template: `
     <button
       type="button"
@@ -35,11 +36,11 @@ export class TabsTriggerComponent {
 
   private readonly tabs = inject(TABS, { optional: true });
 
-  isActive = computed(() => this.tabs?.activeTab() === this.value());
-  triggerId = computed(() => this.tabs?.getTriggerId(this.value()) ?? '');
-  panelId = computed(() => this.tabs?.getPanelId(this.value()) ?? '');
+  readonly isActive = computed(() => this.tabs?.activeTab() === this.value());
+  readonly triggerId = computed(() => this.tabs?.getTriggerId(this.value()) ?? '');
+  readonly panelId = computed(() => this.tabs?.getPanelId(this.value()) ?? '');
 
-  classes = computed(() =>
+  readonly classes = computed(() =>
     cn(
       'inline-flex items-center justify-center whitespace-nowrap rounded-md px-3 py-1 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50',
       this.isActive()

@@ -8,13 +8,17 @@ import {
 import { cn } from '../../lib/utils';
 import { AvatarImageComponent } from './sub/avatar-image.component';
 import { AvatarFallbackComponent } from './sub/avatar-fallback.component';
+import { SpinnerComponent } from '../spinner';
+import { SkeletonComponent } from '../skeleton';
 
 export { AvatarImageComponent, AvatarFallbackComponent };
 
 @Component({
     selector: 'ui-avatar',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [SpinnerComponent, SkeletonComponent],
     templateUrl: './avatar.component.html',
+    styleUrl: './avatar.component.css',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"avatar"',
@@ -25,14 +29,17 @@ export class AvatarComponent {
     src = input('');
     alt = input('');
     fallback = input('');
+    readonly loading = input(false);
+    readonly skeleton = input(false);
     status = signal<'loading' | 'loaded' | 'error'>('loading');
 
-    classes = computed(() =>
-        cn(
+    readonly classes = computed(() => {
+        if (this.skeleton()) return cn('block shrink-0', this.class());
+        return cn(
             'relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full',
             this.class()
-        )
-    );
+        );
+    });
 
     onLoad() {
         this.status.set('loaded');

@@ -6,7 +6,11 @@ import {
   InjectionToken,
   inject,
   signal,
+  ContentChild,
+  AfterContentInit,
+  type WritableSignal,
 } from '@angular/core';
+import { NgControl } from '@angular/forms';
 import { cn } from '../../lib/utils';
 
 let fieldIdCounter = 0;
@@ -19,6 +23,8 @@ export interface FieldContext {
   registerDescribedBy: (id: string) => void;
   unregisterDescribedBy: (id: string) => void;
   getDescribedByIds: () => string[];
+  /** The form control directive projected into the field, if any. */
+  control?: WritableSignal<NgControl | null>;
 }
 
 export const FIELD_CONTEXT = new InjectionToken<FieldContext>('FIELD_CONTEXT');
@@ -62,17 +68,25 @@ export const FIELD_CONTEXT = new InjectionToken<FieldContext>('FIELD_CONTEXT');
             describedByIds.update(ids => ids.filter(i => i !== id));
           },
           getDescribedByIds: () => describedByIds(),
+          control: signal<NgControl | null>(null),
         } as FieldContext;
       },
     },
   ],
   exportAs: 'uiField',
 })
-export class FieldComponent {
+export class FieldComponent implements AfterContentInit {
   class = input('');
   orientation = input<'vertical' | 'horizontal'>('vertical');
 
+  /** The projected form control directive (formControl / formControlName / ngModel). */
+  @ContentChild(NgControl) ngControl?: NgControl;
+
   private readonly context = inject(FIELD_CONTEXT);
+
+  ngAfterContentInit() {
+    this.context.control?.set(this.ngControl ?? null);
+  }
 
   /**
    * Get the combined aria-describedby value for this field's input.

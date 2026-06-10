@@ -13,6 +13,7 @@ import { AccordionItemComponent } from './accordion-item.component';
   selector: 'ui-accordion-trigger',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './accordion-trigger.component.html',
+  styleUrl: './accordion-trigger.component.css',
   host: { '[class]': '"contents"' },
 })
 export class AccordionTriggerComponent {

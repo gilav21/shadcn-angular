@@ -50,6 +50,7 @@ export interface TimeRange {
     SelectItemComponent,
   ],
   templateUrl: './calendar.component.html',
+  styleUrl: './calendar.component.css',
   host: { class: 'contents' },
 })
 export class CalendarComponent {

@@ -85,6 +85,7 @@ export function computePopupStyles(position: PopupPosition): string {
     },
   ],
   templateUrl: './date-picker.component.html',
+  styleUrl: './date-picker.component.css',
   host: {
     class: 'contents',
     '(document:click)': 'onDocumentClick($event)',

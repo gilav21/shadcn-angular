@@ -27,6 +27,7 @@ export interface CommonLocale extends LocaleMeta {
     finish: string;
     skip: string;
     loading: string;
+    copied: string;
 }
 
 export const COMMON_LOCALES: Record<string, CommonLocale> = {
@@ -48,6 +49,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: 'Done',
         skip: 'Skip',
         loading: 'Loading...',
+        copied: 'Copied!',
     },
     he: {
         code: 'he',
@@ -68,6 +70,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: 'סיום',
         skip: 'דלג',
         loading: '...טוען',
+        copied: '!הועתק',
     },
     ar: {
         code: 'ar',
@@ -88,6 +91,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: 'إنهاء',
         skip: 'تخطي',
         loading: '...جاري التحميل',
+        copied: '!تم النسخ',
     },
     de: {
         code: 'de',
@@ -107,6 +111,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: 'Fertig',
         skip: 'Überspringen',
         loading: 'Wird geladen...',
+        copied: 'Kopiert!',
     },
     fr: {
         code: 'fr',
@@ -126,6 +131,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: 'Terminé',
         skip: 'Passer',
         loading: 'Chargement...',
+        copied: 'Copié !',
     },
     es: {
         code: 'es',
@@ -145,6 +151,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: 'Listo',
         skip: 'Omitir',
         loading: 'Cargando...',
+        copied: '¡Copiado!',
     },
     ja: {
         code: 'ja',
@@ -164,6 +171,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: '完了',
         skip: 'スキップ',
         loading: '読み込み中...',
+        copied: 'コピーしました！',
     },
     zh: {
         code: 'zh',
@@ -183,6 +191,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: '完成',
         skip: '跳过',
         loading: '加载中...',
+        copied: '已复制！',
     },
     ru: {
         code: 'ru',
@@ -202,6 +211,7 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: 'Готово',
         skip: 'Пропустить',
         loading: 'Загрузка...',
+        copied: 'Скопировано!',
     },
     pt: {
         code: 'pt',
@@ -221,5 +231,6 @@ export const COMMON_LOCALES: Record<string, CommonLocale> = {
         finish: 'Concluído',
         skip: 'Pular',
         loading: 'Carregando...',
+        copied: 'Copiado!',
     },
 };

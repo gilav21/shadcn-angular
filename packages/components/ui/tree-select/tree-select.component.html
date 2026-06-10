@@ -5,6 +5,7 @@
         type="button"
         role="combobox"
         [class]="triggerClasses()"
+        [attr.data-slot]="'tree-select-trigger'"
         [disabled]="isDisabled()"
         [attr.aria-expanded]="isOpen()"
         aria-haspopup="tree"

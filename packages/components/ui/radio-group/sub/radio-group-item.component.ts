@@ -12,6 +12,7 @@ import { RADIO_GROUP } from '../radio-group.component';
   selector: 'ui-radio-group-item',
   changeDetection: ChangeDetectionStrategy.OnPush,
   templateUrl: './radio-group-item.component.html',
+  styleUrl: './radio-group-item.component.css',
   host: {
     '[class]': '"contents"',
   },

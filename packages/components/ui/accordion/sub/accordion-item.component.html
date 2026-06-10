@@ -1,5 +1,10 @@
 <div [class]="classes()" [attr.data-slot]="'accordion-item'">
-  @if (title()) {
+  @if (skeleton()) {
+    <div class="flex items-center justify-between py-4">
+      <ui-skeleton class="h-5 w-2/5 rounded-md" />
+      <ui-skeleton class="h-4 w-4 shrink-0 rounded-md" />
+    </div>
+  } @else if (title()) {
     <!-- Simple mode: render built-in trigger and content -->
     <h3 class="flex">
       <button

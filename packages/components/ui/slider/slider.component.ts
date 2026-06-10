@@ -15,6 +15,7 @@ import { UI_LOCALE_ID, formatNumber } from '../../lib/i18n';
     selector: 'ui-slider',
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './slider.component.html',
+    styleUrl: './slider.component.css',
     host: {
         class: 'contents',
     },
@@ -64,7 +65,7 @@ export class SliderComponent {
         }
         const val = this.value();
         const range = max - min;
-        return ((val - min) / range) * 100;
+        return Math.max(0, Math.min(100, ((val - min) / range) * 100));
     });
 
     classes = computed(() =>

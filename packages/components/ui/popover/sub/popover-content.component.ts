@@ -21,6 +21,7 @@ type PopoverAlign = 'start' | 'center' | 'end';
 @Component({
     selector: 'ui-popover-content',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    styleUrl: './popover-content.component.css',
     template: `
     @if (popover?.open()) {
       <div

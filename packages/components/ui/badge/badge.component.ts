@@ -6,6 +6,7 @@ import {
 } from '@angular/core';
 import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '../../lib/utils';
+import { SkeletonComponent } from '../skeleton';
 
 const badgeVariants = cva(
     'inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
@@ -29,7 +30,9 @@ export type BadgeVariant = VariantProps<typeof badgeVariants>['variant'];
 @Component({
     selector: 'ui-badge',
     changeDetection: ChangeDetectionStrategy.OnPush,
+    imports: [SkeletonComponent],
     templateUrl: './badge.component.html',
+    styleUrl: './badge.component.css',
     host: {
         '[class]': 'classes()',
         '[attr.data-slot]': '"badge"',
@@ -39,10 +42,12 @@ export class BadgeComponent {
     variant = input<BadgeVariant>('default');
     label = input<string>('');
     class = input('');
+    readonly skeleton = input(false);
 
-    classes = computed(() =>
-        cn(badgeVariants({ variant: this.variant() }), this.class())
-    );
+    readonly classes = computed(() => {
+        if (this.skeleton()) return cn('inline-flex', this.class());
+        return cn(badgeVariants({ variant: this.variant() }), this.class());
+    });
 
     toString(): string {
         return this.label() ?? '';

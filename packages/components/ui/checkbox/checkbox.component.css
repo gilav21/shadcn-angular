@@ -1,0 +1,7 @@
+:host {
+    --_d: var(--density-checkbox, var(--density, 1));
+}
+[data-slot="checkbox"] {
+    height: calc(1rem * var(--_d));
+    width: calc(1rem * var(--_d));
+}

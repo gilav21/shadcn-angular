@@ -25,6 +25,7 @@ import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/f
     },
   ],
   templateUrl: './input-group-input.component.html',
+  styleUrl: './input-group-input.component.css',
   host: { class: 'contents' },
 })
 export class InputGroupInputComponent implements ControlValueAccessor {

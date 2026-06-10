@@ -106,6 +106,20 @@ describe('TabsListComponent', () => {
         const div = fixture.debugElement.query(By.css('div'));
         expect(div.nativeElement.className).toContain('bg-muted');
     });
+
+    it('should render skeleton pills instead of the tablist when skeleton is true', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(3);
+        expect(fixture.debugElement.query(By.css('[role="tablist"]'))).toBeNull();
+    });
+
+    it('should render skeletonCount skeleton pills', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.componentRef.setInput('skeletonCount', 5);
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(5);
+    });
 });
 
 describe('Tabs Integration', () => {

@@ -48,6 +48,7 @@ export type InputGroupVariant = VariantProps<typeof inputGroupVariants>['variant
   changeDetection: ChangeDetectionStrategy.OnPush,
   providers: [{ provide: UI_INPUT_GROUP, useExisting: forwardRef(() => InputGroupComponent) }],
   templateUrl: './input-group.component.html',
+  styleUrl: './input-group.component.css',
   host: { class: 'contents' },
 })
 export class InputGroupComponent {

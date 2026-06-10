@@ -52,6 +52,7 @@ export type NumberInputVariant = 'outline' | 'underline' | 'ghost';
         },
     ],
     templateUrl: './number-input.component.html',
+    styleUrl: './number-input.component.css',
     host: { class: 'contents' },
 })
 export class NumberInputComponent implements ControlValueAccessor {
@@ -102,7 +103,8 @@ export class NumberInputComponent implements ControlValueAccessor {
             this._currentValue.set(this.value());
         });
         effect(() => {
-            const nativeInput = this.inputRef().inputRef().nativeElement;
+            const nativeInput = this.inputRef().inputRef()?.nativeElement;
+            if (!nativeInput) return;
             const handler = (e: WheelEvent) => {
                 if (globalThis.document.activeElement !== nativeInput) return;
                 e.preventDefault();

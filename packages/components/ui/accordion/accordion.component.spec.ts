@@ -153,6 +153,14 @@ describe('AccordionItemComponent', () => {
     it('should have required value input', () => {
         expect(component.value()).toBe('test-item');
     });
+
+    it('should render skeletons instead of the trigger when skeleton is true', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.componentRef.setInput('title', 'Item title');
+        fixture.detectChanges();
+        expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(2);
+        expect(fixture.debugElement.query(By.css('button'))).toBeNull();
+    });
 });
 
 describe('Accordion Integration', () => {

@@ -7,5 +7,5 @@ export * from './data-table.component';
 export * from './sub/data-table-multiselect-filter.component';
 export * from './sub/data-table-date-filter.component';
 export * from './sub/data-table-date-range-filter.component';
-export * from './component-pool.service';
+export * from '../../lib/component-pool.service';
 export * from './data-table-column-builder';

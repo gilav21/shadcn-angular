@@ -38,6 +38,7 @@ export type ToggleSize = VariantProps<typeof toggleVariants>['size'];
     selector: 'ui-toggle',
     changeDetection: ChangeDetectionStrategy.OnPush,
     templateUrl: './toggle.component.html',
+    styleUrl: './toggle.component.css',
     host: { class: 'contents' },
 })
 export class ToggleComponent {

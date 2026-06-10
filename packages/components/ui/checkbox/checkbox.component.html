@@ -1,4 +1,13 @@
-@if (label()) {
+@if (skeleton()) {
+  @if (label()) {
+    <div class="flex items-center gap-2">
+      <ui-skeleton class="h-4 w-4 rounded-sm" />
+      <ui-skeleton class="h-4 w-20 rounded-md" />
+    </div>
+  } @else {
+    <ui-skeleton class="h-4 w-4 rounded-sm" />
+  }
+} @else if (label()) {
   <div class="flex items-center gap-2">
     <button
       type="button"

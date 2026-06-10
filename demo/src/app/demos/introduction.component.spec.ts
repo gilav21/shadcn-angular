@@ -10,7 +10,7 @@ describe('IntroductionComponent', () => {
     TestBed.configureTestingModule({ providers: [provideZonelessChangeDetection()] });
     const fixture = TestBed.createComponent(IntroductionComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain(INTRODUCTION_LOCALES.en.body);
+    expect(fixture.nativeElement.textContent).toContain(INTRODUCTION_LOCALES['en'].body);
   });
 
   it('renders Hebrew body under provideUiLocale("he")', () => {
@@ -19,7 +19,7 @@ describe('IntroductionComponent', () => {
     });
     const fixture = TestBed.createComponent(IntroductionComponent);
     fixture.detectChanges();
-    expect(fixture.nativeElement.textContent).toContain(INTRODUCTION_LOCALES.he.body);
-    expect(fixture.nativeElement.textContent).not.toContain(INTRODUCTION_LOCALES.en.body);
+    expect(fixture.nativeElement.textContent).toContain(INTRODUCTION_LOCALES['he'].body);
+    expect(fixture.nativeElement.textContent).not.toContain(INTRODUCTION_LOCALES['en'].body);
   });
 });

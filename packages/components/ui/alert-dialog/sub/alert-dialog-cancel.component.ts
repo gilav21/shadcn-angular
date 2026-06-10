@@ -20,6 +20,7 @@ import { ALERT_DIALOG } from '../alert-dialog.component';
       <ng-content />
     </button>
   `,
+    styleUrl: './alert-dialog-cancel.component.css',
     host: { class: 'contents' },
 })
 export class AlertDialogCancelComponent {

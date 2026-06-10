@@ -56,6 +56,13 @@ describe('TextareaComponent', () => {
         expect(textarea).toBeTruthy();
     });
 
+    it('should render a skeleton instead of the textarea when skeleton is true', () => {
+        fixture.componentRef.setInput('skeleton', true);
+        fixture.detectChanges();
+        expect(fixture.debugElement.query(By.css('ui-skeleton'))).toBeTruthy();
+        expect(fixture.debugElement.query(By.css('textarea'))).toBeNull();
+    });
+
     it('should apply placeholder', () => {
         fixture.componentRef.setInput('placeholder', 'Enter text...');
         fixture.detectChanges();
