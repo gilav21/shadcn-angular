@@ -82,7 +82,7 @@ import {
   buildPrefixSums,
   partitionIntoGroups,
 } from "./data-table.utils";
-import { ComponentPoolService } from "./component-pool.service";
+import { ComponentPoolService } from "../../lib/component-pool.service";
 
 declare const ngDevMode: boolean | undefined;
 
