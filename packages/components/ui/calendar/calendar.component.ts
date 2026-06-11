@@ -2,7 +2,6 @@ import {
   Component,
   ChangeDetectionStrategy,
   input,
-  output,
   computed,
   signal,
   effect,
@@ -66,8 +65,6 @@ export class CalendarComponent {
   selected = model<Date | DateRange | Date[] | string | string[] | null>(null);
   selectedTimeRange = model<TimeRange>({ start: '', end: '' });
 
-  selectedChange = output<Date | DateRange | Date[] | string | string[] | null>();
-
   private readonly viewDate = signal(new Date());
 
   private readonly i18n = createLocaleBindings(this.locale, CALENDAR_LOCALES);
@@ -82,8 +79,8 @@ export class CalendarComponent {
         let d: Date | null = null;
         if (typeof val === 'string') d = this.parseDate(val);
         else if (val instanceof Date) d = val;
-        else if (Array.isArray(val) && val.length > 0) d = this.parseDate(val[0] as Date | string);
-        else if (typeof val === 'object' && val !== null && 'start' in val) d = (val as DateRange).start;
+        else if (Array.isArray(val) && val.length > 0) d = this.parseDate(val[0]);
+        else if (typeof val === 'object' && val !== null && 'start' in val) d = (val).start;
 
         if (d) {
           this.viewDate.set(new Date(d));
@@ -302,7 +299,6 @@ export class CalendarComponent {
     }
 
     this.selected.set(newVal);
-    this.selectedChange.emit(newVal);
   }
 
   private selectSingleDay(day: Date, isTimeRange: boolean): Date {
@@ -383,7 +379,6 @@ export class CalendarComponent {
     date.setMinutes(minutes);
 
     this.selected.set(new Date(date));
-    this.selectedChange.emit(new Date(date));
   }
 
   updateStartTime(event: Event): void {
@@ -405,7 +400,6 @@ export class CalendarComponent {
         newStart.setHours(hours, minutes);
         const newRange = { ...range, start: newStart };
         this.selected.set(newRange);
-        this.selectedChange.emit(newRange);
       }
       return;
     }
@@ -415,7 +409,6 @@ export class CalendarComponent {
       const date = parsed ? new Date(parsed) : new Date(this.viewDate());
       date.setHours(hours, minutes);
       this.selected.set(new Date(date));
-      this.selectedChange.emit(new Date(date));
     }
   }
 
@@ -438,7 +431,6 @@ export class CalendarComponent {
         newEnd.setHours(hours, minutes);
         const newRange = { ...range, end: newEnd };
         this.selected.set(newRange);
-        this.selectedChange.emit(newRange);
       }
     }
   }

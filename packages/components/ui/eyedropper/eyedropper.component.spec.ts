@@ -54,7 +54,7 @@ class EyedropperHostComponent {
     disabled = signal(false);
     variant = signal<'icon' | 'button'>('icon');
     label = signal('Pick color');
-    fallbackTarget = signal<HTMLElement | null>(null);
+    fallbackTarget = signal<HTMLImageElement | HTMLCanvasElement | HTMLVideoElement | null>(null);
     picked = signal<string | null>(null);
     started = signal(0);
     cancelled = signal(0);

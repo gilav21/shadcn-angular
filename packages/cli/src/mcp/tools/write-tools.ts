@@ -42,7 +42,7 @@ const initInputSchema = {
 
 type InitArgs = z.infer<z.ZodObject<typeof initInputSchema>>;
 
-async function handleInit(cwd: string, args: InitArgs): ReturnType<typeof json> {
+async function handleInit(cwd: string, args: InitArgs): Promise<ReturnType<typeof json>> {
     if (await fs.pathExists(path.join(cwd, 'components.json'))) {
         return err('Already initialized — components.json exists. Use add_component to add components.');
     }

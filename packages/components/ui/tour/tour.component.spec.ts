@@ -456,7 +456,7 @@ describe('TourComponent — i18n integration', () => {
                 rtl: true,
                 close: 'C', cancel: 'C', confirm: 'C', continue: 'C', save: 'S', delete: 'D', edit: 'E',
                 search: 'S', searchPlaceholder: 'S', selectPlaceholder: 'S', noResults: 'N',
-                previous: 'X-PREV', next: 'X-NEXT', finish: 'X-FIN', skip: 'X-SKIP', loading: 'L',
+                previous: 'X-PREV', next: 'X-NEXT', finish: 'X-FIN', skip: 'X-SKIP', loading: 'L', copied: 'C',
             };
         }
 

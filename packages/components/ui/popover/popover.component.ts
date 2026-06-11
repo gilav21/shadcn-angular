@@ -2,7 +2,6 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     inject,
     ElementRef,
     InjectionToken,
@@ -32,7 +31,6 @@ export class PopoverComponent implements OnDestroy {
 
     open = model<boolean>(false);
     closeOnScroll = input(false);
-    openChange = output<boolean>();
 
     private portalEl: HTMLElement | null = null;
 
@@ -91,17 +89,14 @@ export class PopoverComponent implements OnDestroy {
     toggle(): void {
         const newState = !this.open();
         this.open.set(newState);
-        this.openChange.emit(newState);
     }
 
     show(): void {
         this.open.set(true);
-        this.openChange.emit(true);
     }
 
     hide(): void {
         this.open.set(false);
-        this.openChange.emit(false);
     }
 
     getTriggerRect(): DOMRect | null {

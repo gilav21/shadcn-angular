@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { CalendarComponent, DateRange, TimeRange } from './calendar.component';
+import { CalendarComponent, DateRange } from './calendar.component';
 import { ButtonComponent } from '../button';
 import {
     SelectComponent,
@@ -49,7 +49,7 @@ describe('CalendarComponent', () => {
             fixture.componentRef.setInput('mode', 'single');
             fixture.detectChanges();
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
             const buttons = fixture.debugElement.queryAll(By.css('ui-button'));
             const dayBtn = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '15');
 
@@ -66,7 +66,7 @@ describe('CalendarComponent', () => {
             fixture.componentRef.setInput('mode', 'range');
             fixture.detectChanges();
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
             const buttons = fixture.debugElement.queryAll(By.css('ui-button'));
 
             const startBtn = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '10');
@@ -175,7 +175,7 @@ describe('CalendarComponent', () => {
 
             expect(inputEl.value).toBe('10:00');
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
 
             inputEl.value = '12:30';
             inputEl.dispatchEvent(new Event('change'));
@@ -244,7 +244,7 @@ describe('CalendarComponent', () => {
             inputEl.dispatchEvent(new Event('change'));
             fixture.detectChanges();
 
-            const range = component.selectedTimeRange() as TimeRange;
+            const range = component.selectedTimeRange();
             expect(range.start).toBe('09:00');
         });
 
@@ -256,7 +256,7 @@ describe('CalendarComponent', () => {
             inputEl.dispatchEvent(new Event('change'));
             fixture.detectChanges();
 
-            const range = component.selectedTimeRange() as TimeRange;
+            const range = component.selectedTimeRange();
             expect(range.end).toBe('17:00');
         });
 
@@ -281,7 +281,7 @@ describe('CalendarComponent', () => {
             fixture.componentRef.setInput('selected', { start: startDate, end: endDate });
             fixture.detectChanges();
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
 
             const startInput = fixture.debugElement.query(By.css('input#start-time'));
             const inputEl = startInput.nativeElement as HTMLInputElement;
@@ -301,7 +301,7 @@ describe('CalendarComponent', () => {
             fixture.componentRef.setInput('selectedTimeRange', { start: '09:00', end: '17:00' });
             fixture.detectChanges();
 
-            const spy = vi.spyOn(component.selectedChange, 'emit');
+            const spy = vi.spyOn(component.selected, 'set');
             const buttons = fixture.debugElement.queryAll(By.css('ui-button'));
             const day10 = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '10');
             const day15 = buttons.find(b => !b.componentInstance.disabled && b.nativeElement.textContent!.trim() === '15');

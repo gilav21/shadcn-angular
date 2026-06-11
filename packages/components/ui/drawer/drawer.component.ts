@@ -2,7 +2,6 @@ import {
     Component,
     ChangeDetectionStrategy,
     input,
-    output,
     inject,
     OnDestroy,
     effect,
@@ -49,7 +48,6 @@ export class DrawerComponent implements OnDestroy {
 
     open = model(false);
     direction = input<DrawerDirection>('bottom');
-    openChange = output<boolean>();
 
     private readonly scrollbarWidth: number = 0;
 
@@ -83,17 +81,14 @@ export class DrawerComponent implements OnDestroy {
 
     show(): void {
         this.open.set(true);
-        this.openChange.emit(true);
     }
 
     hide(): void {
         this.open.set(false);
-        this.openChange.emit(false);
     }
 
     toggle(): void {
         const newState = !this.open();
         this.open.set(newState);
-        this.openChange.emit(newState);
     }
 }

@@ -30,7 +30,7 @@ function createItems(count: number): TestItem[] {
                 (scrollState)="onScrollState($event)"
             >
                 <ng-template uiVirtualItem let-item let-index="index">
-                    <div class="test-item" style="height: 50px;" [attr.data-test-index]="index">{{ item.name }}</div>
+                    <div class="test-item" style="height: 50px;" [attr.data-test-index]="index">{{ $any(item).name }}</div>
                 </ng-template>
             </ui-virtual-scroll>
         </div>

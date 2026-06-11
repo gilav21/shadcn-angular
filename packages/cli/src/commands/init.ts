@@ -188,10 +188,10 @@ async function promptForDefaults(): Promise<InitDefaults> {
     const responses = await prompts(DEFAULT_PROMPTS_QUESTIONS, { onCancel });
 
     const defaults: InitDefaults = {};
-    if (responses.density !== 3) defaults.density = responses.density;
-    if (responses.radius !== 'lg') defaults.radius = responses.radius;
-    if (responses.motion !== 1) defaults.motion = responses.motion;
-    if (responses.locale !== 'en') defaults.locale = responses.locale;
+    if (responses['density'] !== 3) defaults.density = responses['density'];
+    if (responses['radius'] !== 'lg') defaults.radius = responses['radius'];
+    if (responses['motion'] !== 1) defaults.motion = responses['motion'];
+    if (responses['locale'] !== 'en') defaults.locale = responses['locale'];
     return defaults;
 }
 

@@ -15,7 +15,6 @@ import type { SortableLocale } from './sortable-locales';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
 import { peersInGroup, groupSize, clearRegistry } from '../../lib/sortable-registry';
-import { NgTemplateOutlet } from '@angular/common';
 
 interface TestRow {
     id: number;
@@ -30,7 +29,6 @@ interface TestRow {
         SortableItemComponent,
         SortableItemTemplateDirective,
         SortableHandleDirective,
-        NgTemplateOutlet,
     ],
     template: `
         <ui-sortable
@@ -322,7 +320,6 @@ describe('SortableComponent', () => {
                 SortableComponent,
                 SortableItemComponent,
                 SortableItemTemplateDirective,
-                NgTemplateOutlet,
             ],
             template: `
                 <ui-sortable [(items)]="rows">
@@ -353,7 +350,6 @@ describe('SortableComponent', () => {
                 SortableComponent,
                 SortableItemComponent,
                 SortableItemTemplateDirective,
-                NgTemplateOutlet,
             ],
             template: `
                 <ui-sortable [(items)]="rows">
@@ -381,7 +377,6 @@ describe('SortableComponent', () => {
                 SortableComponent,
                 SortableItemComponent,
                 SortableItemTemplateDirective,
-                NgTemplateOutlet,
             ],
             template: `
                 <ui-sortable [(items)]="rows">
@@ -430,7 +425,6 @@ describe('SortableComponent', () => {
                 SortableItemComponent,
                 SortableItemTemplateDirective,
                 SortableGhostTemplateDirective,
-                NgTemplateOutlet,
             ],
             template: `
                 <ui-sortable [(items)]="rows">
@@ -495,7 +489,6 @@ describe('SortableComponent', () => {
                 SortableItemComponent,
                 SortableItemTemplateDirective,
                 SortablePlaceholderTemplateDirective,
-                NgTemplateOutlet,
             ],
             template: `
                 <ui-sortable [(items)]="rows">
@@ -585,7 +578,6 @@ describe('SortableComponent', () => {
                 SortableComponent,
                 SortableItemComponent,
                 SortableItemTemplateDirective,
-                NgTemplateOutlet,
             ],
             template: `
                 <ui-sortable [(items)]="rows" [positionClass]="posFn">
@@ -630,7 +622,6 @@ describe('SortableComponent', () => {
                 SortableComponent,
                 SortableItemComponent,
                 SortableItemTemplateDirective,
-                NgTemplateOutlet,
             ],
             template: `
                 <ui-sortable [(items)]="rows" [landEffect]="landFn">
@@ -678,7 +669,6 @@ describe('SortableComponent', () => {
                 SortableComponent,
                 SortableItemComponent,
                 SortableItemTemplateDirective,
-                NgTemplateOutlet,
             ],
             template: `
                 <ui-sortable [(items)]="rows" [landEffect]="landFn">
@@ -724,7 +714,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-grp-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows" group="my-grp" listId="A">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -758,7 +748,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-destroy-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows" group="ephemeral">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -782,7 +772,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-cross-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable
                     [(items)]="left"
@@ -843,7 +833,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-acc-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows" [accepts]="false" group="acc1" listId="A">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -866,7 +856,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-acc-fn-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows" [accepts]="acceptFn" listId="bb">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -911,7 +901,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-cdrop-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable
                     [(items)]="left"
@@ -975,7 +965,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-rej-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable
                     [(items)]="left"
@@ -1084,7 +1074,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-loc-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows" locale="he">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -1123,7 +1113,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-custom-loc-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows" [locale]="loc">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -1168,7 +1158,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-kbd-cross-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="left" group="kbd" listId="L">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -1205,7 +1195,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-empty-drop-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable
                     [(items)]="left"
@@ -1252,7 +1242,7 @@ describe('SortableComponent', () => {
         @Component({
             selector: 'app-builtin-land',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows" [landEffect]="pulseFn">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -1277,7 +1267,7 @@ describe('SortableComponent', () => {
 
         const additive = animateSpy.mock.calls.find(args => {
             const opts = args[1];
-            return opts !== null && typeof opts === 'object' && (opts as KeyframeAnimationOptions).composite === 'add';
+            return opts !== null && typeof opts === 'object' && (opts).composite === 'add';
         });
         expect(additive).toBeDefined();
         animateSpy.mockRestore();
@@ -1350,7 +1340,7 @@ describe('SortableComponent — i18n integration', () => {
         @Component({
             selector: 'app-global-loc-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -1377,7 +1367,7 @@ describe('SortableComponent — i18n integration', () => {
         @Component({
             selector: 'app-override-loc-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows" locale="fr">
                     <ng-template uiSortableItem let-row let-i="index">
@@ -1406,7 +1396,7 @@ describe('SortableComponent — i18n integration', () => {
         @Component({
             selector: 'app-signal-loc-host',
             standalone: true,
-            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective, NgTemplateOutlet],
+            imports: [SortableComponent, SortableItemComponent, SortableItemTemplateDirective],
             template: `
                 <ui-sortable [(items)]="rows">
                     <ng-template uiSortableItem let-row let-i="index">
