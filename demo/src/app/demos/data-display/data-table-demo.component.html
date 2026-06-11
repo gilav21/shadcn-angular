@@ -567,7 +567,7 @@
     <ui-context-menu-content class="w-64">
       @if (treeContextData(); as ctx) {
         <ui-context-menu-label>
-          {{ ctx.row?.name || 'Unknown' }}
+          {{ ctx.row.name || 'Unknown' }}
           <span class="ml-1 text-xs text-muted-foreground">(depth {{ ctx.depth }})</span>
         </ui-context-menu-label>
         <ui-context-menu-separator />
