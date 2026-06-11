@@ -370,7 +370,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const key = String(col.accessorKey);
       const w = widths[key] ?? col._width ?? col.width ?? "auto";
       if (w === "auto") return autoWidth;
-      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback on NaN (parseInt returns NaN for non-numeric)
+       
       return Number.parseInt(String(w), 10) || autoWidth;
     });
   });
@@ -1672,7 +1672,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const key = String(col.accessorKey);
     const { isPinnedRight, isPinned, isStickyLeft, pin } = this.resolveColumnPinState(col, key, pinOverrides);
     const widthStr = widths[key] ?? col.width ?? (isPinned ? `${DEFAULT_PINNED_WIDTH}px` : "auto");
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback on NaN from parseInt
+     
     const widthVal = Number.parseInt(widthStr, 10) || DEFAULT_PINNED_WIDTH;
 
     const column = {

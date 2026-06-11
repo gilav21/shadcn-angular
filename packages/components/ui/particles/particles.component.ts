@@ -88,7 +88,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         if (raw === 'currentColor' || raw.includes('var(')) {
             const host = this.el.nativeElement as HTMLElement;
             const computed = getComputedStyle(host);
-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string is also invalid, || fallback is intentional
+             
             this.resolvedColor = computed.color || '#888888';
         } else {
             this.resolvedColor = raw;

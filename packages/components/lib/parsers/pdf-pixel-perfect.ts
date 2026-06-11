@@ -28,7 +28,7 @@ function getFallbackFont(): TtfFont | null {
 
     // Try Node.js file system
     try {
-        /* eslint-disable @typescript-eslint/no-require-imports */
+         
         const nodeRequire = resolveNodeRequire();
         if (!nodeRequire) return null;
 
@@ -58,7 +58,7 @@ declare const process: { cwd: () => string };
 declare type Buffer = ArrayBufferLike;
 
 function resolveNodeRequire(): ((m: string) => unknown) | undefined {
-    /* eslint-disable @typescript-eslint/no-require-imports */
+     
     if (__non_webpack_require__ !== undefined) return __non_webpack_require__;
     if (typeof module !== 'undefined' && typeof module.require === 'function') return module.require.bind(module);
     return undefined;
@@ -3098,7 +3098,7 @@ class PixelPerfectProcessor {
             const annotDict = this.reader.getDict(annotRef);
             if (this.reader.getString(annotDict['Subtype']) !== 'Link') return;
             const aRef = annotDict['A'];
-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string from getString should also fall back
+             
             const uri = aRef ? this.reader.getString(this.reader.getDict(aRef)['URI']) || '' : '';
             if (!uri) return;
             const rectArr = annotDict['Rect'] ? this.reader.getArray(annotDict['Rect']) : [];

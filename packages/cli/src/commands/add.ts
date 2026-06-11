@@ -262,7 +262,7 @@ async function resolveComponentsAndConflicts(
         : resolvedComponents;
     const hasBlock = [...allComponents].some(n => registry[n].type === 'block');
     const { componentPath, blocksPath } = await resolveBlockDestination(hasBlock, options, config);
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string should also fall back to default
+     
     const uiBasePath = componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui');
     const targetDir = resolveProjectPath(cwd, uiBasePath);
     const checkSpinner = ora('Checking for conflicts...').start();
@@ -298,7 +298,7 @@ export async function add(components: string[], options: AddOptions): Promise<vo
     const { toInstall, toSkip, conflicting, contentCache } = conflicts;
 
     const toOverwrite = await promptOverwrite(conflicting, options,
-        resolveProjectPath(cwd, componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui')), // eslint-disable-line @typescript-eslint/prefer-nullish-coalescing -- empty string should also fall back to default
+        resolveProjectPath(cwd, componentPath ?? aliasToProjectPath(config.aliases.ui || 'src/components/ui')),  
         contentCache);
     const declined = conflicting.filter(c => !toOverwrite.includes(c));
 
