@@ -26,6 +26,8 @@ import {
 
 export type CalendarMode = 'single' | 'range' | 'multi';
 export type CalendarTimeMode = 'single' | 'range';
+/** A single selectable date value: a `Date`, an ISO date string, or null. */
+export type CalendarDateValue = Date | string | null;
 
 export interface DateRange {
   start: Date | null;
@@ -159,7 +161,7 @@ export class CalendarComponent {
     const val = this.selected();
     if (!val) return '';
 
-    const parsed = this.parseDate(val as Date | string | null);
+    const parsed = this.parseDate(val as CalendarDateValue);
     if (!parsed) return '';
 
     return this.formatTimeFromDate(parsed);
@@ -175,7 +177,7 @@ export class CalendarComponent {
     }
 
     if (mode === 'single') {
-      const parsed = this.parseDate(val as Date | string | null);
+      const parsed = this.parseDate(val as CalendarDateValue);
       return this.formatTimeFromDate(parsed) || this.selectedTimeRange().start;
     }
 
@@ -215,7 +217,7 @@ export class CalendarComponent {
     );
   }
 
-  private parseDate(val: Date | string | null): Date | null {
+  private parseDate(val: CalendarDateValue): Date | null {
     if (!val) return null;
     if (val instanceof Date) return val;
     if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(val)) {
@@ -365,7 +367,7 @@ export class CalendarComponent {
     let date: Date;
 
     if (currentSel) {
-      const parsed = this.parseDate(currentSel as Date | string | null);
+      const parsed = this.parseDate(currentSel as CalendarDateValue);
       if (parsed) {
         date = new Date(parsed);
       } else {
@@ -405,7 +407,7 @@ export class CalendarComponent {
     }
 
     if (mode === 'single') {
-      const parsed = this.parseDate(currentSel as Date | string | null);
+      const parsed = this.parseDate(currentSel as CalendarDateValue);
       const date = parsed ? new Date(parsed) : new Date(this.viewDate());
       date.setHours(hours, minutes);
       this.selected.set(new Date(date));

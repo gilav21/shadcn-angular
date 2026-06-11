@@ -2,6 +2,7 @@
 import eslint from '@eslint/js';
 import tseslint from 'typescript-eslint';
 import angular from 'angular-eslint';
+import sonarjs from 'eslint-plugin-sonarjs';
 
 /**
  * Flat ESLint config for the shadcn-angular monorepo.
@@ -67,6 +68,18 @@ export default tseslint.config(
         'warn',
         { allowExpressions: true, allowTypedFunctionExpressions: true },
       ],
+    },
+  },
+
+  // --- SonarQube rules (via eslint-plugin-sonarjs) ---
+  // Curated subset only — the full sonarjs recommended set is noisy for this
+  // codebase (false positives on no-empty-test-file, pseudo-random, etc.).
+  {
+    files: ['**/*.ts'],
+    plugins: { sonarjs },
+    rules: {
+      // S4323: a union/intersection type used 3+ times must be a type alias.
+      'sonarjs/use-type-alias': 'error',
     },
   },
 
