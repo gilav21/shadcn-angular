@@ -12,6 +12,8 @@
     "publish:cli": "cd packages/cli && npm version patch && npm publish",
     "build:demo": "cd demo && npm run build",
     "dev": "cd demo && npm run start",
+    "lint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint .",
+    "lint:fix": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --fix",
     "test": "vitest",
     "test:headless": "vitest --config vitest.config.headless.ts",
     "test:ci": "HEADLESS=1 vitest --run",
@@ -43,6 +45,7 @@
     "@analogjs/vite-plugin-angular": "^2.5.0",
     "@analogjs/vitest-angular": "^2.5.0",
     "@compodoc/compodoc": "^1.1.32",
+    "@eslint/js": "^9.39.4",
     "@playwright/test": "^1.57.0",
     "@storybook/addon-a11y": "^10.1.11",
     "@storybook/addon-docs": "^10.1.11",
@@ -53,8 +56,11 @@
     "@types/node": "^20.14.0",
     "@vitest/browser": "^4.0.17",
     "@vitest/browser-playwright": "^4.0.17",
+    "angular-eslint": "^21.4.0",
     "axe-playwright": "^2.2.2",
+    "cross-env": "^10.1.0",
     "esbuild": "0.27.3",
+    "eslint": "^9.39.4",
     "jsdom": "^27.4.0",
     "lmdb": "^3.5.4",
     "playwright": "^1.57.0",
@@ -64,6 +70,7 @@
     "tailwindcss": "^4.1.18",
     "tsx": "^4.19.0",
     "typescript": "~5.9.2",
+    "typescript-eslint": "^8.61.0",
     "vite": "^7.3.2",
     "vitest": "^4.0.17"
   },
@@ -73,6 +80,12 @@
   "overrides": {
     "@babel/plugin-transform-modules-systemjs": "^7.29.4",
     "ajv": "^8.17.2",
+    "eslint": {
+      "ajv": "^6.14.0"
+    },
+    "@eslint/eslintrc": {
+      "ajv": "^6.14.0"
+    },
     "fast-uri": "^3.1.2",
     "hono": "^4.12.18",
     "ip-address": "^10.1.1",

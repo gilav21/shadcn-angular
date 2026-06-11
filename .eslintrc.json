@@ -1,0 +1,101 @@
+{
+  "root": true,
+  "ignorePatterns": [
+    "**/dist/",
+    "**/node_modules/",
+    "**/.angular/",
+    "**/storybook-static/",
+    "documentation/",
+    "coverage/",
+    "e2e/fixture-app/",
+    "**/*.config.js",
+    "**/*.config.mjs"
+  ],
+  "overrides": [
+    {
+      "files": ["*.ts"],
+      "parser": "@typescript-eslint/parser",
+      "parserOptions": {
+        "ecmaVersion": "latest",
+        "sourceType": "module",
+        "project": ["./tsconfig.eslint.json"]
+      },
+      "plugins": ["@typescript-eslint", "@angular-eslint"],
+      "extends": [
+        "eslint:recommended",
+        "plugin:@typescript-eslint/recommended",
+        "plugin:@angular-eslint/recommended",
+        "plugin:@angular-eslint/template/process-inline-templates"
+      ],
+      "rules": {
+        "@typescript-eslint/no-unused-vars": [
+          "error",
+          {
+            "argsIgnorePattern": "^_",
+            "varsIgnorePattern": "^_",
+            "destructuredArrayIgnorePattern": "^_",
+            "caughtErrorsIgnorePattern": "^_"
+          }
+        ],
+        "max-lines-per-function": [
+          "warn",
+          { "max": 50, "skipComments": true, "skipBlankLines": true }
+        ],
+        "complexity": ["warn", 15],
+        "max-depth": ["warn", 3],
+        "max-params": ["warn", 7],
+        "no-console": ["warn", { "allow": ["error"] }],
+        "@typescript-eslint/no-explicit-any": "error",
+        "@typescript-eslint/no-non-null-assertion": "error",
+        "@typescript-eslint/prefer-nullish-coalescing": "error",
+        "@typescript-eslint/explicit-function-return-type": [
+          "warn",
+          {
+            "allowExpressions": true,
+            "allowTypedFunctionExpressions": true
+          }
+        ]
+      }
+    },
+    {
+      "files": ["packages/components/**/*.ts"],
+      "rules": {
+        "@angular-eslint/directive-selector": [
+          "error",
+          { "type": "attribute", "prefix": "ui", "style": "camelCase" }
+        ],
+        "@angular-eslint/component-selector": [
+          "error",
+          { "type": "element", "prefix": "ui", "style": "kebab-case" }
+        ]
+      }
+    },
+    {
+      "files": ["**/*.spec.ts", "**/*.stories.ts", "**/*-demo.component.ts"],
+      "rules": {
+        "@typescript-eslint/explicit-function-return-type": "off",
+        "@typescript-eslint/no-non-null-assertion": "off",
+        "@typescript-eslint/no-explicit-any": "off",
+        "max-lines-per-function": "off",
+        "@angular-eslint/component-selector": "off",
+        "@angular-eslint/directive-selector": "off"
+      }
+    },
+    {
+      "files": ["packages/cli/**/*.ts", "e2e/**/*.ts", "scripts/**/*.ts"],
+      "rules": {
+        "no-console": "off"
+      }
+    },
+    {
+      "files": ["*.html"],
+      "extends": [
+        "plugin:@angular-eslint/template/recommended",
+        "plugin:@angular-eslint/template/accessibility"
+      ],
+      "rules": {
+        "@angular-eslint/template/use-track-by-function": "error"
+      }
+    }
+  ]
+}
