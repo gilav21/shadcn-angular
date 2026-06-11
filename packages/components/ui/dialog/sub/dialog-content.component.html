@@ -4,7 +4,11 @@
     <div
       class="fixed inset-0 bg-black/80 animate-in fade-in-0"
       [attr.data-slot]="'dialog-overlay'"
+      tabindex="0"
+      role="button"
       (click)="onOverlayClick()"
+      (keydown.enter)="onOverlayClick()"
+      (keydown.space)="onOverlayClick()"
     ></div>
     <!-- Content -->
     <div

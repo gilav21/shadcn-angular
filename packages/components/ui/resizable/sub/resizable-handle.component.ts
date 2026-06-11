@@ -8,6 +8,7 @@ import {
   ElementRef,
   inject,
   AfterViewInit,
+  OnDestroy,
 } from '@angular/core';
 import { cn } from '../../../lib/utils';
 
@@ -53,7 +54,7 @@ import { cn } from '../../../lib/utils';
     class: 'contents',
   },
 })
-export class ResizableHandleComponent implements AfterViewInit {
+export class ResizableHandleComponent implements AfterViewInit, OnDestroy {
   private readonly el = inject(ElementRef);
 
   class = input('');
@@ -62,7 +63,7 @@ export class ResizableHandleComponent implements AfterViewInit {
   disabled = input(false);
   ariaLabel = input('Resize Handle');
 
-  resize = output<{ delta: number; sizes: number[] }>();
+  resized = output<{ delta: number; sizes: number[] }>();
 
 
   private readonly isDragging = signal(false);
@@ -71,11 +72,11 @@ export class ResizableHandleComponent implements AfterViewInit {
   // Store cleanup functions
   private listeners: (() => void)[] = [];
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.cleanupListeners();
   }
 
-  private cleanupListeners() {
+  private cleanupListeners(): void {
     this.listeners.forEach(remove => remove());
     this.listeners = [];
     this.isDragging.set(false);
@@ -83,10 +84,10 @@ export class ResizableHandleComponent implements AfterViewInit {
     document.body.style.userSelect = '';
   }
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     const handleEl = this.el.nativeElement as HTMLElement;
     const groupEl = handleEl.closest('[data-slot="resizable-panel-group"]');
-    const dir = ((groupEl as HTMLElement | null)?.dataset['direction'] as 'horizontal' | 'vertical') || 'horizontal';
+    const dir = ((groupEl as HTMLElement | null)?.dataset['direction'] as 'horizontal' | 'vertical') ?? 'horizontal';
     this.detectedDirection.set(dir);
   }
 
@@ -127,113 +128,70 @@ export class ResizableHandleComponent implements AfterViewInit {
     );
   });
 
-  onTouchStart(event: TouchEvent) {
+  onTouchStart(event: TouchEvent): void {
     if (event.touches.length === 1) {
       event.preventDefault();
       this.startDrag(event.touches[0].clientX, event.touches[0].clientY, true);
     }
   }
 
-  onMouseDown(event: MouseEvent) {
+  onMouseDown(event: MouseEvent): void {
     event.preventDefault();
     this.startDrag(event.clientX, event.clientY, false);
   }
 
-  private startDrag(startX: number, startY: number, isTouch: boolean) {
-    this.isDragging.set(true);
-
-    const handleEl = this.el.nativeElement as HTMLElement;
-    const groupEl = handleEl.closest<HTMLElement>('[data-slot="resizable-panel-group"]');
-
-    if (!groupEl) {
-      console.warn('Resizable handle not inside a panel group');
-      return;
-    }
-
-    const groupDirection = groupEl.dataset['direction'] as 'horizontal' | 'vertical' || 'horizontal';
-    const isHorizontal = groupDirection === 'horizontal';
-    const containerSize = isHorizontal ? groupEl.offsetWidth : groupEl.offsetHeight;
-
-    const isRtl = getComputedStyle(document.documentElement).direction === 'rtl';
-
-    const children = Array.from(groupEl.children);
-    const handleIndex = children.findIndex(el =>
-      el === handleEl ||
-      el.querySelector('[data-slot="resizable-handle"]') !== null ||
-      el.contains(handleEl)
-    );
-
-    let panelBefore: HTMLElement | null = null;
-    let panelAfter: HTMLElement | null = null;
-
+  private findAdjacentPanels(
+    children: Element[],
+    handleIndex: number
+  ): { before: HTMLElement | null; after: HTMLElement | null } {
+    let before: HTMLElement | null = null;
+    let after: HTMLElement | null = null;
     for (let i = handleIndex - 1; i >= 0; i--) {
       if ((children[i] as HTMLElement).dataset['slot'] === 'resizable-panel') {
-        panelBefore = children[i] as HTMLElement;
+        before = children[i] as HTMLElement;
         break;
       }
     }
-
     for (let i = handleIndex + 1; i < children.length; i++) {
       if ((children[i] as HTMLElement).dataset['slot'] === 'resizable-panel') {
-        panelAfter = children[i] as HTMLElement;
+        after = children[i] as HTMLElement;
         break;
       }
     }
+    return { before, after };
+  }
 
-    if (!panelBefore || !panelAfter) {
-      console.warn('Could not find adjacent panels');
-      return;
-    }
-
-    const beforeEl = panelBefore;
-    const afterEl = panelAfter;
-    const startSizeBefore = isHorizontal ? beforeEl.offsetWidth : beforeEl.offsetHeight;
-    const startSizeAfter = isHorizontal ? afterEl.offsetWidth : afterEl.offsetHeight;
-
-    const onMove = (clientX: number, clientY: number) => {
+  private buildMoveHandler(
+    ctx: { isHorizontal: boolean; isRtl: boolean; containerSize: number; startX: number; startY: number },
+    beforeEl: HTMLElement, afterEl: HTMLElement,
+    startSizeBefore: number, startSizeAfter: number
+  ): (clientX: number, clientY: number) => void {
+    const { isHorizontal, isRtl, containerSize, startX, startY } = ctx;
+    return (clientX: number, clientY: number): void => {
       let delta = isHorizontal ? clientX - startX : clientY - startY;
-
-      if (isHorizontal && isRtl) {
-        delta = -delta;
-      }
-
-      const newSizeBefore = startSizeBefore + delta;
-      const newSizeAfter = startSizeAfter - delta;
-
-      const newPercentBefore = (newSizeBefore / containerSize) * 100;
-      const newPercentAfter = (newSizeAfter / containerSize) * 100;
-
+      if (isHorizontal && isRtl) delta = -delta;
+      const newPercentBefore = ((startSizeBefore + delta) / containerSize) * 100;
+      const newPercentAfter = ((startSizeAfter - delta) / containerSize) * 100;
       if (newPercentBefore >= 10 && newPercentAfter >= 10 &&
         newPercentBefore <= 90 && newPercentAfter <= 90) {
         beforeEl.style.flexBasis = `${newPercentBefore}%`;
         afterEl.style.flexBasis = `${newPercentAfter}%`;
-
-        this.resize.emit({
-          delta,
-          sizes: [Math.round(newPercentBefore), Math.round(newPercentAfter)]
-        });
+        this.resized.emit({ delta, sizes: [Math.round(newPercentBefore), Math.round(newPercentAfter)] });
       }
     };
+  }
 
-    const onMouseMove = (e: MouseEvent) => onMove(e.clientX, e.clientY);
-    const onTouchMove = (e: TouchEvent) => {
-      if (e.touches.length === 1) {
-        e.preventDefault();
-        onMove(e.touches[0].clientX, e.touches[0].clientY);
-      }
+  private attachListeners(isTouch: boolean, isHorizontal: boolean, onMove: (x: number, y: number) => void): void {
+    const onMouseMove = (e: MouseEvent): void => onMove(e.clientX, e.clientY);
+    const onTouchMove = (e: TouchEvent): void => {
+      if (e.touches.length === 1) { e.preventDefault(); onMove(e.touches[0].clientX, e.touches[0].clientY); }
     };
-
-    const onEnd = () => {
-      this.cleanupListeners();
-    };
-
+    const onEnd = (): void => { this.cleanupListeners(); };
     document.body.style.cursor = isHorizontal ? 'col-resize' : 'row-resize';
     document.body.style.userSelect = 'none';
-
     if (isTouch) {
       document.addEventListener('touchmove', onTouchMove, { passive: false });
       document.addEventListener('touchend', onEnd);
-
       this.listeners.push(
         () => document.removeEventListener('touchmove', onTouchMove),
         () => document.removeEventListener('touchend', onEnd)
@@ -241,11 +199,37 @@ export class ResizableHandleComponent implements AfterViewInit {
     } else {
       document.addEventListener('mousemove', onMouseMove);
       document.addEventListener('mouseup', onEnd);
-
       this.listeners.push(
         () => document.removeEventListener('mousemove', onMouseMove),
         () => document.removeEventListener('mouseup', onEnd)
       );
     }
+  }
+
+  private startDrag(startX: number, startY: number, isTouch: boolean): void {
+    this.isDragging.set(true);
+    const handleEl = this.el.nativeElement as HTMLElement;
+    const groupEl = handleEl.closest<HTMLElement>('[data-slot="resizable-panel-group"]');
+    if (!groupEl) return;
+
+    const groupDirection = (groupEl.dataset['direction'] as 'horizontal' | 'vertical') ?? 'horizontal';
+    const isHorizontal = groupDirection === 'horizontal';
+    const containerSize = isHorizontal ? groupEl.offsetWidth : groupEl.offsetHeight;
+    const isRtl = getComputedStyle(document.documentElement).direction === 'rtl';
+
+    const children = Array.from(groupEl.children);
+    const handleIndex = children.findIndex(el =>
+      el === handleEl || el.querySelector('[data-slot="resizable-handle"]') !== null || el.contains(handleEl)
+    );
+
+    const { before: panelBefore, after: panelAfter } = this.findAdjacentPanels(children, handleIndex);
+    if (!panelBefore || !panelAfter) return;
+
+    const startSizeBefore = isHorizontal ? panelBefore.offsetWidth : panelBefore.offsetHeight;
+    const startSizeAfter = isHorizontal ? panelAfter.offsetWidth : panelAfter.offsetHeight;
+    const onMove = this.buildMoveHandler(
+      { isHorizontal, isRtl, containerSize, startX, startY },
+      panelBefore, panelAfter, startSizeBefore, startSizeAfter);
+    this.attachListeners(isTouch, isHorizontal, onMove);
   }
 }

@@ -86,7 +86,6 @@ export const SORTABLE_LAND_EFFECTS = {
  * The `string & {}` intersection keeps the literal-union autocomplete
  * intact while still accepting arbitrary strings.
  */
-// eslint-disable-next-line @typescript-eslint/ban-types
 export type SortableLandEffect =
     | (typeof SORTABLE_LAND_EFFECTS)[keyof typeof SORTABLE_LAND_EFFECTS]
     | (string & {});
@@ -99,8 +98,8 @@ export type SortableLandEffect =
 export class SortableItemTemplateDirective {
     static ngTemplateContextGuard<T>(
         _dir: SortableItemTemplateDirective,
-        ctx: unknown,
-    ): ctx is SortableContext<T> {
+        _ctx: unknown,
+    ): _ctx is SortableContext<T> {
         return true;
     }
 }
@@ -434,19 +433,20 @@ export class SortableComponent<T> {
 
     /** Stable proxy that adapts this component to the `SortableRegistryEntry` contract. */
     private buildRegistryEntry(): SortableRegistryEntry {
-        const self = this;
+        // eslint-disable-next-line @typescript-eslint/no-this-alias -- object-literal getters need a stable reference to the component instance
+        const component = this;
         return {
-            get listId(): string { return self.resolvedListId(); },
-            get group(): string { return self.group(); },
-            get element(): HTMLElement { return self.containerRef().nativeElement; },
-            get orientation(): SortableOrientation { return self.orientation(); },
-            getItemRects: (): DOMRect[] => self.getCurrentItemRects(),
-            canAccept: (item: unknown, ctx: ForeignDropContext): AcceptResult => self.evaluateAccepts(item as T, ctx),
-            onForeignEnter: (item: unknown, fromListId: string): void => self.handleForeignEnter(item as T, fromListId),
-            onForeignLeave: (): void => self.handleForeignLeave(),
-            setRejectReason: (reason: string | null): void => self._rejectReason.set(reason),
-            receiveItem: (item: unknown, atIndex: number): void => self.handleReceiveItem(item as T, atIndex),
-            removeItem: (item: unknown): void => self.handleRemoveItem(item as T),
+            get listId(): string { return component.resolvedListId(); },
+            get group(): string { return component.group(); },
+            get element(): HTMLElement { return component.containerRef().nativeElement; },
+            get orientation(): SortableOrientation { return component.orientation(); },
+            getItemRects: (): DOMRect[] => component.getCurrentItemRects(),
+            canAccept: (item: unknown, ctx: ForeignDropContext): AcceptResult => component.evaluateAccepts(item as T, ctx),
+            onForeignEnter: (item: unknown, fromListId: string): void => component.handleForeignEnter(item as T, fromListId),
+            onForeignLeave: (): void => component.handleForeignLeave(),
+            setRejectReason: (reason: string | null): void => component._rejectReason.set(reason),
+            receiveItem: (item: unknown, atIndex: number): void => component.handleReceiveItem(item as T, atIndex),
+            removeItem: (item: unknown): void => component.handleRemoveItem(item as T),
         };
     }
 

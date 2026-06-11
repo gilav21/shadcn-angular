@@ -94,9 +94,9 @@ export class ContextMenuComponent implements OnDestroy {
     items = input<ContextMenuItem[]>([]);
     open = signal(false);
     position = signal({ x: 0, y: 0 });
-    data = signal<any>(undefined);
+    data = signal<unknown>(undefined);
 
-    private readonly clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent): void => {
         const target = event.target as HTMLElement;
         if (target.closest('[data-context-menu-portal]') || target.closest('[data-context-menu-sub-portal]')) {
             return;
@@ -104,13 +104,13 @@ export class ContextMenuComponent implements OnDestroy {
         this.close();
     };
 
-    private readonly escListener = (event: KeyboardEvent) => {
+    private readonly escListener = (event: KeyboardEvent): void => {
         if (event.key === 'Escape') {
             this.close();
         }
     };
 
-    private readonly scrollListener = () => {
+    private readonly scrollListener = (): void => {
         this.close();
     };
 
@@ -120,19 +120,19 @@ export class ContextMenuComponent implements OnDestroy {
         this.document.addEventListener('scroll', this.scrollListener, true);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener, true);
         this.document.removeEventListener('keydown', this.escListener);
         this.document.removeEventListener('scroll', this.scrollListener, true);
     }
 
-    show(x: number, y: number, data?: any) {
+    show(x: number, y: number, data?: unknown): void {
         this.position.set({ x, y });
         this.data.set(data);
         this.open.set(true);
     }
 
-    close() {
+    close(): void {
         this.open.set(false);
     }
 

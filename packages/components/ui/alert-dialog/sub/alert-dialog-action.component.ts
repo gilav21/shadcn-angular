@@ -34,7 +34,7 @@ export class AlertDialogActionComponent {
         )
     );
 
-    onClick() {
+    onClick(): void {
         this.alertDialog?.hide();
     }
 }

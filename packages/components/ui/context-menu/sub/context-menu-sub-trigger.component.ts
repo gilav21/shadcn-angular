@@ -58,11 +58,11 @@ export class ContextMenuSubTriggerComponent {
         this.class()
     ));
 
-    focus() {
+    focus(): void {
         this.triggerEl?.nativeElement.focus();
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         const rtl = this.contextMenu?.isRtl() ?? false;
         if (event.key === 'ArrowRight') {
             if (rtl) return;

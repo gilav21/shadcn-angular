@@ -92,7 +92,7 @@ export class StepperTriggerComponent {
     )
   );
 
-  onClick() {
+  onClick(): void {
     const index = this.item?.index();
     if (index !== undefined) {
       this.stepper?.goToStep(index);

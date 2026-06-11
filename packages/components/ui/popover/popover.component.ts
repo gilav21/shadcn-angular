@@ -3,7 +3,6 @@ import {
     ChangeDetectionStrategy,
     input,
     output,
-    signal,
     inject,
     ElementRef,
     InjectionToken,
@@ -37,11 +36,11 @@ export class PopoverComponent implements OnDestroy {
 
     private portalEl: HTMLElement | null = null;
 
-    registerPortal(el: HTMLElement | null) {
+    registerPortal(el: HTMLElement | null): void {
         this.portalEl = el;
     }
 
-    private readonly clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent): void => {
         const target = event.target as Node;
         if (this.el.nativeElement.contains(target)) return;
         if (this.portalEl?.contains(target)) return;
@@ -62,7 +61,7 @@ export class PopoverComponent implements OnDestroy {
             if (isOpen && shouldClose) {
                 setTimeout(() => {
                     const el = this.el.nativeElement;
-                    const handler = (e: Event) => {
+                    const handler = (e: Event): void => {
                         if (!(e.target instanceof Node)) return;
                         if (el.contains(e.target)) return;
                         if (this.portalEl?.contains(e.target)) return;
@@ -84,23 +83,23 @@ export class PopoverComponent implements OnDestroy {
         }
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
         this.removeScrollListener();
     }
 
-    toggle() {
+    toggle(): void {
         const newState = !this.open();
         this.open.set(newState);
         this.openChange.emit(newState);
     }
 
-    show() {
+    show(): void {
         this.open.set(true);
         this.openChange.emit(true);
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
         this.openChange.emit(false);
     }

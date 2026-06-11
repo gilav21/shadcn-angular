@@ -26,7 +26,7 @@ export class UiRippleDirective implements OnDestroy {
 
     private activeRipples: HTMLSpanElement[] = [];
 
-    onRipple(event: MouseEvent) {
+    onRipple(event: MouseEvent): void {
         if (this.uiRippleDisabled() || prefersReducedMotion()) return;
 
         const host = this.el.nativeElement as HTMLElement;
@@ -64,7 +64,7 @@ export class UiRippleDirective implements OnDestroy {
         };
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.activeRipples.forEach(r => r.remove());
         this.activeRipples = [];
     }

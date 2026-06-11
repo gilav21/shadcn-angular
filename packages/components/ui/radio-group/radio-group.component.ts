@@ -82,8 +82,9 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
   }
 
   getValue(option: T): string {
-    if (this.valueAttribute()) {
-      return String((option as Record<string, unknown>)[this.valueAttribute()!]);
+    const attr = this.valueAttribute();
+    if (attr) {
+      return String((option as Record<string, unknown>)[attr]);
     }
     return String(option);
   }
@@ -92,7 +93,7 @@ export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
     return this.disabledWith()(option);
   }
 
-  selectValue(val: string) {
+  selectValue(val: string): void {
     if (this.isDisabled()) return;
     this.internalValue.set(val);
     this.onChange(val);

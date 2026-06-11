@@ -31,7 +31,7 @@ export class SplitButtonPrimaryComponent {
 
     classes = computed(() => cn('rounded-e-none border-e-0'));
 
-    onClick(event: MouseEvent) {
+    onClick(event: MouseEvent): void {
         this.splitButton.primaryClick.emit(event);
     }
 }

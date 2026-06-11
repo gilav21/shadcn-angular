@@ -72,8 +72,8 @@ export class SpeedDialComponent implements OnDestroy {
     isRepositioning = signal(false);
 
     visibleChange = output<boolean>();
-    onShow = output<void>();
-    onHide = output<void>();
+    shown = output<void>();
+    hidden = output<void>();
 
     hostClasses = computed(() =>
         cn(
@@ -82,7 +82,7 @@ export class SpeedDialComponent implements OnDestroy {
         )
     );
 
-    private readonly clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent): void => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.hide();
         }
@@ -92,11 +92,11 @@ export class SpeedDialComponent implements OnDestroy {
         this.document.addEventListener('click', this.clickListener);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
     }
 
-    toggle() {
+    toggle(): void {
         if (this.disabled()) return;
         if (this.open()) {
             this.hide();
@@ -105,15 +105,15 @@ export class SpeedDialComponent implements OnDestroy {
         }
     }
 
-    show() {
+    show(): void {
         if (this.disabled()) return;
         this.contextPosition.set(null);
         this.open.set(true);
         this.visibleChange.emit(true);
-        this.onShow.emit();
+        this.shown.emit();
     }
 
-    showAt(x: number, y: number) {
+    showAt(x: number, y: number): void {
         if (this.disabled()) return;
 
         const container = this.el.nativeElement.closest('[uiSpeedDialContextTrigger]') as HTMLElement | null
@@ -132,7 +132,7 @@ export class SpeedDialComponent implements OnDestroy {
             this.isRepositioning.set(false);
             this.open.set(true);
             this.visibleChange.emit(true);
-            this.onShow.emit();
+            this.shown.emit();
         }, 0);
     }
 
@@ -166,9 +166,9 @@ export class SpeedDialComponent implements OnDestroy {
         };
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
         this.visibleChange.emit(false);
-        this.onHide.emit();
+        this.hidden.emit();
     }
 }

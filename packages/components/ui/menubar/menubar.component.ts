@@ -17,23 +17,23 @@ export class MenubarService {
   private rootEl: HTMLElement | null = null;
   menus = new Map<string, { trigger: MenubarTriggerComponent }>();
 
-  registerRoot(el: HTMLElement) {
+  registerRoot(el: HTMLElement): void {
     this.rootEl = el;
   }
 
-  register(id: string, trigger: MenubarTriggerComponent) {
+  register(id: string, trigger: MenubarTriggerComponent): void {
     this.menus.set(id, { trigger });
   }
 
-  unregister(id: string) {
+  unregister(id: string): void {
     this.menus.delete(id);
   }
 
-  setActive(id: string | null) {
+  setActive(id: string | null): void {
     this.activeMenuId.set(id);
   }
 
-  isActive(id: string) {
+  isActive(id: string): boolean {
     return this.activeMenuId() === id;
   }
 
@@ -72,7 +72,7 @@ export class MenubarComponent {
     this.class()
   ));
 
-  onClick(event: MouseEvent) {
+  onClick(event: MouseEvent): void {
     if (this.service.activeMenuId() && !this.el.nativeElement.contains(event.target)) {
       this.service.setActive(null);
     }

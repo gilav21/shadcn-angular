@@ -44,22 +44,22 @@ export class NavigationMenuItemComponent {
     this.class()
   ));
 
-  onMouseEnter() {
+  onMouseEnter(): void {
     if (isTouchDevice()) return;
     this.service.cancelClose();
     this.service.setActive(this.id);
   }
 
-  onMouseLeave() {
+  onMouseLeave(): void {
     if (isTouchDevice()) return;
     this.service.scheduleClose();
   }
 
-  open() {
+  open(): void {
     this.service.setActive(this.id);
   }
 
-  close() {
+  close(): void {
     this.service.setActive(null);
   }
 }

@@ -82,12 +82,14 @@ class CVATestHostComponent {
                 <button
                     type="button"
                     role="combobox"
+                    aria-controls="tree-select-custom-popup"
+                    aria-expanded="false"
                     class="flex h-10 w-full items-center justify-between rounded-md border px-3 py-2 text-sm"
                 >
                     <span>{{ selectedLabel() }}</span>
                 </button>
             </ui-popover-trigger>
-            <ui-popover-content class="w-[--trigger-width] p-2" align="start">
+            <ui-popover-content id="tree-select-custom-popup" class="w-[--trigger-width] p-2" align="start">
                 <ui-tree
                     [data]="nodes"
                     [selectable]="'single'"

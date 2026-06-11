@@ -55,21 +55,26 @@ export function getDefaultConfig(): Config {
     };
 }
 
-function validateConfig(data: unknown): data is Config {
-    if (!data || typeof data !== 'object') return false;
-    const obj = data as Record<string, unknown>;
-
+function validateTailwind(obj: Record<string, unknown>): boolean {
     if (!obj['tailwind'] || typeof obj['tailwind'] !== 'object') return false;
     const tw = obj['tailwind'] as Record<string, unknown>;
-    if (typeof tw['css'] !== 'string' || typeof tw['baseColor'] !== 'string') return false;
+    return typeof tw['css'] === 'string' && typeof tw['baseColor'] === 'string';
+}
 
+function validateAliases(obj: Record<string, unknown>): boolean {
     if (!obj['aliases'] || typeof obj['aliases'] !== 'object') return false;
     const aliases = obj['aliases'] as Record<string, unknown>;
     if (typeof aliases['components'] !== 'string' || typeof aliases['utils'] !== 'string' || typeof aliases['ui'] !== 'string') return false;
     if ('blocks' in aliases && aliases['blocks'] !== undefined && typeof aliases['blocks'] !== 'string') return false;
+    return true;
+}
 
+function validateConfig(data: unknown): data is Config {
+    if (!data || typeof data !== 'object') return false;
+    const obj = data as Record<string, unknown>;
+    if (!validateTailwind(obj)) return false;
+    if (!validateAliases(obj)) return false;
     if ('prefix' in obj && obj['prefix'] !== undefined && !isValidPrefix(obj['prefix'])) return false;
-
     return true;
 }
 

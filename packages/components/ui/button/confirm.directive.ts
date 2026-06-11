@@ -38,7 +38,7 @@ export class ConfirmDirective {
     private readonly elementInjector = inject(Injector);
 
     @HostListener('click', ['$event'])
-    onClick(event: MouseEvent) {
+    onClick(event: MouseEvent): void {
         event.stopPropagation();
 
         const ref = createComponent(ConfirmDialogComponent, {
@@ -65,7 +65,7 @@ export class ConfirmDirective {
             cleanup();
         });
 
-        function cleanup() {
+        function cleanup(): void {
             confirmSub.unsubscribe();
             cancelSub.unsubscribe();
             ref.destroy();

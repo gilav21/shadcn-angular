@@ -28,7 +28,7 @@ export class StreamingTextComponent implements OnDestroy {
 
     classes = computed(() => cn('whitespace-pre-wrap', this.class()));
 
-    private intervalId: any;
+    private intervalId: ReturnType<typeof setInterval> | null = null;
     private lastInput = '';
 
     constructor() {
@@ -46,7 +46,7 @@ export class StreamingTextComponent implements OnDestroy {
         });
     }
 
-    private startTyping() {
+    private startTyping(): void {
         if (this.intervalId) return; // Already typing
 
         if (prefersReducedMotion()) {
@@ -70,7 +70,7 @@ export class StreamingTextComponent implements OnDestroy {
         }, this.speed());
     }
 
-    private stopTyping() {
+    private stopTyping(): void {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;
@@ -78,7 +78,7 @@ export class StreamingTextComponent implements OnDestroy {
         this.isTyping.set(false);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.stopTyping();
     }
 }

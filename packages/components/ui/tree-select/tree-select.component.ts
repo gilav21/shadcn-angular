@@ -124,15 +124,15 @@ export class TreeSelectComponent implements ControlValueAccessor {
     this.formDisabled.set(isDisabled);
   }
 
-  onSelectionChange(selection: string[]) {
-    const newVal = selection[0] || null;
+  onSelectionChange(selection: string[]): void {
+    const newVal = selection[0] ?? null;
     this.internalValue.set(newVal);
     this.onChange(newVal);
     this.selectionChange.emit(selection);
     this.isOpen.set(false);
   }
 
-  select(value: string | null) {
+  select(value: string | null): void {
     this.internalValue.set(value);
     this.onChange(value);
     this.selectionChange.emit(value ? [value] : []);

@@ -43,11 +43,11 @@ export class SidebarProviderComponent {
     this.class()
   ));
 
-  onResize() {
+  onResize(): void {
     this.checkMobile();
   }
 
-  private checkMobile() {
+  private checkMobile(): void {
     const isMobile = globalThis.window !== undefined && globalThis.window.innerWidth < 768;
     this.service.setMobile(isMobile);
   }

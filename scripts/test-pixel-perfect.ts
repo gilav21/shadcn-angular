@@ -29,7 +29,7 @@ for (const fp of fallbackPaths) {
     }
 }
 
-async function main() {
+async function main(): Promise<void> {
     const pdfPath = process.argv[2];
     if (!pdfPath) {
         console.error('Usage: npx tsx scripts/test-pixel-perfect.ts <pdf-path> [output-path]');

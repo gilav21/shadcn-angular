@@ -50,18 +50,18 @@ export class ParticlesComponent implements OnInit, OnDestroy {
     private mouseY = -1000;
     private resolvedColor = '#888888';
 
-    private readonly mouseMoveHandler = (e: MouseEvent) => {
+    private readonly mouseMoveHandler = (e: MouseEvent): void => {
         const rect = (this.el.nativeElement as HTMLElement).getBoundingClientRect();
         this.mouseX = e.clientX - rect.left;
         this.mouseY = e.clientY - rect.top;
     };
 
-    private readonly mouseLeaveHandler = () => {
+    private readonly mouseLeaveHandler = (): void => {
         this.mouseX = -1000;
         this.mouseY = -1000;
     };
 
-    ngOnInit() {
+    ngOnInit(): void {
         if (prefersReducedMotion()) return;
 
         this.ngZone.runOutsideAngular(() => {
@@ -72,7 +72,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.animationFrameId != null) {
             cancelAnimationFrame(this.animationFrameId);
         }
@@ -83,18 +83,19 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         this.canvas?.remove();
     }
 
-    private resolveColor() {
+    private resolveColor(): void {
         const raw = this.color();
         if (raw === 'currentColor' || raw.includes('var(')) {
             const host = this.el.nativeElement as HTMLElement;
             const computed = getComputedStyle(host);
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string is also invalid, || fallback is intentional
             this.resolvedColor = computed.color || '#888888';
         } else {
             this.resolvedColor = raw;
         }
     }
 
-    private setupCanvas() {
+    private setupCanvas(): void {
         const host = this.el.nativeElement as HTMLElement;
         this.canvas = this.renderer.createElement('canvas') as HTMLCanvasElement;
         this.renderer.setStyle(this.canvas, 'position', 'absolute');
@@ -120,7 +121,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         }
     }
 
-    private syncCanvasSize() {
+    private syncCanvasSize(): void {
         if (!this.canvas) return;
         const host = this.el.nativeElement as HTMLElement;
         const w = host.clientWidth;
@@ -131,7 +132,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         }
     }
 
-    private createParticles() {
+    private createParticles(): void {
         if (!this.canvas || this.canvas.width === 0) return;
         const w = this.canvas.width;
         const h = this.canvas.height;
@@ -149,7 +150,7 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         }
     }
 
-    private readonly animate = () => {
+    private readonly animate = (): void => {
         if (!this.canvas || !this.ctx) return;
         const w = this.canvas.width;
         const h = this.canvas.height;
@@ -170,8 +171,9 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         this.animationFrameId = requestAnimationFrame(this.animate);
     };
 
-    private updateAndDrawParticles(w: number, h: number, color: string) {
-        const ctx = this.ctx!;
+    private updateAndDrawParticles(w: number, h: number, color: string): void {
+        if (!this.ctx) return;
+        const ctx = this.ctx;;
         const applyMouse = this.mouseInteraction() && this.mouseX > -999;
 
         for (const p of this.particles) {
@@ -199,8 +201,9 @@ export class ParticlesComponent implements OnInit, OnDestroy {
         }
     }
 
-    private drawConnections(color: string) {
-        const ctx = this.ctx!;
+    private drawConnections(color: string): void {
+        if (!this.ctx) return;
+        const ctx = this.ctx;;
         const connDist = this.connectDistance();
         if (connDist <= 0) return;
 

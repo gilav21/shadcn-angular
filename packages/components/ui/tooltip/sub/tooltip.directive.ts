@@ -31,7 +31,7 @@ export class TooltipDirective implements OnDestroy {
     private dismissTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private removeDismissListener: (() => void) | null = null;
 
-    onMouseEnter() {
+    onMouseEnter(): void {
         if (this.tooltipDisabled() || isTouchDevice()) return;
 
         this.delayTimeoutId = setTimeout(() => {
@@ -39,19 +39,19 @@ export class TooltipDirective implements OnDestroy {
         }, 200);
     }
 
-    onMouseLeave() {
+    onMouseLeave(): void {
         if (isTouchDevice()) return;
         this.clearDelayTimeout();
         this.hideTooltip();
     }
 
-    onTouchStart(event: TouchEvent) {
+    onTouchStart(event: TouchEvent): void {
         if (this.tooltipDisabled() || !isTouchDevice()) return;
         event.preventDefault();
         this.toggleTouch();
     }
 
-    private toggleTouch() {
+    private toggleTouch(): void {
         if (this.tooltipElement) {
             this.dismissTouch();
             return;
@@ -60,7 +60,7 @@ export class TooltipDirective implements OnDestroy {
         this.scheduleDismiss();
     }
 
-    private scheduleDismiss() {
+    private scheduleDismiss(): void {
         this.clearDismiss();
 
         this.dismissTimeoutId = setTimeout(() => {
@@ -68,7 +68,7 @@ export class TooltipDirective implements OnDestroy {
         }, TOUCH_AUTO_DISMISS_MS);
 
         this.zone.runOutsideAngular(() => {
-            const handler = () => {
+            const handler = (): void => {
                 this.zone.run(() => this.dismissTouch());
             };
             document.addEventListener('touchstart', handler, { once: true });
@@ -78,19 +78,19 @@ export class TooltipDirective implements OnDestroy {
         });
     }
 
-    private dismissTouch() {
+    private dismissTouch(): void {
         this.clearDismiss();
         this.hideTooltip();
     }
 
-    private clearDelayTimeout() {
+    private clearDelayTimeout(): void {
         if (this.delayTimeoutId) {
             clearTimeout(this.delayTimeoutId);
             this.delayTimeoutId = null;
         }
     }
 
-    private clearDismiss() {
+    private clearDismiss(): void {
         if (this.dismissTimeoutId) {
             clearTimeout(this.dismissTimeoutId);
             this.dismissTimeoutId = null;
@@ -101,56 +101,48 @@ export class TooltipDirective implements OnDestroy {
         }
     }
 
-    private showTooltip() {
+    private showTooltip(): void {
         if (this.tooltipElement) return;
 
-        this.tooltipElement = this.renderer.createElement('div');
+        const tooltipEl = this.createTooltipElement();
+        this.tooltipElement = tooltipEl;
+
+        const hostRect = this.resolveTargetElement().getBoundingClientRect();
+        const tooltipRect = tooltipEl.getBoundingClientRect();
+        const pos = this.computePosition(hostRect, tooltipRect);
+
+        this.renderer.setStyle(tooltipEl, 'top', `${pos.top}px`);
+        this.renderer.setStyle(tooltipEl, 'left', `${pos.left}px`);
+    }
+
+    private createTooltipElement(): HTMLElement {
+        const tooltipEl: HTMLElement = this.renderer.createElement('div');
         const text = this.renderer.createText(this.uiTooltip());
-        this.renderer.appendChild(this.tooltipElement, text);
+        this.renderer.appendChild(tooltipEl, text);
 
         this.renderer.setAttribute(
-            this.tooltipElement,
+            tooltipEl,
             'class',
             'fixed z-50 whitespace-nowrap rounded-md bg-primary px-3 py-1.5 text-xs text-primary-foreground pointer-events-none'
         );
 
-        this.renderer.appendChild(document.body, this.tooltipElement);
+        this.renderer.appendChild(document.body, tooltipEl);
+        return tooltipEl;
+    }
 
+    private resolveTargetElement(): HTMLElement {
         const hostEl = this.el.nativeElement as HTMLElement;
-        let targetEl = hostEl;
         if (getComputedStyle(hostEl).display === 'contents') {
-            targetEl = (hostEl.firstElementChild as HTMLElement) || hostEl;
+            return (hostEl.firstElementChild as HTMLElement) ?? hostEl;
         }
+        return hostEl;
+    }
 
-        const hostRect = targetEl.getBoundingClientRect();
-        const tooltipRect = this.tooltipElement!.getBoundingClientRect();
+    private computePosition(hostRect: DOMRect, tooltipRect: DOMRect): { top: number; left: number } {
+        const calculatePosition = (currentSide: string): { top: number; left: number } =>
+            this.positionFor(currentSide, hostRect, tooltipRect);
 
         let side = this.tooltipSide();
-
-        const calculatePosition = (currentSide: string) => {
-            let t = 0;
-            let l = 0;
-            switch (currentSide) {
-                case 'top':
-                    t = hostRect.top - tooltipRect.height - 8;
-                    l = hostRect.left + (hostRect.width - tooltipRect.width) / 2;
-                    break;
-                case 'bottom':
-                    t = hostRect.bottom + 8;
-                    l = hostRect.left + (hostRect.width - tooltipRect.width) / 2;
-                    break;
-                case 'left':
-                    t = hostRect.top + (hostRect.height - tooltipRect.height) / 2;
-                    l = hostRect.left - tooltipRect.width - 8;
-                    break;
-                case 'right':
-                    t = hostRect.top + (hostRect.height - tooltipRect.height) / 2;
-                    l = hostRect.right + 8;
-                    break;
-            }
-            return { top: t, left: l };
-        };
-
         let pos = calculatePosition(side);
 
         const { innerWidth, innerHeight } = globalThis;
@@ -171,21 +163,44 @@ export class TooltipDirective implements OnDestroy {
             pos = calculatePosition(side);
         }
 
-        pos.top = Math.max(8, Math.min(innerHeight - tooltipRect.height - 8, pos.top));
-        pos.left = Math.max(8, Math.min(innerWidth - tooltipRect.width - 8, pos.left));
-
-        this.renderer.setStyle(this.tooltipElement, 'top', `${pos.top}px`);
-        this.renderer.setStyle(this.tooltipElement, 'left', `${pos.left}px`);
+        return {
+            top: Math.max(8, Math.min(innerHeight - tooltipRect.height - 8, pos.top)),
+            left: Math.max(8, Math.min(innerWidth - tooltipRect.width - 8, pos.left)),
+        };
     }
 
-    private hideTooltip() {
+    private positionFor(currentSide: string, hostRect: DOMRect, tooltipRect: DOMRect): { top: number; left: number } {
+        let t = 0;
+        let l = 0;
+        switch (currentSide) {
+            case 'top':
+                t = hostRect.top - tooltipRect.height - 8;
+                l = hostRect.left + (hostRect.width - tooltipRect.width) / 2;
+                break;
+            case 'bottom':
+                t = hostRect.bottom + 8;
+                l = hostRect.left + (hostRect.width - tooltipRect.width) / 2;
+                break;
+            case 'left':
+                t = hostRect.top + (hostRect.height - tooltipRect.height) / 2;
+                l = hostRect.left - tooltipRect.width - 8;
+                break;
+            case 'right':
+                t = hostRect.top + (hostRect.height - tooltipRect.height) / 2;
+                l = hostRect.right + 8;
+                break;
+        }
+        return { top: t, left: l };
+    }
+
+    private hideTooltip(): void {
         if (this.tooltipElement) {
             this.tooltipElement.remove();
             this.tooltipElement = null;
         }
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.clearDelayTimeout();
         this.clearDismiss();
         this.hideTooltip();

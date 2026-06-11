@@ -43,7 +43,7 @@ export function planMigration(
 ): MigrationPlan {
     const customizedLegacy = scan.legacy.filter(n => customized.has(n));
     const customizedSet = new Set(customizedLegacy);
-    const migratable = (n: ComponentName) =>
+    const migratable = (n: ComponentName): boolean =>
         [...resolveDependencies([n])].every(d => !customizedSet.has(d));
     const structural = scan.legacy.filter(migratable);
     const blocked = scan.legacy.filter(n => !customizedSet.has(n) && !migratable(n));

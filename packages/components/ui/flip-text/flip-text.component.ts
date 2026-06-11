@@ -30,7 +30,7 @@ export class FlipTextComponent {
         return char === ' ' ? ' ' : char;
     }
 
-    playAnimation() {
+    playAnimation(): void {
         const host = this.el.nativeElement as HTMLElement;
         const chars = host.querySelectorAll<HTMLElement>('.animate-flip-in');
         chars.forEach((el, i) => {

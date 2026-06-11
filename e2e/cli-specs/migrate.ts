@@ -15,11 +15,15 @@ import { realLegacyBlob } from './_git.js';
  *    left exactly as-is, gets no folder, and is reported as protected;
  *  - a consumer's own same-named component (its own selector) is never touched.
  */
-const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
-    await runCli(['init', '--yes']);
-    await runCli(['add', 'button', '--yes']);
+interface MigrateFixturePaths {
+    readonly folder: string;
+    readonly flat: string;
+    readonly customizedBadge: string;
+    readonly userCard: string;
+    readonly appFile: string;
+}
 
-    const uiDir = path.join(fixtureApp, 'src/components/ui');
+function fabricateLegacyFixtures(uiDir: string, fixtureApp: string): MigrateFixturePaths {
     const folder = path.join(uiDir, 'button');
     const flat = path.join(uiDir, 'button.component.ts');
 
@@ -47,6 +51,17 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     const appFile = path.join(fixtureApp, 'src/legacy-consumer.ts');
     fs.writeFileSync(appFile, `import { ButtonComponent } from '@/components/ui/button.component';\nexport const C = ButtonComponent;\n`);
 
+    return { folder, flat, customizedBadge, userCard, appFile };
+}
+
+const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
+    await runCli(['init', '--yes']);
+    await runCli(['add', 'button', '--yes']);
+
+    const uiDir = path.join(fixtureApp, 'src/components/ui');
+    const { folder, flat, customizedBadge, userCard, appFile } =
+        fabricateLegacyFixtures(uiDir, fixtureApp);
+
     // 1. `update` on a legacy component must route to `migrate`.
     const upd = await captureCli(['update', 'button']);
     if (upd.code === 0) {
@@ -68,6 +83,12 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     }
     assertContains(run.stdout, 'Migrated', 'migrate should report completion');
 
+    assertMigrationOutcome(uiDir, { folder, flat, customizedBadge, userCard, appFile }, run.stdout);
+};
+
+function assertMigrationOutcome(uiDir: string, paths: MigrateFixturePaths, stdout: string): void {
+    const { folder, flat, customizedBadge, userCard, appFile } = paths;
+
     // Pristine button migrated to the folder layout; flat file gone.
     if (!fs.existsSync(path.join(folder, 'button.component.ts'))) {
         throw new Error('migrate must write the folder entry button/button.component.ts');
@@ -85,8 +106,8 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     }
     assertContains(fs.readFileSync(customizedBadge, 'utf-8'), 'myCustomLabel',
         "the user's customization must be preserved verbatim");
-    assertContains(run.stdout, 'badge', 'migrate should list the customized component it protected');
-    assertContains(run.stdout, 'kept', 'migrate should reassure that customizations were kept');
+    assertContains(stdout, 'badge', 'migrate should list the customized component it protected');
+    assertContains(stdout, 'kept', 'migrate should reassure that customizations were kept');
 
     // The consumer's own card.component.ts (different selector) must survive.
     if (!fs.existsSync(userCard)) {
@@ -104,6 +125,6 @@ const spec: CliSpec = async ({ runCli, captureCli, fixtureApp }) => {
     if (rewritten.includes('button.component')) {
         throw new Error(`no legacy ".component" specifier should remain:\n${rewritten}`);
     }
-};
+}
 
 export default spec;

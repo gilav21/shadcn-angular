@@ -22,7 +22,7 @@ import { cn } from '../../lib/utils';
 
 export interface VirtualItem {
   id: string | number;
-  [key: string]: any;
+  [key: string]: unknown;
 }
 
 export interface VirtualScrollState {
@@ -34,16 +34,18 @@ export interface VirtualScrollState {
 }
 
 @Directive({
-  selector: '[virtualItem]',
+  selector: '[uiVirtualItem]',
   standalone: true,
 })
 export class VirtualItemDirective {
+  /* eslint-disable @typescript-eslint/no-unused-vars -- dir and ctx required by Angular type-narrowing contract */
   static ngTemplateContextGuard<T>(
     dir: VirtualItemDirective,
     ctx: unknown
   ): ctx is { $implicit: T; index: number } {
     return true;
   }
+  /* eslint-enable @typescript-eslint/no-unused-vars */
 }
 
 /**
@@ -65,8 +67,8 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
   loading = input<boolean>(false);
   hasMore = input<boolean>(true);
 
-  @ContentChild(VirtualItemDirective, { read: TemplateRef }) itemTemplateRef?: TemplateRef<any>;
-  @ContentChild('loading', { read: TemplateRef }) customLoadingTemplate?: TemplateRef<any>;
+  @ContentChild(VirtualItemDirective, { read: TemplateRef }) itemTemplateRef?: TemplateRef<{ $implicit: T; index: number }>;
+  @ContentChild('loading', { read: TemplateRef }) customLoadingTemplate?: TemplateRef<unknown>;
 
   windowChange = output<{ start: number; end: number }>();
   scrollEnd = output<void>();
@@ -137,11 +139,11 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
     });
   }
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     const container = this.containerRef()?.nativeElement;
     if (container) {
       this.containerHeight.set(container.clientHeight);
-      const onResize = () => {
+      const onResize = (): void => {
         this.containerHeight.set(container.clientHeight);
       };
       this.containerObserver = new ResizeObserver(onResize);
@@ -149,18 +151,18 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
     }
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.resizeObserver.disconnect();
     this.containerObserver?.disconnect();
   }
 
-  onScroll(event: Event) {
+  onScroll(event: Event): void {
     const target = event.target as HTMLElement;
     this.scrollTop.set(target.scrollTop);
   }
 
   private getChunkHeight(chunkIndex: number, lastChunkSize: number = this.CHUNK_SIZE): number {
-    const correction = this.chunkCorrections.get(chunkIndex) || 0;
+    const correction = this.chunkCorrections.get(chunkIndex) ?? 0;
     return (lastChunkSize * this.minItemHeight()) + correction;
   }
 
@@ -272,13 +274,13 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
     return Math.max(0, totalHeight - itemsEndOffset);
   });
 
-  private handleResizes(entries: ResizeObserverEntry[]) {
+  private handleResizes(entries: ResizeObserverEntry[]): void {
     let scrollAdjustment = 0;
     const firstVisible = this.viewportRange().start;
 
     for (const entry of entries) {
       const el = entry.target as HTMLElement;
-      const index = Number.parseInt(el.dataset['index'] || '-1', 10);
+      const index = Number.parseInt(el.dataset['index'] ?? '-1', 10);
       if (index === -1) continue;
 
       const newHeight = entry.borderBoxSize[0].blockSize;
@@ -290,7 +292,7 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
       this.itemHeights.set(index, newHeight);
 
       const chunkIdx = Math.floor(index / this.CHUNK_SIZE);
-      const currentCorrection = this.chunkCorrections.get(chunkIdx) || 0;
+      const currentCorrection = this.chunkCorrections.get(chunkIdx) ?? 0;
       this.chunkCorrections.set(chunkIdx, currentCorrection + diff);
 
       if (index < firstVisible) {
@@ -309,7 +311,7 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
     this.measurementVersion.update(v => v + 1);
   }
 
-  scrollToIndex(index: number) {
+  scrollToIndex(index: number): void {
     const offset = this.getOffsetForIndex(index);
     const container = this.containerRef()?.nativeElement;
     if (container) {
@@ -318,19 +320,19 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
     }
   }
 
-  scrollToTop() {
+  scrollToTop(): void {
     this.scrollToIndex(0);
   }
 
-  scrollToBottom() {
+  scrollToBottom(): void {
     const container = this.containerRef()?.nativeElement;
     if (container) {
       container.scrollTop = container.scrollHeight;
     }
   }
 
-  trackByFn(item: any): any {
-    return item.id ?? item._virtualIndex;
+  trackByFn(item: T & { _virtualIndex?: number }): string | number {
+    return (item.id ?? item._virtualIndex) as string | number;
   }
 
   private calculateScrollProgress(): number {

@@ -38,7 +38,7 @@ export class MenubarItemComponent {
   inset = input(false, { transform: booleanAttribute });
   shortcut = input('');
 
-  select = output<void>();
+  selected = output<void>();
   readonly menu = inject(MENUBAR_MENU, { optional: true }) as MenubarMenuComponent | null;
 
   classes = computed(() => cn(
@@ -50,9 +50,9 @@ export class MenubarItemComponent {
     this.class()
   ));
 
-  onClick() {
+  onClick(): void {
     if (!this.disabled()) {
-      this.select.emit();
+      this.selected.emit();
       this.menu?.close();
     }
   }

@@ -254,6 +254,7 @@
 
   <div
     #editorDiv
+    tabindex="0"
     [attr.contenteditable]="!disabled() && !readonly()"
     [class]="editableClasses()"
     [attr.placeholder]="placeholder() || resolvedLocale().editor.placeholder"
@@ -284,6 +285,7 @@
 
   @if (findReplaceVisible()) {
     <div class="absolute top-2 right-2 z-50 bg-popover border rounded-lg shadow-lg p-3 w-80 max-sm:w-[calc(100%-1rem)] max-sm:left-2 animate-in slide-in-from-top-2 fade-in-0"
+         tabindex="-1"
          (keydown.escape)="closeFindReplace()"
          (keydown)="onFindReplaceKeydown($event)">
       <div class="flex items-center gap-1.5 mb-2">
@@ -419,7 +421,7 @@
       [position]="mentionPopoverPosition()"
       [locale]="resolvedLocale()"
       (itemSelect)="onMentionSelect($event)"
-      (close)="closeMentionPopover()"
+      (closed)="closeMentionPopover()"
     />
   }
 
@@ -467,9 +469,10 @@
     >
       <div class="space-y-3">
         <div>
-          <label class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.text }}</label>
+          <label for="rte-link-text" class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.text }}</label>
           <input
             #linkText
+            id="rte-link-text"
             type="text"
             [value]="selectedText()"
             [placeholder]="resolvedLocale().link.textPlaceholder"
@@ -477,9 +480,10 @@
           />
         </div>
         <div>
-          <label class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.url }}</label>
+          <label for="rte-link-url" class="text-sm font-medium mb-1 block">{{ resolvedLocale().link.url }}</label>
           <input
             #linkUrl
+            id="rte-link-url"
             type="url"
             [placeholder]="resolvedLocale().link.urlPlaceholder"
             class="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
@@ -589,7 +593,7 @@
         <div class="text-xs text-muted-foreground mb-1.5">{{ resolvedLocale().table.cellColor }}</div>
         <div class="grid grid-cols-8 gap-0.5">
           @for (color of tableCellColors; track color) {
-            <button type="button" class="w-4 h-4 rounded border border-border hover:scale-110 transition-transform" [style.background-color]="color" (click)="setCellColor(color)"></button>
+            <button type="button" class="w-4 h-4 rounded border border-border hover:scale-110 transition-transform" [style.background-color]="color" [attr.aria-label]="color" (click)="setCellColor(color)"></button>
           }
         </div>
       </div>

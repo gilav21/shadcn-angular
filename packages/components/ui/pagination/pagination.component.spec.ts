@@ -47,13 +47,13 @@ class TestHostComponent {
         this.currentPage.set(page);
     }
 
-    onPrevious(event: MouseEvent) {
+    onPrevious(_event: MouseEvent) {
         if (this.currentPage() > 1) {
             this.currentPage.update(p => p - 1);
         }
     }
 
-    onNext(event: MouseEvent) {
+    onNext(_event: MouseEvent) {
         if (this.currentPage() < 10) {
             this.currentPage.update(p => p + 1);
         }
@@ -250,14 +250,14 @@ describe('Pagination RTL Support', () => {
     it('should have rtl:rotate-180 class on previous arrow', () => {
         const prev = fixture.debugElement.query(By.css('[data-slot="pagination-previous"]'));
         const svg = prev.nativeElement.querySelector('svg');
-        const svgClass = svg.getAttribute('class') || '';
+        const svgClass = svg.getAttribute('class') ?? '';
         expect(svgClass).toContain('rtl:rotate-180');
     });
 
     it('should have rtl:rotate-180 class on next arrow', () => {
         const next = fixture.debugElement.query(By.css('[data-slot="pagination-next"]'));
         const svg = next.nativeElement.querySelector('svg');
-        const svgClass = svg.getAttribute('class') || '';
+        const svgClass = svg.getAttribute('class') ?? '';
         expect(svgClass).toContain('rtl:rotate-180');
     });
 

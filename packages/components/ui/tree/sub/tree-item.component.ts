@@ -83,12 +83,12 @@ export class TreeItemComponent {
         )
     );
 
-    onExpandClick(event: MouseEvent) {
+    onExpandClick(event: MouseEvent): void {
         event.stopPropagation();
         this.tree?.toggleExpanded(this.value());
     }
 
-    onHeaderClick(event: MouseEvent) {
+    onHeaderClick(_event: Event): void {
         this.tree?.focusedKey.set(this.value());
         this.tree?.toggleSelected(this.value());
     }

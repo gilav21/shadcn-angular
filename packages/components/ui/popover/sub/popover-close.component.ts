@@ -9,7 +9,14 @@ import { POPOVER } from '../popover.component';
     selector: 'ui-popover-close',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" [attr.data-slot]="'popover-close'">
+    <span
+      role="button"
+      tabindex="0"
+      (click)="onClick()"
+      (keydown.enter)="onClick()"
+      (keydown.space)="onKeydownSpace($event)"
+      [attr.data-slot]="'popover-close'"
+    >
       <ng-content />
     </span>
   `,
@@ -18,7 +25,12 @@ import { POPOVER } from '../popover.component';
 export class PopoverCloseComponent {
     private readonly popover = inject(POPOVER, { optional: true });
 
-    onClick() {
+    onClick(): void {
         this.popover?.hide();
+    }
+
+    onKeydownSpace(event: Event): void {
+        event.preventDefault();
+        this.onClick();
     }
 }

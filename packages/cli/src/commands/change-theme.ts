@@ -71,6 +71,42 @@ function replaceBlock(
     return css.replace(fullMatch, `${openBrace}${updatedInner}${closeBrace}`);
 }
 
+function validateThemeArgs(themeName: string | null, opts: { from?: string }): void {
+    if (themeName && opts.from) {
+        throw new Error('Pass either a theme name or --from <hex>, not both.');
+    }
+    if (!themeName && !opts.from) {
+        throw new Error(
+            `Missing theme. Pass a preset name (${VALID_THEMES.join(', ')}) or --from "#hex".`,
+        );
+    }
+    if (themeName && !VALID_THEMES.includes(themeName as ThemeColor)) {
+        throw new Error(
+            `Unknown theme "${themeName}". Valid themes: ${VALID_THEMES.join(', ')}`,
+        );
+    }
+    if (opts.from && !isValidHex(opts.from)) {
+        throw new Error(`Invalid hex color "${opts.from}" — expected #rgb or #rrggbb.`);
+    }
+}
+
+function buildThemeVars(
+    theme: ThemeColor | null,
+    baseColor: BaseColor,
+    fromHex: string | undefined,
+): { lightVars: Record<string, string>; darkVars: Record<string, string>; triplet: ReturnType<typeof buildBrandTriplet> } {
+    const lightVars: Record<string, string> = {};
+    const darkVars: Record<string, string> = {};
+    const isBaseTheme = theme !== null && theme in baseColors;
+    const base = baseColors[isBaseTheme ? (theme as BaseColor) : baseColor];
+    Object.assign(lightVars, base.light);
+    Object.assign(darkVars, base.dark);
+    const triplet = theme ? themeColors[theme] : buildBrandTriplet(fromHex as string);
+    Object.assign(lightVars, triplet.light);
+    Object.assign(darkVars, triplet.dark);
+    return { lightVars, darkVars, triplet };
+}
+
 /**
  * Core change-theme logic — no chalk/ora.
  *
@@ -91,22 +127,7 @@ export async function changeThemeCore(
     cwd: string,
     opts: { from?: string } = {},
 ): Promise<string> {
-    if (themeName && opts.from) {
-        throw new Error('Pass either a theme name or --from <hex>, not both.');
-    }
-    if (!themeName && !opts.from) {
-        throw new Error(
-            `Missing theme. Pass a preset name (${VALID_THEMES.join(', ')}) or --from "#hex".`,
-        );
-    }
-    if (themeName && !VALID_THEMES.includes(themeName as ThemeColor)) {
-        throw new Error(
-            `Unknown theme "${themeName}". Valid themes: ${VALID_THEMES.join(', ')}`,
-        );
-    }
-    if (opts.from && !isValidHex(opts.from)) {
-        throw new Error(`Invalid hex color "${opts.from}" — expected #rgb or #rrggbb.`);
-    }
+    validateThemeArgs(themeName, opts);
 
     const config = await getConfig(cwd);
     if (!config) {
@@ -118,35 +139,13 @@ export async function changeThemeCore(
         throw new Error(`CSS file not found: ${cssPath}`);
     }
 
-    let css = await fs.readFile(cssPath, 'utf-8');
-
     const theme = themeName as ThemeColor | null;
-    const isBaseTheme = theme !== null && theme in baseColors;
     const baseColor: BaseColor = config.tailwind.baseColor ?? 'neutral';
+    const { lightVars, darkVars, triplet } = buildThemeVars(theme, baseColor, opts.from);
 
-    // Build light vars: base colors + theme triplet
-    const lightVars: Record<string, string> = {};
-    const darkVars: Record<string, string> = {};
-
-    if (isBaseTheme) {
-        const base = baseColors[theme as BaseColor];
-        Object.assign(lightVars, base.light);
-        Object.assign(darkVars, base.dark);
-    } else {
-        // For accent-only and brand themes, use the project's configured base color
-        const base = baseColors[baseColor];
-        Object.assign(lightVars, base.light);
-        Object.assign(darkVars, base.dark);
-    }
-
-    // Always apply the theme triplet
-    const triplet = theme ? themeColors[theme] : buildBrandTriplet(opts.from as string);
-    Object.assign(lightVars, triplet.light);
-    Object.assign(darkVars, triplet.dark);
-
+    let css = await fs.readFile(cssPath, 'utf-8');
     css = replaceBlock(css, ':root', lightVars);
     css = replaceBlock(css, '.dark', darkVars);
-
     await fs.writeFile(cssPath, css, 'utf-8');
 
     return theme

@@ -43,7 +43,7 @@ export class RadioGroupItemComponent {
     )
   );
 
-  select() {
+  select(): void {
     if (this.isDisabled() || !this.group) return;
     this.group.selectValue(this.value());
   }

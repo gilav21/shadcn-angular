@@ -21,7 +21,7 @@ import { SidebarService } from '../sidebar.service';
       [attr.data-slot]="'sidebar-menu-button'"
       [attr.data-active]="isActive()"
       [attr.data-collapsed]="isCollapsedState()"
-      (click)="onClick.emit($event)"
+      (click)="clicked.emit($event)"
       [uiTooltip]="tooltip()"
       tooltipSide="right"
       [tooltipDisabled]="!isCollapsedState() || !tooltip()"
@@ -35,7 +35,7 @@ export class SidebarMenuButtonComponent {
   class = input('');
   isActive = input(false);
   tooltip = input('');
-  onClick = output<MouseEvent>();
+  clicked = output<MouseEvent>();
   readonly service = inject(SidebarService);
 
   isCollapsedState = computed(() => this.service.isCollapsed() && !this.service.isMobile());

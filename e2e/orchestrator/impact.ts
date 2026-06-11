@@ -133,28 +133,34 @@ function affectedComponentsForFile(file: string): Set<ComponentName> {
  */
 export function parseRegistryEntries(source: string): Map<string, string> {
     const out = new Map<string, string>();
-    const entryHeader = /^  (?:'([\w-]+)'|([\w-]+)):\s*\{/gm;
+    const entryHeader = /^ {2}(?:'([\w-]+)'|([\w-]+)):\s*\{/gm;
     let match: RegExpExecArray | null;
     while ((match = entryHeader.exec(source)) !== null) {
         const name = match[1] ?? match[2];
         const start = match.index;
-        // Walk forward and balance braces to find the entry's end.
-        let depth = 0;
-        let end = start;
-        for (let i = start + match[0].length - 1; i < source.length; i++) {
-            const c = source[i];
-            if (c === '{') depth++;
-            else if (c === '}') {
-                depth--;
-                if (depth === 0) {
-                    end = i + 1;
-                    break;
-                }
-            }
-        }
+        const end = findMatchingBraceEnd(source, start + match[0].length - 1, start);
         out.set(name, source.slice(start, end));
     }
     return out;
+}
+
+/**
+ * Walk forward from `from` (the entry's opening `{`) balancing braces,
+ * returning the index just past the matching closing `}`. Falls back to
+ * `fallback` if the braces never balance.
+ */
+function findMatchingBraceEnd(source: string, from: number, fallback: number): number {
+    let depth = 0;
+    for (let i = from; i < source.length; i++) {
+        const c = source[i];
+        if (c === '{') {
+            depth++;
+        } else if (c === '}') {
+            depth--;
+            if (depth === 0) return i + 1;
+        }
+    }
+    return fallback;
 }
 
 /**
@@ -224,29 +230,59 @@ function computeImpact(base: string, changedFiles: readonly string[]): ImpactRes
     const impacted = new Set<string>();
 
     if (registryChanged) {
-        for (const name of registryChanged) {
-            // `name` is a registry entry key — treat it as a component
-            // name for lookup. Both helpers tolerate unknown names
-            // (return empty), so removed entries don't blow up.
-            for (const label of specsTouchingComponent(name)) impacted.add(label);
-            for (const dep of getReverseDependents(name as ComponentName)) {
-                for (const label of specsTouchingComponent(dep)) impacted.add(label);
-            }
-        }
+        addRegistryImpact(registryChanged, impacted);
     }
 
+    if (!addFileImpact(remaining, impacted)) {
+        return { kind: 'all', specs: [] };
+    }
+
+    if (impacted.size === 0) {
+        return { kind: 'none', specs: [] };
+    }
+    return { kind: 'subset', specs: [...impacted].sort() };
+}
+
+/**
+ * For every changed registry entry, impact the specs touching that
+ * component plus the specs touching each of its reverse dependents.
+ */
+function addRegistryImpact(registryChanged: Set<string>, impacted: Set<string>): void {
+    for (const name of registryChanged) {
+        // `name` is a registry entry key — treat it as a component
+        // name for lookup. Both helpers tolerate unknown names
+        // (return empty), so removed entries don't blow up.
+        addLabelsForComponent(name, impacted);
+        for (const dep of getReverseDependents(name as ComponentName)) {
+            addLabelsForComponent(dep, impacted);
+        }
+    }
+}
+
+function addLabelsForComponent(component: string, impacted: Set<string>): void {
+    for (const label of specsTouchingComponent(component)) {
+        impacted.add(label);
+    }
+}
+
+/**
+ * Map each remaining changed file to impacted spec labels. Returns
+ * false when a file forces a full run (a new harness folder without a
+ * registered spec); true otherwise.
+ */
+function addFileImpact(remaining: readonly string[], impacted: Set<string>): boolean {
     for (const file of remaining) {
         // Per-harness changes scope to exactly that label.
         const harness = /^e2e\/harness\/([^/]+)\//.exec(file);
         if (harness) {
             const label = specForHarnessFolder(harness[1]);
-            if (label) impacted.add(label);
-            else {
+            if (!label) {
                 // New harness folder without a spec entry yet → safest
                 // to run everything so the orchestrator surfaces the
                 // missing registration.
-                return { kind: 'all', specs: [] };
+                return false;
             }
+            impacted.add(label);
             continue;
         }
 
@@ -255,25 +291,15 @@ function computeImpact(base: string, changedFiles: readonly string[]): ImpactRes
         // maps to one (or many, for libFiles) components; impact those
         // components + everything depending on them, then translate to
         // specs.
-        const components = affectedComponentsForFile(file);
-        if (components.size > 0) {
-            for (const c of components) {
-                for (const label of specsTouchingComponent(c)) {
-                    impacted.add(label);
-                }
-            }
-            continue;
+        for (const c of affectedComponentsForFile(file)) {
+            addLabelsForComponent(c, impacted);
         }
 
         // Anything else (docs, demo app, storybook configs, scripts
         // outside packages/cli, etc.) is irrelevant to the e2e pipeline.
         // Ignore.
     }
-
-    if (impacted.size === 0) {
-        return { kind: 'none', specs: [] };
-    }
-    return { kind: 'subset', specs: [...impacted].sort() };
+    return true;
 }
 
 function getChangedFiles(base: string): string[] {

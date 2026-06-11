@@ -67,7 +67,7 @@ export class ToggleComponent {
 
     private touchToggled = false;
 
-    onTouchEnd(event: TouchEvent) {
+    onTouchEnd(event: TouchEvent): void {
         if (!this.disabled()) {
             event.preventDefault();
             this.touchToggled = true;
@@ -77,7 +77,7 @@ export class ToggleComponent {
         }
     }
 
-    onClick() {
+    onClick(): void {
         if (this.touchToggled) {
             this.touchToggled = false;
             return;
@@ -89,7 +89,7 @@ export class ToggleComponent {
         }
     }
 
-    setPressed(value: boolean) {
+    setPressed(value: boolean): void {
         this.pressed.set(value);
     }
 }

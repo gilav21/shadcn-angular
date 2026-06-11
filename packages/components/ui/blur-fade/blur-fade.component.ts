@@ -40,7 +40,7 @@ export class BlurFadeComponent implements AfterViewInit, OnDestroy {
 
     classes = computed(() => cn('block', this.class()));
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         const host = this.el.nativeElement as HTMLElement;
         host.style.opacity = '0';
 
@@ -67,12 +67,12 @@ export class BlurFadeComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.observer?.disconnect();
         this.currentAnimation?.cancel();
     }
 
-    playAnimation() {
+    playAnimation(): void {
         const host = this.el.nativeElement as HTMLElement;
         const translate = this.getTranslateFrom();
 

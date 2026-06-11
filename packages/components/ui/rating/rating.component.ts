@@ -64,7 +64,7 @@ export class RatingComponent implements ControlValueAccessor {
 
   private readonly el = inject(ElementRef);
 
-  isRtl() {
+  isRtl(): boolean {
     return isRtl(this.el.nativeElement);
   }
   isDisabled = computed(() => this.disabled() || this.formDisabled());
@@ -87,7 +87,7 @@ export class RatingComponent implements ControlValueAccessor {
     )
   );
 
-  starClasses(star: { index: number; value: number }) {
+  starClasses(star: { index: number; value: number }): string {
     const fill = this.getStarFill(star);
     return cn(
       'transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm',
@@ -112,13 +112,13 @@ export class RatingComponent implements ControlValueAccessor {
     return 'empty';
   }
 
-  onStarTouchStart(event: TouchEvent, index: number) {
+  onStarTouchStart(event: TouchEvent, index: number): void {
     if (this.isDisabled() || this.readonly()) return;
     event.preventDefault();
     this.hoverValue.set(index + 1);
   }
 
-  onStarHover(event: MouseEvent, index: number) {
+  onStarHover(event: MouseEvent, index: number): void {
     if (isTouchDevice()) return;
     if (this.isDisabled() || this.readonly()) return;
 
@@ -134,12 +134,12 @@ export class RatingComponent implements ControlValueAccessor {
     }
   }
 
-  onMouseLeave() {
+  onMouseLeave(): void {
     if (isTouchDevice()) return;
     this.hoverValue.set(null);
   }
 
-  onTouchMove(event: TouchEvent) {
+  onTouchMove(event: TouchEvent): void {
     if (this.isDisabled() || this.readonly()) return;
     event.preventDefault();
 
@@ -150,7 +150,7 @@ export class RatingComponent implements ControlValueAccessor {
     }
   }
 
-  onTouchEnd(event: TouchEvent) {
+  onTouchEnd(event: TouchEvent): void {
     if (this.isDisabled() || this.readonly()) return;
     event.preventDefault();
 
@@ -163,7 +163,7 @@ export class RatingComponent implements ControlValueAccessor {
     }
   }
 
-  onStarClick(event: MouseEvent, index: number) {
+  onStarClick(event: MouseEvent, index: number): void {
     if (this.isDisabled() || this.readonly()) return;
 
     let newValue: number;
@@ -182,7 +182,7 @@ export class RatingComponent implements ControlValueAccessor {
     this.setValue(finalValue);
   }
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (this.isDisabled() || this.readonly()) return;
 
     const step = this.precision();
@@ -248,7 +248,7 @@ export class RatingComponent implements ControlValueAccessor {
     return closestIndex + 1;
   }
 
-  private setValue(val: number) {
+  private setValue(val: number): void {
     this.value.set(val);
     this.onChange(val);
     this.onTouched();

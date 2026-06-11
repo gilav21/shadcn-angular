@@ -45,7 +45,7 @@ export class AccordionItemComponent {
     return this.accordion?.getPanelId(this.value()) ?? '';
   });
 
-  toggle() {
+  toggle(): void {
     this.accordion?.toggle(this.value());
   }
 

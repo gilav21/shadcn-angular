@@ -4,9 +4,9 @@ import { setupTestBed } from '@analogjs/vitest-angular/setup-testbed';
 
 if (typeof globalThis.ResizeObserver === 'undefined') {
 	globalThis.ResizeObserver = class ResizeObserver {
-		observe() {}
-		unobserve() {}
-		disconnect() {}
+		observe(): void {}
+		unobserve(): void {}
+		disconnect(): void {}
 	} as unknown as typeof globalThis.ResizeObserver;
 }
 
@@ -15,9 +15,9 @@ if (typeof globalThis.IntersectionObserver === 'undefined') {
 		readonly root = null;
 		readonly rootMargin = '0px';
 		readonly thresholds = [0];
-		observe() {}
-		unobserve() {}
-		disconnect() {}
+		observe(): void {}
+		unobserve(): void {}
+		disconnect(): void {}
 		takeRecords(): IntersectionObserverEntry[] {
 			return [];
 		}
@@ -145,23 +145,27 @@ if (typeof globalThis.CSS === 'undefined') {
 	} as unknown as typeof globalThis.CSS;
 }
 
+function computeContentEditable(start: HTMLElement): boolean {
+	let node: HTMLElement | null = start;
+	while (node) {
+		const attr = node.getAttribute('contenteditable');
+		const value = attr === null ? 'inherit' : attr.toLowerCase();
+		if (value === '' || value === 'true' || value === 'plaintext-only') {
+			return true;
+		}
+		if (value === 'false') {
+			return false;
+		}
+		node = node.parentElement;
+	}
+	return false;
+}
+
 if (!('isContentEditable' in HTMLElement.prototype)) {
 	Object.defineProperty(HTMLElement.prototype, 'isContentEditable', {
 		configurable: true,
 		get(this: HTMLElement): boolean {
-			let node: HTMLElement | null = this;
-			while (node) {
-				const attr = node.getAttribute('contenteditable');
-				const value = attr === null ? 'inherit' : attr.toLowerCase();
-				if (value === '' || value === 'true' || value === 'plaintext-only') {
-					return true;
-				}
-				if (value === 'false') {
-					return false;
-				}
-				node = node.parentElement;
-			}
-			return false;
+			return computeContentEditable(this);
 		},
 	});
 }

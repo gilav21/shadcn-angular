@@ -62,17 +62,17 @@ export class MenubarSubTriggerComponent {
     this.class()
   ));
 
-  onMouseEnter() {
+  onMouseEnter(): void {
     if (isTouchDevice()) return;
     this.sub.enter();
   }
 
-  onMouseLeave() {
+  onMouseLeave(): void {
     if (isTouchDevice()) return;
     this.sub.leave();
   }
 
-  onClick() {
+  onClick(): void {
     if (!isTouchDevice()) return;
     if (this.sub.isOpen()) {
       this.sub.leave();
@@ -81,11 +81,11 @@ export class MenubarSubTriggerComponent {
     }
   }
 
-  focus() {
+  focus(): void {
     this.triggerEl?.nativeElement.focus();
   }
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowRight') {
       if (this.service.isRtl()) {
         return;

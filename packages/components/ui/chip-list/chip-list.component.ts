@@ -88,16 +88,16 @@ export class ChipListComponent implements ControlValueAccessor {
     return `${heightPx}px`;
   });
 
-  focusInput() {
+  focusInput(): void {
     if (this.disabled()) return;
     this.inputComponent().focus();
   }
 
-  onInputChange(value: string) {
+  onInputChange(value: string): void {
     this.inputValue.set(value);
   }
 
-  onKeyDown(event: KeyboardEvent) {
+  onKeyDown(event: KeyboardEvent): void {
     const value = this.inputValue().trim();
     const separators = this.separatorKeys();
 
@@ -110,14 +110,14 @@ export class ChipListComponent implements ControlValueAccessor {
     }
 
     if (event.key === 'Backspace' && this.inputValue() === '' && this.chips().length > 0) {
-      const removed = this.chips().at(-1)!;
+      const removed = this.chips().at(-1) ?? '';
       this.chips.update(chips => chips.slice(0, -1));
       this.onChange(this.chips());
       this.chipRemoved.emit(removed);
     }
   }
 
-  addChip(value: string) {
+  addChip(value: string): void {
     const trimmed = value.trim();
     if (!trimmed) return;
 
@@ -132,7 +132,7 @@ export class ChipListComponent implements ControlValueAccessor {
     this.chipAdded.emit(trimmed);
   }
 
-  removeChip(index: number, event: Event) {
+  removeChip(index: number, event: Event): void {
     event.stopPropagation();
     const removed = this.chips()[index];
     this.chips.update(chips => chips.filter((_, i) => i !== index));
@@ -144,7 +144,7 @@ export class ChipListComponent implements ControlValueAccessor {
     setTimeout(() => this.focusInput());
   }
 
-  onBlur() {
+  onBlur(): void {
     this.onTouched();
   }
 

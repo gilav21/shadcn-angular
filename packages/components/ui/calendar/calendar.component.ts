@@ -82,8 +82,8 @@ export class CalendarComponent {
         let d: Date | null = null;
         if (typeof val === 'string') d = this.parseDate(val);
         else if (val instanceof Date) d = val;
-        else if (Array.isArray(val) && val.length > 0) d = this.parseDate(val[0]);
-        else if (typeof val === 'object' && 'start' in (val as any)) d = (val as any).start;
+        else if (Array.isArray(val) && val.length > 0) d = this.parseDate(val[0] as Date | string);
+        else if (typeof val === 'object' && val !== null && 'start' in val) d = (val as DateRange).start;
 
         if (d) {
           this.viewDate.set(new Date(d));
@@ -162,7 +162,7 @@ export class CalendarComponent {
     const val = this.selected();
     if (!val) return '';
 
-    const parsed = this.parseDate(val as any);
+    const parsed = this.parseDate(val as Date | string | null);
     if (!parsed) return '';
 
     return this.formatTimeFromDate(parsed);
@@ -288,62 +288,77 @@ export class CalendarComponent {
       a.getDate() === b.getDate();
   }
 
-  selectDay(day: Date) {
+  selectDay(day: Date): void {
     const mode = this.mode();
-    let newVal: Date | DateRange | Date[];
-    const currentSelected = this.selected();
     const isTimeRange = this.showTimeSelect() && this.timeMode() === 'range';
+    let newVal: Date | DateRange | Date[];
 
     if (mode === 'single') {
-      if (isTimeRange) {
-        this.applyTimeStringToDate(day, this.selectedTimeRange().start);
-      } else if (currentSelected) {
-        const currentD = this.parseDate(currentSelected as Date | string);
-        if (currentD) {
-          day.setHours(currentD.getHours(), currentD.getMinutes());
-        }
-      }
-      newVal = day;
+      newVal = this.selectSingleDay(day, isTimeRange);
     } else if (mode === 'multi') {
-      const current = (currentSelected as (Date | string)[]) ?? [];
-      const parsedCurrent = current.map(v => this.parseDate(v)).filter(Boolean) as Date[];
-      const exists = parsedCurrent.some(d => this.isSameDay(d, day));
-
-      if (exists) {
-        newVal = parsedCurrent.filter(d => !this.isSameDay(d, day));
-      } else {
-        if (isTimeRange) {
-          this.applyTimeStringToDate(day, this.selectedTimeRange().start);
-        }
-        newVal = [...parsedCurrent, day];
-      }
+      newVal = this.selectMultiDay(day, isTimeRange);
     } else {
-      const current = (currentSelected as DateRange) ?? { start: null, end: null };
-
-      if (!current.start || (current.start && current.end)) {
-        if (isTimeRange) {
-          this.applyTimeStringToDate(day, this.selectedTimeRange().start);
-        }
-        newVal = { start: day, end: null };
-      } else if (day < current.start) {
-        if (isTimeRange) {
-          this.applyTimeStringToDate(day, this.selectedTimeRange().start);
-          this.applyTimeStringToDate(current.start, this.selectedTimeRange().end);
-        }
-        newVal = { start: day, end: current.start };
-      } else {
-        if (isTimeRange) {
-          this.applyTimeStringToDate(day, this.selectedTimeRange().end);
-        }
-        newVal = { start: current.start, end: day };
-      }
+      newVal = this.selectRangeDay(day, isTimeRange);
     }
 
     this.selected.set(newVal);
     this.selectedChange.emit(newVal);
   }
 
-  updateTime(event: Event) {
+  private selectSingleDay(day: Date, isTimeRange: boolean): Date {
+    if (isTimeRange) {
+      this.applyTimeStringToDate(day, this.selectedTimeRange().start);
+    } else {
+      const currentSelected = this.selected();
+      if (currentSelected) {
+        const currentD = this.parseDate(currentSelected as Date | string);
+        if (currentD) {
+          day.setHours(currentD.getHours(), currentD.getMinutes());
+        }
+      }
+    }
+    return day;
+  }
+
+  private selectMultiDay(day: Date, isTimeRange: boolean): Date[] {
+    const currentSelected = this.selected();
+    const current = (currentSelected as (Date | string)[]) ?? [];
+    const parsedCurrent = current.map(v => this.parseDate(v)).filter(Boolean) as Date[];
+    const exists = parsedCurrent.some(d => this.isSameDay(d, day));
+
+    if (exists) {
+      return parsedCurrent.filter(d => !this.isSameDay(d, day));
+    }
+    if (isTimeRange) {
+      this.applyTimeStringToDate(day, this.selectedTimeRange().start);
+    }
+    return [...parsedCurrent, day];
+  }
+
+  private selectRangeDay(day: Date, isTimeRange: boolean): DateRange {
+    const currentSelected = this.selected();
+    const current = (currentSelected as DateRange) ?? { start: null, end: null };
+
+    if (!current.start || (current.start && current.end)) {
+      if (isTimeRange) {
+        this.applyTimeStringToDate(day, this.selectedTimeRange().start);
+      }
+      return { start: day, end: null };
+    }
+    if (day < current.start) {
+      if (isTimeRange) {
+        this.applyTimeStringToDate(day, this.selectedTimeRange().start);
+        this.applyTimeStringToDate(current.start, this.selectedTimeRange().end);
+      }
+      return { start: day, end: current.start };
+    }
+    if (isTimeRange) {
+      this.applyTimeStringToDate(day, this.selectedTimeRange().end);
+    }
+    return { start: current.start, end: day };
+  }
+
+  updateTime(event: Event): void {
     const input = event.target as HTMLInputElement;
     const val = input.value;
     if (!val) return;
@@ -354,7 +369,7 @@ export class CalendarComponent {
     let date: Date;
 
     if (currentSel) {
-      const parsed = this.parseDate(currentSel as any);
+      const parsed = this.parseDate(currentSel as Date | string | null);
       if (parsed) {
         date = new Date(parsed);
       } else {
@@ -371,7 +386,7 @@ export class CalendarComponent {
     this.selectedChange.emit(new Date(date));
   }
 
-  updateStartTime(event: Event) {
+  updateStartTime(event: Event): void {
     const input = event.target as HTMLInputElement;
     const val = input.value;
     if (!val) return;
@@ -404,7 +419,7 @@ export class CalendarComponent {
     }
   }
 
-  updateEndTime(event: Event) {
+  updateEndTime(event: Event): void {
     const input = event.target as HTMLInputElement;
     const val = input.value;
     if (!val) return;
@@ -441,23 +456,23 @@ export class CalendarComponent {
     date.setHours(hours, minutes);
   }
 
-  previousMonth() {
+  previousMonth(): void {
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), current.getMonth() - 1, 1));
   }
 
-  nextMonth() {
+  nextMonth(): void {
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), current.getMonth() + 1, 1));
   }
 
-  onMonthChange(month: string) {
+  onMonthChange(month: string): void {
     const monthNum = Number.parseInt(month, 10);
     const current = this.viewDate();
     this.viewDate.set(new Date(current.getFullYear(), monthNum, 1));
   }
 
-  onYearChange(year: string) {
+  onYearChange(year: string): void {
     const yearNum = Number.parseInt(year, 10);
     const current = this.viewDate();
     this.viewDate.set(new Date(yearNum, current.getMonth(), 1));

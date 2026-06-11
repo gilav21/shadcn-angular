@@ -26,10 +26,6 @@ function writeI16(d: DataView, o: number, v: number): void {
     d.setInt16(o, v, false);
 }
 
-function writeU16(d: DataView, o: number, v: number): void {
-    d.setUint16(o, v, false);
-}
-
 // ── Glyph metrics returned by lookup methods ────────────────────────────
 
 export interface TtfGlyphMetrics {

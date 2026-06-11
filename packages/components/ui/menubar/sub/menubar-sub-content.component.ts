@@ -19,6 +19,7 @@ import { MENUBAR_SUB, type MenubarSubComponent } from './menubar-sub.component';
       <div
         [class]="classes()"
         role="menu"
+        tabindex="-1"
         (mouseenter)="onMouseEnter()"
         (mouseleave)="onMouseLeave()"
         (keydown)="onKeydown($event)"
@@ -39,12 +40,12 @@ export class MenubarSubContentComponent {
     this.sub.registerContent(this);
   }
 
-  onMouseEnter() {
+  onMouseEnter(): void {
     if (isTouchDevice()) return;
     this.sub.enter();
   }
 
-  onMouseLeave() {
+  onMouseLeave(): void {
     if (isTouchDevice()) return;
     this.sub.leave();
   }
@@ -57,12 +58,12 @@ export class MenubarSubContentComponent {
     this.class()
   ));
 
-  focusFirst() {
+  focusFirst(): void {
     const items = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
     items[0]?.focus();
   }
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     event.stopPropagation();
 
     if (event.key === 'ArrowLeft') {
@@ -86,7 +87,7 @@ export class MenubarSubContentComponent {
     }
   }
 
-  focusNextItem(currentItem: HTMLElement) {
+  focusNextItem(currentItem: HTMLElement): void {
     const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
     const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
     const index = items.indexOf(currentItem);
@@ -94,7 +95,7 @@ export class MenubarSubContentComponent {
     items[nextIndex]?.focus();
   }
 
-  focusPrevItem(currentItem: HTMLElement) {
+  focusPrevItem(currentItem: HTMLElement): void {
     const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
     const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
     const index = items.indexOf(currentItem);

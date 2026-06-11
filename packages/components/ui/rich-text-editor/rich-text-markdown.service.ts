@@ -7,7 +7,7 @@ interface ListContext {
     type: ListType;
     items: string[];
     indent: number;
-    children: ListContext[];
+    children: (ListContext | undefined)[];
 }
 
 interface ParsedListLine {
@@ -54,14 +54,15 @@ function pushListItem(
         return;
     }
 
-    const parent = stack.at(-1)!;
+    const parent = stack.at(-1);
+    if (!parent) return;
     if (indent > parent.indent) {
         const child: ListContext = { type, items: [content], indent, children: [] };
         parent.children[parent.items.length - 1] = child;
         stack.push(child);
     } else {
         parent.items.push(content);
-        parent.children.push(undefined!);
+        parent.children.push(undefined);
     }
 }
 
@@ -69,7 +70,8 @@ function buildListContextHtml(ctx: ListContext): string {
     const tag = ctx.type === 'task' ? 'ul' : ctx.type;
     const taskAttr = ctx.type === 'task' ? ' data-task-list' : '';
     const items = ctx.items.map((item, i) => {
-        const childHtml = ctx.children[i] ? buildListContextHtml(ctx.children[i]) : '';
+        const child = ctx.children[i];
+        const childHtml = child ? buildListContextHtml(child) : '';
         if (ctx.type === 'task') {
             const checked = item.startsWith('[x] ') || item.startsWith('[X] ');
             const text = item.replace(/^\[[ xX]\]\s*/, '');
@@ -236,7 +238,7 @@ export class RichTextMarkdownService {
         const stack: ListContext[] = [];
         let rootLists: ListContext[] = [];
 
-        const flushStack = () => {
+        const flushStack = (): void => {
             for (const ctx of rootLists) {
                 result.push(buildListContextHtml(ctx));
             }
@@ -255,7 +257,7 @@ export class RichTextMarkdownService {
 
             const { indent, type, content } = parsed;
 
-            while (stack.length > 0 && stack.at(-1)!.indent >= indent) {
+            while (stack.length > 0 && (stack.at(-1)?.indent ?? -1) >= indent) {
                 stack.pop();
             }
 
@@ -447,23 +449,31 @@ export class RichTextMarkdownService {
             case 'u':
                 return `<u>${inner}</u>`;
             case 'code':
-                return element.parentElement?.tagName.toLowerCase() === 'pre'
-                    ? inner
-                    : `\`${inner}\``;
-            case 'a': {
-                const href = element.getAttribute('href') ?? '';
-                return `[${inner}](${href})`;
-            }
-            case 'img': {
-                const src = element.getAttribute('src') ?? '';
-                const alt = element.getAttribute('alt') ?? '';
-                return `![${alt}](${src})`;
-            }
+                return this.handleCodeTag(element, inner);
+            case 'a':
+                return this.handleAnchorTag(element, inner);
+            case 'img':
+                return this.handleImageTag(element);
             case 'span':
                 return this.spanToMarkdown(element, inner);
             default:
                 return null;
         }
+    }
+
+    private handleCodeTag(element: HTMLElement, inner: string): string {
+        return element.parentElement?.tagName.toLowerCase() === 'pre' ? inner : `\`${inner}\``;
+    }
+
+    private handleAnchorTag(element: HTMLElement, inner: string): string {
+        const href = element.getAttribute('href') ?? '';
+        return `[${inner}](${href})`;
+    }
+
+    private handleImageTag(element: HTMLElement): string {
+        const src = element.getAttribute('src') ?? '';
+        const alt = element.getAttribute('alt') ?? '';
+        return `![${alt}](${src})`;
     }
 
     private spanToMarkdown(element: HTMLElement, inner: string): string {
@@ -478,22 +488,12 @@ export class RichTextMarkdownService {
 
     private blockTagToMarkdown(tagName: string, inner: string, element: HTMLElement): string | null {
         switch (tagName) {
-            case 'pre': {
-                const lang = element.querySelector('code')?.dataset['language'] ?? '';
-                const codeContent = element.textContent ?? '';
-                return `\n\`\`\`${lang}\n${codeContent}\n\`\`\`\n`;
-            }
-            case 'ul': {
-                const result: string[] = ['\n'];
-                const isTask = 'taskList' in element.dataset;
-                this.listToMarkdown(element, isTask ? 'task' : 'ul', '', result);
-                return result.join('');
-            }
-            case 'ol': {
-                const result: string[] = ['\n'];
-                this.listToMarkdown(element, 'ol', '', result);
-                return result.join('');
-            }
+            case 'pre':
+                return this.handlePreTag(element);
+            case 'ul':
+                return this.handleUlTag(element);
+            case 'ol':
+                return this.handleOlTag(element);
             case 'li':
             case 'summary':
                 return inner;
@@ -501,10 +501,8 @@ export class RichTextMarkdownService {
                 return '';
             case 'details':
                 return this.detailsToMarkdown(element);
-            case 'blockquote': {
-                const quoteLines = inner.split('\n').filter(Boolean);
-                return '\n' + quoteLines.map(line => `> ${line}`).join('\n') + '\n';
-            }
+            case 'blockquote':
+                return this.handleBlockquoteTag(inner);
             case 'p':
             case 'div':
                 return `\n${inner}\n`;
@@ -517,6 +515,30 @@ export class RichTextMarkdownService {
             default:
                 return null;
         }
+    }
+
+    private handlePreTag(element: HTMLElement): string {
+        const lang = element.querySelector('code')?.dataset['language'] ?? '';
+        const codeContent = element.textContent ?? '';
+        return `\n\`\`\`${lang}\n${codeContent}\n\`\`\`\n`;
+    }
+
+    private handleUlTag(element: HTMLElement): string {
+        const result: string[] = ['\n'];
+        const isTask = 'taskList' in element.dataset;
+        this.listToMarkdown(element, isTask ? 'task' : 'ul', '', result);
+        return result.join('');
+    }
+
+    private handleOlTag(element: HTMLElement): string {
+        const result: string[] = ['\n'];
+        this.listToMarkdown(element, 'ol', '', result);
+        return result.join('');
+    }
+
+    private handleBlockquoteTag(inner: string): string {
+        const quoteLines = inner.split('\n').filter(Boolean);
+        return '\n' + quoteLines.map(line => `> ${line}`).join('\n') + '\n';
     }
 
     private detailsToMarkdown(element: HTMLElement): string {

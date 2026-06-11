@@ -67,7 +67,7 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
     private readonly _hasCustomContent = signal(false);
     hasCustomContent = this._hasCustomContent.asReadonly();
 
-    ngAfterContentInit() {
+    ngAfterContentInit(): void {
         this._hasCustomContent.set(this.projectedItems.length > 0);
     }
 
@@ -85,11 +85,11 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
         return [...(this.projectedItems?.toArray() || []), ...(this.viewItems?.toArray() || [])];
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         this.recalculateItemCenters();
     }
 
-    ngOnInit() {
+    ngOnInit(): void {
         this._ngZone.runOutsideAngular(() => {
             this._el.nativeElement.addEventListener('mousemove', this.onMouseMoveBound);
             this._el.nativeElement.addEventListener('mouseleave', this.onMouseLeaveBound);
@@ -97,7 +97,7 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this._el.nativeElement.removeEventListener('mousemove', this.onMouseMoveBound);
         this._el.nativeElement.removeEventListener('mouseleave', this.onMouseLeaveBound);
         this._el.nativeElement.removeEventListener('mouseenter', this.onMouseEnterBound);
@@ -110,15 +110,15 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
     private _rafId: number | null = null;
     private _mouseX: number = Infinity;
 
-    onMouseEnter() {
+    onMouseEnter(): void {
         this.recalculateItemCenters();
     }
 
-    recalculateItemCenters() {
+    recalculateItemCenters(): void {
         this._itemCenters = this.allItems.map(item => item.getCenter());
     }
 
-    onMouseMove(e: MouseEvent) {
+    onMouseMove(e: MouseEvent): void {
         this._mouseX = e.clientX;
 
         if (this._rafId) return;
@@ -129,7 +129,7 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
         });
     }
 
-    onMouseLeave() {
+    onMouseLeave(): void {
         this._mouseX = Infinity;
         if (this._rafId) {
             cancelAnimationFrame(this._rafId);
@@ -138,7 +138,7 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
         this.updateItems();
     }
 
-    updateItems() {
+    updateItems(): void {
         const items = this.allItems;
         if (items.length === 0) return;
 

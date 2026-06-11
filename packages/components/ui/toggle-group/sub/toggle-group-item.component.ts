@@ -41,7 +41,7 @@ export class ToggleGroupItemComponent {
         );
     });
 
-    onClick() {
+    onClick(): void {
         if (!this.disabled()) {
             this.group?.toggle(this.value());
         }

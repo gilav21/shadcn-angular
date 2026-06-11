@@ -33,7 +33,7 @@ export class TooltipTriggerComponent implements OnDestroy {
     private dismissTimeoutId: ReturnType<typeof setTimeout> | null = null;
     private readonly removeDismissListener = signal<(() => void) | null>(null);
 
-    onMouseEnter() {
+    onMouseEnter(): void {
         if (isTouchDevice()) return;
         const delay = this.tooltip?.delayDuration() ?? 200;
         this.delayTimeoutId = setTimeout(() => {
@@ -41,32 +41,32 @@ export class TooltipTriggerComponent implements OnDestroy {
         }, delay);
     }
 
-    onMouseLeave() {
+    onMouseLeave(): void {
         if (isTouchDevice()) return;
         this.clearDelayTimeout();
         this.tooltip?.hide();
     }
 
-    onTouchStart(event: TouchEvent) {
+    onTouchStart(event: TouchEvent): void {
         if (!isTouchDevice()) return;
         event.preventDefault();
         this.toggleTouch();
     }
 
-    onFocus() {
+    onFocus(): void {
         this.tooltip?.show();
     }
 
-    onBlur() {
+    onBlur(): void {
         this.tooltip?.hide();
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.clearDelayTimeout();
         this.clearDismiss();
     }
 
-    private toggleTouch() {
+    private toggleTouch(): void {
         if (this.tooltip?.open()) {
             this.dismissTouch();
             return;
@@ -75,7 +75,7 @@ export class TooltipTriggerComponent implements OnDestroy {
         this.scheduleDismiss();
     }
 
-    private scheduleDismiss() {
+    private scheduleDismiss(): void {
         this.clearDismiss();
 
         this.dismissTimeoutId = setTimeout(() => {
@@ -83,7 +83,7 @@ export class TooltipTriggerComponent implements OnDestroy {
         }, TOUCH_AUTO_DISMISS_MS);
 
         this.zone.runOutsideAngular(() => {
-            const handler = () => {
+            const handler = (): void => {
                 this.zone.run(() => this.dismissTouch());
             };
             document.addEventListener('touchstart', handler, { once: true });
@@ -93,19 +93,19 @@ export class TooltipTriggerComponent implements OnDestroy {
         });
     }
 
-    private dismissTouch() {
+    private dismissTouch(): void {
         this.clearDismiss();
         this.tooltip?.hide();
     }
 
-    private clearDelayTimeout() {
+    private clearDelayTimeout(): void {
         if (this.delayTimeoutId) {
             clearTimeout(this.delayTimeoutId);
             this.delayTimeoutId = null;
         }
     }
 
-    private clearDismiss() {
+    private clearDismiss(): void {
         if (this.dismissTimeoutId) {
             clearTimeout(this.dismissTimeoutId);
             this.dismissTimeoutId = null;

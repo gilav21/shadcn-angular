@@ -20,15 +20,15 @@ import { By } from '@angular/platform-browser';
             <ui-command-list>
                 <ui-command-empty>No results found.</ui-command-empty>
                 <ui-command-group heading="Suggestions">
-                    <ui-command-item value="calendar" (select)="onCalendarSelect($event)">
+                    <ui-command-item value="calendar" (selectItem)="onCalendarSelect($event)">
                         Calendar
                         <ui-command-shortcut>Ctrl+C</ui-command-shortcut>
                     </ui-command-item>
-                    <ui-command-item value="search" (select)="onSearchSelect($event)">Search</ui-command-item>
+                    <ui-command-item value="search" (selectItem)="onSearchSelect($event)">Search</ui-command-item>
                 </ui-command-group>
                 <ui-command-separator />
                 <ui-command-group heading="Settings">
-                    <ui-command-item value="profile" (select)="onProfileSelect($event)">Profile</ui-command-item>
+                    <ui-command-item value="profile" (selectItem)="onProfileSelect($event)">Profile</ui-command-item>
                 </ui-command-group>
             </ui-command-list>
         </ui-command>

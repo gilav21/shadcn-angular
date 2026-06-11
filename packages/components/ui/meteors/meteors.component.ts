@@ -52,7 +52,7 @@ export class MeteorsComponent implements OnInit, OnDestroy {
     private resizeObserver: ResizeObserver | null = null;
     private rgb = { r: 255, g: 255, b: 255 };
 
-    ngOnInit() {
+    ngOnInit(): void {
         if (prefersReducedMotion()) return;
         this.ngZone.runOutsideAngular(() => {
             this.setupCanvas();
@@ -62,13 +62,13 @@ export class MeteorsComponent implements OnInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.animationFrameId != null) cancelAnimationFrame(this.animationFrameId);
         this.resizeObserver?.disconnect();
         this.canvas?.remove();
     }
 
-    private resolveColor() {
+    private resolveColor(): void {
         const raw = this.color();
         if (raw === 'white') {
             this.rgb = { r: 255, g: 255, b: 255 };
@@ -85,7 +85,7 @@ export class MeteorsComponent implements OnInit, OnDestroy {
         }
     }
 
-    private setupCanvas() {
+    private setupCanvas(): void {
         const host = this.el.nativeElement as HTMLElement;
         this.canvas = this.renderer.createElement('canvas') as HTMLCanvasElement;
         this.renderer.setStyle(this.canvas, 'position', 'absolute');
@@ -104,7 +104,7 @@ export class MeteorsComponent implements OnInit, OnDestroy {
         this.resizeObserver.observe(host);
     }
 
-    private syncCanvasSize() {
+    private syncCanvasSize(): void {
         if (!this.canvas) return;
         const host = this.el.nativeElement as HTMLElement;
         const w = host.clientWidth;
@@ -165,7 +165,7 @@ export class MeteorsComponent implements OnInit, OnDestroy {
         return m;
     }
 
-    private createMeteors() {
+    private createMeteors(): void {
         this.meteors = [];
         for (let i = 0; i < this.count(); i++) {
             this.meteors.push(this.spawnMeteor(true));
@@ -178,7 +178,44 @@ export class MeteorsComponent implements OnInit, OnDestroy {
         return m.x < -250 || m.x > w + 250 || m.y > h + 250 || m.y < -250;
     }
 
-    private readonly animate = () => {
+    private drawMeteor(ctx: CanvasRenderingContext2D, m: Meteor): void {
+        const { r, g, b } = this.rgb;
+        const op = m.opacity;
+        const tailX = m.x - Math.cos(m.angle) * m.trailLength;
+        const tailY = m.y - Math.sin(m.angle) * m.trailLength;
+
+        const grad = ctx.createLinearGradient(m.x, m.y, tailX, tailY);
+        grad.addColorStop(0, `rgba(${r},${g},${b},${op * 0.9})`);
+        grad.addColorStop(0.15, `rgba(${r},${g},${b},${op * 0.5})`);
+        grad.addColorStop(0.5, `rgba(${r},${g},${b},${op * 0.15})`);
+        grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+
+        ctx.beginPath();
+        ctx.moveTo(m.x, m.y);
+        ctx.lineTo(tailX, tailY);
+        ctx.strokeStyle = grad;
+        ctx.lineWidth = m.headSize * 0.5;
+        ctx.lineCap = 'round';
+        ctx.stroke();
+
+        const glow = m.headSize * 5;
+        const hg = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, glow);
+        hg.addColorStop(0, `rgba(${r},${g},${b},${op * 0.8})`);
+        hg.addColorStop(0.15, `rgba(${r},${g},${b},${op * 0.3})`);
+        hg.addColorStop(1, `rgba(${r},${g},${b},0)`);
+
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, glow, 0, Math.PI * 2);
+        ctx.fillStyle = hg;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(m.x, m.y, m.headSize, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(${r},${g},${b},${op})`;
+        ctx.fill();
+    }
+
+    private readonly animate = (): void => {
         if (!this.canvas || !this.ctx) return;
         const ctx = this.ctx;
         const w = this.canvas.width;
@@ -189,12 +226,10 @@ export class MeteorsComponent implements OnInit, OnDestroy {
             return;
         }
 
-        const { r, g, b } = this.rgb;
         ctx.clearRect(0, 0, w, h);
 
         for (let i = 0; i < this.meteors.length; i++) {
             const m = this.meteors[i];
-
             m.x += m.vx;
             m.y += m.vy;
 
@@ -208,41 +243,7 @@ export class MeteorsComponent implements OnInit, OnDestroy {
                 continue;
             }
 
-            const op = m.opacity;
-            if (op <= 0) continue;
-
-            const tailX = m.x - Math.cos(m.angle) * m.trailLength;
-            const tailY = m.y - Math.sin(m.angle) * m.trailLength;
-
-            const grad = ctx.createLinearGradient(m.x, m.y, tailX, tailY);
-            grad.addColorStop(0, `rgba(${r},${g},${b},${op * 0.9})`);
-            grad.addColorStop(0.15, `rgba(${r},${g},${b},${op * 0.5})`);
-            grad.addColorStop(0.5, `rgba(${r},${g},${b},${op * 0.15})`);
-            grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
-
-            ctx.beginPath();
-            ctx.moveTo(m.x, m.y);
-            ctx.lineTo(tailX, tailY);
-            ctx.strokeStyle = grad;
-            ctx.lineWidth = m.headSize * 0.5;
-            ctx.lineCap = 'round';
-            ctx.stroke();
-
-            const glow = m.headSize * 5;
-            const hg = ctx.createRadialGradient(m.x, m.y, 0, m.x, m.y, glow);
-            hg.addColorStop(0, `rgba(${r},${g},${b},${op * 0.8})`);
-            hg.addColorStop(0.15, `rgba(${r},${g},${b},${op * 0.3})`);
-            hg.addColorStop(1, `rgba(${r},${g},${b},0)`);
-
-            ctx.beginPath();
-            ctx.arc(m.x, m.y, glow, 0, Math.PI * 2);
-            ctx.fillStyle = hg;
-            ctx.fill();
-
-            ctx.beginPath();
-            ctx.arc(m.x, m.y, m.headSize, 0, Math.PI * 2);
-            ctx.fillStyle = `rgba(${r},${g},${b},${op})`;
-            ctx.fill();
+            if (m.opacity > 0) this.drawMeteor(ctx, m);
         }
 
         this.animationFrameId = requestAnimationFrame(this.animate);

@@ -58,7 +58,7 @@ export class NavigationMenuTriggerComponent {
     this.class()
   ));
 
-  onClick() {
+  onClick(): void {
     if (this.item.isOpen()) {
       this.item.close();
     } else {

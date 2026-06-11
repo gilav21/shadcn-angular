@@ -42,7 +42,7 @@ export class ResizablePanelComponent {
     }, 0);
   }
 
-  updateSize(newSize: number) {
+  updateSize(newSize: number): void {
     this.size.set(newSize);
     this.sizeChange.emit(newSize);
   }

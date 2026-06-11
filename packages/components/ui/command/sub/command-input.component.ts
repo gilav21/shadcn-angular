@@ -59,7 +59,7 @@ export class CommandInputComponent {
     'placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50'
   ));
 
-  onInput(event: Event) {
+  onInput(event: Event): void {
     const value = (event.target as HTMLInputElement).value;
     this.cmdService.search.set(value);
     if (this.cmdService.filteredItems().length > 0) {
@@ -69,7 +69,7 @@ export class CommandInputComponent {
     }
   }
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       this.cmdService.moveNext();
@@ -82,7 +82,7 @@ export class CommandInputComponent {
     }
   }
 
-  focus() {
+  focus(): void {
     this.inputEl?.nativeElement?.focus();
   }
 }

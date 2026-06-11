@@ -64,12 +64,12 @@ export class StackedBarChartComponent implements AfterViewInit {
     return this._domRtl();
   });
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this._checkDirection();
     setTimeout(() => this._checkDirection(), 0);
   }
 
-  private _checkDirection() {
+  private _checkDirection(): void {
     this._domRtl.set(isRtl(this.el.nativeElement));
   }
   series = input.required<ChartSeries[]>();
@@ -234,15 +234,15 @@ export class StackedBarChartComponent implements AfterViewInit {
     return key !== null && key.category === categoryIndex && key.series === seriesIndex;
   }
 
-  onSegmentHover(categoryIndex: number, segment: StackedSegment) {
+  onSegmentHover(categoryIndex: number, segment: StackedSegment): void {
     this.hoveredKey.set({ category: categoryIndex, series: segment.seriesIndex });
   }
 
-  onSegmentLeave() {
+  onSegmentLeave(): void {
     this.hoveredKey.set(null);
   }
 
-  onSegmentClick(event: Event, segment: StackedSegment, bar: StackedBar) {
+  onSegmentClick(event: Event, segment: StackedSegment, bar: StackedBar): void {
     this.segmentClick.emit({
       series: segment.seriesName,
       category: bar.category,

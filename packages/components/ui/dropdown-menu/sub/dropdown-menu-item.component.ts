@@ -48,13 +48,13 @@ export class DropdownMenuItemComponent {
 
     inset = input(false, { transform: booleanAttribute });
 
-    onClick() {
+    onClick(): void {
         if (!this.disabled()) {
             this.menu?.hide();
         }
     }
 
-    onKeydownSpace(event: Event) {
+    onKeydownSpace(event: Event): void {
         event.preventDefault();
         this.onClick();
     }

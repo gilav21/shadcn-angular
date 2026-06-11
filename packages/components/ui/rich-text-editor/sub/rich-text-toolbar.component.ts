@@ -309,7 +309,7 @@ export class RichTextToolbarComponent {
     )
   );
 
-  buttonClasses(item: ToolbarItem) {
+  buttonClasses(item: ToolbarItem): string {
     const active = this.isActive(item);
     return cn(
       'inline-flex items-center justify-center rounded-md p-1.5 text-sm font-medium transition-colors',

@@ -12,7 +12,7 @@ import angular from '@analogjs/vite-plugin-angular';
  *   npm run test:headless
  *   npx vitest --config vitest.config.headless.ts
  */
-export default defineConfig(({ mode }) => ({
+export default defineConfig(({ mode: _mode }) => ({
 	plugins: [
 		angular({
 			tsconfig: 'tsconfig.json',

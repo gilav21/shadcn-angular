@@ -39,7 +39,7 @@ export class CollapsibleComponent {
         cn(this.class())
     );
 
-    toggle() {
+    toggle(): void {
         if (!this.disabled()) {
             const newState = !this.open();
             this.open.set(newState);
@@ -47,14 +47,14 @@ export class CollapsibleComponent {
         }
     }
 
-    show() {
+    show(): void {
         if (!this.disabled()) {
             this.open.set(true);
             this.openChange.emit(true);
         }
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
         this.openChange.emit(false);
     }

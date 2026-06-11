@@ -143,21 +143,21 @@ export class InputComponent implements ControlValueAccessor {
             : 'top-1/2 -translate-y-1/2 text-sm text-muted-foreground'
     ));
 
-    onValueChange(value: string) {
+    onValueChange(value: string): void {
         this.value.set(value);
         this.onChange(value);
     }
 
-    onFocus() {
+    onFocus(): void {
         this.isFocused.set(true);
     }
 
-    onBlur() {
+    onBlur(): void {
         this.isFocused.set(false);
         this.onTouched();
     }
 
-    clearValue() {
+    clearValue(): void {
         this.onValueChange('');
         this.focus();
     }
@@ -180,7 +180,7 @@ export class InputComponent implements ControlValueAccessor {
 
     readonly inputRef = viewChild<ElementRef<HTMLInputElement>>('inputRef');
 
-    focus() {
+    focus(): void {
         this.inputRef()?.nativeElement.focus();
     }
 

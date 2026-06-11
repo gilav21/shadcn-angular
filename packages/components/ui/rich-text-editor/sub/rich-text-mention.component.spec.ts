@@ -28,7 +28,7 @@ describe('RichTextMentionPopoverComponent', () => {
 
     it('emits close on Escape when list is empty', () => {
         const closeSpy = vi.fn();
-        component.close.subscribe(closeSpy);
+        component.closed.subscribe(closeSpy);
 
         component.onKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
 

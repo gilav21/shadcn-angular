@@ -51,12 +51,12 @@ export class ColumnRangeChartComponent implements AfterViewInit {
     return this._domRtl();
   });
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this._checkDirection();
     setTimeout(() => this._checkDirection(), 0);
   }
 
-  private _checkDirection() {
+  private _checkDirection(): void {
     this._domRtl.set(isRtl(this.el.nativeElement));
   }
 
@@ -177,15 +177,15 @@ export class ColumnRangeChartComponent implements AfterViewInit {
     return area.bottom - normalized * area.height;
   }
 
-  onBarHover(bar: RangeBar) {
+  onBarHover(bar: RangeBar): void {
     this.hoveredIndex.set(bar.index);
   }
 
-  onBarLeave() {
+  onBarLeave(): void {
     this.hoveredIndex.set(null);
   }
 
-  onBarClick(event: Event, bar: RangeBar) {
+  onBarClick(event: Event, bar: RangeBar): void {
     this.barClick.emit({
       point: bar.data,
       index: bar.index,

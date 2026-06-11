@@ -198,22 +198,19 @@ function formatBorder(b: DocxBorder | DocxTableBorder): string {
     return `${widthPt}pt ${style} ${b.color}`;
 }
 
+const DASHED_BORDER_STYLES = new Set(['dashed', 'dashDotStroked', 'dashSmallGap']);
+const DOTTED_BORDER_STYLES = new Set(['dotted', 'dotDash', 'dotDotDash']);
+const DOUBLE_BORDER_STYLES = new Set([
+    'double', 'triple', 'thinThickSmallGap', 'thickThinSmallGap',
+    'thinThickMediumGap', 'thickThinMediumGap', 'thinThickLargeGap', 'thickThinLargeGap',
+]);
+
 function mapBorderStyle(docxStyle: string): string {
-    switch (docxStyle) {
-        case 'dashed': case 'dashDotStroked': case 'dashSmallGap':
-            return 'dashed';
-        case 'dotted': case 'dotDash': case 'dotDotDash':
-            return 'dotted';
-        case 'double': case 'triple': case 'thinThickSmallGap':
-        case 'thickThinSmallGap': case 'thinThickMediumGap':
-        case 'thickThinMediumGap': case 'thinThickLargeGap':
-        case 'thickThinLargeGap':
-            return 'double';
-        case 'none': case 'nil':
-            return 'none';
-        default:
-            return 'solid';
-    }
+    if (DASHED_BORDER_STYLES.has(docxStyle)) return 'dashed';
+    if (DOTTED_BORDER_STYLES.has(docxStyle)) return 'dotted';
+    if (DOUBLE_BORDER_STYLES.has(docxStyle)) return 'double';
+    if (docxStyle === 'none' || docxStyle === 'nil') return 'none';
+    return 'solid';
 }
 
 // --- Run rendering ---
@@ -303,10 +300,8 @@ function renderImage(img: DocxImage): string {
 
 // --- Table rendering ---
 
-function renderTable(table: DocxTable): string {
-    const tableStyle = buildTableStyle(table.tableStyle);
-    const styleStr = tableStyle ? ` style="${tableStyle}"` : '';
-    const borderFallbacks: TableBorderFallbacks = {
+function buildBorderFallbacks(table: DocxTable): TableBorderFallbacks {
+    return {
         insideH: table.tableStyle?.borders?.insideH,
         insideV: table.tableStyle?.borders?.insideV,
         top: table.tableStyle?.borders?.top,
@@ -314,21 +309,24 @@ function renderTable(table: DocxTable): string {
         left: table.tableStyle?.borders?.left,
         right: table.tableStyle?.borders?.right,
     };
+}
 
-    const parts: string[] = [`<table${styleStr}>`];
-
+function splitTableRows(rows: readonly DocxTableRow[]): { headerRows: DocxTableRow[]; bodyRows: DocxTableRow[] } {
     const headerRows: DocxTableRow[] = [];
     const bodyRows: DocxTableRow[] = [];
-
-    for (const row of table.rows) {
-        if (row.rowStyle?.isHeader) {
-            headerRows.push(row);
-        } else {
-            bodyRows.push(row);
-        }
+    for (const row of rows) {
+        if (row.rowStyle?.isHeader) { headerRows.push(row); } else { bodyRows.push(row); }
     }
+    return { headerRows, bodyRows };
+}
 
+function renderTable(table: DocxTable): string {
+    const tableStyle = buildTableStyle(table.tableStyle);
+    const styleStr = tableStyle ? ` style="${tableStyle}"` : '';
+    const borderFallbacks = buildBorderFallbacks(table);
+    const { headerRows, bodyRows } = splitTableRows(table.rows);
     const totalRows = table.rows.length;
+    const parts: string[] = [`<table${styleStr}>`];
     let rowIndex = 0;
 
     if (headerRows.length > 0) {
@@ -428,15 +426,24 @@ function buildCellStyle(
     return parts.join(';');
 }
 
+function resolveCellBorder(
+    own: DocxTableBorder | undefined,
+    isEdge: boolean,
+    edgeFallback: DocxTableBorder | undefined,
+    innerFallback: DocxTableBorder | undefined,
+): DocxTableBorder | undefined {
+    return own ?? (isEdge ? edgeFallback : innerFallback);
+}
+
 function appendCellBorders(
     parts: string[], style: DocxTableCellStyle | undefined,
     fallbacks: TableBorderFallbacks, rowIndex: number, colIndex: number,
     totalRows: number, totalCols: number,
 ): void {
-    const top = style?.borders?.top ?? (rowIndex === 0 ? fallbacks.top : fallbacks.insideH);
-    const bottom = style?.borders?.bottom ?? (rowIndex === totalRows - 1 ? fallbacks.bottom : fallbacks.insideH);
-    const left = style?.borders?.left ?? (colIndex === 0 ? fallbacks.left : fallbacks.insideV);
-    const right = style?.borders?.right ?? (colIndex === totalCols - 1 ? fallbacks.right : fallbacks.insideV);
+    const top = resolveCellBorder(style?.borders?.top, rowIndex === 0, fallbacks.top, fallbacks.insideH);
+    const bottom = resolveCellBorder(style?.borders?.bottom, rowIndex === totalRows - 1, fallbacks.bottom, fallbacks.insideH);
+    const left = resolveCellBorder(style?.borders?.left, colIndex === 0, fallbacks.left, fallbacks.insideV);
+    const right = resolveCellBorder(style?.borders?.right, colIndex === totalCols - 1, fallbacks.right, fallbacks.insideV);
 
     if (top) parts.push(`border-top:${formatBorder(top)}`);
     if (bottom) parts.push(`border-bottom:${formatBorder(bottom)}`);

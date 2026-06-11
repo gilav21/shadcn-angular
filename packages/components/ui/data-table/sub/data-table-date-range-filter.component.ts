@@ -144,5 +144,6 @@ export function dateRangeFilterFn<TRow>(
   if (filterValue.start) {
     return cellTs >= toDateOnlyTimestamp(filterValue.start);
   }
-  return cellTs <= toDateOnlyTimestamp(filterValue.end!);
+  if (!filterValue.end) return true;
+  return cellTs <= toDateOnlyTimestamp(filterValue.end);
 }

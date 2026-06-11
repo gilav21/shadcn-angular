@@ -87,7 +87,7 @@ export class OrgChartComponent {
     return positionedRoot;
   });
 
-  private calculatePositions(root: OrgNodePosition) {
+  private calculatePositions(root: OrgNodePosition): void {
     const isVertical = this.layout() === 'vertical';
     const nWidth = this.nodeWidth();
     const nHeight = this.nodeHeight();
@@ -107,7 +107,7 @@ export class OrgChartComponent {
       node: OrgNodePosition,
       startX: number,
       startY: number
-    ) => {
+    ): void => {
       const subtreeWidth = getSubtreeWidth(node);
 
       if (isVertical) {
@@ -141,7 +141,7 @@ export class OrgChartComponent {
     if (!root) return [];
 
     const result: OrgNodePosition[] = [];
-    const flatten = (node: OrgNodePosition) => {
+    const flatten = (node: OrgNodePosition): void => {
       result.push(node);
       node.children.forEach(flatten);
     };
@@ -157,7 +157,7 @@ export class OrgChartComponent {
     const isVertical = this.layout() === 'vertical';
     const isCurved = this.lineType() === 'curved';
 
-    const generateConnections = (node: OrgNodePosition) => {
+    const generateConnections = (node: OrgNodePosition): void => {
       for (const child of node.children) {
         const parentCenterX = node.x + node.width / 2;
         const parentCenterY = node.y + node.height / 2;
@@ -250,17 +250,17 @@ export class OrgChartComponent {
     return label;
   }
 
-  onNodeHover(node: OrgNode) {
+  onNodeHover(node: OrgNode): void {
     this.hoveredId.set(node.id);
     this.nodeHover.emit(node);
   }
 
-  onNodeLeave() {
+  onNodeLeave(): void {
     this.hoveredId.set(null);
     this.nodeHover.emit(null);
   }
 
-  onNodeClick(event: Event, node: OrgNode) {
+  onNodeClick(event: Event, node: OrgNode): void {
     this.nodeClick.emit({
       node,
       event: event instanceof MouseEvent ? event : undefined,

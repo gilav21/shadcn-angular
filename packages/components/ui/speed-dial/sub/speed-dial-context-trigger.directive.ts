@@ -28,7 +28,7 @@ import { SpeedDialComponent } from '../speed-dial.component';
 export class SpeedDialContextTriggerDirective {
     uiSpeedDialContextTrigger = input.required<SpeedDialComponent>();
 
-    onContextMenu(event: MouseEvent) {
+    onContextMenu(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
 
@@ -38,7 +38,7 @@ export class SpeedDialContextTriggerDirective {
         speedDial.showAt(event.clientX, event.clientY);
     }
 
-    onClick(event: MouseEvent) {
+    onClick(_event: MouseEvent): void {
         const speedDial = this.uiSpeedDialContextTrigger();
         if (speedDial?.open()) {
             speedDial.hide();

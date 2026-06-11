@@ -104,7 +104,7 @@ class ConcurrencyLimiter {
             return await fn();
         } finally {
             this.active--;
-            if (this.queue.length > 0) this.queue.shift()!();
+            if (this.queue.length > 0) this.queue.shift()?.();
         }
     }
 }

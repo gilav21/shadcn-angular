@@ -44,9 +44,10 @@
                         </div>
                         <div class="grid grid-cols-2 gap-4">
                             <div class="space-y-1.5">
-                                <label class="text-xs font-medium text-muted-foreground">Columns (Width)</label>
+                                <label for="pe-cols" class="text-xs font-medium text-muted-foreground">Columns (Width)</label>
                                 <div class="relative">
                                     <input
+                                        id="pe-cols"
                                         type="number"
                                         [ngModel]="item()!.cols"
                                         (ngModelChange)="onPropertyChange('cols', $event)"
@@ -59,9 +60,10 @@
                                 </div>
                             </div>
                             <div class="space-y-1.5">
-                                <label class="text-xs font-medium text-muted-foreground">Rows (Height)</label>
+                                <label for="pe-rows" class="text-xs font-medium text-muted-foreground">Rows (Height)</label>
                                 <div class="relative">
                                     <input
+                                        id="pe-rows"
                                         type="number"
                                         [ngModel]="item()!.rows"
                                         (ngModelChange)="onPropertyChange('rows', $event)"
@@ -87,7 +89,7 @@
                             @for (inputDef of componentMeta()?.inputs; track inputDef.name) {
                             <div class="space-y-2">
                                 <div class="flex items-center justify-between">
-                                    <label class="text-xs font-medium text-foreground block">
+                                    <label [for]="'pe-prop-' + inputDef.name" class="text-xs font-medium text-foreground block">
                                         {{ inputDef.label || inputDef.name }}
                                     </label>
                                     <button
@@ -104,6 +106,7 @@
                                 @if (hasBinding(inputDef.name)) {
                                     <div class="relative">
                                         <input
+                                            [id]="'pe-prop-' + inputDef.name"
                                             type="text"
                                             [ngModel]="getBinding(inputDef.name)"
                                             (ngModelChange)="onBindingChange(inputDef.name, $event)"
@@ -120,7 +123,7 @@
                                             <div class="flex items-center justify-between h-10 px-3 rounded-md border bg-card/50">
                                                 <span class="text-sm font-medium text-foreground">{{ inputDef.label || inputDef.name }}</span>
                                                 <ui-switch
-                                                    [checked]="getItemInput(inputDef.name)"
+                                                    [checked]="getItemInputAsBoolean(inputDef.name)"
                                                     (checkedChange)="onInputChange(inputDef.name, $event)"
                                                 />
                                             </div>
@@ -144,6 +147,7 @@
                                         }
                                         @default {
                                             <input
+                                                [id]="'pe-prop-' + inputDef.name"
                                                 [type]="inputDef.type === 'number' ? 'number' : 'text'"
                                                 [ngModel]="getItemInput(inputDef.name)"
                                                 (ngModelChange)="onInputChange(inputDef.name, $event)"

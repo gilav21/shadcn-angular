@@ -14,7 +14,7 @@ import { setLocaleCore, isValidLocaleCode } from './set-locale.js';
 import { isValidHex } from '../utils/color.js';
 import type { ThemeColor } from '../templates/styles.js';
 
-const onCancel = () => {
+const onCancel = (): void => {
     console.log(chalk.dim('\nCancelled.'));
     process.exit(0);
 };
@@ -127,6 +127,55 @@ function hasAnyDefaultFlag(options: InitOptions): boolean {
         || options.locale !== undefined;
 }
 
+const DEFAULT_PROMPTS_QUESTIONS = [
+    {
+        type: 'select' as const,
+        name: 'density',
+        message: 'Density level:',
+        choices: [
+            { title: '1 — ultra-compact', value: 1 },
+            { title: '2 — compact', value: 2 },
+            { title: '3 — default', value: 3 },
+            { title: '4 — comfortable', value: 4 },
+            { title: '5 — spacious', value: 5 },
+        ],
+        initial: 2,
+    },
+    {
+        type: 'select' as const,
+        name: 'radius',
+        message: 'Border radius:',
+        choices: [
+            { title: 'none (0rem)', value: 'none' },
+            { title: 'sm (0.25rem)', value: 'sm' },
+            { title: 'md (0.375rem)', value: 'md' },
+            { title: 'lg (0.625rem) — default', value: 'lg' },
+            { title: 'xl (0.75rem)', value: 'xl' },
+            { title: 'full (9999px)', value: 'full' },
+        ],
+        initial: 3,
+    },
+    {
+        type: 'select' as const,
+        name: 'motion',
+        message: 'Motion level:',
+        choices: [
+            { title: '0 — no motion', value: 0 },
+            { title: '1 — default', value: 1 },
+            { title: '2 — expressive', value: 2 },
+        ],
+        initial: 1,
+    },
+    {
+        type: 'text' as const,
+        name: 'locale',
+        message: 'Default UI locale (BCP-47 code):',
+        initial: 'en',
+        validate: (value: string) =>
+            isValidLocaleCode(value) ? true : 'Use a BCP-47 code like "en", "he", or "pt-BR".',
+    },
+];
+
 async function promptForDefaults(): Promise<InitDefaults> {
     const { configure } = await prompts({
         type: 'confirm',
@@ -136,54 +185,7 @@ async function promptForDefaults(): Promise<InitDefaults> {
     }, { onCancel });
     if (!configure) return {};
 
-    const responses = await prompts([
-        {
-            type: 'select',
-            name: 'density',
-            message: 'Density level:',
-            choices: [
-                { title: '1 — ultra-compact', value: 1 },
-                { title: '2 — compact', value: 2 },
-                { title: '3 — default', value: 3 },
-                { title: '4 — comfortable', value: 4 },
-                { title: '5 — spacious', value: 5 },
-            ],
-            initial: 2,
-        },
-        {
-            type: 'select',
-            name: 'radius',
-            message: 'Border radius:',
-            choices: [
-                { title: 'none (0rem)', value: 'none' },
-                { title: 'sm (0.25rem)', value: 'sm' },
-                { title: 'md (0.375rem)', value: 'md' },
-                { title: 'lg (0.625rem) — default', value: 'lg' },
-                { title: 'xl (0.75rem)', value: 'xl' },
-                { title: 'full (9999px)', value: 'full' },
-            ],
-            initial: 3,
-        },
-        {
-            type: 'select',
-            name: 'motion',
-            message: 'Motion level:',
-            choices: [
-                { title: '0 — no motion', value: 0 },
-                { title: '1 — default', value: 1 },
-                { title: '2 — expressive', value: 2 },
-            ],
-            initial: 1,
-        },
-        {
-            type: 'text',
-            name: 'locale',
-            message: 'Default UI locale (BCP-47 code):',
-            initial: 'en',
-            validate: (value: string) =>
-                isValidLocaleCode(value) ? true : 'Use a BCP-47 code like "en", "he", or "pt-BR".',
-        },
-    ], { onCancel });
+    const responses = await prompts(DEFAULT_PROMPTS_QUESTIONS, { onCancel });
 
     const defaults: InitDefaults = {};
     if (responses.density !== 3) defaults.density = responses.density;
@@ -198,154 +200,136 @@ interface InitConfig {
     readonly createShortcutRegistry: boolean;
 }
 
-async function promptForConfig(initialPrefix: string): Promise<InitConfig> {
-    const THEME_COLORS: Record<string, string> = {
-        zinc: '#71717a', slate: '#64748b', stone: '#78716c',
-        gray: '#6b7280', neutral: '#737373', red: '#ef4444',
-        rose: '#f43f5e', orange: '#f97316', green: '#22c55e',
-        blue: '#3b82f6', yellow: '#eab308', violet: '#8b5cf6',
-        amber: '#d97706',
-    };
+const THEME_COLORS: Record<string, string> = {
+    zinc: '#71717a', slate: '#64748b', stone: '#78716c',
+    gray: '#6b7280', neutral: '#737373', red: '#ef4444',
+    rose: '#f43f5e', orange: '#f97316', green: '#22c55e',
+    blue: '#3b82f6', yellow: '#eab308', violet: '#8b5cf6',
+    amber: '#d97706',
+};
 
-    const colorSwatch = (value: string, label: string) =>
-        `${chalk.hex(THEME_COLORS[value])('██')} ${label}`;
+function colorSwatch(value: string, label: string): string {
+    return `${chalk.hex(THEME_COLORS[value])('██')} ${label}`;
+}
 
-    const themeChoices = [
-        'Zinc', 'Slate', 'Stone', 'Gray', 'Neutral',
-        'Red', 'Rose', 'Orange', 'Green', 'Blue',
-        'Yellow', 'Violet', 'Amber',
-    ].map(label => {
-        const value = label.toLowerCase();
-        return { title: colorSwatch(value, label), value };
-    });
+function buildColorChoices(labels: string[]): { title: string; value: string }[] {
+    return labels.map(label => ({ title: colorSwatch(label.toLowerCase(), label), value: label.toLowerCase() }));
+}
 
-    const baseColorChoices = ['Neutral', 'Slate', 'Stone', 'Gray', 'Zinc'].map(label => {
-        const value = label.toLowerCase();
-        return { title: colorSwatch(value, label), value };
-    });
-
-    const responses = await prompts([
-        {
-            type: 'select',
-            name: 'baseColor',
-            message: 'Which color would you like to use as base color?',
-            choices: baseColorChoices,
-            initial: 0,
-        },
-        {
-            type: 'select',
-            name: 'theme',
-            message: 'Which color would you like to use for the main theme?',
-            choices: themeChoices,
-            initial: (prev: string) => {
-                const index = themeChoices.findIndex(c => c.value === prev);
-                return index === -1 ? 0 : index;
-            },
-        },
-        {
-            type: 'text',
-            name: 'componentsPath',
-            message: 'Where would you like to install components?',
-            initial: 'src/components/ui',
-        },
-        {
-            type: 'text',
-            name: 'utilsPath',
-            message: 'Where would you like to install utils?',
-            initial: 'src/components/lib',
-        },
-        {
-            type: 'text',
-            name: 'blocksPath',
-            message: 'Where would you like to install blocks?',
-            initial: 'src/blocks',
-        },
-        {
-            type: 'text',
-            name: 'globalCss',
-            message: 'Where is your global styles file?',
-            initial: 'src/styles.scss',
-        },
-        {
-            type: 'text',
-            name: 'prefix',
-            message: 'Component selector prefix (e.g. "ui", "acme", "acme-ui"):',
-            initial: initialPrefix,
-            validate: (value: string) =>
-                isValidPrefix(value)
-                    ? true
-                    : 'Prefix must be lowercase kebab-case starting with a letter (e.g. "ui", "myapp", "acme-ui").',
-        },
-        {
-            type: 'confirm',
-            name: 'createShortcutRegistry',
-            message: 'Would you like to create a shortcut registry scaffold?',
-            initial: true,
-        },
-    ], { onCancel });
-
-    const componentsAlias = toAlias(responses.componentsPath);
-    const uiAlias = componentsAlias.endsWith('/ui')
-        ? componentsAlias
-        : componentsAlias + '/ui';
-
+function buildConfigFromResponses(responses: Record<string, string | boolean>): InitConfig {
+    const componentsAlias = toAlias(responses['componentsPath'] as string);
+    const uiAlias = componentsAlias.endsWith('/ui') ? componentsAlias : componentsAlias + '/ui';
     return {
         config: {
             style: 'default',
-            prefix: responses.prefix,
+            prefix: responses['prefix'] as string,
             tailwind: {
-                css: responses.globalCss,
-                baseColor: responses.baseColor,
-                theme: responses.theme,
+                css: responses['globalCss'] as string,
+                baseColor: responses['baseColor'] as Config['tailwind']['baseColor'],
+                theme: responses['theme'] as Config['tailwind']['theme'],
                 cssVariables: true,
             },
             aliases: {
                 components: componentsAlias.replace(/\/ui$/, ''),
-                utils: toAlias(responses.utilsPath),
+                utils: toAlias(responses['utilsPath'] as string),
                 ui: uiAlias,
-                blocks: toAlias(responses.blocksPath),
+                blocks: toAlias(responses['blocksPath'] as string),
             },
         },
-        createShortcutRegistry: responses.createShortcutRegistry ?? true,
+        createShortcutRegistry: (responses['createShortcutRegistry'] ?? true) as boolean,
     };
 }
 
-export async function init(options: InitOptions) {
-    console.log(chalk.bold('\n🎨 Welcome to shadcn-angular!\n'));
+async function promptForConfig(initialPrefix: string): Promise<InitConfig> {
+    const themeChoices = buildColorChoices([
+        'Zinc', 'Slate', 'Stone', 'Gray', 'Neutral',
+        'Red', 'Rose', 'Orange', 'Green', 'Blue', 'Yellow', 'Violet', 'Amber',
+    ]);
+    const baseColorChoices = buildColorChoices(['Neutral', 'Slate', 'Stone', 'Gray', 'Zinc']);
 
-    const cwd = process.cwd();
+    const responses = await prompts([
+        { type: 'select', name: 'baseColor', message: 'Which color would you like to use as base color?', choices: baseColorChoices, initial: 0 },
+        { type: 'select', name: 'theme', message: 'Which color would you like to use for the main theme?', choices: themeChoices, initial: (prev: string): number => { const i = themeChoices.findIndex(c => c.value === prev); return i === -1 ? 0 : i; } },
+        { type: 'text', name: 'componentsPath', message: 'Where would you like to install components?', initial: 'src/components/ui' },
+        { type: 'text', name: 'utilsPath', message: 'Where would you like to install utils?', initial: 'src/components/lib' },
+        { type: 'text', name: 'blocksPath', message: 'Where would you like to install blocks?', initial: 'src/blocks' },
+        { type: 'text', name: 'globalCss', message: 'Where is your global styles file?', initial: 'src/styles.scss' },
+        { type: 'text', name: 'prefix', message: 'Component selector prefix (e.g. "ui", "acme", "acme-ui"):', initial: initialPrefix, validate: (value: string) => isValidPrefix(value) ? true : 'Prefix must be lowercase kebab-case starting with a letter (e.g. "ui", "myapp", "acme-ui").' },
+        { type: 'confirm', name: 'createShortcutRegistry', message: 'Would you like to create a shortcut registry scaffold?', initial: true },
+    ], { onCancel });
 
+    return buildConfigFromResponses(responses);
+}
+
+async function checkAngularProject(cwd: string): Promise<void> {
     const angularJsonPath = path.join(cwd, 'angular.json');
     if (!await fs.pathExists(angularJsonPath)) {
         console.log(chalk.red('Error: This does not appear to be an Angular project.'));
         console.log(chalk.dim('Please run this command in the root of your Angular project.'));
         process.exit(1);
     }
+}
 
+async function checkExistingComponentsJson(cwd: string, yes: boolean | undefined): Promise<boolean> {
     const componentsJsonPath = path.join(cwd, 'components.json');
-
-    if (await fs.pathExists(componentsJsonPath)) {
-        const overwrite = options.yes
-            ? true
-            : (await prompts({
-                type: 'confirm',
-                name: 'overwrite',
-                message: 'components.json already exists. Overwrite?',
-                initial: false,
-            }, { onCancel })).overwrite;
-        if (!overwrite) {
-            console.log(chalk.dim('Initialization cancelled.'));
-            return;
-        }
+    if (!await fs.pathExists(componentsJsonPath)) return true;
+    const overwrite = yes
+        ? true
+        : (await prompts({
+            type: 'confirm',
+            name: 'overwrite',
+            message: 'components.json already exists. Overwrite?',
+            initial: false,
+        }, { onCancel })).overwrite;
+    if (!overwrite) {
+        console.log(chalk.dim('Initialization cancelled.'));
+        return false;
     }
+    return true;
+}
+
+function applyConfigOverrides(config: Config, options: InitOptions): void {
+    if (options.theme !== undefined) config.tailwind.theme = options.theme as ThemeColor;
+    if (options.prefix !== undefined) config.prefix = options.prefix;
+    if (options.registry) config.registry = options.registry;
+}
+
+async function runInitProject(cwd: string, config: Config, createShortcutRegistry: boolean, defaults: InitDefaults, options: InitOptions): Promise<void> {
+    const spinner = ora('Initializing project...').start();
+    try {
+        const { created, warnings } = await initProject({
+            cwd, config, createShortcutRegistry,
+            fetchOptions: { branch: options.branch, remote: options.remote, registry: options.registry },
+        });
+        spinner.succeed(chalk.green('Project initialized successfully!'));
+        for (const c of created) console.log(chalk.dim('  + ') + chalk.cyan(c));
+        for (const w of warnings) console.log(chalk.yellow('  ' + w));
+        const applied = await applyInitDefaults(cwd, defaults, {
+            branch: options.branch, remote: options.remote, registry: options.registry,
+        });
+        for (const msg of applied) console.log(chalk.dim('  ✓ ') + msg);
+        console.log('\n' + chalk.bold('Next steps:'));
+        console.log(chalk.dim('  1. Add components: ') + chalk.cyan('npx @gilav21/shadcn-angular add button'));
+        console.log(chalk.dim('  2. Import and use in your templates'));
+        console.log('');
+    } catch (error) {
+        spinner.fail('Failed to initialize project');
+        console.error(error);
+        process.exit(1);
+    }
+}
+
+export async function init(options: InitOptions): Promise<void> {
+    console.log(chalk.bold('\n🎨 Welcome to shadcn-angular!\n'));
+    const cwd = process.cwd();
+
+    await checkAngularProject(cwd);
+
+    if (!await checkExistingComponentsJson(cwd, options.yes)) return;
 
     if (options.prefix !== undefined && !isValidPrefix(options.prefix)) {
-        console.log(chalk.red(
-            `Error: invalid --prefix value "${options.prefix}".`,
-        ));
-        console.log(chalk.dim(
-            'Prefix must be lowercase kebab-case starting with a letter (e.g. "ui", "myapp", "acme-ui").',
-        ));
+        console.log(chalk.red(`Error: invalid --prefix value "${options.prefix}".`));
+        console.log(chalk.dim('Prefix must be lowercase kebab-case starting with a letter (e.g. "ui", "myapp", "acme-ui").'));
         process.exit(1);
     }
 
@@ -358,56 +342,17 @@ export async function init(options: InitOptions) {
     }
 
     const initialPrefix = options.prefix ?? DEFAULT_PREFIX;
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- boolean flags: false should also be checked
     const nonInteractive = Boolean(options.defaults || options.yes);
 
     const { config, createShortcutRegistry } = nonInteractive
-        ? {
-            config: { ...getDefaultConfig(), prefix: initialPrefix },
-            createShortcutRegistry: true,
-        }
+        ? { config: { ...getDefaultConfig(), prefix: initialPrefix }, createShortcutRegistry: true }
         : await promptForConfig(initialPrefix);
 
     if (!nonInteractive && !hasAnyDefaultFlag(options)) {
         defaults = { ...await promptForDefaults(), ...defaults };
     }
 
-    if (options.theme !== undefined) {
-        config.tailwind.theme = options.theme as ThemeColor;
-    }
-
-    if (options.prefix !== undefined) {
-        config.prefix = options.prefix;
-    }
-
-    if (options.registry) {
-        config.registry = options.registry;
-    }
-
-    const spinner = ora('Initializing project...').start();
-
-    try {
-        const { created, warnings } = await initProject({
-            cwd, config, createShortcutRegistry,
-            fetchOptions: { branch: options.branch, remote: options.remote, registry: options.registry },
-        });
-
-        spinner.succeed(chalk.green('Project initialized successfully!'));
-        for (const c of created) console.log(chalk.dim('  + ') + chalk.cyan(c));
-        for (const w of warnings) console.log(chalk.yellow('  ' + w));
-
-        const applied = await applyInitDefaults(cwd, defaults, {
-            branch: options.branch, remote: options.remote, registry: options.registry,
-        });
-        for (const msg of applied) console.log(chalk.dim('  ✓ ') + msg);
-
-        console.log('\n' + chalk.bold('Next steps:'));
-        console.log(chalk.dim('  1. Add components: ') + chalk.cyan('npx @gilav21/shadcn-angular add button'));
-        console.log(chalk.dim('  2. Import and use in your templates'));
-        console.log('');
-
-    } catch (error) {
-        spinner.fail('Failed to initialize project');
-        console.error(error);
-        process.exit(1);
-    }
+    applyConfigOverrides(config, options);
+    await runInitProject(cwd, config, createShortcutRegistry, defaults, options);
 }

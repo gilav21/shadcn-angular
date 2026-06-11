@@ -135,7 +135,7 @@ export class ActivityWidgetComponent {
 export class ActionWidgetComponent {
   action = output<string>();
 
-  performAction(actionType: string) {
+  performAction(actionType: string): void {
     this.action.emit(actionType);
   }
 }

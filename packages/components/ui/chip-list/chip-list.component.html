@@ -4,6 +4,10 @@
   [attr.data-slot]="'chip-list'"
   [attr.data-disabled]="disabled() || null"
   (click)="focusInput()"
+  (keydown.enter)="focusInput()"
+  (keydown.space)="focusInput()"
+  tabindex="-1"
+  role="group"
 >
   @for (chip of chips(); track chip; let i = $index) {
     <ui-badge

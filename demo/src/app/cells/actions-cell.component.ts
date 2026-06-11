@@ -24,11 +24,11 @@ export class ActionsCellComponent {
   view = output<{ id: string; email: string }>();
   edit = output<{ id: string; email: string }>();
 
-  onView() {
+  onView(): void {
     this.view.emit({ id: this.id(), email: this.email() });
   }
 
-  onEdit() {
+  onEdit(): void {
     this.edit.emit({ id: this.id(), email: this.email() });
   }
 }

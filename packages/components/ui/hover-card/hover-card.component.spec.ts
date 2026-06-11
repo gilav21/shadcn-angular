@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { HoverCardComponent, HoverCardTriggerComponent, HoverCardContentComponent } from './index';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 
 // Basic test host
 @Component({
@@ -68,7 +68,6 @@ describe('HoverCardComponent', () => {
 
 describe('HoverCard Integration', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let component: TestHostComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -76,7 +75,6 @@ describe('HoverCard Integration', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        component = fixture.componentInstance;
         fixture.detectChanges();
     });
 

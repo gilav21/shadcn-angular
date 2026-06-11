@@ -52,7 +52,7 @@ export class ChatInputComponent {
   classes = computed(() => cn('relative flex items-center', this.class()));
   textareaClasses = computed(() => cn('min-h-[44px] w-full resize-none bg-background pe-12 py-3 rounded-lg border focus-visible:ring-offset-0 focus-visible:ring-1'));
 
-  onEnter(event: Event) {
+  onEnter(event: Event): void {
     const kEvent = event as KeyboardEvent;
     if (!kEvent.shiftKey) {
       event.preventDefault();
@@ -60,7 +60,7 @@ export class ChatInputComponent {
     }
   }
 
-  onSubmit() {
+  onSubmit(): void {
     if (this.inputValue().trim() && !this.disabled()) {
       this.send.emit(this.inputValue());
       this.inputValue.set('');

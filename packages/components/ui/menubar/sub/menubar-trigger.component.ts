@@ -57,18 +57,18 @@ export class MenubarTriggerComponent {
     this.class()
   ));
 
-  onClick() {
+  onClick(): void {
     this.menu.toggle();
   }
 
-  onMouseEnter() {
+  onMouseEnter(): void {
     if (isTouchDevice()) return;
     if (this.service.activeMenuId()) {
       this.menu.open();
     }
   }
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
       if (this.service.isRtl()) {
@@ -96,11 +96,11 @@ export class MenubarTriggerComponent {
     }
   }
 
-  focus() {
+  focus(): void {
     this.triggerEl?.nativeElement.focus();
   }
 
-  focusNextTrigger() {
+  focusNextTrigger(): void {
     const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
     const index = triggers.indexOf(this.triggerEl.nativeElement);
     const nextIndex = (index + 1) % triggers.length;
@@ -110,7 +110,7 @@ export class MenubarTriggerComponent {
     }
   }
 
-  focusPrevTrigger() {
+  focusPrevTrigger(): void {
     const triggers = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="menubar-trigger"]'));
     const index = triggers.indexOf(this.triggerEl.nativeElement);
     const prevIndex = (index - 1 + triggers.length) % triggers.length;

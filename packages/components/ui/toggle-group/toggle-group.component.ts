@@ -7,6 +7,7 @@ import {
     signal,
     InjectionToken,
     forwardRef,
+    OnInit,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -55,7 +56,7 @@ export const TOGGLE_GROUP = new InjectionToken<ToggleGroupComponent>('TOGGLE_GRO
     host: { class: 'contents' },
     providers: [{ provide: TOGGLE_GROUP, useExisting: forwardRef(() => ToggleGroupComponent) }],
 })
-export class ToggleGroupComponent {
+export class ToggleGroupComponent implements OnInit {
     type = input<ToggleGroupType>('single');
     variant = input<ToggleGroupVariant>('default');
     size = input<ToggleGroupSize>('default');
@@ -69,7 +70,7 @@ export class ToggleGroupComponent {
 
     value = signal<string[]>([]);
 
-    ngOnInit() {
+    ngOnInit(): void {
         const defaultVal = this.defaultValue();
         if (defaultVal) {
             this.value.set(Array.isArray(defaultVal) ? defaultVal : [defaultVal]);
@@ -88,7 +89,7 @@ export class ToggleGroupComponent {
         return this.value().includes(itemValue);
     }
 
-    toggle(itemValue: string) {
+    toggle(itemValue: string): void {
         if (this.disabled()) return;
 
         const current = this.value();

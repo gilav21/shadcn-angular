@@ -13,7 +13,7 @@ import { Component, ChangeDetectionStrategy, input } from '@angular/core';
 export class AmountCellComponent {
     amount = input.required<number>();
 
-    formatAmount() {
+    formatAmount(): string {
         return `$${this.amount().toFixed(2)}`;
     }
 }

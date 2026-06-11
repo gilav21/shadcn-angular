@@ -18,21 +18,32 @@ export interface InstallResult {
     warnings: string[];
 }
 
+interface WriteFilesContext {
+    targetDir: string;
+    options: AddOptions;
+    utilsAlias: string;
+    contentCache: Map<string, string>;
+    prefix: string;
+    warnings: string[];
+    manifest: Manifest;
+    kind?: SourceKind;
+}
+
 async function writeComponentFiles(
-    component: ComponentDefinition, targetDir: string, options: AddOptions,
-    utilsAlias: string, contentCache: Map<string, string>, prefix: string, warnings: string[],
-    manifest: Manifest, kind: SourceKind = 'component',
+    component: ComponentDefinition,
+    ctx: WriteFilesContext,
 ): Promise<boolean> {
+    const kind = ctx.kind ?? 'component';
     let success = true;
     for (const file of component.files) {
-        const targetPath = path.join(targetDir, file);
+        const targetPath = path.join(ctx.targetDir, file);
         try {
-            const content = contentCache.get(file) ?? await fetchAndTransform(file, options, utilsAlias, prefix, kind);
+            const content = ctx.contentCache.get(file) ?? await fetchAndTransform(file, ctx.options, ctx.utilsAlias, ctx.prefix, kind);
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
-            recordFile(manifest, file, content, component.name);
+            recordFile(ctx.manifest, file, content, component.name);
         } catch (err: unknown) {
-            warnings.push(`Could not add ${file}: ${err instanceof Error ? err.message : String(err)}`);
+            ctx.warnings.push(`Could not add ${file}: ${err instanceof Error ? err.message : String(err)}`);
             success = false;
         }
     }
@@ -40,22 +51,41 @@ async function writeComponentFiles(
 }
 
 async function writePeerFiles(
-    component: ComponentDefinition, targetDir: string, options: AddOptions, utilsAlias: string,
-    contentCache: Map<string, string>, peerFilesToUpdate: Set<string>, prefix: string, warnings: string[],
-    manifest: Manifest, kind: SourceKind = 'component',
+    component: ComponentDefinition,
+    ctx: WriteFilesContext,
+    peerFilesToUpdate: Set<string>,
 ): Promise<void> {
     if (!component.peerFiles) return;
+    const kind = ctx.kind ?? 'component';
     for (const file of component.peerFiles) {
         if (!peerFilesToUpdate.has(file)) continue;
-        const targetPath = path.join(targetDir, file);
+        const targetPath = path.join(ctx.targetDir, file);
         try {
-            const content = contentCache.get(file) ?? await fetchAndTransform(file, options, utilsAlias, prefix, kind);
+            const content = ctx.contentCache.get(file) ?? await fetchAndTransform(file, ctx.options, ctx.utilsAlias, ctx.prefix, kind);
             await fs.ensureDir(path.dirname(targetPath));
             await fs.writeFile(targetPath, content);
-            recordFile(manifest, file, content, component.name);
+            recordFile(ctx.manifest, file, content, component.name);
         } catch (err: unknown) {
-            warnings.push(`Could not update peer file ${file}: ${err instanceof Error ? err.message : String(err)}`);
+            ctx.warnings.push(`Could not update peer file ${file}: ${err instanceof Error ? err.message : String(err)}`);
         }
+    }
+}
+
+async function installSingleLibFile(libFile: string, targetPath: string, options: AddOptions, warnings: string[]): Promise<void> {
+    try {
+        const content = await fetchLibContent(libFile, options);
+        const exists = await fs.pathExists(targetPath);
+        if (!exists || options.overwrite) {
+            await fs.ensureDir(path.dirname(targetPath));
+            await fs.writeFile(targetPath, content);
+            return;
+        }
+        const local = normalizeContent(await fs.readFile(targetPath, 'utf-8'));
+        if (local !== normalizeContent(content)) {
+            warnings.push(`Lib file ${libFile} differs from remote (use --overwrite to update)`);
+        }
+    } catch (err: unknown) {
+        warnings.push(`Could not install lib file ${libFile}: ${err instanceof Error ? err.message : String(err)}`);
     }
 }
 
@@ -69,21 +99,7 @@ async function installLibFiles(
     if (required.size === 0) return;
     await fs.ensureDir(libDir);
     for (const libFile of required) {
-        const targetPath = path.join(libDir, libFile);
-        try {
-            const content = await fetchLibContent(libFile, options);
-            if (!await fs.pathExists(targetPath) || options.overwrite) {
-                await fs.ensureDir(path.dirname(targetPath));
-                await fs.writeFile(targetPath, content);
-            } else {
-                const local = normalizeContent(await fs.readFile(targetPath, 'utf-8'));
-                if (local !== normalizeContent(content)) {
-                    warnings.push(`Lib file ${libFile} differs from remote (use --overwrite to update)`);
-                }
-            }
-        } catch (err: unknown) {
-            warnings.push(`Could not install lib file ${libFile}: ${err instanceof Error ? err.message : String(err)}`);
-        }
+        await installSingleLibFile(libFile, path.join(libDir, libFile), options, warnings);
     }
 }
 
@@ -168,6 +184,35 @@ export async function planInstall(input: InstallInput): Promise<InstallPlan> {
  * all others are reported as `declined`. Skip semantics for up-to-date
  * components are preserved.
  */
+function prunePeerFilesForDeclined(declined: ComponentName[], finalComponents: ComponentName[], peerFilesToUpdate: Set<string>): void {
+    for (const name of declined) {
+        for (const file of registry[name].peerFiles ?? []) {
+            const stillNeeded = finalComponents.some(fc => registry[fc].peerFiles?.includes(file));
+            if (!stillNeeded) peerFilesToUpdate.delete(file);
+        }
+    }
+}
+
+async function writeAllComponents(
+    finalComponents: ComponentName[], targetDir: string, blocksBase: string,
+    ctx: Omit<WriteFilesContext, 'targetDir' | 'kind'>,
+    peerFilesToUpdate: Set<string>,
+): Promise<ComponentName[]> {
+    const installed: ComponentName[] = [];
+    for (const name of finalComponents) {
+        const component = registry[name];
+        const isBlock = component.type === 'block';
+        const dir = isBlock ? blocksBase : targetDir;
+        const kind: SourceKind = isBlock ? 'block' : 'component';
+        await fs.ensureDir(dir);
+        const writeCtx: WriteFilesContext = { ...ctx, targetDir: dir, kind };
+        const ok = await writeComponentFiles(component, writeCtx);
+        await writePeerFiles(component, writeCtx, peerFilesToUpdate);
+        if (ok) installed.push(name);
+    }
+    return installed;
+}
+
 export async function performInstall(input: InstallInput): Promise<InstallResult> {
     const warnings: string[] = [];
     const targetDir = resolveTargetDir(input);
@@ -183,33 +228,16 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     const declined = result.conflicting.filter(c => !toOverwrite.includes(c));
     const finalComponents = [...result.toInstall, ...toOverwrite];
 
-    // Drop peer files only needed by declined components.
-    for (const name of declined) {
-        for (const file of registry[name].peerFiles ?? []) {
-            const stillNeeded = finalComponents.some(fc => registry[fc].peerFiles?.includes(file));
-            if (!stillNeeded) result.peerFilesToUpdate.delete(file);
-        }
-    }
+    prunePeerFilesForDeclined(declined, finalComponents, result.peerFilesToUpdate);
 
     if (finalComponents.length === 0) {
         return { installed: [], skipped: result.toSkip, declined, warnings };
     }
 
     const manifest = await readManifest(input.cwd);
-    const blocksBase = resolveProjectPath(
-        input.cwd, input.blocksPath ?? aliasToProjectPath(getBlocksAlias(input.config)),
-    );
-    const installed: ComponentName[] = [];
-    for (const name of finalComponents) {
-        const component = registry[name];
-        const isBlock = component.type === 'block';
-        const dir = isBlock ? blocksBase : targetDir;
-        const kind: SourceKind = isBlock ? 'block' : 'component';
-        await fs.ensureDir(dir);
-        const ok = await writeComponentFiles(component, dir, input.options, utilsAlias, result.contentCache, prefix, warnings, manifest, kind);
-        await writePeerFiles(component, dir, input.options, utilsAlias, result.contentCache, result.peerFilesToUpdate, prefix, warnings, manifest, kind);
-        if (ok) installed.push(name);
-    }
+    const blocksBase = resolveProjectPath(input.cwd, input.blocksPath ?? aliasToProjectPath(getBlocksAlias(input.config)));
+    const baseCtx = { options: input.options, utilsAlias, contentCache: result.contentCache, prefix, warnings, manifest };
+    const installed = await writeAllComponents(finalComponents, targetDir, blocksBase, baseCtx, result.peerFilesToUpdate);
 
     const libDir = resolveProjectPath(input.cwd, aliasToProjectPath(utilsAlias));
     await installLibFiles(new Set(finalComponents), libDir, input.options, warnings);
@@ -218,8 +246,6 @@ export async function performInstall(input: InstallInput): Promise<InstallResult
     try {
         await writeManifest(input.cwd, manifest);
     } catch (err: unknown) {
-        // The lockfile is a non-critical sidecar — a write failure must not
-        // make a successful install report failure.
         warnings.push(`Could not write components.lock.json: ${err instanceof Error ? err.message : String(err)}`);
     }
 

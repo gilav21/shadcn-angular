@@ -2,12 +2,19 @@ import chalk from 'chalk';
 import { getConfig, getPrefix } from '../utils/config.js';
 import { registry, getComponentNames, type ComponentName } from '../registry/index.js';
 import { resolveProjectPath, aliasToProjectPath } from '../utils/paths.js';
-import { diffComponentFiles } from '../core/diff-core.js';
+import { diffComponentFiles, type FileDiff } from '../core/diff-core.js';
 
 interface DiffOptions {
     branch: string;
     remote?: boolean;
     registry?: string;
+}
+
+function printFileDiffs(files: FileDiff[]): void {
+    for (const f of files) {
+        if (f.diff) console.log(colorizeDiff(f.diff));
+        if (f.error) console.log(chalk.yellow(`  Could not fetch remote version of ${f.file}`));
+    }
 }
 
 /** Re-apply the CLI's colors to the plain unified diff produced by core. */
@@ -21,7 +28,7 @@ function colorizeDiff(diff: string): string {
     }).join('\n');
 }
 
-export async function diff(components: string[], options: DiffOptions) {
+export async function diff(components: string[], options: DiffOptions): Promise<void> {
     const cwd = process.cwd();
 
     const config = await getConfig(cwd);
@@ -60,10 +67,7 @@ export async function diff(components: string[], options: DiffOptions) {
         if (cd.hasChanges) {
             totalDiffs++;
             console.log(chalk.bold.cyan(`\n${name}:`));
-            for (const f of cd.files) {
-                if (f.diff) console.log(colorizeDiff(f.diff));
-                if (f.error) console.log(chalk.yellow(`  Could not fetch remote version of ${f.file}`));
-            }
+            printFileDiffs(cd.files);
         }
     }
 

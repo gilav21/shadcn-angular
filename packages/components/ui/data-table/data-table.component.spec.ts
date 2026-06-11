@@ -2748,7 +2748,7 @@ describe('DataTableComponent - Row Grouping', () => {
     });
 
     it('disables grouping and warns when combined with enableSubRows', () => {
-        const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+        const warnSpy = vi.spyOn(console, 'error').mockImplementation(() => undefined);
         const globalScope = globalThis as { ngDevMode?: unknown };
         const previousDevMode = globalScope.ngDevMode;
         globalScope.ngDevMode = true;

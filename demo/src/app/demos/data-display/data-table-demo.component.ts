@@ -18,6 +18,7 @@ import {
   ContextMenuIntegrations,
   ContextMenuItem,
   DataTableComponent,
+  SubRowContext,
   DataTableColumnState,
   DataTableDateFilterComponent,
   DataTableDateRangeFilterComponent,
@@ -810,6 +811,10 @@ export class DataTableDemoComponent {
   readonly treeDragLog = signal<string[]>([]);
 
   private readonly treeTableRef = viewChild<DataTableComponent<OrgNode>>('treeTable');
+  private readonly treeContextMenuRef = viewChild<ContextMenuComponent>('treeContextMenu');
+  readonly treeContextData = computed(() =>
+    this.treeContextMenuRef()?.data() as SubRowContext<OrgNode> | undefined
+  );
 
   onTreeRowReorder(event: RowReorderEvent<OrgNode>): void {
     const table = this.treeTableRef();

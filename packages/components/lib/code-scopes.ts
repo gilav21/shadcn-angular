@@ -31,19 +31,36 @@ function freshScanState(): ScanState {
 function advanceScanner(state: ScanState, ch: string, next: string): boolean {
     if (state.escape) { state.escape = false; return false; }
     if (state.inLineComment) { return false; }
-    if (state.inBlockComment) {
-        if (ch === '*' && next === '/') { state.inBlockComment = false; }
-        return false;
-    }
-    if (state.inString) {
-        if (ch === '\\') { state.escape = true; return false; }
-        if (ch === state.inString) { state.inString = false; }
-        return false;
-    }
+    if (state.inBlockComment) { return advanceScannerInBlockComment(state, ch, next); }
+    if (state.inString) { return advanceScannerInString(state, ch); }
     if (ch === '/' && next === '/') { state.inLineComment = true; return false; }
     if (ch === '/' && next === '*') { state.inBlockComment = true; return false; }
     if (ch === '"' || ch === "'" || ch === '`') { state.inString = ch; return false; }
     return true;
+}
+
+function advanceScannerInBlockComment(state: ScanState, ch: string, next: string): false {
+    if (ch === '*' && next === '/') { state.inBlockComment = false; }
+    return false;
+}
+
+function advanceScannerInString(state: ScanState, ch: string): false {
+    if (ch === '\\') { state.escape = true; return false; }
+    if (ch === state.inString) { state.inString = false; }
+    return false;
+}
+
+function processBracketClose(
+    ch: string,
+    lineIdx: number,
+    stack: { open: string; startLine: number; depth: number }[],
+    ranges: ScopeRange[],
+    closes: Map<string, string>,
+): void {
+    const top = stack.pop();
+    if (top && top.open === closes.get(ch) && lineIdx > top.startLine) {
+        ranges.push({ startLine: top.startLine, endLine: lineIdx, depth: top.depth });
+    }
 }
 
 function bracketDetector(pairs: readonly BracketPair[]): ScopeDetector {
@@ -64,10 +81,7 @@ function bracketDetector(pairs: readonly BracketPair[]): ScopeDetector {
                 if (opens.has(ch)) {
                     stack.push({ open: ch, startLine: lineIdx, depth: stack.length });
                 } else if (closes.has(ch)) {
-                    const top = stack.pop();
-                    if (top && top.open === closes.get(ch) && lineIdx > top.startLine) {
-                        ranges.push({ startLine: top.startLine, endLine: lineIdx, depth: top.depth });
-                    }
+                    processBracketClose(ch, lineIdx, stack, ranges, closes);
                 }
             }
             state.inLineComment = false;
@@ -94,10 +108,10 @@ export const indentScopeDetector: ScopeDetector = (lines) => {
     const ranges: ScopeRange[] = [];
     const openers: { startLine: number; indent: number; depth: number }[] = [];
 
-    const closeUntil = (lineIdx: number, indent: number) => {
+    const closeUntil = (lineIdx: number, indent: number): void => {
         while (openers.length > 0 && openers[openers.length - 1].indent > indent) {
-            const opener = openers.pop()!;
-            if (lineIdx - 1 > opener.startLine) {
+            const opener = openers.pop();
+            if (opener && lineIdx - 1 > opener.startLine) {
                 ranges.push({ startLine: opener.startLine, endLine: lineIdx - 1, depth: opener.depth });
             }
         }
@@ -126,6 +140,25 @@ const VOID_HTML_TAGS = new Set([
     'link', 'meta', 'source', 'track', 'wbr',
 ]);
 
+function processTagMatch(
+    match: RegExpExecArray,
+    lineIdx: number,
+    stack: { name: string; startLine: number; depth: number }[],
+    ranges: ScopeRange[],
+): void {
+    const [full, name, selfClose] = match;
+    const lower = name.toLowerCase();
+    const isClose = full.startsWith('</');
+    if (isClose) {
+        const top = stack.pop();
+        if (top && top.name === lower && lineIdx > top.startLine) {
+            ranges.push({ startLine: top.startLine, endLine: lineIdx, depth: top.depth });
+        }
+    } else if (!selfClose && !VOID_HTML_TAGS.has(lower)) {
+        stack.push({ name: lower, startLine: lineIdx, depth: stack.length });
+    }
+}
+
 export const tagScopeDetector: ScopeDetector = (lines) => {
     const ranges: ScopeRange[] = [];
     const stack: { name: string; startLine: number; depth: number }[] = [];
@@ -134,17 +167,7 @@ export const tagScopeDetector: ScopeDetector = (lines) => {
         TAG_TOKEN_REGEX.lastIndex = 0;
         let match: RegExpExecArray | null;
         while ((match = TAG_TOKEN_REGEX.exec(lines[lineIdx])) !== null) {
-            const [full, name, selfClose] = match;
-            const lower = name.toLowerCase();
-            const isClose = full.startsWith('</');
-            if (isClose) {
-                const top = stack.pop();
-                if (top && top.name === lower && lineIdx > top.startLine) {
-                    ranges.push({ startLine: top.startLine, endLine: lineIdx, depth: top.depth });
-                }
-            } else if (!selfClose && !VOID_HTML_TAGS.has(lower)) {
-                stack.push({ name: lower, startLine: lineIdx, depth: stack.length });
-            }
+            processTagMatch(match, lineIdx, stack, ranges);
         }
     }
     return ranges;

@@ -60,7 +60,7 @@ export class TimelineItemComponent implements AfterContentInit {
     private readonly _hasCustomContent = signal(false);
     hasCustomContent = this._hasCustomContent.asReadonly();
 
-    ngAfterContentInit() {
+    ngAfterContentInit(): void {
         this._hasCustomContent.set(!!this.customHeader || !!this.customContent);
     }
 

@@ -135,7 +135,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   protected readonly EMPTY_RECORD = EMPTY_RECORD;
   private readonly _document = inject(DOCUMENT);
   private readonly _el = inject(ElementRef);
-  isRtl() {
+  isRtl(): boolean {
     return isRtl(this._el.nativeElement);
   }
   private _isRtlResize = false;
@@ -368,8 +368,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const autoWidth = this.virtualAutoColumnWidth();
     return cols.map((col) => {
       const key = String(col.accessorKey);
-      const w = widths[key] || col._width || col.width || "auto";
+      const w = widths[key] ?? col._width ?? col.width ?? "auto";
       if (w === "auto") return autoWidth;
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback on NaN (parseInt returns NaN for non-numeric)
       return Number.parseInt(String(w), 10) || autoWidth;
     });
   });
@@ -605,7 +606,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       if (!column?.enableFiltering) continue;
 
       if (column.filterFn) {
-        data = data.filter((row) => column.filterFn!(row, filterValue));
+        const filterFn = column.filterFn;
+        data = data.filter((row) => filterFn(row, filterValue));
       } else {
         data = data.filter((row) => {
           const cellValue = this.getCellValue(row, columnKey, column);
@@ -617,6 +619,49 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
 
     return data;
+  }
+
+  private treeIndex_walk(
+    rows: T[],
+    parentId: string | null,
+    childrenMap: Map<string, string[]>,
+    parentMap: Map<string, string>,
+    getId: (row: T) => string,
+    getChildrenFn: (row: T) => T[] | null | undefined,
+  ): void {
+    for (const row of rows) {
+      const id = getId(row);
+      if (parentId !== null) {
+        parentMap.set(id, parentId);
+      }
+      const kids = getChildrenFn(row);
+      const kidIds: string[] = [];
+      if (kids && kids.length > 0) {
+        for (const kid of kids) {
+          kidIds.push(getId(kid));
+        }
+        childrenMap.set(id, kidIds);
+        this.treeIndex_walk(kids, id, childrenMap, parentMap, getId, getChildrenFn);
+      } else {
+        childrenMap.set(id, []);
+      }
+    }
+  }
+
+  private treeIndex_getDescendants(
+    id: string,
+    childrenMap: Map<string, string[]>,
+    descendantsMap: Map<string, string[]>,
+  ): string[] {
+    const cached = descendantsMap.get(id);
+    if (cached !== undefined) return cached;
+    const kids = childrenMap.get(id) ?? [];
+    const all: string[] = [];
+    for (const kid of kids) {
+      all.push(kid, ...this.treeIndex_getDescendants(kid, childrenMap, descendantsMap));
+    }
+    descendantsMap.set(id, all);
+    return all;
   }
 
   private readonly treeIndex = computed(() => {
@@ -633,40 +678,10 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const descendantsMap = new Map<string, string[]>();
     const parentMap = new Map<string, string>();
 
-    const walk = (rows: T[], parentId: string | null) => {
-      for (const row of rows) {
-        const id = getId(row);
-        if (parentId !== null) {
-          parentMap.set(id, parentId);
-        }
-        const kids = getChildrenFn(row);
-        const kidIds: string[] = [];
-        if (kids && kids.length > 0) {
-          for (const kid of kids) {
-            kidIds.push(getId(kid));
-          }
-          childrenMap.set(id, kidIds);
-          walk(kids, id);
-        } else {
-          childrenMap.set(id, []);
-        }
-      }
-    };
-    walk(this.data(), null);
-
-    const getDescendants = (id: string): string[] => {
-      if (descendantsMap.has(id)) return descendantsMap.get(id)!;
-      const kids = childrenMap.get(id) ?? [];
-      const all: string[] = [];
-      for (const kid of kids) {
-        all.push(kid, ...getDescendants(kid));
-      }
-      descendantsMap.set(id, all);
-      return all;
-    };
+    this.treeIndex_walk(this.data(), null, childrenMap, parentMap, getId, getChildrenFn);
 
     for (const id of childrenMap.keys()) {
-      getDescendants(id);
+      this.treeIndex_getDescendants(id, childrenMap, descendantsMap);
     }
 
     return {
@@ -675,6 +690,122 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       parent: parentMap,
     };
   });
+
+  private filteredTree_matchesGlobal(
+    row: T,
+    globalFilterValue: string,
+    columns: ColumnDef<T>[],
+  ): boolean {
+    const globalFilterFn = this.globalFilterFn();
+    if (globalFilterFn) {
+      return globalFilterFn(row, globalFilterValue, columns);
+    }
+    const globallyFilterable = columns.filter(
+      (col) => col.enableGlobalFilter !== false,
+    );
+    return globallyFilterable.some((col) => {
+      const value = this.getCellValue(row, col.accessorKey, col);
+      return String(value).toLowerCase().includes(globalFilterValue);
+    });
+  }
+
+  private filteredTree_matchesColumns(
+    row: T,
+    colFilters: Record<string, unknown>,
+    columns: ColumnDef<T>[],
+  ): boolean {
+    for (const columnKey of Object.keys(colFilters)) {
+      const filterValue = colFilters[columnKey];
+      if (this.isFilterValueEmpty(filterValue)) continue;
+      const column = columns.find((col) => col.accessorKey === columnKey);
+      if (!column?.enableFiltering) continue;
+      if (column.filterFn) {
+        if (!column.filterFn(row, filterValue)) return false;
+      } else {
+        const cellValue = this.getCellValue(row, columnKey, column);
+        if (
+          !String(cellValue)
+            .toLowerCase()
+            .includes(String(filterValue).toLowerCase())
+        )
+          return false;
+      }
+    }
+    return true;
+  }
+
+  private filteredTree_matchesRow(
+    row: T,
+    ctx: { hasGlobalFilter: boolean; globalFilterValue: string; hasColumnFilters: boolean; colFilters: Record<string, unknown>; columns: ColumnDef<T>[] },
+  ): boolean {
+    if (ctx.hasGlobalFilter && !this.filteredTree_matchesGlobal(row, ctx.globalFilterValue, ctx.columns)) return false;
+    if (ctx.hasColumnFilters && !this.filteredTree_matchesColumns(row, ctx.colFilters, ctx.columns)) return false;
+    return true;
+  }
+
+  private filteredTree_pushChildMatch(
+    result: T[],
+    row: T,
+    filteredKids: T[],
+    setChildrenFn: (row: T, children: T[]) => T,
+  ): void {
+    if (filteredKids.length > 0) {
+      result.push(setChildrenFn(row, filteredKids));
+    }
+  }
+
+  private filteredTree_filterIncludeChildren(
+    rows: T[],
+    ctx: { hasGlobalFilter: boolean; globalFilterValue: string; hasColumnFilters: boolean; colFilters: Record<string, unknown>; columns: ColumnDef<T>[]; mode: string; getChildrenFn: (row: T) => T[] | null | undefined; setChildrenFn: (row: T, children: T[]) => T },
+  ): T[] {
+    const result: T[] = [];
+    for (const row of rows) {
+      if (this.filteredTree_matchesRow(row, ctx)) {
+        result.push(row);
+      } else {
+        const children = ctx.getChildrenFn(row);
+        if (children && children.length > 0) {
+          const filteredKids = this.filteredTree_filterTree(children, ctx);
+          this.filteredTree_pushChildMatch(result, row, filteredKids, ctx.setChildrenFn);
+        }
+      }
+    }
+    return result;
+  }
+
+  private filteredTree_filterIncludeParents(
+    rows: T[],
+    ctx: { hasGlobalFilter: boolean; globalFilterValue: string; hasColumnFilters: boolean; colFilters: Record<string, unknown>; columns: ColumnDef<T>[]; mode: string; getChildrenFn: (row: T) => T[] | null | undefined; setChildrenFn: (row: T, children: T[]) => T },
+  ): T[] {
+    const result: T[] = [];
+    for (const row of rows) {
+      const children = ctx.getChildrenFn(row);
+      const selfMatches = this.filteredTree_matchesRow(row, ctx);
+
+      if (children && children.length > 0) {
+        const filteredKids = this.filteredTree_filterTree(children, ctx);
+        if (selfMatches || filteredKids.length > 0) {
+          result.push(ctx.setChildrenFn(row, filteredKids));
+        }
+      } else if (selfMatches) {
+        result.push(row);
+      }
+    }
+    return result;
+  }
+
+  private filteredTree_filterTree(
+    rows: T[],
+    ctx: { hasGlobalFilter: boolean; globalFilterValue: string; hasColumnFilters: boolean; colFilters: Record<string, unknown>; columns: ColumnDef<T>[]; mode: string; getChildrenFn: (row: T) => T[] | null | undefined; setChildrenFn: (row: T, children: T[]) => T },
+  ): T[] {
+    if (ctx.mode === "excludeChildren") {
+      return rows.filter(r => this.filteredTree_matchesRow(r, ctx));
+    }
+    if (ctx.mode === "includeChildren") {
+      return this.filteredTree_filterIncludeChildren(rows, ctx);
+    }
+    return this.filteredTree_filterIncludeParents(rows, ctx);
+  }
 
   readonly filteredTreeData = computed<T[]>(() => {
     if (!this.enableSubRows() || !this.localFiltering()) return this.data();
@@ -694,94 +825,18 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
     if (!hasGlobalFilter && !hasColumnFilters) return this.data();
 
-    const getChildrenFn = this.getChildren();
-    const setChildrenFn = this.setChildren();
-    const mode = this.subRowFilterMode();
-
-    const matchesGlobal = (row: T): boolean => {
-      const globalFilterFn = this.globalFilterFn();
-      if (globalFilterFn) {
-        return globalFilterFn(row, globalFilterValue, columns);
-      }
-      const globallyFilterable = columns.filter(
-        (col) => col.enableGlobalFilter !== false,
-      );
-      return globallyFilterable.some((col) => {
-        const value = this.getCellValue(row, col.accessorKey, col);
-        return String(value).toLowerCase().includes(globalFilterValue);
-      });
+    const ctx = {
+      hasGlobalFilter,
+      globalFilterValue,
+      hasColumnFilters,
+      colFilters,
+      columns,
+      mode: this.subRowFilterMode(),
+      getChildrenFn: this.getChildren(),
+      setChildrenFn: this.setChildren(),
     };
 
-    const matchesColumns = (row: T): boolean => {
-      for (const columnKey of Object.keys(colFilters)) {
-        const filterValue = colFilters[columnKey];
-        if (this.isFilterValueEmpty(filterValue)) continue;
-        const column = columns.find((col) => col.accessorKey === columnKey);
-        if (!column?.enableFiltering) continue;
-        if (column.filterFn) {
-          if (!column.filterFn(row, filterValue)) return false;
-        } else {
-          const cellValue = this.getCellValue(row, columnKey, column);
-          if (
-            !String(cellValue)
-              .toLowerCase()
-              .includes(String(filterValue).toLowerCase())
-          )
-            return false;
-        }
-      }
-      return true;
-    };
-
-    const matchesRow = (row: T): boolean => {
-      if (hasGlobalFilter && !matchesGlobal(row)) return false;
-      if (hasColumnFilters && !matchesColumns(row)) return false;
-      return true;
-    };
-
-    const filterIncludeChildren = (rows: T[]): T[] => {
-      const result: T[] = [];
-      for (const row of rows) {
-        if (matchesRow(row)) {
-          result.push(row);
-        } else {
-          const children = getChildrenFn(row);
-          if (children && children.length > 0) {
-            const filteredKids = filterTree(children);
-            if (filteredKids.length > 0) {
-              result.push(setChildrenFn(row, filteredKids));
-            }
-          }
-        }
-      }
-      return result;
-    };
-
-    const filterIncludeParents = (rows: T[]): T[] => {
-      const result: T[] = [];
-      for (const row of rows) {
-        const children = getChildrenFn(row);
-        const selfMatches = matchesRow(row);
-
-        if (children && children.length > 0) {
-          const filteredKids = filterTree(children);
-          if (selfMatches || filteredKids.length > 0) {
-            result.push(setChildrenFn(row, filteredKids));
-          }
-        } else if (selfMatches) {
-          result.push(row);
-        }
-      }
-      return result;
-    };
-
-    const filterTree = (rows: T[]): T[] => {
-      if (mode === "excludeChildren") return rows.filter(matchesRow);
-      if (mode === "includeChildren") return filterIncludeChildren(rows);
-      return filterIncludeParents(rows);
-    };
-
-    return filterTree(this.data());
+    return this.filteredTree_filterTree(this.data(), ctx);
   });
 
   readonly sortedTreeData = computed<T[]>(() => {
@@ -1068,7 +1123,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
-  constructor() {
+  private setupCellFlashEffect(): void {
     effect(() => {
       if (!this.enableCellFlash()) return;
       const data = this.data();
@@ -1087,7 +1142,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         this.flashTimers.push(timer);
       }
     });
+  }
 
+  private setupPaginationEffect(): void {
     effect(() => {
       if (!this.localPagination()) {
         return;
@@ -1111,6 +1168,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         });
       }
     });
+  }
+
+  constructor() {
+    this.setupCellFlashEffect();
+    this.setupPaginationEffect();
 
     this.rowResizeObserver = new ResizeObserver((entries) => {
       this.handleRowResizes(entries);
@@ -1124,31 +1186,24 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
       for (const el of this.observedElements) {
         if (!newSet.has(el)) {
-          this.rowResizeObserver!.unobserve(el);
+          this.rowResizeObserver?.unobserve(el);
         }
       }
       for (const el of newSet) {
         if (!this.observedElements.has(el)) {
-          this.rowResizeObserver!.observe(el);
+          this.rowResizeObserver?.observe(el);
         }
       }
       this.observedElements = newSet;
     });
   }
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this.setupViewportObserver();
     this.validateConfiguration();
   }
 
-  /**
-   * Validates configuration and logs warnings for conflicting options in development mode.
-   */
-  private validateConfiguration(): void {
-    if (typeof ngDevMode === 'undefined' || !ngDevMode) return;
-
-    const warnings: string[] = [];
-
+  private checkPaginationVsVirtualScroll(warnings: string[]): void {
     if (
       this.localPagination() &&
       this.showPagination() &&
@@ -1160,28 +1215,36 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'and pagination controls will have no effect on virtual scrolling.'
       );
     }
+  }
 
+  private checkServerPaginationTotal(warnings: string[]): void {
     if (!this.localPagination() && this.total() === 0 && this.data().length > 0) {
       warnings.push(
         '[ui-data-table] Using server-side pagination (localPagination=false) ' +
           'without providing [total]. Pagination may not work correctly.'
       );
     }
+  }
 
+  private checkVirtualVariableRowHeight(warnings: string[]): void {
     if (this.virtualVariableRowHeight() && !this.isVirtualScrollActive()) {
       warnings.push(
         '[ui-data-table] virtualVariableRowHeight is enabled but virtual scroll ' +
           'is not active. This option has no effect.'
       );
     }
+  }
 
+  private checkVirtualRecycleComponents(warnings: string[]): void {
     if (this.virtualRecycleComponents() && !this.isVirtualScrollActive()) {
       warnings.push(
         '[ui-data-table] virtualRecycleComponents is enabled but virtual scroll ' +
           'is not active. This option has no effect.'
       );
     }
+  }
 
+  private checkVirtualScrollAutoWithPagination(warnings: string[]): void {
     if (
       this.enableVirtualScroll() === 'auto' &&
       this.localPagination() &&
@@ -1192,7 +1255,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'Set [showPagination]="false" or [localPagination]="false" for virtual scroll to auto-activate.'
       );
     }
+  }
 
+  private checkSubRowsWithExpansion(warnings: string[]): void {
     if (this.enableSubRows() && this.enableRowExpansion()) {
       warnings.push(
         '[ui-data-table] Both enableSubRows and enableRowExpansion are enabled. ' +
@@ -1200,16 +1265,18 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'If this is unintentional, disable one of them.'
       );
     }
+  }
 
+  private checkGroupByConflicts(warnings: string[]): void {
     if (this.groupBy() && (this.enableSubRows() || this.isVirtualScrollActive())) {
       warnings.push(
         '[ui-data-table] groupBy is set together with enableSubRows or virtual scroll. ' +
           'Row grouping is mutually exclusive with these features and will be ignored.'
       );
     }
+  }
 
-    const isDefaultGetRowId = this.getRowId() === DEFAULT_GET_ROW_ID;
-
+  private checkSubRowsGetRowId(warnings: string[], isDefaultGetRowId: boolean): void {
     if (this.enableSubRows() && isDefaultGetRowId) {
       warnings.push(
         '[ui-data-table] enableSubRows is active with the default getRowId. ' +
@@ -1217,7 +1284,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'Provide a custom [getRowId] function that returns a stable unique identifier.'
       );
     }
+  }
 
+  private checkCellFlashGetRowId(warnings: string[], isDefaultGetRowId: boolean): void {
     if (this.enableCellFlash() && isDefaultGetRowId) {
       warnings.push(
         '[ui-data-table] enableCellFlash is active with the default getRowId. ' +
@@ -1225,16 +1294,18 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'Provide a custom [getRowId] function.'
       );
     }
+  }
 
-    const cols = this.columns();
-
+  private checkFloatingFiltersConfig(warnings: string[], cols: ColumnDef<T>[]): void {
     if (this.enableFloatingFilters() && !cols.some((c) => c.enableFiltering)) {
       warnings.push(
         '[ui-data-table] enableFloatingFilters is true but no columns have enableFiltering set. ' +
           'The floating filter row will be empty.'
       );
     }
+  }
 
+  private checkEditableColumnsHaveValueSetter(warnings: string[], cols: ColumnDef<T>[]): void {
     const editableCols = cols.filter((c) => c.editable && !c.valueSetter);
     if (editableCols.length > 0) {
       const keys = editableCols.map((c) => String(c.accessorKey)).join(', ');
@@ -1244,7 +1315,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'Provide a valueSetter to apply edits immutably, or handle (cellEdit) yourself.'
       );
     }
+  }
 
+  private checkDuplicateAccessorKeys(warnings: string[], cols: ColumnDef<T>[]): void {
     const accessorKeys = cols.map((c) => String(c.accessorKey)).filter((k) => k !== 'undefined');
     const duplicates = accessorKeys.filter((k, i) => accessorKeys.indexOf(k) !== i);
     if (duplicates.length > 0) {
@@ -1254,7 +1327,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'Each column must have a unique accessorKey. Duplicates cause broken sorting, visibility, and width tracking.'
       );
     }
+  }
 
+  private checkStickyAndPinConflicts(warnings: string[], cols: ColumnDef<T>[]): void {
     const stickyAndPinned = cols.filter((c) => c.sticky && c.pin);
     if (stickyAndPinned.length > 0) {
       const keys = stickyAndPinned.map((c) => String(c.accessorKey)).join(', ');
@@ -1263,7 +1338,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'Use pin="left" instead of sticky=true. sticky is deprecated in favor of pin.'
       );
     }
+  }
 
+  private checkMultipleRenderStrategies(warnings: string[], cols: ColumnDef<T>[]): void {
     const multiRenderCols = cols.filter((c) => {
       const count = [c.cell, c.template, c.component].filter(Boolean).length;
       return count > 1;
@@ -1275,13 +1352,39 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
           'Only one will be used (priority: component > template > cell). Remove the unused ones.'
       );
     }
+  }
+
+  /**
+   * Validates configuration and logs warnings for conflicting options in development mode.
+   */
+  private validateConfiguration(): void {
+    if (typeof ngDevMode === 'undefined' || !ngDevMode) return;
+
+    const warnings: string[] = [];
+    const isDefaultGetRowId = this.getRowId() === DEFAULT_GET_ROW_ID;
+    const cols = this.columns();
+
+    this.checkPaginationVsVirtualScroll(warnings);
+    this.checkServerPaginationTotal(warnings);
+    this.checkVirtualVariableRowHeight(warnings);
+    this.checkVirtualRecycleComponents(warnings);
+    this.checkVirtualScrollAutoWithPagination(warnings);
+    this.checkSubRowsWithExpansion(warnings);
+    this.checkGroupByConflicts(warnings);
+    this.checkSubRowsGetRowId(warnings, isDefaultGetRowId);
+    this.checkCellFlashGetRowId(warnings, isDefaultGetRowId);
+    this.checkFloatingFiltersConfig(warnings, cols);
+    this.checkEditableColumnsHaveValueSetter(warnings, cols);
+    this.checkDuplicateAccessorKeys(warnings, cols);
+    this.checkStickyAndPinConflicts(warnings, cols);
+    this.checkMultipleRenderStrategies(warnings, cols);
 
     for (const warning of warnings) {
-      console.warn(warning);
+      console.error(warning);
     }
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     cancelAnimationFrame(this.rafId);
     clearTimeout(this.filterDebounceTimer);
     clearTimeout(this.filterAnnounceTimer);
@@ -1292,7 +1395,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.rowResizeObserver?.disconnect();
   }
 
-  private setupViewportObserver() {
+  private setupViewportObserver(): void {
     const container = this.scrollContainerRef()?.nativeElement;
     if (!container) return;
 
@@ -1309,7 +1412,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.viewportObserver.observe(container);
   }
 
-  onVirtualScroll(event: Event) {
+  onVirtualScroll(event: Event): void {
     if (this.suppressScrollEvents) return;
     const el = event.target as HTMLElement;
     cancelAnimationFrame(this.rafId);
@@ -1319,7 +1422,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     });
   }
 
-  private handleRowResizes(entries: ResizeObserverEntry[]) {
+  private handleRowResizes(entries: ResizeObserverEntry[]): void {
     let scrollAdjustment = 0;
     const firstVisible = this.virtualRowRange().start;
 
@@ -1415,6 +1518,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const col = this.enhancedColumns().find(
       (c) => String(c.accessorKey) === columnKey,
     );
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback when header is empty string
     return col?.header || columnKey;
   }
 
@@ -1458,7 +1562,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     columnKey: string | keyof T,
     direction: SortDirection,
     multi = false,
-  ) {
+  ): void {
     this.loadingTrigger.set("sorting");
     const key = String(columnKey);
     this.announceSortChange(key, direction);
@@ -1539,6 +1643,67 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
+  private resolveColumnPinState(
+    col: ColumnDef<T>,
+    key: string,
+    pinOverrides: Record<string, 'left' | 'right' | undefined>,
+  ): { isPinnedLeft: boolean; isPinnedRight: boolean; isPinned: boolean; isStickyLeft: boolean; pin: string | undefined } {
+    const resolvedPin = key in pinOverrides ? pinOverrides[key] : col.pin;
+    const isSticky = col.sticky === true;
+    const isPinnedLeft = resolvedPin === "left";
+    const isPinnedRight = resolvedPin === "right";
+    const isPinned = isPinnedLeft || isPinnedRight || isSticky;
+    const isStickyLeft = isSticky || isPinnedLeft;
+    let pin: string | undefined;
+    if (isPinnedRight) pin = "right";
+    else if (isStickyLeft) pin = "left";
+    return { isPinnedLeft, isPinnedRight, isPinned, isStickyLeft, pin };
+  }
+
+  private buildEnhancedColumn(
+    col: ColumnDef<T>,
+    index: number,
+    widths: Record<string, string>,
+    pinOverrides: Record<string, 'left' | 'right' | undefined>,
+    rightOffsets: Map<number, number>,
+    currentLeft: number,
+  ): { column: ColumnDef<T> & { _stickyLeft?: number; _stickyRight?: number; _pin?: string; _width: string; _minWidth: string }; nextLeft: number } {
+    const DEFAULT_PINNED_WIDTH = 150;
+    const key = String(col.accessorKey);
+    const { isPinnedRight, isPinned, isStickyLeft, pin } = this.resolveColumnPinState(col, key, pinOverrides);
+    const widthStr = widths[key] ?? col.width ?? (isPinned ? `${DEFAULT_PINNED_WIDTH}px` : "auto");
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback on NaN from parseInt
+    const widthVal = Number.parseInt(widthStr, 10) || DEFAULT_PINNED_WIDTH;
+
+    const column = {
+      ...col,
+      _stickyLeft: isStickyLeft ? currentLeft : undefined,
+      _stickyRight: isPinnedRight ? (rightOffsets.get(index) ?? 0) : undefined,
+      _pin: pin,
+      _width: widthStr,
+      _minWidth: col.minWidth ?? "50px",
+    };
+
+    return { column, nextLeft: isStickyLeft ? currentLeft + widthVal : currentLeft };
+  }
+
+  private computeRightOffsets(cols: ColumnDef<T>[], widths: Record<string, string>): Map<number, number> {
+    const DEFAULT_PINNED_WIDTH = 150;
+    let currentRight = 0;
+    const rightOffsets = new Map<number, number>();
+    for (let i = cols.length - 1; i >= 0; i -= 1) {
+      const col = cols[i];
+      const key = String(col.accessorKey);
+      const widthStr = widths[key] ?? col.width;
+      const widthVal = Number.parseInt(widthStr, 10) || DEFAULT_PINNED_WIDTH;
+      if (col.pin === "right") {
+        rightOffsets.set(i, currentRight);
+        currentRight += widthVal;
+      }
+    }
+    return rightOffsets;
+  }
+
   readonly enhancedColumns = computed(() => {
     const cols = this.columns();
     const widths = this.columnWidths();
@@ -1549,54 +1714,16 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.assignTreeExpanderHost(computedCols, cols);
 
     let currentLeft = 0;
-    let currentRight = 0;
-    const rightOffsets = new Map<number, number>();
-
-    const DEFAULT_PINNED_WIDTH = 150;
-
-    for (let i = computedCols.length - 1; i >= 0; i -= 1) {
-      const col = computedCols[i];
-      const key = String(col.accessorKey);
-      const widthStr = widths[key] ?? col.width;
-      const widthVal = Number.parseInt(widthStr, 10) || DEFAULT_PINNED_WIDTH;
-      if (col.pin === "right") {
-        rightOffsets.set(i, currentRight);
-        currentRight += widthVal;
-      }
-    }
+    const rightOffsets = this.computeRightOffsets(computedCols, widths);
 
     const pinOverrides = this.columnPinOverrides();
-    return computedCols.map((col, index) => {
-      const key = String(col.accessorKey);
-      const resolvedPin = key in pinOverrides ? pinOverrides[key] : col.pin;
-      const isSticky = col.sticky === true;
-      const isPinnedLeft = resolvedPin === "left";
-      const isPinnedRight = resolvedPin === "right";
-      const isPinned = isPinnedLeft || isPinnedRight || isSticky;
-      const widthStr = widths[key] || col.width || (isPinned ? `${DEFAULT_PINNED_WIDTH}px` : "auto");
-      const widthVal = Number.parseInt(widthStr, 10) || DEFAULT_PINNED_WIDTH;
-      const isStickyLeft = isSticky || isPinnedLeft;
-      let pin: string | undefined;
-      if (isPinnedRight) pin = "right";
-      else if (isStickyLeft) pin = "left";
-
-      const columnData = {
-        ...col,
-        _stickyLeft: isStickyLeft ? currentLeft : undefined,
-        _stickyRight: isPinnedRight
-          ? (rightOffsets.get(index) ?? 0)
-          : undefined,
-        _pin: pin,
-        _width: widthStr,
-        _minWidth: col.minWidth || "50px",
-      };
-
-      if (isStickyLeft) {
-        currentLeft += widthVal;
-      }
-
-      return columnData;
-    });
+    const result: ReturnType<typeof this.buildEnhancedColumn>['column'][] = [];
+    for (const [index, col] of computedCols.entries()) {
+      const { column, nextLeft } = this.buildEnhancedColumn(col, index, widths, pinOverrides, rightOffsets, currentLeft);
+      currentLeft = nextLeft;
+      result.push(column);
+    }
+    return result;
   });
 
   readonly treeExpanderColumn = computed(() => {
@@ -1619,6 +1746,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   );
 
   readonly hasAnyFloatingFilter = computed(() => {
+    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing -- boolean truthy chain, not a null-coalescing fallback */
     return this.enhancedColumns().some(
       (col) =>
         col.floatingFilter === true ||
@@ -1626,6 +1754,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         col.floatingFilterTemplate ||
         (col.enableFiltering && col.floatingFilter !== false),
     );
+    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
   });
 
   getFloatingFilterChange(col: ColumnDef<T>): (value: unknown) => void {
@@ -1669,6 +1798,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const mode = this.showFooter();
     if (mode === false) return false;
     if (mode === true) return true;
+    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing -- boolean truthy chain, not a null-coalescing fallback */
     return this.enhancedColumns().some(
       (col) =>
         col.footer ||
@@ -1676,6 +1806,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         col.footerTemplate ||
         col.footerComponent,
     );
+    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
   });
 
   readonly footerValues = computed(() => {
@@ -1737,14 +1868,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     ),
   );
 
-  getHeaderClass(col: CellStyleColumn) {
+  getHeaderClass(col: CellStyleColumn): string {
     return (
       this._headerClassMap().get(String(col.accessorKey)) ??
       this._fillerHeaderClass()
     );
   }
 
-  getCellClass(col: CellStyleColumn, rowIndex?: number, treeDepth?: number) {
+  getCellClass(col: CellStyleColumn, rowIndex?: number, treeDepth?: number): string {
     const base =
       treeDepth === undefined
         ? this._baseCellClass().normal
@@ -1800,6 +1931,23 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return map;
   });
 
+  private _applyPinStyle(style: Record<string, string>, col: CellStyleColumn, isHeader: boolean): void {
+    if (col._pin === "right") {
+      style["position"] = "sticky";
+      style["right"] = `${col._stickyRight}px`;
+      style["z-index"] = isHeader ? "30" : "10";
+    } else if (col.sticky || col._pin === "left") {
+      style["position"] = "sticky";
+      style["left"] = `${col._stickyLeft}px`;
+      style["z-index"] = isHeader ? "30" : "10";
+    }
+    if (isHeader) {
+      style["position"] = "sticky";
+      style["top"] = "0";
+      style["z-index"] = col.sticky ? "30" : "20";
+    }
+  }
+
   private _buildCellStyle(col: CellStyleColumn, isHeader: boolean): Record<string, string> {
     const width = col._width;
     const isAuto = width === "auto";
@@ -1815,40 +1963,26 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       "flex-basis": isAuto ? "0px" : "auto",
     };
 
-    if (col._pin === "right") {
-      style["position"] = "sticky";
-      style["right"] = `${col._stickyRight}px`;
-      style["z-index"] = isHeader ? "30" : "10";
-    } else if (col.sticky || col._pin === "left") {
-      style["position"] = "sticky";
-      style["left"] = `${col._stickyLeft}px`;
-      style["z-index"] = isHeader ? "30" : "10";
-    }
-
-    if (isHeader) {
-      style["position"] = "sticky";
-      style["top"] = "0";
-      style["z-index"] = col.sticky ? "30" : "20";
-    }
+    this._applyPinStyle(style, col, isHeader);
 
     return style;
   }
 
-  getHeaderCellStyle(col: CellStyleColumn) {
+  getHeaderCellStyle(col: CellStyleColumn): Record<string, string> {
     return (
       this._headerCellStyleMap().get(String(col.accessorKey)) ??
       this._buildCellStyle(col, true)
     );
   }
 
-  getCellStyle(col: CellStyleColumn) {
+  getCellStyle(col: CellStyleColumn): Record<string, string> {
     return (
       this._cellStyleMap().get(String(col.accessorKey)) ??
       this._buildCellStyle(col, false)
     );
   }
 
-  getTreeCellStyle(col: CellStyleColumn, depth: number) {
+  getTreeCellStyle(col: CellStyleColumn, depth: number): Record<string, string> {
     const clampedDepth = Math.min(depth, 10);
     return (
       this._treeCellStyleCache().get(
@@ -1887,7 +2021,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return !!this.rowSelection()[id];
   }
 
-  toggleRow(row: T) {
+  toggleRow(row: T): void {
     if (this.isDisabled(row)) return;
     const id = this.getRowId()(row);
     const current = this.rowSelection();
@@ -1907,7 +2041,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return !!this.expandedRows()[id];
   }
 
-  toggleRowExpanded(row: T, event?: Event) {
+  toggleRowExpanded(row: T, event?: Event): void {
     event?.stopPropagation();
     const id = this.getRowId()(row);
     const current = this.expandedRows();
@@ -1934,7 +2068,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return count > 0 && count < ids.length;
   });
 
-  toggleAllExpanded() {
+  toggleAllExpanded(): void {
     const ids = this.filteredRowIds();
     if (this.isAllExpanded()) {
       const next = { ...this.expandedRows() };
@@ -1974,7 +2108,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     });
   });
 
-  toggleAll() {
+  toggleAll(): void {
     const selected = this.rowSelection();
     const selectableIds = this.selectableRowIds();
 
@@ -2008,25 +2142,25 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return count > 0 && count < visibleCount;
   });
 
-  selectRows(rows: T[]) {
+  selectRows(rows: T[]): void {
     const getId = this.getRowId();
     const next = { ...this.rowSelection() };
     rows.forEach((row) => (next[getId(row)] = true));
     this.rowSelection.set(next);
   }
 
-  unselectRows(rows: T[]) {
+  unselectRows(rows: T[]): void {
     const getId = this.getRowId();
     const next = { ...this.rowSelection() };
     rows.forEach((row) => delete next[getId(row)]);
     this.rowSelection.set(next);
   }
 
-  clearSelection() {
+  clearSelection(): void {
     this.rowSelection.set({});
   }
 
-  selectAll() {
+  selectAll(): void {
     const nextSelection = { ...this.rowSelection() };
     this.selectableRowIds().forEach((id) => {
       nextSelection[id] = true;
@@ -2034,7 +2168,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.rowSelection.set(nextSelection);
   }
 
-  onPaginationChange(state: PaginationState) {
+  onPaginationChange(state: PaginationState): void {
     this.loadingTrigger.set("pagination");
     const totalItems = this.localPagination()
       ? this.filteredData().length
@@ -2051,7 +2185,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.pageChange.emit(nextState);
   }
 
-  onFilterChange(value: string) {
+  onFilterChange(value: string): void {
     this.loadingTrigger.set("filtering");
     const debounceMs = this.filterDebounce();
 
@@ -2065,14 +2199,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
-  private applyGlobalFilter(value: string) {
+  private applyGlobalFilter(value: string): void {
     this.globalFilter.set(value);
     this.paginationState.update((state) => ({ ...state, pageIndex: 0 }));
     this.filterChange.emit(value);
     this.announceFilterChange(value);
   }
 
-  onColumnFilterChange(columnKey: string | keyof T, value: unknown) {
+  onColumnFilterChange(columnKey: string | keyof T, value: unknown): void {
     this.loadingTrigger.set("filtering");
     this.columnFilters.update((filters) => ({
       ...filters,
@@ -2085,14 +2219,14 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this.columnVisibility()[String(columnKey)] !== false;
   }
 
-  setColumnVisibility(columnKey: string | keyof T, visible: boolean) {
+  setColumnVisibility(columnKey: string | keyof T, visible: boolean): void {
     this.columnVisibility.update((current) => ({
       ...current,
       [String(columnKey)]: visible,
     }));
   }
 
-  moveColumn(columnKey: string | keyof T, targetIndex: number) {
+  moveColumn(columnKey: string | keyof T, targetIndex: number): void {
     const key = String(columnKey);
     const currentOrder = this.applyKeyOrder(
       this.columns().map((col) => String(col.accessorKey)),
@@ -2124,7 +2258,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return this.dropTargetColumnKey() === String(col.accessorKey);
   }
 
-  onColumnDragStart(event: DragEvent, col: ColumnDef<T>) {
+  onColumnDragStart(event: DragEvent, col: ColumnDef<T>): void {
     if (!this.isColumnDraggable(col)) {
       return;
     }
@@ -2139,7 +2273,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
-  onColumnDragOver(event: DragEvent, col: ColumnDef<T>) {
+  onColumnDragOver(event: DragEvent, col: ColumnDef<T>): void {
     if (!this.isColumnDraggable(col)) {
       return;
     }
@@ -2162,7 +2296,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
-  onColumnDrop(event: DragEvent, col: ColumnDef<T>) {
+  onColumnDrop(event: DragEvent, col: ColumnDef<T>): void {
     if (!this.isColumnDraggable(col)) {
       this.clearColumnDragState();
       return;
@@ -2185,7 +2319,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.clearColumnDragState();
   }
 
-  onColumnDragEnd() {
+  onColumnDragEnd(): void {
     this.clearColumnDragState();
   }
 
@@ -2209,7 +2343,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     });
   }
 
-  applyColumnState(states: DataTableColumnState[]) {
+  applyColumnState(states: DataTableColumnState[]): void {
     if (!states || states.length === 0) {
       return;
     }
@@ -2242,7 +2376,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.columnWidths.set(nextWidths);
   }
 
-  setLoadingTrigger(trigger: DataTableLoadingTrigger) {
+  setLoadingTrigger(trigger: DataTableLoadingTrigger): void {
     this.loadingTrigger.set(trigger);
   }
 
@@ -2250,7 +2384,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (typeof col.filterComponentInputs === "function") {
       return col.filterComponentInputs();
     }
-    return col.filterComponentInputs || {};
+    return col.filterComponentInputs ?? {};
   }
 
   getFilterOutputs(col: ColumnDef<T>): Record<string, (event: unknown) => void> {
@@ -2409,7 +2543,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const blob = new Blob(["\uFEFF" + csvContent], {
         type: "text/csv;charset=utf-8;",
       });
-      this.downloadBlob(blob, (filename || "export") + ".csv");
+      this.downloadBlob(blob, (filename ?? "export") + ".csv");
     } finally {
       this.exporting.set(false);
     }
@@ -2424,7 +2558,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      this.downloadBlob(blob, (filename || "export") + ".xlsx");
+      this.downloadBlob(blob, (filename ?? "export") + ".xlsx");
     } finally {
       this.exporting.set(false);
     }
@@ -2630,8 +2764,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     key: string, shiftKey: boolean, ctrlKey: boolean,
     rowIndex: number, colIndex: number, colKeys: string[], totalRows: number
   ): { row: number; col: number } {
-    let nextRow = rowIndex;
-    let nextCol = colIndex;
+    const nextRow = rowIndex;
+    const nextCol = colIndex;
 
     switch (key) {
       case 'ArrowUp':
@@ -2947,7 +3081,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
   }
 
-  toggleSubRowExpanded(row: T, event?: Event) {
+  toggleSubRowExpanded(row: T, event?: Event): void {
     event?.stopPropagation();
     const id = this.getRowId()(row);
     const isCurrentlyExpanded = this.isSubRowExpanded(row);
@@ -2956,12 +3090,12 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.subRowExpandedRows.set(next);
   }
 
-  expandSubRow(row: T) {
+  expandSubRow(row: T): void {
     const id = this.getRowId()(row);
     this.subRowExpandedRows.update((current) => ({ ...current, [id]: true }));
   }
 
-  collapseSubRow(row: T) {
+  collapseSubRow(row: T): void {
     const id = this.getRowId()(row);
     const current = this.subRowExpandedRows();
     const next = { ...current };
@@ -2979,13 +3113,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return depth < defaultExpanded;
   }
 
-  expandAllSubRows(toDepth?: number) {
+  expandAllSubRows(toDepth?: number): void {
     const getId = this.getRowId();
     const getChildrenFn = this.getChildren();
     const next: Record<string, boolean> = {};
     const targetDepth = toDepth ?? -1;
 
-    const walk = (rows: T[], depth: number) => {
+    const walk = (rows: T[], depth: number): void => {
       for (const row of rows) {
         const children = getChildrenFn(row);
         if (children && children.length > 0) {
@@ -3000,7 +3134,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.subRowExpandedRows.set(next);
   }
 
-  collapseAllSubRows() {
+  collapseAllSubRows(): void {
     this.subRowExpandedRows.set({});
   }
 
@@ -3065,7 +3199,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return getChildrenFn(row) ?? [];
   }
 
-  selectChildren(parentRow: T) {
+  selectChildren(parentRow: T): void {
     const id = this.getRowId()(parentRow);
     const index = this.treeIndex();
     const descendantIds = index.descendants.get(id) ?? [];
@@ -3074,7 +3208,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.rowSelection.set(next);
   }
 
-  deselectChildren(parentRow: T) {
+  deselectChildren(parentRow: T): void {
     const id = this.getRowId()(parentRow);
     const index = this.treeIndex();
     const descendantIds = index.descendants.get(id) ?? [];
@@ -3083,7 +3217,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.rowSelection.set(next);
   }
 
-  toggleRowWithCascade(row: T) {
+  toggleRowWithCascade(row: T): void {
     if (this.isDisabled(row)) return;
     const mode = this.subRowSelectionMode();
     if (mode === "self") {
@@ -3170,7 +3304,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return { ...base, _subRowContext: context };
   }
 
-  private bubbleUpSelection(rowId: string, selection: Record<string, boolean>) {
+  private bubbleUpSelection(rowId: string, selection: Record<string, boolean>): void {
     const index = this.treeIndex();
     let parentId = index.parent.get(rowId);
     while (parentId !== undefined) {
@@ -3222,7 +3356,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       parentId: string | null,
       parentRow: T | null,
       path: string[],
-    ) => {
+    ): void => {
       for (const row of items) {
         const id = getId(row);
         const children = getChildrenFn(row) ?? [];
@@ -3306,7 +3440,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     });
   }
 
-  private reorderColumnsByKeys(sourceKey: string, targetKey: string) {
+  private reorderColumnsByKeys(sourceKey: string, targetKey: string): void {
     const columnsByKey = new Map(
       this.columns().map((col) => [String(col.accessorKey), col]),
     );
@@ -3362,7 +3496,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return col.enableReordering !== false;
   }
 
-  private clearColumnDragState() {
+  private clearColumnDragState(): void {
     this.draggedColumnKey.set(null);
     this.dropTargetColumnKey.set(null);
   }
@@ -3623,7 +3757,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return result;
   });
 
-  private readonly dragWheelHandler = (e: WheelEvent) => {
+  private readonly dragWheelHandler = (e: WheelEvent): void => {
     const container = this.scrollContainerRef()?.nativeElement;
     if (!container) return;
     e.preventDefault();
@@ -3632,7 +3766,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     container.scrollLeft += e.deltaX;
   };
 
-  private readonly dragEventHandler = (e: DragEvent) => {
+  private readonly dragEventHandler = (e: DragEvent): void => {
     if (!this.draggedRowId()) return;
     this.handleDragAutoScroll(e.clientY);
   };
@@ -3666,28 +3800,38 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return relativeY < 0.5 ? 'above' : 'below';
   }
 
+  private checkFlatTreeDragCompatibility(
+    event: DragEvent,
+    index: number,
+    draggedId: string,
+    getId: (row: T) => string,
+    position: RowDragPosition,
+  ): { blocked: boolean; position: RowDragPosition } {
+    if (!this.enableSubRows() || this.rowDragMode() !== 'flat') {
+      return { blocked: false, position };
+    }
+    const treeRows = this.processedTreeRows();
+    const draggedTreeRow = treeRows.find(tr => getId(tr.row) === draggedId);
+    const targetTreeRow = treeRows[index];
+    if (draggedTreeRow && targetTreeRow && draggedTreeRow.depth !== targetTreeRow.depth) {
+      if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
+      this.dragOverIndex.set(-1);
+      return { blocked: true, position };
+    }
+    return { blocked: false, position: position === 'on' ? 'below' : position };
+  }
+
   onRowDragOver(event: DragEvent, index: number): void {
-    if (!this.enableRowDrag() || !this.draggedRowId()) return;
+    const draggedId = this.draggedRowId();
+    if (!this.enableRowDrag() || !draggedId) return;
 
     const row = this.processedData()[index];
     if (row && this.isDisabled(row)) return;
 
-    let position = this.computeDragPosition(event);
-
-    const draggedId = this.draggedRowId()!;
     const getId = this.getRowId();
-
-    if (this.enableSubRows() && this.rowDragMode() === 'flat') {
-      const treeRows = this.processedTreeRows();
-      const draggedTreeRow = treeRows.find(tr => getId(tr.row) === draggedId);
-      const targetTreeRow = treeRows[index];
-      if (draggedTreeRow && targetTreeRow && draggedTreeRow.depth !== targetTreeRow.depth) {
-        if (event.dataTransfer) event.dataTransfer.dropEffect = 'none';
-        this.dragOverIndex.set(-1);
-        return;
-      }
-      if (position === 'on') position = 'below';
-    }
+    const rawPosition = this.computeDragPosition(event);
+    const { blocked, position } = this.checkFlatTreeDragCompatibility(event, index, draggedId, getId, rawPosition);
+    if (blocked) return;
 
     const draggedRow = this.processedData().find(r => getId(r) === draggedId);
     const allowDropFn = this.rowDragAllowDrop();
@@ -3945,13 +4089,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private resizeStartWidth = 0;
   private resizeOldWidth = "auto";
 
-  onResizeStart(event: MouseEvent, col: CellStyleColumn) {
+  onResizeStart(event: MouseEvent, col: CellStyleColumn): void {
     event.preventDefault();
     event.stopPropagation();
     this.startResize(event.clientX, col);
   }
 
-  onResizeTouchStart(event: TouchEvent, col: CellStyleColumn) {
+  onResizeTouchStart(event: TouchEvent, col: CellStyleColumn): void {
     if (event.touches.length === 1) {
       event.preventDefault();
       event.stopPropagation();
@@ -3977,24 +4121,25 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     return `${base} bg-transparent group-hover/resize:bg-primary/50`;
   }
 
-  private startResize(clientX: number, col: CellStyleColumn) {
+  private startResize(clientX: number, col: CellStyleColumn): void {
     const key = String(col.accessorKey);
     this._resizingColumn.set(col);
     this.resizeStartX = clientX;
     const actualWidth = this.getColumnActualWidth(key);
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback on NaN from parseInt, and on null from getColumnActualWidth
     this.resizeStartWidth = Number.parseInt(col._width, 10) || actualWidth || 150;
-    this.resizeOldWidth = this.columnWidths()[key] || col._width || "auto";
+    this.resizeOldWidth = this.columnWidths()[key] ?? col._width ?? "auto";
     this._isRtlResize = this.isRtl();
 
-    const onMouseMove = (e: MouseEvent) => this.onResizeMove(e.clientX);
-    const onTouchMove = (e: TouchEvent) => {
+    const onMouseMove = (e: MouseEvent): void => this.onResizeMove(e.clientX);
+    const onTouchMove = (e: TouchEvent): void => {
       if (e.touches.length === 1) {
         e.preventDefault();
         this.onResizeMove(e.touches[0].clientX);
       }
     };
 
-    const onEnd = () => {
+    const onEnd = (): void => {
       this.onResizeEnd();
       this._document.removeEventListener("mousemove", onMouseMove);
       this._document.removeEventListener("mouseup", onEnd);
@@ -4013,12 +4158,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this._document.addEventListener("touchend", onEnd);
   }
 
-  private onResizeMove(clientX: number) {
+  private onResizeMove(clientX: number): void {
     const resizing = this._resizingColumn();
     if (!resizing) return;
 
     const delta = clientX - this.resizeStartX;
     const effectiveDelta = this._isRtlResize ? -delta : delta;
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback on NaN from parseInt
     const minWidth = Number.parseInt(resizing._minWidth || "50", 10) || 50;
     const newWidth = Math.max(minWidth, this.resizeStartWidth + effectiveDelta);
     const key = String(resizing.accessorKey);
@@ -4029,11 +4175,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }));
   }
 
-  private onResizeEnd() {
+  private onResizeEnd(): void {
     const resizing = this._resizingColumn();
     if (resizing) {
       const key = String(resizing.accessorKey);
-      const newWidth = this.columnWidths()[key] || this.resizeOldWidth;
+      const newWidth = this.columnWidths()[key] ?? this.resizeOldWidth;
 
       this.columnResize.emit({
         columnKey: key,

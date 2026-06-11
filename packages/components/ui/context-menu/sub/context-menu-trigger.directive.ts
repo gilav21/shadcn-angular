@@ -37,7 +37,7 @@ export class ContextMenuTriggerDirective implements AfterViewInit, OnDestroy {
     private readonly el = inject(ElementRef);
     private cleanupLongPress: (() => void) | null = null;
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         this.cleanupLongPress = onLongPress(this.el.nativeElement as HTMLElement, (event: TouchEvent) => {
             event.preventDefault();
             const touch = event.touches[0] ?? event.changedTouches[0];
@@ -48,11 +48,11 @@ export class ContextMenuTriggerDirective implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.cleanupLongPress?.();
     }
 
-    onContextMenu(event: MouseEvent) {
+    onContextMenu(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
 
@@ -62,7 +62,7 @@ export class ContextMenuTriggerDirective implements AfterViewInit, OnDestroy {
         contextMenu.show(event.clientX, event.clientY);
     }
 
-    onClick(event: MouseEvent) {
+    onClick(_event: MouseEvent): void {
         const contextMenu = this.uiContextMenuTrigger();
         if (contextMenu?.open()) {
             contextMenu.close();

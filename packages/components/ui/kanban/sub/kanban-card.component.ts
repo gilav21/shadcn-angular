@@ -84,7 +84,7 @@ export class KanbanCardComponent implements AfterContentInit {
     private readonly _hasCustomContent = signal(false);
     hasCustomContent = this._hasCustomContent.asReadonly();
 
-    ngAfterContentInit() {
+    ngAfterContentInit(): void {
         this._hasCustomContent.set(this.customContentChildren.length > 0);
     }
 
@@ -109,11 +109,13 @@ export class KanbanCardComponent implements AfterContentInit {
     ));
 
     private resolvedCardId(): string {
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- intentional empty-string fallback chain
         return this.cardId() || this.card()?.id || '';
     }
 
-    onDragStart(event: DragEvent) {
+    onDragStart(event: DragEvent): void {
         const id = this.resolvedCardId();
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- intentional empty-string fallback chain
         const colId = this.column?.columnId() || this.card()?.columnId || '';
         if (!event.dataTransfer || !id) return;
 
@@ -122,11 +124,11 @@ export class KanbanCardComponent implements AfterContentInit {
         this.kanban?.startDrag(id, colId);
     }
 
-    onDragEnd() {
+    onDragEnd(): void {
         this.kanban?.endDrag();
     }
 
-    onContextMenu(event: MouseEvent) {
+    onContextMenu(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
         const c = this.card();

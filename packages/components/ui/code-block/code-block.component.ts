@@ -179,7 +179,7 @@ export class CodeBlockComponent {
         });
     }
 
-    copyToClipboard() {
+    copyToClipboard(): void {
         if (!navigator?.clipboard) { return; }
         navigator.clipboard.writeText(this.code()).then(() => {
             this.copied.set(true);
@@ -187,7 +187,7 @@ export class CodeBlockComponent {
         });
     }
 
-    toggleScope(startLine: number) {
+    toggleScope(startLine: number): void {
         const next = new Set(this.collapsed());
         if (next.has(startLine)) {
             next.delete(startLine);
@@ -201,7 +201,7 @@ export class CodeBlockComponent {
         return this.collapsed().has(startLine);
     }
 
-    onChevronClick(startLine: number | undefined) {
+    onChevronClick(startLine: number | undefined): void {
         if (startLine !== undefined) { this.toggleScope(startLine); }
     }
 

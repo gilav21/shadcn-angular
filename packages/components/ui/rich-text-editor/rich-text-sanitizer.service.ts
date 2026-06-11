@@ -131,8 +131,8 @@ export class RichTextSanitizerService {
     // Control, whitespace, and zero-width / bidi / format characters that
     // browsers ignore or normalize inside URLs; stripped before a URL scheme
     // is inspected so they cannot mask a dangerous protocol.
-    private readonly URL_STRIP_PATTERN =
-        /[\u0000-\u0020\u007f-\u00a0\u00ad\u1680\u2000-\u200f\u2028-\u202f\u205f\u2060-\u206f\u3000\ufeff\ufff9-\ufffb]/g;
+    // eslint-disable-next-line no-control-regex
+    private readonly URL_STRIP_PATTERN = /[\u0000-\u0020\u007f-\u00a0\u00ad\u1680\u2000-\u200f\u2028-\u202f\u205f\u2060-\u206f\u3000\ufeff\ufff9-\ufffb]/g;
 
     /**
      * Sanitize HTML string, removing all dangerous content.
@@ -252,8 +252,7 @@ export class RichTextSanitizerService {
             }
 
             // Allow http only for localhost (development)
-            if (url.protocol === 'http:' &&
-                (url.hostname === 'localhost' || url.hostname === '127.0.0.1')) {
+            if (url.protocol === 'http:' && this.isLocalhostUrl(url)) {
                 return url.href;
             }
 
@@ -283,6 +282,21 @@ export class RichTextSanitizerService {
         'script', 'style', 'iframe', 'object', 'embed', 'noscript', 'template'
     ]);
 
+    private processElementNode(element: HTMLElement, target: HTMLElement): void {
+        const tagName = element.tagName.toLowerCase();
+        if (this.ALLOWED_TAGS.has(tagName)) {
+            if (tagName === 'input' && element.getAttribute('type') !== 'checkbox') {
+                return;
+            }
+            const cleanElement = this.document.createElement(tagName);
+            this.sanitizeAttributes(element, cleanElement, tagName);
+            this.processNodes(element, cleanElement);
+            target.appendChild(cleanElement);
+        } else if (!this.TAGS_TO_REMOVE.has(tagName)) {
+            this.processNodes(element, target);
+        }
+    }
+
     /**
      * Process nodes recursively, copying safe content to clean container.
      */
@@ -292,27 +306,7 @@ export class RichTextSanitizerService {
                 // Text nodes are always safe
                 target.appendChild(this.document.createTextNode(node.textContent ?? ''));
             } else if (node.nodeType === Node.ELEMENT_NODE) {
-                const element = node as HTMLElement;
-                const tagName = element.tagName.toLowerCase();
-
-                if (this.ALLOWED_TAGS.has(tagName)) {
-                    if (tagName === 'input' && element.getAttribute('type') !== 'checkbox') {
-                        continue;
-                    }
-
-                    const cleanElement = this.document.createElement(tagName);
-
-                    this.sanitizeAttributes(element, cleanElement, tagName);
-
-                    this.processNodes(element, cleanElement);
-
-                    target.appendChild(cleanElement);
-                } else if (!this.TAGS_TO_REMOVE.has(tagName)) {
-                    // Element not allowed but not dangerous - process children (unwrap)
-                    // This preserves text content from harmless disallowed wrappers (e.g. invalid spans)
-                    this.processNodes(element, target);
-                }
-                // If tag is in TAGS_TO_REMOVE, we simply skip it (drop it entirely)
+                this.processElementNode(node as HTMLElement, target);
             }
             // Ignore comments, processing instructions, etc.
         }
@@ -447,6 +441,10 @@ export class RichTextSanitizerService {
         } catch {
             return false;
         }
+    }
+
+    private isLocalhostUrl(url: URL): boolean {
+        return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
     }
 
     /**

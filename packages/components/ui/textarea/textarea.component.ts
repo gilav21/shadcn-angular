@@ -74,7 +74,7 @@ export class TextareaComponent implements ControlValueAccessor {
         cn(textareaVariants({ variant: this.effectiveVariant() }), this.class())
     );
 
-    onValueChange(value: string) {
+    onValueChange(value: string): void {
         this.value.set(value);
         this.onChange(value);
     }

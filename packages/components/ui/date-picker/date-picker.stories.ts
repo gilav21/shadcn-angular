@@ -1,5 +1,5 @@
 import { Meta, StoryObj } from '@storybook/angular';
-import { DatePickerComponent, DateRangePickerComponent } from './date-picker.component';
+import { DatePickerComponent } from './date-picker.component';
 import { CalendarComponent } from '../calendar';
 import { moduleMetadata } from '@storybook/angular';
 import { FormsModule } from '@angular/forms';

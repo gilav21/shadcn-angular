@@ -10,7 +10,7 @@ import { Component, signal } from '@angular/core';
       [buffer]="2"
       style="height: 400px; display: block;"
     >
-      <ng-template virtualItem let-item>
+      <ng-template uiVirtualItem let-item>
         <div [style.height.px]="item.height">{{ item.id }}</div>
       </ng-template>
     </ui-virtual-scroll>
@@ -87,7 +87,6 @@ describe('VirtualScroll Runway Logic', () => {
             borderBoxSize: [{ blockSize: 150 }]
         }] as unknown as ResizeObserverEntry[];
 
-        let scrollTopAdjustment = 0;
         // Mock the container ref to capture the adjustment
         component.containerRef = signal({
             nativeElement: {

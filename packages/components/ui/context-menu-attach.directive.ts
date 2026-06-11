@@ -1,7 +1,6 @@
 import {
   Directive,
   HostListener,
-  inject,
   input,
   output,
 } from '@angular/core';
@@ -30,7 +29,7 @@ export class ContextMenuAttachDirective<T> {
   contextMenuTriggered = output<ContextMenuEvent<T>>();
 
   @HostListener('contextmenu', ['$event'])
-  onContextMenu(event: MouseEvent) {
+  onContextMenu(event: MouseEvent): void {
     if (this.disabled()) {
       return;
     }

@@ -129,8 +129,49 @@ function writeU32(buf: Uint8Array, offset: number, val: number): void {
   buf[offset + 3] = (val >> 24) & 0xff;
 }
 
+type ZipEntry = { path: Uint8Array; content: Uint8Array; crc: number; offset: number };
+
+function writeLocalFileHeader(buf: Uint8Array, e: ZipEntry, pos: number): number {
+  writeU32(buf, pos, 0x04034b50); pos += 4;
+  writeU16(buf, pos, 20); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU32(buf, pos, e.crc); pos += 4;
+  writeU32(buf, pos, e.content.length); pos += 4;
+  writeU32(buf, pos, e.content.length); pos += 4;
+  writeU16(buf, pos, e.path.length); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  buf.set(e.path, pos); pos += e.path.length;
+  buf.set(e.content, pos); pos += e.content.length;
+  return pos;
+}
+
+function writeCentralDirHeader(buf: Uint8Array, e: ZipEntry, pos: number): number {
+  writeU32(buf, pos, 0x02014b50); pos += 4;
+  writeU16(buf, pos, 20); pos += 2;
+  writeU16(buf, pos, 20); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU32(buf, pos, e.crc); pos += 4;
+  writeU32(buf, pos, e.content.length); pos += 4;
+  writeU32(buf, pos, e.content.length); pos += 4;
+  writeU16(buf, pos, e.path.length); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
+  writeU32(buf, pos, 0); pos += 4;
+  writeU32(buf, pos, e.offset); pos += 4;
+  buf.set(e.path, pos); pos += e.path.length;
+  return pos;
+}
+
 function createZip(files: { path: string; content: Uint8Array }[]): Uint8Array {
-  const entries: { path: Uint8Array; content: Uint8Array; crc: number; offset: number }[] = [];
+  const entries: ZipEntry[] = [];
 
   let totalSize = 0;
   for (const f of files) {
@@ -139,65 +180,28 @@ function createZip(files: { path: string; content: Uint8Array }[]): Uint8Array {
     entries.push({ path: pathBytes, content: f.content, crc: crc32(f.content), offset: 0 });
   }
 
-  let centralDirSize = 0;
-  for (const e of entries) {
-    centralDirSize += 46 + e.path.length;
-  }
-
+  const centralDirSize = entries.reduce((sum, e) => sum + 46 + e.path.length, 0);
   const buf = new Uint8Array(totalSize + centralDirSize + 22);
   let pos = 0;
 
   for (const e of entries) {
     e.offset = pos;
-    // Local file header
-    writeU32(buf, pos, 0x04034b50); pos += 4;
-    writeU16(buf, pos, 20); pos += 2; // version needed
-    writeU16(buf, pos, 0); pos += 2;  // flags
-    writeU16(buf, pos, 0); pos += 2;  // compression: STORE
-    writeU16(buf, pos, 0); pos += 2;  // mod time
-    writeU16(buf, pos, 0); pos += 2;  // mod date
-    writeU32(buf, pos, e.crc); pos += 4;
-    writeU32(buf, pos, e.content.length); pos += 4; // compressed size
-    writeU32(buf, pos, e.content.length); pos += 4; // uncompressed size
-    writeU16(buf, pos, e.path.length); pos += 2;
-    writeU16(buf, pos, 0); pos += 2; // extra field length
-    buf.set(e.path, pos); pos += e.path.length;
-    buf.set(e.content, pos); pos += e.content.length;
+    pos = writeLocalFileHeader(buf, e, pos);
   }
 
   const centralDirOffset = pos;
-
   for (const e of entries) {
-    // Central directory header
-    writeU32(buf, pos, 0x02014b50); pos += 4;
-    writeU16(buf, pos, 20); pos += 2; // version made by
-    writeU16(buf, pos, 20); pos += 2; // version needed
-    writeU16(buf, pos, 0); pos += 2;  // flags
-    writeU16(buf, pos, 0); pos += 2;  // compression
-    writeU16(buf, pos, 0); pos += 2;  // mod time
-    writeU16(buf, pos, 0); pos += 2;  // mod date
-    writeU32(buf, pos, e.crc); pos += 4;
-    writeU32(buf, pos, e.content.length); pos += 4;
-    writeU32(buf, pos, e.content.length); pos += 4;
-    writeU16(buf, pos, e.path.length); pos += 2;
-    writeU16(buf, pos, 0); pos += 2; // extra field length
-    writeU16(buf, pos, 0); pos += 2; // comment length
-    writeU16(buf, pos, 0); pos += 2; // disk number
-    writeU16(buf, pos, 0); pos += 2; // internal attrs
-    writeU32(buf, pos, 0); pos += 4;  // external attrs
-    writeU32(buf, pos, e.offset); pos += 4;
-    buf.set(e.path, pos); pos += e.path.length;
+    pos = writeCentralDirHeader(buf, e, pos);
   }
 
-  // End of central directory
   writeU32(buf, pos, 0x06054b50); pos += 4;
-  writeU16(buf, pos, 0); pos += 2; // disk number
-  writeU16(buf, pos, 0); pos += 2; // disk with central dir
+  writeU16(buf, pos, 0); pos += 2;
+  writeU16(buf, pos, 0); pos += 2;
   writeU16(buf, pos, entries.length); pos += 2;
   writeU16(buf, pos, entries.length); pos += 2;
   writeU32(buf, pos, centralDirSize); pos += 4;
   writeU32(buf, pos, centralDirOffset); pos += 4;
-  writeU16(buf, pos, 0); // comment length
+  writeU16(buf, pos, 0);
 
   return buf;
 }

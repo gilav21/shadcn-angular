@@ -84,7 +84,7 @@ export class FieldComponent implements AfterContentInit {
 
   private readonly context = inject(FIELD_CONTEXT);
 
-  ngAfterContentInit() {
+  ngAfterContentInit(): void {
     this.context.control?.set(this.ngControl ?? null);
   }
 

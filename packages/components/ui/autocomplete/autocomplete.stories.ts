@@ -97,7 +97,7 @@ export const Debounced: Story = {
             displayWith: (opt: Country) => opt?.name,
             onSearch: function (this: { searchCount: number }, term: string) {
                 this.searchCount++;
-                console.log(`Search triggered: "${term}" (count: ${this.searchCount})`);
+                console.error(`Search triggered: "${term}" (count: ${this.searchCount})`);
             }
         },
         template: `
@@ -109,7 +109,7 @@ export const Debounced: Story = {
            [placeholder]="placeholder"
            [debounceTime]="300"
            [filter]="false"
-           (search)="onSearch($event)"
+           (searchChange)="onSearch($event)"
          />
          <p class="text-xs text-muted-foreground">Search events: {{ searchCount }}</p>
       </div>
@@ -142,7 +142,7 @@ export const Async: Story = {
                 [options]="options()"
                 [displayWith]="displayWith"
                 [filter]="false" 
-                (search)="onSearch($event)"
+                (searchChange)="onSearch($event)"
                 placeholder="Type to search (e.g. 'Un')..."
              />
          </div>

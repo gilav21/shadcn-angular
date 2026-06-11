@@ -28,7 +28,7 @@ export class MenubarMenuComponent {
   readonly service = inject(MenubarService);
   isOpen = computed(() => this.service.isActive(this.id));
 
-  toggle() {
+  toggle(): void {
     if (this.isOpen()) {
       this.service.setActive(null);
     } else {
@@ -36,11 +36,11 @@ export class MenubarMenuComponent {
     }
   }
 
-  open() {
+  open(): void {
     this.service.setActive(this.id);
   }
 
-  close() {
+  close(): void {
     if (this.isOpen()) {
       this.service.setActive(null);
     }

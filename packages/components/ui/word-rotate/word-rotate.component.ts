@@ -29,7 +29,7 @@ export class WordRotateComponent implements OnInit, OnDestroy {
         this.class()
     ));
 
-    wordClasses(index: number) {
+    wordClasses(index: number): string {
         const current = this.currentIndex();
         if (index === current) return 'translate-y-0 opacity-100';
         if (index === (current - 1 + this.words().length) % this.words().length) {
@@ -38,7 +38,7 @@ export class WordRotateComponent implements OnInit, OnDestroy {
         return 'translate-y-full opacity-0';
     }
 
-    ngOnInit() {
+    ngOnInit(): void {
         if (prefersReducedMotion() || this.words().length <= 1) return;
 
         this.intervalId = setInterval(() => {
@@ -46,7 +46,7 @@ export class WordRotateComponent implements OnInit, OnDestroy {
         }, this.duration());
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;

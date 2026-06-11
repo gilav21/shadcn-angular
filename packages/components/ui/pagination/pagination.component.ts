@@ -131,7 +131,7 @@ export class PaginationComponent {
 
     if (total <= 0) return [];
 
-    const range = (start: number, end: number) =>
+    const range = (start: number, end: number): number[] =>
       Array.from({ length: end - start + 1 }, (_, i) => start + i);
 
     const totalPageNumbers = siblings * 2 + 5; // siblings + first + last + current + 2 ellipsis
@@ -159,7 +159,7 @@ export class PaginationComponent {
     return [1, -1, ...range(leftSiblingIndex, rightSiblingIndex), -1, total];
   });
 
-  onPageChange(page: number) {
+  onPageChange(page: number): void {
     if (page >= 1 && page <= this.totalPages() && page !== this.currentPage()) {
       this.pageChange.emit(page);
     }

@@ -162,7 +162,6 @@ type Story = StoryObj;
   selector: 'sb-context-menu-attach-demo',
   standalone: true,
   imports: [
-    CommonModule,
     ContextMenuComponent,
     ContextMenuContentComponent,
     ContextMenuItemComponent,
@@ -196,42 +195,43 @@ type Story = StoryObj;
       </ui-context-menu>
 
       <div style="display: flex; flex-direction: column; gap: 8px; max-width: 400px;">
-        <div
-          *ngFor="let item of items(); let i = index"
-          [uiContextMenuAttach]="itemMenu"
-          [contextMenuData]="item"
-          (contextMenuTriggered)="selectedItem.set($event.item)"
-          style="
-            padding: 12px 16px;
-            background: white;
-            border: 1px solid #e2e8f0;
-            border-radius: 6px;
-            cursor: context-menu;
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            transition: all 0.2s;
-          "
-          onmouseover="this.style.background='#f8fafc'"
-          onmouseout="this.style.background='white'"
-        >
-          <span style="
-            width: 32px;
-            height: 32px;
-            border-radius: 6px;
-            background: #3b82f6;
-            color: white;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 600;
-            font-size: 12px;
-          ">{{ item.id }}</span>
-          <div style="flex: 1;">
-            <div style="font-weight: 500; color: #1e293b;">{{ item.name }}</div>
-            <div style="font-size: 12px; color: #64748b;">{{ item.type }} • {{ item.status }}</div>
+        @for (item of items(); track item.id) {
+          <div
+            [uiContextMenuAttach]="itemMenu"
+            [contextMenuData]="item"
+            (contextMenuTriggered)="selectedItem.set($event.item)"
+            style="
+              padding: 12px 16px;
+              background: white;
+              border: 1px solid #e2e8f0;
+              border-radius: 6px;
+              cursor: context-menu;
+              display: flex;
+              align-items: center;
+              gap: 12px;
+              transition: all 0.2s;
+            "
+            onmouseover="this.style.background='#f8fafc'"
+            onmouseout="this.style.background='white'"
+          >
+            <span style="
+              width: 32px;
+              height: 32px;
+              border-radius: 6px;
+              background: #3b82f6;
+              color: white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-weight: 600;
+              font-size: 12px;
+            ">{{ item.id }}</span>
+            <div style="flex: 1;">
+              <div style="font-weight: 500; color: #1e293b;">{{ item.name }}</div>
+              <div style="font-size: 12px; color: #64748b;">{{ item.type }} • {{ item.status }}</div>
+            </div>
           </div>
-        </div>
+        }
       </div>
 
       @if (lastAction()) {
@@ -263,7 +263,7 @@ class ContextMenuAttachDemoComponent {
   lastAction = signal<string>('');
 
   onAction(action: string, item: any) {
-    this.lastAction.set(`${action} on "${item?.name || 'Unknown'}"`);
+    this.lastAction.set(`${action} on "${item?.name ?? 'Unknown'}"`);
   }
 }
 

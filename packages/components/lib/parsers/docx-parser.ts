@@ -338,21 +338,21 @@ function parseFontSizeAndColor(
 
     const color = getChildNS(rPr, NS_W, 'color');
     if (color) {
-        const val = getAttrVal(color, NS_W, 'val');
-        if (val && val !== 'auto') {
-            result.color = `#${val}`;
-        } else if (themeColors) {
-            const themeColor = getAttrVal(color, NS_W, 'themeColor');
-            if (themeColor) {
-                const resolved = resolveThemeColor(themeColor, themeColors);
-                if (resolved) {
-                    const tint = getAttrVal(color, NS_W, 'themeTint');
-                    const shade = getAttrVal(color, NS_W, 'themeShade');
-                    result.color = applyTintShade(resolved, tint, shade);
-                }
-            }
-        }
+        result.color = parseColorElement(color, themeColors);
     }
+}
+
+function parseColorElement(color: Element, themeColors?: ThemeColorMap): string | undefined {
+    const val = getAttrVal(color, NS_W, 'val');
+    if (val && val !== 'auto') return `#${val}`;
+    if (!themeColors) return undefined;
+    const themeColor = getAttrVal(color, NS_W, 'themeColor');
+    if (!themeColor) return undefined;
+    const resolved = resolveThemeColor(themeColor, themeColors);
+    if (!resolved) return undefined;
+    const tint = getAttrVal(color, NS_W, 'themeTint');
+    const shade = getAttrVal(color, NS_W, 'themeShade');
+    return applyTintShade(resolved, tint, shade);
 }
 
 function resolveThemeColor(themeColor: string, themeColors: ThemeColorMap): string | undefined {
@@ -729,15 +729,24 @@ function parseRunChildElement(
         return;
     }
     const simpleChar = SIMPLE_RUN_CHARS[localName];
-    if (simpleChar) {
-        runs.push({ text: simpleChar, style });
-        return;
-    }
+    if (simpleChar) { runs.push({ text: simpleChar, style }); return; }
     if (localName === 'sym') {
         const symRun = parseSymbol(child, style);
         if (symRun) runs.push(symRun);
         return;
     }
+    parseRunChildElementExtended(child, localName, style, runs, images, relationships, files);
+}
+
+function parseRunChildElementExtended(
+    child: Element,
+    localName: string,
+    style: DocxRunStyle,
+    runs: DocxRun[],
+    images: DocxImage[],
+    relationships: Map<string, string>,
+    files: Map<string, Uint8Array>,
+): void {
     if (localName === 'drawing' || localName === 'pict') {
         const img = extractImageFromDrawing(child, relationships, files);
         if (img) images.push(img);
@@ -1549,22 +1558,46 @@ function mergeRunStyles(
     own: DocxRunStyle,
 ): DocxRunStyle {
     return {
-        bold: own.bold ?? base.bold ?? defaults.bold,
-        italic: own.italic ?? base.italic ?? defaults.italic,
-        underline: own.underline ?? base.underline ?? defaults.underline,
-        strikethrough: own.strikethrough ?? base.strikethrough ?? defaults.strikethrough,
-        doubleStrikethrough: own.doubleStrikethrough ?? base.doubleStrikethrough ?? defaults.doubleStrikethrough,
-        caps: own.caps ?? base.caps ?? defaults.caps,
-        smallCaps: own.smallCaps ?? base.smallCaps ?? defaults.smallCaps,
-        fontSize: own.fontSize ?? base.fontSize ?? defaults.fontSize,
-        color: own.color ?? base.color ?? defaults.color,
-        fontFamily: own.fontFamily ?? base.fontFamily ?? defaults.fontFamily,
-        highlight: own.highlight ?? base.highlight ?? defaults.highlight,
-        backgroundColor: own.backgroundColor ?? base.backgroundColor ?? defaults.backgroundColor,
-        vertAlign: own.vertAlign ?? base.vertAlign ?? defaults.vertAlign,
-        rtl: own.rtl ?? base.rtl ?? defaults.rtl,
-        charSpacing: own.charSpacing ?? base.charSpacing ?? defaults.charSpacing,
-        hidden: own.hidden ?? base.hidden ?? defaults.hidden,
+        ...mergeRunStylesText(defaults, base, own),
+        ...mergeRunStylesDecoration(defaults, base, own),
+    };
+}
+
+function mergeField<T>(own: T | undefined, base: T | undefined, def: T | undefined): T | undefined {
+    return own ?? base ?? def;
+}
+
+function mergeRunStylesText(
+    defaults: DocxRunStyle,
+    base: DocxRunStyle,
+    own: DocxRunStyle,
+): Partial<DocxRunStyle> {
+    return {
+        bold: mergeField(own.bold, base.bold, defaults.bold),
+        italic: mergeField(own.italic, base.italic, defaults.italic),
+        fontSize: mergeField(own.fontSize, base.fontSize, defaults.fontSize),
+        color: mergeField(own.color, base.color, defaults.color),
+        fontFamily: mergeField(own.fontFamily, base.fontFamily, defaults.fontFamily),
+        rtl: mergeField(own.rtl, base.rtl, defaults.rtl),
+        charSpacing: mergeField(own.charSpacing, base.charSpacing, defaults.charSpacing),
+        hidden: mergeField(own.hidden, base.hidden, defaults.hidden),
+        vertAlign: mergeField(own.vertAlign, base.vertAlign, defaults.vertAlign),
+    };
+}
+
+function mergeRunStylesDecoration(
+    defaults: DocxRunStyle,
+    base: DocxRunStyle,
+    own: DocxRunStyle,
+): Partial<DocxRunStyle> {
+    return {
+        underline: mergeField(own.underline, base.underline, defaults.underline),
+        strikethrough: mergeField(own.strikethrough, base.strikethrough, defaults.strikethrough),
+        doubleStrikethrough: mergeField(own.doubleStrikethrough, base.doubleStrikethrough, defaults.doubleStrikethrough),
+        caps: mergeField(own.caps, base.caps, defaults.caps),
+        smallCaps: mergeField(own.smallCaps, base.smallCaps, defaults.smallCaps),
+        highlight: mergeField(own.highlight, base.highlight, defaults.highlight),
+        backgroundColor: mergeField(own.backgroundColor, base.backgroundColor, defaults.backgroundColor),
     };
 }
 
@@ -1711,27 +1744,7 @@ function applyStyleToParagraph(para: DocxParagraph, styleMap: StyleMap): DocxPar
 function applyStyleToRun(run: DocxRun, resolved: ResolvedStyle): DocxRun {
     if (!resolved.runStyle) return run;
     const rs = resolved.runStyle;
-    return {
-        ...run,
-        style: {
-            bold: run.style.bold ?? rs.bold,
-            italic: run.style.italic ?? rs.italic,
-            underline: run.style.underline ?? rs.underline,
-            strikethrough: run.style.strikethrough ?? rs.strikethrough,
-            doubleStrikethrough: run.style.doubleStrikethrough ?? rs.doubleStrikethrough,
-            caps: run.style.caps ?? rs.caps,
-            smallCaps: run.style.smallCaps ?? rs.smallCaps,
-            fontSize: run.style.fontSize ?? rs.fontSize,
-            color: run.style.color ?? rs.color,
-            fontFamily: run.style.fontFamily ?? rs.fontFamily,
-            highlight: run.style.highlight ?? rs.highlight,
-            backgroundColor: run.style.backgroundColor ?? rs.backgroundColor,
-            vertAlign: run.style.vertAlign ?? rs.vertAlign,
-            rtl: run.style.rtl ?? rs.rtl,
-            charSpacing: run.style.charSpacing ?? rs.charSpacing,
-            hidden: run.style.hidden ?? rs.hidden,
-        },
-    };
+    return { ...run, style: mergeRunStyles(rs, {}, run.style) };
 }
 
 function applyStyleToTable(table: DocxTable, styleMap: StyleMap): DocxTable {

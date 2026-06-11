@@ -170,7 +170,7 @@ describe('Breadcrumb RTL Support', () => {
         // The separator svg has rtl:rotate-180 class
         const svg = separator.nativeElement.querySelector('svg');
         // SVG elements use classList or getAttribute for class checking
-        const svgClass = svg.getAttribute('class') || '';
+        const svgClass = svg.getAttribute('class') ?? '';
         expect(svgClass).toContain('rtl:rotate-180');
     });
 

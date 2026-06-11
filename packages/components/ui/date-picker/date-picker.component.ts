@@ -140,18 +140,18 @@ export class DatePickerComponent implements ControlValueAccessor {
 
   readonly popupStyles = computed(() => computePopupStyles(this.adjustedPosition()));
 
-  private calculatePosition() {
+  private calculatePosition(): void {
     if (!this.popupEl?.nativeElement) return;
     this.adjustedPosition.set(calculatePopupPosition(this.popupEl.nativeElement));
   }
 
-  toggleOpen() {
+  toggleOpen(): void {
     if (!this.disabled()) {
       this.isOpen.update(v => !v);
     }
   }
 
-  onDateSelect(value: unknown) {
+  onDateSelect(value: unknown): void {
     let selectedDate: Date | null = null;
     if (value instanceof Date) {
       selectedDate = value;
@@ -165,7 +165,7 @@ export class DatePickerComponent implements ControlValueAccessor {
     }
   }
 
-  onDocumentClick(event: MouseEvent) {
+  onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (!target.closest('[data-slot="date-picker"]')) {
       this.isOpen.set(false);

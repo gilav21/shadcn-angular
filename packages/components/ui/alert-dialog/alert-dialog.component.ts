@@ -18,15 +18,15 @@ export const ALERT_DIALOG = new InjectionToken<AlertDialogComponent>('ALERT_DIAL
 export class AlertDialogComponent {
     open = model(false);
 
-    show() {
+    show(): void {
         this.open.set(true);
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
     }
 
-    toggle() {
+    toggle(): void {
         this.open.update(v => !v);
     }
 }

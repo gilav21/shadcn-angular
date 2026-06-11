@@ -25,8 +25,7 @@ class TestHostComponent {
     }
 }
 
-describe
-    ('EmojiPickerComponent', () => {
+describe('EmojiPickerComponent', () => {
         let component: TestHostComponent;
         let fixture: ComponentFixture<TestHostComponent>;
         let pickerInstance: EmojiPickerComponent;

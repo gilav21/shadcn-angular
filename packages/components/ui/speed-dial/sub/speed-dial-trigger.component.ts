@@ -13,7 +13,11 @@ import { SPEED_DIAL } from '../speed-dial.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
+      tabindex="0"
+      role="button"
       (click)="onClick($event)"
+      (keydown.enter)="onClick($event)"
+      (keydown.space)="onClick($event)"
       [class]="classes()"
       [attr.aria-label]="ariaLabel()"
       [attr.data-slot]="'speed-dial-trigger'"
@@ -37,7 +41,7 @@ export class SpeedDialTriggerComponent {
         )
     );
 
-    onClick(event: MouseEvent) {
+    onClick(event: Event): void {
         event.stopPropagation();
         this.speedDial?.toggle();
     }

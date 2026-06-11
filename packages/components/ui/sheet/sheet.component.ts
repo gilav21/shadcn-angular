@@ -62,34 +62,34 @@ export class SheetComponent implements OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.unlockScroll();
     }
 
-    private lockScroll() {
+    private lockScroll(): void {
         const body = this.document.body;
         this.scrollbarWidth = globalThis.window.innerWidth - this.document.documentElement.clientWidth;
         body.style.overflow = 'hidden';
         body.style.paddingRight = `${this.scrollbarWidth}px`;
     }
 
-    private unlockScroll() {
+    private unlockScroll(): void {
         const body = this.document.body;
         body.style.overflow = '';
         body.style.paddingRight = '';
     }
 
-    show() {
+    show(): void {
         this.open.set(true);
         this.openChange.emit(true);
     }
 
-    hide() {
+    hide(): void {
         this.open.set(false);
         this.openChange.emit(false);
     }
 
-    toggle() {
+    toggle(): void {
         const newState = !this.open();
         this.open.set(newState);
         this.openChange.emit(newState);

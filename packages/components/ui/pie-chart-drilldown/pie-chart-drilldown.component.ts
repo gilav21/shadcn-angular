@@ -160,17 +160,17 @@ export class PieChartDrilldownComponent {
     return !!point.drilldown && this.drilldownSeries().some(s => s.id === point.drilldown);
   }
 
-  onSliceHover(slice: PieSlice) {
+  onSliceHover(slice: PieSlice): void {
     this.hoveredIndex.set(slice.index);
     this.sliceHover.emit({ point: slice.data as DrilldownDataPoint, index: slice.index });
   }
 
-  onSliceLeave() {
+  onSliceLeave(): void {
     this.hoveredIndex.set(null);
     this.sliceHover.emit(null);
   }
 
-  onSliceClick(event: Event, slice: PieSlice) {
+  onSliceClick(event: Event, slice: PieSlice): void {
     const point = slice.data as DrilldownDataPoint;
 
     this.sliceClick.emit({
@@ -189,7 +189,7 @@ export class PieChartDrilldownComponent {
     }
   }
 
-  onDrillUp() {
+  onDrillUp(): void {
     this.currentDrilldownId.set(null);
     this.hoveredIndex.set(null);
     this.drillup.emit();

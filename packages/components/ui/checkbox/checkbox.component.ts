@@ -65,7 +65,7 @@ export class CheckboxComponent implements ControlValueAccessor {
     )
   );
 
-  toggle() {
+  toggle(): void {
     if (this.isDisabled()) return;
     const newValue = !this.checked();
     this.checked.set(newValue);

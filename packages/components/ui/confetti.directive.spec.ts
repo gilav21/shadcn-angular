@@ -66,7 +66,7 @@ describe('UiConfettiDirective', () => {
     let fixture: ComponentFixture<TestHostComponent>;
 
     beforeEach(async () => {
-        vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb) => {
+        vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((_cb) => {
             return 1 as unknown as number;
         });
 

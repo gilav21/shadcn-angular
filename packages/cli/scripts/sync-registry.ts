@@ -386,6 +386,33 @@ function detectOrphanBlockFolders(blocks: RegistryEntry[]): string[] {
         .map(entry => entry.name);
 }
 
+interface AnalysisResult {
+    updates: ComponentUpdate[];
+    blockUpdates: ComponentUpdate[];
+    deepImports: DeepImport[];
+    hasChanges: boolean;
+}
+
+function analyzeAllEntries(entries: RegistryEntry[], blockEntries: RegistryEntry[], ctx: BoundaryContext): AnalysisResult {
+    let hasChanges = false;
+    const updates: ComponentUpdate[] = [];
+    const blockUpdates: ComponentUpdate[] = [];
+    const deepImports: DeepImport[] = [];
+    for (const entry of entries) {
+        const result = analyzeComponent(entry, ctx);
+        if (result.changed) hasChanges = true;
+        updates.push(result.update);
+        deepImports.push(...result.deepImports);
+    }
+    for (const entry of blockEntries) {
+        const result = analyzeBlock(entry, ctx);
+        if (result.changed) hasChanges = true;
+        blockUpdates.push(result.update);
+        deepImports.push(...result.deepImports);
+    }
+    return { updates, blockUpdates, deepImports, hasChanges };
+}
+
 function main(): void {
     const fix = process.argv.includes('--fix');
     const allEntries = parseRegistry();
@@ -394,46 +421,19 @@ function main(): void {
 
     const orphanBlocks = detectOrphanBlockFolders(blockEntries);
     if (orphanBlocks.length > 0) {
-        console.log(
-            `Orphan block folder(s) with no registry entry: ${orphanBlocks.join(', ')}. ` +
+        console.log(`Orphan block folder(s) with no registry entry: ${orphanBlocks.join(', ')}. ` +
             `Add a type:'block' entry (name, files, dependencies, category, description, tags) ` +
-            `in packages/cli/src/registry/index.ts before publishing.`,
-        );
+            `in packages/cli/src/registry/index.ts before publishing.`);
     }
 
     const entryFileToComponent = buildBoundaryMap(entries);
-    const ctx: BoundaryContext = {
-        entryFileToComponent,
-        dirOwners: buildDirOwners(entryFileToComponent),
-    };
-
+    const ctx: BoundaryContext = { entryFileToComponent, dirOwners: buildDirOwners(entryFileToComponent) };
     console.log(`Scanning ${entries.length} components and ${blockEntries.length} blocks...\n`);
 
-    let hasChanges = false;
-    const updates: ComponentUpdate[] = [];
-    const blockUpdates: ComponentUpdate[] = [];
-    const deepImports: DeepImport[] = [];
-
-    for (const entry of entries) {
-        const result = analyzeComponent(entry, ctx);
-        if (result.changed) hasChanges = true;
-        updates.push(result.update);
-        deepImports.push(...result.deepImports);
-    }
-
-    for (const entry of blockEntries) {
-        const result = analyzeBlock(entry, ctx);
-        if (result.changed) hasChanges = true;
-        blockUpdates.push(result.update);
-        deepImports.push(...result.deepImports);
-    }
-
+    const { updates, blockUpdates, deepImports, hasChanges } = analyzeAllEntries(entries, blockEntries, ctx);
     if (!fix) reportDeepImports(deepImports);
 
-    const missingFiles = [
-        ...validateRegistryFiles(updates),
-        ...validateBlockFiles(blockUpdates),
-    ];
+    const missingFiles = [...validateRegistryFiles(updates), ...validateBlockFiles(blockUpdates)];
     if (missingFiles.length > 0) {
         console.error('\nRegistry references files that do not exist on disk:');
         for (const problem of missingFiles) console.error(problem);
@@ -442,13 +442,9 @@ function main(): void {
         return;
     }
 
-    if (!hasChanges) {
-        console.log('All components and blocks are in sync.');
-        return;
-    }
+    if (!hasChanges) { console.log('All components and blocks are in sync.'); return; }
 
     console.log('');
-
     if (fix) {
         applyUpdates([...updates, ...blockUpdates]);
     } else {

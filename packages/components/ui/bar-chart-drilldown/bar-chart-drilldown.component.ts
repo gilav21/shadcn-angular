@@ -48,12 +48,12 @@ export class BarChartDrilldownComponent implements AfterViewInit {
     return this._domRtl();
   });
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this._checkDirection();
     setTimeout(() => this._checkDirection(), 0);
   }
 
-  private _checkDirection() {
+  private _checkDirection(): void {
     this._domRtl.set(isRtl(this.el.nativeElement));
   }
 
@@ -191,17 +191,17 @@ export class BarChartDrilldownComponent implements AfterViewInit {
     return area.bottom - normalized * area.height;
   }
 
-  onBarHover(bar: BarRect) {
+  onBarHover(bar: BarRect): void {
     this.hoveredIndex.set(bar.index);
     this.barHover.emit({ point: bar.data as DrilldownDataPoint, index: bar.index });
   }
 
-  onBarLeave() {
+  onBarLeave(): void {
     this.hoveredIndex.set(null);
     this.barHover.emit(null);
   }
 
-  onBarClick(event: Event, bar: BarRect) {
+  onBarClick(event: Event, bar: BarRect): void {
     const point = bar.data as DrilldownDataPoint;
 
     this.barClick.emit({
@@ -220,7 +220,7 @@ export class BarChartDrilldownComponent implements AfterViewInit {
     }
   }
 
-  onDrillUp() {
+  onDrillUp(): void {
     this.currentDrilldownId.set(null);
     this.hoveredIndex.set(null);
     this.drillup.emit();

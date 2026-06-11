@@ -43,11 +43,11 @@ export class ChatListComponent implements AfterViewInit, OnDestroy {
     });
   }
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this.updateObserver();
   }
 
-  private updateObserver() {
+  private updateObserver(): void {
     this.observer?.disconnect();
 
     if (this.autoScroll() && this.contentRef?.nativeElement) {
@@ -65,11 +65,11 @@ export class ChatListComponent implements AfterViewInit, OnDestroy {
     }
   }
 
-  scrollToBottom() {
+  scrollToBottom(): void {
     this.scrollArea?.scrollToBottom();
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.observer?.disconnect();
   }
 }

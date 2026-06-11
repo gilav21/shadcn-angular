@@ -39,7 +39,7 @@ export class ShineBorderComponent implements AfterViewInit, OnDestroy {
         'bg-background h-full w-full rounded-[inherit]'
     );
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (prefersReducedMotion()) {
             this.applyStaticGradient(0);
             return;
@@ -51,7 +51,7 @@ export class ShineBorderComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.animationFrameId != null) cancelAnimationFrame(this.animationFrameId);
     }
 
@@ -59,7 +59,7 @@ export class ShineBorderComponent implements AfterViewInit, OnDestroy {
         return (this.el.nativeElement as HTMLElement).querySelector('[data-slot="shine-border"]');
     }
 
-    private applyStaticGradient(angleDeg: number) {
+    private applyStaticGradient(angleDeg: number): void {
         const wrapper = this.getWrapperEl();
         if (!wrapper) return;
         const colorsStr = this.colors().join(', ');
@@ -68,7 +68,7 @@ export class ShineBorderComponent implements AfterViewInit, OnDestroy {
         wrapper.style.borderRadius = `${this.borderRadius()}px`;
     }
 
-    private readonly animate = () => {
+    private readonly animate = (): void => {
         const elapsed = performance.now() - this.startTime;
         const durationMs = this.duration() * 1000;
         const angle = ((elapsed % durationMs) / durationMs) * 360;

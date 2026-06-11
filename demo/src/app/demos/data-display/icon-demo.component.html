@@ -273,7 +273,7 @@
           <!-- Stroke Width -->
           <div class="space-y-3">
             <div class="flex items-center justify-between">
-              <label class="text-sm font-medium">{{ t().sheetStrokeWidth }}</label>
+              <span class="text-sm font-medium">{{ t().sheetStrokeWidth }}</span>
               <span class="text-xs text-muted-foreground tabular-nums">{{ iconExplorerStrokeWidth().toFixed(1) }}</span>
             </div>
             <ui-slider
@@ -301,7 +301,7 @@
           <!-- Solid Fill Toggle -->
           <div class="space-y-2">
             <div class="flex items-center justify-between">
-              <label class="text-sm font-medium">{{ t().sheetSolidFill }}</label>
+              <span class="text-sm font-medium">{{ t().sheetSolidFill }}</span>
               @if (!selectedIconSupportsSolid()) {
                 <span class="text-xs text-muted-foreground">{{ t().sheetSolidNotAvailable }}</span>
               }
@@ -317,7 +317,7 @@
 
           <!-- Size -->
           <div class="space-y-2">
-            <label class="text-sm font-medium">{{ t().sheetSize }}</label>
+            <span class="text-sm font-medium">{{ t().sheetSize }}</span>
             <div class="flex flex-wrap gap-2">
               @for (s of iconSizeOptions; track s) {
                 <ui-button
@@ -332,21 +332,21 @@
 
           <!-- Color -->
           <div class="space-y-2">
-            <label class="text-sm font-medium">{{ t().sheetColor }}</label>
-            <ui-input [placeholder]="t().sheetColorPlaceholder" [ngModel]="iconExplorerColor()" (ngModelChange)="iconExplorerColor.set($event)" />
+            <label for="icon-color-input" class="text-sm font-medium">{{ t().sheetColor }}</label>
+            <ui-input id="icon-color-input" [placeholder]="t().sheetColorPlaceholder" [ngModel]="iconExplorerColor()" (ngModelChange)="iconExplorerColor.set($event)" />
           </div>
 
           <!-- Fill Color -->
           <div class="space-y-2">
-            <label class="text-sm font-medium">{{ t().sheetFillColor }}</label>
-            <ui-input [placeholder]="t().sheetFillColorPlaceholder" [ngModel]="iconExplorerFillColor()" (ngModelChange)="iconExplorerFillColor.set($event)" />
+            <label for="icon-fill-color-input" class="text-sm font-medium">{{ t().sheetFillColor }}</label>
+            <ui-input id="icon-fill-color-input" [placeholder]="t().sheetFillColorPlaceholder" [ngModel]="iconExplorerFillColor()" (ngModelChange)="iconExplorerFillColor.set($event)" />
           </div>
 
           <ui-separator />
 
           <!-- Generated Code -->
           <div class="space-y-2">
-            <label class="text-sm font-medium">{{ t().sheetCode }}</label>
+            <span class="text-sm font-medium">{{ t().sheetCode }}</span>
             <ui-code-block language="html" [code]="iconExplorerCode()"></ui-code-block>
           </div>
         }

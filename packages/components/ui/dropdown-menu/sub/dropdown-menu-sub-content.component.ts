@@ -19,6 +19,7 @@ import { DropdownMenuSubComponent } from './dropdown-menu-sub.component';
       <div
         [class]="classes()"
         role="menu"
+        tabindex="-1"
         (mouseenter)="onMouseEnter()"
         (mouseleave)="onMouseLeave()"
         (keydown)="onKeydown($event)"
@@ -39,12 +40,12 @@ export class DropdownMenuSubContentComponent {
         this.sub.registerContent(this);
     }
 
-    onMouseEnter() {
+    onMouseEnter(): void {
         if (isTouchDevice()) return;
         this.sub.enter();
     }
 
-    onMouseLeave() {
+    onMouseLeave(): void {
         if (isTouchDevice()) return;
         this.sub.leave();
     }
@@ -56,12 +57,12 @@ export class DropdownMenuSubContentComponent {
         this.class()
     ));
 
-    focusFirst() {
+    focusFirst(): void {
         const items = Array.from((this.el.nativeElement as HTMLElement).querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         items[0]?.focus();
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         event.stopPropagation();
 
         if (event.key === 'ArrowLeft') {
@@ -89,16 +90,16 @@ export class DropdownMenuSubContentComponent {
         }
     }
 
-    focusNextItem(currentItem: HTMLElement) {
-        const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
+    focusNextItem(currentItem: HTMLElement): void {
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
         const nextIndex = (index + 1) % items.length;
         items[nextIndex]?.focus();
     }
 
-    focusPrevItem(currentItem: HTMLElement) {
-        const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
+    focusPrevItem(currentItem: HTMLElement): void {
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
         const prevIndex = (index - 1 + items.length) % items.length;

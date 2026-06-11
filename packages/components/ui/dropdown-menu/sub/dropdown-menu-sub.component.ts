@@ -24,27 +24,27 @@ export class DropdownMenuSubComponent {
     private trigger: { focus(): void } | null = null;
     private content: { focusFirst(): void } | null = null;
 
-    registerTrigger(t: { focus(): void }) { this.trigger = t; }
-    registerContent(c: { focusFirst(): void }) { this.content = c; }
+    registerTrigger(t: { focus(): void }): void { this.trigger = t; }
+    registerContent(c: { focusFirst(): void }): void { this.content = c; }
 
-    enter() {
+    enter(): void {
         clearTimeout(this.timeoutId);
         this.isOpen.set(true);
     }
 
-    leave() {
+    leave(): void {
         this.timeoutId = setTimeout(() => {
             this.isOpen.set(false);
         }, 100);
     }
 
-    focusTrigger() {
+    focusTrigger(): void {
         setTimeout(() => {
             this.trigger?.focus();
         }, 0);
     }
 
-    focusContent() {
+    focusContent(): void {
         setTimeout(() => {
             this.content?.focusFirst();
         }, 0);

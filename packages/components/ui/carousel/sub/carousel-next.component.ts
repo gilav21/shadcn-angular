@@ -44,7 +44,7 @@ export class CarouselNextComponent {
         this.isRtl() ? !this.carousel.canScrollPrev() : !this.carousel.canScrollNext()
     );
 
-    onClick() {
+    onClick(): void {
         if (this.isRtl()) {
             this.carousel.scrollPrev();
         } else {

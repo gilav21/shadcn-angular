@@ -50,7 +50,7 @@ export class TabsTriggerComponent {
     )
   );
 
-  select() {
+  select(): void {
     if (this.tabs) {
       this.tabs.selectTab(this.value());
     }

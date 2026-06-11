@@ -46,13 +46,13 @@ export class DrawerContentComponent implements AfterViewInit {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (this.drawer?.open()) {
             this.focusFirstElement();
         }
     }
 
-    private focusFirstElement() {
+    private focusFirstElement(): void {
         const content = this.el.nativeElement.querySelector('[data-slot="drawer-content"]');
         if (content) {
             this.contentEl = content;
@@ -74,11 +74,11 @@ export class DrawerContentComponent implements AfterViewInit {
         this.class()
     ));
 
-    onOverlayClick() {
+    onOverlayClick(): void {
         this.drawer?.hide();
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         if (event.key === 'Escape') {
             event.preventDefault();
             this.drawer?.hide();

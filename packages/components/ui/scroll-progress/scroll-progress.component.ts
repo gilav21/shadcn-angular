@@ -38,7 +38,7 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
 
     private scrollTarget: HTMLElement | Window | null = null;
 
-    private readonly scrollHandler = () => {
+    private readonly scrollHandler = (): void => {
         let scrollTop: number;
         let scrollHeight: number;
 
@@ -57,7 +57,7 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
         }
     };
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         const bar = this.barRef.nativeElement;
         bar.style.height = `${this.height()}px`;
         bar.style.backgroundColor = this.color();
@@ -98,7 +98,7 @@ export class ScrollProgressComponent implements AfterViewInit, OnDestroy {
         this.scrollHandler();
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.scrollTarget) {
             (this.scrollTarget as EventTarget).removeEventListener('scroll', this.scrollHandler);
         }

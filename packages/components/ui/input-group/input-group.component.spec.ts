@@ -29,7 +29,6 @@ class TestHostComponent {
 
 describe('InputGroupComponent', () => {
     let fixture: ComponentFixture<TestHostComponent>;
-    let host: TestHostComponent;
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -43,7 +42,6 @@ describe('InputGroupComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
-        host = fixture.componentInstance;
     });
 
     it('should create all parts', () => {

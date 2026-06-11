@@ -84,17 +84,17 @@ export class DateRangePickerComponent implements ControlValueAccessor {
 
   readonly popupStyles = computed(() => computePopupStyles(this.adjustedPosition()));
 
-  private calculatePosition() {
+  private calculatePosition(): void {
     if (!this.popupEl?.nativeElement) return;
     this.adjustedPosition.set(calculatePopupPosition(this.popupEl.nativeElement));
   }
 
-  toggleOpen() {
+  toggleOpen(): void {
     if (this.disabled()) return;
     this.isOpen.update(v => !v);
   }
 
-  onRangeSelect(value: unknown) {
+  onRangeSelect(value: unknown): void {
     if (value && typeof value === 'object' && 'start' in value) {
       const range = value as DateRange;
       this.rangeValue.set(range);
@@ -108,12 +108,12 @@ export class DateRangePickerComponent implements ControlValueAccessor {
     }
   }
 
-  onTimeRangeChange(range: TimeRange) {
+  onTimeRangeChange(range: TimeRange): void {
     this.timeRange.set(range);
     this.timeRangeChange.emit(range);
   }
 
-  onDocumentClick(event: MouseEvent) {
+  onDocumentClick(event: MouseEvent): void {
     const target = event.target as HTMLElement;
     if (!target.closest('[data-slot="date-range-picker"]')) {
       this.isOpen.set(false);

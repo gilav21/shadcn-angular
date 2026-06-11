@@ -9,7 +9,7 @@
       [countdownSeconds]="toast.countdownSeconds"
       [duration]="toast.duration"
       [createdAt]="toast.createdAt"
-      (close)="toastService.dismiss(toast.id)"
+      (closed)="toastService.dismiss(toast.id)"
     />
   }
 </div>

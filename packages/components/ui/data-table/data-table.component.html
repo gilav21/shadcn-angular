@@ -247,7 +247,7 @@
         ></ng-container>
       } @else if (rowDetailComponent()) {
         <div
-          [uiComponentOutlet]="rowDetailComponent()"
+          [uiComponentOutlet]="rowDetailComponent()!"
           [inputs]="getRowDetailComponentInputs(row)"
         ></div>
       } @else {
@@ -265,7 +265,7 @@
         >
           @if (emptyStateComponent()) {
             <ng-container
-              [uiComponentOutlet]="emptyStateComponent()"
+              [uiComponentOutlet]="emptyStateComponent()!"
               [inputs]="emptyStateComponentInputs()"
             ></ng-container>
           } @else {
@@ -323,7 +323,7 @@
               <ui-popover-content class="w-56 p-2">
                 <div class="space-y-1">
                   @for (col of hideableColumns(); track col.accessorKey) {
-                    <label
+                    <div
                       class="flex items-center gap-2 rounded-md px-2 py-1.5 text-sm hover:bg-accent hover:text-accent-foreground"
                     >
                       <ui-checkbox
@@ -334,7 +334,7 @@
                         [ariaLabel]="toggleColumnAriaLabel(col.header)"
                       />
                       <span>{{ col.header }}</span>
-                    </label>
+                    </div>
                   }
                 </div>
               </ui-popover-content>
@@ -372,7 +372,7 @@
               ></ng-container>
             } @else if (loaderComponent()) {
               <ng-container
-                [uiComponentOutlet]="loaderComponent()"
+                [uiComponentOutlet]="loaderComponent()!"
                 [inputs]="resolvedLoaderComponentInputs()"
               ></ng-container>
             } @else {
@@ -1207,7 +1207,7 @@
                         ></ng-container>
                       } @else if (fullWidthRowComponent()) {
                         <div
-                          [uiComponentOutlet]="fullWidthRowComponent()"
+                          [uiComponentOutlet]="fullWidthRowComponent()!"
                           [inputs]="{ row: row, index: i }"
                         ></div>
                       }

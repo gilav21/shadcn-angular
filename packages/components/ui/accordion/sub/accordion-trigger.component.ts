@@ -44,7 +44,7 @@ export class AccordionTriggerComponent {
     )
   );
 
-  toggle() {
+  toggle(): void {
     const val = this.item?.value();
     if (val && this.accordion) {
       this.accordion.toggle(val);

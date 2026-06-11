@@ -6,6 +6,11 @@
     (dragleave)="onDragLeave($event)"
     (drop)="onDrop($event)"
     (click)="openFilePicker()"
+    (keydown.enter)="openFilePicker()"
+    (keydown.space)="openFilePicker()"
+    tabindex="0"
+    role="button"
+    [attr.aria-label]="t().uploadFiles"
   >
     <input
       #fileInput

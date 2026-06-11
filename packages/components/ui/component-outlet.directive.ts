@@ -14,7 +14,8 @@ import {
     ApplicationRef,
     createComponent,
     EnvironmentInjector,
-    Injector
+    Injector,
+    Type
 } from '@angular/core';
 import { Subscription } from 'rxjs';
 import { ComponentPoolService } from '../lib/component-pool.service';
@@ -24,14 +25,14 @@ import { ComponentPoolService } from '../lib/component-pool.service';
     standalone: true
 })
 export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy {
-    readonly component = input.required<any>({ alias: 'uiComponentOutlet' });
-    readonly inputs = input<Record<string, any>>({});
-    readonly outputs = input<Record<string, (event: any) => void>>({});
+    readonly component = input.required<Type<unknown>>({ alias: 'uiComponentOutlet' });
+    readonly inputs = input<Record<string, unknown>>({});
+    readonly outputs = input<Record<string, OutputHandler>>({});
     readonly recycle = input(false);
-    readonly initialized = output<ComponentRef<any>>();
+    readonly initialized = output<ComponentRef<unknown>>();
 
-    private componentRef: ComponentRef<any> | null = null;
-    private currentComponentType: any = null;
+    private componentRef: ComponentRef<unknown> | null = null;
+    private currentComponentType: Type<unknown> | null = null;
     private subscriptions: Subscription[] = [];
     private managedExternally = false;
     private readonly viewContainerRef = inject(ViewContainerRef);
@@ -42,11 +43,11 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
     private readonly envInjector = inject(EnvironmentInjector);
     private readonly injector = inject(Injector);
 
-    ngOnInit() {
+    ngOnInit(): void {
         this.renderComponent();
     }
 
-    ngOnChanges(changes: SimpleChanges) {
+    ngOnChanges(changes: SimpleChanges): void {
         if (changes['inputs'] && !changes['inputs'].firstChange) {
             this.updateInputs();
         }
@@ -58,9 +59,9 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         }
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.unsubscribeAll();
-        if (this.recycle() && this.pool && this.componentRef && this.managedExternally) {
+        if (this.recycle() && this.pool && this.componentRef && this.managedExternally && this.currentComponentType) {
             this.removeFromDom(this.componentRef);
             this.appRef.detachView(this.componentRef.hostView);
             this.pool.release(this.currentComponentType, this.componentRef);
@@ -76,55 +77,15 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         }
     }
 
-    private renderComponent() {
-        if (this.componentRef) {
-            if (this.recycle() && this.pool && this.managedExternally) {
-                this.removeFromDom(this.componentRef);
-                this.appRef.detachView(this.componentRef.hostView);
-                this.pool.release(this.currentComponentType, this.componentRef);
-            } else if (this.managedExternally) {
-                this.removeFromDom(this.componentRef);
-                this.appRef.detachView(this.componentRef.hostView);
-                this.componentRef.destroy();
-            }
-            this.componentRef = null;
-            this.currentComponentType = null;
-            this.managedExternally = false;
-        }
+    private renderComponent(): void {
+        this.teardownExisting();
         this.viewContainerRef.clear();
 
         const componentType = this.component();
         if (!componentType) return;
 
         if (this.recycle() && this.pool) {
-            const recycled = this.pool.acquire(componentType);
-            if (recycled) {
-                this.appRef.attachView(recycled.hostView);
-                this.appendToDom(recycled);
-                this.componentRef = recycled;
-                this.currentComponentType = componentType;
-                this.managedExternally = true;
-                this.updateInputs();
-                this.subscribeToOutputs();
-                recycled.changeDetectorRef.detectChanges();
-                this.initialized.emit(this.componentRef);
-                return;
-            }
-
-            const ref = createComponent(componentType, {
-                environmentInjector: this.envInjector,
-                elementInjector: this.injector,
-            });
-            this.appRef.attachView(ref.hostView);
-            this.appendToDom(ref);
-            this.componentRef = ref;
-            this.currentComponentType = componentType;
-            this.managedExternally = true;
-            this.pool.trackCreation();
-            this.updateInputs();
-            this.subscribeToOutputs();
-            ref.changeDetectorRef.detectChanges();
-            this.initialized.emit(this.componentRef);
+            this.renderRecycled(componentType, this.pool);
             return;
         }
 
@@ -133,6 +94,46 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         this.managedExternally = false;
         this.updateInputs();
         this.subscribeToOutputs();
+        this.initialized.emit(this.componentRef);
+    }
+
+    private teardownExisting(): void {
+        if (!this.componentRef) return;
+        if (this.recycle() && this.pool && this.managedExternally && this.currentComponentType) {
+            this.removeFromDom(this.componentRef);
+            this.appRef.detachView(this.componentRef.hostView);
+            this.pool.release(this.currentComponentType, this.componentRef);
+        } else if (this.managedExternally) {
+            this.removeFromDom(this.componentRef);
+            this.appRef.detachView(this.componentRef.hostView);
+            this.componentRef.destroy();
+        }
+        this.componentRef = null;
+        this.currentComponentType = null;
+        this.managedExternally = false;
+    }
+
+    private renderRecycled(componentType: Type<unknown>, pool: ComponentPoolService): void {
+        const recycled = pool.acquire(componentType);
+        if (recycled) {
+            this.appRef.attachView(recycled.hostView);
+            this.appendToDom(recycled);
+            this.componentRef = recycled;
+        } else {
+            const ref = createComponent(componentType, {
+                environmentInjector: this.envInjector,
+                elementInjector: this.injector,
+            });
+            this.appRef.attachView(ref.hostView);
+            this.appendToDom(ref);
+            this.componentRef = ref;
+            pool.trackCreation();
+        }
+        this.currentComponentType = componentType;
+        this.managedExternally = true;
+        this.updateInputs();
+        this.subscribeToOutputs();
+        this.componentRef.changeDetectorRef.detectChanges();
         this.initialized.emit(this.componentRef);
     }
 
@@ -149,7 +150,7 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         }
     }
 
-    private updateInputs() {
+    private updateInputs(): void {
         if (!this.componentRef) return;
 
         const inputsObj = this.inputs();
@@ -158,29 +159,29 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         }
     }
 
-    private subscribeToOutputs() {
+    private subscribeToOutputs(): void {
         if (!this.componentRef) return;
 
         this.unsubscribeAll();
 
+        const instance = this.componentRef.instance as Record<string, unknown>;
         const outputsObj = this.outputs();
         for (const outputName of Object.keys(outputsObj)) {
             const handler = outputsObj[outputName];
 
             try {
-                const outputEmitter = this.componentRef.instance[outputName];
+                const outputEmitter = instance[outputName];
 
-                if (outputEmitter && typeof outputEmitter.subscribe === 'function') {
-                    const subscription = outputEmitter.subscribe((event: any) => {
+                if (isSubscribable(outputEmitter)) {
+                    const invoke = handler as (event: unknown) => void;
+                    const subscription = outputEmitter.subscribe((event: unknown) => {
                         try {
-                            handler(event);
+                            invoke(event);
                         } catch (err) {
                             console.error(`Error in output handler for '${outputName}':`, err);
                         }
                     });
                     this.subscriptions.push(subscription);
-                } else if (outputEmitter !== undefined) {
-                    console.warn(`Output '${outputName}' exists but is not subscribable`);
                 }
             } catch (err) {
                 console.error(`Failed to subscribe to output '${outputName}':`, err);
@@ -188,10 +189,30 @@ export class UiComponentOutletDirective implements OnInit, OnChanges, OnDestroy 
         }
     }
 
-    private unsubscribeAll() {
+    private unsubscribeAll(): void {
         for (const sub of this.subscriptions) {
             sub.unsubscribe();
         }
         this.subscriptions = [];
     }
+}
+
+/**
+ * A handler for a projected component's output. The `never` parameter
+ * makes any single-argument callback assignable (e.g.
+ * `(value: string) => void`), letting consumers type the event to match
+ * the specific output they're wiring up.
+ */
+type OutputHandler = (event: never) => void;
+
+interface Subscribable {
+    subscribe(next: (event: unknown) => void): Subscription;
+}
+
+function isSubscribable(value: unknown): value is Subscribable {
+    return (
+        value !== null &&
+        value !== undefined &&
+        typeof (value as { subscribe?: unknown }).subscribe === 'function'
+    );
 }

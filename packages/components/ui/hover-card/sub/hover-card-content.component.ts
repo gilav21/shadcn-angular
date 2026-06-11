@@ -76,13 +76,13 @@ export class HoverCardContentComponent implements AfterViewInit {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         if (this.hoverCard?.open()) {
             this.calculatePosition();
         }
     }
 
-    private calculatePosition() {
+    private calculatePosition(): void {
         if (!this.contentEl?.nativeElement) return;
 
         const content = this.contentEl.nativeElement;
@@ -90,7 +90,7 @@ export class HoverCardContentComponent implements AfterViewInit {
         const boundary = getClippingRect(content);
 
         let offsetX = 0;
-        let offsetY = 0;
+        const offsetY = 0;
         let actualSide = this.side();
 
         if (rect.right > boundary.right) {
@@ -108,11 +108,11 @@ export class HoverCardContentComponent implements AfterViewInit {
         this.adjustedPosition.set({ offsetX, offsetY, actualSide });
     }
 
-    onMouseEnter() {
+    onMouseEnter(): void {
         this.hoverCard?.cancelClose();
     }
 
-    onMouseLeave() {
+    onMouseLeave(): void {
         this.hoverCard?.hide();
     }
 

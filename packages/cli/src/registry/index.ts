@@ -1191,7 +1191,8 @@ export function getReverseDependents(name: ComponentName): Set<ComponentName> {
     const out = new Set<ComponentName>();
     const queue: ComponentName[] = [name];
     while (queue.length > 0) {
-        const current = queue.shift()!;
+        const current = queue.shift();
+        if (current === undefined) break;
         for (const dependent of graph.get(current) ?? []) {
             if (!out.has(dependent)) {
                 out.add(dependent);

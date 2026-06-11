@@ -56,12 +56,12 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
     return this._domRtl();
   });
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     this._checkDirection();
     setTimeout(() => this._checkDirection(), 0);
   }
 
-  private _checkDirection() {
+  private _checkDirection(): void {
     this._domRtl.set(isRtl(this.el.nativeElement));
   }
 
@@ -157,6 +157,8 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
         this.colorMap.set(point.name, getChartColor(this.colorMap.size, point.color));
       }
 
+      // colorMap.set is called just above if the key is missing, so get() is guaranteed to return a string
+      // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
       const color = this.colorMap.get(point.name)!;
       const normalizedValue = point.value / maxVal;
       const barWidth = normalizedValue * area.width;
@@ -194,22 +196,22 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
     });
   }
 
-  ngOnDestroy() {
+  ngOnDestroy(): void {
     this.stopAnimation();
   }
 
-  play() {
+  play(): void {
     if (this.isPlaying()) return;
     this.isPlaying.set(true);
     this.animateNextFrame();
   }
 
-  pause() {
+  pause(): void {
     this.isPlaying.set(false);
     this.stopAnimation();
   }
 
-  togglePlay() {
+  togglePlay(): void {
     if (this.isPlaying()) {
       this.pause();
     } else {
@@ -217,20 +219,20 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
     }
   }
 
-  reset() {
+  reset(): void {
     this.pause();
     this.currentFrameIndex.set(0);
     this.frameChange.emit(0);
   }
 
-  goToFrame(index: number) {
+  goToFrame(index: number): void {
     const frames = this.frames();
     const validIndex = Math.max(0, Math.min(frames.length - 1, index));
     this.currentFrameIndex.set(validIndex);
     this.frameChange.emit(validIndex);
   }
 
-  private animateNextFrame() {
+  private animateNextFrame(): void {
     if (!this.isPlaying()) return;
 
     const frames = this.frames();
@@ -255,14 +257,14 @@ export class BarRaceChartComponent implements OnDestroy, AfterViewInit {
     }, this.animationDuration());
   }
 
-  private stopAnimation() {
+  private stopAnimation(): void {
     if (this.animationTimer) {
       clearTimeout(this.animationTimer);
       this.animationTimer = null;
     }
   }
 
-  onSliderChange(event: Event) {
+  onSliderChange(event: Event): void {
     const target = event.target as HTMLInputElement;
     const value = Number.parseInt(target.value, 10);
     this.pause();

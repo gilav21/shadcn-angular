@@ -114,7 +114,7 @@ class PdfBuilder {
 
 // ── Helper: parse CSS class values from generated CSS ─────────────────
 
-function extractCssValue(css: string, className: string): string | null {
+function _extractCssValue(css: string, className: string): string | null {
     const re = new RegExp(String.raw`\.${className}\{([^}]+)\}`);
     const m = re.exec(css);
     return m ? m[1] : null;
@@ -608,7 +608,7 @@ describe('renderPixelPerfectPaged', () => {
 
             const result = await renderPixelPerfectPaged(pdf, { zoom: 1 });
             const html = result.pages[0].html;
-            const spanCount = (html.match(/<span class="(fs|fc|ff)/g) || []).length;
+            const spanCount = (html.match(/<span class="(fs|fc|ff)/g) ?? []).length;
             expect(spanCount).toBe(0);
         });
     });
@@ -972,7 +972,7 @@ describe('renderPixelPerfectPaged', () => {
 
             const result = await renderPixelPerfectPaged(pdf, { zoom: 1 });
             const html = result.pages[0].html;
-            const redClassMatches = html.match(/fc0/g) || [];
+            const redClassMatches = html.match(/fc0/g) ?? [];
             expect(redClassMatches.length).toBeGreaterThanOrEqual(2);
         });
     });
@@ -986,7 +986,7 @@ describe('renderPixelPerfectPaged', () => {
 
             const result = await renderPixelPerfectPaged(pdf, { zoom: 1 });
             const html = result.pages[0].html;
-            const spanMatches = html.match(/<span class="[^"]*fs/g) || [];
+            const spanMatches = html.match(/<span class="[^"]*fs/g) ?? [];
             expect(spanMatches.length).toBeGreaterThanOrEqual(1);
         });
 
@@ -998,7 +998,7 @@ describe('renderPixelPerfectPaged', () => {
 
             const result = await renderPixelPerfectPaged(pdf, { zoom: 1 });
             const html = result.pages[0].html;
-            const colorSpans = html.match(/<span class="[^"]*fc/g) || [];
+            const colorSpans = html.match(/<span class="[^"]*fc/g) ?? [];
             expect(colorSpans.length).toBeGreaterThanOrEqual(2);
         });
 

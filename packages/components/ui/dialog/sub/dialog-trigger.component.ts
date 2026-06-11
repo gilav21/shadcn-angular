@@ -9,7 +9,14 @@ import { DIALOG } from '../dialog.component';
     selector: 'ui-dialog-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" [attr.data-slot]="'dialog-trigger'">
+    <span
+      tabindex="0"
+      role="button"
+      [attr.data-slot]="'dialog-trigger'"
+      (click)="onClick()"
+      (keydown.enter)="onClick()"
+      (keydown.space)="onClick()"
+    >
       <ng-content />
     </span>
   `,
@@ -18,7 +25,7 @@ import { DIALOG } from '../dialog.component';
 export class DialogTriggerComponent {
     private readonly dialog = inject(DIALOG, { optional: true });
 
-    onClick() {
+    onClick(): void {
         this.dialog?.toggle();
     }
 }

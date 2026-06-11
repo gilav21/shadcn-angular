@@ -37,12 +37,12 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
 
     classes = computed(() => cn('inline', this.class()));
 
-    blinkClass() {
+    blinkClass(): string {
         const s = this.state();
         return s === 'pausing' || s === 'waiting' ? 'cursor-blink' : '';
     }
 
-    ngOnInit() {
+    ngOnInit(): void {
         const strs = this.strings();
         if (strs.length === 0) return;
 
@@ -54,14 +54,14 @@ export class TypingAnimationComponent implements OnInit, OnDestroy {
         this.tick();
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.timeoutId) {
             clearTimeout(this.timeoutId);
             this.timeoutId = null;
         }
     }
 
-    private tick() {
+    private tick(): void {
         const strs = this.strings();
         const current = strs[this.stringIndex];
         const s = this.state();

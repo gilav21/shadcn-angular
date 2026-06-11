@@ -61,7 +61,7 @@ export class NativeSelectComponent implements ControlValueAccessor {
     this.class()
   ));
 
-  onSelectChange(event: Event) {
+  onSelectChange(event: Event): void {
     const value = (event.target as HTMLSelectElement).value;
     this.innerValue.set(value);
     this.onChange(value);

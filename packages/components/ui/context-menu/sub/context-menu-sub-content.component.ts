@@ -31,6 +31,7 @@ import { CONTEXT_MENU_SUB, type ContextMenuSubComponent } from './context-menu-s
         [style.top.px]="portalPosition().y"
         [style.z-index]="10000"
         role="menu"
+        tabindex="-1"
         [attr.data-slot]="'context-menu-sub-content'"
         (mouseenter)="sub.enter()"
         (mouseleave)="sub.leave()"
@@ -50,10 +51,10 @@ export class ContextMenuSubContentComponent implements OnDestroy {
     private readonly viewContainerRef = inject(ViewContainerRef);
     readonly el = inject(ElementRef);
 
-    @ViewChild('subContentTemplate', { static: true }) subContentTemplate!: TemplateRef<any>;
+    @ViewChild('subContentTemplate', { static: true }) subContentTemplate!: TemplateRef<unknown>;
     @ViewChild('subContentEl') subContentEl?: ElementRef<HTMLElement>;
 
-    private embeddedViewRef: EmbeddedViewRef<any> | null = null;
+    private embeddedViewRef: EmbeddedViewRef<unknown> | null = null;
     private portalHost: HTMLElement | null = null;
     portalPosition = signal({ x: 0, y: 0 });
 
@@ -73,7 +74,7 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         });
     }
 
-    private showPortal() {
+    private showPortal(): void {
         if (this.embeddedViewRef) return;
 
         this.portalHost = this.document.createElement('div');
@@ -87,7 +88,7 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         });
     }
 
-    private hidePortal() {
+    private hidePortal(): void {
         if (this.embeddedViewRef) {
             this.embeddedViewRef.destroy();
             this.embeddedViewRef = null;
@@ -98,7 +99,36 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         }
     }
 
-    private calculatePosition() {
+    private resolveX(triggerRect: DOMRect, contentRect: DOMRect, viewportWidth: number, rtl: boolean): number {
+        let x: number;
+        if (rtl) {
+            x = triggerRect.left - contentRect.width - 4;
+            if (x < 8) {
+                x = triggerRect.right + 4;
+            }
+        } else {
+            x = triggerRect.right + 4;
+            if (x + contentRect.width > viewportWidth - 8) {
+                x = triggerRect.left - contentRect.width - 4;
+            }
+        }
+        if (x < 8) x = 8;
+        if (x + contentRect.width > viewportWidth - 8) {
+            x = viewportWidth - contentRect.width - 8;
+        }
+        return x;
+    }
+
+    private resolveY(triggerRect: DOMRect, contentRect: DOMRect, viewportHeight: number): number {
+        let y = triggerRect.top;
+        if (y + contentRect.height > viewportHeight - 8) {
+            y = viewportHeight - contentRect.height - 8;
+        }
+        if (y < 8) y = 8;
+        return y;
+    }
+
+    private calculatePosition(): void {
         if (!this.portalHost) return;
 
         const triggerEl = this.sub.getTriggerElement();
@@ -113,35 +143,13 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         const viewportHeight = this.document.defaultView?.innerHeight ?? 0;
         const rtl = this.contextMenu?.isRtl() ?? false;
 
-        let x: number;
-        let y = triggerRect.top;
-
-        if (rtl) {
-            x = triggerRect.left - contentRect.width - 4;
-            if (x < 8) {
-                x = triggerRect.right + 4;
-            }
-        } else {
-            x = triggerRect.right + 4;
-            if (x + contentRect.width > viewportWidth - 8) {
-                x = triggerRect.left - contentRect.width - 4;
-            }
-        }
-
-        if (x < 8) x = 8;
-        if (x + contentRect.width > viewportWidth - 8) {
-            x = viewportWidth - contentRect.width - 8;
-        }
-
-        if (y + contentRect.height > viewportHeight - 8) {
-            y = viewportHeight - contentRect.height - 8;
-        }
-        if (y < 8) y = 8;
+        const x = this.resolveX(triggerRect, contentRect, viewportWidth, rtl);
+        const y = this.resolveY(triggerRect, contentRect, viewportHeight);
 
         this.portalPosition.set({ x, y });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.hidePortal();
     }
 
@@ -151,13 +159,13 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         this.class()
     ));
 
-    focusFirst() {
+    focusFirst(): void {
         if (!this.portalHost) return;
         const items = Array.from(this.portalHost.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         items[0]?.focus();
     }
 
-    onKeydown(event: KeyboardEvent) {
+    onKeydown(event: KeyboardEvent): void {
         event.stopPropagation();
         const rtl = this.contextMenu?.isRtl() ?? false;
 
@@ -186,7 +194,8 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         }
     }
 
-    focusNextItem(currentItem: HTMLElement) {
+    focusNextItem(currentItem: HTMLElement): void {
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- closest returns null (not undefined), || is needed for element fallback
         const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
@@ -194,7 +203,8 @@ export class ContextMenuSubContentComponent implements OnDestroy {
         items[nextIndex]?.focus();
     }
 
-    focusPrevItem(currentItem: HTMLElement) {
+    focusPrevItem(currentItem: HTMLElement): void {
+        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- closest returns null (not undefined), || is needed for element fallback
         const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);

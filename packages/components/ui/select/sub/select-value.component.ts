@@ -40,7 +40,8 @@ export class SelectValueComponent {
 
     hasValue = computed(() => this.select?.internalValue() !== undefined && this.select?.internalValue() !== null);
     shownValue = computed(() => {
-        if (this.displayValue() !== undefined) return this.displayValue()!;
+        const dv = this.displayValue();
+        if (dv !== undefined) return dv;
         const val = this.select?.internalValue();
         if (val === undefined || val === null) return '';
         if (typeof val === 'object') return JSON.stringify(val);

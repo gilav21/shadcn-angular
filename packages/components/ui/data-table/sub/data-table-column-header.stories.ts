@@ -38,8 +38,8 @@ export const Default: Story = {
     render: (args) => ({
         props: {
             ...args,
-            onSort: (direction: SortDirection) => {
-                console.log('Sort direction:', direction);
+            onSort: (_direction: SortDirection) => {
+                // sort handled externally
             },
         },
         template: `

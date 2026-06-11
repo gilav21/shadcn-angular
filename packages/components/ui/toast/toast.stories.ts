@@ -51,7 +51,7 @@ class ToastStoryWrapperComponent {
             description: 'There was a problem with your request.',
             action: {
                 label: 'Try again',
-                onClick: () => console.log('Undo'),
+                onClick: () => { /* undo handler */ },
             },
         });
     }

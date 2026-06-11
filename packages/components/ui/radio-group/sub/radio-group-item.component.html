@@ -10,6 +10,7 @@
       [attr.id]="computedId()"
       [attr.data-slot]="'radio-group-item'"
       (click)="select()"
+      (keydown.space)="select()"
     >
       @if (isSelected()) {
         <span class="flex items-center justify-center">
@@ -20,7 +21,6 @@
     <label
       [attr.for]="computedId()"
       class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-      (click)="select(); $event.preventDefault()"
     >
       {{ label() }}
     </label>
@@ -36,6 +36,7 @@
     [attr.aria-label]="ariaLabel()"
     [attr.data-slot]="'radio-group-item'"
     (click)="select()"
+    (keydown.space)="select()"
   >
     @if (isSelected()) {
       <span class="flex items-center justify-center">

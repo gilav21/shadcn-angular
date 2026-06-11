@@ -11,6 +11,9 @@ import { CollapsibleComponent } from '../collapsible.component';
     template: `
     <span
       (click)="onClick()"
+      (keydown.enter)="onClick()"
+      (keydown.space)="onClick()"
+      tabindex="0"
       [attr.data-state]="collapsible?.open() ? 'open' : 'closed'"
       [attr.data-slot]="'collapsible-trigger'"
     >
@@ -22,7 +25,7 @@ import { CollapsibleComponent } from '../collapsible.component';
 export class CollapsibleTriggerComponent {
     readonly collapsible = inject(CollapsibleComponent, { optional: true });
 
-    onClick() {
+    onClick(): void {
         this.collapsible?.toggle();
     }
 }

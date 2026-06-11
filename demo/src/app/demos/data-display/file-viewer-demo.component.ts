@@ -89,7 +89,7 @@ export class FileViewerDemoComponent {
   [page]="1"
   filename="report.pdf"
   (loaded)="onLoaded($event)"
-  (error)="onError($event)"
+  (loadError)="onError($event)"
   (pageChange)="onPage($event)"
   (zoomChange)="onZoom($event)" />`;
 

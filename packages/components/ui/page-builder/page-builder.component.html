@@ -173,8 +173,9 @@
 
                             <div class="space-y-3 p-3 rounded-lg border bg-muted/30">
                                 <div class="space-y-1.5">
-                                    <label class="text-xs font-medium">Row Height</label>
+                                    <label for="pb-row-height" class="text-xs font-medium">Row Height</label>
                                     <input
+                                        id="pb-row-height"
                                         type="text"
                                         [ngModel]="gridRowHeight()"
                                         (ngModelChange)="gridRowHeight.set($event)"
@@ -185,8 +186,9 @@
                                 </div>
 
                                  <div class="space-y-1.5">
-                                     <label class="text-xs font-medium">Gap Size</label>
+                                     <label for="pb-gap-size" class="text-xs font-medium">Gap Size</label>
                                      <input
+                                         id="pb-gap-size"
                                          type="text"
                                          [ngModel]="gridGap()"
                                          (ngModelChange)="gridGap.set($event)"
@@ -200,7 +202,7 @@
                                     <div class="flex items-center justify-between">
                                         <div class="flex items-center gap-2">
                                             <ui-icon name="box-select" class="h-3 w-3 text-muted-foreground"></ui-icon>
-                                            <label class="text-xs font-medium">Square Cells (Symmetry)</label>
+                                            <span class="text-xs font-medium">Square Cells (Symmetry)</span>
                                         </div>
                                         <button
                                             (click)="toggleSquareCells()"
@@ -217,7 +219,7 @@
 
                                     @if (!gridSquareCells()) {
                                         <div class="space-y-1.5 animate-in fade-in slide-in-from-top-1 duration-200">
-                                            <label class="text-xs font-medium text-muted-foreground">Column Configuration</label>
+                                            <span class="text-xs font-medium text-muted-foreground">Column Configuration</span>
                                             <div class="grid grid-cols-2 gap-2">
                                                 <div class="space-y-1">
                                                     <span class="text-[10px] text-muted-foreground">Count</span>
@@ -245,7 +247,7 @@
 
                                 <div class="space-y-1.5 pt-2 border-t border-border/50">
                                     <div class="flex items-center justify-between">
-                                        <label class="text-xs font-medium">Show Borders (Preview)</label>
+                                        <span class="text-xs font-medium">Show Borders (Preview)</span>
                                         <button
                                             (click)="gridShowBorders.set(!gridShowBorders())"
                                             class="relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center rounded-full border-2 border-transparent transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
@@ -261,9 +263,10 @@
                                 </div>
 
                                  <div class="space-y-1.5">
-                                     <label class="text-xs font-medium">Border Radius</label>
+                                     <label for="pb-border-radius" class="text-xs font-medium">Border Radius</label>
                                      <div class="flex items-center gap-2">
                                          <input
+                                             id="pb-border-radius"
                                              type="text"
                                              [ngModel]="gridBorderRadius()"
                                              (ngModelChange)="gridBorderRadius.set($event)"
@@ -280,9 +283,10 @@
                                  </div>
 
                                  <div class="space-y-1.5 pt-2 border-t border-border/50">
-                                    <label class="text-xs font-medium">Item Padding (Fix Snapping)</label>
+                                    <label for="pb-item-padding" class="text-xs font-medium">Item Padding (Fix Snapping)</label>
                                     <div class="flex items-center gap-2">
                                         <input
+                                            id="pb-item-padding"
                                             type="text"
                                             [ngModel]="gridItemPadding()"
                                             (ngModelChange)="gridItemPadding.set($event)"

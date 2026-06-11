@@ -154,13 +154,13 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    ngAfterViewInit() {
+    ngAfterViewInit(): void {
         this.categorySections.changes.subscribe(() => {
             this.onScroll();
         });
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.scrollRemoveListener?.();
     }
 
@@ -209,7 +209,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
             .filter(category => category.emojis.length > 0);
     });
 
-    categoryButtonClasses(categoryId: string) {
+    categoryButtonClasses(categoryId: string): string {
         const isActive = this.activeCategory() === categoryId;
         return cn(
             'size-8 flex items-center justify-center text-lg rounded-md transition-colors',
@@ -218,7 +218,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         );
     }
 
-    scrollToCategory(categoryId: string) {
+    scrollToCategory(categoryId: string): void {
         this.searchQuery.set('');
         this.activeCategory.set(categoryId);
         this.isScrollingProgrammatically = true;
@@ -244,17 +244,17 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         });
     }
 
-    private setupScrollListener(viewport: HTMLElement) {
+    private setupScrollListener(viewport: HTMLElement): void {
         this.scrollRemoveListener?.();
 
-        const listener = () => this.onScroll();
+        const listener = (): void => this.onScroll();
         viewport.addEventListener('scroll', listener, { passive: true });
-        this.scrollRemoveListener = () => viewport.removeEventListener('scroll', listener);
+        this.scrollRemoveListener = (): void => viewport.removeEventListener('scroll', listener);
 
         setTimeout(() => this.onScroll(), 0);
     }
 
-    private onScroll() {
+    private onScroll(): void {
         if (this.isScrollingProgrammatically || !this._scrollArea?.viewportRef?.nativeElement) return;
 
         const viewport = this._scrollArea.viewportRef.nativeElement;
@@ -279,7 +279,7 @@ export class EmojiPickerContentComponent implements AfterViewInit, OnDestroy {
         }
     }
 
-    selectEmoji(emoji: string) {
+    selectEmoji(emoji: string): void {
         this.picker?.selectEmoji(emoji);
     }
 }

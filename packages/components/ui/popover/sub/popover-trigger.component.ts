@@ -9,7 +9,14 @@ import { POPOVER } from '../popover.component';
     selector: 'ui-popover-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick($event)" [attr.data-slot]="'popover-trigger'">
+    <span
+      role="button"
+      tabindex="0"
+      (click)="onClick($event)"
+      (keydown.enter)="onKeydown($event)"
+      (keydown.space)="onKeydown($event)"
+      [attr.data-slot]="'popover-trigger'"
+    >
       <ng-content />
     </span>
   `,
@@ -18,7 +25,13 @@ import { POPOVER } from '../popover.component';
 export class PopoverTriggerComponent {
     private readonly popover = inject(POPOVER, { optional: true });
 
-    onClick(event: MouseEvent) {
+    onClick(event: MouseEvent): void {
+        event.stopPropagation();
+        this.popover?.toggle();
+    }
+
+    onKeydown(event: Event): void {
+        event.preventDefault();
         event.stopPropagation();
         this.popover?.toggle();
     }

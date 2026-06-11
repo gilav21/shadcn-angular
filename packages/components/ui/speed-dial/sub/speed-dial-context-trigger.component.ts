@@ -43,7 +43,7 @@ export class SpeedDialContextTriggerComponent {
         )
     );
 
-    onContextMenu(event: MouseEvent) {
+    onContextMenu(event: MouseEvent): void {
         event.preventDefault();
         event.stopPropagation();
 
@@ -53,7 +53,7 @@ export class SpeedDialContextTriggerComponent {
         this.speedDial?.showAt(x, y);
     }
 
-    onClick(event: MouseEvent) {
+    onClick(_event: MouseEvent): void {
         if (this.speedDial?.open()) {
             this.speedDial.hide();
         }

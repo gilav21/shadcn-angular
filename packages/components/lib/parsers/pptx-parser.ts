@@ -611,13 +611,9 @@ function resolveColorWithAlpha(
         const srgb = getChildNS(element, NS_A, 'srgbClr');
         const schemeClr = getChildNS(element, NS_A, 'schemeClr');
         const colorEl = srgb ?? schemeClr;
-        if (colorEl) {
-            const childAlpha = getChildNS(colorEl, NS_A, 'alpha');
-            if (childAlpha) {
-                const val = childAlpha.getAttribute('val');
-                if (val) alpha = Number.parseInt(val, 10) / 100000;
-            }
-        }
+        const childAlpha = colorEl ? getChildNS(colorEl, NS_A, 'alpha') : null;
+        const childVal = childAlpha?.getAttribute('val');
+        if (childVal) alpha = Number.parseInt(childVal, 10) / 100000;
     }
     return { color: base, alpha };
 }
@@ -971,32 +967,50 @@ function extractRunProperties(
     return { ...attrs, ...children };
 }
 
+function mergeTextRunBaseProps(
+    p: TextRunProperties,
+    s: TextRunProperties,
+): Pick<TextRunProperties, 'bold' | 'italic' | 'fontSize' | 'color' | 'underline' | 'strikethrough' | 'fontFamily' | 'baseline' | 'cap' | 'spc' | 'highlight' | 'isHyperlink'> {
+    return {
+        bold: p.bold ?? s.bold,
+        italic: p.italic ?? s.italic,
+        fontSize: p.fontSize ?? s.fontSize,
+        color: p.color ?? s.color,
+        underline: p.underline ?? s.underline,
+        strikethrough: p.strikethrough ?? s.strikethrough,
+        fontFamily: p.fontFamily ?? s.fontFamily,
+        baseline: p.baseline ?? s.baseline,
+        cap: p.cap ?? s.cap,
+        spc: p.spc ?? s.spc,
+        highlight: p.highlight ?? s.highlight,
+        isHyperlink: p.isHyperlink ?? s.isHyperlink,
+    };
+}
+
+function mergeTextRunFillProps(
+    p: TextRunProperties,
+    s: TextRunProperties,
+): Pick<TextRunProperties, 'gradientFill' | 'patternFill' | 'imageFill' | 'noFill' | 'textOutline' | 'underlineStyle' | 'effects' | 'symFont' | 'hoverTooltip'> {
+    return {
+        gradientFill: p.gradientFill ?? s.gradientFill,
+        patternFill: p.patternFill ?? s.patternFill,
+        imageFill: p.imageFill ?? s.imageFill,
+        noFill: p.noFill ?? s.noFill,
+        textOutline: p.textOutline ?? s.textOutline,
+        underlineStyle: p.underlineStyle ?? s.underlineStyle,
+        effects: p.effects ?? s.effects,
+        symFont: p.symFont ?? s.symFont,
+        hoverTooltip: p.hoverTooltip ?? s.hoverTooltip,
+    };
+}
+
 function mergeTextRunDefaults(
     primary: TextRunProperties,
     secondary: TextRunProperties,
 ): TextRunProperties {
     return {
-        bold: primary.bold ?? secondary.bold,
-        italic: primary.italic ?? secondary.italic,
-        fontSize: primary.fontSize ?? secondary.fontSize,
-        color: primary.color ?? secondary.color,
-        underline: primary.underline ?? secondary.underline,
-        strikethrough: primary.strikethrough ?? secondary.strikethrough,
-        fontFamily: primary.fontFamily ?? secondary.fontFamily,
-        baseline: primary.baseline ?? secondary.baseline,
-        cap: primary.cap ?? secondary.cap,
-        spc: primary.spc ?? secondary.spc,
-        highlight: primary.highlight ?? secondary.highlight,
-        isHyperlink: primary.isHyperlink ?? secondary.isHyperlink,
-        gradientFill: primary.gradientFill ?? secondary.gradientFill,
-        patternFill: primary.patternFill ?? secondary.patternFill,
-        imageFill: primary.imageFill ?? secondary.imageFill,
-        noFill: primary.noFill ?? secondary.noFill,
-        textOutline: primary.textOutline ?? secondary.textOutline,
-        underlineStyle: primary.underlineStyle ?? secondary.underlineStyle,
-        effects: primary.effects ?? secondary.effects,
-        symFont: primary.symFont ?? secondary.symFont,
-        hoverTooltip: primary.hoverTooltip ?? secondary.hoverTooltip,
+        ...mergeTextRunBaseProps(primary, secondary),
+        ...mergeTextRunFillProps(primary, secondary),
     };
 }
 
@@ -1423,8 +1437,8 @@ function parseShapeStyling(
 
     // If spPr has NO fill-related children at all, treat as implicit noFill
     // (shapes wanting a style-ref fill would have an explicit fill element)
-    const hasAnyFill = result.fillColor || result.gradientFill || result.imageFill
-        || result.patternFill || result.explicitNoFill;
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- truthy presence check, not a fallback
+    const hasAnyFill = result.fillColor || result.gradientFill || result.imageFill || result.patternFill || result.explicitNoFill;
     if (!hasAnyFill) {
         result.explicitNoFill = true;
     }
@@ -1534,6 +1548,7 @@ function mergeStyleRefIntoStyling(
     styleRef: { fillColor?: string; borderColor?: string; borderWidth?: number },
 ): void {
     // Don't override explicit noFill/noLine from spPr
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- truthy presence check, not a fallback
     const hasFill = styling.fillColor || styling.gradientFill || styling.imageFill || styling.patternFill;
     if (!hasFill && !styling.explicitNoFill && styleRef.fillColor) {
         styling.fillColor = styleRef.fillColor;
@@ -1626,7 +1641,7 @@ function parseShapeAsConnector(
         if (!lineWidth && styleRef.borderWidth) lineWidth = styleRef.borderWidth;
     }
 
-    if (!color) color = '#000';
+    color ??= '#000';
 
     return buildConnectorResult({ pos, color, lineWidth, flipH, flipV, rotation, connectorType, dashStyle: linePr.dashStyle, headEnd: linePr.headEnd, tailEnd: linePr.tailEnd });
 }
@@ -1654,6 +1669,7 @@ function parseShapeGeometry(
     const styleRef = parseStyleRef(sp, themeColors);
     mergeStyleRefIntoStyling(styling, styleRef);
 
+    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- truthy presence check, not a fallback
     const hasFill = styling.fillColor || styling.gradientFill || styling.imageFill || styling.patternFill;
     if (!hasFill && !styling.borderColor) return null;
 
@@ -2080,44 +2096,44 @@ interface GroupTransform {
     readonly groupHeight: number;
 }
 
-function parseGroupTransform(grpSp: Element): GroupTransform {
-    const grpSpPr = getChildNS(grpSp, NS_P, 'grpSpPr');
-    if (!grpSpPr) return { dx: 0, dy: 0, scaleX: 1, scaleY: 1, flipH: false, flipV: false, groupWidth: 0, groupHeight: 0 };
+const IDENTITY_GROUP_TRANSFORM: GroupTransform = { dx: 0, dy: 0, scaleX: 1, scaleY: 1, flipH: false, flipV: false, groupWidth: 0, groupHeight: 0 };
 
-    const xfrm = getChildNS(grpSpPr, NS_A, 'xfrm');
-    if (!xfrm) return { dx: 0, dy: 0, scaleX: 1, scaleY: 1, flipH: false, flipV: false, groupWidth: 0, groupHeight: 0 };
+function elEmu(el: Element | null | undefined, attr: string): number {
+    return emuToPixels(el?.getAttribute(attr) ?? null);
+}
 
-    const flipH = xfrm.getAttribute('flipH') === '1';
-    const flipV = xfrm.getAttribute('flipV') === '1';
-
+function computeGroupScaleAndOffset(xfrm: Element): { scaleX: number; scaleY: number; dx: number; dy: number; extCx: number; extCy: number } {
     const off = getChildNS(xfrm, NS_A, 'off');
     const ext = getChildNS(xfrm, NS_A, 'ext');
     const chOff = getChildNS(xfrm, NS_A, 'chOff');
     const chExt = getChildNS(xfrm, NS_A, 'chExt');
 
-    const offX = emuToPixels(off?.getAttribute('x') ?? null);
-    const offY = emuToPixels(off?.getAttribute('y') ?? null);
-    const chOffX = emuToPixels(chOff?.getAttribute('x') ?? null);
-    const chOffY = emuToPixels(chOff?.getAttribute('y') ?? null);
-
-    const extCx = emuToPixels(ext?.getAttribute('cx') ?? null);
-    const extCy = emuToPixels(ext?.getAttribute('cy') ?? null);
-    const chExtCx = emuToPixels(chExt?.getAttribute('cx') ?? null);
-    const chExtCy = emuToPixels(chExt?.getAttribute('cy') ?? null);
+    const offX = elEmu(off, 'x');
+    const offY = elEmu(off, 'y');
+    const chOffX = elEmu(chOff, 'x');
+    const chOffY = elEmu(chOff, 'y');
+    const extCx = elEmu(ext, 'cx');
+    const extCy = elEmu(ext, 'cy');
+    const chExtCx = elEmu(chExt, 'cx');
+    const chExtCy = elEmu(chExt, 'cy');
 
     const scaleX = chExtCx > 0 ? extCx / chExtCx : 1;
     const scaleY = chExtCy > 0 ? extCy / chExtCy : 1;
+    return { scaleX, scaleY, dx: offX - chOffX * scaleX, dy: offY - chOffY * scaleY, extCx, extCy };
+}
 
-    return {
-        dx: offX - chOffX * scaleX,
-        dy: offY - chOffY * scaleY,
-        scaleX,
-        scaleY,
-        flipH,
-        flipV,
-        groupWidth: extCx,
-        groupHeight: extCy,
-    };
+function parseGroupTransform(grpSp: Element): GroupTransform {
+    const grpSpPr = getChildNS(grpSp, NS_P, 'grpSpPr');
+    if (!grpSpPr) return IDENTITY_GROUP_TRANSFORM;
+
+    const xfrm = getChildNS(grpSpPr, NS_A, 'xfrm');
+    if (!xfrm) return IDENTITY_GROUP_TRANSFORM;
+
+    const flipH = xfrm.getAttribute('flipH') === '1';
+    const flipV = xfrm.getAttribute('flipV') === '1';
+    const { scaleX, scaleY, dx, dy, extCx, extCy } = computeGroupScaleAndOffset(xfrm);
+
+    return { dx, dy, scaleX, scaleY, flipH, flipV, groupWidth: extCx, groupHeight: extCy };
 }
 
 function applyGroupTransform(el: PptxSlideElement, t: GroupTransform): PptxSlideElement {

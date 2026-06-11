@@ -43,7 +43,7 @@ export class MorphingTextComponent implements OnInit, OnDestroy {
         return t.reduce((longest, text) => text.length > longest.length ? text : longest, '');
     });
 
-    ngOnInit() {
+    ngOnInit(): void {
         if (prefersReducedMotion() || this.texts().length <= 1) return;
 
         const halfInterval = this.interval() / 2;
@@ -55,7 +55,7 @@ export class MorphingTextComponent implements OnInit, OnDestroy {
         }, halfInterval);
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         if (this.intervalId) {
             clearInterval(this.intervalId);
             this.intervalId = null;

@@ -104,11 +104,6 @@ export async function samplePixels(
     return stridePixels(data, opts.quality);
 }
 
-interface DrawableSource {
-    width: number;
-    height: number;
-    close?: () => void;
-}
 
 async function sourceToBitmap(source: ImageSource): Promise<ImageBitmap | HTMLImageElement | HTMLCanvasElement> {
     if (typeof source === 'string') {
@@ -214,7 +209,7 @@ function axisRange(box: VBox, axis: 'r' | 'g' | 'b'): [number, number] {
 
 function medianCutPalette(pixels: RGBA[], count: number): RGBA[] {
     if (count <= 1) return [averageColor(pixels)];
-    let boxes: VBox[] = [makeVBox(pixels)];
+    const boxes: VBox[] = [makeVBox(pixels)];
     while (boxes.length < count) {
         boxes.sort((a, b) => vboxVolume(b) * b.pixels.length - vboxVolume(a) * a.pixels.length);
         const target = boxes.shift();

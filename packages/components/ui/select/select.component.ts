@@ -77,6 +77,7 @@ export const SELECT = new InjectionToken<SelectComponent<unknown>>('SELECT');
                                     [attr.data-state]="isSelected(option) ? 'checked' : 'unchecked'"
                                     [attr.data-index]="i"
                                     (click)="selectOption(option)"
+                                    (keydown.enter)="selectOption(option)"
                                     (mouseenter)="focusedIndex.set(i)"
                                 >
                                     <span class="flex-1">{{ getDisplayValue(option) }}</span>
@@ -158,13 +159,13 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
-    private readonly clickListener = (event: MouseEvent) => {
+    private readonly clickListener = (event: MouseEvent): void => {
         if (!this.el.nativeElement.contains(event.target)) {
             this.close();
         }
     };
 
-    private readonly keydownListener = (event: KeyboardEvent) => {
+    private readonly keydownListener = (event: KeyboardEvent): void => {
         if (event.key === 'Escape' && this.open()) {
             this.close();
         }
@@ -237,7 +238,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         }
     }
 
-    ngOnDestroy() {
+    ngOnDestroy(): void {
         this.document.removeEventListener('click', this.clickListener);
         this.document.removeEventListener('keydown', this.keydownListener);
     }
@@ -247,8 +248,9 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
     }
 
     getValue(option: T): unknown {
-        if (this.valueAttribute()) {
-            return (option as Record<string, unknown>)[this.valueAttribute()!];
+        const attr = this.valueAttribute();
+        if (attr) {
+            return (option as Record<string, unknown>)[attr];
         }
         return option;
     }
@@ -278,7 +280,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         );
     }
 
-    selectOption(option: T) {
+    selectOption(option: T): void {
         if (this.isOptionDisabled(option)) return;
         const val = this.getValue(option) as T;
         this.internalValue.set(val);
@@ -287,29 +289,29 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         this.close();
     }
 
-    toggle() {
+    toggle(): void {
         if (!this.isDisabled()) {
             this.open.update(v => !v);
         }
     }
 
-    close() {
+    close(): void {
         this.open.set(false);
         this._onTouched();
     }
 
-    select(val: T) {
+    select(val: T): void {
         this.internalValue.set(val);
         this.valueChange.emit(val);
         this._onChange(val);
         this.close();
     }
 
-    registerItem(value: string, element: HTMLElement) {
+    registerItem(value: string, element: HTMLElement): void {
         this.itemElements.set(value, element);
     }
 
-    unregisterItem(value: string) {
+    unregisterItem(value: string): void {
         this.itemElements.delete(value);
     }
 
@@ -327,14 +329,14 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     getTriggerElement(): HTMLElement | null {
         return this.el.nativeElement.querySelector('[data-slot="select-trigger"]')
-            || this.el.nativeElement.querySelector('button[role="combobox"]');
+            ?? this.el.nativeElement.querySelector('button[role="combobox"]');
     }
 
     isRtl(): boolean {
         return isRtl(this.el.nativeElement);
     }
 
-    onTriggerKeyDown(event: KeyboardEvent) {
+    onTriggerKeyDown(event: KeyboardEvent): void {
         if (this.isDisabled()) return;
 
         switch (event.key) {
@@ -362,7 +364,7 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
         return startIndex; // No enabled option found, stay at current
     }
 
-    onContentKeydown(event: KeyboardEvent) {
+    onContentKeydown(event: KeyboardEvent): void {
         const opts = this.options();
         if (!opts.length) return;
 

@@ -14,7 +14,7 @@ import { provideUiLocale } from '../../lib/i18n';
 import type { SortableLocale } from './sortable-locales';
 import { SortableGhostTemplateDirective } from './sub/sortable-ghost.directive';
 import { SortablePlaceholderTemplateDirective } from './sub/sortable-placeholder.directive';
-import { peersInGroup, groupSize, clearRegistry, type SortableRegistryEntry } from '../../lib/sortable-registry';
+import { peersInGroup, groupSize, clearRegistry } from '../../lib/sortable-registry';
 import { NgTemplateOutlet } from '@angular/common';
 
 interface TestRow {

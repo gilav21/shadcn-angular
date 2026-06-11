@@ -45,6 +45,7 @@ export interface OpsTicket {
 }
 
 export interface VirtualScrollItem {
+  [key: string]: unknown;
   id: number;
   title: string;
   description: string;

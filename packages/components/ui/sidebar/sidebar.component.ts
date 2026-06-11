@@ -20,7 +20,12 @@ import { SidebarService } from './sidebar.service';
     @if (service.isMobile() && service.isOpen()) {
       <div
         class="fixed inset-0 z-40 bg-black/50"
+        role="button"
+        tabindex="0"
+        aria-label="Close sidebar"
         (click)="service.close()"
+        (keydown.enter)="service.close()"
+        (keydown.space)="onOverlayKeydown($event)"
       ></div>
     }
 
@@ -64,13 +69,18 @@ export class SidebarComponent implements AfterViewInit {
     });
   }
 
-  ngAfterViewInit() {
+  ngAfterViewInit(): void {
     if (this.service.isMobile() && this.service.isOpen()) {
       this.focusFirstElement();
     }
   }
 
-  private focusFirstElement() {
+  onOverlayKeydown(event: Event): void {
+    event.preventDefault();
+    this.service.close();
+  }
+
+  private focusFirstElement(): void {
     const content = this.el.nativeElement.querySelector('[data-slot="sidebar"]');
     if (content) {
       this.contentEl = content;
@@ -85,7 +95,7 @@ export class SidebarComponent implements AfterViewInit {
     }
   }
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (!this.service.isMobile() || !this.service.isOpen()) return;
 
     if (event.key === 'Escape') {
@@ -102,7 +112,7 @@ export class SidebarComponent implements AfterViewInit {
 
       const elements = Array.from(focusableElements) as HTMLElement[];
       const firstElement = elements[0];
-      const lastElement = elements.at(-1)!;
+      const lastElement = elements[elements.length - 1];
 
       if (event.shiftKey) {
         if (document.activeElement === firstElement) {

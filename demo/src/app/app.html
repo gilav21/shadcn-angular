@@ -109,7 +109,7 @@
       @for (category of categories(); track category) {
       <ui-command-group [heading]="category">
         @for (link of getLinksByCategory(category); track link.id) {
-        <ui-command-item [value]="link.id" (select)="navTo(link.id)">
+        <ui-command-item [value]="link.id" (selectItem)="navTo(link.id)">
           <span class="mr-2">{{ link.icon }}</span>
           {{ link.name }}
         </ui-command-item>

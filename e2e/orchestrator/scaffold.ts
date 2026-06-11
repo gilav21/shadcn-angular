@@ -27,7 +27,6 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import {
     isComponentName,
-    registry,
     suggestComponentName,
     type ComponentName,
 } from '../../packages/cli/src/registry/index.js';

@@ -13,7 +13,7 @@
       <ui-virtual-scroll [items]="virtualScrollItems()" [minItemHeight]="100" [buffer]="5"
         [loading]="virtualScrollLoading()" [hasMore]="virtualScrollHasMoreBottom()"
         (scrollEnd)="loadMoreBottom()" (scrollState)="onVirtualScrollStateChange($event)" #virtualScrollRef>
-        <ng-template virtualItem let-item let-index="index">
+        <ng-template uiVirtualItem let-item let-index="index">
           <div class="border-b border-border p-6 transition-colors hover:bg-accent/30"
             [style.background]="$any(item).color + '05'">
             <div class="flex items-start gap-4 mb-4">

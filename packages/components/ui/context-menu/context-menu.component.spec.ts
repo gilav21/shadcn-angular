@@ -227,7 +227,7 @@ describe('ContextMenu RTL Support', () => {
         // The shortcut should have rtl:mr-auto class which pushes it to the left in RTL
         const shortcut = document.querySelector('[data-slot="context-menu-shortcut"]');
         expect(shortcut).toBeTruthy();
-        const shortcutClass = shortcut?.className || '';
+        const shortcutClass = shortcut?.className ?? '';
         // Verify the RTL-specific class is present
         expect(shortcutClass).toContain('rtl:mr-auto');
         expect(shortcutClass).toContain('ltr:ml-auto');

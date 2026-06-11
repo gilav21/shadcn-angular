@@ -41,11 +41,11 @@ export class AvatarComponent {
         );
     });
 
-    onLoad() {
+    onLoad(): void {
         this.status.set('loaded');
     }
 
-    onError() {
+    onError(): void {
         this.status.set('error');
     }
 

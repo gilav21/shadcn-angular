@@ -27,6 +27,7 @@ import { SkeletonComponent } from '../../skeleton';
         [attr.aria-expanded]="select?.open()"
         [attr.data-state]="select?.open() ? 'open' : 'closed'"
         [attr.aria-label]="ariaLabel()"
+        aria-controls="select-content"
         [attr.data-slot]="'select-trigger'"
         (click)="onClick($event)"
         (keydown)="onKeyDown($event)"
@@ -70,12 +71,12 @@ export class SelectTriggerComponent {
         )
     );
 
-    onClick(event: MouseEvent) {
+    onClick(event: MouseEvent): void {
         event.stopPropagation();
         this.select?.toggle();
     }
 
-    onKeyDown(event: KeyboardEvent) {
+    onKeyDown(event: KeyboardEvent): void {
         if (this.select?.isDisabled()) return;
 
         switch (event.key) {

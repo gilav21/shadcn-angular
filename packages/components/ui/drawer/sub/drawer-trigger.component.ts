@@ -9,7 +9,14 @@ import { DRAWER } from '../drawer.component';
     selector: 'ui-drawer-trigger',
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
-    <span (click)="onClick()" [attr.data-slot]="'drawer-trigger'">
+    <span
+      (click)="onClick()"
+      (keydown.enter)="onClick()"
+      (keydown.space)="onClick()"
+      [attr.data-slot]="'drawer-trigger'"
+      tabindex="0"
+      role="button"
+    >
       <ng-content />
     </span>
   `,
@@ -18,7 +25,7 @@ import { DRAWER } from '../drawer.component';
 export class DrawerTriggerComponent {
     private readonly drawer = inject(DRAWER, { optional: true });
 
-    onClick() {
+    onClick(): void {
         this.drawer?.toggle();
     }
 }

@@ -23,8 +23,8 @@ export const Default: Story = {
                 { role: 'assistant', content: 'Of course! I\'d be happy to help. What\'s your question?', avatarFallback: 'A' },
                 { role: 'system', content: 'Session started' },
             ],
-            onSend: (message: string) => {
-                console.log('Message sent:', message);
+            onSend: (_message: string) => {
+                // message handled by consumer
             },
         },
         template: `

@@ -11,11 +11,14 @@ import { HoverCardComponent } from '../hover-card.component';
     changeDetection: ChangeDetectionStrategy.OnPush,
     template: `
     <span
+      tabindex="0"
       (mouseenter)="onMouseEnter()"
       (mouseleave)="onMouseLeave()"
       (focus)="onMouseEnter()"
       (blur)="onMouseLeave()"
       (click)="onClick($event)"
+      (keydown.enter)="onClick($event)"
+      (keydown.space)="onClick($event)"
       [attr.data-slot]="'hover-card-trigger'"
     >
       <ng-content />
@@ -26,17 +29,17 @@ import { HoverCardComponent } from '../hover-card.component';
 export class HoverCardTriggerComponent {
     private readonly hoverCard = inject(HoverCardComponent, { optional: true });
 
-    onMouseEnter() {
+    onMouseEnter(): void {
         if (isTouchDevice()) return;
         this.hoverCard?.show();
     }
 
-    onMouseLeave() {
+    onMouseLeave(): void {
         if (isTouchDevice()) return;
         this.hoverCard?.hide();
     }
 
-    onClick(event: MouseEvent) {
+    onClick(event: Event): void {
         if (!isTouchDevice()) return;
         event.preventDefault();
         this.hoverCard?.toggle();

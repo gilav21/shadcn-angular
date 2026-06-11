@@ -20,6 +20,7 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
         [attr.data-slot]="'menubar-content'"
         [attr.data-menubar-content]="menu.id"
         role="menu"
+        tabindex="-1"
         (keydown)="onKeydown($event)"
       >
         <ng-content />
@@ -41,7 +42,7 @@ export class MenubarContentComponent {
     this.class()
   ));
 
-  onKeydown(event: KeyboardEvent) {
+  onKeydown(event: KeyboardEvent): void {
     if (event.key === 'ArrowDown') {
       event.preventDefault();
       this.focusNextItem(event.target as HTMLElement);
@@ -53,17 +54,21 @@ export class MenubarContentComponent {
       this.menu.close();
       const trigger = this.service.menus.get(this.menu.id)?.trigger;
       trigger?.focus();
-    } else if (event.key === 'ArrowLeft') {
+    } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
-      const trigger = this.service.menus.get(this.menu.id)?.trigger;
+      this.handleArrowNav(event.key as 'ArrowLeft' | 'ArrowRight');
+    }
+  }
+
+  private handleArrowNav(key: 'ArrowLeft' | 'ArrowRight'): void {
+    const trigger = this.service.menus.get(this.menu.id)?.trigger;
+    if (key === 'ArrowLeft') {
       if (this.service.isRtl()) {
         trigger?.focusNextTrigger();
       } else {
         trigger?.focusPrevTrigger();
       }
-    } else if (event.key === 'ArrowRight') {
-      event.preventDefault();
-      const trigger = this.service.menus.get(this.menu.id)?.trigger;
+    } else {
       if (this.service.isRtl()) {
         trigger?.focusPrevTrigger();
       } else {
@@ -72,14 +77,14 @@ export class MenubarContentComponent {
     }
   }
 
-  focusNextItem(currentItem: HTMLElement) {
+  focusNextItem(currentItem: HTMLElement): void {
     const items = this.getFocusableItems();
     const index = items.indexOf(currentItem);
     const nextIndex = (index + 1) % items.length;
     items[nextIndex]?.focus();
   }
 
-  focusPrevItem(currentItem: HTMLElement) {
+  focusPrevItem(currentItem: HTMLElement): void {
     const items = this.getFocusableItems();
     const index = items.indexOf(currentItem);
     const prevIndex = (index - 1 + items.length) % items.length;

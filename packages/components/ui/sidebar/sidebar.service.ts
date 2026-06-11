@@ -9,7 +9,7 @@ export class SidebarService {
   isCollapsed = signal(false);
   isMobile = signal(false);
 
-  toggle() {
+  toggle(): void {
     if (this.isMobile()) {
       this.isOpen.update(v => !v);
     } else {
@@ -17,15 +17,15 @@ export class SidebarService {
     }
   }
 
-  open() {
+  open(): void {
     this.isOpen.set(true);
   }
 
-  close() {
+  close(): void {
     this.isOpen.set(false);
   }
 
-  setMobile(isMobile: boolean) {
+  setMobile(isMobile: boolean): void {
     this.isMobile.set(isMobile);
     if (isMobile) {
       this.isOpen.set(false);

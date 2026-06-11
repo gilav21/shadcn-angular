@@ -41,7 +41,7 @@ export class CommandService {
     }, { allowSignalWrites: true });
   }
 
-  register(id: string, value: string, groupId?: string, onSelect: () => void = () => { }) {
+  register(id: string, value: string, groupId?: string, onSelect: () => void = () => { }): void {
     this.items.update(m => {
       const newMap = new Map(m);
       newMap.set(id, { value, groupId, onSelect });
@@ -49,7 +49,7 @@ export class CommandService {
     });
   }
 
-  unregister(id: string) {
+  unregister(id: string): void {
     this.items.update(m => {
       const newMap = new Map(m);
       newMap.delete(id);
@@ -89,7 +89,7 @@ export class CommandService {
     return groups;
   });
 
-  moveNext() {
+  moveNext(): void {
     const items = this.filteredItems();
     if (!items.length) return;
     const current = this.activeItemId();
@@ -98,7 +98,7 @@ export class CommandService {
     this.activeItemId.set(items[nextIdx]);
   }
 
-  movePrev() {
+  movePrev(): void {
     const items = this.filteredItems();
     if (!items.length) return;
     const current = this.activeItemId();
@@ -107,7 +107,7 @@ export class CommandService {
     this.activeItemId.set(items[prevIdx]);
   }
 
-  selectActive() {
+  selectActive(): void {
     const activeId = this.activeItemId();
     if (activeId) {
 
@@ -119,7 +119,7 @@ export class CommandService {
   }
 }
 
-export function generateId() {
+export function generateId(): string {
   return Math.random().toString(36).substring(2, 9);
 }
 
@@ -159,15 +159,15 @@ export class CommandComponent {
     this.class()
   ));
 
-  moveNext() {
+  moveNext(): void {
     this.service.moveNext();
   }
 
-  movePrev() {
+  movePrev(): void {
     this.service.movePrev();
   }
 
-  selectActive() {
+  selectActive(): void {
     this.service.selectActive();
   }
 }

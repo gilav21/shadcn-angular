@@ -40,20 +40,24 @@ export class PropertyEditorComponent {
     componentMeta = input<ComponentMeta | undefined>(undefined);
     isLoading = input<boolean>(false);
 
-    itemChange = output<{ id: string, prop: string, value: any }>();
+    itemChange = output<{ id: string, prop: string, value: unknown }>();
     delete = output<void>();
 
-    getItemInput(name: string): any {
+    getItemInput(name: string): unknown {
         return this.item()?.inputs?.[name];
     }
 
-    onPropertyChange(prop: string, value: any) {
+    getItemInputAsBoolean(name: string): boolean {
+        return !!this.item()?.inputs?.[name];
+    }
+
+    onPropertyChange(prop: string, value: unknown): void {
         const item = this.item();
         if (!item) return;
         this.itemChange.emit({ id: item.id, prop, value });
     }
 
-    onInputChange(name: string, value: any) {
+    onInputChange(name: string, value: unknown): void {
         const item = this.item();
         if (!item) return;
         this.itemChange.emit({ id: item.id, prop: name, value });
@@ -65,14 +69,14 @@ export class PropertyEditorComponent {
     }
 
     getBinding(name: string): string {
-        return this.item()?.bindings?.[name] || '';
+        return this.item()?.bindings?.[name] ?? '';
     }
 
-    toggleBinding(name: string) {
+    toggleBinding(name: string): void {
         const item = this.item();
         if (!item) return;
 
-        const currentBindings = item.bindings || {};
+        const currentBindings = item.bindings ?? {};
         const newBindings = { ...currentBindings };
 
         if (this.hasBinding(name)) {
@@ -84,11 +88,11 @@ export class PropertyEditorComponent {
         this.itemChange.emit({ id: item.id, prop: 'bindings', value: newBindings });
     }
 
-    onBindingChange(name: string, value: string) {
+    onBindingChange(name: string, value: string): void {
         const item = this.item();
         if (!item) return;
 
-        const currentBindings = item.bindings || {};
+        const currentBindings = item.bindings ?? {};
         const newBindings = { ...currentBindings, [name]: value };
 
         this.itemChange.emit({ id: item.id, prop: 'bindings', value: newBindings });
