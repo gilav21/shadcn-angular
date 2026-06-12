@@ -9,6 +9,26 @@ export function cn(...inputs: ClassValue[]): string {
 }
 
 /**
+ * Coerce an arbitrary value to a display string without ever emitting the
+ * `[object Object]` default object stringification: primitives use their own
+ * `toString`, objects are JSON-serialized. Avoids `String(unknown)` so it
+ * satisfies SonarQube S6551 (no base-to-string) without a type assertion.
+ */
+export function stringifyValue(value: unknown): string {
+    switch (typeof value) {
+        case 'string':
+            return value;
+        case 'number':
+        case 'boolean':
+        case 'bigint':
+        case 'symbol':
+            return value.toString();
+        default:
+            return value == null ? '' : JSON.stringify(value);
+    }
+}
+
+/**
  * Check if the current direction is RTL by reading the computed style of the element.
  * This allows components to detect RTL without needing an explicit input.
  */

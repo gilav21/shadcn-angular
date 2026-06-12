@@ -21,8 +21,6 @@ import { onPointerDrag } from '../../lib/touch';
 export class ScrollAreaComponent implements AfterViewInit, OnDestroy {
   class = input('');
   orientation = input<'vertical' | 'horizontal' | 'both'>('vertical');
-  /** Accessible name for the keyboard-focusable scroll region. */
-  ariaLabel = input('Scrollable content');
 
   @ViewChild('viewport') viewportRef?: ElementRef<HTMLElement>;
   @ViewChild('scrollRoot') scrollRootRef?: ElementRef<HTMLElement>;

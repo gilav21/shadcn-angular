@@ -18,7 +18,7 @@ import {
 } from "@angular/core";
 import { CommonModule, DOCUMENT } from "@angular/common";
 import { FormsModule } from "@angular/forms";
-import { cn, isRtl } from "../../lib/utils";
+import { cn, isRtl, stringifyValue } from "../../lib/utils";
 import { createLocaleBindings, interpolate, provideComponentLocale, type LocaleInput } from "../../lib/i18n";
 import { DATA_TABLE_LOCALES, type DataTableLocale } from "./data-table.locales";
 import { generateXlsx } from "../../lib/parsers/xlsx";
@@ -89,16 +89,11 @@ const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
 /** Per-instance counter for unique element ids (e.g. inline edit-error links). */
 let dataTableUid = 0;
 
-function hasCustomToString(value: object): value is { toString(): string } {
-  return typeof value.toString === 'function' && value.toString !== Object.prototype.toString;
-}
-
 const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   const rec = row as Record<string, unknown>;
   const id = rec['id'];
   if (id == null) return JSON.stringify(row);
-  if (typeof id === 'object') return JSON.stringify(id);
-  return String(id);
+  return stringifyValue(id);
 };
 
 @Component({
@@ -2463,10 +2458,13 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const value = this.getCellValue(row, column.accessorKey, column);
     if (value === null || value === undefined) return "";
     if (typeof value === "object") {
-      if (hasCustomToString(value)) return value.toString();
+      const fn = (value as { toString?: unknown }).toString;
+      if (typeof fn === "function" && fn !== Object.prototype.toString) {
+        return (fn as () => string).call(value);
+      }
       return JSON.stringify(value);
     }
-    return String(value);
+    return stringifyValue(value);
   }
 
   getExportData(
@@ -3716,7 +3714,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   protected groupRowValueLabel(group: GroupRow): string {
     const value = group.groupValue;
     if (value === null || value === undefined) return '';
-    return typeof value === 'object' ? JSON.stringify(value) : String(value);
+    return stringifyValue(value);
   }
 
   protected groupAggregateLabel(accessorKey: string): string {

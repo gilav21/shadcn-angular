@@ -60,9 +60,7 @@ interactive role (it contains its own nested controls):
 | --- | --- |
 | `bento-grid` item | A selectable, drag-and-resizable dashboard card. It has `(click)` + `(keydown.enter/space)` selection handlers, but **contains** its own option button and resize handles, so it can't be a native `<button>`. The `tabindex="0"` is the intended keyboard entry point. |
 | `data-table` scroll/keyboard-nav container | The focusable viewport that drives arrow-key cell navigation (`(keydown)="onTableKeydown"`). It hosts the entire interactive table, so it can't be a single native control. |
-
-(`scroll-area`'s viewport was fixed by adding `role="region"` + an
-`aria-label` input — a labelled scroll region legitimately takes `tabindex`.)
+| `scroll-area` viewport | The `tabindex="0"` makes the scroll viewport keyboard-focusable. This is **required** by axe-core's `scrollable-region-focusable` / WCAG 2.1.1 (keyboard) — removing it fails the project's mandatory axe checks. Sonar's S6845 directly contradicts that rule here, and a `role` can't be added without tripping S6819, so the `tabindex` stays. |
 
 ## `Web:S6819` dialog + `MouseEventWithoutKeyboardEquivalentCheck` — drawer
 
