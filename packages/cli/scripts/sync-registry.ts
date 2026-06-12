@@ -52,8 +52,9 @@ function parseRegistry(): RegistryEntry[] {
         const filesRaw = match[3];
         const files = [...filesRaw.matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1]);
 
-        const blockEnd = source.indexOf('},', match.index + match[0].length);
-        const fullBlock = source.slice(match.index, blockEnd === -1 ? undefined : blockEnd);
+        const matchStart = match.index ?? 0;
+        const blockEnd = source.indexOf('},', matchStart + match[0].length);
+        const fullBlock = blockEnd === -1 ? source.slice(matchStart) : source.slice(matchStart, blockEnd);
         const libFilesMatch = /libFiles:\s*\[([\s\S]*?)\]/.exec(fullBlock);
         const libFiles = libFilesMatch
             ? [...libFilesMatch[1].matchAll(/['"]([^'"]+)['"]/g)].map(m => m[1])

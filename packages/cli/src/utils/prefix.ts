@@ -101,10 +101,11 @@ const NEUTRAL_PREFIX = '@@UI@@-';
  */
 export function neutralizePrefix(content: string, prefix: string): string {
     const segment = new RegExp(`\\b${prefix}-([a-z][a-z0-9-]*)`, 'g');
+    const neutralizeSegment = (value: string): string => value.replaceAll(segment, `${NEUTRAL_PREFIX}$1`);
     const inSelectors = content.replaceAll(
         /(selector\s*:\s*)(['"])([^'"]*)\2/g,
         (_match, key: string, quote: string, value: string) =>
-            `${key}${quote}${value.replaceAll(segment, `${NEUTRAL_PREFIX}$1`)}${quote}`,
+            `${key}${quote}${neutralizeSegment(value)}${quote}`,
     );
     const tag = new RegExp(`(<\\/?)${prefix}-([a-z][a-z0-9-]*)(?=[\\s/>])`, 'g');
     return inSelectors.replaceAll(tag, `$1${NEUTRAL_PREFIX}$2`);

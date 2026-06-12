@@ -1,3 +1,4 @@
+/* eslint-disable sonarjs/deprecation -- provideNoopAnimations is deprecated in Angular 20.2 but remains the only way to set up noop animations in TestBed; no stable replacement yet. */
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';

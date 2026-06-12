@@ -319,7 +319,13 @@ export class TreeComponent {
             case 'Enter':
             case ' ': if (currentFocus) this.toggleSelected(currentFocus); break;
             case 'Home': if (itemValues.length > 0) this.focusedKey.set(itemValues[0]); break;
-            case 'End': { const last = itemValues.at(-1); if (last !== undefined) this.focusedKey.set(last); break; }
+            case 'End': {
+                const last = itemValues.at(-1);
+                if (last !== undefined) {
+                    this.focusedKey.set(last);
+                }
+                break;
+            }
             case '*': this.expandAllCollapsed(items); break;
             default:
                 if (key === expandKey) this.handleExpand(items, itemValues, currentFocus, currentIndex);

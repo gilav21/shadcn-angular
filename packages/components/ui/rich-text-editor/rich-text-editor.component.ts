@@ -1856,6 +1856,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private findAncestorByTag(startNode: Node, tagName: string): HTMLElement | null {
         let node: Node | null = startNode;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === tagName) {
                 return node as HTMLElement;
@@ -2314,6 +2315,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
 
     private moveCaretPastFormattingNode(selection: Selection, range: Range): void {
         let formattedNode = range.startContainer;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (formattedNode && formattedNode !== this.editorDiv?.nativeElement) {
             if (formattedNode.nodeType === Node.ELEMENT_NODE) {
                 const tagName = (formattedNode as Element).tagName.toLowerCase();
@@ -4552,6 +4554,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const selection = this.document.getSelection();
         if (!selection || selection.rangeCount === 0) return null;
         let node: Node | null = selection.getRangeAt(0).startContainer;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE && (node as Element).tagName === 'LI') {
                 return node as HTMLElement;
@@ -4604,6 +4607,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
     private getListDepth(li: HTMLElement): number {
         let depth = 0;
         let parent: Node | null = li;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (parent && parent !== this.editorDiv?.nativeElement) {
             if (parent.nodeType === Node.ELEMENT_NODE &&
                 ((parent as Element).tagName === 'UL' || (parent as Element).tagName === 'OL')) {
@@ -4641,6 +4645,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!selection || selection.rangeCount === 0) return;
 
         let node: Node | null = selection.getRangeAt(0).startContainer;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (node && node !== this.editorDiv?.nativeElement) {
             if (node.nodeType === Node.ELEMENT_NODE) {
                 const el = node as HTMLElement;
@@ -5121,6 +5126,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
             return;
         }
         let el: Node | null = selection.getRangeAt(0).startContainer;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- intentional DOM sentinel: Node vs HTMLElement share object identity at runtime
         while (el && el !== this.editorDiv?.nativeElement) {
             if (el.nodeType === Node.ELEMENT_NODE && (el as Element).closest('ul[data-task-list]')) {
                 formats.add('taskList');

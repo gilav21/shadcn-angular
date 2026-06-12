@@ -51,6 +51,7 @@ export class SliderComponent {
 
     constructor() {
         const defaultVal = this.defaultValue();
+        // eslint-disable-next-line sonarjs/different-types-comparison -- defaultValue() read in constructor; guard is defensive against an unset input
         if (defaultVal !== undefined) {
             this.value.set(defaultVal);
         }

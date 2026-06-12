@@ -24,7 +24,7 @@ export function isValidRadiusValue(value: string): boolean {
  * Throws if the value is unrecognized or unsafe.
  */
 export function resolveRadiusValue(input: string): string {
-    if (RADIUS_NAMED[input] !== undefined) {
+    if (Object.hasOwn(RADIUS_NAMED, input)) {
         return RADIUS_NAMED[input];
     }
     if (isValidRadiusValue(input)) {

@@ -30,6 +30,7 @@ export async function readManifest(cwd: string): Promise<Manifest> {
     if (!await fs.pathExists(p)) return emptyManifest();
     try {
         const data = await fs.readJson(p) as Partial<Manifest>;
+        // eslint-disable-next-line sonarjs/different-types-comparison -- data is runtime JSON; files may be null even though Partial<Manifest> excludes null
         if (!data || typeof data.files !== 'object' || data.files === null) return emptyManifest();
         return { version: data.version ?? MANIFEST_VERSION, files: data.files as Record<string, ManifestEntry> };
     } catch {

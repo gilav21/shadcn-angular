@@ -240,7 +240,7 @@ function computeImpact(base: string, changedFiles: readonly string[]): ImpactRes
     if (impacted.size === 0) {
         return { kind: 'none', specs: [] };
     }
-    return { kind: 'subset', specs: [...impacted].sort() };
+    return { kind: 'subset', specs: [...impacted].sort((a, b) => a.localeCompare(b)) };
 }
 
 /**

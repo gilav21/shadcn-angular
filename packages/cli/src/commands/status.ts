@@ -179,7 +179,8 @@ function tokenLine(label: string, value: string | null, extra?: string | null): 
 
 function listLine(label: string, items: string[], colorFn: (s: string) => string): void {
     if (items.length === 0) return;
-    console.log(`  ${colorFn(label)} ${chalk.gray(`(${items.length})`)}: ${items.join(', ')}`);
+    const count = chalk.gray(`(${items.length})`);
+    console.log(`  ${colorFn(label)} ${count}: ${items.join(', ')}`);
 }
 
 function printTokens(tokens: StatusReport['tokens']): void {

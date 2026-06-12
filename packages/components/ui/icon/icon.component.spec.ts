@@ -2,6 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { describe, it, expect, beforeEach } from 'vitest';
+// eslint-disable-next-line sonarjs/deprecation -- spec intentionally tests the deprecated ICONS alias
 import { IconComponent, DEFAULT_ICONS, ICONS, SOLID_SUPPORTED_ICONS } from './icon.component';
 import { provideIcons } from './icon.token';
 
@@ -74,6 +75,7 @@ describe('IconComponent', () => {
     });
 
     it('should export ICONS as backward-compatible alias', () => {
+        // eslint-disable-next-line sonarjs/deprecation -- verifying deprecated export still works
         expect(ICONS).toBe(DEFAULT_ICONS);
     });
 });

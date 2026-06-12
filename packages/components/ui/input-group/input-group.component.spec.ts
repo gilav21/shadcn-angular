@@ -71,5 +71,6 @@ describe('InputGroupComponent', () => {
         input.nativeElement.dispatchEvent(new Event('input'));
 
         fixture.detectChanges();
+        expect(fixture.componentInstance.control.value).toBe('100');
     });
 });

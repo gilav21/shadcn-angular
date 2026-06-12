@@ -228,32 +228,36 @@ export class CodeBlockComponent {
         typescript: [
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
+            // eslint-disable-next-line sonarjs/regex-complexity -- keyword list for a syntax highlighter is intrinsically long
             { type: 'keyword', regex: /\b(const|let|var|function|class|import|from|return|if|else|for|while|export|interface|type|public|private|protected|implements|extends|new|this|true|false|null|undefined|void|async|await)\b/ },
             { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\()/ },
+            { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
         ],
         javascript: [
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
+            // eslint-disable-next-line sonarjs/regex-complexity -- keyword list for a syntax highlighter is intrinsically long
             { type: 'keyword', regex: /\b(const|let|var|function|class|import|from|return|if|else|for|while|export|new|this|true|false|null|undefined|void|async|await)\b/ },
             { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\()/ },
+            { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
         ],
         python: [
             { type: 'comment', regex: /#.*/ },
             { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
             { type: 'decorator', regex: /@[\w.]+/ },
+            // eslint-disable-next-line sonarjs/regex-complexity -- keyword list for a syntax highlighter is intrinsically long
             { type: 'keyword', regex: /\b(def|class|import|from|if|else|elif|for|while|return|try|except|finally|with|as|pass|break|continue|lambda|yield|async|await|True|False|None)\b/ },
             { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_][a-zA-Z0-9_]*(?=\()/ },
+            { type: 'function', regex: /\b[a-zA-Z_]\w*(?=\()/ },
         ],
         java: [
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
+            // eslint-disable-next-line sonarjs/regex-complexity -- keyword list for a syntax highlighter is intrinsically long
             { type: 'keyword', regex: /\b(public|private|protected|class|interface|enum|extends|implements|new|this|super|return|if|else|for|while|do|switch|case|default|break|continue|try|catch|finally|throw|throws|import|package|void|int|boolean|char|byte|short|long|float|double|static|final|abstract|synchronized|volatile|transient|native|strictfp|instanceof|null|true|false)\b/ },
-            { type: 'decorator', regex: /@[\w]+/ },
+            { type: 'decorator', regex: /@\w+/ },
             { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\()/ },
+            { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
         ],
         html: [
             { type: 'comment', regex: /<!--[\s\S]*?-->/ },
@@ -287,9 +291,10 @@ export class CodeBlockComponent {
             { type: 'comment', regex: /\/\/.*/ },
             { type: 'string', regex: /"(?:[^"\\]|\\.)*"/ },
             { type: 'decorator', regex: /\[[a-zA-Z]\w*\]/ },
+            // eslint-disable-next-line sonarjs/regex-complexity -- keyword list for a syntax highlighter is intrinsically long
             { type: 'keyword', regex: /\b(public|private|protected|internal|class|struct|record|interface|enum|delegate|event|void|int|string|bool|var|async|await|Task|return|if|else|for|foreach|while|do|switch|case|default|break|continue|try|catch|finally|throw|new|this|base|using|namespace|static|readonly|const|override|virtual|abstract|sealed|get|set|value)\b/ },
             { type: 'number', regex: /\b\d+\b/ },
-            { type: 'function', regex: /\b[a-zA-Z_$][a-zA-Z0-9_$]*(?=\()/ },
+            { type: 'function', regex: /\b[a-zA-Z_$]\w*(?=\()/ },
         ],
         yaml: [
             { type: 'comment', regex: /#.*/ },
@@ -302,7 +307,7 @@ export class CodeBlockComponent {
             { type: 'comment', regex: /#.*/ },
             { type: 'string', regex: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/ },
             { type: 'keyword', regex: /\b(echo|ls|cd|pwd|mkdir|rm|cp|mv|touch|cat|grep|open|ssh|git|npm|node|ng|sudo|chmod|chown)\b/ },
-            { type: 'decorator', regex: /\$[a-zA-Z0-9_]+/ },
+            { type: 'decorator', regex: /\$\w+/ },
         ]
     };
 
@@ -349,7 +354,7 @@ export class CodeBlockComponent {
         let best: { type: string; text: string; index: number } | null = null;
         for (const p of patterns) {
             const match = p.regex.exec(remaining);
-            if (match && match.index !== undefined && (best === null || match.index < best.index)) {
+            if (match && (best === null || match.index < best.index)) {
                 best = { type: p.type, text: match[0], index: match.index };
             }
         }

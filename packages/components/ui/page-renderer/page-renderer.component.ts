@@ -37,7 +37,7 @@ export class PageRendererComponent implements OnDestroy {
     gridRowHeight = computed(() => this.data().grid.rowHeight);
     gridColumnWidth = computed(() => this.data().grid.columnWidth);
     gridGap = computed(() => this.data().grid.gap);
-    gridShowBorders = computed(() => this.data().grid.showBorders);
+    gridShowBorders = computed(() => this.data().grid.showBorders ?? true);
     gridBorderRadius = computed(() => this.data().grid.borderRadius);
     gridItemPadding = computed(() => this.data().grid.itemPadding);
 

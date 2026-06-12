@@ -2504,10 +2504,9 @@ function processTextShowPerChar(
     const isSingleByte = !(fontInfo?.isTwoByte);
     let xAccum = 0;
 
-    for (let i = 0; i < charCodes.length; i++) {
+    const limit = Math.min(charCodes.length, rawDecoded.length);
+    for (let i = 0; i < limit; i++) {
         const ch = rawDecoded[i];
-        if (ch === undefined) break;
-
         const result = processOneChar({ code: charCodes[i], ch, fontInfo, dw, gs, isSingleByte, charX: baseCombined[4] + xAccum, ctx });
         textItems.push(result.item);
         xAccum += result.totalAdvance;

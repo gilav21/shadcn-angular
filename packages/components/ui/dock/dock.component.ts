@@ -147,8 +147,8 @@ export class DockComponent implements OnInit, OnDestroy, AfterContentInit, After
         const baseWidth = 40;
 
         items.forEach((item, index) => {
+            if (index >= this._itemCenters.length) return;
             const centerX = this._itemCenters[index];
-            if (centerX === undefined) return;
 
             const dist = this._mouseX - centerX;
             let width = baseWidth;

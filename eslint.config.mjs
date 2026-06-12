@@ -71,15 +71,33 @@ export default tseslint.config(
     },
   },
 
-  // --- SonarQube rules (via eslint-plugin-sonarjs) ---
-  // Curated subset only — the full sonarjs recommended set is noisy for this
-  // codebase (false positives on no-empty-test-file, pseudo-random, etc.).
+  // --- SonarQube "Sonar way" wide base (via eslint-plugin-sonarjs) ---
+  sonarjs.configs.recommended,
   {
-    files: ['**/*.ts'],
-    plugins: { sonarjs },
+    // No `files` key — applies to every linted file (incl. .mjs tooling).
     rules: {
-      // S4323: a union/intersection type used 3+ times must be a type alias.
-      'sonarjs/use-type-alias': 'error',
+      // Security Hotspots — manual-review items in SonarQube (not gate-failing
+      // bugs) and predominantly false-positives in a UI component library +
+      // build CLI, so they are not enforced in CI:
+      //  - pseudo-random: Math.random() drives visual effects (colors,
+      //    particles, confetti, animations) — never security/crypto.
+      //  - slow-regex: regexes run over build-time tooling / bounded parser input.
+      //  - os-command / no-os-command-from-path: the CLI + e2e runner invoke
+      //    npm/git/node by name intentionally.
+      //  - no-clear-text-protocols: only example URLs in test fixtures.
+      //  - no-hardcoded-passwords: matches UI locale labels ("Password"), not secrets.
+      'sonarjs/pseudo-random': 'off',
+      'sonarjs/slow-regex': 'off',
+      'sonarjs/os-command': 'off',
+      'sonarjs/no-os-command-from-path': 'off',
+      'sonarjs/no-clear-text-protocols': 'off',
+      'sonarjs/no-hardcoded-passwords': 'off',
+      // False positive: angular.processInlineTemplates extracts inline test-host
+      // templates from *.spec.ts, breaking sonarjs's test-case detection — these
+      // specs DO contain tests (3475 pass).
+      'sonarjs/no-empty-test-file': 'off',
+      // Defer to @typescript-eslint/no-unused-vars (already enforced).
+      'sonarjs/no-unused-vars': 'off',
     },
   },
 

@@ -17,10 +17,10 @@ export interface PageGridConfig {
     rowHeight: string;
     columnWidth: string;
     gap: string;
-    showBorders: boolean;
+    showBorders?: boolean;
     borderRadius: string;
     itemPadding: string;
-    squareCells: boolean;
+    squareCells?: boolean;
 }
 
 export interface PageItemData {

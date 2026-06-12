@@ -31,7 +31,8 @@ export function groupByCategory(): Record<string, string[]> {
   for (const name of getComponentNames()) {
     if (registry[name].type === 'block') continue;
     const cat = registry[name].category ?? 'utility';
-    (groups[cat] ??= []).push(name);
+    groups[cat] ??= [];
+    groups[cat].push(name);
   }
   for (const list of Object.values(groups)) {
     list.sort((a, b) => a.localeCompare(b));
@@ -45,7 +46,8 @@ export function groupBlocks(): Record<string, string[]> {
   for (const name of getComponentNames()) {
     if (registry[name].type !== 'block') continue;
     const cat = registry[name].category ?? 'utility';
-    (groups[cat] ??= []).push(name);
+    groups[cat] ??= [];
+    groups[cat].push(name);
   }
   for (const list of Object.values(groups)) {
     list.sort((a, b) => a.localeCompare(b));

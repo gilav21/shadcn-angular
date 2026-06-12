@@ -90,7 +90,7 @@ describe('buildDirOwnerMap', () => {
     const map = buildDirOwnerMap(FIXTURE_REGISTRY);
 
     it('groups flat files under the "." root with every flat component', () => {
-        expect([...(map.get('.') ?? [])].sort()).toEqual(['badge', 'button']);
+        expect([...(map.get('.') ?? [])].sort((a, b) => a.localeCompare(b))).toEqual(['badge', 'button']);
     });
 
     it('maps a component folder to its single owner', () => {
@@ -102,7 +102,7 @@ describe('buildDirOwnerMap', () => {
     });
 
     it('maps a shared directory to all of its owners', () => {
-        expect([...(map.get('charts') ?? [])].sort()).toEqual(['bar-chart', 'pie-chart']);
+        expect([...(map.get('charts') ?? [])].sort((a, b) => a.localeCompare(b))).toEqual(['bar-chart', 'pie-chart']);
     });
 });
 

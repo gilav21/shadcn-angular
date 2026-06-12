@@ -447,18 +447,7 @@ export class RichTextPasteNormalizerService {
                 stack.pop();
             }
 
-            const top = stack.at(-1);
-            if (top && item.level > top.level) {
-                let lastLi = top.list.lastElementChild as HTMLElement | null;
-                if (!lastLi?.tagName || lastLi.tagName !== 'LI') {
-                    lastLi = this.document.createElement('li');
-                    top.list.appendChild(lastLi);
-                }
-
-                const nestedList = this.document.createElement(item.isOrdered ? 'ol' : 'ul');
-                lastLi.appendChild(nestedList);
-                stack.push({ list: nestedList, level: item.level });
-            }
+            this.ensureNestedListParent(stack, item);
 
             const li = this.document.createElement('li');
             while (item.el.firstChild) {
@@ -468,6 +457,24 @@ export class RichTextPasteNormalizerService {
         }
 
         return root;
+    }
+
+    private ensureNestedListParent(
+        stack: { list: HTMLElement; level: number }[],
+        item: { el: HTMLElement; level: number; isOrdered: boolean }
+    ): void {
+        const top = stack.at(-1);
+        if (!top || item.level <= top.level) return;
+
+        let lastLi = top.list.lastElementChild as HTMLElement | null;
+        if (!lastLi?.tagName || lastLi.tagName !== 'LI') {
+            lastLi = this.document.createElement('li');
+            top.list.appendChild(lastLi);
+        }
+
+        const nestedList = this.document.createElement(item.isOrdered ? 'ol' : 'ul');
+        lastLi.appendChild(nestedList);
+        stack.push({ list: nestedList, level: item.level });
     }
 
     private isGhostTable(table: HTMLTableElement): boolean {

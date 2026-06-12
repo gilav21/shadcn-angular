@@ -39,8 +39,8 @@ export interface DashboardItem {
 
 /** Union of all data shapes passed to the context-menu via `menu.show()`. */
 export type BentoContextMenuData =
-    | (DashboardItem & { type?: undefined })
-    | { type: 'empty'; id?: undefined; x: number; y: number };
+    | (DashboardItem & { type?: never })
+    | { type: 'empty'; id?: never; x: number; y: number };
 
 @Component({
     selector: 'ui-bento-grid',
@@ -212,7 +212,7 @@ export class BentoGridComponent {
 
         while (queue.length > 0) {
             const current = queue.shift();
-            if (!current) break;;
+            if (!current) { break; }
 
             const neighbors = items.filter(other =>
                 !visited.has(other.id) && this.areAdjacent(current, other)

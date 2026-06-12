@@ -186,10 +186,7 @@ export class RichTextSanitizerService {
 
         for (const protocol of this.DANGEROUS_PROTOCOLS) {
             if (probe.startsWith(protocol)) {
-                if (protocol === 'data:' && this.isAllowedDataUrl(probe)) {
-                    return true;
-                }
-                return false;
+                return protocol === 'data:' && this.isAllowedDataUrl(probe);
             }
         }
 

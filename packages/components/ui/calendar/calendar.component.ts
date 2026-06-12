@@ -82,6 +82,7 @@ export class CalendarComponent {
         if (typeof val === 'string') d = this.parseDate(val);
         else if (val instanceof Date) d = val;
         else if (Array.isArray(val) && val.length > 0) d = this.parseDate(val[0]);
+        // eslint-disable-next-line sonarjs/different-types-comparison -- typeof null === 'object', so the null check is required to narrow to DateRange
         else if (typeof val === 'object' && val !== null && 'start' in val) d = (val).start;
 
         if (d) {

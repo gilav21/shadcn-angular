@@ -58,7 +58,7 @@ function printComponent(name: ComponentName): void {
         console.log('\n  ' + chalk.bold('Direct dependencies:') + chalk.dim(' none'));
     }
 
-    const reverse = [...getReverseDependents(name)].sort();
+    const reverse = [...getReverseDependents(name)].sort((a, b) => a.localeCompare(b));
     if (reverse.length > 0) {
         console.log('  ' + chalk.bold(`Reverse dependents (${reverse.length}):`));
         printWrappedList(reverse, 4);

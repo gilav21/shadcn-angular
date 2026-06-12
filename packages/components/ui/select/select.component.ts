@@ -142,11 +142,11 @@ export class SelectComponent<T = string> implements OnDestroy, ControlValueAcces
 
     readonly isDisabled = computed(() => this.disabled() || this._disabled());
     readonly isDataDriven = computed(() => this.options().length > 0);
-    readonly hasValue = computed(() => this.internalValue() !== undefined && this.internalValue() !== null);
+    readonly hasValue = computed(() => this.internalValue() != null);
 
     readonly selectedDisplayValue = computed(() => {
         const val = this.internalValue();
-        if (val === undefined || val === null) return '';
+        if (val == null) return '';
 
         if (this.isDataDriven()) {
             const option = this.options().find(opt => this.getValue(opt) === val);

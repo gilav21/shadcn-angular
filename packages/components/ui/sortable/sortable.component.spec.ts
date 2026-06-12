@@ -566,7 +566,7 @@ describe('SortableComponent', () => {
     });
 
     it('SORTABLE_LAND_EFFECTS is readonly (frozen-shape const)', () => {
-        const keys = Object.keys(SORTABLE_LAND_EFFECTS).sort();
+        const keys = Object.keys(SORTABLE_LAND_EFFECTS).sort((a, b) => a.localeCompare(b));
         expect(keys).toEqual(['flash', 'glow', 'pulse', 'shake']);
     });
 
@@ -593,8 +593,11 @@ describe('SortableComponent', () => {
                 { id: 2, name: 'B' },
                 { id: 3, name: 'C' },
             ]);
-            readonly posFn = (_item: TestRow, i: number, total: number): string =>
-                i === 0 ? 'pos-first' : i === total - 1 ? 'pos-last' : 'pos-middle';
+            readonly posFn = (_item: TestRow, i: number, total: number): string => {
+                if (i === 0) { return 'pos-first'; }
+                if (i === total - 1) { return 'pos-last'; }
+                return 'pos-middle';
+            };
         }
         const f = TestBed.createComponent(PosHost);
         f.detectChanges();
@@ -1267,7 +1270,7 @@ describe('SortableComponent', () => {
 
         const additive = animateSpy.mock.calls.find(args => {
             const opts = args[1];
-            return opts !== null && typeof opts === 'object' && (opts).composite === 'add';
+            return typeof opts === 'object' && (opts as KeyframeAnimationOptions | null)?.composite === 'add';
         });
         expect(additive).toBeDefined();
         animateSpy.mockRestore();

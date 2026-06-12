@@ -39,11 +39,9 @@ export class OrgChartComponent {
     const nodes = this.data();
     if (nodes.length === 0) return null;
 
-    const nodeMap = new Map<string, OrgNode>();
     const childrenMap = new Map<string, OrgNode[]>();
 
     for (const node of nodes) {
-      nodeMap.set(node.id, node);
       if (!childrenMap.has(node.id)) {
         childrenMap.set(node.id, []);
       }
