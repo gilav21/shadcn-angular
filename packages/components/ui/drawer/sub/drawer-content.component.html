@@ -6,12 +6,13 @@
     (keydown)="onKeydown($event)"
   >
     <!-- Overlay -->
-    <div
+    <button
+      type="button"
       class="fixed inset-0 bg-black/50 animate-in fade-in-0"
       [attr.data-slot]="'drawer-overlay'"
+      aria-label="Close"
       (click)="onOverlayClick()"
-      aria-hidden="true"
-    ></div>
+    ></button>
     <!-- Content -->
     <div
       #contentEl

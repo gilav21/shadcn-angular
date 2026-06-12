@@ -62,12 +62,13 @@ interactive role (it contains its own nested controls):
 | `data-table` scroll/keyboard-nav container | The focusable viewport that drives arrow-key cell navigation (`(keydown)="onTableKeydown"`). It hosts the entire interactive table, so it can't be a single native control. |
 | `scroll-area` viewport | The `tabindex="0"` makes the scroll viewport keyboard-focusable. This is **required** by axe-core's `scrollable-region-focusable` / WCAG 2.1.1 (keyboard) — removing it fails the project's mandatory axe checks. Sonar's S6845 directly contradicts that rule here, and a `role` can't be added without tripping S6819, so the `tabindex` stays. |
 
-## `Web:S6819` dialog + `MouseEventWithoutKeyboardEquivalentCheck` — drawer
+## `Web:S6819` dialog — drawer
 
 | Finding | Why kept |
 | --- | --- |
 | `drawer` `role="dialog"` | The drawer is a signal-driven modal rendered/removed via `@if`. Switching to a native `<dialog>` would require imperative `showModal()/close()` and change focus-trap, top-layer and `::backdrop` behaviour — a behavioural change. `role="dialog"` + `aria-modal` on a managed div is the same approach the Angular CDK and Radix use. |
-| `drawer` overlay click without keyboard handler | The overlay is `aria-hidden="true"` (decorative). Backdrop-click dismissal is inherently pointer-only; keyboard users dismiss with **Escape**, which is handled on the dialog container (`(keydown)="onKeydown"`). |
+
+(The drawer's backdrop-click dismissal — previously a `MouseEventWithoutKeyboardEquivalentCheck` finding — was fixed by making the overlay a native `<button aria-label="Close">`, which has built-in keyboard activation.)
 
 ## Notes
 
