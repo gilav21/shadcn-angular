@@ -10,8 +10,7 @@ import {
     createComponent,
     HostListener,
 } from '@angular/core';
-import { COMMON_LOCALES, type CommonLocale, createLocaleSelector } from '../../lib/i18n';
-import type { LocaleInput } from '../../lib/i18n';
+import { COMMON_LOCALES, type CommonLocale, createLocaleSelector, type LocaleInput } from '../../lib/i18n';
 import { ConfirmDialogComponent } from './confirm-dialog.component';
 
 @Directive({

@@ -70,7 +70,7 @@
               <ui-dropdown-menu-label>{{ t().languageMenuHeader }}</ui-dropdown-menu-label>
               <ui-dropdown-menu-separator />
               @for (option of localeOptions; track option.code) {
-                <ui-dropdown-menu-item (click)="setAppLocale(option.code)" [class.bg-accent]="appLocale() === option.code">
+                <ui-dropdown-menu-item (click)="setAppLocale(option.code)" (keydown.enter)="setAppLocale(option.code)" (keydown.space)="setAppLocale(option.code)" [class.bg-accent]="appLocale() === option.code">
                   <div class="flex w-full items-center justify-between gap-2">
                     <span>{{ option.label }}</span>
                     @if (appLocale() === option.code) {

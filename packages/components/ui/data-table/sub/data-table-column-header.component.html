@@ -8,6 +8,8 @@
       class="-ms-3 h-8 data-[state=open]:bg-accent"
       [ariaLabel]="sortAriaLabel()"
       (click)="toggleSort($event)"
+      (keydown.enter)="toggleSort($event)"
+      (keydown.space)="toggleSort($event)"
     >
       <span>{{ title() }}</span>
       @if (direction() === 'desc') {

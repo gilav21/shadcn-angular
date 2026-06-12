@@ -109,7 +109,7 @@ export const indentScopeDetector: ScopeDetector = (lines) => {
     const openers: { startLine: number; indent: number; depth: number }[] = [];
 
     const closeUntil = (lineIdx: number, indent: number): void => {
-        while (openers.length > 0 && openers[openers.length - 1].indent > indent) {
+        while (openers.length > 0 && (openers.at(-1)?.indent ?? -1) > indent) {
             const opener = openers.pop();
             if (opener && lineIdx - 1 > opener.startLine) {
                 ranges.push({ startLine: opener.startLine, endLine: lineIdx - 1, depth: opener.depth });
@@ -151,7 +151,7 @@ function processTagMatch(
     const isClose = full.startsWith('</');
     if (isClose) {
         const top = stack.pop();
-        if (top && top.name === lower && lineIdx > top.startLine) {
+        if (top?.name === lower && lineIdx > top.startLine) {
             ranges.push({ startLine: top.startLine, endLine: lineIdx, depth: top.depth });
         }
     } else if (!selfClose && !VOID_HTML_TAGS.has(lower)) {

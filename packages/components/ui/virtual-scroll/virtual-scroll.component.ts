@@ -332,7 +332,7 @@ export class VirtualScrollComponent<T extends VirtualItem> implements AfterViewI
   }
 
   trackByFn(item: T & { _virtualIndex?: number }): string | number {
-    return (item.id ?? item._virtualIndex) as string | number;
+    return item.id ?? item._virtualIndex;
   }
 
   private calculateScrollProgress(): number {

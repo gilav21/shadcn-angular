@@ -30,6 +30,8 @@
               size="icon"
               [disabled]="!canPrevious()"
               (click)="onFirstPage()"
+              (keydown.enter)="onFirstPage()"
+              (keydown.space)="onFirstPage()"
             >
               <span class="sr-only">Go to first page</span>
               <ui-icon [name]="isRtl() ? 'chevrons-right' : 'chevrons-left'" class="h-4 w-4" />
@@ -41,6 +43,8 @@
               size="icon"
               [disabled]="!canPrevious()"
               (click)="onPreviousPage()"
+              (keydown.enter)="onPreviousPage()"
+              (keydown.space)="onPreviousPage()"
             >
               <span class="sr-only">Go to previous page</span>
               <ui-icon [name]="isRtl() ? 'chevron-right' : 'chevron-left'" class="h-4 w-4" />
@@ -57,6 +61,8 @@
               size="icon"
               [disabled]="!canNext()"
               (click)="onNextPage()"
+              (keydown.enter)="onNextPage()"
+              (keydown.space)="onNextPage()"
             >
               <span class="sr-only">Go to next page</span>
               <ui-icon [name]="isRtl() ? 'chevron-left' : 'chevron-right'" class="h-4 w-4" />
@@ -68,6 +74,8 @@
               size="icon"
               [disabled]="!canNext()"
               (click)="onLastPage()"
+              (keydown.enter)="onLastPage()"
+              (keydown.space)="onLastPage()"
             >
               <span class="sr-only">Go to last page</span>
               <ui-icon [name]="isRtl() ? 'chevrons-left' : 'chevrons-right'" class="h-4 w-4" />

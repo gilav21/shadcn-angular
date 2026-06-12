@@ -332,7 +332,7 @@ export class CodeBlockComponent {
             const remaining = line.slice(cursor);
             const bestMatch = this.findBestMatch(remaining, patterns);
 
-            if (bestMatch && bestMatch.index === 0) {
+            if (bestMatch?.index === 0) {
                 tokens.push({ type: bestMatch.type, text: bestMatch.text });
                 cursor += bestMatch.text.length;
             } else if (bestMatch) {

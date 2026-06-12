@@ -162,7 +162,7 @@ export class PieChartDrilldownComponent {
 
   onSliceHover(slice: PieSlice): void {
     this.hoveredIndex.set(slice.index);
-    this.sliceHover.emit({ point: slice.data as DrilldownDataPoint, index: slice.index });
+    this.sliceHover.emit({ point: slice.data, index: slice.index });
   }
 
   onSliceLeave(): void {

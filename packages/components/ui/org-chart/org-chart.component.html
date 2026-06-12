@@ -29,14 +29,13 @@
           [attr.width]="pos.width"
           [attr.height]="pos.height"
         >
-          <div
+          <button
+            type="button"
             xmlns="http://www.w3.org/1999/xhtml"
-            class="w-full h-full p-3 rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer hover:shadow-md transition-shadow flex flex-col justify-center overflow-hidden"
+            class="w-full h-full p-3 rounded-lg border bg-card text-card-foreground shadow-sm cursor-pointer hover:shadow-md transition-shadow flex flex-col justify-center overflow-hidden text-left"
             [style.borderLeftColor]="getNodeColor(pos)"
             [style.borderLeftWidth.px]="4"
             [class.opacity-50]="hoveredId() !== null && hoveredId() !== pos.node.id"
-            tabindex="0"
-            role="button"
             [attr.aria-label]="getNodeAriaLabel(pos.node)"
             (mouseenter)="onNodeHover(pos.node)"
             (mouseleave)="onNodeLeave()"
@@ -69,7 +68,7 @@
             @if (pos.node.description) {
               <div class="text-xs text-muted-foreground mt-2 line-clamp-2">{{ pos.node.description }}</div>
             }
-          </div>
+          </button>
         </foreignObject>
       }
     </g>

@@ -114,17 +114,19 @@
       @if (recents().length > 0) {
         <fieldset class="space-y-1 border-0 p-0 m-0">
           <legend class="text-xs text-muted-foreground p-0">{{ t().recent }}</legend>
-          <div class="flex flex-wrap gap-1" role="list" [attr.aria-label]="t().recentColors">
+          <ul class="flex flex-wrap gap-1 list-none p-0 m-0" [attr.aria-label]="t().recentColors">
             @for (color of recents(); track color) {
-              <button
-                type="button"
-                class="aspect-square w-6 rounded border cursor-pointer hover:scale-110 transition-transform ui-color-picker-checker"
-                [style.backgroundColor]="color"
-                (click)="selectPreset(color)"
-                [attr.aria-label]="'Apply recent ' + color"
-              ></button>
+              <li>
+                <button
+                  type="button"
+                  class="aspect-square w-6 rounded border cursor-pointer hover:scale-110 transition-transform ui-color-picker-checker"
+                  [style.backgroundColor]="color"
+                  (click)="selectPreset(color)"
+                  [attr.aria-label]="'Apply recent ' + color"
+                ></button>
+              </li>
             }
-          </div>
+          </ul>
         </fieldset>
       }
 
@@ -138,17 +140,19 @@
               (click)="clearExtractedPalette()"
             >Clear</button>
           </div>
-          <div class="flex flex-wrap gap-1" role="list" [attr.aria-label]="t().extractedPalette">
+          <ul class="flex flex-wrap gap-1 list-none p-0 m-0" [attr.aria-label]="t().extractedPalette">
             @for (color of extractedPalette(); track color) {
-              <button
-                type="button"
-                class="aspect-square w-6 rounded border cursor-pointer hover:scale-110 transition-transform"
-                [style.backgroundColor]="color"
-                (click)="applyExtracted(color)"
-                [attr.aria-label]="'Apply extracted ' + color"
-              ></button>
+              <li>
+                <button
+                  type="button"
+                  class="aspect-square w-6 rounded border cursor-pointer hover:scale-110 transition-transform"
+                  [style.backgroundColor]="color"
+                  (click)="applyExtracted(color)"
+                  [attr.aria-label]="'Apply extracted ' + color"
+                ></button>
+              </li>
             }
-          </div>
+          </ul>
         </fieldset>
       }
 

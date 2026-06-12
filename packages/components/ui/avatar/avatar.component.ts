@@ -6,12 +6,11 @@ import {
     signal,
 } from '@angular/core';
 import { cn } from '../../lib/utils';
-import { AvatarImageComponent } from './sub/avatar-image.component';
-import { AvatarFallbackComponent } from './sub/avatar-fallback.component';
 import { SpinnerComponent } from '../spinner';
 import { SkeletonComponent } from '../skeleton';
 
-export { AvatarImageComponent, AvatarFallbackComponent };
+export { AvatarFallbackComponent } from './sub/avatar-fallback.component';
+export { AvatarImageComponent } from './sub/avatar-image.component';
 
 @Component({
     selector: 'ui-avatar',

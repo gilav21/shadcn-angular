@@ -83,7 +83,7 @@ export class TreeSelectComponent implements ControlValueAccessor {
 
   isDisabled = computed(() => this.disabled() || this.formDisabled());
 
-  private formDisabled = signal(false);
+  private readonly formDisabled = signal(false);
   private onChange: (value: string | null) => void = () => {};
   private onTouched: () => void = () => {};
 

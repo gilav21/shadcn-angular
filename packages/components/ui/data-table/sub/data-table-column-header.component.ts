@@ -49,9 +49,9 @@ export class DataTableColumnHeaderComponent {
     return `${title}, not sorted. Activate to sort ascending.`;
   });
 
-  toggleSort(event: MouseEvent): void {
+  toggleSort(event: Event): void {
     const current = this.direction();
-    const multi = event.shiftKey;
+    const multi = 'shiftKey' in event && (event as MouseEvent).shiftKey;
     if (current === 'asc') {
       this.sort.emit('desc');
       this.sortMeta.emit({ direction: 'desc', multi });

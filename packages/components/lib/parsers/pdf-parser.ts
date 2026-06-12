@@ -267,7 +267,7 @@ function buildCCITTTree(codes: ReadonlyArray<CCITTCode>): CCITTTreeNode {
         }
         node['runLen'] = c.runLen;
     }
-    return root as CCITTTreeNode;
+    return root;
 }
 
 const whiteTree = buildCCITTTree([...WHITE_TERM_CODES, ...WHITE_MAKEUP_CODES, ...COMMON_MAKEUP_CODES]);

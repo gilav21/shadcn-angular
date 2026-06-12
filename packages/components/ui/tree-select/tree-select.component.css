@@ -1,13 +1,10 @@
 :host {
   display: block;
+  --_d: var(--density-select, var(--density, 1));
 }
 ui-popover {
   width: 100%;
   display: block;
-}
-
-:host {
-  --_d: var(--density-select, var(--density, 1));
 }
 
 [data-slot="tree-select-trigger"] {

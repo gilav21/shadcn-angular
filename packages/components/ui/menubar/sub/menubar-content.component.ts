@@ -31,7 +31,7 @@ import { MENUBAR_MENU, type MenubarMenuComponent } from './menubar-menu.componen
 })
 export class MenubarContentComponent {
   class = input('');
-  readonly menu = inject(MENUBAR_MENU) as MenubarMenuComponent;
+  readonly menu = inject<MenubarMenuComponent>(MENUBAR_MENU);
   readonly service = inject(MenubarService);
   readonly el = inject(ElementRef);
 
@@ -68,12 +68,10 @@ export class MenubarContentComponent {
       } else {
         trigger?.focusPrevTrigger();
       }
+    } else if (this.service.isRtl()) {
+      trigger?.focusPrevTrigger();
     } else {
-      if (this.service.isRtl()) {
-        trigger?.focusPrevTrigger();
-      } else {
-        trigger?.focusNextTrigger();
-      }
+      trigger?.focusNextTrigger();
     }
   }
 

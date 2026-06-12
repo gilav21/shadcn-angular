@@ -4,10 +4,10 @@ import { setupTestBed } from '@analogjs/vitest-angular/setup-testbed';
 
 if (typeof globalThis.ResizeObserver === 'undefined') {
 	globalThis.ResizeObserver = class ResizeObserver {
-		observe(): void {}
-		unobserve(): void {}
-		disconnect(): void {}
-	} as unknown as typeof globalThis.ResizeObserver;
+		observe(): void { /* no-op test stub */ }
+		unobserve(): void { /* no-op test stub */ }
+		disconnect(): void { /* no-op test stub */ }
+	};
 }
 
 if (typeof globalThis.IntersectionObserver === 'undefined') {
@@ -15,9 +15,9 @@ if (typeof globalThis.IntersectionObserver === 'undefined') {
 		readonly root = null;
 		readonly rootMargin = '0px';
 		readonly thresholds = [0];
-		observe(): void {}
-		unobserve(): void {}
-		disconnect(): void {}
+		observe(): void { /* no-op test stub */ }
+		unobserve(): void { /* no-op test stub */ }
+		disconnect(): void { /* no-op test stub */ }
 		takeRecords(): IntersectionObserverEntry[] {
 			return [];
 		}
@@ -120,7 +120,7 @@ function escapeCssCodePoint(
 		return `\\${codePoint.toString(16)} `;
 	}
 	if (index === 0 && length === 1 && codePoint === 0x002d) {
-		return '\\-';
+		return String.raw`\-`;
 	}
 	if (isCssIdentifierSafe(codePoint)) {
 		return String.fromCodePoint(codePoint);

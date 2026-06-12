@@ -674,8 +674,8 @@
     editing, cell-range selection, keyboard cell-navigation, and row drag are disabled.
   </p>
   <div class="flex flex-wrap items-center gap-2">
-    <ui-button size="sm" variant="outline" (click)="expandAllGroups()">Expand all</ui-button>
-    <ui-button size="sm" variant="outline" (click)="collapseAllGroups()">Collapse all</ui-button>
+    <ui-button size="sm" variant="outline" (click)="expandAllGroups()" (keydown.enter)="expandAllGroups()" (keydown.space)="expandAllGroups()">Expand all</ui-button>
+    <ui-button size="sm" variant="outline" (click)="collapseAllGroups()" (keydown.enter)="collapseAllGroups()" (keydown.space)="collapseAllGroups()">Collapse all</ui-button>
   </div>
   <div class="h-[300px] sm:h-[400px]">
     <ui-data-table
