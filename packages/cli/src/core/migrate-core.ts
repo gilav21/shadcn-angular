@@ -100,7 +100,7 @@ export async function rewriteProjectImports(
 ): Promise<string[]> {
     if (migratedNames.size === 0) return [];
     const resolvedUiDir = path.resolve(uiDir);
-    const alias = uiAlias.replace(/\/+$/, '');
+    const alias = uiAlias.replace(/\/{1,256}$/, '');
     const changed: string[] = [];
     for (const file of await collectSourceFiles(projectRoot)) {
         const source = await fs.readFile(file, 'utf-8');

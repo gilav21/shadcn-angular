@@ -128,7 +128,7 @@ export function interpolate(
     template: string,
     values: Record<string, string | number>,
 ): string {
-    return template.replaceAll(/\{([^}]+)\}/g, (match, k: string) =>
+    return template.replaceAll(/\{([^}]{1,256})\}/g, (match, k: string) =>
         Object.hasOwn(values, k) ? String(values[k]) : match,
     );
 }

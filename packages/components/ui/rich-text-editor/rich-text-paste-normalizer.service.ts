@@ -138,7 +138,7 @@ export class RichTextPasteNormalizerService {
 
         if (/^#{1,6}\s+\S/m.test(text)) score += 2;
         if (/```[\s\S]*?```/.test(text)) score += 2;
-        if (/\[[^\]]+\]\(https?:\/\/[^)]+\)/.test(text)) score += 2;
+        if (/\[[^\]]{1,4096}\]\(https?:\/\/[^)]{1,4096}\)/.test(text)) score += 2;
 
         if (/\*\*[^*]+\*\*/.test(text)) score += 1;
         if (/^[-*+]\s+/m.test(text)) score += 1;
@@ -234,7 +234,7 @@ export class RichTextPasteNormalizerService {
     ]);
 
     private parseCssBlock(cssText: string, rules: Map<string, Map<string, string>>): void {
-        const ruleRegex = /([^{}]+)\{([^}]+)\}/g;
+        const ruleRegex = /([^{}]{1,100000})\{([^}]{1,100000})\}/g;
         let ruleMatch;
 
         while ((ruleMatch = ruleRegex.exec(cssText)) !== null) {
@@ -613,7 +613,7 @@ export class RichTextPasteNormalizerService {
                 if (!mapped.has('vertical-align') && value !== '0') mapped.set('vertical-align', value);
                 break;
             case 'mso-border-alt':
-                if (!mapped.has('border')) mapped.set('border', value.replaceAll(/\s*windowtext\s*/gi, ' #000000 ').trim());
+                if (!mapped.has('border')) mapped.set('border', value.replaceAll(/\s{0,4096}windowtext\s{0,4096}/gi, ' #000000 ').trim());
                 break;
             case 'mso-padding-alt':
                 if (!mapped.has('padding')) mapped.set('padding', value);

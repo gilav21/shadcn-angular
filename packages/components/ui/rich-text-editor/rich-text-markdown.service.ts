@@ -184,7 +184,7 @@ export class RichTextMarkdownService {
      * Parse blockquotes (> text).
      */
     private parseToggleBlocks(html: string): string {
-        return html.replaceAll(/:::details[^\S\n]+([^\n]*)\n([\s\S]*?):::/g, (_match, title: string, content: string) => {
+        return html.replaceAll(/:::details[^\S\n]{1,4096}([^\n]{0,4096})\n([\s\S]{0,100000}?):::/g, (_match, title: string, content: string) => {
             const parsedContent = content.trim();
             return `<details open><summary>${title}</summary><p>${parsedContent}</p></details>`;
         });
@@ -314,7 +314,7 @@ export class RichTextMarkdownService {
      * Parse links [text](url).
      */
     private parseLinks(html: string): string {
-        return html.replaceAll(/\[([^\]]+)\]\(([^)]+)\)/g, (_, text, url) => {
+        return html.replaceAll(/\[([^\]]{1,4096})\]\(([^)]{1,4096})\)/g, (_, text, url) => {
             const safeUrl = this.sanitizer.sanitizeUrl(url);
             if (!safeUrl) return text;
             return `<a href="${safeUrl}" rel="noopener noreferrer">${text}</a>`;
@@ -639,7 +639,7 @@ export class RichTextMarkdownService {
             /\*\*[^*]+\*\*/,        // Bold
             /\*[^*]+\*/,            // Italic
             /~~[^~]+~~/,            // Strikethrough
-            /\[[^\]]+\]\([^)]+\)/,  // Links
+            /\[[^\]]{1,4096}\]\([^)]{1,4096}\)/,  // Links
             /!\[.*\]\(.+\)/,        // Images
             /^[-*+]\s/m,            // Unordered list
             /^\d+\.\s/m,            // Ordered list

@@ -3271,7 +3271,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const parts = dataUrl.split(',');
         const meta = parts[0];
         const base64 = parts[1];
-        const mime = /:([^;]*);/.exec(meta)?.[1] ?? 'image/png';
+        const mime = /:([^;]{0,4096});/.exec(meta)?.[1] ?? 'image/png';
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) {
@@ -6041,7 +6041,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const plain = this.sanitizer.stripTags(blockAware);
         const lines = plain
             .split('\n')
-            .map(line => line.replaceAll(/<\/?[^>]+>/g, '').replaceAll(/\s+/g, ' ').trim())
+            .map(line => line.replaceAll(/<\/?[^>]{1,4096}>/g, '').replaceAll(/\s{1,4096}/g, ' ').trim())
             .filter(Boolean);
         const safeLines = lines.length ? lines : ['(empty)'];
         return {

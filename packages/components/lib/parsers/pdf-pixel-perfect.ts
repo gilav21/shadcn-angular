@@ -732,7 +732,7 @@ function fillUniMapFromPdfWidths(
 
 function buildFontBaseProps(entry: FontRegistryEntry): string {
     const lineHeight = Math.abs(entry.ascent - entry.descent) > 0.01
-        ? `line-height:${(entry.ascent - entry.descent).toFixed(6).replace(/0+$/, '').replace(/\.$/, '')};` : '';
+        ? `line-height:${(entry.ascent - entry.descent).toFixed(6).replace(/0{1,8}$/, '').replace(/\.$/, '')};` : '';
     const isBold = entry.baseFontName.toLowerCase().includes('bold');
     const isItalic = entry.baseFontName.toLowerCase().includes('italic') ||
         entry.baseFontName.toLowerCase().includes('oblique');

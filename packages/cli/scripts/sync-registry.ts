@@ -44,7 +44,7 @@ function parseRegistry(): RegistryEntry[] {
     const source = readFileSync(REGISTRY_PATH, 'utf-8');
     const entries: RegistryEntry[] = [];
 
-    const blockRegex = /['"]?([\w-]+)['"]?\s*:\s*\{[^}]*name:\s*['"]([^'"]+)['"][^}]*files:\s*\[([^\]]*)\]/g;
+    const blockRegex = /['"]?([\w-]{1,256})['"]?\s{0,4096}:\s{0,4096}\{[^}]{0,100000}name:\s{0,4096}['"]([^'"]{1,256})['"][^}]{0,100000}files:\s{0,4096}\[([^\]]{0,100000})\]/g;
     let match: RegExpExecArray | null;
 
     while ((match = blockRegex.exec(source)) !== null) {
@@ -294,7 +294,7 @@ function removeDependencies(source: string, name: string): string {
     const blockSlice = source.slice(namePos, blockEnd);
 
     // Match leading comma + whitespace + dependencies: [...] but NOT trailing comma
-    const depsRegex = /,?\s*dependencies:\s*\[[^\]]*\]/;
+    const depsRegex = /,?\s{0,4096}dependencies:\s{0,4096}\[[^\]]{0,100000}\]/;
     const depsMatch = depsRegex.exec(blockSlice);
     if (!depsMatch) return source;
 
