@@ -30,3 +30,4 @@ sonar-issues.json
 .scannerwork/
 coverage/
 .vitest-attachments/
+coverage-cli/
