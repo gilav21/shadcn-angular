@@ -23,9 +23,10 @@ describe('SpinnerComponent', () => {
         expect(component).toBeTruthy();
     });
 
-    it('should have status role', () => {
-        const svg = fixture.debugElement.query(By.css('svg'));
-        expect(svg.nativeElement.getAttribute('role')).toBe('status');
+    it('exposes a live status region via a native <output> (implicit role="status")', () => {
+        const status = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
+        expect(status.nativeElement.tagName).toBe('OUTPUT');
+        expect(status.nativeElement.getAttribute('aria-label')).toBe('Loading');
     });
 
     it('should have default size classes', () => {
@@ -76,9 +77,9 @@ describe('SpinnerComponent', () => {
             expect(dots.length).toBe(3);
         });
 
-        it('should have role=status on dots container', () => {
+        it('exposes the dots container as a native <output> (implicit role="status")', () => {
             const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
-            expect(container.nativeElement.getAttribute('role')).toBe('status');
+            expect(container.nativeElement.tagName).toBe('OUTPUT');
         });
 
         it('should apply correct dot size for sm', () => {
@@ -109,9 +110,9 @@ describe('SpinnerComponent', () => {
             expect(bars.length).toBe(5);
         });
 
-        it('should have role=status on bars container', () => {
+        it('exposes the bars container as a native <output> (implicit role="status")', () => {
             const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
-            expect(container.nativeElement.getAttribute('role')).toBe('status');
+            expect(container.nativeElement.tagName).toBe('OUTPUT');
         });
 
         it('should apply staggered animation delays to bars', () => {
@@ -145,9 +146,9 @@ describe('SpinnerComponent', () => {
             expect(container.nativeElement.className).toContain('animate-pulse');
         });
 
-        it('should have role=status', () => {
+        it('exposes the pulse container as a native <output> (implicit role="status")', () => {
             const container = fixture.debugElement.query(By.css('[data-slot="spinner"]'));
-            expect(container.nativeElement.getAttribute('role')).toBe('status');
+            expect(container.nativeElement.tagName).toBe('OUTPUT');
         });
 
         it('should apply correct pulse size for xl', () => {

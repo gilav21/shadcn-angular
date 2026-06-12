@@ -61,13 +61,13 @@ describe('ButtonGroupComponent', () => {
         expect(div).toBeTruthy();
     });
 
-    it('should have role="group"', () => {
-        const div = fixture.debugElement.query(By.css('[role="group"]'));
-        expect(div).toBeTruthy();
+    it('renders as a native fieldset (implicit role="group")', () => {
+        const group = fixture.debugElement.query(By.css('[data-slot="button-group"]'));
+        expect(group.nativeElement.tagName).toBe('FIELDSET');
     });
 
     it('should apply horizontal orientation by default', () => {
-        const div = fixture.debugElement.query(By.css('div'));
+        const div = fixture.debugElement.query(By.css('[data-slot="button-group"]'));
         expect(div.attributes['data-orientation']).toBe('horizontal');
         expect(div.nativeElement.className).not.toContain('flex-col');
     });
@@ -76,13 +76,13 @@ describe('ButtonGroupComponent', () => {
         fixture.componentRef.setInput('orientation', 'vertical');
         fixture.detectChanges();
 
-        const div = fixture.debugElement.query(By.css('div'));
+        const div = fixture.debugElement.query(By.css('[data-slot="button-group"]'));
         expect(div.attributes['data-orientation']).toBe('vertical');
         expect(div.nativeElement.className).toContain('flex-col');
     });
 
     it('should apply base flex classes', () => {
-        const div = fixture.debugElement.query(By.css('div'));
+        const div = fixture.debugElement.query(By.css('[data-slot="button-group"]'));
         expect(div.nativeElement.className).toContain('flex');
         expect(div.nativeElement.className).toContain('w-fit');
         expect(div.nativeElement.className).toContain('items-stretch');
@@ -92,7 +92,7 @@ describe('ButtonGroupComponent', () => {
         fixture.componentRef.setInput('class', 'my-custom-group');
         fixture.detectChanges();
 
-        const div = fixture.debugElement.query(By.css('div'));
+        const div = fixture.debugElement.query(By.css('[data-slot="button-group"]'));
         expect(div.nativeElement.className).toContain('my-custom-group');
     });
 });

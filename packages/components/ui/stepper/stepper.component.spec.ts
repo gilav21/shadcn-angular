@@ -223,12 +223,12 @@ describe('StepperComponent', () => {
     });
 
     describe('Accessibility', () => {
-        it('should have role="list" on stepper', () => {
-            const stepper = fixture.debugElement.query(By.css('[role="list"]'));
-            expect(stepper).toBeTruthy();
+        it('renders the stepper as a native ordered list (implicit role="list")', () => {
+            const stepper = fixture.debugElement.query(By.css('[data-slot="stepper"]'));
+            expect(stepper.nativeElement.tagName).toBe('OL');
         });
 
-        it('should have role="listitem" on items', () => {
+        it('marks each projected step as a list item (role="listitem")', () => {
             const items = fixture.debugElement.queryAll(By.css('[role="listitem"]'));
             expect(items.length).toBe(3);
         });

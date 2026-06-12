@@ -56,7 +56,7 @@ export class MenubarContentComponent {
       trigger?.focus();
     } else if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
-      this.handleArrowNav(event.key as 'ArrowLeft' | 'ArrowRight');
+      this.handleArrowNav(event.key);
     }
   }
 

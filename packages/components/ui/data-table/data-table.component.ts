@@ -84,18 +84,21 @@ import {
 } from "./data-table.utils";
 import { ComponentPoolService } from "../../lib/component-pool.service";
 
-declare const ngDevMode: boolean | undefined;
-
 const EMPTY_RECORD: Readonly<Record<string, never>> = Object.freeze({});
 
 /** Per-instance counter for unique element ids (e.g. inline edit-error links). */
 let dataTableUid = 0;
 
+function hasCustomToString(value: object): value is { toString(): string } {
+  return typeof value.toString === 'function' && value.toString !== Object.prototype.toString;
+}
+
 const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   const rec = row as Record<string, unknown>;
-  if (rec['id'] == null) return JSON.stringify(row);
-  if (typeof rec['id'] === 'object') return JSON.stringify(rec['id']);
-  return String(rec['id']);
+  const id = rec['id'];
+  if (id == null) return JSON.stringify(row);
+  if (typeof id === 'object') return JSON.stringify(id);
+  return String(id);
 };
 
 @Component({
@@ -1360,7 +1363,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
    * Validates configuration and logs warnings for conflicting options in development mode.
    */
   private validateConfiguration(): void {
-    if (typeof ngDevMode === 'undefined' || !ngDevMode) return;
+    if (!(globalThis as { ngDevMode?: unknown }).ngDevMode) return;
 
     const warnings: string[] = [];
     const isDefaultGetRowId = this.getRowId() === DEFAULT_GET_ROW_ID;
@@ -2459,14 +2462,11 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     }
     const value = this.getCellValue(row, column.accessorKey, column);
     if (value === null || value === undefined) return "";
-    if (
-      typeof value === "object" &&
-      typeof value.toString === "function" &&
-      value.toString !== Object.prototype.toString
-    ) {
-      return value.toString();
+    if (typeof value === "object") {
+      if (hasCustomToString(value)) return value.toString();
+      return JSON.stringify(value);
     }
-    return typeof value === "object" ? JSON.stringify(value) : String(value as string | number | boolean | symbol | bigint);
+    return String(value);
   }
 
   getExportData(
@@ -3716,7 +3716,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   protected groupRowValueLabel(group: GroupRow): string {
     const value = group.groupValue;
     if (value === null || value === undefined) return '';
-    return typeof value === 'object' ? JSON.stringify(value) : String(value as string | number | boolean | symbol | bigint);
+    return typeof value === 'object' ? JSON.stringify(value) : String(value);
   }
 
   protected groupAggregateLabel(accessorKey: string): string {

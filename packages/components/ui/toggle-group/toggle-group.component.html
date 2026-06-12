@@ -1,9 +1,8 @@
-<div
-  [class]="classes()"
+<fieldset
+  [class]="classes() + ' min-w-0'"
   [attr.data-slot]="'toggle-group'"
   [attr.data-variant]="variant()"
   [attr.data-size]="size()"
-  role="group"
 >
   @if (isDataDriven()) {
     @for (item of items(); track item.value) {
@@ -18,4 +17,4 @@
   } @else {
     <ng-content />
   }
-</div>
+</fieldset>

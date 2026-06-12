@@ -1,9 +1,9 @@
 <div
   [class]="containerClasses()"
-  [attr.aria-label]="chartAriaLabel()"
-  role="img"
 >
   <svg
+    role="img"
+    [attr.aria-label]="chartAriaLabel()"
     [attr.viewBox]="viewBox()"
     [attr.width]="'100%'"
     [attr.height]="'auto'"

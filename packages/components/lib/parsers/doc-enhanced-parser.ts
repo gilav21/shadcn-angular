@@ -1404,13 +1404,14 @@ function cleanRunText(text: string): string {
 }
 
 function mergeCharProps(styleProps: CharProps, directProps: CharProps): CharProps {
-    const merged: Record<string, unknown> = { ...styleProps };
+    const merged: CharProps = { ...styleProps };
+    const writable = merged as Record<string, unknown>;
     for (const [key, value] of Object.entries(directProps)) {
         if (value !== undefined) {
-            merged[key] = value;
+            writable[key] = value;
         }
     }
-    return merged as CharProps;
+    return merged;
 }
 
 function buildRunStyle(props: CharProps, fonts: ReadonlyArray<string>): DocxRunStyle {

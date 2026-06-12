@@ -54,7 +54,7 @@ describe('InputGroupComponent', () => {
     it('should structure content correctly', () => {
         fixture.detectChanges();
         const group = fixture.debugElement.query(By.css('[data-slot="input-group"]'));
-        expect(group.nativeElement.role).toBe('group');
+        expect(group.nativeElement.tagName).toBe('FIELDSET');
         expect(group.nativeElement.classList.contains('flex')).toBe(true);
         expect(group.nativeElement.classList.contains('items-center')).toBe(true);
 

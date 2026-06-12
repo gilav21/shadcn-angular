@@ -1,5 +1,5 @@
-<div
-  [class]="containerClasses()"
+<fieldset
+  [class]="containerClasses() + ' min-w-0'"
   [style.max-height]="maxHeightStyle()"
   [attr.data-slot]="'chip-list'"
   [attr.data-disabled]="disabled() || null"
@@ -7,7 +7,6 @@
   (keydown.enter)="focusInput()"
   (keydown.space)="focusInput()"
   tabindex="-1"
-  role="group"
 >
   @for (chip of chips(); track chip; let i = $index) {
     <ui-badge
@@ -58,4 +57,4 @@
     class="flex-1 min-w-[80px] bg-transparent border-none outline-none shadow-none focus-visible:ring-0 p-0 h-auto"
     variant="ghost"
   />
-</div>
+</fieldset>

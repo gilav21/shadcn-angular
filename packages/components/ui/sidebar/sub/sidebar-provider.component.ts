@@ -48,7 +48,7 @@ export class SidebarProviderComponent {
   }
 
   private checkMobile(): void {
-    const isMobile = typeof globalThis.window !== 'undefined' && globalThis.window.innerWidth < 768;
+    const isMobile = 'window' in globalThis && globalThis.window.innerWidth < 768;
     this.service.setMobile(isMobile);
   }
 }

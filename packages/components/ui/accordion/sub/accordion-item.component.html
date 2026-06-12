@@ -31,8 +31,7 @@
       </button>
     </h3>
     @if (isOpen()) {
-      <div
-        role="region"
+      <section
         [attr.id]="panelId()"
         [attr.aria-labelledby]="triggerId()"
         class="overflow-hidden text-sm"
@@ -40,7 +39,7 @@
         [attr.data-slot]="'accordion-content'"
       >
         <div class="pb-4 pt-0">{{ content() }}</div>
-      </div>
+      </section>
     }
   } @else {
     <!-- Custom mode: render projected content -->

@@ -178,9 +178,9 @@
 
   <!-- Merge Action Bar -->
   @if (editable() && canMerge()) {
-      <div class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 text-foreground shadow-lg border rounded-full px-6 py-2 z-50 animate-in fade-in slide-in-from-bottom-2 flex gap-2 items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors" tabindex="0" role="button" (click)="mergeSelected()" (keydown.enter)="mergeSelected()" (keydown.space)="mergeSelected()">
+      <button type="button" class="fixed bottom-12 left-1/2 -translate-x-1/2 bg-white dark:bg-zinc-800 text-foreground shadow-lg border rounded-full px-6 py-2 z-50 animate-in fade-in slide-in-from-bottom-2 flex gap-2 items-center cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors" (click)="mergeSelected()">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-merge"><path d="m8 6 4-4 4 4"/><path d="M12 2v10.3a4 4 0 0 1-1.172 2.872L4 22"/><path d="m20 22-5-5"/></svg>
           <span class="text-sm font-medium">Merge {{ selectedItemIds().length }} Items</span>
-      </div>
+      </button>
   }
 </div>

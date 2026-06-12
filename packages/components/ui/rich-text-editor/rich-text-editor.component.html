@@ -150,10 +150,9 @@
         } @else {
           <div class="space-y-0.5 pr-2" data-slot="rich-text-outline-list">
             @for (heading of outlineHeadings(); track heading.index) {
-              <div
-                role="button"
-                tabindex="0"
-                class="w-full cursor-pointer truncate rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-accent/60"
+              <button
+                type="button"
+                class="block w-full cursor-pointer truncate rounded-md px-2 py-1.5 text-start text-sm transition-colors hover:bg-accent/60"
                 [attr.data-outline-entry]="'true'"
                 [attr.data-outline-level]="heading.level"
                 [style.padding-inline-start.rem]="0.5 + (heading.level - 1) * 0.75"
@@ -161,7 +160,7 @@
                 (keydown)="onOutlineEntryKeydown($event, heading.index)"
               >
                 {{ heading.text }}
-              </div>
+              </button>
             }
           </div>
         }
