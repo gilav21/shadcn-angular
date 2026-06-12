@@ -70,6 +70,25 @@ interactive role (it contains its own nested controls):
 
 (The drawer's backdrop-click dismissal — previously a `MouseEventWithoutKeyboardEquivalentCheck` finding — was fixed by making the overlay a native `<button aria-label="Close">`, which has built-in keyboard activation.)
 
+## Security Hotspots
+
+ReDoS hotspots (`S5852`) were **eliminated at the source** — every flagged
+regex was rewritten to a linear form (negated character classes between
+delimiters, collapsed overlapping quantifiers, atomic-group `(?=(\s+))\1`,
+unrolled-loop comment matchers) or had its open quantifiers **bounded**
+(`{0,N}` with a generous N), so SonarQube no longer reports them. Behaviour is
+verified by the parser/markdown/code-block/CLI test suites.
+
+The remaining hotspots are categorical false positives for this codebase and
+are marked **Reviewed / Safe** (via `scripts/sonar-hotspots-safe.mjs`):
+
+| Rule | Count | Why safe |
+| --- | --- | --- |
+| `S2245` (insecure randomness) | 29 | `Math.random()` drives **visual animations** only (confetti, particles, meteors, …) — never a security/cryptographic context. |
+| `S4036` (OS command from PATH) | 3 | The **dev CLI** intentionally invokes `git`/`npm` from `PATH`; the command and arguments are not attacker-controlled. |
+
+Result: Security Hotspots reviewed = 100%, 0 to-review.
+
 ## Notes
 
 - `Web:S6845` ("tabIndex on non-interactive element") and the form-control
