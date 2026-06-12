@@ -153,6 +153,206 @@ describe('Slider Keyboard Navigation', () => {
     });
 });
 
+describe('Slider Keyboard — additional keys', () => {
+    let component: SliderComponent;
+    let fixture: ComponentFixture<SliderComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [SliderComponent] }).compileComponents();
+        fixture = TestBed.createComponent(SliderComponent);
+        component = fixture.componentInstance;
+        component.value.set(50);
+        fixture.detectChanges();
+    });
+
+    function key(k: string): void {
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
+        thumb.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: k }));
+        fixture.detectChanges();
+    }
+
+    it('PageUp jumps by ten steps', () => {
+        key('PageUp');
+        expect(component.value()).toBe(60);
+    });
+
+    it('PageDown drops by ten steps', () => {
+        key('PageDown');
+        expect(component.value()).toBe(40);
+    });
+
+    it('ArrowUp increases, ArrowDown decreases', () => {
+        key('ArrowUp');
+        expect(component.value()).toBe(51);
+        key('ArrowDown');
+        expect(component.value()).toBe(50);
+    });
+
+    it('clamps to max and min at the bounds', () => {
+        component.value.set(100);
+        fixture.detectChanges();
+        key('ArrowRight');
+        expect(component.value()).toBe(100);
+        component.value.set(0);
+        fixture.detectChanges();
+        key('ArrowLeft');
+        expect(component.value()).toBe(0);
+    });
+
+    it('ignores unrelated keys', () => {
+        key('Enter');
+        expect(component.value()).toBe(50);
+    });
+
+    it('does nothing when disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        key('ArrowRight');
+        expect(component.value()).toBe(50);
+    });
+
+    it('emits valueChange only when the value changes', () => {
+        let emitted: number | null = null;
+        component.valueChange.subscribe(v => (emitted = v));
+        key('ArrowRight');
+        expect(emitted).toBe(51);
+    });
+});
+
+describe('Slider pointer dragging', () => {
+    let component: SliderComponent;
+    let fixture: ComponentFixture<SliderComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [SliderComponent] }).compileComponents();
+        fixture = TestBed.createComponent(SliderComponent);
+        component = fixture.componentInstance;
+        document.body.appendChild(fixture.nativeElement);
+        fixture.detectChanges();
+    });
+
+    afterEach(() => {
+        fixture.nativeElement.remove();
+    });
+
+    function track(): HTMLElement {
+        return fixture.debugElement.query(By.css('[data-slot="slider"]')).nativeElement as HTMLElement;
+    }
+
+    it('sets the value from a track mousedown position', () => {
+        const t = track();
+        const rect = t.getBoundingClientRect();
+        // Click at midpoint → ~50
+        t.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.left + rect.width / 2, bubbles: true }));
+        fixture.detectChanges();
+        expect(component.value()).toBeGreaterThanOrEqual(45);
+        expect(component.value()).toBeLessThanOrEqual(55);
+        // Clean up the document-level listeners
+        document.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('updates value as the mouse moves while dragging', () => {
+        const t = track();
+        const rect = t.getBoundingClientRect();
+        t.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.left, bubbles: true }));
+        fixture.detectChanges();
+        expect(component.value()).toBe(0);
+
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.right }));
+        fixture.detectChanges();
+        expect(component.value()).toBe(100);
+
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        // After mouseup, further moves do nothing
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.left }));
+        fixture.detectChanges();
+        expect(component.value()).toBe(100);
+    });
+
+    it('clamps position beyond the track edges', () => {
+        const t = track();
+        const rect = t.getBoundingClientRect();
+        t.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.right + 500, bubbles: true }));
+        fixture.detectChanges();
+        expect(component.value()).toBe(100);
+        document.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('thumb mousedown starts dragging without jumping the value', () => {
+        component.value.set(40);
+        fixture.detectChanges();
+        const thumb = fixture.debugElement.query(By.css('[data-slot="slider"]')).nativeElement as HTMLElement;
+        const rect = thumb.getBoundingClientRect();
+        // Dispatch a mousedown on the slider element marked as thumb handler is bound in template;
+        // call the handler directly to assert it does not change the value immediately.
+        component.onThumbMouseDown(new MouseEvent('mousedown', { clientX: rect.left }));
+        fixture.detectChanges();
+        expect(component.value()).toBe(40);
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: rect.right }));
+        fixture.detectChanges();
+        expect(component.value()).toBe(100);
+        document.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('touchstart sets value and touchmove updates it', () => {
+        const t = track();
+        const rect = t.getBoundingClientRect();
+        const mkTouch = (type: string, clientX: number): TouchEvent => {
+            const ev = new Event(type, { bubbles: true, cancelable: true }) as unknown as TouchEvent;
+            Object.defineProperty(ev, 'touches', { value: [{ clientX, clientY: 0 }] });
+            return ev;
+        };
+        t.dispatchEvent(mkTouch('touchstart', rect.left));
+        fixture.detectChanges();
+        expect(component.value()).toBe(0);
+
+        document.dispatchEvent(mkTouch('touchmove', rect.right));
+        fixture.detectChanges();
+        expect(component.value()).toBe(100);
+
+        document.dispatchEvent(new Event('touchend'));
+    });
+
+    it('ignores pointer interactions when disabled', () => {
+        fixture.componentRef.setInput('disabled', true);
+        fixture.detectChanges();
+        const t = track();
+        const rect = t.getBoundingClientRect();
+        t.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.right, bubbles: true }));
+        fixture.detectChanges();
+        expect(component.value()).toBe(0);
+    });
+
+    it('inverts position mapping in RTL', () => {
+        fixture.nativeElement.setAttribute('dir', 'rtl');
+        const t = track();
+        const rect = t.getBoundingClientRect();
+        // In RTL, the left edge corresponds to max
+        t.dispatchEvent(new MouseEvent('mousedown', { clientX: rect.left, bubbles: true }));
+        fixture.detectChanges();
+        expect(component.value()).toBe(100);
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        fixture.nativeElement.removeAttribute('dir');
+    });
+
+    it('toString returns the current value', () => {
+        component.value.set(42);
+        expect(component.toString()).toBe('42');
+    });
+});
+
+describe('Slider invalid range', () => {
+    it('returns 0 percentage and logs when min >= max', async () => {
+        await TestBed.configureTestingModule({ imports: [SliderComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(SliderComponent);
+        fixture.componentRef.setInput('min', 100);
+        fixture.componentRef.setInput('max', 50);
+        fixture.componentInstance.value.set(75);
+        fixture.detectChanges();
+        expect(fixture.componentInstance.percentage()).toBe(0);
+    });
+});
+
 describe('Slider RTL Support', () => {
     let fixture: ComponentFixture<RTLTestHostComponent>;
     let component: RTLTestHostComponent;

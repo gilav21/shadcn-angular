@@ -814,7 +814,7 @@ describe('BentoGridComponent', () => {
 
             grid.draggedItemId.set('1');
             const intEv = makeDragEvent('dragover', 200, 200);
-            intEv.dataTransfer!.types = ['text/plain'];
+            Object.defineProperty(intEv.dataTransfer!, 'types', { value: ['text/plain'], configurable: true });
             Object.defineProperty(intEv, 'currentTarget', { value: containerEl });
             grid.onContainerDragOver(intEv);
             expect(intEv.dataTransfer!.dropEffect).toBe('move');

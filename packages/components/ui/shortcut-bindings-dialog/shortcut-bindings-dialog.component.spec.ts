@@ -3,6 +3,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
 import { ShortcutBindingsDialogComponent } from './shortcut-bindings-dialog.component';
+import { ShortcutBindingService } from '../../lib/shortcut-binding.service';
 import { provideNoopAnimations } from '@angular/platform-browser/animations';
 import { describe, it, expect, beforeEach } from 'vitest';
 
@@ -174,6 +175,204 @@ describe('ShortcutBindingsDialogComponent', () => {
             const result = dialog.format('');
             expect(result).toBe('');
         });
+    });
+});
+
+describe('ShortcutBindingsDialogComponent — rebind + grouping with live bindings', () => {
+    let fixture: ComponentFixture<ShortcutBindingsDialogComponent>;
+    let dialog: ShortcutBindingsDialogComponent;
+    let service: ShortcutBindingService;
+
+    async function setupWithBindings(): Promise<void> {
+        localStorage.clear();
+        TestBed.resetTestingModule();
+        await TestBed.configureTestingModule({
+            imports: [ShortcutBindingsDialogComponent],
+            providers: [provideNoopAnimations()],
+        }).compileComponents();
+
+        service = TestBed.inject(ShortcutBindingService);
+        service.registerComponent('Editor', [
+            { actionId: 'save', description: 'Save document', defaultShortcut: 'ctrl+s', category: 'File', handler: () => undefined },
+            { actionId: 'open', description: 'Open document', defaultShortcut: 'ctrl+o', category: 'File', handler: () => undefined },
+        ]);
+        service.registerComponent('Editor', [
+            { actionId: 'save', description: 'Save document', defaultShortcut: 'ctrl+s', category: 'File', handler: () => undefined },
+            { actionId: 'open', description: 'Open document', defaultShortcut: 'ctrl+o', category: 'File', handler: () => undefined },
+        ]);
+        service.registerComponent('Viewer', [
+            { actionId: 'find', description: 'Find in page', defaultShortcut: 'ctrl+s', category: 'Search', handler: () => undefined },
+        ]);
+
+        fixture = TestBed.createComponent(ShortcutBindingsDialogComponent);
+        dialog = fixture.componentInstance;
+        fixture.componentRef.setInput('open', true);
+        fixture.detectChanges();
+    }
+
+    beforeEach(async () => {
+        await setupWithBindings();
+    });
+
+    it('groups bindings by component name and reports instance counts', () => {
+        const groups = dialog.groupedBindings();
+        const editor = groups.find(g => g.componentName === 'editor');
+        const viewer = groups.find(g => g.componentName === 'viewer');
+
+        expect(editor).toBeDefined();
+        expect(viewer).toBeDefined();
+        expect(groups.map(g => g.componentName)).toEqual(['editor', 'viewer']);
+
+        const save = editor!.bindings.find(b => b.actionId === 'save');
+        expect(save).toBeDefined();
+        expect(save!.instances.length).toBe(2);
+        expect(save!.instances.map(i => i.componentId)).toEqual(['editor-1', 'editor-2']);
+        expect(save!.instances[0].displayName).toBe('editor #1');
+    });
+
+    it('flags actions that share a shortcut as conflicting', () => {
+        expect(dialog.conflictActionIds().has('save')).toBe(true);
+        expect(dialog.isConflicting('save')).toBe(true);
+        expect(dialog.isConflicting('find')).toBe(true);
+        expect(dialog.isConflicting('open')).toBe(false);
+    });
+
+    it('clears the conflict flag once an action is rebound to a free combo', () => {
+        expect(dialog.isConflicting('find')).toBe(true);
+
+        const btn = document.createElement('button');
+        dialog.startCaptureForComponent('find', 'viewer', btn);
+        dialog.onComponentCaptureKeydown(new KeyboardEvent('keydown', { key: 'g', ctrlKey: true }), 'find', 'viewer');
+
+        expect(dialog.isConflicting('find')).toBe(false);
+        expect(dialog.isConflicting('save')).toBe(false);
+    });
+
+    it('filters bindings by the search query', () => {
+        dialog.search.set('Find in page');
+        fixture.detectChanges();
+
+        const filtered = dialog.filteredBindings();
+        expect(filtered.map(b => b.actionId)).toEqual(['find']);
+        expect(dialog.groupedBindings().map(g => g.componentName)).toEqual(['viewer']);
+    });
+
+    it('shows the empty state when no binding matches the search', () => {
+        dialog.search.set('zzz-nonexistent');
+        fixture.detectChanges();
+
+        expect(dialog.groupedBindings().length).toBe(0);
+        const empty = fixture.nativeElement.textContent as string;
+        expect(empty).toContain('No shortcuts matched your search');
+    });
+
+    it('rebinds all instances when a component capture completes', () => {
+        const btn = document.createElement('button');
+        dialog.startCaptureForComponent('save', 'editor', btn);
+        expect(dialog.capturingActionKey()).toBe('component::editor::save');
+
+        const event = new KeyboardEvent('keydown', { key: 'd', ctrlKey: true, shiftKey: true });
+        dialog.onComponentCaptureKeydown(event, 'save', 'editor');
+
+        expect(dialog.capturingActionKey()).toBeNull();
+        expect(service.getShortcutOverrideForComponent('save', 'editor')).toBe('ctrl+shift+d');
+        expect(dialog.isComponentOverridden('save', 'editor')).toBe(true);
+
+        const view = service.getShortcutBindingViews().find(v => v.componentId === 'editor-1' && v.actionId === 'save');
+        expect(view!.effectiveShortcut).toBe('ctrl+shift+d');
+    });
+
+    it('ignores a capture keydown that is only a bare modifier', () => {
+        const btn = document.createElement('button');
+        dialog.startCaptureForComponent('save', 'editor', btn);
+
+        const modifierOnly = new KeyboardEvent('keydown', { key: 'Shift', shiftKey: true });
+        dialog.onComponentCaptureKeydown(modifierOnly, 'save', 'editor');
+
+        expect(dialog.capturingActionKey()).toBe('component::editor::save');
+        expect(dialog.isComponentOverridden('save', 'editor')).toBe(false);
+    });
+
+    it('rebinds a single instance independently of its siblings', () => {
+        const btn = document.createElement('button');
+        dialog.startCaptureForInstance('save', 'editor-1', btn);
+
+        const event = new KeyboardEvent('keydown', { key: 'm', ctrlKey: true });
+        dialog.onInstanceCaptureKeydown(event, 'save', 'editor-1');
+
+        expect(dialog.capturingActionKey()).toBeNull();
+        expect(dialog.isInstanceOverridden('save', 'editor-1')).toBe(true);
+        expect(dialog.isInstanceOverridden('save', 'editor-2')).toBe(false);
+        expect(service.getShortcutOverrideForInstance('save', 'editor-1')).toBe('ctrl+m');
+    });
+
+    it('does not apply an instance capture when the capturing key does not match', () => {
+        dialog.capturingActionKey.set('instance::other-9::save');
+        const event = new KeyboardEvent('keydown', { key: 'm', ctrlKey: true });
+        dialog.onInstanceCaptureKeydown(event, 'save', 'editor-1');
+
+        expect(dialog.isInstanceOverridden('save', 'editor-1')).toBe(false);
+        expect(dialog.capturingActionKey()).toBe('instance::other-9::save');
+    });
+
+    it('resets a component override back to default', () => {
+        const btn = document.createElement('button');
+        dialog.startCaptureForComponent('save', 'editor', btn);
+        dialog.onComponentCaptureKeydown(new KeyboardEvent('keydown', { key: 'd', ctrlKey: true }), 'save', 'editor');
+        expect(dialog.isComponentOverridden('save', 'editor')).toBe(true);
+
+        dialog.resetComponent('save', 'editor');
+        expect(dialog.isComponentOverridden('save', 'editor')).toBe(false);
+        expect(dialog.capturingActionKey()).toBeNull();
+    });
+
+    it('resets a single instance override', () => {
+        const btn = document.createElement('button');
+        dialog.startCaptureForInstance('save', 'editor-1', btn);
+        dialog.onInstanceCaptureKeydown(new KeyboardEvent('keydown', { key: 'm', ctrlKey: true }), 'save', 'editor-1');
+        expect(dialog.isInstanceOverridden('save', 'editor-1')).toBe(true);
+
+        dialog.resetInstance('save', 'editor-1');
+        expect(dialog.isInstanceOverridden('save', 'editor-1')).toBe(false);
+        expect(dialog.capturingActionKey()).toBeNull();
+    });
+
+    it('opens all matching groups + actions when searching', () => {
+        dialog.search.set('save');
+        fixture.detectChanges();
+
+        expect(dialog.searchActive()).toBe(true);
+        expect(dialog.openGroupValues()).toContain('group::editor');
+        expect(dialog.openActionValuesForGroup('editor')).toContain('action::editor::save');
+        expect(dialog.openActionValuesForGroup('viewer')).toEqual([]);
+    });
+
+    it('returns no open group values when search is inactive', () => {
+        dialog.search.set('');
+        expect(dialog.openGroupValues()).toEqual([]);
+        expect(dialog.openActionValuesForGroup('editor')).toEqual([]);
+    });
+
+    it('emits the override schema via (mappingSave) when saveMappingSchema is called', () => {
+        const btn = document.createElement('button');
+        dialog.startCaptureForComponent('open', 'editor', btn);
+        dialog.onComponentCaptureKeydown(new KeyboardEvent('keydown', { key: 'p', ctrlKey: true }), 'open', 'editor');
+
+        let emitted: Record<string, string> | undefined;
+        dialog.mappingSave.subscribe(schema => { emitted = schema; });
+        dialog.saveMappingSchema();
+
+        expect(emitted).toBeDefined();
+        expect(emitted!['editor::open']).toBe('ctrl+p');
+    });
+
+    it('imports a mapping schema provided via the [mappingSchema] input', async () => {
+        fixture.componentRef.setInput('mappingSchema', { 'editor::save': 'ctrl+alt+s' });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(service.getShortcutOverrideForComponent('save', 'editor')).toBe('ctrl+alt+s');
+        expect(dialog.isComponentOverridden('save', 'editor')).toBe(true);
     });
 });
 

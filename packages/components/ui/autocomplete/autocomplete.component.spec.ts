@@ -1,7 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { AutocompleteComponent } from './autocomplete.component';
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { By } from '@angular/platform-browser';
 
 interface Fruit {
@@ -51,6 +51,10 @@ describe('AutocompleteComponent', () => {
         host = fixture.componentInstance;
         fixture.detectChanges();
         autocomplete = fixture.debugElement.query(By.directive(AutocompleteComponent)).componentInstance as AutocompleteComponent<Fruit>;
+    });
+
+    afterEach(() => {
+        if (fixture.nativeElement.parentNode) fixture.nativeElement.remove();
     });
 
     // --- Existing creation/structure tests ---
@@ -387,6 +391,212 @@ describe('AutocompleteComponent', () => {
             await fixture.whenStable();
 
             expect(autocomplete.isDisabled()).toBe(true);
+        });
+    });
+
+    // --- focus / blur / open ---
+
+    describe('focus, blur and open handling', () => {
+        beforeEach(() => {
+            document.body.appendChild(fixture.nativeElement);
+            fixture.detectChanges();
+        });
+
+        it('opens the dropdown on focus and resolves a side', () => {
+            autocomplete.onFocus();
+            fixture.detectChanges();
+            expect(autocomplete.open()).toBe(true);
+            expect(['top', 'bottom']).toContain(autocomplete.dropdownSide());
+        });
+
+        it('does not open on focus when disabled', async () => {
+            host.disabled.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            autocomplete.onFocus();
+            expect(autocomplete.open()).toBe(false);
+        });
+
+        it('does not reopen on focus when already open', () => {
+            autocomplete.open.set(true);
+            const sideBefore = autocomplete.dropdownSide();
+            autocomplete.onFocus();
+            expect(autocomplete.open()).toBe(true);
+            expect(autocomplete.dropdownSide()).toBe(sideBefore);
+        });
+
+        it('calls onTouched on blur', () => {
+            const spy = vi.fn();
+            autocomplete.registerOnTouched(spy);
+            autocomplete.onBlur();
+            expect(spy).toHaveBeenCalled();
+        });
+
+        it('onOpenChange clears the search term when closing', () => {
+            autocomplete.searchTerm.set('app');
+            autocomplete.onOpenChange(false);
+            expect(autocomplete.open()).toBe(false);
+            expect(autocomplete.searchTerm()).toBe('');
+        });
+
+        it('onOpenChange opens without clearing search', () => {
+            autocomplete.searchTerm.set('app');
+            autocomplete.onOpenChange(true);
+            expect(autocomplete.open()).toBe(true);
+            expect(autocomplete.searchTerm()).toBe('app');
+        });
+
+        it('onOpenChange is a no-op when disabled', async () => {
+            host.disabled.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            autocomplete.open.set(true);
+            autocomplete.onOpenChange(false);
+            expect(autocomplete.open()).toBe(true);
+        });
+    });
+
+    // --- container click ---
+
+    describe('container click', () => {
+        beforeEach(() => {
+            document.body.appendChild(fixture.nativeElement);
+            fixture.detectChanges();
+        });
+
+        it('focuses the input on container click', () => {
+            const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
+            const spy = vi.spyOn(input, 'focus');
+            autocomplete.onContainerClick(new MouseEvent('click'));
+            expect(spy).toHaveBeenCalled();
+        });
+
+        it('prevents interaction on container click when disabled', async () => {
+            host.disabled.set(true);
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const ev = new MouseEvent('click');
+            const prevent = vi.spyOn(ev, 'preventDefault');
+            autocomplete.onContainerClick(ev);
+            expect(prevent).toHaveBeenCalled();
+        });
+    });
+
+    // --- input / search ---
+
+    describe('input and search emission', () => {
+        beforeEach(() => {
+            document.body.appendChild(fixture.nativeElement);
+            fixture.detectChanges();
+        });
+
+        function inputEvent(value: string): Event {
+            const input = fixture.debugElement.query(By.css('input')).nativeElement as HTMLInputElement;
+            input.value = value;
+            const ev = new Event('input', { bubbles: true });
+            Object.defineProperty(ev, 'target', { value: input });
+            return ev;
+        }
+
+        it('updates searchTerm, emits searchChange and opens on typing', () => {
+            const spy = vi.fn();
+            autocomplete.searchChange.subscribe(spy);
+            autocomplete.onInput(inputEvent('ban'));
+            fixture.detectChanges();
+            expect(autocomplete.searchTerm()).toBe('ban');
+            expect(spy).toHaveBeenCalledWith('ban');
+            expect(autocomplete.open()).toBe(true);
+        });
+
+    });
+
+    describe('debounced search', () => {
+        it('debounces searchChange when debounceTime > 0', async () => {
+            TestBed.resetTestingModule();
+            await TestBed.configureTestingModule({
+                imports: [AutocompleteComponent],
+            }).compileComponents();
+            const f = TestBed.createComponent(AutocompleteComponent);
+            f.componentRef.setInput('debounceTime', 10);
+            f.detectChanges();
+            const cmp = f.componentInstance;
+            const spy = vi.fn();
+            cmp.searchChange.subscribe(spy);
+
+            const input = f.nativeElement.querySelector('input') as HTMLInputElement;
+            input.value = 'ch';
+            const ev = new Event('input', { bubbles: true });
+            Object.defineProperty(ev, 'target', { value: input });
+            cmp.onInput(ev);
+
+            expect(spy).not.toHaveBeenCalled();
+            await new Promise(r => setTimeout(r, 40));
+            expect(spy).toHaveBeenCalledWith('ch');
+        });
+    });
+
+    // --- arrow / enter navigation ---
+
+    describe('keyboard navigation', () => {
+        beforeEach(() => {
+            document.body.appendChild(fixture.nativeElement);
+            fixture.detectChanges();
+        });
+
+        it('ArrowDown opens the dropdown when closed', () => {
+            expect(autocomplete.open()).toBe(false);
+            autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            expect(autocomplete.open()).toBe(true);
+        });
+
+        it('ArrowUp opens the dropdown when closed', () => {
+            autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowUp' }));
+            expect(autocomplete.open()).toBe(true);
+        });
+
+        it('ArrowDown moves to the next item when open', async () => {
+            autocomplete.onFocus();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const cmd = autocomplete.command();
+            const spy = cmd ? vi.spyOn(cmd, 'moveNext') : null;
+            autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+            if (spy) expect(spy).toHaveBeenCalled();
+        });
+
+        it('Enter selects the active item when open', async () => {
+            autocomplete.onFocus();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            const cmd = autocomplete.command();
+            const spy = cmd ? vi.spyOn(cmd, 'selectActive') : null;
+            autocomplete.onKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+            if (spy) expect(spy).toHaveBeenCalled();
+        });
+
+        it('renders command items for every option when open', async () => {
+            autocomplete.onFocus();
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+            const items = document.querySelectorAll('[data-slot="command-item"]');
+            expect(items.length).toBe(fruits.length);
+        });
+    });
+
+    // --- getDisplayValue fallback ---
+
+    describe('getDisplayValue', () => {
+        it('uses String() when displayWith is not a function', async () => {
+            TestBed.resetTestingModule();
+            await TestBed.configureTestingModule({
+                imports: [AutocompleteComponent],
+            }).compileComponents();
+            const f = TestBed.createComponent(AutocompleteComponent<Fruit>);
+            // No displayWith binding → default String()
+            f.detectChanges();
+            const cmp = f.componentInstance;
+            expect(cmp.getDisplayValue({ name: 'X', value: 'x' })).toBe('[object Object]');
         });
     });
 

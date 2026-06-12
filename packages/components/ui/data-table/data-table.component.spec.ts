@@ -1,4 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { Component } from '@angular/core';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
 import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
@@ -2972,5 +2973,1289 @@ describe('DataTableComponent — i18n integration', () => {
         expect(labels).toContain('Pin Right');
         expect(labels).toContain('Hide Column');
         expect(labels).toContain('Show All Columns');
+    });
+});
+
+// ---------------------------------------------------------------------------
+// Coverage-extension suites
+// ---------------------------------------------------------------------------
+
+interface NumRow {
+    id: string;
+    name: string;
+    score: number;
+}
+
+const NUM_DATA: NumRow[] = [
+    { id: '1', name: 'Alice', score: 30 },
+    { id: '2', name: 'Bob', score: 10 },
+    { id: '3', name: 'Charlie', score: 50 },
+    { id: '4', name: 'David', score: 20 },
+    { id: '5', name: 'Eve', score: 40 },
+];
+
+const NUM_COLUMNS: ColumnDef<NumRow>[] = [
+    { accessorKey: 'id', header: 'ID' },
+    { accessorKey: 'name', header: 'Name', editable: true },
+    { accessorKey: 'score', header: 'Score' },
+];
+
+async function makeNumTable(): Promise<{
+    fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    component: DataTableComponent<NumRow>;
+}> {
+    await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+    const fixture = TestBed.createComponent(DataTableComponent<NumRow>);
+    const component = fixture.componentInstance;
+    fixture.componentRef.setInput('data', structuredClone(NUM_DATA));
+    fixture.componentRef.setInput('columns', NUM_COLUMNS);
+    fixture.detectChanges();
+    return { fixture, component };
+}
+
+describe('DataTableComponent - Export & Clipboard', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        ({ fixture, component } = await makeNumTable());
+    });
+
+    it('builds export rows with headers and all visible data', () => {
+        const data = component.getExportData();
+        expect(data[0]).toEqual(['ID', 'Name', 'Score']);
+        expect(data.length).toBe(6); // header + 5 rows
+        expect(data[1]).toEqual(['1', 'Alice', '30']);
+    });
+
+    it('omits headers when includeHeaders is false', () => {
+        const data = component.getExportData({ includeHeaders: false });
+        expect(data.length).toBe(5);
+        expect(data[0]).toEqual(['1', 'Alice', '30']);
+    });
+
+    it('exports only filtered rows by default', () => {
+        component.onFilterChange('Alice');
+        fixture.detectChanges();
+        const data = component.getExportData();
+        expect(data.length).toBe(2); // header + Alice
+        expect(data[1][1]).toBe('Alice');
+    });
+
+    it('exports unfiltered data when onlyFiltered is false', () => {
+        component.onFilterChange('Alice');
+        fixture.detectChanges();
+        const data = component.getExportData({ onlyFiltered: false });
+        expect(data.length).toBe(6);
+    });
+
+    it('respects onlyVisible by dropping hidden columns', () => {
+        component.setColumnVisibility('score', false);
+        fixture.detectChanges();
+        const data = component.getExportData({ onlyVisible: true });
+        expect(data[0]).toEqual(['ID', 'Name']);
+        const all = component.getExportData({ onlyVisible: false });
+        expect(all[0]).toEqual(['ID', 'Name', 'Score']);
+    });
+
+    it('exportToCsv quotes cells containing commas and triggers a download', async () => {
+        const data: NumRow[] = [{ id: '1', name: 'Smith, John', score: 1 }];
+        fixture.componentRef.setInput('data', data);
+        fixture.detectChanges();
+
+        const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+        const createSpy = vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+        const revokeSpy = vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+        await component.exportToCsv('myfile');
+
+        expect(clickSpy).toHaveBeenCalled();
+        expect(createSpy).toHaveBeenCalled();
+        expect(revokeSpy).toHaveBeenCalled();
+        expect(component.exporting()).toBe(false);
+
+        clickSpy.mockRestore();
+        createSpy.mockRestore();
+        revokeSpy.mockRestore();
+    });
+
+    it('exportToCsv uses exportDataProvider when configured', async () => {
+        const providerRows: NumRow[] = [{ id: '99', name: 'Provided', score: 0 }];
+        const provider = vi.fn(async () => providerRows);
+        fixture.componentRef.setInput('exportDataProvider', provider);
+        fixture.detectChanges();
+
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+        await component.exportToCsv();
+        expect(provider).toHaveBeenCalled();
+        vi.restoreAllMocks();
+    });
+
+    it('exportToExcel produces a blob and resets exporting flag', async () => {
+        const clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+        await component.exportToExcel('sheet');
+        expect(clickSpy).toHaveBeenCalled();
+        expect(component.exporting()).toBe(false);
+        vi.restoreAllMocks();
+    });
+
+    it('copyRowToClipboard writes tab-separated cell values', async () => {
+        const writeText = vi.fn(async () => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        await component.copyRowToClipboard(NUM_DATA[0]);
+        expect(writeText).toHaveBeenCalledWith('1\tAlice\t30');
+        vi.unstubAllGlobals();
+    });
+
+    it('copyAllToClipboard writes header + every row', async () => {
+        const writeText = vi.fn(async (_text: string) => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        await component.copyAllToClipboard();
+        const text = writeText.mock.calls[0][0] as string;
+        const lines = text.split('\n');
+        expect(lines[0]).toBe('ID\tName\tScore');
+        expect(lines.length).toBe(6);
+        vi.unstubAllGlobals();
+    });
+
+    it('copySelectedToClipboard writes only selected rows with header', async () => {
+        fixture.componentRef.setInput('enableRowSelection', true);
+        fixture.detectChanges();
+        component.rowSelection.set({ '2': true, '4': true });
+        fixture.detectChanges();
+
+        const writeText = vi.fn(async (_text: string) => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        await component.copySelectedToClipboard();
+        const text = writeText.mock.calls[0][0] as string;
+        const lines = text.split('\n');
+        expect(lines[0]).toBe('ID\tName\tScore');
+        expect(lines.length).toBe(3); // header + Bob + David
+        expect(lines[1]).toContain('Bob');
+        expect(lines[2]).toContain('David');
+        vi.unstubAllGlobals();
+    });
+
+    it('copySelectedToClipboard is a no-op when nothing is selected', async () => {
+        const writeText = vi.fn(async () => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        await component.copySelectedToClipboard();
+        expect(writeText).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
+    });
+
+    it('clipboard copy helpers are disabled when enableCopy is false', async () => {
+        fixture.componentRef.setInput('enableCopy', false);
+        fixture.detectChanges();
+        const writeText = vi.fn(async () => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        await component.copyRowToClipboard(NUM_DATA[0]);
+        await component.copyAllToClipboard();
+        await component.copySelectedToClipboard();
+        expect(writeText).not.toHaveBeenCalled();
+        vi.unstubAllGlobals();
+    });
+
+    it('copyCellToClipboard copies the focused cell value', async () => {
+        const writeText = vi.fn(async () => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        component.focusedCell.set({ rowIndex: 2, columnKey: 'name' });
+        await component.copyCellToClipboard();
+        expect(writeText).toHaveBeenCalledWith('Charlie');
+        vi.unstubAllGlobals();
+    });
+});
+
+describe('DataTableComponent - getCellStringValue', () => {
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        ({ component } = await makeNumTable());
+    });
+
+    it('uses the cell renderer when provided', () => {
+        const col: ColumnDef<NumRow> = { accessorKey: 'score', header: 'Score', cell: (r) => `$${r.score}` };
+        expect(component.getCellStringValue(NUM_DATA[0], col)).toBe('$30');
+    });
+
+    it('returns empty string for null/undefined values', () => {
+        const col: ColumnDef<NumRow> = { accessorKey: 'missing' as keyof NumRow, header: 'X' };
+        expect(component.getCellStringValue({ id: '9', name: 'N', score: 1 }, col)).toBe('');
+    });
+
+    it('serialises plain objects via JSON', () => {
+        const col: ColumnDef<NumRow> = { accessorKey: 'name', header: 'N', accessorFn: () => ({ a: 1 }) };
+        expect(component.getCellStringValue(NUM_DATA[0], col)).toBe('{"a":1}');
+    });
+
+    it('uses a custom toString on object values', () => {
+        const col: ColumnDef<NumRow> = {
+            accessorKey: 'name', header: 'N',
+            accessorFn: () => ({ toString: () => 'CUSTOM' }),
+        };
+        expect(component.getCellStringValue(NUM_DATA[0], col)).toBe('CUSTOM');
+    });
+});
+
+describe('DataTableComponent - Cell click / dblclick / touch editing', () => {
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        ({ component } = await makeNumTable());
+    });
+
+    it('onCellClick focuses the clicked cell', () => {
+        const evt = { stopPropagation: vi.fn() } as unknown as Event;
+        component.onCellClick(1, { accessorKey: 'name', header: 'Name' } as ColumnDef<NumRow>, evt);
+        expect(component.focusedCell()).toEqual({ rowIndex: 1, columnKey: 'name' });
+    });
+
+    it('onCellClick ignores special columns', () => {
+        const evt = { stopPropagation: vi.fn() } as unknown as Event;
+        component.onCellClick(1, { accessorKey: '_selection', header: '' } as ColumnDef<NumRow>, evt);
+        expect(component.focusedCell()).toBeNull();
+    });
+
+    it('onCellDblClick starts editing an editable cell', () => {
+        const evt = { stopPropagation: vi.fn() } as unknown as Event;
+        component.onCellDblClick(0, NUM_COLUMNS[1], evt);
+        expect(component.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
+    });
+
+    it('double-tap on a cell starts editing; single tap does not', () => {
+        const makeTouch = () => ({ preventDefault: vi.fn() } as unknown as TouchEvent);
+        component.onCellTouchEnd(makeTouch(), 0, NUM_COLUMNS[1]);
+        expect(component.editingCell()).toBeNull();
+        // Second tap on the same cell within the delay window
+        component.onCellTouchEnd(makeTouch(), 0, NUM_COLUMNS[1]);
+        expect(component.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
+    });
+
+    it('onTableClick clears the focused cell', () => {
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'name' });
+        component.onTableClick();
+        expect(component.focusedCell()).toBeNull();
+    });
+});
+
+describe('DataTableComponent - Keyboard navigation extras', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        ({ fixture, component } = await makeNumTable());
+    });
+
+    it('initialises focus on first ArrowDown when nothing is focused', () => {
+        expect(component.focusedCell()).toBeNull();
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'ArrowDown' }));
+        expect(component.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'id' });
+    });
+
+    it('End moves to the last column of the row', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'End' }));
+        expect(component.focusedCell()?.columnKey).toBe('score');
+    });
+
+    it('Ctrl+End jumps to the last row last column', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'End', ctrlKey: true }));
+        expect(component.focusedCell()).toEqual({ rowIndex: 4, columnKey: 'score' });
+    });
+
+    it('Home (no ctrl) moves to first column, same row', () => {
+        component.focusedCell.set({ rowIndex: 3, columnKey: 'score' });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'Home' }));
+        expect(component.focusedCell()).toEqual({ rowIndex: 3, columnKey: 'id' });
+    });
+
+    it('PageDown / PageUp move by a page', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'PageDown' }));
+        expect(component.focusedCell()?.rowIndex).toBe(4); // clamps to last row (5 rows)
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'PageUp' }));
+        expect(component.focusedCell()?.rowIndex).toBe(0);
+    });
+
+    it('ArrowLeft clamps at the first column', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'id' });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+        expect(component.focusedCell()?.columnKey).toBe('id');
+    });
+
+    it('Shift+Tab wraps to previous row last column', () => {
+        component.focusedCell.set({ rowIndex: 1, columnKey: 'id' });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true }));
+        expect(component.focusedCell()).toEqual({ rowIndex: 0, columnKey: 'score' });
+    });
+
+    it('F2 starts editing the focused editable cell', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'F2' }));
+        expect(component.editingCell()).toEqual({ rowIndex: 0, columnKey: 'name' });
+    });
+
+    it('Ctrl+C copies the focused cell to the clipboard', () => {
+        const writeText = vi.fn(async () => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        component.focusedCell.set({ rowIndex: 2, columnKey: 'name' });
+        const evt = new KeyboardEvent('keydown', { key: 'c', ctrlKey: true });
+        component.onTableKeydown(evt);
+        expect(writeText).toHaveBeenCalledWith('Charlie');
+        vi.unstubAllGlobals();
+    });
+
+    it('Ctrl+C copies a selected cell range', async () => {
+        fixture.componentRef.setInput('enableCellRangeSelection', true);
+        fixture.detectChanges();
+        const writeText = vi.fn(async (_text: string) => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+
+        component.cellRange.set({ startRow: 0, startCol: 'id', endRow: 1, endCol: 'name' });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
+        await Promise.resolve();
+        const text = writeText.mock.calls[0][0] as string;
+        expect(text).toBe('1\tAlice\n2\tBob');
+        vi.unstubAllGlobals();
+    });
+
+    it('Ctrl+C falls back to selected rows when no cell is focused', async () => {
+        fixture.componentRef.setInput('enableRowSelection', true);
+        fixture.detectChanges();
+        component.rowSelection.set({ '1': true });
+        fixture.detectChanges();
+
+        const writeText = vi.fn(async (_text: string) => undefined);
+        vi.stubGlobal('navigator', { clipboard: { writeText } });
+        component.onTableKeydown(new KeyboardEvent('keydown', { key: 'c', ctrlKey: true }));
+        await Promise.resolve();
+        expect(writeText).toHaveBeenCalled();
+        const text = writeText.mock.calls[0][0] as string;
+        expect(text).toContain('Alice');
+        vi.unstubAllGlobals();
+    });
+});
+
+describe('DataTableComponent - Inline edit keyboard flow', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        ({ fixture, component } = await makeNumTable());
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', editable: true, valueSetter: (r: NumRow, v: unknown) => ({ ...r, name: String(v) }) },
+            { accessorKey: 'score', header: 'Score', editable: true, valueSetter: (r: NumRow, v: unknown) => ({ ...r, score: Number(v) }) },
+        ]);
+        fixture.detectChanges();
+    });
+
+    it('Enter commits the edit', () => {
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Renamed');
+        component.onEditKeydown(new KeyboardEvent('keydown', { key: 'Enter' }));
+        expect(component.editingCell()).toBeNull();
+        expect(component.data()[0].name).toBe('Renamed');
+    });
+
+    it('Escape cancels the edit', () => {
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Throwaway');
+        component.onEditKeydown(new KeyboardEvent('keydown', { key: 'Escape' }));
+        expect(component.editingCell()).toBeNull();
+        expect(component.data()[0].name).toBe('Alice');
+    });
+
+    it('Tab commits and advances editing into the next editable cell', () => {
+        component.focusedCell.set({ rowIndex: 0, columnKey: 'name' });
+        component.startEditing(0, 'name');
+        component.onEditValueChange('Edited');
+        component.onEditKeydown(new KeyboardEvent('keydown', { key: 'Tab' }));
+        expect(component.data()[0].name).toBe('Edited');
+        // focus advanced to score column, which is editable -> editing started
+        expect(component.focusedCell()?.columnKey).toBe('score');
+        expect(component.editingCell()).toEqual({ rowIndex: 0, columnKey: 'score' });
+    });
+});
+
+describe('DataTableComponent - Column menu', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        ({ fixture, component } = await makeNumTable());
+        fixture.componentRef.setInput('enableColumnMenu', true);
+        fixture.detectChanges();
+    });
+
+    it('opens the column menu and populates sort/pin/visibility items', () => {
+        const target = document.createElement('button');
+        document.body.appendChild(target);
+        const evt = { stopPropagation: vi.fn(), target } as unknown as MouseEvent;
+        component.onColumnMenuClick(evt, NUM_COLUMNS[2]);
+
+        const items = component.activeColumnMenuItems();
+        const labels = items.map((i) => ('label' in i ? i.label : '__sep__'));
+        expect(labels).toContain('Sort Ascending');
+        expect(labels).toContain('Sort Descending');
+        expect(labels).toContain('Pin Left');
+        expect(labels).toContain('Pin Right');
+        expect(labels).toContain('Show All Columns');
+        document.body.removeChild(target);
+    });
+
+    it('column menu sort item invokes onSortChange', () => {
+        const target = document.createElement('button');
+        document.body.appendChild(target);
+        component.onColumnMenuClick({ stopPropagation: vi.fn(), target } as unknown as MouseEvent, NUM_COLUMNS[2]);
+        const items = component.activeColumnMenuItems();
+        const asc = items.find((i) => 'label' in i && i.label === 'Sort Ascending') as { click: () => void };
+        asc.click();
+        expect(component.sortState()).toEqual({ column: 'score', direction: 'asc' });
+        document.body.removeChild(target);
+    });
+
+    it('column menu pin item invokes pinColumn', () => {
+        const target = document.createElement('button');
+        document.body.appendChild(target);
+        component.onColumnMenuClick({ stopPropagation: vi.fn(), target } as unknown as MouseEvent, NUM_COLUMNS[2]);
+        const items = component.activeColumnMenuItems();
+        const pinLeft = items.find((i) => 'label' in i && i.label === 'Pin Left') as { click: () => void };
+        pinLeft.click();
+        fixture.detectChanges();
+        expect(component.columnPinOverrides()['score']).toBe('left');
+        document.body.removeChild(target);
+    });
+
+    it('includes a Clear Sort item only when the column is sorted', () => {
+        component.onSortChange('score', 'asc');
+        const target = document.createElement('button');
+        document.body.appendChild(target);
+        component.onColumnMenuClick({ stopPropagation: vi.fn(), target } as unknown as MouseEvent, NUM_COLUMNS[2]);
+        const labels = component.activeColumnMenuItems().map((i) => ('label' in i ? i.label : '__sep__'));
+        expect(labels).toContain('Clear Sort');
+        document.body.removeChild(target);
+    });
+});
+
+describe('DataTableComponent - Aggregates (min/max/count/custom)', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        ({ fixture, component } = await makeNumTable());
+    });
+
+    it('computes min and max footer aggregates', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'score', header: 'Score', aggregateFn: 'min' },
+        ]);
+        fixture.componentRef.setInput('showFooter', true);
+        fixture.detectChanges();
+        expect(component.footerValues().get('score')).toBe('10');
+
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'score', header: 'Score', aggregateFn: 'max' },
+        ]);
+        fixture.detectChanges();
+        expect(component.footerValues().get('score')).toBe('50');
+    });
+
+    it('supports a custom aggregate function', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'score', header: 'Score', aggregateFn: (vals: unknown[]) => `n=${vals.length}` },
+        ]);
+        fixture.componentRef.setInput('showFooter', true);
+        fixture.detectChanges();
+        expect(component.footerValues().get('score')).toBe('n=5');
+    });
+
+    it('returns empty string for numeric aggregate over non-numeric values', () => {
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name', aggregateFn: 'sum' },
+        ]);
+        fixture.componentRef.setInput('showFooter', true);
+        fixture.detectChanges();
+        expect(component.footerValues().get('name')).toBe('');
+    });
+});
+
+describe('DataTableComponent - Cell flash', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<NumRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', structuredClone(NUM_DATA));
+        fixture.componentRef.setInput('columns', NUM_COLUMNS);
+        fixture.componentRef.setInput('enableCellFlash', true);
+        fixture.componentRef.setInput('getRowId', (r: NumRow) => r.id);
+        fixture.detectChanges();
+    });
+
+    it('flashes "up" when a numeric value increases and "down" when it decreases', () => {
+        const next = structuredClone(NUM_DATA);
+        next[0] = { ...next[0], score: 999 }; // Alice 30 -> 999 (up)
+        next[1] = { ...next[1], score: 1 };   // Bob 10 -> 1 (down)
+        component.data.set(next);
+        fixture.detectChanges();
+
+        expect(component.getCellFlashClass('1', 'score')).toContain('flash-up');
+        expect(component.getCellFlashClass('1', 'score')).toContain('green');
+        expect(component.getCellFlashClass('2', 'score')).toContain('flash-down');
+        expect(component.getCellFlashClass('2', 'score')).toContain('red');
+    });
+
+    it('flashes "changed" for non-numeric value changes', () => {
+        const next = structuredClone(NUM_DATA);
+        next[0] = { ...next[0], name: 'Alicia' };
+        component.data.set(next);
+        fixture.detectChanges();
+        expect(component.getCellFlashClass('1', 'name')).toContain('flash-changed');
+    });
+
+    it('returns empty class for cells that did not change', () => {
+        expect(component.getCellFlashClass('1', 'score')).toBe('');
+    });
+});
+
+describe('DataTableComponent - Row drag reorder', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<NumRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', structuredClone(NUM_DATA));
+        fixture.componentRef.setInput('columns', NUM_COLUMNS);
+        fixture.componentRef.setInput('enableRowDrag', true);
+        fixture.componentRef.setInput('getRowId', (r: NumRow) => r.id);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.detectChanges();
+    });
+
+    function makeRowEl(top: number, height: number): HTMLElement {
+        return {
+            getBoundingClientRect: () => ({ top, height, bottom: top + height, left: 0, width: 100 }),
+        } as unknown as HTMLElement;
+    }
+
+    it('onRowDragStart sets draggedRowId and dataTransfer payload', () => {
+        const setData = vi.fn();
+        const event = { dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent;
+        component.onRowDragStart(event, NUM_DATA[0]);
+        expect(component.draggedRowId()).toBe('1');
+        expect(setData).toHaveBeenCalledWith('text/plain', '1');
+    });
+
+    it('onRowDragOver records drop index/position and isRowBeingDragged reflects state', () => {
+        const setData = vi.fn();
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent, NUM_DATA[0]);
+        expect(component.isRowBeingDragged(NUM_DATA[0])).toBe(true);
+
+        const overEvent = {
+            currentTarget: makeRowEl(100, 40),
+            clientY: 135, // > 0.5 of the row -> 'below'
+            dataTransfer: { dropEffect: '' },
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent;
+        component.onRowDragOver(overEvent, 2);
+        expect(component.getDropEdge(2)).toBe('bottom');
+    });
+
+    it('computes a live drag-preview reorder of the data', () => {
+        const setData = vi.fn();
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent, NUM_DATA[0]);
+        component.onRowDragOver({
+            currentTarget: makeRowEl(100, 40),
+            clientY: 135,
+            dataTransfer: { dropEffect: '' },
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent, 2);
+
+        const preview = component.dragPreviewData();
+        expect(preview).not.toBeNull();
+        // Alice moved below index 2 (Charlie) -> order: Bob, Charlie, Alice, David, Eve
+        expect(preview!.map((r) => r.name)).toEqual(['Bob', 'Charlie', 'Alice', 'David', 'Eve']);
+    });
+
+    it('emits rowReorder with correct from/to indexes on drop', () => {
+        const reorderSpy = vi.fn();
+        component.rowReorder.subscribe(reorderSpy);
+
+        const setData = vi.fn();
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent, NUM_DATA[0]);
+        component.onRowDragOver({
+            currentTarget: makeRowEl(100, 40),
+            clientY: 135,
+            dataTransfer: { dropEffect: '' },
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent, 2);
+        component.onRowDrop({ preventDefault: vi.fn(), stopPropagation: vi.fn() } as unknown as DragEvent);
+
+        expect(reorderSpy).toHaveBeenCalledWith(expect.objectContaining({ fromIndex: 0, toIndex: 2 }));
+        expect(component.draggedRowId()).toBeNull();
+    });
+
+    it('reorderData moves a flat row to the position implied by previousId', () => {
+        const event = {
+            row: NUM_DATA[0],
+            targetRow: NUM_DATA[2],
+            position: 'below' as const,
+            previousId: '3',
+            nextId: '4',
+            fromIndex: 0,
+            toIndex: 2,
+        };
+        const result = component.reorderData(structuredClone(NUM_DATA), event);
+        expect(result.map((r) => r.name)).toEqual(['Bob', 'Charlie', 'Alice', 'David', 'Eve']);
+    });
+
+    it('onRowDragEnd / clearRowDragState clears drag signals', () => {
+        const setData = vi.fn();
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent, NUM_DATA[0]);
+        component.onRowDragEnd();
+        expect(component.draggedRowId()).toBeNull();
+        expect(component.getDropEdge(0)).toBeNull();
+    });
+
+    it('does not start a drag for disabled rows', () => {
+        fixture.componentRef.setInput('isRowDisabled', (r: NumRow) => r.id === '1');
+        fixture.detectChanges();
+        const setData = vi.fn();
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent, NUM_DATA[0]);
+        expect(component.draggedRowId()).toBeNull();
+    });
+
+    it('respects rowDragAllowDrop predicate to block a drop target', () => {
+        fixture.componentRef.setInput('rowDragAllowDrop', () => false);
+        fixture.detectChanges();
+        const setData = vi.fn();
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent, NUM_DATA[0]);
+        const preventDefault = vi.fn();
+        component.onRowDragOver({
+            currentTarget: makeRowEl(100, 40),
+            clientY: 135,
+            dataTransfer: { dropEffect: '' },
+            preventDefault,
+            stopPropagation: vi.fn(),
+        } as unknown as DragEvent, 2);
+        // blocked -> dragOverIndex not set, no drop edge
+        expect(component.getDropEdge(2)).toBeNull();
+        expect(preventDefault).not.toHaveBeenCalled();
+    });
+});
+
+describe('DataTableComponent - Tree row drag (tree mode)', () => {
+    interface TNode { id: string; name: string; children?: TNode[] }
+    const T_DATA: TNode[] = [
+        { id: 'a', name: 'A', children: [{ id: 'a1', name: 'A1' }, { id: 'a2', name: 'A2' }] },
+        { id: 'b', name: 'B' },
+    ];
+    const T_COLS: ColumnDef<TNode>[] = [
+        { accessorKey: 'id', header: 'ID' },
+        { accessorKey: 'name', header: 'Name' },
+    ];
+
+    let fixture: ComponentFixture<DataTableComponent<TNode>>;
+    let component: DataTableComponent<TNode>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<TNode>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', structuredClone(T_DATA));
+        fixture.componentRef.setInput('columns', T_COLS);
+        fixture.componentRef.setInput('enableSubRows', true);
+        fixture.componentRef.setInput('getRowId', (r: TNode) => r.id);
+        fixture.componentRef.setInput('enableRowDrag', true);
+        fixture.componentRef.setInput('rowDragMode', 'tree');
+        fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.detectChanges();
+    });
+
+    it('reorderData with position "on" nests the moved node as a child of the target', () => {
+        const event = {
+            row: T_DATA[1], // B
+            targetRow: T_DATA[0], // A
+            position: 'on' as const,
+            previousId: null,
+            nextId: null,
+            fromIndex: 3,
+            toIndex: 0,
+        };
+        const result = component.reorderData(structuredClone(T_DATA), event);
+        const a = result.find((n) => n.id === 'a')!;
+        expect(a.children!.map((c) => c.id)).toContain('b');
+        expect(result.some((n) => n.id === 'b')).toBe(false);
+    });
+
+    it('reorderData with position "above" places the moved node before the target sibling', () => {
+        const event = {
+            row: T_DATA[1], // B
+            targetRow: T_DATA[0].children![0], // A1
+            position: 'above' as const,
+            previousId: null,
+            nextId: null,
+            fromIndex: 3,
+            toIndex: 1,
+        };
+        const result = component.reorderData(structuredClone(T_DATA), event);
+        const a = result.find((n) => n.id === 'a')!;
+        expect(a.children!.map((c) => c.id)).toEqual(['b', 'a1', 'a2']);
+    });
+});
+
+describe('DataTableComponent - Column resize drag', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<NumRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', structuredClone(NUM_DATA));
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID', width: '100px', minWidth: '60px' },
+            { accessorKey: 'name', header: 'Name', width: '200px' },
+            { accessorKey: 'score', header: 'Score' },
+        ]);
+        fixture.componentRef.setInput('enableColumnResize', true);
+        fixture.detectChanges();
+    });
+
+    it('mouse drag widens the column and emits columnResize on release', () => {
+        const resizeSpy = vi.fn();
+        component.columnResize.subscribe(resizeSpy);
+        const idCol = component.enhancedColumns().find((c) => c.accessorKey === 'id')!;
+
+        component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), idCol);
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 160 })); // +60
+        expect(component.columnWidths()['id']).toBe('160px');
+
+        document.dispatchEvent(new MouseEvent('mouseup'));
+        expect(resizeSpy).toHaveBeenCalledWith(expect.objectContaining({
+            columnKey: 'id',
+            newWidth: '160px',
+        }));
+        expect(component.isResizingColumn(idCol)).toBe(false);
+    });
+
+    it('clamps the column width to its minWidth', () => {
+        const idCol = component.enhancedColumns().find((c) => c.accessorKey === 'id')!;
+        component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), idCol);
+        document.dispatchEvent(new MouseEvent('mousemove', { clientX: 0 })); // -100 -> clamps
+        expect(component.columnWidths()['id']).toBe('60px');
+        document.dispatchEvent(new MouseEvent('mouseup'));
+    });
+
+    it('touch drag resizes the column', () => {
+        const nameCol = component.enhancedColumns().find((c) => c.accessorKey === 'name')!;
+        const touchStart = {
+            touches: [{ clientX: 100 }],
+            preventDefault: vi.fn(),
+            stopPropagation: vi.fn(),
+        } as unknown as TouchEvent;
+        component.onResizeTouchStart(touchStart, nameCol);
+        expect(component.isResizingColumn(nameCol)).toBe(true);
+
+        const move = new TouchEvent('touchmove');
+        Object.defineProperty(move, 'touches', { value: [{ clientX: 250 }] });
+        document.dispatchEvent(move);
+        // name starts at 200px, delta = 250 - 100 = +150 -> 350px
+        expect(component.columnWidths()['name']).toBe('350px');
+
+        document.dispatchEvent(new TouchEvent('touchend'));
+        expect(component.isResizingColumn(nameCol)).toBe(false);
+    });
+
+    it('resizeLineClass reflects active vs idle state', () => {
+        const idCol = component.enhancedColumns().find((c) => c.accessorKey === 'id')!;
+        expect(component.resizeLineClass(idCol)).toContain('bg-transparent');
+        component.onResizeStart(new MouseEvent('mousedown', { clientX: 100 }), idCol);
+        expect(component.resizeLineClass(idCol)).toContain('bg-primary/70');
+        document.dispatchEvent(new MouseEvent('mouseup'));
+    });
+});
+
+describe('DataTableComponent - Virtual scroll', () => {
+    interface VRow { id: number; name: string }
+    const V_DATA: VRow[] = Array.from({ length: 1000 }, (_, i) => ({ id: i, name: `Row ${i}` }));
+    const V_COLS: ColumnDef<VRow>[] = [
+        { accessorKey: 'id', header: 'ID', width: '120px' },
+        { accessorKey: 'name', header: 'Name', width: '200px' },
+    ];
+
+    let fixture: ComponentFixture<DataTableComponent<VRow>>;
+    let component: DataTableComponent<VRow>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<VRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', V_DATA);
+        fixture.componentRef.setInput('columns', V_COLS);
+        fixture.componentRef.setInput('enableVirtualScroll', true);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.componentRef.setInput('virtualRowHeight', 40);
+        fixture.componentRef.setInput('getRowId', (r: VRow) => String(r.id));
+        fixture.detectChanges();
+    });
+
+    it('activates virtual scroll and reports the full row count', () => {
+        expect(component.isVirtualScrollActive()).toBe(true);
+        expect(component.virtualTotalRows()).toBe(1000);
+    });
+
+    it('renders only a windowed slice of rows', () => {
+        const visible = component.virtualVisibleRows();
+        expect(visible.length).toBeLessThan(1000);
+        expect(visible.length).toBeGreaterThan(0);
+        expect(visible[0].id).toBe(0);
+    });
+
+    it('updates the visible window and padding after a scroll event', () => {
+        // Drive the scroll computeds directly; avoid re-running template change
+        // detection (the JSDOM-less viewport has height 0, which would trip
+        // NG0100 on the padding style binding).
+        (component as unknown as { viewportHeight: { set: (v: number) => void } }).viewportHeight.set(400);
+        const scrollEl = { scrollTop: 4000, scrollLeft: 0 } as HTMLElement;
+        const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => {
+            cb(0);
+            return 1;
+        });
+        component.onVirtualScroll({ target: scrollEl } as unknown as Event);
+        rafSpy.mockRestore();
+
+        const range = component.virtualRowRange();
+        expect(range.start).toBeGreaterThan(50); // ~4000/40 = 100, minus buffer
+        expect(range.paddingTop).toBe(range.start * 40);
+        const visible = component.virtualVisibleRows();
+        expect(visible[0].id).toBe(range.start);
+    });
+
+    it('getVirtualRowIndex offsets a local index by the window start', () => {
+        (component as unknown as { viewportHeight: { set: (v: number) => void } }).viewportHeight.set(400);
+        const scrollEl = { scrollTop: 2000, scrollLeft: 0 } as HTMLElement;
+        const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockImplementation((cb: FrameRequestCallback) => {
+            cb(0);
+            return 1;
+        });
+        component.onVirtualScroll({ target: scrollEl } as unknown as Event);
+        rafSpy.mockRestore();
+        const start = component.virtualRowRange().start;
+        expect(component.getVirtualRowIndex(3)).toBe(start + 3);
+    });
+
+    it('"auto" mode activates virtual scroll past the row threshold without pagination', () => {
+        fixture.componentRef.setInput('enableVirtualScroll', 'auto');
+        fixture.detectChanges();
+        expect(component.isVirtualScrollActive()).toBe(true);
+    });
+
+    it('"auto" mode stays off when pagination is active', () => {
+        fixture.componentRef.setInput('enableVirtualScroll', 'auto');
+        fixture.componentRef.setInput('showPagination', true);
+        fixture.componentRef.setInput('localPagination', true);
+        fixture.detectChanges();
+        expect(component.isVirtualScrollActive()).toBe(false);
+    });
+});
+
+describe('DataTableComponent - Configuration validation warnings', () => {
+    interface Row { id: string; name: string }
+    const ROWS: Row[] = [{ id: '1', name: 'A' }];
+
+    async function setupWithDevMode(
+        configure: (ref: ComponentFixture<DataTableComponent<Row>>) => void,
+    ): Promise<string[]> {
+        const errors: string[] = [];
+        const errSpy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+            errors.push(String(args[0]));
+        });
+        const scope = globalThis as { ngDevMode?: unknown };
+        const prev = scope.ngDevMode;
+        scope.ngDevMode = true;
+
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(DataTableComponent<Row>);
+        fixture.componentRef.setInput('data', ROWS);
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'id', header: 'ID' },
+            { accessorKey: 'name', header: 'Name' },
+        ]);
+        configure(fixture);
+        fixture.detectChanges();
+        fixture.componentInstance.ngAfterViewInit();
+
+        scope.ngDevMode = prev;
+        errSpy.mockRestore();
+        return errors;
+    }
+
+    it('warns when pagination and virtual scroll are both enabled', async () => {
+        const errors = await setupWithDevMode((f) => {
+            f.componentRef.setInput('enableVirtualScroll', true);
+            f.componentRef.setInput('showPagination', true);
+            f.componentRef.setInput('localPagination', true);
+        });
+        expect(errors.some((e) => e.includes('mutually exclusive'))).toBe(true);
+    });
+
+    it('warns on server pagination without total', async () => {
+        const errors = await setupWithDevMode((f) => {
+            f.componentRef.setInput('localPagination', false);
+        });
+        expect(errors.some((e) => e.includes('without providing [total]'))).toBe(true);
+    });
+
+    it('warns when virtualVariableRowHeight is set but virtual scroll is inactive', async () => {
+        const errors = await setupWithDevMode((f) => {
+            f.componentRef.setInput('virtualVariableRowHeight', true);
+        });
+        expect(errors.some((e) => e.includes('virtualVariableRowHeight is enabled'))).toBe(true);
+    });
+
+    it('warns when editable columns lack a valueSetter', async () => {
+        const errors = await setupWithDevMode((f) => {
+            f.componentRef.setInput('columns', [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'name', header: 'Name', editable: true },
+            ]);
+        });
+        expect(errors.some((e) => e.includes('editable=true but no valueSetter'))).toBe(true);
+    });
+
+    it('warns about duplicate accessor keys', async () => {
+        const errors = await setupWithDevMode((f) => {
+            f.componentRef.setInput('columns', [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'id', header: 'ID2' },
+            ]);
+        });
+        expect(errors.some((e) => e.includes('Duplicate accessorKey'))).toBe(true);
+    });
+
+    it('warns about sticky + pin conflicts', async () => {
+        const errors = await setupWithDevMode((f) => {
+            f.componentRef.setInput('columns', [
+                { accessorKey: 'id', header: 'ID', sticky: true, pin: 'left' as const },
+                { accessorKey: 'name', header: 'Name' },
+            ]);
+        });
+        expect(errors.some((e) => e.includes('both sticky and pin'))).toBe(true);
+    });
+
+    it('warns about multiple render strategies on a column', async () => {
+        @Component({ selector: 'test-cell', standalone: true, template: 'x' })
+        class TestCellComponent {}
+
+        const errors = await setupWithDevMode((f) => {
+            f.componentRef.setInput('columns', [
+                { accessorKey: 'id', header: 'ID' },
+                { accessorKey: 'name', header: 'Name', cell: () => 'x', component: TestCellComponent },
+            ]);
+        });
+        expect(errors.some((e) => e.includes('multiple rendering strategies'))).toBe(true);
+    });
+});
+
+describe('DataTableComponent - filteredDescendants cascade', () => {
+    interface TNode { id: string; name: string; children?: TNode[] }
+    const T_DATA: TNode[] = [
+        {
+            id: 'p', name: 'Parent',
+            children: [
+                { id: 'c1', name: 'Match Child' },
+                { id: 'c2', name: 'Other Child' },
+            ],
+        },
+    ];
+    const T_COLS: ColumnDef<TNode>[] = [
+        { accessorKey: 'id', header: 'ID' },
+        { accessorKey: 'name', header: 'Name' },
+    ];
+
+    it('only cascades to filtered-visible descendants in filteredDescendants mode', async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(DataTableComponent<TNode>);
+        const component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', structuredClone(T_DATA));
+        fixture.componentRef.setInput('columns', T_COLS);
+        fixture.componentRef.setInput('enableSubRows', true);
+        fixture.componentRef.setInput('enableRowSelection', true);
+        fixture.componentRef.setInput('getRowId', (r: TNode) => r.id);
+        fixture.componentRef.setInput('subRowSelectionMode', 'filteredDescendants');
+        fixture.componentRef.setInput('subRowFilterMode', 'includeParentOnChildMatch');
+        fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.detectChanges();
+
+        component.onFilterChange('Match'); // only c1 visible (+ parent)
+        fixture.detectChanges();
+
+        component.toggleRowWithCascade(T_DATA[0]);
+        fixture.detectChanges();
+
+        expect(component.isRowSelected(T_DATA[0])).toBe(true);
+        expect(component.isRowSelected(T_DATA[0].children![0])).toBe(true); // c1 visible
+        expect(component.isRowSelected(T_DATA[0].children![1])).toBe(false); // c2 filtered out
+    });
+});
+
+describe('DataTableComponent - scrollToColumn', () => {
+    interface VRow { id: number }
+    it('sets scrollLeft to the cumulative width of preceding scrollable columns', async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(DataTableComponent<VRow>);
+        const component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('columns', [
+            { accessorKey: 'a', header: 'A', width: '100px' },
+            { accessorKey: 'b', header: 'B', width: '150px' },
+            { accessorKey: 'c', header: 'C', width: '200px' },
+        ] as ColumnDef<VRow>[]);
+        fixture.componentRef.setInput('enableVirtualScroll', true);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.detectChanges();
+
+        const container = { scrollLeft: 0, scrollTop: 0 } as HTMLElement;
+        vi.spyOn(component, 'scrollContainerRef').mockReturnValue({ nativeElement: container } as never);
+
+        component.scrollToColumn('c');
+        expect(container.scrollLeft).toBe(250); // 100 + 150
+        vi.restoreAllMocks();
+    });
+});
+
+describe('DataTableComponent - Row action menus', () => {
+    let fixture: ComponentFixture<DataTableComponent<NumRow>>;
+    let component: DataTableComponent<NumRow>;
+
+    const actionsFn = () => [{ label: 'View', click: () => undefined }];
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<NumRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', structuredClone(NUM_DATA));
+        fixture.componentRef.setInput('columns', NUM_COLUMNS);
+        fixture.componentRef.setInput('rowActions', actionsFn);
+        fixture.componentRef.setInput('getRowId', (r: NumRow) => r.id);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.detectChanges();
+    });
+
+    it('onActionsButtonClick opens the context menu at the button position', () => {
+        const menu = (component as unknown as { internalContextMenu: () => { show: (...a: unknown[]) => void } | undefined }).internalContextMenu();
+        expect(menu).toBeTruthy();
+        const showSpy = vi.spyOn(menu!, 'show').mockImplementation(() => undefined);
+
+        const button = document.createElement('button');
+        button.getBoundingClientRect = () => ({ right: 120, bottom: 80 } as DOMRect);
+        document.body.appendChild(button);
+        component.onActionsButtonClick({ stopPropagation: vi.fn(), target: button } as unknown as Event, NUM_DATA[1], 1);
+
+        expect(component.activeContextMenuItems()).toEqual([{ label: 'View', click: expect.any(Function) }]);
+        expect(showSpy).toHaveBeenCalledWith(120, 80, expect.objectContaining({ row: NUM_DATA[1], index: 1 }));
+        document.body.removeChild(button);
+    });
+
+    it('onRowContextMenu opens the menu for the right-clicked row', () => {
+        const menu = (component as unknown as { internalContextMenu: () => { show: (...a: unknown[]) => void } | undefined }).internalContextMenu();
+        const showSpy = vi.spyOn(menu!, 'show').mockImplementation(() => undefined);
+
+        const rowEl = document.createElement('div');
+        rowEl.setAttribute('data-row-index', '2');
+        const target = document.createElement('span');
+        rowEl.appendChild(target);
+        document.body.appendChild(rowEl);
+
+        const preventDefault = vi.fn();
+        component.onRowContextMenu({ target, clientX: 5, clientY: 6, preventDefault } as unknown as MouseEvent);
+
+        expect(preventDefault).toHaveBeenCalled();
+        expect(showSpy).toHaveBeenCalledWith(5, 6, expect.objectContaining({ index: 2, row: NUM_DATA[2] }));
+        document.body.removeChild(rowEl);
+    });
+
+    it('onRowContextMenu is a no-op when the target is outside any row', () => {
+        const menu = (component as unknown as { internalContextMenu: () => { show: (...a: unknown[]) => void } | undefined }).internalContextMenu();
+        const showSpy = vi.spyOn(menu!, 'show').mockImplementation(() => undefined);
+        const target = document.createElement('span');
+        document.body.appendChild(target);
+        component.onRowContextMenu({ target, preventDefault: vi.fn() } as unknown as MouseEvent);
+        expect(showSpy).not.toHaveBeenCalled();
+        document.body.removeChild(target);
+    });
+});
+
+describe('DataTableComponent - scroll-to helpers & container drag', () => {
+    interface VRow { id: number; name: string }
+    const V_DATA: VRow[] = Array.from({ length: 800 }, (_, i) => ({ id: i, name: `R${i}` }));
+    const V_COLS: ColumnDef<VRow>[] = [
+        { accessorKey: 'id', header: 'ID', width: '120px' },
+        { accessorKey: 'name', header: 'Name', width: '200px' },
+    ];
+
+    let fixture: ComponentFixture<DataTableComponent<VRow>>;
+    let component: DataTableComponent<VRow>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<VRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', V_DATA);
+        fixture.componentRef.setInput('columns', V_COLS);
+        fixture.componentRef.setInput('enableVirtualScroll', true);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.componentRef.setInput('virtualRowHeight', 40);
+        fixture.componentRef.setInput('getRowId', (r: VRow) => String(r.id));
+        fixture.detectChanges();
+    });
+
+    it('scrollToRow sets scrollTop to index * rowHeight', () => {
+        const container = { scrollTop: 0, scrollLeft: 0 } as HTMLElement;
+        vi.spyOn(component, 'scrollContainerRef').mockReturnValue({ nativeElement: container } as never);
+        component.scrollToRow(10);
+        expect(container.scrollTop).toBe(400); // 10 * 40
+        vi.restoreAllMocks();
+    });
+
+    it('scrollToCell scrolls both axes', () => {
+        const container = { scrollTop: 0, scrollLeft: 0 } as HTMLElement;
+        vi.spyOn(component, 'scrollContainerRef').mockReturnValue({ nativeElement: container } as never);
+        component.scrollToCell(5, 'name');
+        expect(container.scrollTop).toBe(200); // 5 * 40
+        expect(container.scrollLeft).toBe(120); // width of 'id'
+        vi.restoreAllMocks();
+    });
+
+    it('onContainerDragOver extends the drop target to the last row past the bottom edge', () => {
+        fixture.componentRef.setInput('enableRowDrag', true);
+        fixture.detectChanges();
+
+        const setData = vi.fn();
+        component.onRowDragStart({ dataTransfer: { effectAllowed: '', setData } } as unknown as DragEvent, V_DATA[0]);
+
+        const lastRow = { getBoundingClientRect: () => ({ bottom: 100 } as DOMRect) } as HTMLElement;
+        const container = {
+            scrollTop: 0,
+            getBoundingClientRect: () => ({ top: 0, bottom: 500 } as DOMRect),
+            querySelectorAll: () => [lastRow] as unknown as NodeListOf<HTMLElement>,
+        } as unknown as HTMLElement;
+        vi.spyOn(component, 'scrollContainerRef').mockReturnValue({ nativeElement: container } as never);
+        const rafSpy = vi.spyOn(globalThis, 'requestAnimationFrame').mockReturnValue(1 as unknown as number);
+
+        // onContainerDragOver targets the last index of the full processed data set.
+        const lastIndex = component.processedData().length - 1;
+        component.onContainerDragOver({ clientY: 200, preventDefault: vi.fn() } as unknown as DragEvent);
+        expect(component.getDropEdge(lastIndex)).toBe('bottom');
+
+        rafSpy.mockRestore();
+        vi.restoreAllMocks();
+    });
+});
+
+describe('DataTableComponent - variable row height virtual scroll', () => {
+    interface VRow { id: number }
+    let fixture: ComponentFixture<DataTableComponent<VRow>>;
+    let component: DataTableComponent<VRow>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        fixture = TestBed.createComponent(DataTableComponent<VRow>);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', Array.from({ length: 600 }, (_, i) => ({ id: i })));
+        fixture.componentRef.setInput('columns', [{ accessorKey: 'id', header: 'ID', width: '120px' }] as ColumnDef<VRow>[]);
+        fixture.componentRef.setInput('enableVirtualScroll', true);
+        fixture.componentRef.setInput('virtualVariableRowHeight', true);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.componentRef.setInput('virtualRowHeight', 40);
+        fixture.componentRef.setInput('getRowId', (r: VRow) => String(r.id));
+        fixture.detectChanges();
+    });
+
+    it('produces a windowed range using the default per-row height estimate', () => {
+        (component as unknown as { viewportHeight: { set: (v: number) => void } }).viewportHeight.set(400);
+        const range = component.virtualRowRange();
+        expect(range.start).toBe(0);
+        expect(range.end).toBeGreaterThan(0);
+        expect(range.end).toBeLessThan(600);
+    });
+
+    it('scrollToRow falls back to estimated offset when no measurement exists', () => {
+        const container = { scrollTop: 0 } as HTMLElement;
+        vi.spyOn(component, 'scrollContainerRef').mockReturnValue({ nativeElement: container } as never);
+        component.scrollToRow(3);
+        // prefix sums of default 40px heights -> index 3 = 120
+        expect(container.scrollTop).toBe(120);
+        vi.restoreAllMocks();
+    });
+});
+
+describe('DataTableComponent - deep tree reorder removal', () => {
+    interface TNode { id: string; name: string; children?: TNode[] }
+    const T_DATA: TNode[] = [
+        {
+            id: 'a', name: 'A',
+            children: [
+                { id: 'a1', name: 'A1', children: [{ id: 'a1x', name: 'Deep' }] },
+            ],
+        },
+        { id: 'b', name: 'B' },
+    ];
+    const T_COLS: ColumnDef<TNode>[] = [
+        { accessorKey: 'id', header: 'ID' },
+        { accessorKey: 'name', header: 'Name' },
+    ];
+
+    it('reorderData removes a deeply nested node and re-inserts it at root level', async () => {
+        await TestBed.configureTestingModule({ imports: [DataTableComponent] }).compileComponents();
+        const fixture = TestBed.createComponent(DataTableComponent<TNode>);
+        const component = fixture.componentInstance;
+        fixture.componentRef.setInput('data', structuredClone(T_DATA));
+        fixture.componentRef.setInput('columns', T_COLS);
+        fixture.componentRef.setInput('enableSubRows', true);
+        fixture.componentRef.setInput('getRowId', (r: TNode) => r.id);
+        fixture.componentRef.setInput('enableRowDrag', true);
+        fixture.componentRef.setInput('rowDragMode', 'tree');
+        fixture.componentRef.setInput('subRowDefaultExpanded', -1);
+        fixture.componentRef.setInput('showPagination', false);
+        fixture.detectChanges();
+
+        const event = {
+            row: T_DATA[0].children![0].children![0], // 'a1x' deep node
+            targetRow: T_DATA[1], // 'b'
+            position: 'below' as const,
+            previousId: null,
+            nextId: null,
+            fromIndex: 3,
+            toIndex: 4,
+        };
+        const result = component.reorderData(structuredClone(T_DATA), event);
+        // a1x removed from its deep position
+        const a1 = result[0].children![0];
+        expect(a1.children ?? []).toHaveLength(0);
+        // a1x now sits after 'b' at root
+        expect(result.map((n) => n.id)).toEqual(['a', 'b', 'a1x']);
     });
 });

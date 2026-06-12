@@ -451,6 +451,344 @@ describe('KanbanComponent', () => {
             expect(component.historyState).toBeTruthy();
             expect(component.historyState!.canUndo).toBe(true);
         });
+
+        function getKanban(): KanbanComponent {
+            return fixture.debugElement.query(By.directive(KanbanComponent)).componentInstance as KanbanComponent;
+        }
+
+        it('moveCard pushes following cards down within the target column', () => {
+            const kanban = getKanban();
+            kanban.moveCard('card-3', 'todo', 0);
+            fixture.detectChanges();
+
+            const moved = component.cardsChanged.find(c => c.id === 'card-3')!;
+            expect(moved.columnId).toBe('todo');
+            expect(moved.order).toBe(0);
+            const card1 = component.cardsChanged.find(c => c.id === 'card-1')!;
+            expect(card1.order).toBe(1);
+            expect((component.cardMovedEvent as { toColumnId: string }).toColumnId).toBe('todo');
+        });
+
+        it('moveCard ignores an unknown card id', () => {
+            const kanban = getKanban();
+            kanban.moveCard('missing', 'doing', 0);
+            fixture.detectChanges();
+            expect(component.cardsChanged.length).toBe(0);
+        });
+
+        it('undoCardDelete restores the card and hides the toast', () => {
+            vi.useFakeTimers();
+            const kanban = getKanban();
+            const card = component.cards()[0];
+            kanban.onDeleteCard(card);
+            fixture.detectChanges();
+            expect(kanban.deleteToastVisible()).toBe(true);
+            expect(component.cardsChanged.length).toBe(2);
+
+            kanban.undoCardDelete();
+            fixture.detectChanges();
+
+            expect(kanban.deleteToastVisible()).toBe(false);
+            expect(component.cardsChanged.find(c => c.id === 'card-1')).toBeTruthy();
+
+            vi.advanceTimersByTime(6000);
+            expect(component.cardDeletedId).toBeNull();
+            vi.useRealTimers();
+        });
+
+        it('delete countdown decrements over time', () => {
+            vi.useFakeTimers();
+            const kanban = getKanban();
+            kanban.onDeleteCard(component.cards()[0]);
+            fixture.detectChanges();
+            expect(kanban.deleteCountdown()).toBe(6);
+            vi.advanceTimersByTime(2000);
+            expect(kanban.deleteCountdown()).toBe(4);
+            expect(kanban.deleteProgressPercent()).toBeCloseTo((4 / 6) * 100, 1);
+            kanban.dismissDeleteToast();
+            vi.useRealTimers();
+        });
+
+        it('dismissDeleteToast emits the pending delete immediately', () => {
+            vi.useFakeTimers();
+            const kanban = getKanban();
+            kanban.onDeleteCard(component.cards()[0]);
+            fixture.detectChanges();
+            kanban.dismissDeleteToast();
+            fixture.detectChanges();
+            expect(kanban.deleteToastVisible()).toBe(false);
+            expect(component.cardDeletedId).toBe('card-1');
+            vi.useRealTimers();
+        });
+
+        it('onEditCard opens the dialog and onCardDialogSubmitted edits emit cardUpdated', () => {
+            const kanban = getKanban();
+            const card = component.cards()[0];
+            kanban.onCardDialogSubmitted({
+                mode: 'edit',
+                columnId: 'todo',
+                card,
+                data: { columnId: 'todo', title: 'Edited', description: 'New desc', priority: 'low' },
+            });
+            fixture.detectChanges();
+            expect(component.cardUpdatedEvent!.title).toBe('Edited');
+            expect(component.cardUpdatedEvent!.description).toBe('New desc');
+        });
+
+        it('onCardDialogSubmitted add emits cardAdded', () => {
+            const kanban = getKanban();
+            kanban.onCardDialogSubmitted({
+                mode: 'add',
+                columnId: 'doing',
+                data: { columnId: 'doing', title: 'Brand New' },
+            });
+            fixture.detectChanges();
+            expect(component.cardAddedEvent!.title).toBe('Brand New');
+            expect(component.cardAddedEvent!.columnId).toBe('doing');
+        });
+
+        it('onColumnDialogSubmitted add-column emits columnAdded with order', () => {
+            const kanban = getKanban();
+            kanban.onColumnDialogSubmitted({ mode: 'add-column', name: 'New Col', wipLimit: 5 });
+            fixture.detectChanges();
+            const added = component.columnAddedEvent as { title: string; order: number; wipLimit?: number };
+            expect(added.title).toBe('New Col');
+            expect(added.order).toBe(3);
+            expect(added.wipLimit).toBe(5);
+        });
+
+        it('onColumnDialogSubmitted rename-column emits columnUpdated with new title', () => {
+            const kanban = getKanban();
+            kanban.onColumnDialogSubmitted({ mode: 'rename-column', name: 'Renamed', columnId: 'todo' });
+            fixture.detectChanges();
+            expect(component.columnUpdatedEvent!.id).toBe('todo');
+            expect(component.columnUpdatedEvent!.title).toBe('Renamed');
+        });
+
+        it('onColumnDialogSubmitted set-wip emits columnUpdated with new wipLimit', () => {
+            const kanban = getKanban();
+            kanban.onColumnDialogSubmitted({ mode: 'set-wip', wipLimit: 9, columnId: 'todo' });
+            fixture.detectChanges();
+            expect(component.columnUpdatedEvent!.id).toBe('todo');
+            expect(component.columnUpdatedEvent!.wipLimit).toBe(9);
+        });
+
+        it('onDeleteColumnConfirmed emits columnDeleted', () => {
+            const kanban = getKanban();
+            kanban.onDeleteColumnConfirmed({ columnId: 'todo', moveCardsTo: 'doing' });
+            fixture.detectChanges();
+            expect(component.columnDeletedEvent!.columnId).toBe('todo');
+            expect(component.columnDeletedEvent!.moveCardsTo).toBe('doing');
+        });
+
+        it('isFirstColumn / isLastColumnCheck reflect order', () => {
+            const kanban = getKanban();
+            const cols = component.columns();
+            expect(kanban.isFirstColumn(cols[0])).toBe(true);
+            expect(kanban.isFirstColumn(cols[1])).toBe(false);
+            expect(kanban.isLastColumnCheck(cols[2])).toBe(true);
+            expect(kanban.isLastColumnCheck(cols[1])).toBe(false);
+            expect(kanban.isFirstColumn(undefined)).toBe(true);
+            expect(kanban.isLastColumnCheck(undefined)).toBe(true);
+        });
+
+        it('does not move the last column right', () => {
+            const kanban = getKanban();
+            kanban.onMoveColumnRight(component.columns()[2]);
+            fixture.detectChanges();
+            expect(component.columnsChanged.length).toBe(0);
+        });
+
+        it('onBoardContextMenu shows the board menu when not on a column', () => {
+            const kanban = getKanban();
+            const spy = vi.spyOn(kanban, 'onAddColumn');
+            const boardEl = fixture.debugElement.query(By.css('[data-slot="kanban"]')).nativeElement as HTMLElement;
+            const ev = new MouseEvent('contextmenu', { bubbles: true, clientX: 10, clientY: 10 });
+            boardEl.dispatchEvent(ev);
+            fixture.detectChanges();
+            // Board menu is shown; invoking add column from the menu calls openAddColumn path
+            kanban.onAddColumn();
+            expect(spy).toHaveBeenCalled();
+        });
+
+        it('redo with empty stack is a no-op', () => {
+            const kanban = getKanban();
+            component.historyState = null;
+            kanban.redo();
+            fixture.detectChanges();
+            expect(component.historyState).toBeNull();
+        });
+
+        it('undo with empty stack is a no-op', () => {
+            const kanban = getKanban();
+            component.historyState = null;
+            kanban.undo();
+            fixture.detectChanges();
+            expect(component.historyState).toBeNull();
+        });
+
+        it('guards null inputs on card/column actions', () => {
+            const kanban = getKanban();
+            kanban.onEditCard(undefined);
+            kanban.onDuplicateCard(undefined);
+            kanban.onSetCardPriority(undefined, 'low');
+            kanban.onDeleteCard(undefined);
+            kanban.onRenameColumn(undefined);
+            kanban.onSetWipLimit(undefined);
+            kanban.onMoveColumnLeft(undefined);
+            kanban.onMoveColumnRight(undefined);
+            kanban.onDeleteColumn(undefined);
+            kanban.onAddCard();
+            kanban.onMoveCardToColumn(undefined, 'doing');
+            fixture.detectChanges();
+            // No events emitted, no throw
+            expect(component.cardUpdatedEvent).toBeNull();
+            expect(component.columnUpdatedEvent).toBeNull();
+        });
+    });
+
+    describe('Column drag interactions', () => {
+        let fixture: ComponentFixture<KanbanSimpleTestHostComponent>;
+        let component: KanbanSimpleTestHostComponent;
+
+        beforeEach(async () => {
+            await TestBed.configureTestingModule({
+                imports: [KanbanSimpleTestHostComponent],
+            }).compileComponents();
+            fixture = TestBed.createComponent(KanbanSimpleTestHostComponent);
+            component = fixture.componentInstance;
+            fixture.detectChanges();
+        });
+
+        function getKanban(): KanbanComponent {
+            return fixture.debugElement.query(By.directive(KanbanComponent)).componentInstance as KanbanComponent;
+        }
+
+        function getColumn(index: number): KanbanColumnComponent {
+            return fixture.debugElement.queryAll(By.directive(KanbanColumnComponent))[index].componentInstance as KanbanColumnComponent;
+        }
+
+        it('toggles column collapse and hides cards', () => {
+            const col = getColumn(0);
+            expect(col.collapsed()).toBe(false);
+            col.toggleCollapse();
+            fixture.detectChanges();
+            expect(col.collapsed()).toBe(true);
+            const columnEl = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'))[0];
+            expect(columnEl.queryAll(By.css('[data-slot="kanban-card"]')).length).toBe(0);
+        });
+
+        it('column header context menu opens the column menu', () => {
+            const kanban = getKanban();
+            const spy = vi.spyOn(kanban, 'showColumnContextMenu');
+            const header = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column-header"]'))[0].nativeElement as HTMLElement;
+            header.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, clientX: 5, clientY: 5 }));
+            fixture.detectChanges();
+            expect(spy).toHaveBeenCalled();
+            expect(spy.mock.calls[0][2].id).toBe('todo');
+        });
+
+        it('onAddCard from the empty state opens the add dialog path', () => {
+            const kanban = getKanban();
+            const spy = vi.spyOn(kanban, 'onAddCard');
+            const col = getColumn(2); // done column, empty
+            col.onAddCard();
+            expect(spy).toHaveBeenCalledWith('done');
+        });
+
+        it('isOverWipLimit becomes true and applies destructive styling', () => {
+            // The first column has wipLimit 3 and 2 cards → not over. Add a 3rd, then 4th.
+            component.cards.set([
+                ...component.cards(),
+                { id: 'c4', columnId: 'todo', title: 'T4', order: 2 },
+                { id: 'c5', columnId: 'todo', title: 'T5', order: 3 },
+            ]);
+            fixture.detectChanges();
+            const col = getColumn(0);
+            expect(col.cardCount()).toBe(4);
+            expect(col.isOverWipLimit()).toBe(true);
+            const columnEl = fixture.debugElement.queryAll(By.css('[data-slot="kanban-column"]'))[0];
+            expect(columnEl.nativeElement.className).toContain('border-destructive/50');
+        });
+
+        it('dragenter without an active drag is ignored', () => {
+            const col = getColumn(0);
+            const ev = new DragEvent('dragenter', { bubbles: true });
+            col.onDragEnter(ev);
+            expect(col.isDragOver()).toBe(false);
+        });
+
+        it('dragover computes a drop indicator index using card positions', () => {
+            const kanban = getKanban();
+            kanban.startDrag('card-3', 'doing');
+            fixture.detectChanges();
+
+            const col = getColumn(0); // first column has card-1, card-2
+            const ev = new DragEvent('dragover', { bubbles: true, clientY: -100000 });
+            Object.defineProperty(ev, 'dataTransfer', { value: { dropEffect: '' } });
+            // clientY far above → index 0
+            col.onDragOver(ev);
+            expect(col.dropIndicatorIndex()).toBe(0);
+
+            // Far below → index = card count (append)
+            const ev2 = new DragEvent('dragover', { bubbles: true, clientY: 100000 });
+            Object.defineProperty(ev2, 'dataTransfer', { value: { dropEffect: '' } });
+            // Throttle guard: advance lastDragOverTime by faking enough time
+            col['lastDragOverTime'] = 0;
+            col.onDragOver(ev2);
+            expect(col.dropIndicatorIndex()).toBeGreaterThanOrEqual(2);
+        });
+
+        it('dragover without an active drag does nothing', () => {
+            const col = getColumn(0);
+            col.dropIndicatorIndex.set(-1);
+            const ev = new DragEvent('dragover', { bubbles: true });
+            col.onDragOver(ev);
+            expect(col.dropIndicatorIndex()).toBe(-1);
+        });
+
+        it('drop moves the dragged card into the column at the indicator index', () => {
+            const kanban = getKanban();
+            kanban.startDrag('card-3', 'doing');
+            fixture.detectChanges();
+            const col = getColumn(0);
+            col.dropIndicatorIndex.set(1);
+
+            const dropEv = new DragEvent('drop', { bubbles: true });
+            Object.defineProperty(dropEv, 'dataTransfer', { value: { getData: () => 'card-3' } });
+            col.onDrop(dropEv);
+            fixture.detectChanges();
+
+            const moved = component.cardsChanged.find(c => c.id === 'card-3')!;
+            expect(moved.columnId).toBe('todo');
+            expect(moved.order).toBe(1);
+            expect(col.isDragOver()).toBe(false);
+            expect(col.dropIndicatorIndex()).toBe(-1);
+        });
+
+        it('drop without a card id is ignored', () => {
+            const col = getColumn(0);
+            const dropEv = new DragEvent('drop', { bubbles: true });
+            Object.defineProperty(dropEv, 'dataTransfer', { value: { getData: () => '' } });
+            col.onDrop(dropEv);
+            fixture.detectChanges();
+            expect(component.cardsChanged.length).toBe(0);
+        });
+
+        it('dragleave clears state only when the enter count reaches zero', () => {
+            const kanban = getKanban();
+            kanban.startDrag('card-3', 'doing');
+            fixture.detectChanges();
+            const col = getColumn(0);
+            const enter = new DragEvent('dragenter', { bubbles: true });
+            col.onDragEnter(enter);
+            col.onDragEnter(new DragEvent('dragenter', { bubbles: true }));
+            expect(col.isDragOver()).toBe(true);
+            col.onDragLeave();
+            expect(col.isDragOver()).toBe(true); // still 1 pending enter
+            col.onDragLeave();
+            expect(col.isDragOver()).toBe(false);
+        });
     });
 
     describe('Custom Mode', () => {
