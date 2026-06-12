@@ -69,7 +69,7 @@ export class PageRendererComponent implements OnDestroy {
                 rows: item.rows,
                 content: meta.component,
                 inputs: resolvedInputs
-            } satisfies DashboardItem;
+            } as DashboardItem;
         }).filter((item): item is DashboardItem => item !== null);
     });
 

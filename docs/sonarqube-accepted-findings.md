@@ -42,6 +42,14 @@ Kept only where a native element is impossible:
 All other `S7741` hits were either rewritten (`'window' in globalThis`,
 `globalThis.ngDevMode`) or live in the excluded test bootstrap.
 
+## `typescript:S4325` — "unnecessary type assertion"
+
+| File | Why the assertion is required |
+| --- | --- |
+| `page-renderer.component.ts` (`} as DashboardItem`) | The mapped object literal is structurally **wider** than `DashboardItem` (e.g. `inputs` is a `Record<string, unknown>`), so it is not assignable without the assertion — `satisfies` and removing the cast both fail `tsc`, and dropping it breaks the downstream `item is DashboardItem` type-guard. Sonar's "unnecessary" verdict is a false positive here. |
+
+All other `S4325` assertions were genuinely removable and were deleted.
+
 ## `Web:S6845` — "tabIndex on a non-interactive element"
 
 Kept where the focusable `<div>` is a genuinely interactive composite widget
