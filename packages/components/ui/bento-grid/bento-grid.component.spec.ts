@@ -44,6 +44,17 @@ class BentoGridTestHostComponent {
     }
 }
 
+type TouchPoint = { clientX: number; clientY: number };
+
+function makeTouchEvent(type: string, points: TouchPoint[], target?: EventTarget): TouchEvent {
+    const ev = new Event(type, { bubbles: true }) as unknown as TouchEvent;
+    Object.defineProperty(ev, 'touches', { value: points, configurable: true });
+    if (target) {
+        Object.defineProperty(ev, 'target', { value: target, configurable: true });
+    }
+    return ev;
+}
+
 describe('BentoGridComponent', () => {
     let fixture: ComponentFixture<BentoGridTestHostComponent>;
     let component: BentoGridTestHostComponent;
@@ -507,6 +518,593 @@ describe('BentoGridComponent', () => {
             grid.addItemAt(2, 1, 2, 1);
 
             expect(component.lastItemsChange).toBeNull();
+        });
+    });
+
+    describe('computed signals & styles', () => {
+        it('should compute gridTemplateColumns from cols', () => {
+            component.cols.set(6);
+            fixture.detectChanges();
+            expect(getGrid().gridTemplateColumns()).toBe('repeat(6, minmax(0, 1fr))');
+        });
+
+        it('should expose gridStyles with rowHeight and gap', () => {
+            const styles = getGrid().gridStyles();
+            expect(styles['grid-auto-rows']).toBe('120px');
+            expect(styles['gap']).toBe('1rem');
+        });
+
+        it('should build a radial-gradient grid pattern', () => {
+            expect(getGrid().gridPattern()).toContain('radial-gradient');
+        });
+
+        it('should return "none" for gridGradient', () => {
+            expect(getGrid().gridGradient()).toBe('none');
+        });
+
+        it('should build gridBackgroundSize for 1fr columns', () => {
+            const size = getGrid().gridBackgroundSize();
+            expect(size).toContain('/ 4)');
+            expect(size).toContain('120px');
+        });
+
+        it('should build gridBackgroundSize for fixed column width', () => {
+            const f = TestBed.createComponent(BentoGridComponent);
+            f.componentRef.setInput('columnWidth', '100px');
+            f.detectChanges();
+            const size = f.componentInstance.gridBackgroundSize();
+            expect(size).toContain('100px');
+        });
+
+        it('should include class input in classes()', () => {
+            expect(getGrid().classes()).toContain('grid');
+        });
+
+        it('should produce grid cells when editable', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const cells = getGrid().gridCells();
+            expect(cells.length).toBeGreaterThan(0);
+        });
+
+        it('should produce no grid cells when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            expect(getGrid().gridCells().length).toBe(0);
+        });
+    });
+
+    describe('input transforms', () => {
+        function makeStandaloneGrid(): ComponentFixture<BentoGridComponent> {
+            const f = TestBed.createComponent(BentoGridComponent);
+            f.detectChanges();
+            return f;
+        }
+
+        it('should transform numeric rowHeight to px', () => {
+            const f = makeStandaloneGrid();
+            f.componentRef.setInput('rowHeight', 200);
+            f.detectChanges();
+            expect(f.componentInstance.rowHeight()).toBe('200px');
+        });
+
+        it('should transform numeric-string gap to px', () => {
+            const f = makeStandaloneGrid();
+            f.componentRef.setInput('gap', '24');
+            f.detectChanges();
+            expect(f.componentInstance.gap()).toBe('24px');
+        });
+
+        it('should keep non-numeric rowHeight unchanged', () => {
+            const f = makeStandaloneGrid();
+            f.componentRef.setInput('rowHeight', '5rem');
+            f.detectChanges();
+            expect(f.componentInstance.rowHeight()).toBe('5rem');
+        });
+
+        it('should transform numeric columnWidth / borderRadius / itemPadding', () => {
+            const f = makeStandaloneGrid();
+            f.componentRef.setInput('columnWidth', 80);
+            f.componentRef.setInput('borderRadius', 8);
+            f.componentRef.setInput('itemPadding', 12);
+            f.detectChanges();
+            expect(f.componentInstance.columnWidth()).toBe('80px');
+            expect(f.componentInstance.borderRadius()).toBe('8px');
+            expect(f.componentInstance.itemPadding()).toBe('12px');
+        });
+    });
+
+    describe('helper methods', () => {
+        it('isComponent should be false for string content', () => {
+            expect(getGrid().isComponent('hi')).toBe(false);
+        });
+
+        it('isComponent should be true for component type', () => {
+            expect(getGrid().isComponent(BentoGridItemComponent)).toBe(true);
+        });
+
+        it('asComponent should return the component type', () => {
+            expect(getGrid().asComponent(BentoGridItemComponent)).toBe(BentoGridItemComponent);
+        });
+
+        it('castMenuData should return null for nullish', () => {
+            expect(getGrid().castMenuData(null)).toBeNull();
+            expect(getGrid().castMenuData(undefined)).toBeNull();
+        });
+
+        it('castMenuData should pass through objects', () => {
+            const data = { type: 'empty' as const, x: 1, y: 1 };
+            expect(getGrid().castMenuData(data)).toEqual(data);
+        });
+
+        it('isDragging reflects draggedItemId', () => {
+            const grid = getGrid();
+            expect(grid.isDragging('1')).toBe(false);
+            grid.draggedItemId.set('1');
+            expect(grid.isDragging('1')).toBe(true);
+        });
+    });
+
+    describe('context menu', () => {
+        function fakeMenu(): { calls: unknown[][]; show: (...a: unknown[]) => void } {
+            const calls: unknown[][] = [];
+            return { calls, show: (...a: unknown[]) => { calls.push(a); } };
+        }
+
+        it('onContextMenu shows menu with item when editable', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const menu = fakeMenu();
+            const item: DashboardItem = { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' };
+            const ev = new MouseEvent('contextmenu', { clientX: 50, clientY: 60 });
+            grid.onContextMenu(ev, item, menu as never);
+            expect(menu.calls.length).toBe(1);
+            expect(menu.calls[0]).toEqual([50, 60, item]);
+        });
+
+        it('onContextMenu does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const menu = fakeMenu();
+            const item: DashboardItem = { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' };
+            grid.onContextMenu(new MouseEvent('contextmenu'), item, menu as never);
+            expect(menu.calls.length).toBe(0);
+        });
+
+        it('onContainerContextMenu shows empty-cell menu on free cell', () => {
+            component.editable.set(true);
+            component.items.set([]);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const menu = fakeMenu();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = new MouseEvent('contextmenu', { clientX: 5, clientY: 5 });
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            Object.defineProperty(ev, 'target', { value: containerEl });
+            grid.onContainerContextMenu(ev, menu as never);
+            expect(menu.calls.length).toBe(1);
+            expect((menu.calls[0][2] as { type: string }).type).toBe('empty');
+        });
+
+        it('onContainerContextMenu ignores clicks on a bento-item', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const menu = fakeMenu();
+            const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
+            const ev = new MouseEvent('contextmenu');
+            Object.defineProperty(ev, 'target', { value: itemEl });
+            grid.onContainerContextMenu(ev, menu as never);
+            expect(menu.calls.length).toBe(0);
+        });
+
+        it('onContainerContextMenu does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const menu = fakeMenu();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = new MouseEvent('contextmenu');
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            Object.defineProperty(ev, 'target', { value: containerEl });
+            grid.onContainerContextMenu(ev, menu as never);
+            expect(menu.calls.length).toBe(0);
+        });
+
+        it('onContainerContextMenu does not show menu over an occupied cell', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: 'big', x: 1, y: 1, cols: 12, rows: 12, content: '' },
+            ]);
+            component.cols.set(12);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const menu = fakeMenu();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const rect = containerEl.getBoundingClientRect();
+            const ev = new MouseEvent('contextmenu', { clientX: rect.left + 5, clientY: rect.top + 5 });
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            Object.defineProperty(ev, 'target', { value: containerEl });
+            grid.onContainerContextMenu(ev, menu as never);
+            expect(menu.calls.length).toBe(0);
+        });
+    });
+
+    describe('drag start / end (HTML5)', () => {
+        function makeDragEvent(type: string, x = 30, y = 40): DragEvent {
+            const ev = new Event(type) as DragEvent;
+            Object.defineProperty(ev, 'clientX', { value: x });
+            Object.defineProperty(ev, 'clientY', { value: y });
+            const dt = {
+                effectAllowed: '',
+                dropEffect: '',
+                types: ['application/json'] as string[],
+                _store: {} as Record<string, string>,
+                setData(k: string, v: string) { this._store[k] = v; },
+                getData(k: string) { return this._store[k] ?? ''; },
+            };
+            Object.defineProperty(ev, 'dataTransfer', { value: dt });
+            return ev;
+        }
+
+        it('onDragStart sets draggedItemId and dragOffset', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
+            const ev = makeDragEvent('dragstart', 100, 100);
+            Object.defineProperty(ev, 'target', { value: itemEl });
+            grid.onDragStart(ev, { id: '1', x: 1, y: 1, cols: 2, rows: 1, content: '' });
+            expect(grid.draggedItemId()).toBe('1');
+            expect(grid.dragOffset()).not.toBeNull();
+            expect(ev.dataTransfer!.effectAllowed).toBe('move');
+        });
+
+        it('onDragStart does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = makeDragEvent('dragstart');
+            Object.defineProperty(ev, 'target', { value: document.body });
+            grid.onDragStart(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('onDragEnd clears drag state', () => {
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            grid.dropPreview.set({ x: 1, y: 1, cols: 1, rows: 1 });
+            grid.dragOffset.set({ x: 1, y: 1 });
+            grid.onDragEnd(new Event('dragend') as DragEvent);
+            expect(grid.draggedItemId()).toBeNull();
+            expect(grid.dropPreview()).toBeNull();
+            expect(grid.dragOffset()).toBeNull();
+        });
+
+        it('onDragOver sets dropEffect move when editable', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = makeDragEvent('dragover');
+            grid.onDragOver(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
+            expect(ev.dataTransfer!.dropEffect).toBe('move');
+        });
+
+        it('onDragOver does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = makeDragEvent('dragover');
+            grid.onDragOver(ev, { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: '' });
+            expect(ev.dataTransfer!.dropEffect).toBe('');
+        });
+
+        it('onContainerDragOver sets copy for external and updates dropPreview for internal', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+
+            const extEv = makeDragEvent('dragover');
+            Object.defineProperty(extEv, 'currentTarget', { value: containerEl });
+            grid.onContainerDragOver(extEv);
+            expect(extEv.dataTransfer!.dropEffect).toBe('copy');
+
+            grid.draggedItemId.set('1');
+            const intEv = makeDragEvent('dragover', 200, 200);
+            intEv.dataTransfer!.types = ['text/plain'];
+            Object.defineProperty(intEv, 'currentTarget', { value: containerEl });
+            grid.onContainerDragOver(intEv);
+            expect(intEv.dataTransfer!.dropEffect).toBe('move');
+            expect(grid.dropPreview()).not.toBeNull();
+        });
+
+        it('onContainerDragLeave is a no-op (covered)', () => {
+            getGrid().onContainerDragLeave(new Event('dragleave') as DragEvent);
+            expect(true).toBe(true);
+        });
+    });
+
+    describe('drop handlers', () => {
+        function dropEventWithData(data: string | null, x = 30, y = 40): DragEvent {
+            const ev = new Event('drop') as DragEvent;
+            Object.defineProperty(ev, 'clientX', { value: x });
+            Object.defineProperty(ev, 'clientY', { value: y });
+            const dt = {
+                dropEffect: '',
+                getData: () => data ?? '',
+            };
+            Object.defineProperty(ev, 'dataTransfer', { value: dt });
+            return ev;
+        }
+
+        it('onDrop handles internal drop and emits moved items', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            grid.dropPreview.set({ x: 4, y: 3, cols: 2, rows: 1 });
+            const ev = dropEventWithData(null);
+            const target: DashboardItem = { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' };
+            grid.onDrop(ev, target);
+            expect(component.lastItemsChange).toBeTruthy();
+            const moved = component.lastItemsChange!.find(i => i.id === '1');
+            expect(moved!.x).toBe(4);
+            expect(moved!.y).toBe(3);
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('onDrop handles external widget drop', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = dropEventWithData(JSON.stringify({ type: 'widget', id: 'w9' }));
+            const externalDrops: { widgetId: string; targetId: string | null }[] = [];
+            grid.externalDrop.subscribe(e => externalDrops.push(e));
+            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
+            expect(externalDrops.length).toBe(1);
+            expect(externalDrops[0].widgetId).toBe('w9');
+            expect(externalDrops[0].targetId).toBe('2');
+        });
+
+        it('onDrop ignores invalid external JSON', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = dropEventWithData('{not json');
+            const drops: unknown[] = [];
+            grid.externalDrop.subscribe(e => drops.push(e));
+            grid.onDrop(ev, { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
+            expect(drops.length).toBe(0);
+        });
+
+        it('onDrop does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            grid.onDrop(dropEventWithData(null), { id: '2', x: 3, y: 1, cols: 1, rows: 1, content: '' });
+            expect(component.lastItemsChange).toBeNull();
+        });
+
+        it('onContainerDrop moves a dragged item to a free cell', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'a' },
+            ]);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const rect = containerEl.getBoundingClientRect();
+            const ev = dropEventWithData(null, rect.left + rect.width - 5, rect.top + 5);
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            grid.onContainerDrop(ev);
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('onContainerDrop emits external widget drop with coords', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const rect = containerEl.getBoundingClientRect();
+            const ev = dropEventWithData(JSON.stringify({ type: 'widget', id: 'wX' }), rect.left + 10, rect.top + 10);
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            const drops: { widgetId: string; targetId: string | null }[] = [];
+            grid.externalDrop.subscribe(e => drops.push(e));
+            grid.onContainerDrop(ev);
+            expect(drops.length).toBe(1);
+            expect(drops[0].widgetId).toBe('wX');
+            expect(drops[0].targetId).toBeNull();
+        });
+
+        it('onContainerDrop ignores invalid JSON', () => {
+            component.editable.set(true);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = dropEventWithData('bad', 10, 10);
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            const drops: unknown[] = [];
+            grid.externalDrop.subscribe(e => drops.push(e));
+            grid.onContainerDrop(ev);
+            expect(drops.length).toBe(0);
+        });
+
+        it('onContainerDrop does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            grid.draggedItemId.set('1');
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const ev = dropEventWithData(null);
+            Object.defineProperty(ev, 'currentTarget', { value: containerEl });
+            grid.onContainerDrop(ev);
+            expect(grid.draggedItemId()).toBe('1');
+        });
+    });
+
+    describe('resize (mouse) — all directions', () => {
+        function startResize(grid: BentoGridComponent, item: DashboardItem, dir: string): void {
+            const itemEl = fixture.debugElement.queryAll(By.css('.bento-item'))
+                .find(de => (de.nativeElement as HTMLElement).textContent?.includes(item.content as string))!
+                .nativeElement as HTMLElement;
+            const ev = new MouseEvent('mousedown', { clientX: 100, clientY: 100, bubbles: true });
+            Object.defineProperty(ev, 'target', { value: itemEl });
+            grid.onResizeStart(ev, item, dir as never);
+        }
+
+        beforeEach(() => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 2, y: 2, cols: 3, rows: 3, content: 'Resizable' },
+            ]);
+            component.cols.set(12);
+            fixture.detectChanges();
+        });
+
+        it('onResizeStart sets resizing state and preview', () => {
+            const grid = getGrid();
+            const item = component.items()[0];
+            startResize(grid, item, 'se');
+            expect(grid.resizingItemId()).toBe('1');
+            expect(grid.resizeDirection()).toBe('se');
+            expect(grid.resizePreview()).toEqual({ id: '1', cols: 3, rows: 3, x: 2, y: 2 });
+        });
+
+        it('does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
+            Object.defineProperty(ev, 'target', { value: document.body });
+            grid.onResizeStart(ev, component.items()[0], 'se');
+            expect(grid.resizingItemId()).toBeNull();
+        });
+
+        it('mousemove grows item to the south-east then commits on mouseup', () => {
+            const grid = getGrid();
+            const item = component.items()[0];
+            startResize(grid, item, 'se');
+            globalThis.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 1000, clientY: 1000 }));
+            const preview = grid.resizePreview()!;
+            expect(preview.cols).toBeGreaterThanOrEqual(3);
+            expect(preview.rows).toBeGreaterThanOrEqual(3);
+            globalThis.window.dispatchEvent(new MouseEvent('mouseup', { clientX: 1000, clientY: 1000 }));
+            expect(grid.resizingItemId()).toBeNull();
+            expect(grid.resizePreview()).toBeNull();
+            expect(component.lastItemsChange).toBeTruthy();
+        });
+
+        it('handles each resize direction without error', () => {
+            const grid = getGrid();
+            const dirs: string[] = ['nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w'];
+            for (const dir of dirs) {
+                const item = component.items()[0];
+                startResize(grid, item, dir);
+                globalThis.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 60, clientY: 60 }));
+                expect(grid.resizePreview()).not.toBeNull();
+                globalThis.window.dispatchEvent(new MouseEvent('mouseup', { clientX: 60, clientY: 60 }));
+                fixture.detectChanges();
+            }
+            expect(grid.resizingItemId()).toBeNull();
+        });
+
+        it('handleResizeMove is a no-op when no resize in progress', () => {
+            const grid = getGrid();
+            globalThis.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 200, clientY: 200 }));
+            expect(grid.resizePreview()).toBeNull();
+        });
+    });
+
+    describe('resize (touch)', () => {
+        beforeEach(() => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 2, y: 2, cols: 3, rows: 3, content: 'TouchResize' },
+            ]);
+            fixture.detectChanges();
+        });
+
+        it('onResizeStart works with a touch event', () => {
+            const grid = getGrid();
+            const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
+            const ev = makeTouchEvent('touchstart', [{ clientX: 90, clientY: 90 }], itemEl);
+            grid.onResizeStart(ev, component.items()[0], 'se');
+            expect(grid.resizingItemId()).toBe('1');
+            globalThis.window.dispatchEvent(new MouseEvent('mouseup'));
+        });
+    });
+
+    describe('touch drag', () => {
+        beforeEach(() => {
+            component.editable.set(true);
+            component.items.set([
+                { id: '1', x: 1, y: 1, cols: 1, rows: 1, content: 'TouchDrag' },
+            ]);
+            fixture.detectChanges();
+        });
+
+        it('onTouchDragStart begins drag and moves preview, commits on touchend', () => {
+            const grid = getGrid();
+            const itemEl = fixture.debugElement.query(By.css('.bento-item')).nativeElement as HTMLElement;
+            const containerEl = fixture.debugElement.query(By.css('.grid')).nativeElement as HTMLElement;
+            const rect = containerEl.getBoundingClientRect();
+            const ev = makeTouchEvent('touchstart', [{ clientX: rect.left + 5, clientY: rect.top + 5 }], itemEl);
+            grid.onTouchDragStart(ev, component.items()[0]);
+            expect(grid.draggedItemId()).toBe('1');
+
+            globalThis.window.dispatchEvent(
+                makeTouchEvent('touchmove', [{ clientX: rect.left + rect.width - 10, clientY: rect.top + 5 }]),
+            );
+            expect(grid.dropPreview()).not.toBeNull();
+
+            globalThis.window.dispatchEvent(makeTouchEvent('touchend', []));
+            expect(grid.draggedItemId()).toBeNull();
+            expect(grid.dropPreview()).toBeNull();
+        });
+
+        it('onTouchDragStart does nothing when not editable', () => {
+            component.editable.set(false);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const ev = makeTouchEvent('touchstart', [{ clientX: 10, clientY: 10 }], document.body);
+            grid.onTouchDragStart(ev, component.items()[0]);
+            expect(grid.draggedItemId()).toBeNull();
+        });
+
+        it('onTouchDragStart is ignored while resizing', () => {
+            const grid = getGrid();
+            grid.resizingItemId.set('1');
+            const ev = makeTouchEvent('touchstart', [{ clientX: 10, clientY: 10 }], document.body);
+            grid.onTouchDragStart(ev, component.items()[0]);
+            expect(grid.draggedItemId()).toBeNull();
+            grid.resizingItemId.set(null);
+        });
+    });
+
+    describe('overlap resolution via resize commit', () => {
+        it('shrinks a neighbouring item when the resized item overlaps it', () => {
+            component.editable.set(true);
+            component.items.set([
+                { id: 'a', x: 1, y: 1, cols: 2, rows: 2, content: 'A' },
+                { id: 'b', x: 3, y: 1, cols: 2, rows: 2, content: 'B' },
+            ]);
+            component.cols.set(12);
+            fixture.detectChanges();
+            const grid = getGrid();
+            const itemEl = fixture.debugElement.queryAll(By.css('.bento-item'))[0].nativeElement as HTMLElement;
+            const ev = new MouseEvent('mousedown', { clientX: 100, clientY: 100 });
+            Object.defineProperty(ev, 'target', { value: itemEl });
+            grid.onResizeStart(ev, grid.items()[0], 'e');
+            globalThis.window.dispatchEvent(new MouseEvent('mousemove', { clientX: 2000, clientY: 100 }));
+            globalThis.window.dispatchEvent(new MouseEvent('mouseup', { clientX: 2000, clientY: 100 }));
+            expect(component.lastItemsChange).toBeTruthy();
+            const a = component.lastItemsChange!.find(i => i.id === 'a')!;
+            expect(a.cols).toBeGreaterThan(2);
         });
     });
 });
