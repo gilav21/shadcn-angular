@@ -136,8 +136,7 @@ function cmapFormat4Subtable(): number[] {
     const seg2 = segCount * 2;
     const w = new ByteWriter();
     w.u16(4); // format
-    const lengthPos = w.length;
-    w.u16(0); // length (patched below — but parser doesn't read length, so 0 ok)
+    w.u16(0); // length (parser doesn't read length, so 0 ok)
     w.u16(0); // language
     w.u16(seg2); // segCountX2
     w.u16(0); // searchRange
@@ -152,7 +151,6 @@ function cmapFormat4Subtable(): number[] {
     w.i16(-64).i16(1);
     // idRangeOffset
     w.u16(0).u16(0);
-    void lengthPos;
     return w.toArray();
 }
 
@@ -416,34 +414,56 @@ function buildTtf(opts: FontOptions = {}): ArrayBuffer {
         locaOffsets.push(glyfWriter.length);
     }
 
-    const tables: TableSpec[] = [];
-    const omit = new Set(opts.omit ?? []);
+    const tables = collectTables(opts, {
+        numGlyphs,
+        numberOfHMetrics,
+        advanceWidths,
+        glyf: glyfWriter.toArray(),
+        locaOffsets,
+    });
 
-    if (!omit.has('head')) {
+    return buildFont(tables);
+}
+
+interface DerivedTableData {
+    numGlyphs: number;
+    numberOfHMetrics: number;
+    advanceWidths: number[];
+    glyf: number[];
+    locaOffsets: number[];
+}
+
+/** Assembles the (optionally-omitted) SFNT table records for a test font. */
+function collectTables(opts: FontOptions, d: DerivedTableData): TableSpec[] {
+    const omit = new Set(opts.omit ?? []);
+    const include = (tag: string, enabled: boolean): boolean => !omit.has(tag) && enabled;
+    const tables: TableSpec[] = [];
+
+    if (include('head', true)) {
         tables.push({ tag: 'head', data: headTable({ unitsPerEm: opts.unitsPerEm, indexToLocFormat: opts.longLoca ? 1 : (opts.indexToLocFormat ?? 0) }) });
     }
-    if (!omit.has('hhea')) {
-        tables.push({ tag: 'hhea', data: hheaTable({ ascender: opts.ascender, descender: opts.descender, numberOfHMetrics }) });
+    if (include('hhea', true)) {
+        tables.push({ tag: 'hhea', data: hheaTable({ ascender: opts.ascender, descender: opts.descender, numberOfHMetrics: d.numberOfHMetrics }) });
     }
-    if (!omit.has('maxp')) {
-        tables.push({ tag: 'maxp', data: maxpTable(numGlyphs) });
+    if (include('maxp', true)) {
+        tables.push({ tag: 'maxp', data: maxpTable(d.numGlyphs) });
     }
-    if (!omit.has('hmtx') && (opts.includeHmtx ?? true)) {
-        tables.push({ tag: 'hmtx', data: hmtxTable(advanceWidths) });
+    if (include('hmtx', opts.includeHmtx ?? true)) {
+        tables.push({ tag: 'hmtx', data: hmtxTable(d.advanceWidths) });
     }
-    if (!omit.has('cmap') && (opts.includeCmap ?? true)) {
+    if (include('cmap', opts.includeCmap ?? true)) {
         const subs = opts.cmapSubtables ?? [{ platformID: 3, encodingID: 1, data: cmapFormat4Subtable() }];
         tables.push({ tag: 'cmap', data: cmapTable(subs) });
     }
-    if (!omit.has('glyf') && (opts.includeGlyfLoca ?? true)) {
-        tables.push({ tag: 'glyf', data: glyfWriter.toArray() });
+    if (include('glyf', opts.includeGlyfLoca ?? true)) {
+        tables.push({ tag: 'glyf', data: d.glyf });
         const loca = opts.longLoca
-            ? locaLong(locaOffsets)
-            : locaShort(locaOffsets.map((o) => o / 2));
+            ? locaLong(d.locaOffsets)
+            : locaShort(d.locaOffsets.map((o) => o / 2));
         tables.push({ tag: 'loca', data: loca });
     }
 
-    return buildFont(tables);
+    return tables;
 }
 
 describe('TtfFont', () => {

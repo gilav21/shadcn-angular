@@ -27,6 +27,7 @@ export default defineConfig(({ mode: _mode }) => ({
                 '**/*.spec.ts',
                 '**/*.stories.ts',
                 '**/*-demo.component.ts',
+                '**/*-fixtures.ts',
                 '**/index.ts',
                 '**/*.types.ts',
                 '**/*-locales.ts',

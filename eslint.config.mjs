@@ -124,7 +124,12 @@ export default tseslint.config(
 
   // --- Test / story / demo scaffolding: relax non-shipped-code rules ---
   {
-    files: ['**/*.spec.ts', '**/*.stories.ts', '**/*-demo.component.ts'],
+    files: [
+      '**/*.spec.ts',
+      '**/*.stories.ts',
+      '**/*-demo.component.ts',
+      '**/*-fixtures.ts',
+    ],
     rules: {
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/no-non-null-assertion': 'off',
