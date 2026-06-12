@@ -1171,7 +1171,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         if (!editor) {
             return [];
         }
-        return Array.from(editor.querySelectorAll(OUTLINE_HEADING_SELECTOR)).map(toOutlineHeading);
+        return Array.from(editor.querySelectorAll(OUTLINE_HEADING_SELECTOR)).map((element, index) => toOutlineHeading(element, index));
     });
 
     /**
