@@ -21,11 +21,16 @@ describe('CheckboxComponent', () => {
         expect(component).toBeTruthy();
     });
 
+    it('renders a native checkbox input', () => {
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        expect(input).toBeTruthy();
+    });
+
     it('should render a skeleton instead of the checkbox when skeleton is true', () => {
         fixture.componentRef.setInput('skeleton', true);
         fixture.detectChanges();
         expect(fixture.debugElement.query(By.css('ui-skeleton'))).toBeTruthy();
-        expect(fixture.debugElement.query(By.css('button'))).toBeNull();
+        expect(fixture.debugElement.query(By.css('input'))).toBeNull();
     });
 
     it('should render two skeletons when skeleton is true and a label is set', () => {
@@ -33,65 +38,73 @@ describe('CheckboxComponent', () => {
         fixture.componentRef.setInput('label', 'Accept terms');
         fixture.detectChanges();
         expect(fixture.debugElement.queryAll(By.css('ui-skeleton')).length).toBe(2);
-        expect(fixture.debugElement.query(By.css('button'))).toBeNull();
+        expect(fixture.debugElement.query(By.css('input'))).toBeNull();
         expect(fixture.debugElement.query(By.css('label'))).toBeNull();
     });
 
     it('should toggle checked state on click', () => {
-        const button = fixture.debugElement.query(By.css('button'));
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        const visual = fixture.debugElement.query(By.css('[data-slot="checkbox"]'));
 
-        // Initial state: unchecked
         expect(component.checked()).toBe(false);
-        expect(button.attributes['data-state']).toBe('unchecked');
-        expect(button.attributes['aria-checked']).toBe('false');
+        expect(visual.attributes['data-state']).toBe('unchecked');
+        expect(input.nativeElement.checked).toBe(false);
 
-        // Click to toggle
-        button.nativeElement.click();
+        input.nativeElement.click();
         fixture.detectChanges();
 
         expect(component.checked()).toBe(true);
-        expect(button.attributes['data-state']).toBe('checked');
-        expect(button.attributes['aria-checked']).toBe('true');
+        expect(visual.attributes['data-state']).toBe('checked');
+        expect(input.nativeElement.checked).toBe(true);
 
-        // Click again to untoggle
-        button.nativeElement.click();
+        input.nativeElement.click();
         fixture.detectChanges();
 
         expect(component.checked()).toBe(false);
+    });
+
+    it('reflects the indeterminate state on the native input', () => {
+        fixture.componentRef.setInput('indeterminate', true);
+        fixture.detectChanges();
+
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        const visual = fixture.debugElement.query(By.css('[data-slot="checkbox"]'));
+        expect(input.nativeElement.indeterminate).toBe(true);
+        expect(visual.attributes['data-state']).toBe('indeterminate');
     });
 
     it('should not toggle when disabled', () => {
         fixture.componentRef.setInput('disabled', true);
         fixture.detectChanges();
 
-        const button = fixture.debugElement.query(By.css('button'));
-        expect(button.attributes['disabled']).toBeDefined();
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        expect(input.nativeElement.disabled).toBe(true);
 
-        button.nativeElement.click();
+        input.nativeElement.click();
         fixture.detectChanges();
 
         expect(component.checked()).toBe(false);
     });
 
-    it('should apply custom class', () => {
+    it('should apply custom class to the visual box', () => {
         fixture.componentRef.setInput('class', 'custom-class');
         fixture.detectChanges();
 
-        const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.className).toContain('custom-class');
+        const visual = fixture.debugElement.query(By.css('[data-slot="checkbox"]'));
+        expect(visual.nativeElement.className).toContain('custom-class');
     });
 
     it('should forward ariaDescribedby and ariaInvalid to the control', () => {
-        const button = fixture.debugElement.query(By.css('button'));
-        expect(button.nativeElement.hasAttribute('aria-describedby')).toBe(false);
-        expect(button.nativeElement.hasAttribute('aria-invalid')).toBe(false);
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        expect(input.nativeElement.hasAttribute('aria-describedby')).toBe(false);
+        expect(input.nativeElement.hasAttribute('aria-invalid')).toBe(false);
 
         fixture.componentRef.setInput('ariaDescribedby', 'err-1');
         fixture.componentRef.setInput('ariaInvalid', true);
         fixture.detectChanges();
 
-        expect(button.nativeElement.getAttribute('aria-describedby')).toBe('err-1');
-        expect(button.nativeElement.getAttribute('aria-invalid')).toBe('true');
+        expect(input.nativeElement.getAttribute('aria-describedby')).toBe('err-1');
+        expect(input.nativeElement.getAttribute('aria-invalid')).toBe('true');
     });
 });
 
@@ -123,18 +136,18 @@ describe('CheckboxComponent with Label', () => {
 
     it('should associate label with checkbox via for/id', () => {
         const label = fixture.debugElement.query(By.css('label'));
-        const button = fixture.debugElement.query(By.css('button'));
-        const buttonId = button.nativeElement.getAttribute('id');
+        const input = fixture.debugElement.query(By.css('input[type="checkbox"]'));
+        const inputId = input.nativeElement.getAttribute('id');
         const labelFor = label.nativeElement.getAttribute('for');
-        expect(buttonId).toBeTruthy();
-        expect(labelFor).toBe(buttonId);
+        expect(inputId).toBeTruthy();
+        expect(labelFor).toBe(inputId);
     });
 
     it('should toggle checkbox when clicking label', () => {
         expect(component.checked()).toBe(false);
 
-        const button = fixture.debugElement.query(By.css('button'));
-        button.nativeElement.click();
+        const label = fixture.debugElement.query(By.css('label'));
+        label.nativeElement.click();
         fixture.detectChanges();
 
         expect(component.checked()).toBe(true);

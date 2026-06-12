@@ -57,7 +57,7 @@ export class CheckboxComponent implements ControlValueAccessor {
 
   readonly classes = computed(() =>
     cn(
-      'peer h-4 w-4 shrink-0 rounded-sm border border-primary shadow focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 flex items-center justify-center',
+      'h-4 w-4 shrink-0 rounded-sm border border-primary shadow outline-none peer-focus-visible:ring-1 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50 flex items-center justify-center',
       this.checked() || this.indeterminate()
         ? 'bg-primary text-primary-foreground'
         : 'bg-background',
@@ -65,11 +65,27 @@ export class CheckboxComponent implements ControlValueAccessor {
     )
   );
 
+  readonly dataState = computed(() => {
+    if (this.indeterminate()) return 'indeterminate';
+    return this.checked() ? 'checked' : 'unchecked';
+  });
+
   toggle(): void {
     if (this.isDisabled()) return;
     const newValue = !this.checked();
     this.checked.set(newValue);
     this.onChange(newValue);
+    this.onTouched();
+  }
+
+  protected onNativeChange(event: Event): void {
+    const value = (event.target as HTMLInputElement).checked;
+    this.checked.set(value);
+    this.onChange(value);
+    this.onTouched();
+  }
+
+  protected markTouched(): void {
     this.onTouched();
   }
 

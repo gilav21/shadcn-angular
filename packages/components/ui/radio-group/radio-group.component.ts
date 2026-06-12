@@ -38,6 +38,10 @@ export { RadioGroupItemComponent };
   },
 })
 export class RadioGroupComponent<T = unknown> implements ControlValueAccessor {
+  private static groupCounter = 0;
+  /** Shared name that groups the native radio inputs of this group. */
+  readonly groupName = `radio-group-${++RadioGroupComponent.groupCounter}`;
+
   orientation = input<'horizontal' | 'vertical'>('vertical');
   disabled = input(false);
   class = input('');

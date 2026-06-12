@@ -1,47 +1,65 @@
 @if (label()) {
   <div class="flex items-center gap-2">
-    <button
-      type="button"
-      role="radio"
-      [attr.aria-checked]="isSelected()"
-      [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
-      [class]="classes()"
-      [disabled]="isDisabled()"
+    <span class="relative inline-flex shrink-0">
+      <input
+        type="radio"
+        class="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        [attr.id]="computedId()"
+        [name]="group?.groupName"
+        [value]="value()"
+        [checked]="isSelected()"
+        [disabled]="isDisabled()"
+        [attr.aria-labelledby]="computedId() + '-label'"
+        (change)="select()"
+      />
+      <span
+        [class]="classes()"
+        [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
+        [attr.data-slot]="'radio-group-item'"
+        aria-hidden="true"
+      >
+        @if (isSelected()) {
+          <span class="flex items-center justify-center">
+            <span class="h-2.5 w-2.5 rounded-full bg-current"></span>
+          </span>
+        }
+      </span>
+    </span>
+    <label
+      [id]="computedId() + '-label'"
+      [attr.for]="computedId()"
+      class="text-sm font-medium leading-none"
+      [class.cursor-pointer]="!isDisabled()"
+      [class.cursor-not-allowed]="isDisabled()"
+      [class.opacity-70]="isDisabled()"
+    >
+      {{ label() }}
+    </label>
+  </div>
+} @else {
+  <span class="relative inline-flex shrink-0">
+    <input
+      type="radio"
+      class="peer absolute inset-0 z-10 h-full w-full cursor-pointer opacity-0 disabled:cursor-not-allowed"
       [attr.id]="computedId()"
+      [name]="group?.groupName"
+      [value]="value()"
+      [checked]="isSelected()"
+      [disabled]="isDisabled()"
+      [attr.aria-label]="ariaLabel()"
+      (change)="select()"
+    />
+    <span
+      [class]="classes()"
+      [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
       [attr.data-slot]="'radio-group-item'"
-      (click)="select()"
-      (keydown.space)="select()"
+      aria-hidden="true"
     >
       @if (isSelected()) {
         <span class="flex items-center justify-center">
           <span class="h-2.5 w-2.5 rounded-full bg-current"></span>
         </span>
       }
-    </button>
-    <label
-      [attr.for]="computedId()"
-      class="text-sm font-medium leading-none cursor-pointer peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-    >
-      {{ label() }}
-    </label>
-  </div>
-} @else {
-  <button
-    type="button"
-    role="radio"
-    [attr.aria-checked]="isSelected()"
-    [attr.data-state]="isSelected() ? 'checked' : 'unchecked'"
-    [class]="classes()"
-    [disabled]="isDisabled()"
-    [attr.aria-label]="ariaLabel()"
-    [attr.data-slot]="'radio-group-item'"
-    (click)="select()"
-    (keydown.space)="select()"
-  >
-    @if (isSelected()) {
-      <span class="flex items-center justify-center">
-        <span class="h-2.5 w-2.5 rounded-full bg-current"></span>
-      </span>
-    }
-  </button>
+    </span>
+  </span>
 }

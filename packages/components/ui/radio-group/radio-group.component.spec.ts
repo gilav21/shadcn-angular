@@ -122,30 +122,31 @@ describe('RadioGroup Integration', () => {
         expect(items.length).toBe(3);
     });
 
-    it('should have role="radio" on items', () => {
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+    it('renders a native radio input per item', () => {
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
         expect(items.length).toBe(3);
     });
 
-    it('should have aria-checked="false" by default', () => {
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+    it('should be unchecked by default', () => {
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
         items.forEach(item => {
-            expect(item.nativeElement.getAttribute('aria-checked')).toBe('false');
+            expect(item.nativeElement.checked).toBe(false);
         });
     });
 
     it('should select item on click', async () => {
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
         items[1].nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(items[1].nativeElement.getAttribute('aria-checked')).toBe('true');
-        expect(items[1].nativeElement.dataset.state).toBe('checked');
+        const visuals = fixture.debugElement.queryAll(By.css('[data-slot="radio-group-item"]'));
+        expect(items[1].nativeElement.checked).toBe(true);
+        expect(visuals[1].nativeElement.dataset.state).toBe('checked');
     });
 
     it('should emit valueChange on selection', async () => {
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
         items[2].nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
@@ -154,7 +155,7 @@ describe('RadioGroup Integration', () => {
     });
 
     it('should deselect previous item when selecting new one', async () => {
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
 
         items[0].nativeElement.click();
         fixture.detectChanges();
@@ -164,8 +165,8 @@ describe('RadioGroup Integration', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(items[0].nativeElement.getAttribute('aria-checked')).toBe('false');
-        expect(items[1].nativeElement.getAttribute('aria-checked')).toBe('true');
+        expect(items[0].nativeElement.checked).toBe(false);
+        expect(items[1].nativeElement.checked).toBe(true);
     });
 });
 
@@ -189,7 +190,7 @@ describe('RadioGroup ControlValueAccessor', () => {
     });
 
     it('should update FormControl on selection', async () => {
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
         items[1].nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
@@ -202,8 +203,8 @@ describe('RadioGroup ControlValueAccessor', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
-        expect(items[0].nativeElement.getAttribute('aria-checked')).toBe('true');
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
+        expect(items[0].nativeElement.checked).toBe(true);
     });
 
     it('should disable all items when disabled via FormControl', async () => {
@@ -211,7 +212,7 @@ describe('RadioGroup ControlValueAccessor', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
         items.forEach(item => {
             expect(item.nativeElement.disabled).toBe(true);
         });
@@ -255,12 +256,12 @@ describe('RadioGroup RTL Support', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const items = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        const items = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
         items[0].nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(items[0].nativeElement.getAttribute('aria-checked')).toBe('true');
+        expect(items[0].nativeElement.checked).toBe(true);
     });
 });
 
@@ -310,7 +311,7 @@ describe('RadioGroupItem with Label', () => {
 
     it('should associate labels with radio buttons via for/id', () => {
         const labels = fixture.debugElement.queryAll(By.css('label'));
-        const buttons = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        const buttons = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
 
         labels.forEach((label, index) => {
             const labelFor = label.nativeElement.getAttribute('for');
@@ -327,12 +328,12 @@ describe('RadioGroupItem with Label', () => {
     });
 
     it('should select item by clicking radio button', async () => {
-        const buttons = fixture.debugElement.queryAll(By.css('[role="radio"]'));
+        const buttons = fixture.debugElement.queryAll(By.css('input[type="radio"]'));
         buttons[1].nativeElement.click();
         fixture.detectChanges();
         await fixture.whenStable();
 
         expect(component.selectedValue).toBe('option2');
-        expect(buttons[1].nativeElement.getAttribute('aria-checked')).toBe('true');
+        expect(buttons[1].nativeElement.checked).toBe(true);
     });
 });
