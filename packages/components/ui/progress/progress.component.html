@@ -1,16 +1,18 @@
 <div
-  role="progressbar"
-  [attr.aria-valuenow]="value()"
-  [attr.aria-valuetext]="valueText()"
-  [attr.aria-valuemin]="0"
-  [attr.aria-valuemax]="max()"
   [class]="classes()"
-  [attr.aria-label]="ariaLabel()"
-  [attr.aria-labelledby]="ariaLabelledby()"
   [attr.data-slot]="'progress'"
 >
+  <progress
+    class="sr-only"
+    [value]="value()"
+    [max]="max()"
+    [attr.aria-valuetext]="valueText()"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-labelledby]="ariaLabelledby()"
+  ></progress>
   <div
     class="h-full bg-primary transition-all rounded-full"
     [style.width.%]="percentage()"
+    aria-hidden="true"
   ></div>
 </div>

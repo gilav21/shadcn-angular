@@ -41,23 +41,22 @@ describe('ProgressComponent', () => {
         expect(progress).toBeTruthy();
     });
 
-    it('should have role="progressbar"', () => {
-        const progress = fixture.debugElement.query(By.css('[role="progressbar"]'));
+    it('renders a native <progress> element', () => {
+        const progress = fixture.debugElement.query(By.css('progress'));
         expect(progress).toBeTruthy();
     });
 
-    it('should have aria-valuenow attribute', () => {
+    it('reflects value on the native progress', () => {
         fixture.componentRef.setInput('value', 50);
         fixture.detectChanges();
 
-        const progress = fixture.debugElement.query(By.css('[role="progressbar"]'));
-        expect(progress.nativeElement.getAttribute('aria-valuenow')).toBe('50');
+        const progress = fixture.debugElement.query(By.css('progress'));
+        expect(progress.nativeElement.value).toBe(50);
     });
 
-    it('should have aria-valuemin and aria-valuemax', () => {
-        const progress = fixture.debugElement.query(By.css('[role="progressbar"]'));
-        expect(progress.nativeElement.getAttribute('aria-valuemin')).toBe('0');
-        expect(progress.nativeElement.getAttribute('aria-valuemax')).toBe('100');
+    it('reflects max on the native progress', () => {
+        const progress = fixture.debugElement.query(By.css('progress'));
+        expect(progress.nativeElement.max).toBe(100);
     });
 
     it('should calculate percentage correctly', () => {
@@ -89,14 +88,14 @@ describe('ProgressComponent', () => {
         fixture.componentRef.setInput('ariaLabel', 'Loading progress');
         fixture.detectChanges();
 
-        const progress = fixture.debugElement.query(By.css('[role="progressbar"]'));
+        const progress = fixture.debugElement.query(By.css('progress'));
         expect(progress.nativeElement.getAttribute('aria-label')).toBe('Loading progress');
     });
 
     it('should apply base classes', () => {
-        const progress = fixture.debugElement.query(By.css('[role="progressbar"]'));
-        expect(progress.nativeElement.className).toContain('rounded-full');
-        expect(progress.nativeElement.className).toContain('overflow-hidden');
+        const root = fixture.debugElement.query(By.css('[data-slot="progress"]'));
+        expect(root.nativeElement.className).toContain('rounded-full');
+        expect(root.nativeElement.className).toContain('overflow-hidden');
     });
 
     it('should apply width style to inner bar', () => {
@@ -167,13 +166,13 @@ describe('ProgressComponent — i18n integration', () => {
 
     it('defaults aria-valuetext to en-US percent format', async () => {
         const fixture = await setup();
-        const root = fixture.nativeElement.querySelector('[role="progressbar"]');
+        const root = fixture.nativeElement.querySelector('progress');
         expect(root.getAttribute('aria-valuetext')).toBe('45%');
     });
 
     it('localises aria-valuetext when locale="fr" (uses French narrow space + %)', async () => {
         const fixture = await setup({ locale: 'fr' });
-        const root = fixture.nativeElement.querySelector('[role="progressbar"]');
+        const root = fixture.nativeElement.querySelector('progress');
         const v = root.getAttribute('aria-valuetext');
         expect(v).toContain('45');
         expect(v).toContain('%');
@@ -181,7 +180,7 @@ describe('ProgressComponent — i18n integration', () => {
 
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
         const fixture = await setup({ providerLocale: 'de' });
-        const root = fixture.nativeElement.querySelector('[role="progressbar"]');
+        const root = fixture.nativeElement.querySelector('progress');
         // German: "45 %" with non-breaking space.
         const v = root.getAttribute('aria-valuetext');
         expect(v).toContain('45');
