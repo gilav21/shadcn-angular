@@ -298,7 +298,7 @@ export class CodeBlockComponent {
         ],
         yaml: [
             { type: 'comment', regex: /#.*/ },
-            { type: 'string', regex: /(["'])(?:(?=(\\?))\2.)*?\1/ },
+            { type: 'string', regex: /"(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*'/ },
             { type: 'attr', regex: /[a-zA-Z0-9_-]+(?=:)/ },
             { type: 'keyword', regex: /\b(true|false|null|yes|no|on|off)\b/ },
             { type: 'number', regex: /\b\d+(\.\d+)?\b/ },

@@ -21,6 +21,7 @@ export default tseslint.config(
       '**/storybook-static/**',
       'documentation/**',
       'coverage/**',
+      'coverage-cli/**',
       '.storybook/**',
       'e2e/fixture-app/**',
       '**/*.config.js',

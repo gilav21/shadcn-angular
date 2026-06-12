@@ -151,6 +151,24 @@ describe('RichTextMarkdownService', () => {
             );
         });
 
+        it('strips multiple spaces/tabs after :::details before the title (linear regex)', () => {
+            const md = ':::details   Spaced Title\nbody\n:::';
+            expect(service.toHtml(md)).toBe(
+                '<p></p><details open=""><summary>Spaced Title</summary><p>body</p></details><p></p>'
+            );
+        });
+
+        it('keeps an empty toggle title when no title text follows', () => {
+            const md = ':::details \nbody\n:::';
+            expect(service.toHtml(md)).toBe(
+                '<p></p><details open=""><summary></summary><p>body</p></details><p></p>'
+            );
+        });
+
+        it('collapses multiple spaces after heading hashes (linear regex)', () => {
+            expect(service.toHtml('##   Spaced')).toBe('<h2>Spaced</h2>');
+        });
+
         it('converts two trailing-space line break into <br>', () => {
             expect(service.toHtml('a  \nb')).toBe('<p>a<br>\nb</p>');
         });

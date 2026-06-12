@@ -138,7 +138,7 @@ export class RichTextPasteNormalizerService {
 
         if (/^#{1,6}\s+\S/m.test(text)) score += 2;
         if (/```[\s\S]*?```/.test(text)) score += 2;
-        if (/\[.+\]\(https?:\/\/.+\)/.test(text)) score += 2;
+        if (/\[[^\]]+\]\(https?:\/\/[^)]+\)/.test(text)) score += 2;
 
         if (/\*\*[^*]+\*\*/.test(text)) score += 1;
         if (/^[-*+]\s+/m.test(text)) score += 1;

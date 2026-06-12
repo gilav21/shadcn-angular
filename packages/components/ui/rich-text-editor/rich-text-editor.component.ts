@@ -3271,7 +3271,7 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         const parts = dataUrl.split(',');
         const meta = parts[0];
         const base64 = parts[1];
-        const mime = /:(.*?);/.exec(meta)?.[1] ?? 'image/png';
+        const mime = /:([^;]*);/.exec(meta)?.[1] ?? 'image/png';
         const binary = atob(base64);
         const bytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) {

@@ -100,7 +100,7 @@ function parseChannel(s: string, scale: number): number {
 }
 
 function parseRgbFunc(input: string): RGBA | null {
-    const m = /^rgba?\(\s*([^)]+)\)$/i.exec(input.trim());
+    const m = /^rgba?\(([^)]+)\)$/i.exec(input.trim());
     if (!m) return null;
     const parts = m[1].split(/[\s,/]+/).filter(Boolean);
     if (parts.length < 3) return null;
@@ -113,7 +113,7 @@ function parseRgbFunc(input: string): RGBA | null {
 }
 
 function parseHslFunc(input: string): RGBA | null {
-    const m = /^hsla?\(\s*([^)]+)\)$/i.exec(input.trim());
+    const m = /^hsla?\(([^)]+)\)$/i.exec(input.trim());
     if (!m) return null;
     const parts = m[1].split(/[\s,/]+/).filter(Boolean);
     if (parts.length < 3) return null;
@@ -127,7 +127,7 @@ function parseHslFunc(input: string): RGBA | null {
 }
 
 function parseOklchFunc(input: string): RGBA | null {
-    const m = /^oklch\(\s*([^)]+)\)$/i.exec(input.trim());
+    const m = /^oklch\(([^)]+)\)$/i.exec(input.trim());
     if (!m) return null;
     const parts = m[1].split(/[\s,/]+/).filter(Boolean);
     if (parts.length < 3) return null;

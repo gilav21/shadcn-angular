@@ -1418,7 +1418,7 @@ function pdfStringToUnicode(
 }
 
 function parseBfCharEntries(text: string, map: Map<number, string>): void {
-    const bfCharRe = /beginbfchar\s+([\s\S]*?)endbfchar/g;
+    const bfCharRe = /beginbfchar\s([\s\S]*?)endbfchar/g;
     let match: RegExpExecArray | null;
     while ((match = bfCharRe.exec(text)) !== null) {
         for (const entry of match[1].trim().split('\n')) {
@@ -1459,7 +1459,7 @@ function parseBfRangeSimpleEntry(parts: RegExpExecArray, map: Map<number, string
 }
 
 function parseBfRangeEntry(trimmed: string, map: Map<number, string>): void {
-    const arrayParts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*\[((?:\s*<[\dA-Fa-f]+>\s*)+)\]/.exec(trimmed);
+    const arrayParts = /<([0-9a-fA-F]+)>\s*<([0-9a-fA-F]+)>\s*\[\s*((?:<[\dA-Fa-f]+>\s*)+)\]/.exec(trimmed);
     if (arrayParts) {
         parseBfRangeArrayEntry(arrayParts, map);
         return;
@@ -1471,7 +1471,7 @@ function parseBfRangeEntry(trimmed: string, map: Map<number, string>): void {
 }
 
 function parseBfRangeEntries(text: string, map: Map<number, string>): void {
-    const bfRangeRe = /beginbfrange\s+([\s\S]*?)endbfrange/g;
+    const bfRangeRe = /beginbfrange\s([\s\S]*?)endbfrange/g;
     let match: RegExpExecArray | null;
     while ((match = bfRangeRe.exec(text)) !== null) {
         for (const entry of match[1].trim().split('\n')) {
@@ -4806,7 +4806,7 @@ function detectColumns(lines: TextLine[]): { lines: TextLine[]; hasColumns: bool
 const BULLET_PATTERN = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]\s*/;
 const BULLET_CHARS = /^[\u2022\u2023\u25E6\u2043\u2219\u25CF\u25CB\u25AA\u25AB\u2013\u2014\-*]+$/;
 const NUMBERED_PATTERN = /^(\d{1,3})[.)]\s+/;
-const NUMBERED_PATTERN_RTL_END = /\s+[.)]\d{1,3}$/;
+const NUMBERED_PATTERN_RTL_END = /(?=(\s+))\1[.)]\d{1,3}$/;
 
 function stripBulletItems(line: TextLine): TextLine {
     const filtered = line.items.filter(item => {

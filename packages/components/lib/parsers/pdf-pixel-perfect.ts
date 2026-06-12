@@ -649,7 +649,7 @@ function getSystemFontFamily(baseFontName: string): string {
     name = name.replaceAll(/[-_,]+/g, ' ').trim();
 
     // Remove style/weight suffixes (run twice to catch consecutive: "PS Bold" → "")
-    const stylePat = /\s+(Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/gi;
+    const stylePat = /(?=(\s+))\1(Bold|Italic|Regular|Medium|Light|Condensed|Black|Heavy|Oblique|Book|Demi|Semi|Ultra|Thin|Extra|PS)$/gi;
     name = name.replaceAll(stylePat, '').trim();
     name = name.replaceAll(stylePat, '').trim();
 

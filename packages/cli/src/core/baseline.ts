@@ -14,7 +14,7 @@ const NEUTRAL_LIB = '@@LIB@@/';
  * consumer's alias.
  */
 function neutralizeAlias(content: string, utilsAlias: string): string {
-    let result = content.replaceAll(/(\.\.\/)+lib\//g, NEUTRAL_LIB);
+    let result = content.replaceAll(/(?:\.\.\/)+lib\//g, NEUTRAL_LIB);
     const alias = utilsAlias.replace(/\/+$/, '');
     if (alias) result = result.replaceAll(`${alias}/`, NEUTRAL_LIB);
     return result;

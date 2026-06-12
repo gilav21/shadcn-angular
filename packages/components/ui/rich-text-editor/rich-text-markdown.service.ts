@@ -17,7 +17,7 @@ interface ParsedListLine {
 }
 
 function parseListLine(line: string): ParsedListLine | null {
-    const taskMatch = new RegExp(/^(\s*)[-*+]\s+\[([ xX])\]\s*(.*)$/).exec(line);
+    const taskMatch = new RegExp(/^(\s*)[-*+]\s+\[([ xX])\]\s*(\S.*|)$/).exec(line);
     if (taskMatch) {
         const checked = taskMatch[2] !== ' ';
         return {
@@ -27,12 +27,12 @@ function parseListLine(line: string): ParsedListLine | null {
         };
     }
 
-    const ulMatch = new RegExp(/^(\s*)[-*+]\s+(.+)$/).exec(line);
+    const ulMatch = new RegExp(/^(\s*)[-*+]\s+(\S.*|\s)$/).exec(line);
     if (ulMatch) {
         return { indent: ulMatch[1].length, type: 'ul', content: ulMatch[2] };
     }
 
-    const olMatch = new RegExp(/^(\s*)\d+\.\s+(.+)$/).exec(line);
+    const olMatch = new RegExp(/^(\s*)\d+\.\s+(\S.*|\s)$/).exec(line);
     if (olMatch) {
         return { indent: olMatch[1].length, type: 'ol', content: olMatch[2] };
     }
@@ -184,7 +184,7 @@ export class RichTextMarkdownService {
      * Parse blockquotes (> text).
      */
     private parseToggleBlocks(html: string): string {
-        return html.replaceAll(/:::details\s+(.*?)\n([\s\S]*?):::/g, (_match, title: string, content: string) => {
+        return html.replaceAll(/:::details[^\S\n]+([^\n]*)\n([\s\S]*?):::/g, (_match, title: string, content: string) => {
             const parsedContent = content.trim();
             return `<details open><summary>${title}</summary><p>${parsedContent}</p></details>`;
         });
@@ -222,7 +222,7 @@ export class RichTextMarkdownService {
      * Parse headings (# - ######).
      */
     private parseHeadings(html: string): string {
-        return html.replaceAll(/^(#{1,6})\s+(.+)$/gm, (_, hashes, content) => {
+        return html.replaceAll(/^(#{1,6})\s+(\S.*|\s)$/gm, (_, hashes, content) => {
             const level = hashes.length;
             return `<h${level}>${content}</h${level}>`;
         });
@@ -639,7 +639,7 @@ export class RichTextMarkdownService {
             /\*\*[^*]+\*\*/,        // Bold
             /\*[^*]+\*/,            // Italic
             /~~[^~]+~~/,            // Strikethrough
-            /\[.+\]\(.+\)/,         // Links
+            /\[[^\]]+\]\([^)]+\)/,  // Links
             /!\[.*\]\(.+\)/,        // Images
             /^[-*+]\s/m,            // Unordered list
             /^\d+\.\s/m,            // Ordered list

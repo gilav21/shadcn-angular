@@ -25,6 +25,48 @@ describe('toAlias', () => {
   });
 });
 
+describe('tsconfig comment stripping (linear-time regexes)', () => {
+  // Mirrors the comment-strip step inside autoConfigureTsconfig. These linear
+  // (ReDoS-free) regexes must match the same strings as the original lazy
+  // forms /\/\*[\s\S]*?\*\//g and /\/\/.*$/gm.
+  const stripComments = (raw: string): string =>
+    raw
+      .replaceAll(/\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\//g, '')
+      .replaceAll(/\/\/[^\n\r]*/g, '');
+  const stripLazy = (raw: string): string =>
+    raw.replaceAll(/\/\*[\s\S]*?\*\//g, '').replaceAll(/\/\/.*$/gm, '');
+
+  const cases = [
+    '{ /* c */ "a": 1 }',
+    '/* multi\nline */ "a": 1',
+    '/* a */ "b": 2 /* c */',
+    '// line\n"x": 1',
+    '"url": "http://example.com" // trailing',
+    '/** jsdoc ** stars * here */',
+    '/* unterminated',
+    'no comments',
+    '/* a *//* b */',
+    'a // b // c\nd',
+  ];
+
+  it('matches the original lazy regexes on every edge case', () => {
+    for (const raw of cases) {
+      expect(stripComments(raw)).toBe(stripLazy(raw));
+    }
+  });
+
+  it('produces JSON.parse-able output for a commented tsconfig', () => {
+    const raw = `{
+      /* base */
+      "compilerOptions": {
+        "baseUrl": ".", // root
+        "paths": {} /* aliases */
+      }
+    }`;
+    expect(() => JSON.parse(stripComments(raw))).not.toThrow();
+  });
+});
+
 describe('initProject', () => {
   beforeEach(() => vi.clearAllMocks());
 
