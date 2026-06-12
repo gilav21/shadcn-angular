@@ -164,7 +164,6 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
     }
 
     private _launchParticles(opts: ConfettiOptions): void {
-        /* eslint-disable @typescript-eslint/prefer-nullish-coalescing -- numeric options use `||` so an explicit 0 (e.g. spread:0, gravity:0) falls back to the documented default, matching the original behaviour */
         const particleCount = opts.particleCount || 50;
         const angle = opts.angle ?? 90;
         const spread = opts.spread || 45;
@@ -177,7 +176,6 @@ export class UiConfettiDirective implements OnInit, OnDestroy {
         const colors = opts.colors ?? ['#26ccff', '#a25afd', '#ff5e7e', '#88ff5a', '#fcff42', '#ffa62d', '#ff36ff'];
         const shapes = opts.shapes ?? ['square', 'circle'];
         const scalar = opts.scalar || 1;
-        /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
 
         const canvas = this._canvas;
         if (!canvas) return;

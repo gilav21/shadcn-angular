@@ -109,13 +109,11 @@ export class KanbanCardComponent implements AfterContentInit {
     ));
 
     private resolvedCardId(): string {
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- intentional empty-string fallback chain
         return this.cardId() || this.card()?.id || '';
     }
 
     onDragStart(event: DragEvent): void {
         const id = this.resolvedCardId();
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- intentional empty-string fallback chain
         const colId = this.column?.columnId() || this.card()?.columnId || '';
         if (!event.dataTransfer || !id) return;
 

@@ -355,7 +355,6 @@ export function parseDoc(data: Uint8Array): DocParseResult {
         ? extractTextViaPieceTable(wordDoc, tableStream, fib)
         : null;
 
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string should also fall back
     if (!rawText) {
         rawText = extractTextFallback(wordDoc, fib);
     }

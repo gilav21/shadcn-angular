@@ -231,7 +231,6 @@ async function resolveBlockDestination(
         message: 'Where should blocks be installed?',
         initial: aliasToProjectPath(getBlocksAlias(config)),
     }, { onCancel });
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string should also fallback to undefined
     return { blocksPath: dest || undefined };
 }
 

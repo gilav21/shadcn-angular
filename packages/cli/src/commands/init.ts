@@ -342,7 +342,6 @@ export async function init(options: InitOptions): Promise<void> {
     }
 
     const initialPrefix = options.prefix ?? DEFAULT_PREFIX;
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- boolean flags: false should also be checked
     const nonInteractive = Boolean(options.defaults || options.yes);
 
     const { config, createShortcutRegistry } = nonInteractive

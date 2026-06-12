@@ -294,7 +294,6 @@ export class FileViewerComponent implements AfterContentInit, OnDestroy {
             const u = new URL(url, globalThis.location?.href);
             const path = u.pathname;
             const name = path.split('/').pop();
-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- a trailing-slash URL yields an empty segment; '' must fall back to 'file' (original behaviour)
             return name || 'file';
         } catch {
             return 'file';

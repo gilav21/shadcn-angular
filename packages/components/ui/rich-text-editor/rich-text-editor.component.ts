@@ -1942,7 +1942,6 @@ export class RichTextEditorComponent implements ControlValueAccessor, OnInit, Af
         }
 
         const parser = new DOMParser();
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty-string html means "no HTML on clipboard"; fall back to plain text
         const doc = parser.parseFromString(html || text, 'text/html');
         const pasteText = doc.body.textContent ?? '';
 

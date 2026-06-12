@@ -63,7 +63,13 @@ export default tseslint.config(
       'no-console': ['warn', { allow: ['error'] }],
       '@typescript-eslint/no-explicit-any': 'error',
       '@typescript-eslint/no-non-null-assertion': 'error',
-      '@typescript-eslint/prefer-nullish-coalescing': 'error',
+      // Still flags `someObject || default` (should be `??`), but allows
+      // intentional falsy fallbacks on primitives (e.g. `count || 50`,
+      // `name || 'file'`) without per-line disables.
+      '@typescript-eslint/prefer-nullish-coalescing': [
+        'error',
+        { ignorePrimitives: { string: true, number: true, boolean: true } },
+      ],
       '@typescript-eslint/explicit-function-return-type': [
         'warn',
         { allowExpressions: true, allowTypedFunctionExpressions: true },

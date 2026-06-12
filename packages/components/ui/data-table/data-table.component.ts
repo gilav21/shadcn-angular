@@ -1518,7 +1518,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const col = this.enhancedColumns().find(
       (c) => String(c.accessorKey) === columnKey,
     );
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback when header is empty string
     return col?.header || columnKey;
   }
 
@@ -1746,7 +1745,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   );
 
   readonly hasAnyFloatingFilter = computed(() => {
-    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing -- boolean truthy chain, not a null-coalescing fallback */
     return this.enhancedColumns().some(
       (col) =>
         col.floatingFilter === true ||
@@ -1754,7 +1752,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         col.floatingFilterTemplate ||
         (col.enableFiltering && col.floatingFilter !== false),
     );
-    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
   });
 
   getFloatingFilterChange(col: ColumnDef<T>): (value: unknown) => void {
@@ -1798,7 +1795,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     const mode = this.showFooter();
     if (mode === false) return false;
     if (mode === true) return true;
-    /* eslint-disable @typescript-eslint/prefer-nullish-coalescing -- boolean truthy chain, not a null-coalescing fallback */
     return this.enhancedColumns().some(
       (col) =>
         col.footer ||
@@ -1806,7 +1802,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         col.footerTemplate ||
         col.footerComponent,
     );
-    /* eslint-enable @typescript-eslint/prefer-nullish-coalescing */
   });
 
   readonly footerValues = computed(() => {
@@ -2543,7 +2538,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const blob = new Blob(["\uFEFF" + csvContent], {
         type: "text/csv;charset=utf-8;",
       });
-      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty filename ('') must fall back to "export" (original behaviour)
       this.downloadBlob(blob, (filename || "export") + ".csv");
     } finally {
       this.exporting.set(false);
@@ -2559,7 +2553,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty filename ('') must fall back to "export" (original behaviour)
       this.downloadBlob(blob, (filename || "export") + ".xlsx");
     } finally {
       this.exporting.set(false);
@@ -4128,7 +4121,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this._resizingColumn.set(col);
     this.resizeStartX = clientX;
     const actualWidth = this.getColumnActualWidth(key);
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback on NaN from parseInt, and on null from getColumnActualWidth
     this.resizeStartWidth = Number.parseInt(col._width, 10) || actualWidth || 150;
     this.resizeOldWidth = this.columnWidths()[key] ?? col._width ?? "auto";
     this._isRtlResize = this.isRtl();
@@ -4166,7 +4158,6 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
 
     const delta = clientX - this.resizeStartX;
     const effectiveDelta = this._isRtlResize ? -delta : delta;
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- fallback on NaN from parseInt
     const minWidth = Number.parseInt(resizing._minWidth || "50", 10) || 50;
     const newWidth = Math.max(minWidth, this.resizeStartWidth + effectiveDelta);
     const key = String(resizing.accessorKey);

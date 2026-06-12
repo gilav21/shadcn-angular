@@ -1259,7 +1259,6 @@ function buildParagraphElement(
 function buildParagraphObject(para: DocParaInfo, docxRuns: ReadonlyArray<DocxRun>): DocxParagraph {
     const style = mapStyleName(para.styleName);
     const borders = buildParaBorders(para.paraProps);
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- rtl is boolean; false should fall through to text detection
     const rtl = para.paraProps.rtl || isRtlText(para.text);
     const indentProps = buildIndentProps(para.paraProps);
     const listProps = buildListProps(para.paraProps);
@@ -1778,7 +1777,6 @@ function fallbackToBasicParsing(data: Uint8Array): DocxParseResult {
     if (tableStream) {
         rawText = extractFallbackText(wordDoc, tableStream, fib);
     }
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- empty string should also fall back to range extraction
     if (!rawText) {
         rawText = extractTextFromRange(wordDoc, fib);
     }

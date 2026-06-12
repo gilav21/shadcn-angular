@@ -56,7 +56,6 @@ describe('IconComponent', () => {
     it('should apply custom class input', () => {
         const svg = fixture.debugElement.query(By.css('svg'));
         expect(
-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- baseVal is an empty string when SVG className isn't animated; fall back to the class attribute on that falsy empty string
             svg.nativeElement.className.baseVal || svg.nativeElement.getAttribute('class'),
         ).toContain('custom-icon-class');
     });

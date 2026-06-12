@@ -195,8 +195,7 @@ export class ContextMenuSubContentComponent implements OnDestroy {
     }
 
     focusNextItem(currentItem: HTMLElement): void {
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- closest returns null (not undefined), || is needed for element fallback
-        const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
         const nextIndex = (index + 1) % items.length;
@@ -204,8 +203,7 @@ export class ContextMenuSubContentComponent implements OnDestroy {
     }
 
     focusPrevItem(currentItem: HTMLElement): void {
-        // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- closest returns null (not undefined), || is needed for element fallback
-        const div = currentItem.closest<HTMLElement>('[role="menu"]') || currentItem;
+        const div = currentItem.closest<HTMLElement>('[role="menu"]') ?? currentItem;
         const items = Array.from(div.querySelectorAll<HTMLElement>('[role="menuitem"]:not([data-disabled])'));
         const index = items.indexOf(currentItem);
         const prevIndex = (index - 1 + items.length) % items.length;

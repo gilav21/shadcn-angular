@@ -1437,7 +1437,6 @@ function parseShapeStyling(
 
     // If spPr has NO fill-related children at all, treat as implicit noFill
     // (shapes wanting a style-ref fill would have an explicit fill element)
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- truthy presence check, not a fallback
     const hasAnyFill = result.fillColor || result.gradientFill || result.imageFill || result.patternFill || result.explicitNoFill;
     if (!hasAnyFill) {
         result.explicitNoFill = true;
@@ -1548,7 +1547,6 @@ function mergeStyleRefIntoStyling(
     styleRef: { fillColor?: string; borderColor?: string; borderWidth?: number },
 ): void {
     // Don't override explicit noFill/noLine from spPr
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- truthy presence check, not a fallback
     const hasFill = styling.fillColor || styling.gradientFill || styling.imageFill || styling.patternFill;
     if (!hasFill && !styling.explicitNoFill && styleRef.fillColor) {
         styling.fillColor = styleRef.fillColor;
@@ -1669,7 +1667,6 @@ function parseShapeGeometry(
     const styleRef = parseStyleRef(sp, themeColors);
     mergeStyleRefIntoStyling(styling, styleRef);
 
-    // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- truthy presence check, not a fallback
     const hasFill = styling.fillColor || styling.gradientFill || styling.imageFill || styling.patternFill;
     if (!hasFill && !styling.borderColor) return null;
 

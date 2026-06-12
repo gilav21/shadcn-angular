@@ -395,7 +395,6 @@ export class KanbanComponent implements AfterContentInit, OnDestroy {
         if (!term) return this.cards();
         return this.cards().filter(card => {
             const matchesTitle = card.title.toLowerCase().includes(term);
-            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- intentional boolean OR chain for filter predicate
             const matchesDescription = card.description?.toLowerCase().includes(term) || false;
             const matchesLabel = card.labels?.some(l => l.text.toLowerCase().includes(term)) ?? false;
             return matchesTitle || matchesDescription || matchesLabel;
