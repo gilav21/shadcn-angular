@@ -203,8 +203,10 @@ export class PageBuilderComponent {
             id: crypto.randomUUID(),
             x: finalX,
             y: finalY,
-            cols: comp.defaultCols ?? 2,
-            rows: comp.defaultRows ?? 2,
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- 0 cols/rows is invalid and must fall back to 2 (original behaviour)
+            cols: comp.defaultCols || 2,
+            // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- 0 cols/rows is invalid and must fall back to 2 (original behaviour)
+            rows: comp.defaultRows || 2,
             content: comp.component,
             inputs: { ...comp.defaultInputs }
         };

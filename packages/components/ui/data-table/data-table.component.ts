@@ -2543,7 +2543,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const blob = new Blob(["\uFEFF" + csvContent], {
         type: "text/csv;charset=utf-8;",
       });
-      this.downloadBlob(blob, (filename ?? "export") + ".csv");
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty filename ('') must fall back to "export" (original behaviour)
+      this.downloadBlob(blob, (filename || "export") + ".csv");
     } finally {
       this.exporting.set(false);
     }
@@ -2558,7 +2559,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       const blob = new Blob([xlsxBytes.buffer as ArrayBuffer], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });
-      this.downloadBlob(blob, (filename ?? "export") + ".xlsx");
+      // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- an empty filename ('') must fall back to "export" (original behaviour)
+      this.downloadBlob(blob, (filename || "export") + ".xlsx");
     } finally {
       this.exporting.set(false);
     }
