@@ -23,18 +23,26 @@ and generate an **analysis token** (My Account → Security → Generate Token).
 
 ## 2. Run the scan (each time you want a report)
 
-The scanner runs in Docker too — nothing to install. From the repo root:
+Set your token and run `npm run sonar` — it runs the scanner in Docker (nothing
+to install, reuses the Docker you already have):
 
 **Windows (PowerShell):**
 ```powershell
-docker run --rm `
-  -e SONAR_HOST_URL="http://host.docker.internal:9000" `
-  -e SONAR_TOKEN="<your-token>" `
-  -v "${PWD}:/usr/src" `
-  sonarsource/sonar-scanner-cli
+$env:SONAR_TOKEN="<your-token>"; npm run sonar
 ```
 
 **macOS / Linux:**
+```bash
+SONAR_TOKEN=<your-token> npm run sonar
+```
+
+`npm run sonar` (→ `scripts/sonar.mjs`) defaults the server to
+`http://host.docker.internal:9000`; override with `SONAR_HOST_URL` if needed.
+Sources, exclusions and the `tsconfig.eslint.json` for type-aware rules live in
+`sonar-project.properties`.
+
+<details><summary>Equivalent raw Docker command (if you'd rather not use the script)</summary>
+
 ```bash
 docker run --rm \
   -e SONAR_HOST_URL="http://host.docker.internal:9000" \
@@ -42,11 +50,8 @@ docker run --rm \
   -v "$(pwd):/usr/src" \
   sonarsource/sonar-scanner-cli
 ```
-
 (On Linux you can also use `--network host` and `http://localhost:9000`.)
-
-Config (sources, exclusions, the `tsconfig.eslint.json` for type-aware rules)
-lives in `sonar-project.properties`.
+</details>
 
 ## 3. Read the results
 
