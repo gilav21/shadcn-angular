@@ -28,3 +28,4 @@ demo/public/med-pp.html
 # Local SonarQube export
 sonar-issues.json
 .scannerwork/
+coverage/

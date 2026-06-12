@@ -21,6 +21,20 @@ Wait ~1 minute, then open <http://localhost:9000> (default login `admin` /
 `admin`, it forces a password change). Create a project named `shadcn-angular`
 and generate an **analysis token** (My Account → Security → Generate Token).
 
+## 1b. Generate test coverage (optional, but SonarQube shows 0% without it)
+
+SonarQube does **not** compute coverage — it only displays an lcov report you
+feed it. Generate one from the test suite first:
+
+```bash
+npm run coverage
+```
+
+This runs the browser test suite with v8 coverage, writes `coverage/lcov.info`,
+and normalizes its paths to forward slashes (so the Linux scanner can match
+them). It's slower than a normal test run. The scan then picks it up via
+`sonar.javascript.lcov.reportPaths` in `sonar-project.properties`.
+
 ## 2. Run the scan (each time you want a report)
 
 Set your token and run `npm run sonar` — it runs the scanner in Docker (nothing
