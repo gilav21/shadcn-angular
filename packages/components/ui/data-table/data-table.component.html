@@ -129,6 +129,8 @@
             class="h-8 w-8"
             ariaLabel="Row actions"
             (click)="onActionsButtonClick($event, row, rowIndex)"
+            (keydown.enter)="onActionsButtonClick($event, row, rowIndex)"
+            (keydown.space)="onActionsButtonClick($event, row, rowIndex)"
           >
             <ui-icon name="more-vertical" size="sm" />
           </ui-button>
@@ -736,6 +738,12 @@
                         (click)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
@@ -778,6 +786,12 @@
                         (click)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
@@ -815,6 +829,12 @@
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getTreeCellStyle(col, treeRow.depth)"
                         (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
                         (dblclick)="
@@ -884,6 +904,12 @@
                         (click)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
@@ -920,6 +946,12 @@
                         (click)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
                         (dblclick)="
                           onCellDblClick(getVirtualRowIndex(i), col, $event)
                         "
@@ -951,6 +983,12 @@
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getCellStyle(col)"
                         (click)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.enter)="
+                          onCellClick(getVirtualRowIndex(i), col, $event)
+                        "
+                        (keydown.space)="
                           onCellClick(getVirtualRowIndex(i), col, $event)
                         "
                         (dblclick)="
@@ -1044,6 +1082,8 @@
                         [attr.data-column]="String(col.accessorKey)"
                         [style]="getTreeCellStyle(col, treeRow.depth)"
                         (click)="onCellClick(i, col, $event)"
+                        (keydown.enter)="onCellClick(i, col, $event)"
+                        (keydown.space)="onCellClick(i, col, $event)"
                         (dblclick)="onCellDblClick(i, col, $event)"
                         (touchend)="onCellTouchEnd($event, i, col)"
                       >
@@ -1101,6 +1141,8 @@
                       [attr.data-group-key]="displayRow.groupKey"
                       [attr.aria-expanded]="!displayRow.collapsed"
                       (click)="toggleGroupCollapsed(displayRow.groupKey)"
+                      (keydown.enter)="toggleGroupCollapsed(displayRow.groupKey)"
+                      (keydown.space)="toggleGroupCollapsed(displayRow.groupKey)"
                     >
                       <ui-table-cell
                         class="flex-1 border-b font-medium"
@@ -1233,7 +1275,7 @@
                     class="border-0"
                   >
                     @for (col of enhancedColumns(); track col.accessorKey) {
-                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)" (touchend)="onCellTouchEnd($event, i, col)">
+                      <ui-table-cell [class]="getCellClass(col, i)" [attr.data-column]="String(col.accessorKey)" [style]="getCellStyle(col)" (click)="onCellClick(i, col, $event)" (keydown.enter)="onCellClick(i, col, $event)" (keydown.space)="onCellClick(i, col, $event)" (dblclick)="onCellDblClick(i, col, $event)" (touchend)="onCellTouchEnd($event, i, col)">
                         <ng-container *ngTemplateOutlet="cellTpl; context: { $implicit: col, row: row, rowIndex: i, treeRow: null, recycle: false }"></ng-container>
                       </ui-table-cell>
                     }

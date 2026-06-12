@@ -650,7 +650,7 @@ export class RichTextPasteNormalizerService {
     private normalizeOutlookSpecific(container: HTMLElement): void {
         const wordSections = container.querySelectorAll('.WordSection1, [class*="WordSection"]');
         for (const section of Array.from(wordSections)) {
-            this.unwrapElement(section as HTMLElement);
+            this.unwrapElement(section);
         }
 
         this.walkElements(container, el => {
@@ -682,7 +682,7 @@ export class RichTextPasteNormalizerService {
     private removeGoogleDocsWrapper(container: HTMLElement): void {
         const wrappers = container.querySelectorAll('[id^="docs-internal-guid-"]');
         for (const wrapper of Array.from(wrappers)) {
-            this.unwrapElement(wrapper as HTMLElement);
+            this.unwrapElement(wrapper);
         }
 
         this.walkElements(container, el => {
@@ -887,7 +887,7 @@ export class RichTextPasteNormalizerService {
         const container = this.parseToContainer(html);
 
         const googleSheetsOrigin = container.querySelectorAll('google-sheets-html-origin');
-        googleSheetsOrigin.forEach(el => this.unwrapElement(el as HTMLElement));
+        googleSheetsOrigin.forEach(el => this.unwrapElement(el));
 
         this.walkElements(container, el => {
             if (el.tagName && (el.tagName.startsWith('X:') || el.tagName.toLowerCase().startsWith('x:') ||

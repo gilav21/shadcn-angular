@@ -45,7 +45,7 @@ export class SelectValueComponent {
         const val = this.select?.internalValue();
         if (val === undefined || val === null) return '';
         if (typeof val === 'object') return JSON.stringify(val);
-        return String(val as string | number | boolean);
+        return String(val);
     });
 
     hostClasses = computed(() =>

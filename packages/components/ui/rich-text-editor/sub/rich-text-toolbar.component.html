@@ -47,6 +47,8 @@
               class="w-full"
               [disabled]="interactionDisabled()"
               (click)="onInsertLink(linkText.value, linkUrl.value)"
+              (keydown.enter)="onInsertLink(linkText.value, linkUrl.value)"
+              (keydown.space)="onInsertLink(linkText.value, linkUrl.value)"
             >
               {{ locale().link.insert }}
             </ui-button>
@@ -92,6 +94,8 @@
               class="w-full"
               [disabled]="interactionDisabled()"
               (click)="onInsertImage(imageSrc.value, imageAlt.value)"
+              (keydown.enter)="onInsertImage(imageSrc.value, imageAlt.value)"
+              (keydown.space)="onInsertImage(imageSrc.value, imageAlt.value)"
             >
               {{ locale().image.insert }}
             </ui-button>

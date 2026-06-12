@@ -52,6 +52,8 @@
               size="sm"
               class="h-7 w-7 p-0"
               (click)="historyPanelOpen.set(false)"
+              (keydown.enter)="historyPanelOpen.set(false)"
+              (keydown.space)="historyPanelOpen.set(false)"
               [attr.aria-label]="resolvedLocale().history.ariaClose"
             >
               <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -89,6 +91,8 @@
                         size="sm"
                         class="h-6 px-2 text-[11px]"
                         (click)="openHistoryPreview(entry.index, $event)"
+                        (keydown.enter)="openHistoryPreview(entry.index, $event)"
+                        (keydown.space)="openHistoryPreview(entry.index, $event)"
                       >
                         {{ resolvedLocale().history.preview }}
                       </ui-button>
@@ -129,6 +133,8 @@
           size="sm"
           class="h-7 w-7 p-0"
           (click)="outlinePanelOpen.set(false)"
+          (keydown.enter)="outlinePanelOpen.set(false)"
+          (keydown.space)="outlinePanelOpen.set(false)"
           [attr.aria-label]="resolvedLocale().outline.ariaClose"
         >
           <svg class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" aria-hidden="true">
@@ -187,8 +193,8 @@
         </ui-scroll-area>
 
         <ui-dialog-footer class="px-5 py-4 border-t">
-          <ui-button variant="outline" (click)="historyPreviewOpen.set(false)">{{ resolvedLocale().history.cancel }}</ui-button>
-          <ui-button (click)="restoreFromHistoryPreview()">{{ resolvedLocale().history.restore }}</ui-button>
+          <ui-button variant="outline" (click)="historyPreviewOpen.set(false)" (keydown.enter)="historyPreviewOpen.set(false)" (keydown.space)="historyPreviewOpen.set(false)">{{ resolvedLocale().history.cancel }}</ui-button>
+          <ui-button (click)="restoreFromHistoryPreview()" (keydown.enter)="restoreFromHistoryPreview()" (keydown.space)="restoreFromHistoryPreview()">{{ resolvedLocale().history.restore }}</ui-button>
         </ui-dialog-footer>
       }
     </ui-dialog-content>
@@ -229,6 +235,8 @@
                     size="sm"
                     class="h-6 px-2 text-[11px]"
                     (click)="openHistoryPreview(entry.index, $event)"
+                    (keydown.enter)="openHistoryPreview(entry.index, $event)"
+                    (keydown.space)="openHistoryPreview(entry.index, $event)"
                   >
                     Preview
                   </ui-button>
@@ -247,7 +255,7 @@
         </div>
       </ui-scroll-area>
       <ui-dialog-footer class="px-5 py-4 border-t">
-        <ui-button variant="outline" (click)="historyBrowserOpen.set(false)">{{ resolvedLocale().history.close }}</ui-button>
+        <ui-button variant="outline" (click)="historyBrowserOpen.set(false)" (keydown.enter)="historyBrowserOpen.set(false)" (keydown.space)="historyBrowserOpen.set(false)">{{ resolvedLocale().history.close }}</ui-button>
       </ui-dialog-footer>
     </ui-dialog-content>
   </ui-dialog>
@@ -490,10 +498,12 @@
           />
         </div>
         <div class="flex gap-2">
-          <ui-button 
-            size="sm" 
+          <ui-button
+            size="sm"
             class="flex-1"
             (click)="insertLinkFromPopover(linkText.value, linkUrl.value)"
+            (keydown.enter)="insertLinkFromPopover(linkText.value, linkUrl.value)"
+            (keydown.space)="insertLinkFromPopover(linkText.value, linkUrl.value)"
           >
             {{ resolvedLocale().link.insert }}
           </ui-button>
@@ -501,6 +511,8 @@
             variant="outline"
             size="sm"
             (click)="closeLinkPopover()"
+            (keydown.enter)="closeLinkPopover()"
+            (keydown.space)="closeLinkPopover()"
           >
             {{ resolvedLocale().link.cancel }}
           </ui-button>

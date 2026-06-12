@@ -220,10 +220,10 @@ export class RichTextMentionPopoverComponent implements AfterViewInit, OnDestroy
   }
 
   asMention(item: MentionItem | TagItem): MentionItem {
-    return item as MentionItem;
+    return item;
   }
 
   asTag(item: MentionItem | TagItem): TagItem {
-    return item as TagItem;
+    return item;
   }
 }

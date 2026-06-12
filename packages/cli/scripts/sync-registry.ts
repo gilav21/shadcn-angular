@@ -352,8 +352,10 @@ function validateRegistryFiles(updates: ComponentUpdate[]): string[] {
     const libDir = path.join(COMPONENTS_ROOT, 'lib');
     const problems: string[] = [];
     for (const update of updates) {
-        problems.push(...findMissingFiles('files', update.name, update.files, uiDir));
-        problems.push(...findMissingFiles('libFiles', update.name, update.libFiles, libDir));
+        problems.push(
+            ...findMissingFiles('files', update.name, update.files, uiDir),
+            ...findMissingFiles('libFiles', update.name, update.libFiles, libDir),
+        );
     }
     return problems;
 }
@@ -366,8 +368,10 @@ function validateBlockFiles(blocks: ComponentUpdate[]): string[] {
     const libDir = path.join(COMPONENTS_ROOT, 'lib');
     const problems: string[] = [];
     for (const block of blocks) {
-        problems.push(...findMissingFiles('block file', block.name, block.files, BLOCKS_ROOT));
-        problems.push(...findMissingFiles('libFiles', block.name, block.libFiles, libDir));
+        problems.push(
+            ...findMissingFiles('block file', block.name, block.files, BLOCKS_ROOT),
+            ...findMissingFiles('libFiles', block.name, block.libFiles, libDir),
+        );
     }
     return problems;
 }

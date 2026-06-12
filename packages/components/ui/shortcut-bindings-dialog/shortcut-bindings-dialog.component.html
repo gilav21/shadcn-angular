@@ -16,7 +16,7 @@
       </div>
       @if (allowSaveMapping()) {
         <div class="pt-3 flex justify-end">
-          <ui-button type="button" size="sm" variant="secondary" (click)="saveMappingSchema()">
+          <ui-button type="button" size="sm" variant="secondary" (click)="saveMappingSchema()" (keydown.enter)="saveMappingSchema()" (keydown.space)="saveMappingSchema()">
             Save Changes
           </ui-button>
         </div>
@@ -84,6 +84,8 @@
                               class="h-8 px-2 text-[11px]"
                               [disabled]="!isComponentOverridden(binding.actionId, binding.componentName)"
                               (click)="resetComponent(binding.actionId, binding.componentName)"
+                              (keydown.enter)="resetComponent(binding.actionId, binding.componentName)"
+                              (keydown.space)="resetComponent(binding.actionId, binding.componentName)"
                             >
                               Reset all
                             </ui-button>
@@ -127,6 +129,8 @@
                                       class="h-8 px-2 text-[11px]"
                                       [disabled]="!isInstanceOverridden(binding.actionId, instance.componentId)"
                                       (click)="resetInstance(binding.actionId, instance.componentId)"
+                                      (keydown.enter)="resetInstance(binding.actionId, instance.componentId)"
+                                      (keydown.space)="resetInstance(binding.actionId, instance.componentId)"
                                     >
                                       Reset
                                     </ui-button>

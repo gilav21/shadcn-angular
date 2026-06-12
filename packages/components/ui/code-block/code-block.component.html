@@ -6,6 +6,8 @@
             size="icon"
             class="h-6 w-6 text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800"
             (click)="copyToClipboard()"
+            (keydown.enter)="copyToClipboard()"
+            (keydown.space)="copyToClipboard()"
             [attr.aria-label]="copyAriaLabel()"
         >
             @if (copied()) {

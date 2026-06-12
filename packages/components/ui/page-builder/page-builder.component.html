@@ -1,6 +1,6 @@
 <div [class]="classes()" [attr.data-slot]="'page-builder'" class="h-screen bg-background overflow-hidden flex">
     <!-- Sidebar -->
-    <aside class="w-full md:w-80 border-e bg-card flex flex-col border-e-border h-full">
+    <aside aria-label="Components" class="w-full md:w-80 border-e bg-card flex flex-col border-e-border h-full">
         <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
             <ui-icon name="box" class="h-4 w-4 text-muted-foreground"></ui-icon>
             Components
@@ -149,7 +149,7 @@
 
     <!-- RIGHT INSPECTOR -->
     @if (viewMode() === 'edit') {
-        <aside class="w-80 border-s bg-card flex flex-col border-s-border h-full">
+        <aside aria-label="Properties" class="w-80 border-s bg-card flex flex-col border-s-border h-full">
             <div class="h-14 border-b flex items-center px-4 font-semibold text-sm gap-2 bg-background/50 backdrop-blur shrink-0">
                 <ui-icon name="settings-2" class="h-4 w-4 text-muted-foreground"></ui-icon>
                 {{ selectedItemId() ? 'Properties' : 'Grid Settings' }}

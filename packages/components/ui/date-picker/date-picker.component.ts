@@ -13,7 +13,7 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR } from '@angular/forms';
 import { cn, getClippingRect } from '../../lib/utils';
 import { CalendarComponent } from '../calendar';
-import { DateRangePickerComponent } from './sub/date-range-picker.component';
+export { DateRangePickerComponent } from './sub/date-range-picker.component';
 
 export type PopupPosition = { offsetX: number; actualSide: 'top' | 'bottom' };
 
@@ -199,4 +199,3 @@ export class DatePickerComponent implements ControlValueAccessor {
   }
 }
 
-export { DateRangePickerComponent };

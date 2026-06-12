@@ -245,5 +245,5 @@ export function getChartSummary(
     title?: string
 ): string {
     const base = title ? `${title}. ` : '';
-    return `${base}${chartType} with ${dataPointCount} data point${dataPointCount !== 1 ? 's' : ''}.`;
+    return `${base}${chartType} with ${dataPointCount} data point${dataPointCount === 1 ? '' : 's'}.`;
 }

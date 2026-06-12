@@ -29,7 +29,7 @@ export class PageRendererComponent implements OnDestroy {
     context = input<Record<string, unknown>>({});
     class = input('');
 
-    private instanceMap = new Map<string, Record<string, unknown>>();
+    private readonly instanceMap = new Map<string, Record<string, unknown>>();
 
     classes = computed(() => cn('w-full h-full', this.class()));
 

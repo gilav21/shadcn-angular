@@ -291,7 +291,9 @@
                   size="sm"
                   [variant]="!iconExplorerSolid() && iconExplorerStrokeWidth() === preset.value ? 'default' : 'outline'"
                   [disabled]="iconExplorerSolid()"
-                  (click)="setStrokeWidthPreset(preset.value)">
+                  (click)="setStrokeWidthPreset(preset.value)"
+                  (keydown.enter)="setStrokeWidthPreset(preset.value)"
+                  (keydown.space)="setStrokeWidthPreset(preset.value)">
                   {{ preset.label }}
                 </ui-button>
               }
@@ -310,7 +312,9 @@
               size="sm"
               [variant]="iconExplorerSolid() ? 'default' : 'outline'"
               [disabled]="!selectedIconSupportsSolid()"
-              (click)="iconExplorerSolid.set(!iconExplorerSolid())">
+              (click)="iconExplorerSolid.set(!iconExplorerSolid())"
+              (keydown.enter)="iconExplorerSolid.set(!iconExplorerSolid())"
+              (keydown.space)="iconExplorerSolid.set(!iconExplorerSolid())">
               {{ iconExplorerSolid() ? t().sheetSolidOn : t().sheetSolidOff }}
             </ui-button>
           </div>
@@ -323,7 +327,9 @@
                 <ui-button
                   size="sm"
                   [variant]="iconExplorerSize() === s ? 'default' : 'outline'"
-                  (click)="iconExplorerSize.set(s)">
+                  (click)="iconExplorerSize.set(s)"
+                  (keydown.enter)="iconExplorerSize.set(s)"
+                  (keydown.space)="iconExplorerSize.set(s)">
                   {{ s }}
                 </ui-button>
               }

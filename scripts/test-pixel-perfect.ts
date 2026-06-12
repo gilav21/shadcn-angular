@@ -10,8 +10,8 @@
  * Then open the output HTML in your browser and compare side-by-side
  * with the pdf2htmlEX output at localhost:8888.
  */
-import { readFileSync, writeFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { resolve, dirname } from 'node:path';
 import { renderPixelPerfectPaged, toStandaloneHtml, setFallbackFontData } from '../packages/components/lib/parsers/pdf-pixel-perfect';
 
 // Load fallback font for missing glyph coverage

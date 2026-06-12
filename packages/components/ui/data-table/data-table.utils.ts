@@ -128,7 +128,7 @@ export function computeVariableRowRange(
         return { start: 0, end: 0, paddingTop: 0, paddingBottom: 0 };
     }
 
-    if (prefixSums && prefixSums.length === totalRows + 1) {
+    if (prefixSums?.length === totalRows + 1) {
         return computeVariableRowRangeFromPrefixSums(scrollTop, viewportHeight, prefixSums, totalRows, buffer);
     }
 

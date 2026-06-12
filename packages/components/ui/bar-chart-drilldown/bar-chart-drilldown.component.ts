@@ -193,7 +193,7 @@ export class BarChartDrilldownComponent implements AfterViewInit {
 
   onBarHover(bar: BarRect): void {
     this.hoveredIndex.set(bar.index);
-    this.barHover.emit({ point: bar.data as DrilldownDataPoint, index: bar.index });
+    this.barHover.emit({ point: bar.data, index: bar.index });
   }
 
   onBarLeave(): void {

@@ -17,19 +17,19 @@
       <ui-context-menu-content>
           @let menuData = castMenuData(menu.data());
           @if (!menuData?.type) {
-              <ui-context-menu-item (click)="splitItem(menuData?.id, 'vertical')">
+              <ui-context-menu-item (click)="splitItem(menuData?.id, 'vertical')" (keydown.enter)="splitItem(menuData?.id, 'vertical')" (keydown.space)="splitItem(menuData?.id, 'vertical')">
                   <span class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-columns-2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M12 3v18"/></svg>
                     Split Vertical
                   </span>
               </ui-context-menu-item>
-              <ui-context-menu-item (click)="splitItem(menuData?.id, 'horizontal')">
+              <ui-context-menu-item (click)="splitItem(menuData?.id, 'horizontal')" (keydown.enter)="splitItem(menuData?.id, 'horizontal')" (keydown.space)="splitItem(menuData?.id, 'horizontal')">
                   <span class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-rows-2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 12h18"/></svg>
                     Split Horizontal
                   </span>
               </ui-context-menu-item>
-              <ui-context-menu-item (click)="deleteItem(menuData?.id)" class="text-destructive focus:text-destructive">
+              <ui-context-menu-item (click)="deleteItem(menuData?.id)" (keydown.enter)="deleteItem(menuData?.id)" (keydown.space)="deleteItem(menuData?.id)" class="text-destructive focus:text-destructive">
                   <span class="flex items-center gap-2">
                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-trash-2"><path d="M3 6h18"/><path d="M19 6v14c0 1-2 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="10" y1="11" y2="17"/><line x1="14" x2="14" y1="11" y2="17"/></svg>
                     Delete
@@ -38,13 +38,13 @@
           }
 
           @if (menuData && menuData.type === 'empty') {
-              <ui-context-menu-item (click)="addItemAt(menuData.x, menuData.y, 1, 1)">
+              <ui-context-menu-item (click)="addItemAt(menuData.x, menuData.y, 1, 1)" (keydown.enter)="addItemAt(menuData.x, menuData.y, 1, 1)" (keydown.space)="addItemAt(menuData.x, menuData.y, 1, 1)">
                 <span class="flex items-center gap-2">
                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-plus-square"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M8 12h8"/><path d="M12 8v8"/></svg>
                      Add 1x1 Item
                 </span>
               </ui-context-menu-item>
-              <ui-context-menu-item (click)="addItemAt(menuData.x, menuData.y, 4, 2)">
+              <ui-context-menu-item (click)="addItemAt(menuData.x, menuData.y, 4, 2)" (keydown.enter)="addItemAt(menuData.x, menuData.y, 4, 2)" (keydown.space)="addItemAt(menuData.x, menuData.y, 4, 2)">
                  <span class="flex items-center gap-2">
                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-grid-2x2"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M3 12h18"/><path d="M12 3v18"/></svg>
                      Add 4x2 Item

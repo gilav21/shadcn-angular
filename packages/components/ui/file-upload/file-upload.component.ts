@@ -158,7 +158,7 @@ export class FileUploadComponent {
     this.filesChange.emit(this.files());
   }
 
-  removeFile(id: string, event?: MouseEvent): void {
+  removeFile(id: string, event?: Event): void {
     event?.stopPropagation();
     const file = this.files().find((f) => f.id === id);
     if (file) {

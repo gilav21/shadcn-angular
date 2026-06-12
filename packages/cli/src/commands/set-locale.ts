@@ -39,10 +39,12 @@ async function ensureI18nInstalled(libDir: string, fetchOptions: FetchOptions): 
  * the utils alias). Installs the i18n lib files first when they aren't
  * present yet (e.g. `init --locale he` on a pristine project).
  */
+const DEFAULT_FETCH_OPTIONS: FetchOptions = { branch: 'master' };
+
 export async function setLocaleCore(
     code: string,
     cwd: string,
-    fetchOptions: FetchOptions = { branch: 'master' },
+    fetchOptions: FetchOptions = DEFAULT_FETCH_OPTIONS,
 ): Promise<string> {
     if (!isValidLocaleCode(code)) {
         throw new Error(

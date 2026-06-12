@@ -112,7 +112,7 @@ export class SidebarComponent implements AfterViewInit {
 
       const elements = Array.from(focusableElements) as HTMLElement[];
       const firstElement = elements[0];
-      const lastElement = elements[elements.length - 1];
+      const lastElement = elements.at(-1) as HTMLElement;
 
       if (event.shiftKey) {
         if (document.activeElement === firstElement) {

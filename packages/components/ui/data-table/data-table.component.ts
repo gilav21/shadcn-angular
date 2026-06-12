@@ -93,7 +93,9 @@ let dataTableUid = 0;
 
 const DEFAULT_GET_ROW_ID = <T>(row: T): string => {
   const rec = row as Record<string, unknown>;
-  return rec['id'] != null ? String(rec['id']) : String(JSON.stringify(row));
+  if (rec['id'] == null) return JSON.stringify(row);
+  if (typeof rec['id'] === 'object') return JSON.stringify(rec['id']);
+  return String(rec['id']);
 };
 
 @Component({
@@ -1389,7 +1391,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     clearTimeout(this.filterDebounceTimer);
     clearTimeout(this.filterAnnounceTimer);
     this.flashTimers.forEach((t) => clearTimeout(t));
-    this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true } as EventListenerOptions);
+    this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true });
     this._document.removeEventListener('drag', this.dragEventHandler);
     this.viewportObserver?.disconnect();
     this.rowResizeObserver?.disconnect();
@@ -2398,8 +2400,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   isFilterValueEmpty(value: unknown): boolean {
     if (value === undefined || value === null || value === "") return true;
     if (typeof value === "object" && "start" in value && "end" in value) {
-      const range = value as { start: unknown; end: unknown };
-      return range.start === null && range.end === null;
+      return value.start === null && value.end === null;
     }
     return false;
   }
@@ -2465,7 +2466,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     ) {
       return value.toString();
     }
-    return String(value);
+    return typeof value === "object" ? JSON.stringify(value) : String(value as string | number | boolean | symbol | bigint);
   }
 
   getExportData(
@@ -3017,9 +3018,8 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   editErrorFor(rowIndex: number, col: ColumnDef<T>): string | null {
     const err = this.cellEditError();
     if (
-      err &&
-      err.rowIndex === rowIndex &&
-      err.columnKey === String(col.accessorKey)
+      err?.rowIndex === rowIndex &&
+      err?.columnKey === String(col.accessorKey)
     ) {
       return err.message;
     }
@@ -3557,7 +3557,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     contextMenu.show(event.clientX, event.clientY, context);
   }
 
-  onActionsButtonClick(event: MouseEvent, row: T, index: number): void {
+  onActionsButtonClick(event: Event, row: T, index: number): void {
     event.stopPropagation();
 
     const contextMenu = this.internalContextMenu();
@@ -3716,7 +3716,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   protected groupRowValueLabel(group: GroupRow): string {
     const value = group.groupValue;
     if (value === null || value === undefined) return '';
-    return String(value);
+    return typeof value === 'object' ? JSON.stringify(value) : String(value as string | number | boolean | symbol | bigint);
   }
 
   protected groupAggregateLabel(accessorKey: string): string {
@@ -3776,7 +3776,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
       event.dataTransfer.setData('text/plain', id);
     }
 
-    this._document.addEventListener('wheel', this.dragWheelHandler, { capture: true, passive: false } as AddEventListenerOptions);
+    this._document.addEventListener('wheel', this.dragWheelHandler, { capture: true, passive: false });
     this._document.addEventListener('drag', this.dragEventHandler);
   }
 
@@ -4062,7 +4062,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     this.draggedRowId.set(null);
     this.dragOverIndex.set(null);
     cancelAnimationFrame(this.dragAutoScrollId);
-    this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true } as EventListenerOptions);
+    this._document.removeEventListener('wheel', this.dragWheelHandler, { capture: true });
     this._document.removeEventListener('drag', this.dragEventHandler);
   }
 

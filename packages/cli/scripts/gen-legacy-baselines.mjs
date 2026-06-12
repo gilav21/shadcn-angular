@@ -39,7 +39,7 @@ for (const p of paths) {
     }
     hashes.add(createHash('sha256').update(canonicalize(raw, 'ui', '')).digest('hex'));
   }
-  if (hashes.size) out[name] = [...hashes].sort();
+  if (hashes.size) out[name] = [...hashes].sort((a, b) => a.localeCompare(b));
 }
 
 const sorted = Object.fromEntries(Object.entries(out).sort(([a], [b]) => a.localeCompare(b)));

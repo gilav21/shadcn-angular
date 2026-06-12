@@ -13,7 +13,7 @@ export const VALID_THEMES: ThemeColor[] = [
 ];
 
 function escapeRegex(text: string): string {
-    return text.replaceAll(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return text.replaceAll(/[.*+?^${}()|[\]\\]/g, String.raw`\$&`);
 }
 
 /**
@@ -22,7 +22,7 @@ function escapeRegex(text: string): string {
  */
 function replaceColorVar(block: string, varName: string, value: string): string {
     return block.replace(
-        new RegExp(`(${escapeRegex(varName)}\\s*:\\s*)[^;]*(;)`, 'g'),
+        new RegExp(String.raw`(${escapeRegex(varName)}\s*:\s*)[^;]*(;)`, 'g'),
         (_m, prefix, semi) => `${prefix}${value}${semi}`,
     );
 }
@@ -36,7 +36,7 @@ function applyVarsToBlock(block: string, vars: Record<string, string>): string {
     const missing: string[] = [];
 
     for (const [varName, value] of Object.entries(vars)) {
-        const pattern = new RegExp(`${escapeRegex(varName)}\\s*:\\s*[^;]*;`);
+        const pattern = new RegExp(String.raw`${escapeRegex(varName)}\s*:\s*[^;]*;`);
         if (pattern.test(result)) {
             result = replaceColorVar(result, varName, value);
         } else {
@@ -61,7 +61,7 @@ function replaceBlock(
     selector: string,
     vars: Record<string, string>,
 ): string {
-    const blockPattern = new RegExp(`(${escapeRegex(selector)}\\s*\\{)([\\s\\S]*?)(\\})`, 'm');
+    const blockPattern = new RegExp(String.raw`(${escapeRegex(selector)}\s*\{)([\s\S]*?)(\})`, 'm');
     const match = blockPattern.exec(css);
     if (!match) {
         return css;

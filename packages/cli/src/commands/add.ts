@@ -10,20 +10,19 @@ import {
     aliasToProjectPath,
 } from '../utils/paths.js';
 import {
-    fetchAndTransform,
     normalizeContent,
 } from '../core/fetch.js';
 import { resolveDependencies } from '../core/resolve.js';
 import {
-    checkFileConflict,
-    classifyComponent,
     detectConflicts,
     type AddOptions,
     type ConflictCheckResult,
 } from '../core/plan.js';
 import { performInstall } from '../core/install.js';
 
-export { fetchAndTransform, normalizeContent, resolveDependencies, checkFileConflict, classifyComponent, detectConflicts, type AddOptions };
+export { fetchAndTransform } from '../core/fetch.js';
+export { checkFileConflict, classifyComponent } from '../core/plan.js';
+export { normalizeContent, resolveDependencies, detectConflicts, type AddOptions };
 
 const onCancel = (): void => {
     console.log(chalk.dim('\nCancelled.'));

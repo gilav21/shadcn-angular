@@ -82,12 +82,12 @@ export class DropdownMenuContentComponent {
             if (items.length === 0) return;
 
             const firstItem = items[0];
-            const lastItem = items[items.length - 1];
+            const lastItem = items.at(-1);
             const activeElement = this.document.activeElement as HTMLElement;
 
             if (event.shiftKey) {
                 if (activeElement === firstItem) {
-                    lastItem.focus();
+                    lastItem?.focus();
                 } else {
                     this.focusPrevItem(activeElement);
                 }

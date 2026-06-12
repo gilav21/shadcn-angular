@@ -298,7 +298,7 @@ export class PageViewerDemoComponent {
         ]
     };
 
-    context = signal(JSON.parse(JSON.stringify(this.initialContext)));
+    context = signal(structuredClone(this.initialContext));
 
     // Page Layout Definition
     pageData: PageData = {
@@ -471,7 +471,7 @@ export class PageViewerDemoComponent {
     }
 
     resetContext() {
-        this.context.set(JSON.parse(JSON.stringify(this.initialContext)));
+        this.context.set(structuredClone(this.initialContext));
     }
 
     updateMeta(prop: string, value: string) {

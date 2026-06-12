@@ -10,8 +10,7 @@ import {
     InjectionToken,
     forwardRef,
 } from '@angular/core';
-import { NgTemplateOutlet } from '@angular/common';
-import { DOCUMENT } from '@angular/common';
+import { NgTemplateOutlet, DOCUMENT } from '@angular/common';
 import { isRtl } from '../../lib/utils';
 import { DropdownMenuContentComponent } from './sub/dropdown-menu-content.component';
 import { DropdownMenuItemComponent } from './sub/dropdown-menu-item.component';

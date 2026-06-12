@@ -69,7 +69,7 @@ export class SelectItemComponent implements AfterViewInit, OnDestroy {
 
     onClick(): void {
         if (!this.disabled()) {
-            this.select?.select(this.value() as string);
+            this.select?.select(this.value());
         }
     }
 }

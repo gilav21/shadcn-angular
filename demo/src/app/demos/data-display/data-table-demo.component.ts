@@ -446,8 +446,8 @@ function generateVDemoColumns(colCount: number, heavyMode: boolean, variableRows
       sticky: true,
       component: VDemoVariableContentCellComponent,
       componentInputs: (row: VDemoRow) => ({
-        content: row['notes'] as string,
-        minHeight: row['rowHeight'] as number,
+        content: row['notes'],
+        minHeight: row['rowHeight'],
       }),
     });
   }
@@ -461,12 +461,12 @@ function generateVDemoColumns(colCount: number, heavyMode: boolean, variableRows
           width: '140px',
           component: VDemoRichMetricCellComponent,
           componentInputs: (row: VDemoRow) => ({
-            value: row['metricValue'] as number,
-            delta: row['metricDelta'] as number,
-            target: row['metricTarget'] as number,
-            sparklineData: row['sparklineData'] as number[],
-            label: row['metricLabel'] as string,
-            format: row['metricFormat'] as MetricFormat,
+            value: row['metricValue'],
+            delta: row['metricDelta'],
+            target: row['metricTarget'],
+            sparklineData: row['sparklineData'],
+            label: row['metricLabel'],
+            format: row['metricFormat'],
           }),
         });
       } else if (c < 25) {
@@ -485,7 +485,7 @@ function generateVDemoColumns(colCount: number, heavyMode: boolean, variableRows
           component: VDemoToggleCellComponent,
           componentInputs: (row: VDemoRow) => ({ enabled: row['enabled'] }),
           componentOutputs: (row: VDemoRow) => ({
-            toggled: (val: unknown) => { row['enabled'] = val as boolean; },
+            toggled: (val: unknown) => { row['enabled'] = val; },
           }),
         });
       }

@@ -38,7 +38,7 @@ export class DataTableColumnHeaderComponent {
   readonly sortAriaLabel = computed(() => {
     const title = this.title();
     const index = this.sortIndex();
-    const priority = index !== null ? `, sort priority ${index + 1}` : '';
+    const priority = index === null ? '' : `, sort priority ${index + 1}`;
     const direction = this.direction();
     if (direction === 'asc') {
       return `${title}, sorted ascending${priority}. Activate to sort descending.`;
