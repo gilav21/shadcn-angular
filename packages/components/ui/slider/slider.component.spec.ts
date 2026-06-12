@@ -44,24 +44,24 @@ describe('SliderComponent', () => {
         expect(slider).toBeTruthy();
     });
 
-    it('should have role="slider" on thumb', () => {
-        const thumb = fixture.debugElement.query(By.css('[role="slider"]'));
+    it('renders a native range input as the slider control', () => {
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
         expect(thumb).toBeTruthy();
     });
 
     it('should have default min/max values', () => {
-        const thumb = fixture.debugElement.query(By.css('[role="slider"]'));
-        expect(thumb.nativeElement.getAttribute('aria-valuemin')).toBe('0');
-        expect(thumb.nativeElement.getAttribute('aria-valuemax')).toBe('100');
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
+        expect(thumb.nativeElement.min).toBe('0');
+        expect(thumb.nativeElement.max).toBe('100');
     });
 
-    it('should set aria-valuenow', async () => {
+    it('reflects value on the native range input', async () => {
         component.value.set(50);
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const thumb = fixture.debugElement.query(By.css('[role="slider"]'));
-        expect(thumb.nativeElement.getAttribute('aria-valuenow')).toBe('50');
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
+        expect(thumb.nativeElement.value).toBe('50');
     });
 
     it('should calculate percentage correctly', () => {
@@ -94,7 +94,7 @@ describe('SliderComponent', () => {
         fixture.componentRef.setInput('ariaLabel', 'Volume');
         fixture.detectChanges();
 
-        const thumb = fixture.debugElement.query(By.css('[role="slider"]'));
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
         expect(thumb.nativeElement.getAttribute('aria-label')).toBe('Volume');
     });
 
@@ -121,7 +121,7 @@ describe('Slider Keyboard Navigation', () => {
     });
 
     it('should increase value on ArrowRight', () => {
-        const thumb = fixture.debugElement.query(By.css('[role="slider"]'));
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
         thumb.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
         fixture.detectChanges();
 
@@ -129,7 +129,7 @@ describe('Slider Keyboard Navigation', () => {
     });
 
     it('should decrease value on ArrowLeft', () => {
-        const thumb = fixture.debugElement.query(By.css('[role="slider"]'));
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
         thumb.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
         fixture.detectChanges();
 
@@ -137,7 +137,7 @@ describe('Slider Keyboard Navigation', () => {
     });
 
     it('should go to min on Home', () => {
-        const thumb = fixture.debugElement.query(By.css('[role="slider"]'));
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
         thumb.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
         fixture.detectChanges();
 
@@ -145,7 +145,7 @@ describe('Slider Keyboard Navigation', () => {
     });
 
     it('should go to max on End', () => {
-        const thumb = fixture.debugElement.query(By.css('[role="slider"]'));
+        const thumb = fixture.debugElement.query(By.css('input[type="range"]'));
         thumb.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
         fixture.detectChanges();
 
@@ -212,19 +212,19 @@ describe('SliderComponent — i18n integration', () => {
 
     it('defaults aria-valuetext to en-US grouping', async () => {
         const fixture = await setup();
-        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle = fixture.nativeElement.querySelector('input[type="range"]');
         expect(handle.getAttribute('aria-valuetext')).toBe('1,234');
     });
 
     it('localises aria-valuetext when locale="de" (uses German decimal/grouping)', async () => {
         const fixture = await setup({ locale: 'de' });
-        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle = fixture.nativeElement.querySelector('input[type="range"]');
         expect(handle.getAttribute('aria-valuetext')).toBe('1.234');
     });
 
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
         const fixture = await setup({ providerLocale: 'fr' });
-        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle = fixture.nativeElement.querySelector('input[type="range"]');
         const v = handle.getAttribute('aria-valuetext');
         // French uses narrow no-break space (U+202F) or regular space — both are non-ASCII.
         expect(v).toContain('234');

@@ -84,8 +84,8 @@ export class SliderComponent {
         this.updateValueFromEvent(event);
         this.startDragging();
 
-        const thumb = this.el.nativeElement.querySelector('[role="slider"]');
-        thumb?.focus();
+        const input = this.el.nativeElement.querySelector('input[type="range"]');
+        input?.focus();
     }
 
     onThumbMouseDown(event: MouseEvent): void {

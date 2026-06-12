@@ -4,18 +4,22 @@
     [attr.data-readonly]="readonly() || null"
     [attr.data-disabled]="isDisabled() || null"
     style="touch-action: none"
-    role="slider"
-    [attr.aria-valuenow]="value()"
-    [attr.aria-valuemin]="0"
-    [attr.aria-valuemax]="max()"
-    [attr.aria-label]="resolvedAriaLabel()"
     [attr.dir]="dir()"
-    [attr.tabindex]="isDisabled() || readonly() ? -1 : 0"
-    (keydown)="onKeydown($event)"
     (mouseleave)="onMouseLeave()"
     (touchmove)="onTouchMove($event)"
     (touchend)="onTouchEnd($event)"
 >
+    <input
+        type="range"
+        class="sr-only"
+        min="0"
+        [max]="max()"
+        [step]="precision()"
+        [value]="value()"
+        [disabled]="isDisabled() || readonly()"
+        [attr.aria-label]="resolvedAriaLabel()"
+        (keydown)="onKeydown($event)"
+    />
     @for (star of stars(); track star.index) {
         <button
             type="button"

@@ -31,6 +31,7 @@ Kept only where a native element is impossible:
 | `rich-text-editor` editable surface | `textbox` | A `contenteditable` rich-text region. `<input>`/`<textarea>` are plain-text only and can't host rich formatting. `role="textbox"` + `aria-multiline` is the WAI-ARIA-endorsed pattern. |
 | `rich-text-editor` / `rich-text-mention` autocomplete (listbox + option) | `listbox`, `option` | Custom, fully-templated mention/autocomplete popups. `<select>`/`<datalist>` can't render templated option content. |
 | `tree-select` trigger | `combobox` | A custom templated tree-dropdown. `<select>` can't render a tree of templated options. |
+| `color-picker` saturation/value area | `slider` | A **two-dimensional** picker (x = saturation, y = value). `<input type="range">` is one-dimensional and cannot represent a 2-D control, so `role="slider"` with `aria-valuetext` is the correct ARIA. (The 1-D hue/alpha sliders use native range inputs.) |
 
 ## `typescript:S7741` — "compare with `undefined` directly"
 

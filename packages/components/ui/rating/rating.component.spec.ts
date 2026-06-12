@@ -160,8 +160,8 @@ describe('RatingComponent', () => {
 
     describe('Keyboard Navigation', () => {
         it('should increase value on ArrowRight', async () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            rating.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight' }));
             fixture.detectChanges();
             await fixture.whenStable();
 
@@ -169,8 +169,8 @@ describe('RatingComponent', () => {
         });
 
         it('should decrease value on ArrowLeft', async () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            rating.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft' }));
             fixture.detectChanges();
             await fixture.whenStable();
 
@@ -178,8 +178,8 @@ describe('RatingComponent', () => {
         });
 
         it('should go to min on Home', async () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            rating.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home' }));
             fixture.detectChanges();
             await fixture.whenStable();
 
@@ -187,8 +187,8 @@ describe('RatingComponent', () => {
         });
 
         it('should go to max on End', async () => {
-            const rating = fixture.debugElement.query(By.css('[data-slot="rating"]'));
-            rating.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            input.nativeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'End' }));
             fixture.detectChanges();
             await fixture.whenStable();
 
@@ -225,30 +225,30 @@ describe('RatingComponent', () => {
     });
 
     describe('Accessibility', () => {
-        it('should have role="slider"', () => {
-            const rating = fixture.debugElement.query(By.css('[role="slider"]'));
-            expect(rating).toBeTruthy();
+        it('exposes a native range input as the slider control', () => {
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            expect(input).toBeTruthy();
         });
 
-        it('should have aria-valuenow', async () => {
+        it('reflects the current value on the range input', async () => {
             await fixture.whenStable();
-            const rating = fixture.debugElement.query(By.css('[role="slider"]'));
-            expect(rating.nativeElement.getAttribute('aria-valuenow')).toBe('3');
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            expect(input.nativeElement.value).toBe('3');
         });
 
-        it('should have aria-valuemin', () => {
-            const rating = fixture.debugElement.query(By.css('[role="slider"]'));
-            expect(rating.nativeElement.getAttribute('aria-valuemin')).toBe('0');
+        it('exposes min on the range input', () => {
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            expect(input.nativeElement.min).toBe('0');
         });
 
-        it('should have aria-valuemax', () => {
-            const rating = fixture.debugElement.query(By.css('[role="slider"]'));
-            expect(rating.nativeElement.getAttribute('aria-valuemax')).toBe('5');
+        it('exposes max on the range input', () => {
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            expect(input.nativeElement.max).toBe('5');
         });
 
         it('should have aria-label on rating', () => {
-            const rating = fixture.debugElement.query(By.css('[role="slider"]'));
-            expect(rating.nativeElement.getAttribute('aria-label')).toBe('Rating');
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            expect(input.nativeElement.getAttribute('aria-label')).toBe('Rating');
         });
 
         it('should have aria-label on each star button', () => {
@@ -259,8 +259,8 @@ describe('RatingComponent', () => {
         });
 
         it('should be focusable when not disabled', () => {
-            const rating = fixture.debugElement.query(By.css('[role="slider"]'));
-            expect(rating.nativeElement.getAttribute('tabindex')).toBe('0');
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            expect(input.nativeElement.disabled).toBe(false);
         });
 
         it('should not be focusable when disabled', async () => {
@@ -268,8 +268,8 @@ describe('RatingComponent', () => {
             fixture.detectChanges();
             await fixture.whenStable();
 
-            const rating = fixture.debugElement.query(By.css('[role="slider"]'));
-            expect(rating.nativeElement.getAttribute('tabindex')).toBe('-1');
+            const input = fixture.debugElement.query(By.css('input[type="range"]'));
+            expect(input.nativeElement.disabled).toBe(true);
         });
     });
 
@@ -306,7 +306,7 @@ describe('RatingComponent — i18n integration', () => {
     it('defaults group aria-label to English "Rating" and per-star to "Rate {n} out of {total}"', async () => {
         const fixture = await setup();
         const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
-        expect(root.getAttribute('aria-label')).toBe('Rating');
+        expect(root.querySelector('input[type="range"]')?.getAttribute('aria-label')).toBe('Rating');
         const stars = root.querySelectorAll('button[data-star]');
         expect(stars[0].getAttribute('aria-label')).toBe('Rate 1 out of 5');
         expect(stars[4].getAttribute('aria-label')).toBe('Rate 5 out of 5');
@@ -315,7 +315,7 @@ describe('RatingComponent — i18n integration', () => {
     it('localises group + per-star aria-labels when locale="he" with dir="rtl"', async () => {
         const fixture = await setup({ locale: 'he' });
         const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
-        expect(root.getAttribute('aria-label')).toBe('דירוג');
+        expect(root.querySelector('input[type="range"]')?.getAttribute('aria-label')).toBe('דירוג');
         expect(root.getAttribute('dir')).toBe('rtl');
         const stars = root.querySelectorAll('button[data-star]');
         expect(stars[2].getAttribute('aria-label')).toBe('דרג 3 מתוך 5');
@@ -326,7 +326,7 @@ describe('RatingComponent — i18n integration', () => {
         fixture.componentRef.setInput('ariaLabel', 'Custom rating');
         fixture.detectChanges();
         const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
-        expect(root.getAttribute('aria-label')).toBe('Custom rating');
+        expect(root.querySelector('input[type="range"]')?.getAttribute('aria-label')).toBe('Custom rating');
         const stars = root.querySelectorAll('button[data-star]');
         expect(stars[0].getAttribute('aria-label')).toBe('Évaluer 1 sur 5');
     });
@@ -334,7 +334,7 @@ describe('RatingComponent — i18n integration', () => {
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
         const fixture = await setup({ providerLocale: 'es' });
         const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
-        expect(root.getAttribute('aria-label')).toBe('Calificación');
+        expect(root.querySelector('input[type="range"]')?.getAttribute('aria-label')).toBe('Calificación');
     });
 
     it('accepts a fully custom RatingLocale object', async () => {
@@ -346,7 +346,7 @@ describe('RatingComponent — i18n integration', () => {
         });
         fixture.detectChanges();
         const root = fixture.nativeElement.querySelector('[data-slot="rating"]');
-        expect(root.getAttribute('aria-label')).toBe('XX_RATING');
+        expect(root.querySelector('input[type="range"]')?.getAttribute('aria-label')).toBe('XX_RATING');
         const stars = root.querySelectorAll('button[data-star]');
         expect(stars[2].getAttribute('aria-label')).toBe('XX_3/5');
     });

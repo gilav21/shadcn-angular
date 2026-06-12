@@ -57,7 +57,7 @@ describe('ComparisonSliderComponent', () => {
     });
 
     it('should increment position on ArrowRight', () => {
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         expect(handle).toBeTruthy();
         fixture.componentRef.setInput('position', 50);
         fixture.detectChanges();
@@ -67,7 +67,7 @@ describe('ComparisonSliderComponent', () => {
     });
 
     it('should decrement position on ArrowLeft', () => {
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         fixture.componentRef.setInput('position', 50);
         fixture.detectChanges();
         handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
@@ -76,7 +76,7 @@ describe('ComparisonSliderComponent', () => {
     });
 
     it('should go to 0 on Home key', () => {
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         fixture.componentRef.setInput('position', 50);
         fixture.detectChanges();
         handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
@@ -85,7 +85,7 @@ describe('ComparisonSliderComponent', () => {
     });
 
     it('should go to 100 on End key', () => {
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         fixture.componentRef.setInput('position', 50);
         fixture.detectChanges();
         handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
@@ -94,7 +94,7 @@ describe('ComparisonSliderComponent', () => {
     });
 
     it('should clamp position at lower bound', () => {
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         fixture.componentRef.setInput('position', 0);
         fixture.detectChanges();
         handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowLeft', bubbles: true }));
@@ -103,7 +103,7 @@ describe('ComparisonSliderComponent', () => {
     });
 
     it('should clamp position at upper bound', () => {
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         fixture.componentRef.setInput('position', 100);
         fixture.detectChanges();
         handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
@@ -121,7 +121,7 @@ describe('ComparisonSliderComponent', () => {
         fixture.componentRef.setInput('orientation', 'vertical');
         fixture.componentRef.setInput('position', 50);
         fixture.detectChanges();
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }));
         fixture.detectChanges();
         expect(component.position()).toBe(51);
@@ -131,7 +131,7 @@ describe('ComparisonSliderComponent', () => {
         fixture.componentRef.setInput('orientation', 'vertical');
         fixture.componentRef.setInput('position', 50);
         fixture.detectChanges();
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         handle.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowUp', bubbles: true }));
         fixture.detectChanges();
         expect(component.position()).toBe(49);
@@ -140,7 +140,7 @@ describe('ComparisonSliderComponent', () => {
     it('should expose aria-valuetext on the handle', () => {
         fixture.componentRef.setInput('position', 30);
         fixture.detectChanges();
-        const handle: HTMLElement = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle: HTMLElement = fixture.nativeElement.querySelector('input[type="range"]');
         expect(handle.getAttribute('aria-valuetext')).toBe('30% before, 70% after');
     });
 
@@ -191,13 +191,13 @@ describe('ComparisonSliderComponent — i18n integration', () => {
 
     it('defaults handle aria-label to English "Comparison slider"', async () => {
         const fixture = await setup();
-        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle = fixture.nativeElement.querySelector('input[type="range"]');
         expect(handle.getAttribute('aria-label')).toBe('Comparison slider');
     });
 
     it('localises handle aria-label and applies dir="rtl" when locale="he"', async () => {
         const fixture = await setup({ locale: 'he' });
-        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle = fixture.nativeElement.querySelector('input[type="range"]');
         expect(handle.getAttribute('aria-label')).toBe('מחוון השוואה');
         const root = fixture.nativeElement.querySelector('div');
         expect(root.getAttribute('dir')).toBe('rtl');
@@ -205,7 +205,7 @@ describe('ComparisonSliderComponent — i18n integration', () => {
 
     it('falls back to UI_LOCALE_ID when no locale input is set', async () => {
         const fixture = await setup({ providerLocale: 'fr' });
-        const handle = fixture.nativeElement.querySelector('[role="slider"]');
+        const handle = fixture.nativeElement.querySelector('input[type="range"]');
         expect(handle.getAttribute('aria-label')).toBe('Curseur de comparaison');
     });
 });

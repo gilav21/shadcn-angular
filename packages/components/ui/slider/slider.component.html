@@ -4,7 +4,20 @@
   (mousedown)="onTrackMouseDown($event)"
   (touchstart)="onTouchStart($event)"
 >
-  <div class="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20 cursor-pointer">
+  <input
+    type="range"
+    class="peer sr-only"
+    [min]="min()"
+    [max]="max()"
+    [step]="step()"
+    [value]="value()"
+    [disabled]="disabled()"
+    [attr.aria-label]="ariaLabel()"
+    [attr.aria-labelledby]="ariaLabelledby()"
+    [attr.aria-valuetext]="valueText()"
+    (keydown)="onKeyDown($event)"
+  />
+  <div data-slot="slider-track" class="relative h-1.5 w-full grow overflow-hidden rounded-full bg-primary/20 cursor-pointer">
     <div
       class="absolute h-full bg-primary pointer-events-none"
       [style.left.%]="rtl() ? 'auto' : 0"
@@ -14,20 +27,11 @@
   </div>
   <div
     #thumbEl
-    class="absolute block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 cursor-grab active:cursor-grabbing"
+    data-slot="slider-thumb"
+    class="absolute block h-4 w-4 rounded-full border border-primary/50 bg-background shadow transition-colors peer-focus-visible:outline-none peer-focus-visible:ring-1 peer-focus-visible:ring-ring peer-disabled:pointer-events-none peer-disabled:opacity-50 cursor-grab active:cursor-grabbing"
     [style.left.%]="rtl() ? 'auto' : percentage()"
     [style.right.%]="rtl() ? percentage() : 'auto'"
     [style.transform]="rtl() ? 'translateX(50%)' : 'translateX(-50%)'"
-    tabindex="0"
-    role="slider"
-    [attr.aria-valuenow]="value()"
-    [attr.aria-valuetext]="valueText()"
-    [attr.aria-valuemin]="min()"
-    [attr.aria-valuemax]="max()"
-    [attr.aria-disabled]="disabled()"
-    [attr.aria-label]="ariaLabel()"
-    [attr.aria-labelledby]="ariaLabelledby()"
     (mousedown)="onThumbMouseDown($event)"
-    (keydown)="onKeyDown($event)"
   ></div>
 </div>
