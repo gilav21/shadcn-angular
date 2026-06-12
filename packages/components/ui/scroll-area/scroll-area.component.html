@@ -7,6 +7,8 @@
         [class]="viewportClasses()"
         [attr.data-slot]="'scroll-area-viewport'"
         #viewport
+        role="region"
+        [attr.aria-label]="ariaLabel()"
         tabindex="0"
         (scroll)="onScroll()"
     >

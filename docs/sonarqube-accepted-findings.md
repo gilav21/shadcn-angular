@@ -41,6 +41,27 @@ Kept only where a native element is impossible:
 All other `S7741` hits were either rewritten (`'window' in globalThis`,
 `globalThis.ngDevMode`) or live in the excluded test bootstrap.
 
+## `Web:S6845` — "tabIndex on a non-interactive element"
+
+Kept where the focusable `<div>` is a genuinely interactive composite widget
+that already has `(keydown)`/`(click)` handlers but cannot take a native
+interactive role (it contains its own nested controls):
+
+| Component | Why |
+| --- | --- |
+| `bento-grid` item | A selectable, drag-and-resizable dashboard card. It has `(click)` + `(keydown.enter/space)` selection handlers, but **contains** its own option button and resize handles, so it can't be a native `<button>`. The `tabindex="0"` is the intended keyboard entry point. |
+| `data-table` scroll/keyboard-nav container | The focusable viewport that drives arrow-key cell navigation (`(keydown)="onTableKeydown"`). It hosts the entire interactive table, so it can't be a single native control. |
+
+(`scroll-area`'s viewport was fixed by adding `role="region"` + an
+`aria-label` input — a labelled scroll region legitimately takes `tabindex`.)
+
+## `Web:S6819` dialog + `MouseEventWithoutKeyboardEquivalentCheck` — drawer
+
+| Finding | Why kept |
+| --- | --- |
+| `drawer` `role="dialog"` | The drawer is a signal-driven modal rendered/removed via `@if`. Switching to a native `<dialog>` would require imperative `showModal()/close()` and change focus-trap, top-layer and `::backdrop` behaviour — a behavioural change. `role="dialog"` + `aria-modal` on a managed div is the same approach the Angular CDK and Radix use. |
+| `drawer` overlay click without keyboard handler | The overlay is `aria-hidden="true"` (decorative). Backdrop-click dismissal is inherently pointer-only; keyboard users dismiss with **Escape**, which is handled on the dialog container (`(keydown)="onKeydown"`). |
+
 ## Notes
 
 - `Web:S6845` ("tabIndex on non-interactive element") and the form-control
