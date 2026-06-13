@@ -15,11 +15,11 @@
        heading position above it when focused/filled. Reserve top space for the
        floated label so the field doesn't shift. Density-aware + RTL-safe. */
     [data-slot="input-floating"] {
-        padding-top: calc(1.25rem * var(--_d));
+        padding-top: calc(1.5rem * var(--_d));
     }
     [data-slot="input-floating"] > label {
         inset-inline-start: calc(0.75rem * var(--_d));
-        top: calc(2.375rem * var(--_d));
+        top: calc(2.625rem * var(--_d));
         transform: translateY(-50%);
     }
     /* Underline/ghost inputs are flush (no inline padding), so the resting
@@ -28,9 +28,13 @@
     [data-slot="input-floating"][data-variant="ghost"] > label {
         inset-inline-start: 0;
     }
+    /* Floated: anchor the label's BOTTOM edge a fixed gap above the input top
+       (top = pad-top − gap, then translateY(-100%)). The gap stays constant no
+       matter the label font size/weight — a larger label grows upward, never
+       into the field. */
     [data-slot="input-floating"] > label[data-active] {
         inset-inline-start: 0;
-        top: 0;
-        transform: none;
+        top: calc(1.125rem * var(--_d));
+        transform: translateY(-100%);
     }
 }
