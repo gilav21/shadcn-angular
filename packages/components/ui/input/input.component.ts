@@ -107,9 +107,12 @@ export class InputComponent implements ControlValueAccessor {
         !!this.prefix() ||
         !!this.suffix() ||
         this.clearable() ||
-        (this.floating() && !!this.label()) ||
         this.loading()
     );
+
+    /** Floating-label mode: the label animates from a placeholder position to
+     * above the input, which keeps its variant styling and normal height. */
+    readonly isFloating = computed(() => this.floating() && !!this.label());
 
     readonly labelIsActive = computed(() =>
         this.isFocused() || !!this.value()
@@ -134,11 +137,8 @@ export class InputComponent implements ControlValueAccessor {
     ));
 
     readonly floatingLabelClasses = computed(() => cn(
-        'absolute left-3 select-none pointer-events-none',
-        'transition-all duration-150',
-        this.labelIsActive()
-            ? 'top-1.5 text-xs text-muted-foreground'
-            : 'top-1/2 -translate-y-1/2 text-sm text-muted-foreground'
+        'pointer-events-none absolute select-none text-muted-foreground transition-all duration-150',
+        this.labelIsActive() ? 'text-xs' : 'text-sm'
     ));
 
     onValueChange(value: string): void {

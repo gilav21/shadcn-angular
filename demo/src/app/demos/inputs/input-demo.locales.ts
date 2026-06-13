@@ -12,6 +12,8 @@ export interface InputDemoLocale extends LocaleMeta {
   passwordPlaceholder: string;
   underlineLabel: string;
   underlinePlaceholder: string;
+  floatingSectionLabel: string;
+  floatingLabel: string;
   disabledPlaceholder: string;
   groupUnderlineLabel: string;
   groupGhostLabel: string;
@@ -31,6 +33,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'Enter password',
     underlineLabel: 'Underline Variant',
     underlinePlaceholder: 'Underline input',
+    floatingSectionLabel: 'Floating Label',
+    floatingLabel: 'Full name',
     disabledPlaceholder: 'Disabled input',
     groupUnderlineLabel: 'Input Group (Underline)',
     groupGhostLabel: 'Input Group (Ghost)',
@@ -48,6 +52,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'הזן סיסמה',
     underlineLabel: 'גרסת קו תחתון',
     underlinePlaceholder: 'קלט עם קו תחתון',
+    floatingSectionLabel: 'תווית צפה',
+    floatingLabel: 'שם מלא',
     disabledPlaceholder: 'שדה קלט מושבת',
     groupUnderlineLabel: 'קבוצת קלט (קו תחתון)',
     groupGhostLabel: 'קבוצת קלט (רוח)',
@@ -65,6 +71,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'أدخل كلمة المرور',
     underlineLabel: 'نمط التسطير',
     underlinePlaceholder: 'إدخال بتسطير',
+    floatingSectionLabel: 'تسمية عائمة',
+    floatingLabel: 'الاسم الكامل',
     disabledPlaceholder: 'حقل إدخال معطّل',
     groupUnderlineLabel: 'مجموعة إدخال (تسطير)',
     groupGhostLabel: 'مجموعة إدخال (شبح)',
@@ -82,6 +90,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'Passwort eingeben',
     underlineLabel: 'Unterstrich-Variante',
     underlinePlaceholder: 'Eingabe mit Unterstrich',
+    floatingSectionLabel: 'Schwebende Beschriftung',
+    floatingLabel: 'Vollständiger Name',
     disabledPlaceholder: 'Deaktiviertes Eingabefeld',
     groupUnderlineLabel: 'Eingabegruppe (Unterstrich)',
     groupGhostLabel: 'Eingabegruppe (Ghost)',
@@ -99,6 +109,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'Entrez le mot de passe',
     underlineLabel: 'Variante soulignée',
     underlinePlaceholder: 'Saisie soulignée',
+    floatingSectionLabel: 'Étiquette flottante',
+    floatingLabel: 'Nom complet',
     disabledPlaceholder: 'Champ de saisie désactivé',
     groupUnderlineLabel: 'Groupe de saisie (souligné)',
     groupGhostLabel: 'Groupe de saisie (fantôme)',
@@ -116,6 +128,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'Ingresa la contraseña',
     underlineLabel: 'Variante subrayada',
     underlinePlaceholder: 'Entrada subrayada',
+    floatingSectionLabel: 'Etiqueta flotante',
+    floatingLabel: 'Nombre completo',
     disabledPlaceholder: 'Campo de entrada deshabilitado',
     groupUnderlineLabel: 'Grupo de entrada (subrayado)',
     groupGhostLabel: 'Grupo de entrada (fantasma)',
@@ -133,6 +147,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'パスワードを入力',
     underlineLabel: 'アンダーラインバリアント',
     underlinePlaceholder: 'アンダーライン入力',
+    floatingSectionLabel: 'フローティングラベル',
+    floatingLabel: '氏名',
     disabledPlaceholder: '無効な入力フィールド',
     groupUnderlineLabel: '入力グループ（アンダーライン）',
     groupGhostLabel: '入力グループ（ゴースト）',
@@ -150,6 +166,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: '请输入密码',
     underlineLabel: '下划线变体',
     underlinePlaceholder: '下划线输入',
+    floatingSectionLabel: '浮动标签',
+    floatingLabel: '全名',
     disabledPlaceholder: '已禁用输入框',
     groupUnderlineLabel: '输入组（下划线）',
     groupGhostLabel: '输入组（幽灵）',
@@ -167,6 +185,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'Введите пароль',
     underlineLabel: 'Вариант с подчёркиванием',
     underlinePlaceholder: 'Поле с подчёркиванием',
+    floatingSectionLabel: 'Плавающая метка',
+    floatingLabel: 'Полное имя',
     disabledPlaceholder: 'Отключённое поле ввода',
     groupUnderlineLabel: 'Группа ввода (подчёркивание)',
     groupGhostLabel: 'Группа ввода (призрак)',
@@ -184,6 +204,8 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     passwordPlaceholder: 'Digite a senha',
     underlineLabel: 'Variante sublinhada',
     underlinePlaceholder: 'Entrada sublinhada',
+    floatingSectionLabel: 'Rótulo flutuante',
+    floatingLabel: 'Nome completo',
     disabledPlaceholder: 'Campo de entrada desabilitado',
     groupUnderlineLabel: 'Grupo de entrada (sublinhado)',
     groupGhostLabel: 'Grupo de entrada (fantasma)',

@@ -49,6 +49,13 @@ import { INPUT_DEMO_LOCALES } from './input-demo.locales';
           <ui-input [placeholder]="t().underlinePlaceholder" [attr.id]="'underline-input'" variant="underline" />
         </div>
 
+        <div class="space-y-3">
+          <ui-label>{{ t().floatingSectionLabel }}</ui-label>
+          <ui-input [floating]="true" [label]="t().floatingLabel" elementId="floating-outline" />
+          <ui-input [floating]="true" [label]="t().floatingLabel" variant="underline" elementId="floating-underline" />
+          <ui-input [floating]="true" [label]="t().floatingLabel" variant="ghost" elementId="floating-ghost" />
+        </div>
+
         <ui-input [placeholder]="t().disabledPlaceholder" [disabled]="true" />
       </div>
 
