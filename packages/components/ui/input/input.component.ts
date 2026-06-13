@@ -141,8 +141,9 @@ export class InputComponent implements ControlValueAccessor {
 
     readonly floatingLabelClasses = computed(() => cn(
         'pointer-events-none absolute select-none text-muted-foreground transition-all duration-150',
-        this.labelIsActive() ? 'text-xs' : 'text-sm',
-        this.labelClass()
+        // Resting = uniform placeholder; on float it transforms to the (optionally
+        // dev-customized via labelClass) heading font.
+        this.labelIsActive() ? cn('text-xs', this.labelClass()) : 'text-sm'
     ));
 
     onValueChange(value: string): void {

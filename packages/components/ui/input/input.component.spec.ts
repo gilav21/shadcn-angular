@@ -235,12 +235,20 @@ describe('InputComponent - floating label', () => {
         }
     });
 
-    it('applies labelClass so the dev controls the floating-label font', () => {
+    it('applies labelClass only when floated, so the resting placeholder stays uniform', () => {
         fixture.componentRef.setInput('labelClass', 'text-base font-semibold');
         fixture.detectChanges();
-        const label = fixture.debugElement.query(By.css('label')).nativeElement;
-        expect(label.className).toContain('text-base');
-        expect(label.className).toContain('font-semibold');
+        const label = () => fixture.debugElement.query(By.css('label')).nativeElement;
+
+        // Resting: uniform placeholder, no custom font.
+        expect(label().className).not.toContain('text-base');
+        expect(label().className).not.toContain('font-semibold');
+
+        // Floated: transforms to the dev-customized font.
+        component.onFocus();
+        fixture.detectChanges();
+        expect(label().className).toContain('text-base');
+        expect(label().className).toContain('font-semibold');
     });
 
     it('exposes the variant on the floating wrapper so the resting label can match the input padding', () => {
