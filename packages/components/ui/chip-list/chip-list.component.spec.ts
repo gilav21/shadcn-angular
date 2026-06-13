@@ -1,7 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ChipListComponent } from './chip-list.component';
 import { BadgeComponent } from '../badge';
-import { ButtonComponent } from '../button';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { By } from '@angular/platform-browser';
@@ -27,7 +26,7 @@ describe('ChipListComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [TestHostComponent, ChipListComponent, BadgeComponent, ButtonComponent]
+            imports: [TestHostComponent, ChipListComponent, BadgeComponent]
         }).compileComponents();
 
         fixture = TestBed.createComponent(TestHostComponent);
@@ -84,7 +83,7 @@ describe('ChipListComponent', () => {
 
     it('should remove chip on delete button click', () => {
         const chips = fixture.debugElement.queryAll(By.directive(BadgeComponent));
-        const removeBtn = chips[0].query(By.css('ui-button'));
+        const removeBtn = chips[0].query(By.css('button[data-slot="chip-remove"]'));
 
         removeBtn.nativeElement.click();
         fixture.detectChanges();
@@ -92,6 +91,19 @@ describe('ChipListComponent', () => {
         expect(host.chips.length).toBe(1);
         expect(host.chips).not.toContain('React');
         expect(host.chips).toContain('Angular');
+    });
+
+    it('renders a compact remove button (not the 36px ui-button) so chips stay chip-sized', () => {
+        const chips = fixture.debugElement.queryAll(By.directive(BadgeComponent));
+        const removeBtn = chips[0].query(By.css('button[data-slot="chip-remove"]'));
+        // The remove control must be a plain <button>, not a ui-button whose
+        // density CSS forces a 36px box and inflates the whole chip.
+        expect(removeBtn).toBeTruthy();
+        expect(removeBtn.query(By.css('ui-button'))).toBeNull();
+        expect(removeBtn.nativeElement.tagName.toLowerCase()).toBe('button');
+        const rect = removeBtn.nativeElement.getBoundingClientRect();
+        expect(rect.height).toBeLessThanOrEqual(24);
+        expect(rect.width).toBeLessThanOrEqual(24);
     });
 
     it('should remove last chip on Backspace if input empty', async () => {

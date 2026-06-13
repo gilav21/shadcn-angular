@@ -19,14 +19,12 @@
     >
       <span class="max-w-[120px] sm:max-w-[200px] truncate">{{ chip }}</span>
       @if (!disabled()) {
-        <ui-button
-          variant="ghost"
-          size="icon"
-          class="h-4 w-4 p-0 hover:bg-black/10 dark:hover:bg-white/10 rounded-full"
-          [ariaLabel]="'Remove ' + chip"
+        <button
+          type="button"
+          class="inline-flex h-4 w-4 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent p-0 hover:bg-black/10 dark:hover:bg-white/10"
+          data-slot="chip-remove"
+          [attr.aria-label]="'Remove ' + chip"
           (click)="removeChip(i, $event)"
-          (keydown.enter)="removeChip(i, $event)"
-          (keydown.space)="removeChip(i, $event)"
         >
           <svg
             class="h-3 w-3"
@@ -41,7 +39,7 @@
               d="M6 18L18 6M6 6l12 12"
             />
           </svg>
-        </ui-button>
+        </button>
       }
     </ui-badge>
   }

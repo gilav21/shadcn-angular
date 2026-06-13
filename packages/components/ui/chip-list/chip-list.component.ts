@@ -11,7 +11,6 @@ import {
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
 import { BadgeComponent, type BadgeVariant } from '../badge';
-import { ButtonComponent } from '../button';
 import { InputComponent } from '../input';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 import { cva, type VariantProps } from 'class-variance-authority';
@@ -37,7 +36,7 @@ export type ChipListVariant = VariantProps<typeof chipListVariants>['variant'];
 @Component({
   selector: 'ui-chip-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, ButtonComponent, InputComponent, FormsModule],
+  imports: [BadgeComponent, InputComponent, FormsModule],
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
