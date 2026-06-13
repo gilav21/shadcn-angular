@@ -150,6 +150,23 @@ export interface DataTableExportOptions {
     onlyFiltered?: boolean;
 }
 
+/**
+ * The current query state passed to a server-side `exportDataProvider` so it can
+ * fetch ALL rows matching what the user sees — filtered and sorted, across every
+ * page (not just the loaded page). Pagination is intentionally omitted: an
+ * export returns the whole result set.
+ */
+export interface DataTableExportQuery {
+    /** Global (search box) filter value. */
+    globalFilter: string;
+    /** Per-column filter values, keyed by `accessorKey`. */
+    columnFilters: Record<string, unknown>;
+    /** Primary sort. */
+    sort: SortState;
+    /** Full multi-column sort state (highest priority first); empty when unused. */
+    sortStates: SortState[];
+}
+
 export type SubRowSelectionMode = 'self' | 'descendants' | 'filteredDescendants';
 
 export type SubRowFilterMode = 'includeChildren' | 'excludeChildren' | 'includeParentOnChildMatch';

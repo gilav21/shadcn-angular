@@ -57,6 +57,7 @@ import {
   DataTableLoadingTrigger,
   DataTableLoadingVisibility,
   DataTableExportOptions,
+  DataTableExportQuery,
   SubRowSelectionMode,
   SubRowFilterMode,
   FlattenedTreeRow,
@@ -242,7 +243,15 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   readonly cellRange = signal<CellRange | null>(null);
   readonly columnResize = output<ColumnResizeEvent>();
 
-  readonly exportDataProvider = input<(() => Promise<T[]>) | undefined>(undefined);
+  /**
+   * Server-side export hook. Receives the current {@link DataTableExportQuery}
+   * (global filter, column filters, sort) so it can fetch ALL matching rows —
+   * filtered and sorted across every page — for CSV/Excel export. A no-arg
+   * provider remains valid (the query argument is simply ignored).
+   */
+  readonly exportDataProvider = input<
+    ((query: DataTableExportQuery) => Promise<T[]>) | undefined
+  >(undefined);
 
   readonly emptyStateComponent = input<Type<unknown>>();
   readonly emptyStateComponentInputs = input<Record<string, unknown>>({});
@@ -2507,10 +2516,21 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
   private async resolveExportRows(customData?: T[]): Promise<T[]> {
     if (customData) return customData;
     const provider = this.exportDataProvider();
-    if (provider) return provider();
-    // Export what the user sees: filtered AND sorted (sortedData), all rows
-    // (not the current page). Server-side export defers ordering to the provider.
+    // Server-side: hand the provider the current filter/sort so it can fetch
+    // ALL matching rows (every page), not just the loaded page.
+    if (provider) return provider(this.exportQuery());
+    // Client-side: export what the user sees — filtered AND sorted, all rows
+    // (not the current page).
     return this.sortedData();
+  }
+
+  private exportQuery(): DataTableExportQuery {
+    return {
+      globalFilter: this.globalFilter(),
+      columnFilters: this.columnFilters(),
+      sort: this.sortState(),
+      sortStates: this.multiSortState(),
+    };
   }
 
   async exportToCsv(filename?: string, customData?: T[]): Promise<void> {

@@ -337,10 +337,10 @@
   </p>
 
   <div class="flex flex-wrap items-center gap-2 mb-2">
-    <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-all', payments())" (keydown.enter)="serverGrid.exportToExcel('payments-all', payments())">
-      Export All (inline data)
+    <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-all')" (keydown.enter)="serverGrid.exportToExcel('payments-all')">
+      Export All (filtered + sorted)
     </ui-button>
-    <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-page')" (keydown.enter)="serverGrid.exportToExcel('payments-page')">
+    <ui-button variant="outline" size="sm" (click)="serverGrid.exportToExcel('payments-page', serverData())" (keydown.enter)="serverGrid.exportToExcel('payments-page', serverData())">
       Export Current Page
     </ui-button>
   </div>
@@ -353,6 +353,7 @@
 
     <ui-data-table #serverGrid [data]="serverData()" [columns]="paymentColumns()" [total]="serverTotal()"
       [localSorting]="false" [localPagination]="false" [localFiltering]="false"
+      [exportDataProvider]="serverExportAll"
       (sortChange)="onServerSort($event)" (pageChange)="onServerPage($event)"
       (filterChange)="onServerFilter($event)" (columnFiltersChange)="onServerColumnFilters($event)" />
   </div>

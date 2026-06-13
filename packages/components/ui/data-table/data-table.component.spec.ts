@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component } from '@angular/core';
 import { beforeEach, describe, it, expect, vi } from 'vitest';
 import { DataTableComponent } from './data-table.component';
-import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext } from './data-table.types';
+import { ColumnDef, PaginationState, FlattenedTreeRow, RowActionContext, DataTableExportQuery } from './data-table.types';
 import { ContextMenuItem } from '../context-menu';
 import { buildTreeFromFlat } from './data-table.utils';
 import type { DataTableLocale } from './data-table.locales';
@@ -3108,6 +3108,45 @@ describe('DataTableComponent - Export & Clipboard', () => {
 
         await component.exportToCsv();
         expect(provider).toHaveBeenCalled();
+        vi.restoreAllMocks();
+    });
+
+    it('hands the exportDataProvider the live filter + sort query (not just the page)', async () => {
+        const provider = vi.fn(async (_query: DataTableExportQuery) => [] as NumRow[]);
+        fixture.componentRef.setInput('exportDataProvider', provider);
+        component.onFilterChange('Alice');
+        component.onSortChange('score', 'desc');
+        fixture.detectChanges();
+
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+        await component.exportToExcel('server-all');
+
+        expect(provider).toHaveBeenCalledTimes(1);
+        const query = provider.mock.calls[0][0];
+        expect(query.globalFilter).toBe('Alice');
+        expect(query.sort).toEqual({ column: 'score', direction: 'desc' });
+        expect(query.columnFilters).toEqual({});
+        expect(Array.isArray(query.sortStates)).toBe(true);
+        vi.restoreAllMocks();
+    });
+
+    it('passes per-column filters through to the exportDataProvider query', async () => {
+        const provider = vi.fn(async (_query: DataTableExportQuery) => [] as NumRow[]);
+        fixture.componentRef.setInput('exportDataProvider', provider);
+        component.onColumnFilterChange('name', 'Bob');
+        fixture.detectChanges();
+
+        vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined);
+        vi.spyOn(URL, 'createObjectURL').mockReturnValue('blob:fake');
+        vi.spyOn(URL, 'revokeObjectURL').mockImplementation(() => undefined);
+
+        await component.exportToCsv('server-filtered');
+
+        const query = provider.mock.calls[0][0];
+        expect(query.columnFilters).toEqual({ name: 'Bob' });
         vi.restoreAllMocks();
     });
 
