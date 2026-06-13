@@ -76,7 +76,7 @@
               <ui-command-item
                 [value]="getSearchValue(option)"
                 [selected]="isSelected(option)"
-                (select)="onSelect(option)"
+                (selectItem)="onSelect(option)"
                 class="ltr:pr-8 rtl:pl-8"
               >
                <span [innerHTML]="getDisplayValue(option) | highlight: searchTerm()"></span>

@@ -45,6 +45,16 @@ describe('DataTableMultiselectFilterComponent', () => {
     expect(emitted).toEqual(['pending']);
   });
 
+  it('toggles when a command-item fires its select output (template must bind the renamed selectItem output, not native select)', () => {
+    const items = fixture.debugElement.queryAll(By.css('ui-command-item'));
+    // Activating the command-item emits its `selectItem` output. This only
+    // reaches toggleOption if the template binds (selectItem) — a regression to
+    // the old (select) binding (a native DOM event) would silently no-op.
+    items[0].componentInstance.onClick();
+    fixture.detectChanges();
+    expect(emitted).toEqual(['pending']);
+  });
+
   it('should toggle option off and emit null when empty', () => {
     component.toggleOption('pending');
     emitted = undefined;

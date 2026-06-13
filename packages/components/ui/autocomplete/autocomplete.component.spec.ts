@@ -144,6 +144,19 @@ describe('AutocompleteComponent', () => {
             expect(autocomplete.internalValue()).toEqual([fruits[0]]);
         });
 
+        it('selects via a command-item activation (template must bind the renamed selectItem output, not native select)', () => {
+            autocomplete.open.set(true);
+            fixture.detectChanges();
+            const items = fixture.debugElement.queryAll(By.css('ui-command-item'));
+            expect(items.length).toBeGreaterThan(0);
+            // Activating the item emits `selectItem`; it only reaches onSelect if
+            // the template binds (selectItem). The old (select) binding (a native
+            // DOM event) would silently fail to select.
+            items[0].componentInstance.onClick();
+            fixture.detectChanges();
+            expect(autocomplete.internalValue()).toEqual([fruits[0]]);
+        });
+
         it('should close the popover after selection', () => {
             autocomplete.open.set(true);
             autocomplete.onSelect(fruits[0]);

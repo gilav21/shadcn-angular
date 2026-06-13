@@ -23,7 +23,7 @@
       @for (option of options(); track trackOption(option)) {
         <ui-command-item
           [value]="getDisplayLabel(option)"
-          (select)="toggleOption(option)"
+          (selectItem)="toggleOption(option)"
           class="gap-2"
         >
           <ui-checkbox
