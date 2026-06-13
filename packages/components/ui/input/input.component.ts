@@ -17,11 +17,11 @@ import { SkeletonComponent } from '../skeleton';
 import { IconComponent } from '../icon';
 
 const inputVariants = cva(
-    'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent py-1 text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
+    'border-input aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive bg-transparent text-base transition-colors md:text-sm placeholder:text-muted-foreground w-full min-w-0 outline-none disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50',
     {
         variants: {
             variant: {
-                outline: 'dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 h-9 rounded-lg border px-3 focus-visible:ring-[3px] aria-invalid:ring-[3px]',
+                outline: 'dark:bg-input/30 focus-visible:border-ring focus-visible:ring-ring/50 rounded-lg border focus-visible:ring-[3px] aria-invalid:ring-[3px]',
                 underline: 'rounded-none border-b focus-visible:border-ring px-0 shadow-none',
                 ghost: 'border-none shadow-none focus-visible:ring-0 px-0',
             },
@@ -121,8 +121,6 @@ export class InputComponent implements ControlValueAccessor {
 
     readonly containerClasses = computed(() => cn(
         'relative flex w-full items-center rounded-lg border border-input shadow-xs',
-        'h-9',
-        this.floating() && this.label() && 'h-14',
         'transition-[color,box-shadow]',
         'has-[input:focus-visible]:border-ring has-[input:focus-visible]:ring-[3px] has-[input:focus-visible]:ring-ring/50',
         'dark:bg-input/30 bg-transparent',
