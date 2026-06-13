@@ -687,7 +687,7 @@ export const registry = defineRegistry({
     description: 'Searchable emoji selector with categories and a popover trigger.',
     tags: ['emoji-picker', 'emoji', 'picker', 'reactions', 'smileys'],
     files: ['emoji-picker/emoji-data.ts', 'emoji-picker/emoji-picker.component.ts', 'emoji-picker/index.ts', 'emoji-picker/sub/emoji-picker-content.component.ts', 'emoji-picker/sub/emoji-picker-trigger.component.ts'],
-    dependencies: ['input', 'scroll-area', 'tooltip'],
+    dependencies: ['input', 'input-group', 'scroll-area', 'tooltip'],
   },
   'rich-text-editor': {
     name: 'rich-text-editor',

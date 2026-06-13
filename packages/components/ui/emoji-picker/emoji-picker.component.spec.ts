@@ -92,4 +92,33 @@ describe('EmojiPickerComponent', () => {
             pickerInstance.selectEmoji('🚀');
             expect(component.onSelect).toHaveBeenCalledWith('🚀');
         });
+
+        it('renders search as an input-group with an icon addon, not an absolute overlay over the field', () => {
+            pickerInstance.open.set(true);
+            fixture.detectChanges();
+
+            const content = document.querySelector('[data-slot="emoji-picker-content"]')!;
+            const group = content.querySelector('[data-slot="input-group"]');
+            expect(group).toBeTruthy();
+            // The search icon is a flex-sibling addon, not an absolutely-positioned
+            // SVG sitting on top of a padded input (which overlapped the text because
+            // ui-input's scoped padding CSS beat the ps-8 utility).
+            const addon = group!.querySelector('[data-slot="input-group-addon"]');
+            expect(addon?.querySelector('svg')).toBeTruthy();
+            expect(content.querySelector('svg.absolute')).toBeNull();
+            expect(group!.querySelector('input')).toBeTruthy();
+        });
+
+        it('defers off-screen emoji painting via content-visibility (avoids the 1500-glyph paint stall)', () => {
+            pickerInstance.open.set(true);
+            fixture.detectChanges();
+
+            const sections = document.querySelectorAll(
+                '[data-slot="emoji-picker-content"] [data-category]'
+            );
+            expect(sections.length).toBeGreaterThan(1);
+            for (const section of Array.from(sections)) {
+                expect(getComputedStyle(section as HTMLElement).contentVisibility).toBe('auto');
+            }
+        });
     });
