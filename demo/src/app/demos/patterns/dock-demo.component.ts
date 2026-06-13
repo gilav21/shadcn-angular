@@ -166,7 +166,7 @@ export class DockDemoComponent {
         this.dockItems.set([...next.dockItems]);
         prev = next;
       }
-    }, { allowSignalWrites: true });
+    });
   }
 
   toggleDockItem(index: number) {

@@ -69,7 +69,7 @@ export class ChatDemoComponent {
         this.chatMessages.set([{ role: 'assistant', content: next.initialMessage }]);
         prev = next;
       }
-    }, { allowSignalWrites: true });
+    });
 
     this.destroyRef.onDestroy(() => {
       if (this.activeInterval) {
