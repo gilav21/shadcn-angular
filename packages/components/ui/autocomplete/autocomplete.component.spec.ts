@@ -157,6 +157,24 @@ describe('AutocompleteComponent', () => {
             expect(autocomplete.internalValue()).toEqual([fruits[0]]);
         });
 
+        it('lays the selected check at the row end via ms-auto, never absolutely over the label', () => {
+            autocomplete.onSelect(fruits[0]);
+            autocomplete.open.set(true);
+            fixture.detectChanges();
+
+            const items = fixture.debugElement.queryAll(By.css('ui-command-item'));
+            // Every option carries a check slot that flows to the row end
+            // (margin-inline-start:auto) rather than overlaying the label.
+            const checks = items.map((i) => i.nativeElement.querySelector('span.ms-auto'));
+            expect(checks.every(Boolean)).toBe(true);
+            // The old broken pattern positioned the check `absolute`, which — with no
+            // dir="ltr" ancestor — collapsed onto the text. Guard against its return.
+            expect(items[0].nativeElement.querySelector('span.absolute')).toBeNull();
+            // Only the selected option's check is visible.
+            expect(checks[0].classList.contains('opacity-100')).toBe(true);
+            expect(checks[1].classList.contains('opacity-100')).toBe(false);
+        });
+
         it('should close the popover after selection', () => {
             autocomplete.open.set(true);
             autocomplete.onSelect(fruits[0]);
