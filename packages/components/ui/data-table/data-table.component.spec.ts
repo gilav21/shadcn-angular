@@ -3049,6 +3049,23 @@ describe('DataTableComponent - Export & Clipboard', () => {
         expect(data.length).toBe(6);
     });
 
+    it('exports rows in the active sort order, not raw data order', () => {
+        // raw order by score: Alice 30, Bob 10, Charlie 50, David 20, Eve 40
+        component.onSortChange('score', 'asc');
+        fixture.detectChanges();
+        const names = component.getExportData({ includeHeaders: false }).map((r) => r[1]);
+        expect(names).toEqual(['Bob', 'David', 'Alice', 'Eve', 'Charlie']);
+    });
+
+    it('exports the filtered AND sorted view together', () => {
+        component.onFilterChange('e'); // Alice, Charlie, Eve (names containing "e")
+        component.onSortChange('score', 'desc');
+        fixture.detectChanges();
+        const names = component.getExportData({ includeHeaders: false }).map((r) => r[1]);
+        // filtered to e-names, then score desc: Charlie 50, Eve 40, Alice 30
+        expect(names).toEqual(['Charlie', 'Eve', 'Alice']);
+    });
+
     it('respects onlyVisible by dropping hidden columns', () => {
         component.setColumnVisibility('score', false);
         fixture.detectChanges();

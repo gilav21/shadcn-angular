@@ -2490,7 +2490,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         );
 
     const rows =
-      customRows ?? (onlyFiltered ? this.filteredData() : this.data());
+      customRows ?? (onlyFiltered ? this.sortedData() : this.data());
     const result: string[][] = [];
 
     if (includeHeaders) {
@@ -2508,7 +2508,9 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
     if (customData) return customData;
     const provider = this.exportDataProvider();
     if (provider) return provider();
-    return this.filteredData();
+    // Export what the user sees: filtered AND sorted (sortedData), all rows
+    // (not the current page). Server-side export defers ordering to the provider.
+    return this.sortedData();
   }
 
   async exportToCsv(filename?: string, customData?: T[]): Promise<void> {
@@ -2592,7 +2594,7 @@ export class DataTableComponent<T> implements AfterViewInit, OnDestroy {
         col.accessorKey !== "_actions",
     );
     const selectedIds = this.rowSelection();
-    const rows = this.filteredData().filter(
+    const rows = this.sortedData().filter(
       (row) => selectedIds[this.getRowId()(row)],
     );
     if (rows.length === 0) return;
