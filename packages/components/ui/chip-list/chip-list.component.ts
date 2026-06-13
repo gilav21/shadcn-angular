@@ -7,16 +7,16 @@ import {
   signal,
   forwardRef,
   viewChild,
-  ElementRef,
 } from '@angular/core';
 import { ControlValueAccessor, NG_VALUE_ACCESSOR, FormsModule } from '@angular/forms';
 import { cn } from '../../lib/utils';
 import { BadgeComponent, type BadgeVariant } from '../badge';
+import { InputComponent } from '../input';
 import { UI_INPUT_GROUP } from '../../lib/input-group.token';
 import { cva, type VariantProps } from 'class-variance-authority';
 
 const chipListVariants = cva(
-  'w-full flex-wrap flex items-center gap-1.5 p-1 transition-[color,box-shadow] outline-none min-h-9 has-[input:focus-visible]:ring-[3px]',
+  'w-full flex-wrap flex items-center gap-1.5 px-1 transition-[color,box-shadow] outline-none min-h-9 has-[input:focus-visible]:ring-[3px]',
   {
     variants: {
       variant: {
@@ -36,7 +36,7 @@ export type ChipListVariant = VariantProps<typeof chipListVariants>['variant'];
 @Component({
   selector: 'ui-chip-list',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [BadgeComponent, FormsModule],
+  imports: [BadgeComponent, InputComponent, FormsModule],
   providers: [
     {
       provide: NG_VALUE_ACCESSOR,
@@ -68,7 +68,7 @@ export class ChipListComponent implements ControlValueAccessor {
   chips = signal<string[]>([]);
   inputValue = signal('');
 
-  inputRef = viewChild.required<ElementRef<HTMLInputElement>>('inputRef');
+  inputComponent = viewChild.required(InputComponent);
 
   private onChange: (value: string[]) => void = () => { };
   private onTouched: () => void = () => { };
@@ -89,7 +89,7 @@ export class ChipListComponent implements ControlValueAccessor {
 
   focusInput(): void {
     if (this.disabled()) return;
-    this.inputRef().nativeElement.focus();
+    this.inputComponent().focus();
   }
 
   onInputChange(value: string): void {

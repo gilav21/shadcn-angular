@@ -679,7 +679,7 @@ export const registry = defineRegistry({
     tags: ['chip-list', 'chips', 'tags', 'tokens', 'multi-input'],
     files: ['chip-list/chip-list.component.html', 'chip-list/chip-list.component.ts', 'chip-list/index.ts'],
     libFiles: ['input-group.token.ts'],
-    dependencies: ['badge'],
+    dependencies: ['badge', 'input'],
   },
   'emoji-picker': {
     name: 'emoji-picker',

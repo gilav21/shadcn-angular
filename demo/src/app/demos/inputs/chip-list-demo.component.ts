@@ -29,7 +29,7 @@ import { CHIP_LIST_DEMO_LOCALES } from './chip-list-demo.locales';
 
           <div class="space-y-2">
             <ui-label>{{ t().labels.ghost }}</ui-label>
-            <div class="rounded-lg border p-1">
+            <div class="rounded-lg border">
               <ui-chip-list variant="ghost" />
             </div>
           </div>
