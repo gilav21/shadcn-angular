@@ -134,7 +134,7 @@ export class HoverCardContentComponent implements AfterViewInit {
         };
 
         return cn(
-            'absolute z-50 w-64 max-w-[calc(100vw-16px)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none',
+            'absolute z-50 w-64 max-w-[calc(100vw-16px)] rounded-md border bg-popover text-popover-foreground shadow-md outline-none',
             'animate-in fade-in-0 zoom-in-95',
             'data-[side=bottom]:slide-in-from-top-2 data-[side=top]:slide-in-from-bottom-2',
             sideClasses[pos.actualSide],

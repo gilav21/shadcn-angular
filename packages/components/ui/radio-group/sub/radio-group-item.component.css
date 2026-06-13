@@ -1,13 +1,14 @@
 :host {
     --_d: var(--density-radio, var(--density, 1));
 }
-
-[data-slot="radio-group-item"] {
-    height: calc(1rem * var(--_d));
-    width: calc(1rem * var(--_d));
-}
-
-[data-slot="radio-group-item"] span span {
-    height: calc(0.625rem * var(--_d));
-    width: calc(0.625rem * var(--_d));
+@layer components {
+    [data-slot="radio-group-item"] {
+        height: calc(1rem * var(--_d));
+        width: calc(1rem * var(--_d));
+    }
+    
+    [data-slot="radio-group-item"] span span {
+        height: calc(0.625rem * var(--_d));
+        width: calc(0.625rem * var(--_d));
+    }
 }

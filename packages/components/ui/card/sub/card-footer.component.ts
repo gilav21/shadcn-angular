@@ -20,6 +20,6 @@ export class CardFooterComponent {
     class = input('');
 
     readonly classes = computed(() =>
-        cn('flex items-center px-4 sm:px-6 [.border-t]:pt-6', this.class())
+        cn('flex items-center [.border-t]:pt-6', this.class())
     );
 }

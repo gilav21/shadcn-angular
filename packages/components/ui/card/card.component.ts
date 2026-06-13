@@ -19,14 +19,14 @@ import { SkeletonComponent } from '../skeleton';
         } @else {
             @if (title()) {
                 <!-- Simple mode: auto-generate card structure -->
-                <div class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start gap-1.5 px-6 has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6" data-slot="card-header">
+                <div class="@container/card-header grid auto-rows-min grid-rows-[auto_auto] items-start has-data-[slot=card-action]:grid-cols-[1fr_auto] [.border-b]:pb-6" data-slot="card-header">
                     <div class="leading-none font-semibold" data-slot="card-title">{{ title() }}</div>
                     @if (description()) {
                         <div class="text-muted-foreground text-sm" data-slot="card-description">{{ description() }}</div>
                     }
                 </div>
                 @if (content()) {
-                    <div class="px-6" data-slot="card-content">{{ content() }}</div>
+                    <div data-slot="card-content">{{ content() }}</div>
                 }
                 <ng-content />
             } @else {
@@ -57,7 +57,7 @@ export class CardComponent {
     readonly classes = computed(() => {
         if (this.skeleton()) return cn('block', this.class());
         return cn(
-            'bg-card text-card-foreground flex flex-col gap-4 sm:gap-6 rounded-xl border py-4 sm:py-6 shadow-sm',
+            'bg-card text-card-foreground flex flex-col rounded-xl border shadow-sm',
             this.loading() && 'relative overflow-hidden',
             this.class()
         );

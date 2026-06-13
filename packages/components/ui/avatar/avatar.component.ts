@@ -35,7 +35,7 @@ export class AvatarComponent {
     readonly classes = computed(() => {
         if (this.skeleton()) return cn('block shrink-0', this.class());
         return cn(
-            'relative flex h-10 w-10 shrink-0 overflow-hidden rounded-full',
+            'relative flex shrink-0 overflow-hidden rounded-full',
             this.class()
         );
     });

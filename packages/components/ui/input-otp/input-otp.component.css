@@ -1,8 +1,9 @@
 :host {
     --_d: var(--density-input, var(--density, 1));
 }
-
-[data-slot="input-otp-slot"] {
-    height: calc(2.5rem * var(--_d));
-    width: calc(2.5rem * var(--_d));
+@layer components {
+    [data-slot="input-otp-slot"] {
+        height: calc(2.5rem * var(--_d));
+        width: calc(2.5rem * var(--_d));
+    }
 }

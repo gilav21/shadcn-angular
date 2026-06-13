@@ -1,6 +1,8 @@
 :host {
     --_d: var(--density-accordion, var(--density, 1));
 }
-[data-slot="accordion-trigger"] {
-    padding-block: calc(1rem * var(--_d));
+@layer components {
+    [data-slot="accordion-trigger"] {
+        padding-block: calc(1rem * var(--_d));
+    }
 }

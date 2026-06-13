@@ -9,7 +9,7 @@ import {
     template: `<ng-content />`,
     styleUrl: './dialog-header.component.css',
     host: {
-        class: 'flex flex-col gap-1.5 text-center sm:text-left',
+        class: 'flex flex-col text-center sm:text-left',
         '[attr.data-slot]': '"dialog-header"',
     },
 })

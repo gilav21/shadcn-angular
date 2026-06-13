@@ -68,7 +68,7 @@ describe('NativeSelectComponent', () => {
         const selects = fixture.debugElement.queryAll(By.directive(NativeSelectComponent));
         const customSelect = selects[1].nativeElement.querySelector('select'); // The second one
 
-        expect(customSelect.classList.contains('py-1')).toBe(true); // size="sm" => py-1
+        expect(customSelect.getAttribute('data-size')).toBe('sm'); // size="sm" => data-size attribute drives the scoped density CSS
         expect(customSelect.classList.contains('border-destructive')).toBe(true); // invalid=true
         expect(customSelect.classList.contains('custom-class')).toBe(true);
     });

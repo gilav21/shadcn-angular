@@ -68,7 +68,7 @@ export class MenubarComponent {
   }
 
   classes = computed(() => cn(
-    'flex h-10 items-center gap-1 rounded-md border bg-background p-1',
+    'flex items-center rounded-md border bg-background',
     this.class()
   ));
 

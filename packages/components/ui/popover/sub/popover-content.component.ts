@@ -296,8 +296,8 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         };
         const isFixed = this.strategy() === 'fixed';
         return cn(
-            isFixed ? 'z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none' :
-            'absolute z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover p-4 text-popover-foreground shadow-md outline-none',
+            isFixed ? 'z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover text-popover-foreground shadow-md outline-none' :
+            'absolute z-50 w-72 max-w-[calc(100vw-16px)] rounded-md border bg-popover text-popover-foreground shadow-md outline-none',
             'animate-in fade-in-0 zoom-in-95',
             !isFixed && sideClasses[currentSide],
             !isFixed && (currentSide === 'top' || currentSide === 'bottom') ? alignClasses[currentAlign] : '',

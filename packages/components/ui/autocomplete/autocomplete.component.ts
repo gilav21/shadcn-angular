@@ -111,7 +111,7 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     isDisabled = computed(() => this.disabled() || this.formDisabled());
 
     containerClasses = computed(() => cn(
-        'flex min-h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background cursor-text',
+        'flex w-full items-center justify-between rounded-md border border-input bg-background text-sm ring-offset-background cursor-text',
         'focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2',
         this.isDisabled() ? 'cursor-not-allowed opacity-50' : '',
         this.class()

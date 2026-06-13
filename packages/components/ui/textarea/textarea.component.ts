@@ -13,11 +13,11 @@ import { cn } from '../../lib/utils';
 import { SkeletonComponent } from '../skeleton';
 
 const textareaVariants = cva(
-    'flex min-h-12 sm:min-h-[3.75rem] w-full border-input bg-transparent text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
+    'flex w-full border-input bg-transparent text-base placeholder:text-muted-foreground focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm',
     {
         variants: {
             variant: {
-                outline: 'rounded-md border px-3 py-2 shadow-sm focus-visible:ring-1 focus-visible:ring-ring',
+                outline: 'rounded-md border shadow-sm focus-visible:ring-1 focus-visible:ring-ring',
                 underline: 'rounded-none border-b focus-visible:border-ring px-0 shadow-none resize-none',
                 ghost: 'border-none shadow-none focus-visible:ring-0 resize-none px-0',
             },

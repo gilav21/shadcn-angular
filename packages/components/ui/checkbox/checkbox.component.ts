@@ -57,7 +57,7 @@ export class CheckboxComponent implements ControlValueAccessor {
 
   readonly classes = computed(() =>
     cn(
-      'h-4 w-4 shrink-0 rounded-sm border border-primary shadow outline-none peer-focus-visible:ring-1 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50 flex items-center justify-center',
+      'shrink-0 rounded-sm border border-primary shadow outline-none peer-focus-visible:ring-1 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50 flex items-center justify-center',
       this.checked() || this.indeterminate()
         ? 'bg-primary text-primary-foreground'
         : 'bg-background',

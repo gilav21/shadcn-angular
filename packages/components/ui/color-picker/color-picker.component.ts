@@ -254,7 +254,7 @@ export class ColorPickerComponent implements ControlValueAccessor {
 
     readonly triggerClasses = computed(() =>
         cn(
-            'flex h-10 w-full items-center gap-2 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background',
+            'flex w-full items-center rounded-md border border-input bg-background text-sm ring-offset-background',
             'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
             this.isDisabled() && 'cursor-not-allowed opacity-50',
             this.class(),

@@ -34,5 +34,5 @@ export class BreadcrumbEllipsisComponent {
   readonly locale = input<LocaleInput<BreadcrumbLocale>>();
   protected readonly t = createLocaleSelector(this.locale, BREADCRUMB_LOCALES);
 
-  readonly classes = computed(() => cn('flex h-9 w-9 items-center justify-center', this.class()));
+  readonly classes = computed(() => cn('flex items-center justify-center', this.class()));
 }

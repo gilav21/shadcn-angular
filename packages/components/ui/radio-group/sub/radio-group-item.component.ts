@@ -37,7 +37,7 @@ export class RadioGroupItemComponent {
 
   classes = computed(() =>
     cn(
-      'aspect-square h-4 w-4 rounded-full border border-primary text-primary shadow outline-none peer-focus-visible:ring-1 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50 flex items-center justify-center',
+      'aspect-square rounded-full border border-primary text-primary shadow outline-none peer-focus-visible:ring-1 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50 flex items-center justify-center',
       this.isSelected() ? 'border-primary' : 'bg-background',
       this.class()
     )

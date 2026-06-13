@@ -39,7 +39,7 @@ export class DropdownMenuItemComponent {
 
     classes = computed(() =>
         cn(
-            'relative flex cursor-pointer select-none items-center rounded-sm px-2 py-1.5 text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground',
+            'relative flex cursor-pointer select-none items-center rounded-sm text-sm outline-none transition-colors focus:bg-accent focus:text-accent-foreground hover:bg-accent hover:text-accent-foreground',
             this.disabled() && 'pointer-events-none opacity-50',
             this.inset() && 'ltr:pl-8 rtl:pr-8',
             this.class()

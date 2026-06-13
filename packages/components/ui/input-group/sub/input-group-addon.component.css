@@ -1,12 +1,14 @@
 :host {
     --_d: var(--density-input, var(--density, 1));
 }
-[data-slot="input-group-addon"] {
-    padding-block: calc(0.375rem * var(--_d));
-}
-[data-slot="input-group-addon"][data-align="inline-start"] {
-    padding-inline: calc(0.75rem * var(--_d)) calc(0.25rem * var(--_d));
-}
-[data-slot="input-group-addon"][data-align="inline-end"] {
-    padding-inline: calc(0.25rem * var(--_d)) calc(0.75rem * var(--_d));
+@layer components {
+    [data-slot="input-group-addon"] {
+        padding-block: calc(0.375rem * var(--_d));
+    }
+    [data-slot="input-group-addon"][data-align="inline-start"] {
+        padding-inline: calc(0.75rem * var(--_d)) calc(0.25rem * var(--_d));
+    }
+    [data-slot="input-group-addon"][data-align="inline-end"] {
+        padding-inline: calc(0.25rem * var(--_d)) calc(0.75rem * var(--_d));
+    }
 }

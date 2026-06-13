@@ -3,12 +3,13 @@
     --density-button: var(--_d);
     --density-select: var(--_d);
 }
-
-ui-select-trigger {
-    --ui-select-trigger-h: 1.75rem;
-}
-
-[data-slot="calendar-filler"] {
-    height: calc(2.25rem * var(--_d));
-    width: calc(2.25rem * var(--_d));
+@layer components {
+    ui-select-trigger {
+        --ui-select-trigger-h: 1.75rem;
+    }
+    
+    [data-slot="calendar-filler"] {
+        height: calc(2.25rem * var(--_d));
+        width: calc(2.25rem * var(--_d));
+    }
 }

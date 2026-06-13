@@ -1,13 +1,15 @@
 :host {
     --_d: var(--density-dialog, var(--density, 1));
 }
-[data-slot="dialog-content"] {
-    gap: calc(0.75rem * var(--_d));
-    padding: calc(1rem * var(--_d));
-}
-@media (min-width: 640px) {
+@layer components {
     [data-slot="dialog-content"] {
-        gap: calc(1rem * var(--_d));
-        padding: calc(1.5rem * var(--_d));
+        gap: calc(0.75rem * var(--_d));
+        padding: calc(1rem * var(--_d));
+    }
+    @media (min-width: 640px) {
+        [data-slot="dialog-content"] {
+            gap: calc(1rem * var(--_d));
+            padding: calc(1.5rem * var(--_d));
+        }
     }
 }

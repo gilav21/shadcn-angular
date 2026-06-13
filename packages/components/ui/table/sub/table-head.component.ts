@@ -22,7 +22,7 @@ export class TableHeadComponent {
     class = input('');
 
     classes = computed(() => cn(
-        'text-foreground h-10 px-2 ltr:text-left rtl:text-right font-medium flex-1 [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
+        'text-foreground ltr:text-left rtl:text-right font-medium flex-1 [&:has([role=checkbox])]:ltr:pr-0 [&:has([role=checkbox])]:rtl:pl-0 [&>[role=checkbox]]:translate-y-[2px]',
         this.class()
     ));
 }

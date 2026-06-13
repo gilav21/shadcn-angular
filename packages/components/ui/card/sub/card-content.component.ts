@@ -19,5 +19,5 @@ import { cn } from '../../../lib/utils';
 export class CardContentComponent {
     class = input('');
 
-    readonly classes = computed(() => cn('px-4 sm:px-6', this.class()));
+    readonly classes = computed(() => cn(this.class()));
 }

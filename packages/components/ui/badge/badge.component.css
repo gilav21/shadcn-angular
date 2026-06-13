@@ -1,7 +1,9 @@
 :host {
     --_d: var(--density-badge, var(--density, 1));
 }
-:host([data-slot="badge"]) {
-    padding-inline: calc(0.625rem * var(--_d));
-    padding-block: calc(0.125rem * var(--_d));
+@layer components {
+    :host([data-slot="badge"]) {
+        padding-inline: calc(0.625rem * var(--_d));
+        padding-block: calc(0.125rem * var(--_d));
+    }
 }

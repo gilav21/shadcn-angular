@@ -1,7 +1,8 @@
 :host {
     --_d: var(--density-menu, var(--density, 1));
 }
-
-[data-slot="navigation-menu-link"] {
-    padding: calc(0.75rem * var(--_d));
+@layer components {
+    [data-slot="navigation-menu-link"] {
+        padding: calc(0.75rem * var(--_d));
+    }
 }
