@@ -53,7 +53,7 @@ import { CONFETTI_DEMO_LOCALES } from './confetti-demo.locales';
         </div>
 
         <ui-button variant="secondary" class="w-[200px] p-0 " (click)="fireConfetti(confettiTrigger4)">
-          <div class="relative h-full w-full border flex items-center justify-center" uiConfetti
+          <div class="relative h-9 w-[200px] flex items-center justify-center rounded-lg" uiConfetti
             [manualTrigger]="confettiTrigger4()"
             [options]="{ variant: 'side-cannons', particleCount: 85, ticks: 500, startVelocity: 15, angle: 120, gravity: 0.02 }">
             {{ t().fillButton }}</div>
