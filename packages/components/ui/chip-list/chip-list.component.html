@@ -44,15 +44,15 @@
     </ui-badge>
   }
 
-  <ui-input
+  <input
     #inputRef
+    type="text"
     [placeholder]="chips().length === 0 ? placeholder() : ''"
     [disabled]="disabled()"
     [ngModel]="inputValue()"
     (ngModelChange)="onInputChange($event)"
     (keydown)="onKeyDown($event)"
     (blur)="onBlur()"
-    class="flex-1 min-w-[80px] bg-transparent border-none outline-none shadow-none focus-visible:ring-0 p-0 h-auto"
-    variant="ghost"
+    class="flex-1 min-w-[80px] border-0 bg-transparent p-0 text-sm outline-none placeholder:text-muted-foreground"
   />
 </fieldset>
