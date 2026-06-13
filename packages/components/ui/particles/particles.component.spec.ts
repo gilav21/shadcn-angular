@@ -1,8 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { Component, signal } from '@angular/core';
 import { By } from '@angular/platform-browser';
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, afterAll, vi } from 'vitest';
 import { ParticlesComponent } from './particles.component';
+
+// Capture the real getContext before mocking so it can be restored when this
+// file's tests finish — otherwise the stub leaks to other specs in the shared
+// browser worker (e.g. color-extract, which needs a real 2D context).
+const NATIVE_GET_CONTEXT = HTMLCanvasElement.prototype.getContext;
+afterAll(() => {
+    HTMLCanvasElement.prototype.getContext = NATIVE_GET_CONTEXT;
+});
 
 function setupCanvasMock(): void {
     const noopFn = () => {};
