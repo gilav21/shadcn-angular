@@ -22,6 +22,12 @@
         top: calc(2.375rem * var(--_d));
         transform: translateY(-50%);
     }
+    /* Underline/ghost inputs are flush (no inline padding), so the resting
+       label must start flush too — matching where their placeholder begins. */
+    [data-slot="input-floating"][data-variant="underline"] > label,
+    [data-slot="input-floating"][data-variant="ghost"] > label {
+        inset-inline-start: 0;
+    }
     [data-slot="input-floating"] > label[data-active] {
         inset-inline-start: 0;
         top: 0;

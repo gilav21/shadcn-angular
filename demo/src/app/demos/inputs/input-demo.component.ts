@@ -54,6 +54,8 @@ import { INPUT_DEMO_LOCALES } from './input-demo.locales';
           <ui-input [floating]="true" [label]="t().floatingLabel" elementId="floating-outline" />
           <ui-input [floating]="true" [label]="t().floatingLabel" variant="underline" elementId="floating-underline" />
           <ui-input [floating]="true" [label]="t().floatingLabel" variant="ghost" elementId="floating-ghost" />
+          <ui-input [floating]="true" [label]="t().floatingLabel" labelClass="text-base font-semibold text-foreground" elementId="floating-custom" />
+          <p class="text-xs text-muted-foreground">{{ t().floatingFontHint }}</p>
         </div>
 
         <ui-input [placeholder]="t().disabledPlaceholder" [disabled]="true" />

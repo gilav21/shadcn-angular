@@ -83,6 +83,9 @@ export class InputComponent implements ControlValueAccessor {
     readonly clearable = input(false);
     readonly floating = input(false);
     readonly label = input<string>();
+    /** Extra classes for the floating label, e.g. `text-base font-semibold
+     * text-foreground` — merged last so they override the defaults. */
+    readonly labelClass = input('');
     readonly prefix = input<string>();
     readonly suffix = input<string>();
 
@@ -138,7 +141,8 @@ export class InputComponent implements ControlValueAccessor {
 
     readonly floatingLabelClasses = computed(() => cn(
         'pointer-events-none absolute select-none text-muted-foreground transition-all duration-150',
-        this.labelIsActive() ? 'text-xs' : 'text-sm'
+        this.labelIsActive() ? 'text-xs' : 'text-sm',
+        this.labelClass()
     ));
 
     onValueChange(value: string): void {

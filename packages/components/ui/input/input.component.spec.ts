@@ -234,4 +234,19 @@ describe('InputComponent - floating label', () => {
             expect(fixture.debugElement.query(By.css('input[data-slot="input"]'))).toBeTruthy();
         }
     });
+
+    it('applies labelClass so the dev controls the floating-label font', () => {
+        fixture.componentRef.setInput('labelClass', 'text-base font-semibold');
+        fixture.detectChanges();
+        const label = fixture.debugElement.query(By.css('label')).nativeElement;
+        expect(label.className).toContain('text-base');
+        expect(label.className).toContain('font-semibold');
+    });
+
+    it('exposes the variant on the floating wrapper so the resting label can match the input padding', () => {
+        fixture.componentRef.setInput('variant', 'underline');
+        fixture.detectChanges();
+        const wrapper = fixture.debugElement.query(By.css('[data-slot="input-floating"]')).nativeElement;
+        expect(wrapper.getAttribute('data-variant')).toBe('underline');
+    });
 });

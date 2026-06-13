@@ -14,6 +14,7 @@ export interface InputDemoLocale extends LocaleMeta {
   underlinePlaceholder: string;
   floatingSectionLabel: string;
   floatingLabel: string;
+  floatingFontHint: string;
   disabledPlaceholder: string;
   groupUnderlineLabel: string;
   groupGhostLabel: string;
@@ -35,6 +36,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'Underline input',
     floatingSectionLabel: 'Floating Label',
     floatingLabel: 'Full name',
+    floatingFontHint: 'Custom label font via labelClass',
     disabledPlaceholder: 'Disabled input',
     groupUnderlineLabel: 'Input Group (Underline)',
     groupGhostLabel: 'Input Group (Ghost)',
@@ -54,6 +56,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'קלט עם קו תחתון',
     floatingSectionLabel: 'תווית צפה',
     floatingLabel: 'שם מלא',
+    floatingFontHint: 'גופן תווית מותאם דרך labelClass',
     disabledPlaceholder: 'שדה קלט מושבת',
     groupUnderlineLabel: 'קבוצת קלט (קו תחתון)',
     groupGhostLabel: 'קבוצת קלט (רוח)',
@@ -73,6 +76,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'إدخال بتسطير',
     floatingSectionLabel: 'تسمية عائمة',
     floatingLabel: 'الاسم الكامل',
+    floatingFontHint: 'خط تسمية مخصص عبر labelClass',
     disabledPlaceholder: 'حقل إدخال معطّل',
     groupUnderlineLabel: 'مجموعة إدخال (تسطير)',
     groupGhostLabel: 'مجموعة إدخال (شبح)',
@@ -92,6 +96,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'Eingabe mit Unterstrich',
     floatingSectionLabel: 'Schwebende Beschriftung',
     floatingLabel: 'Vollständiger Name',
+    floatingFontHint: 'Eigene Label-Schrift über labelClass',
     disabledPlaceholder: 'Deaktiviertes Eingabefeld',
     groupUnderlineLabel: 'Eingabegruppe (Unterstrich)',
     groupGhostLabel: 'Eingabegruppe (Ghost)',
@@ -111,6 +116,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'Saisie soulignée',
     floatingSectionLabel: 'Étiquette flottante',
     floatingLabel: 'Nom complet',
+    floatingFontHint: 'Police d’étiquette personnalisée via labelClass',
     disabledPlaceholder: 'Champ de saisie désactivé',
     groupUnderlineLabel: 'Groupe de saisie (souligné)',
     groupGhostLabel: 'Groupe de saisie (fantôme)',
@@ -130,6 +136,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'Entrada subrayada',
     floatingSectionLabel: 'Etiqueta flotante',
     floatingLabel: 'Nombre completo',
+    floatingFontHint: 'Fuente de etiqueta personalizada con labelClass',
     disabledPlaceholder: 'Campo de entrada deshabilitado',
     groupUnderlineLabel: 'Grupo de entrada (subrayado)',
     groupGhostLabel: 'Grupo de entrada (fantasma)',
@@ -149,6 +156,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'アンダーライン入力',
     floatingSectionLabel: 'フローティングラベル',
     floatingLabel: '氏名',
+    floatingFontHint: 'labelClass によるラベルフォントのカスタマイズ',
     disabledPlaceholder: '無効な入力フィールド',
     groupUnderlineLabel: '入力グループ（アンダーライン）',
     groupGhostLabel: '入力グループ（ゴースト）',
@@ -168,6 +176,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: '下划线输入',
     floatingSectionLabel: '浮动标签',
     floatingLabel: '全名',
+    floatingFontHint: '通过 labelClass 自定义标签字体',
     disabledPlaceholder: '已禁用输入框',
     groupUnderlineLabel: '输入组（下划线）',
     groupGhostLabel: '输入组（幽灵）',
@@ -187,6 +196,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'Поле с подчёркиванием',
     floatingSectionLabel: 'Плавающая метка',
     floatingLabel: 'Полное имя',
+    floatingFontHint: 'Свой шрифт метки через labelClass',
     disabledPlaceholder: 'Отключённое поле ввода',
     groupUnderlineLabel: 'Группа ввода (подчёркивание)',
     groupGhostLabel: 'Группа ввода (призрак)',
@@ -206,6 +216,7 @@ export const INPUT_DEMO_LOCALES: Record<string, InputDemoLocale> = {
     underlinePlaceholder: 'Entrada sublinhada',
     floatingSectionLabel: 'Rótulo flutuante',
     floatingLabel: 'Nome completo',
+    floatingFontHint: 'Fonte de rótulo personalizada via labelClass',
     disabledPlaceholder: 'Campo de entrada desabilitado',
     groupUnderlineLabel: 'Grupo de entrada (sublinhado)',
     groupGhostLabel: 'Grupo de entrada (fantasma)',

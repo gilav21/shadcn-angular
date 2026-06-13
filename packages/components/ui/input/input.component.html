@@ -1,7 +1,7 @@
 @if (skeleton()) {
   <ui-skeleton class="h-9 w-full rounded-md" />
 } @else if (isFloating()) {
-  <div class="relative" [attr.data-slot]="'input-floating'">
+  <div class="relative" [attr.data-slot]="'input-floating'" [attr.data-variant]="effectiveVariant()">
     <input
       [class]="classes()"
       [type]="type()"
