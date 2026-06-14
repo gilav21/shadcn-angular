@@ -974,7 +974,6 @@ function mapSymbolPua(unicode: string): string {
     const cp = unicode.codePointAt(0) ?? 0;
     if (cp >= 0xF000 && cp <= 0xF0FF) {
         const mapped: number | undefined = SYMBOL_PUA_MAP[cp];
-        // eslint-disable-next-line sonarjs/different-types-comparison -- Record index returns undefined for absent keys at runtime
         if (mapped !== undefined) return String.fromCodePoint(mapped);
         // Fallback: strip F0 prefix → U+00XX
         return String.fromCodePoint(cp & 0x00FF);
@@ -1739,7 +1738,7 @@ class TextLine {
         emitCtx: { mgr: AllStateManager; hEps: number; spaceThreshold: number; z: number },
     ): void {
         const { ts, installed, textIdx2 } = stateInfo;
-        while (true) {
+        for (;;) {
             const hasOffset = ctx.curOffsetIdx < this.offsets.length &&
                 this.offsets[ctx.curOffsetIdx].startIdx <= ctx.curTextIdx;
             if (hasOffset) {

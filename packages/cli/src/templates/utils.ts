@@ -1,5 +1,4 @@
-export function getUtilsTemplate(): string {
-  return `import { clsx, type ClassValue } from 'clsx';
+const UTILS_TEMPLATE = `import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 /**
@@ -68,4 +67,7 @@ export function prefersReducedMotion(): boolean {
     return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 }
 `;
+
+export function getUtilsTemplate(): string {
+  return UTILS_TEMPLATE;
 }

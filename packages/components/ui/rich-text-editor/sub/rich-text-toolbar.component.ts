@@ -1,6 +1,3 @@
-/* eslint-disable sonarjs/no-angular-bypass-sanitization -- bypasses only for
-   trusted static toolbar SVG icons (and developer-supplied custom icons via the
-   public API), never untrusted end-user input. */
 import {
   Component,
   ChangeDetectionStrategy,

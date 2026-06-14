@@ -170,7 +170,7 @@ function buildDynamicTables(reader: BitReader): { litTable: HuffmanTable; distTa
 }
 
 function inflateCompressedBlock(reader: BitReader, output: number[], litTable: HuffmanTable, distTable: HuffmanTable): void {
-    while (true) {
+    for (;;) {
         const sym = decodeSymbol(reader, litTable);
         if (sym === 256) break;
         if (sym < 256) {

@@ -545,7 +545,6 @@ export class SortableComponent<T> {
     }
 
     /** Evaluate the accepts predicate for a foreign item drop. Disabled lists always reject. */
-    // eslint-disable-next-line sonarjs/function-return-type -- AcceptResult is intentionally `boolean | { ok; reason }`; the bare boolean is the documented shorthand.
     evaluateAccepts(item: T, ctx: ForeignDropContext): AcceptResult {
         if (this.disabled()) return { ok: false, reason: 'disabled' };
         const acceptsInput = this.accepts();
@@ -578,7 +577,6 @@ export class SortableComponent<T> {
             const el = this.collectItemElements()[toIndex];
             if (!el) return;
             const builtIn: BuiltInLandEffect | undefined = BUILT_IN_LAND_EFFECTS[cls];
-            // eslint-disable-next-line sonarjs/different-types-comparison -- Record index returns undefined for absent keys at runtime
             if (builtIn === undefined) {
                 el.classList.add(cls);
                 setTimeout(() => el.classList.remove(cls), SortableComponent.LAND_EFFECT_MS);

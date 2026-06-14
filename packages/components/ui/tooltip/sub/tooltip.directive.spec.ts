@@ -288,10 +288,14 @@ describe('TooltipDirective — touch device', () => {
         expect(() => buttonEl().dispatchEvent(new Event('mouseleave', { bubbles: true }))).not.toThrow();
     });
 
-    it('shows the tooltip immediately on touchstart and prevents default', () => {
-        const event = fireTouchStart();
-        expect(event.defaultPrevented).toBe(true);
+    it('shows the tooltip immediately on touchstart', () => {
+        fireTouchStart();
         expect(tooltipNode()).toBeTruthy();
+    });
+
+    it('does not preventDefault on touchstart, so the host click still fires', () => {
+        const event = fireTouchStart();
+        expect(event.defaultPrevented).toBe(false);
     });
 
     it('toggles the tooltip off on a second touchstart', () => {

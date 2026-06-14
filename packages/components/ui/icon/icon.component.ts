@@ -1271,7 +1271,6 @@ export class IconComponent {
     readonly svgContent = computed(() => {
         const iconName = this.name();
         const rawHtml = this.mergedIcons[iconName] ?? '';
-        // eslint-disable-next-line sonarjs/no-angular-bypass-sanitization -- rawHtml comes exclusively from DEFAULT_ICONS (hardcoded SVG paths) or consumer-provided icons via provideIcons(), never from user input
         return this.sanitizer.bypassSecurityTrustHtml(rawHtml);
     });
 

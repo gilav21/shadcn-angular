@@ -123,6 +123,58 @@ export default tseslint.config(
     },
   },
 
+  // --- Accepted sonarjs findings on shipped source (file-scoped) ---
+  // These suppressions used to live as inline `// eslint-disable sonarjs/*`
+  // comments in the source, but that shipped the disables into consumers'
+  // projects (where sonarjs isn't installed), surfacing as lint errors. They
+  // are kept here, out of the shipped files, with the original rationale.
+  {
+    // typeof null === 'object' / Record index returns undefined / CVA writes
+    // undefined on reset — the runtime-vs-type mismatch checks are intentional
+    // defensive guards and DOM-identity sentinels.
+    files: [
+      'packages/components/ui/autocomplete/autocomplete.component.ts',
+      'packages/components/ui/calendar/calendar.component.ts',
+      'packages/components/ui/radio-group/radio-group.component.ts',
+      'packages/components/ui/rich-text-editor/rich-text-editor.component.ts',
+      'packages/components/ui/slider/slider.component.ts',
+      'packages/components/ui/sortable/sortable.component.ts',
+      'packages/components/lib/parsers/pdf-pixel-perfect.ts',
+    ],
+    rules: {
+      'sonarjs/different-types-comparison': 'off',
+    },
+  },
+  {
+    // The syntax-highlighter keyword lists are intrinsically long regexes.
+    files: ['packages/components/ui/code-block/code-block.component.ts'],
+    rules: {
+      'sonarjs/regex-complexity': 'off',
+    },
+  },
+  {
+    // bypassSecurityTrust* is only ever called on trusted internally-produced
+    // content (blob: URLs, our own parser HTML, static SVG icon constants),
+    // never on raw user input.
+    files: [
+      'packages/components/ui/file-viewer/file-viewer.component.ts',
+      'packages/components/ui/icon/icon.component.ts',
+      'packages/components/ui/rich-text-editor/sub/rich-text-image-resizer.component.ts',
+      'packages/components/ui/rich-text-editor/sub/rich-text-toolbar.component.ts',
+    ],
+    rules: {
+      'sonarjs/no-angular-bypass-sanitization': 'off',
+    },
+  },
+  {
+    // AcceptResult is intentionally `boolean | { ok; reason }`; the bare boolean
+    // is the documented shorthand.
+    files: ['packages/components/ui/sortable/sortable.component.ts'],
+    rules: {
+      'sonarjs/function-return-type': 'off',
+    },
+  },
+
   // --- Test / story / demo scaffolding: relax non-shipped-code rules ---
   {
     files: [

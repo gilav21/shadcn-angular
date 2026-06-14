@@ -333,7 +333,6 @@ export class AutocompleteComponent<T = unknown> implements ControlValueAccessor 
     }
 
     writeValue(value: AutocompleteValue<T>): void {
-        // eslint-disable-next-line sonarjs/different-types-comparison -- Angular CVA calls writeValue(undefined) on form reset even though AutocompleteValue<T> excludes undefined
         if (value === null || value === undefined) {
             this.internalValue.set([]);
         } else if (Array.isArray(value)) {
