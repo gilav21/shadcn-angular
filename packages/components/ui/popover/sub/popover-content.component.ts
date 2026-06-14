@@ -53,7 +53,16 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     @ViewChild('contentEl') contentEl?: ElementRef<HTMLElement>;
 
     private portalHost: HTMLElement | null = null;
+    private usedPopoverApi = false;
     public readonly portalReady = signal(false);
+
+    /**
+     * Trigger geometry captured on a settled frame. `positionStyles` reads this
+     * signal so it recomputes once the surrounding layout (e.g. a dialog that is
+     * still reflowing when the popover opens) has stabilised — reading the rect
+     * imperatively would memoise a stale position.
+     */
+    private readonly triggerRectSig = signal<DOMRect | null>(null);
 
     private readonly adjustedPosition = signal<{
         side: PopoverSide;
@@ -67,6 +76,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
             if (this.popover?.open()) {
                 if (this.strategy() === 'fixed') {
                     this.portalReady.set(false);
+                    this.usedPopoverApi = false;
                 }
                 this.adjustedPosition.set({
                     side: this.side(),
@@ -77,33 +87,97 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
                 requestAnimationFrame(() => this.portalAndPosition(0));
             } else {
                 this.portalReady.set(false);
-                this.removePortal();
+                this.removeContent();
             }
         });
     }
 
     ngAfterViewInit(): void {
-        const portaled = this.portalToBody();
-        this.calculatePosition();
-        if (portaled) {
-            this.portalReady.set(true);
+        const placed = this.placeContent();
+        if (this.strategy() === 'fixed') {
+            if (placed) this.finalizeFixedPosition();
+            return;
         }
+        this.calculatePosition();
     }
 
     private portalAndPosition(attempt: number): void {
         if (!this.popover?.open()) return;
-        const portaled = this.portalToBody();
-        if (!portaled && this.strategy() === 'fixed' && attempt < 10) {
+        const placed = this.placeContent();
+        if (!placed && this.strategy() === 'fixed' && attempt < 10) {
             requestAnimationFrame(() => this.portalAndPosition(attempt + 1));
             return;
         }
-        this.calculatePosition();
-        if (this.strategy() !== 'fixed' || portaled) {
-            this.portalReady.set(true);
+        if (this.strategy() === 'fixed') {
+            if (placed) this.finalizeFixedPosition();
+            return;
         }
+        this.calculatePosition();
+        this.portalReady.set(true);
+    }
+
+    /**
+     * Position a fixed/top-layer popover once layout has settled. The trigger
+     * rect is captured into a signal (so `positionStyles` recomputes with the
+     * final geometry) across two frames — covering a dialog or toolbar that is
+     * still reflowing when the popover opens — then a width-aware collision
+     * adjustment runs and the content is revealed.
+     */
+    private finalizeFixedPosition(): void {
+        if (!this.popover?.open()) return;
+        this.triggerRectSig.set(this.popover.getTriggerRect());
+        requestAnimationFrame(() => {
+            if (!this.popover?.open()) return;
+            this.triggerRectSig.set(this.popover.getTriggerRect());
+            const el = this.contentEl?.nativeElement;
+            if (el) this.adjustFixedPosition(el);
+            this.portalReady.set(true);
+        });
     }
 
     ngOnDestroy(): void {
+        this.removeContent();
+    }
+
+    /**
+     * Place a fixed popover so it renders above any modal. Prefers the native
+     * Popover API, which promotes the element to the browser top layer — above a
+     * native `<dialog>`, our `ui-dialog`, or a high z-index modal — regardless of
+     * ancestor stacking contexts, while keeping the element in its DOM position
+     * (so outside-click detection still works). Top-layer elements also resolve
+     * `position:fixed` against the viewport, so the trigger-relative coordinates
+     * stay correct even inside transformed/overflow ancestors. `showPopover`
+     * throws on engines without the Popover API, so we fall back to a
+     * `document.body` portal there.
+     */
+    private placeContent(): boolean {
+        if (this.strategy() !== 'fixed') return false;
+        const el = this.contentEl?.nativeElement;
+        if (!el) return false;
+        if (this.usedPopoverApi) return true;
+        try {
+            el.setAttribute('popover', 'manual');
+            el.showPopover();
+            this.usedPopoverApi = true;
+            return true;
+        } catch {
+            // No Popover API (or the element is not connected) — use the portal.
+            el.removeAttribute('popover');
+        }
+        return this.portalToBody();
+    }
+
+    private removeContent(): void {
+        const el = this.contentEl?.nativeElement;
+        if (this.usedPopoverApi && el) {
+            try {
+                el.hidePopover();
+            } catch {
+                // The element may already be disconnected from the DOM — nothing to hide.
+            }
+            el.removeAttribute('popover');
+        }
+        this.usedPopoverApi = false;
         this.removePortal();
     }
 
@@ -251,7 +325,7 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
     });
 
     private computeFixedStyles(pos: { side: PopoverSide; align: PopoverAlign; offsetX: number; offsetY: number }): string {
-        const triggerRect = this.popover?.getTriggerRect();
+        const triggerRect = this.triggerRectSig() ?? this.popover?.getTriggerRect();
         if (!triggerRect) return '';
 
         const currentSide = this.avoidCollisions() ? pos.side : this.side();
@@ -263,7 +337,10 @@ export class PopoverContentComponent implements AfterViewInit, OnDestroy {
         left = Math.max(8, Math.min(left, globalThis.window.innerWidth - 8));
         const clampedTop = Math.max(8, Math.min(top, globalThis.window.innerHeight - 8));
 
-        let styles = `position:fixed;top:${clampedTop}px;left:${left}px;`;
+        // `inset:auto;margin:0;overflow:visible` neutralize the UA `[popover]`
+        // defaults (centered via inset:0 + margin:auto, overflow:auto) so our
+        // own fixed coordinates and layout apply when promoted to the top layer.
+        let styles = `position:fixed;inset:auto;margin:0;overflow:visible;top:${clampedTop}px;left:${left}px;`;
         if (currentAlign === 'center') {
             styles += 'transform:translateX(-50%);';
         } else if (currentAlign === 'end') {
